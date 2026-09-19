@@ -215,6 +215,10 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
           setSbAccount(null);
           setSbPw('');
           setSbState('off');
+          // Actually leave the app: clearing the session alone would strand
+          // the user on the dashboard while signed out.
+          onUpdate({ email: '' });
+          onLoggedOut();
         },
       },
     ]);

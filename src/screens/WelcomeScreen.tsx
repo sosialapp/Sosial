@@ -36,9 +36,12 @@ export interface WelcomeProfile {
 export default function WelcomeScreen({
   onDone,
   onSkip,
+  allowSkip = true,
 }: {
   onDone: (profile: WelcomeProfile) => void;
   onSkip: () => void;
+  /** False after an explicit sign-out: the user must sign back in. */
+  allowSkip?: boolean;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -150,7 +153,9 @@ export default function WelcomeScreen({
                 Backend not configured — add the Supabase keys to .env and restart Expo to enable
                 accounts.
               </Text>
-              <GhostBtn label="Explore without an account" onPress={onSkip} />
+              {allowSkip ? (
+                <GhostBtn label="Explore without an account" onPress={onSkip} />
+              ) : null}
             </>
           ) : (
             <>
@@ -216,9 +221,11 @@ export default function WelcomeScreen({
                 }}
               />
               <Text style={s.fine}>One account per email. Your workspace syncs across devices.</Text>
-              <TouchableOpacity onPress={onSkip} activeOpacity={0.7} style={s.skipHit}>
-                <Text style={s.skip}>Explore without an account</Text>
-              </TouchableOpacity>
+              {allowSkip ? (
+                <TouchableOpacity onPress={onSkip} activeOpacity={0.7} style={s.skipHit}>
+                  <Text style={s.skip}>Explore without an account</Text>
+                </TouchableOpacity>
+              ) : null}
             </>
           )}
         </View>

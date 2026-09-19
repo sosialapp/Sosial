@@ -50,6 +50,8 @@ function Shell() {
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
   const [welcomeReady, setWelcomeReady] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  // True after an explicit sign-out: welcome returns without the skip escape.
+  const [welcomeLocked, setWelcomeLocked] = useState(false);
   const { loadPost, clearPost, setPageIndex } = usePost();
   const fontsLoaded = useFontsLoaded();
   const routeRef = React.useRef(route);
@@ -121,7 +123,14 @@ function Shell() {
       notifWeekly: profile.notifWeekly,
     });
     await dismissWelcome();
+    setWelcomeLocked(false);
     setRoute('create');
+  };
+
+  // Any sign-out lands back on welcome with no skip: signed out means out.
+  const goWelcomeLocked = () => {
+    setWelcomeLocked(true);
+    setShowWelcome(true);
   };
 
   const goConnect = (from: Route) => {
@@ -228,7 +237,7 @@ function Shell() {
         text: 'Logout',
         onPress: async () => {
           await patchAccount({ email: '' });
-          setRoute('create');
+          goWelcomeLocked();
         },
       },
     ]);
@@ -247,7 +256,11 @@ function Shell() {
       <View style={{ flex: 1 }}>
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: C.bone }}>
           <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-          <WelcomeScreen onDone={(p) => { void enterFromWelcome(p); }} onSkip={() => { void dismissWelcome(); }} />
+          <WelcomeScreen
+            onDone={(p) => { void enterFromWelcome(p); }}
+            onSkip={() => { void dismissWelcome(); }}
+            allowSkip={!welcomeLocked}
+          />
         </SafeAreaView>
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <Grain />
@@ -298,7 +311,7 @@ function Shell() {
               onBack={() => setRoute('create')}
               onConnect={() => goConnect('account')}
               onPrivacy={() => { setPrivacyFrom('account'); setRoute('privacy'); }}
-              onLoggedOut={() => setRoute('create')}
+              onLoggedOut={goWelcomeLocked}
             />
           ) : null}
           {route === 'privacy' ? <PrivacyScreen onBack={() => setRoute(privacyFrom)} /> : null}
