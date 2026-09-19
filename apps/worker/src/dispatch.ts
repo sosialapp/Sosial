@@ -5,7 +5,7 @@
  * job to backoff/dead-letter via complete_job — never a silent success.
  */
 import type { Job } from './db';
-import { getPublishBundle, markTargetSent, markTargetFailed } from './db';
+import { getPublishBundle, markTargetSent, markTargetFailed, getInvite, resendInviteEmail } from './db';
 import { publishBlueskyTarget, blueskyPostUrl } from './bsky';
 import { publishThreadsTarget } from './threads';
 import { publishXTarget } from './x';
@@ -126,8 +126,26 @@ async function handleCleanupMedia(job: Job): Promise<void> {
 }
 
 async function handleSendInvite(job: Job): Promise<void> {
-  info(`send_invite ${job.payload?.invite_id} (job ${job.id})`);
-  throw notPorted('send_invite');
+  const inviteId = String(job.payload?.invite_id ?? '');
+  if (!inviteId) throw new Error(`job ${job.id}: missing invite_id`);
+  const inv = await getInvite(inviteId);
+  // Terminal states complete the job: deleted, accepted, or expired invites
+  // need no email. Anything live gets a real re-send (GoTrue invite is
+  // idempotent per email), so Edge-side mail failures heal here.
+  if (!inv) {
+    info(`invite ${inviteId} gone — nothing to do`);
+    return;
+  }
+  if (inv.accepted_at) {
+    info(`invite ${inviteId} already accepted`);
+    return;
+  }
+  if (Date.now() > new Date(inv.expires_at).getTime()) {
+    info(`invite ${inviteId} expired`);
+    return;
+  }
+  await resendInviteEmail(inv);
+  info(`invite ${inviteId} resent to ${inv.email}`);
 }
 
 export async function dispatch(job: Job): Promise<void> {

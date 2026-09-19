@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { callbackUrl } from '@/lib/auth';
+import { callbackUrl, safeNextPath } from '@/lib/auth';
 
 function friendly(e: unknown): string {
   const m = String((e as { message?: string })?.message ?? e ?? '');
@@ -14,8 +14,16 @@ function friendly(e: unknown): string {
   return m || 'Something went wrong.';
 }
 
-export default function LoginForm({ externalError }: { externalError?: string | null }) {
+export default function LoginForm({
+  externalError,
+  next,
+}: {
+  externalError?: string | null;
+  /** Post-login destination (e.g. an invite link) — same-origin paths only. */
+  next?: string | null;
+}) {
   const router = useRouter();
+  const target = safeNextPath(next);
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +49,7 @@ export default function LoginForm({ externalError }: { externalError?: string | 
         const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       }
-      router.replace('/calendar');
+      router.replace(target);
       router.refresh();
     } catch (e) {
       setErr(friendly(e));
@@ -55,9 +63,12 @@ export default function LoginForm({ externalError }: { externalError?: string | 
     setErr(null);
     try {
       const sb = createClient();
+      const redirectTo = callbackUrl(window.location.origin);
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: callbackUrl(window.location.origin) },
+        options: {
+          redirectTo: target === '/calendar' ? redirectTo : `${redirectTo}?next=${encodeURIComponent(target)}`,
+        },
       });
       if (error) throw error;
     } catch (e) {

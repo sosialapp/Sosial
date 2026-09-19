@@ -3,7 +3,7 @@
  * No pg driver — SKIP LOCKED lives inside the claim_job RPC, so this stays
  * a plain Node fetch client that Railway can run anywhere.
  */
-import { required } from './env';
+import { required, env } from './env';
 
 export interface Job {
   id: number;
@@ -64,6 +64,62 @@ export function updateSecret(secretId: string, secret: string): Promise<void> {
 /** Fetch the publish bundle for one target — null when unknown. */
 export function getPublishBundle(targetId: string): Promise<any | null> {
   return callRpc<any | null>('get_publish_bundle', { target_id: targetId });
+}
+
+/* ------------------------------ send_invite ------------------------------ */
+
+export interface InviteRow {
+  id: string;
+  email: string;
+  token: string;
+  expires_at: string;
+  accepted_at: string | null;
+}
+
+/** Raw REST helper (service_role bypasses RLS — callers own authorization). */
+async function rest<T>(path: string, init?: any): Promise<T> {
+  const r = await fetch(`${base}${path}`, {
+    ...(init ?? {}),
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      ...((init as any)?.headers ?? {}),
+    },
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => '');
+    throw new Error(`rest ${path} failed (${r.status}): ${t.slice(0, 200)}`);
+  }
+  return (await r.json().catch(() => null)) as T;
+}
+
+/** Invite row for the retry loop — null when deleted. */
+export async function getInvite(inviteId: string): Promise<InviteRow | null> {
+  const rows = await rest<InviteRow[]>(
+    `/rest/v1/invites?id=eq.${encodeURIComponent(inviteId)}&select=id,email,token,expires_at,accepted_at`,
+  );
+  return rows?.[0] ?? null;
+}
+
+function siteUrl(): string {
+  return env('WORKER_SITE_URL', 'https://sosial.app').replace(/\/+$/, '');
+}
+
+/** Re-send an invite email (GoTrue admin invite is idempotent per email). */
+export async function resendInviteEmail(invite: InviteRow): Promise<void> {
+  await rest<unknown>('/auth/v1/admin/invite', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: invite.email,
+      data: { invite_id: invite.id },
+      redirect_to: `${siteUrl()}/invite/${invite.token}`,
+    }),
+  });
+  await rest<unknown>(`/rest/v1/invites?id=eq.${encodeURIComponent(invite.id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ emailed_at: new Date().toISOString() }),
+  });
 }
 
 /** Terminal states on post_targets (cron only enqueues 'queued'). */
