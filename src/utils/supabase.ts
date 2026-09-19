@@ -219,10 +219,10 @@ export async function pushProfileToCloud(patch: {
 /* ---------------- Google (Supabase Auth provider) ---------------- */
 
 /**
- * Deep-link target for OAuth return (`sosial://…` standalone, `exp://…` in
- * Expo Go). Kept for future OAuth providers; Google uses the Expo proxy flow
- * in AccountScreen instead, so Expo Go works on any network with no
- * allowlist chasing.
+ * Deep-link target for OAuth return (`sosial://…` in dev/standalone builds,
+ * `exp://…` in Expo Go). Google sign-in uses this as its redirectTo and only
+ * completes where the scheme returns to the app (dev/standalone) — Expo Go
+ * is gated in the UI because Google web clients reject non-https returns.
  */
 export function oauthRedirect(): string {
   return Linking.createURL('auth/callback');

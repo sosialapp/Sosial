@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { callbackUrl } from '@/lib/auth';
 
 function friendly(e: unknown): string {
   const m = String((e as { message?: string })?.message ?? e ?? '');
@@ -13,7 +14,7 @@ function friendly(e: unknown): string {
   return m || 'Something went wrong.';
 }
 
-export default function LoginForm() {
+export default function LoginForm({ externalError }: { externalError?: string | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
@@ -56,7 +57,7 @@ export default function LoginForm() {
       const sb = createClient();
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: callbackUrl(window.location.origin) },
       });
       if (error) throw error;
     } catch (e) {
@@ -113,7 +114,9 @@ export default function LoginForm() {
           Continue with Google
         </button>
 
-        {err && <p className="mt-4 text-sm text-[#9F2F2D]">{err}</p>}
+        {(err || externalError) && (
+          <p className="mt-4 text-sm text-[#9F2F2D]">{err ?? externalError}</p>
+        )}
         {note && <p className="mt-4 text-sm text-[#346538]">{note}</p>}
 
         <p className="mt-4 text-center text-xs text-muted">

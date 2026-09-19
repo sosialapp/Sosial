@@ -29,6 +29,11 @@ Auth → URL Configuration, add:
 - `http://localhost:3000/auth/callback`
 - `https://sosial.app/auth/callback` (production)
 
+Google button also needs the provider enabled once per project
+(Auth → Providers → Google → Client ID + Secret), plus `sosial://auth/callback`
+in the same allowlist for mobile dev builds. Until then, email sign-in works
+and Google fails loudly at the provider step.
+
 ## What v1 does
 
 - **Email/password + Google sign-in** on the shared Supabase project. The

@@ -1,11 +1,17 @@
 import LoginForm from '@/components/LoginForm';
+import { oauthErrorMessage } from '@/lib/auth';
 import { hasSupabaseEnv } from '@/lib/supabase/server';
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       {hasSupabaseEnv() ? (
-        <LoginForm />
+        <LoginForm externalError={oauthErrorMessage(error)} />
       ) : (
         <div className="card max-w-md p-6">
           <p className="eyebrow mb-3">Setup needed</p>
