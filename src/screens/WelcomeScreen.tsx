@@ -1,0 +1,290 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import Constants from 'expo-constants';
+import { useTheme, T, R, Palette } from '../theme';
+import { PrimaryBtn, GhostBtn, Txt } from '../components/ui';
+import {
+  isSupabaseConfigured,
+  signInEmail,
+  signUpEmail,
+  signInWithGoogle,
+  pullProfileFromCloud,
+} from '../utils/supabase';
+
+export interface WelcomeProfile {
+  email: string;
+  team: string;
+  notifPosts: boolean;
+  notifComments: boolean;
+  notifWeekly: boolean;
+}
+
+/**
+ * First-run landing: brand moment plus sign in / create account.
+ * Successful auth pulls the cloud profile (cloud wins) and hands it up
+ * so Shell can mirror AccountScreen's post-login state.
+ */
+export default function WelcomeScreen({
+  onDone,
+  onSkip,
+}: {
+  onDone: (profile: WelcomeProfile) => void;
+  onSkip: () => void;
+}) {
+  const { C } = useTheme();
+  const s = makeS(C);
+  const configured = isSupabaseConfigured();
+  const [mode, setMode] = useState<'in' | 'up'>('up');
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const finish = async (fallbackEmail: string) => {
+    let profile: WelcomeProfile = {
+      email: fallbackEmail.trim(),
+      team: 'My team',
+      notifPosts: true,
+      notifComments: true,
+      notifWeekly: false,
+    };
+    try {
+      const prof = await pullProfileFromCloud();
+      if (prof) {
+        profile = {
+          email: prof.email,
+          team: prof.team,
+          notifPosts: prof.notifPosts,
+          notifComments: prof.notifComments,
+          notifWeekly: prof.notifWeekly,
+        };
+      }
+    } catch {}
+    onDone(profile);
+  };
+
+  const doSubmit = async () => {
+    if (!email.trim() || pw.length < 6) {
+      setErr('Enter an email and a password (min 6 characters).');
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    setNotice(null);
+    try {
+      if (mode === 'up') {
+        const r = await signUpEmail(email, pw);
+        if (r.needsConfirm) {
+          setNotice('Account created — check your inbox for the confirmation link, then sign in.');
+          setPw('');
+          setMode('in');
+          return;
+        }
+      } else {
+        await signInEmail(email, pw);
+      }
+      setPw('');
+      await finish(email);
+    } catch (e: any) {
+      setErr(e?.message ?? (mode === 'up' ? 'Sign-up failed.' : 'Sign-in failed.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doGoogle = async () => {
+    // Same platform limit as AccountScreen: Expo Go cannot receive the
+    // https OAuth return; dev builds use the sosial:// scheme and work.
+    if (Constants.appOwnership === 'expo') {
+      Alert.alert(
+        'Needs a development build',
+        'Google sign-in can’t return to Expo Go. Use email + password here — Google lights up automatically in dev builds.',
+      );
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    setNotice(null);
+    try {
+      await signInWithGoogle();
+      setPw('');
+      await finish(email);
+    } catch (e: any) {
+      setErr(e?.message ?? 'Google sign-in failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, backgroundColor: C.bone }}
+    >
+      <ScrollView
+        contentContainerStyle={s.wrap}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={s.mark}>
+          <Text style={s.markT}>S</Text>
+        </View>
+        <Text style={s.title}>Sosial</Text>
+        <Text style={s.sub}>Every channel. One calendar.</Text>
+        <Text style={s.strip}>Compose · Schedule · Published</Text>
+
+        <View style={s.card}>
+          {!configured ? (
+            <>
+              <Text style={s.note}>
+                Backend not configured — add the Supabase keys to .env and restart Expo to enable
+                accounts.
+              </Text>
+              <GhostBtn label="Explore without an account" onPress={onSkip} />
+            </>
+          ) : (
+            <>
+              <View style={s.seg}>
+                {(['up', 'in'] as const).map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    onPress={() => {
+                      setMode(m);
+                      setErr(null);
+                      setNotice(null);
+                    }}
+                    style={[s.segBtn, mode === m && s.segBtnOn]}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[s.segT, mode === m && s.segTOn]}>
+                      {m === 'up' ? 'Create account' : 'Sign in'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Txt
+                value={email}
+                onChangeText={(v) => {
+                  setEmail(v);
+                  setErr(null);
+                }}
+                placeholder="Email"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                returnKeyType="next"
+              />
+              <Txt
+                value={pw}
+                onChangeText={(v) => {
+                  setPw(v);
+                  setErr(null);
+                }}
+                placeholder="Password (min 6 chars)"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (!busy) void doSubmit();
+                }}
+              />
+              {err ? <Text style={s.err}>{err}</Text> : null}
+              {notice ? <Text style={s.note}>{notice}</Text> : null}
+              <PrimaryBtn
+                label={mode === 'up' ? 'Create account' : 'Sign in'}
+                loading={busy}
+                loadingLabel="Working…"
+                onPress={() => {
+                  if (!busy) void doSubmit();
+                }}
+              />
+              <GhostBtn
+                label="Continue with Google"
+                onPress={() => {
+                  if (!busy) void doGoogle();
+                }}
+              />
+              <Text style={s.fine}>One account per email. Your workspace syncs across devices.</Text>
+              <TouchableOpacity onPress={onSkip} activeOpacity={0.7} style={s.skipHit}>
+                <Text style={s.skip}>Explore without an account</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const makeS = (C: Palette) =>
+  StyleSheet.create({
+    wrap: {
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+      paddingVertical: 40,
+      gap: 6,
+    },
+    mark: {
+      width: 68,
+      height: 68,
+      borderRadius: 20,
+      backgroundColor: C.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    markT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 34, color: '#FFFFFF' },
+    title: { ...(T.display as object), color: C.ink } as any,
+    sub: { ...(T.body as object), color: C.muted, textAlign: 'center' } as any,
+    strip: {
+      fontFamily: 'PlusJakartaSans_700Bold',
+      fontSize: 10.5,
+      letterSpacing: 1.8,
+      color: C.faint,
+      marginTop: 6,
+      marginBottom: 14,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 400,
+      backgroundColor: C.card,
+      borderColor: C.line,
+      borderWidth: 1,
+      borderRadius: R.lg,
+      padding: 18,
+      gap: 10,
+    },
+    seg: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: R.md, padding: 3, gap: 2 },
+    segBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: R.sm },
+    segBtnOn: { backgroundColor: C.paper },
+    segT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
+    segTOn: { color: C.ink },
+    err: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.redText },
+    note: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18, color: C.muted },
+    fine: {
+      fontFamily: 'PlusJakartaSans_400Regular',
+      fontSize: 11.5,
+      color: C.faint,
+      textAlign: 'center',
+    },
+    skipHit: { paddingVertical: 6, alignItems: 'center' },
+    skip: {
+      fontFamily: 'PlusJakartaSans_700Bold',
+      fontSize: 12.5,
+      color: C.soft,
+      textDecorationLine: 'underline',
+    },
+  });

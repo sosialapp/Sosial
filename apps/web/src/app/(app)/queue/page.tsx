@@ -8,5 +8,5 @@ export default async function QueuePage() {
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const posts = await fetchPosts(sb, ctx.workspace.id);
-  return <PostList posts={posts} />;
+  return <PostList posts={posts} role={ctx.workspace.role} userId={ctx.user.id} workspaceId={ctx.workspace.id} />;
 }

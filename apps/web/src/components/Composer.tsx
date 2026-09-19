@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ConnectedChannel } from '@/lib/types';
+import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, type ComposeMode } from '@/lib/posts';
 import { providerMeta } from '@/lib/providers';
@@ -18,21 +18,33 @@ export default function Composer({
   channels,
   workspaceId,
   userId,
+  role,
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
   userId: string;
+  role: WorkspaceInfo['role'];
 }) {
   const router = useRouter();
+  const isMember = role === 'member';
   const ready = channels.filter((c) => c.status === 'connected');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [mode, setMode] = useState<ComposeMode>('schedule');
   const [when, setWhen] = useState(() => toDateTimeLocal(null));
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
-  const [files, setFiles] = useState<{ file: File; kind: 'image' | 'video' }[]>([]);
+  const [files, setFiles] = useState<{ file: File; kind: 'image' | 'video'; url: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const filesRef = useRef(files);
+  filesRef.current = files;
+  useEffect(
+    () => () => {
+      for (const f of filesRef.current) URL.revokeObjectURL(f.url);
+    },
+    [],
+  );
 
   function toggle(id: string) {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -43,9 +55,21 @@ export default function Composer({
     const next = Array.from(list).map((file) => ({
       file,
       kind: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video',
+      url: URL.createObjectURL(file),
     }));
     setFiles((prev) => [...prev, ...next].slice(0, 10));
   }
+
+  function removeFile(i: number) {
+    setFiles((prev) => {
+      const next = [...prev];
+      const [gone] = next.splice(i, 1);
+      if (gone) URL.revokeObjectURL(gone.url);
+      return next;
+    });
+  }
+
+  const submitLabel = isMember && mode === 'now' ? 'Send for approval' : MODES.find((m) => m.id === mode)?.label;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -69,6 +93,7 @@ export default function Composer({
       await createPost(sb, {
         workspaceId,
         userId,
+        role,
         title,
         body,
         mode,
@@ -92,7 +117,7 @@ export default function Composer({
           <h1 className="font-display text-xl font-extrabold tracking-tight">New post</h1>
         </div>
         <button className="btn btn-primary" disabled={busy} type="submit">
-          {busy ? 'Saving…' : MODES.find((m) => m.id === mode)?.label}
+          {busy ? 'Saving…' : submitLabel}
         </button>
       </header>
 
@@ -131,19 +156,34 @@ export default function Composer({
             </label>
 
             {files.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {files.map((f, i) => (
-                  <span key={`${f.file.name}-${i}`} className="pill bg-surface text-soft">
-                    {f.kind === 'video' ? '▶ ' : '▣ '}
-                    {f.file.name}
+                  <div
+                    key={`${f.file.name}-${i}`}
+                    className="relative overflow-hidden rounded-xl border border-line bg-bone"
+                  >
+                    {f.kind === 'video' ? (
+                      <video src={f.url} muted playsInline className="h-24 w-full object-cover" />
+                    ) : (
+                      <img src={f.url} alt={f.file.name} className="h-24 w-full object-cover" />
+                    )}
+                    {f.kind === 'video' && (
+                      <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        VIDEO
+                      </span>
+                    )}
                     <button
                       type="button"
-                      className="ml-2 text-muted hover:text-accent"
-                      onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      title="Remove"
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80"
+                      onClick={() => removeFile(i)}
                     >
                       ×
                     </button>
-                  </span>
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-black/50 px-1.5 py-0.5 text-[10px] text-white">
+                      {f.file.name}
+                    </span>
+                  </div>
                 ))}
               </div>
             )}
@@ -219,11 +259,18 @@ export default function Composer({
             )}
             {mode === 'now' && (
               <p className="mt-3 text-xs text-muted">
-                Queues the post immediately; the worker publishes it within a minute.
+                {isMember
+                  ? 'An owner or admin approves it before the worker publishes.'
+                  : 'Queues the post immediately; the worker publishes it within a minute.'}
               </p>
             )}
             {mode === 'draft' && (
               <p className="mt-3 text-xs text-muted">Keeps it out of the queue until you publish.</p>
+            )}
+            {isMember && mode !== 'draft' && (
+              <p className="mt-3 rounded-lg bg-accent-soft px-2.5 py-2 text-xs text-accent-ink">
+                You&apos;re a team member — this goes to an owner or admin for approval first.
+              </p>
             )}
           </div>
 

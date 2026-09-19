@@ -8,5 +8,12 @@ export default async function ComposerPage() {
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const channels = await fetchChannels(sb, ctx.workspace.id);
-  return <Composer channels={channels} workspaceId={ctx.workspace.id} userId={ctx.user.id} />;
+  return (
+    <Composer
+      channels={channels}
+      workspaceId={ctx.workspace.id}
+      userId={ctx.user.id}
+      role={ctx.workspace.role}
+    />
+  );
 }

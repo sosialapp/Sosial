@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StatusBar, ActivityIndicator, View, Text, BackHandler, Platform, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import { PostProvider, usePost } from './src/store/PostContext';
 import { ComposerProvider, useComposer } from './src/store/ComposerContext';
 import { loadProjects } from './src/screens/HomeScreen';
 import CreateScreen from './src/screens/CreateScreen';
+import WelcomeScreen, { WelcomeProfile } from './src/screens/WelcomeScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import SizeScreen from './src/screens/SizeScreen';
@@ -19,7 +21,7 @@ import ProfileMenu from './src/components/ProfileMenu';
 import Grain from './src/components/Grain';
 import { useFontsLoaded } from './src/utils/fonts';
 import { loadAccount, saveAccount, Account } from './src/utils/account';
-import { pushProfileToCloud } from './src/utils/supabase';
+import { pushProfileToCloud, currentSession, isSupabaseConfigured } from './src/utils/supabase';
 import { handleAuthUrl, getPendingAuth } from './src/utils/authFlow';
 import { useTheme, ThemeProvider } from './src/theme';
 
@@ -32,6 +34,11 @@ type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'a
 
 const TABS: MainTab[] = ['create', 'analytics'];
 
+// First-run gate: fresh installs land on the welcome screen (sign in /
+// create account) unless a cloud session already exists. Skipping or
+// signing in persists, so it never nags again.
+const WELCOME_SEEN_KEY = 'zap_welcome_seen_v1';
+
 function Shell() {
   const { C, mode, toggle } = useTheme();
   const { openPostById, publishPostById } = useComposer();
@@ -41,6 +48,8 @@ function Shell() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
+  const [welcomeReady, setWelcomeReady] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const { loadPost, clearPost, setPageIndex } = usePost();
   const fontsLoaded = useFontsLoaded();
   const routeRef = React.useRef(route);
@@ -48,6 +57,24 @@ function Shell() {
 
   React.useEffect(() => {
     loadAccount().then(setAccount);
+  }, []);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const seen = await AsyncStorage.getItem(WELCOME_SEEN_KEY);
+        if (seen) return;
+        if (!isSupabaseConfigured()) {
+          setShowWelcome(true);
+          return;
+        }
+        const s = await currentSession().catch(() => null);
+        if (!s) setShowWelcome(true);
+      } catch {
+      } finally {
+        setWelcomeReady(true);
+      }
+    })();
   }, []);
 
   // OAuth return: Expo Go reloads the project on the exp:// redirect, so the
@@ -75,6 +102,26 @@ function Shell() {
     setAccount(await saveAccount(patch));
     // Cloud mirror is best-effort: local save already succeeded above.
     void pushProfileToCloud(patch);
+  };
+
+  const dismissWelcome = async () => {
+    try {
+      await AsyncStorage.setItem(WELCOME_SEEN_KEY, '1');
+    } catch {}
+    setShowWelcome(false);
+  };
+
+  // Welcome sign-in: cloud wins, same as AccountScreen's post-login sync.
+  const enterFromWelcome = async (profile: WelcomeProfile) => {
+    await patchAccount({
+      email: profile.email,
+      team: profile.team,
+      notifPosts: profile.notifPosts,
+      notifComments: profile.notifComments,
+      notifWeekly: profile.notifWeekly,
+    });
+    await dismissWelcome();
+    setRoute('create');
   };
 
   const goConnect = (from: Route) => {
@@ -187,10 +234,24 @@ function Shell() {
     ]);
   };
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !welcomeReady) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bone }}>
         <ActivityIndicator size="large" color={C.ink} />
+      </View>
+    );
+  }
+
+  if (showWelcome) {
+    return (
+      <View style={{ flex: 1 }}>
+        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: C.bone }}>
+          <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
+          <WelcomeScreen onDone={(p) => { void enterFromWelcome(p); }} onSkip={() => { void dismissWelcome(); }} />
+        </SafeAreaView>
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <Grain />
+        </View>
       </View>
     );
   }

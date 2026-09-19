@@ -68,6 +68,7 @@ export interface MediaAssetRow {
   mime_type: string | null;
   byte_size: number | null;
   status: 'uploading' | 'ready' | 'failed';
+  signed_url?: string;
 }
 
 export interface PostMediaRow {
@@ -75,6 +76,17 @@ export interface PostMediaRow {
   media_id: string;
   position: number;
   media_assets: MediaAssetRow | null;
+}
+
+export type ApprovalStatus = 'pending' | 'approved' | 'changes_requested';
+
+export interface ApprovalRow {
+  id: string;
+  post_id: string;
+  status: ApprovalStatus;
+  comment: string | null;
+  created_at: string;
+  decided_at: string | null;
 }
 
 export interface PostRow {
@@ -95,6 +107,7 @@ export interface PostRow {
 export interface PostWithTargets extends PostRow {
   post_targets: PostTargetRow[];
   post_media: PostMediaRow[];
+  approvals?: ApprovalRow[];
 }
 
 export interface WorkspaceInfo {

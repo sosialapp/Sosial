@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith('/login') || path.startsWith('/auth');
+  const isPublic = path === '/' || path.startsWith('/login') || path.startsWith('/auth');
 
   if (!user && !isPublic) {
     const redirect = request.nextUrl.clone();

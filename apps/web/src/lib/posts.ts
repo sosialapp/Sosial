@@ -1,17 +1,39 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ConnectedChannel, PostWithTargets } from './types';
+import type { ConnectedChannel, PostWithTargets, WorkspaceInfo } from './types';
 
-/** Ordered media + targets for every post in a workspace (RLS-scoped). */
+/** Ordered media + targets for every post in a workspace (RLS-scoped).
+ *  Media bytes live in a private bucket, so each asset gets a short-lived
+ *  signed URL for previews. */
 export async function fetchPosts(sb: SupabaseClient, workspaceId: string): Promise<PostWithTargets[]> {
   const { data, error } = await sb
     .from('posts')
     .select(
-      '*, post_targets(*), post_media(position, media_assets(id, workspace_id, storage_path, kind, mime_type, byte_size, status))',
+      '*, post_targets(*), post_media(position, media_assets(id, workspace_id, storage_path, kind, mime_type, byte_size, status)), approvals(id, status, comment, created_at, decided_at)',
     )
     .eq('workspace_id', workspaceId)
     .order('scheduled_at', { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as PostWithTargets[];
+
+  const rows = (data ?? []) as unknown as PostWithTargets[];
+  const paths = new Set<string>();
+  for (const p of rows) {
+    for (const m of p.post_media ?? []) {
+      if (m.media_assets?.storage_path) paths.add(m.media_assets.storage_path);
+    }
+  }
+  if (paths.size) {
+    const { data: signed } = await sb.storage.from('post-media').createSignedUrls([...paths], 3600);
+    const byPath = new Map<string, string>();
+    for (const s of (signed ?? []) as { path: string; signedUrl: string | null }[]) {
+      if (s.signedUrl) byPath.set(s.path, s.signedUrl);
+    }
+    for (const p of rows) {
+      for (const m of p.post_media ?? []) {
+        if (m.media_assets) m.media_assets.signed_url = byPath.get(m.media_assets.storage_path);
+      }
+    }
+  }
+  return rows;
 }
 
 export async function fetchChannels(sb: SupabaseClient, workspaceId: string): Promise<ConnectedChannel[]> {
@@ -31,6 +53,7 @@ export type ComposeMode = 'draft' | 'schedule' | 'now';
 export interface ComposeArgs {
   workspaceId: string;
   userId: string;
+  role: WorkspaceInfo['role'];
   title: string;
   body: string;
   mode: ComposeMode;
@@ -39,13 +62,13 @@ export interface ComposeArgs {
   files: { file: File; kind: 'image' | 'video' }[];
 }
 
-function extFor(name: string, kind: string): string {
+export function extFor(name: string, kind: string): string {
   const m = name.toLowerCase().split('?')[0].match(/\.([a-z0-9]{2,4})$/);
   if (m) return m[1];
   return kind === 'video' ? 'mp4' : 'jpg';
 }
 
-function mimeFor(ext: string, kind: string): string {
+export function mimeFor(ext: string, kind: string): string {
   if (kind === 'video') return ext === 'mov' ? 'video/quicktime' : 'video/mp4';
   if (ext === 'png') return 'image/png';
   if (ext === 'webp') return 'image/webp';
@@ -74,10 +97,11 @@ function deviceTimezone(): string | undefined {
 export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise<string> {
   const { workspaceId, userId, title, body, mode, channels, files } = args;
   const clientId = newClientId();
+  const needsApproval = args.role === 'member' && mode !== 'draft';
   const scheduledIso =
     mode === 'now' ? new Date().toISOString() : mode === 'schedule' ? args.scheduleIso : null;
-  const postStatus = mode === 'draft' ? 'draft' : 'queued';
-  const targetStatus = mode === 'draft' ? 'pending' : 'queued';
+  const postStatus = mode === 'draft' ? 'draft' : needsApproval ? 'approval' : 'queued';
+  const targetStatus = mode === 'draft' ? 'pending' : needsApproval ? 'needs_approval' : 'queued';
 
   const { data: prow, error: pErr } = await sb
     .from('posts')
@@ -155,6 +179,16 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
     if (tErr) throw new Error(`Could not target ${ch.provider}: ${tErr.message}`);
   }
 
+  if (needsApproval) {
+    const { error: aErr } = await sb.from('approvals').insert({
+      post_id: postId,
+      workspace_id: workspaceId,
+      requested_by: userId,
+      status: 'pending',
+    });
+    if (aErr) throw new Error(`Could not request approval: ${aErr.message}`);
+  }
+
   return postId;
 }
 
@@ -188,4 +222,99 @@ export async function publishPostNow(sb: SupabaseClient, postId: string): Promis
 export async function deletePost(sb: SupabaseClient, postId: string): Promise<void> {
   const { error } = await sb.from('posts').delete().eq('id', postId);
   if (error) throw new Error(error.message);
+}
+
+/* ------------------------------ approvals ------------------------------ */
+
+async function openApproval(
+  sb: SupabaseClient,
+  postId: string,
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
+  const { data: existing } = await sb
+    .from('approvals')
+    .select('id')
+    .eq('post_id', postId)
+    .eq('status', 'pending')
+    .maybeSingle();
+  if (existing) return;
+  const { error } = await sb.from('approvals').insert({
+    post_id: postId,
+    workspace_id: workspaceId,
+    requested_by: userId,
+    status: 'pending',
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Member: send a draft/post to an owner or admin for review. */
+export async function submitForApproval(
+  sb: SupabaseClient,
+  args: { postId: string; workspaceId: string; userId: string },
+): Promise<void> {
+  const { error } = await sb.from('posts').update({ status: 'approval' }).eq('id', args.postId);
+  if (error) throw new Error(error.message);
+  await sb
+    .from('post_targets')
+    .update({ status: 'needs_approval' })
+    .eq('post_id', args.postId)
+    .in('status', ['pending', 'queued']);
+  await openApproval(sb, args.postId, args.workspaceId, args.userId);
+}
+
+/** Owner/admin: approve — the post queues (or stays queued at its slot). */
+export async function approvePost(
+  sb: SupabaseClient,
+  args: { postId: string; userId: string; comment?: string },
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { data: prow, error: rErr } = await sb
+    .from('posts')
+    .select('scheduled_at')
+    .eq('id', args.postId)
+    .single();
+  if (rErr) throw new Error(rErr.message);
+  const iso = (prow as { scheduled_at: string | null } | null)?.scheduled_at ?? now;
+
+  const { error } = await sb
+    .from('posts')
+    .update({ status: 'queued', scheduled_at: iso })
+    .eq('id', args.postId);
+  if (error) throw new Error(error.message);
+  await sb
+    .from('post_targets')
+    .update({ status: 'queued', scheduled_at: iso })
+    .eq('post_id', args.postId)
+    .in('status', ['needs_approval', 'pending']);
+  await sb
+    .from('approvals')
+    .update({ status: 'approved', decided_by: args.userId, decided_at: now, comment: args.comment ?? null })
+    .eq('post_id', args.postId)
+    .eq('status', 'pending');
+}
+
+/** Owner/admin: send back with a comment — the post returns to drafts. */
+export async function requestChanges(
+  sb: SupabaseClient,
+  args: { postId: string; userId: string; comment?: string },
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await sb.from('posts').update({ status: 'draft' }).eq('id', args.postId);
+  if (error) throw new Error(error.message);
+  await sb
+    .from('post_targets')
+    .update({ status: 'pending' })
+    .eq('post_id', args.postId)
+    .in('status', ['needs_approval', 'queued']);
+  await sb
+    .from('approvals')
+    .update({
+      status: 'changes_requested',
+      decided_by: args.userId,
+      decided_at: now,
+      comment: args.comment ?? null,
+    })
+    .eq('post_id', args.postId)
+    .eq('status', 'pending');
 }
