@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1c1917;
+  --color-soft: #44403c;
+  --color-muted: #78716c;
+  --color-faint: #a8a29e;
+  --color-paper: #ffffff;
+  --color-bone: #f2ede2;
+  --color-surface: #e9e2d2;
+  --color-card: #fbf9f3;
+  --color-line: #e2dac6;
+  --color-line-soft: #ece5d3;
+  --color-accent: #c8500f;
+  --color-accent-ink: #7c2d12;
+  --color-accent-soft: #f9e2cf;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bone);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: opacity 0.15s ease, background 0.15s ease;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-soft);
+    border-color: var(--color-line);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-paper);
+  }
+  .field {
+    width: 100%;
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9rem;
+    color: var(--color-ink);
+    outline: none;
+  }
+  .field:focus {
+    border-color: var(--color-accent);
+  }
+  .eyebrow {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.6rem;
+    white-space: nowrap;
+  }
+}
