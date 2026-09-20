@@ -53,7 +53,18 @@ async function pollTikTokStatus(publishId: string, token: string, kind: string):
     const status = String(sJ?.data?.status ?? '');
     if (status === 'PUBLISH_COMPLETE') return publishId;
     if (status === 'FAILED') {
-      throw new Error(friendly(sJ?.error?.code, `TikTok failed to process the ${kind}.`));
+      const code = String(sJ?.error?.code ?? '');
+      // TikTok puts the human-readable cause in data.fail_reason (error.code is
+      // often empty on failures) — without it we can only guess.
+      const reason = String(sJ?.data?.fail_reason ?? '').trim();
+      const detail = reason ? ` — ${reason}` : '';
+      if (!code || code === 'ok') {
+        if (reason) throw new Error(`TikTok failed to process the ${kind}${detail}`);
+        throw new Error(
+          `TikTok could not download the ${kind} — check the domain is verified in the TikTok developer portal and the photo-host file is still live (links expire after 24h).`,
+        );
+      }
+      throw new Error(friendly(code, `TikTok failed to process the ${kind}.`) + detail);
     }
     if (Date.now() - start >= 60000) {
       throw new Error('TikTok is still processing — check your TikTok app in a few minutes.');
