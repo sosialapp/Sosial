@@ -540,80 +540,87 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
         ) : null}
 
         {view === 'plan' ? (
-          <View style={{ marginTop: 16, gap: 12 }}>
-            <Field label="Channels" hint={`${proChannels} channel${proChannels === 1 ? '' : 's'} — applies to Pro & Team`}>
-              <Stepper value={proChannels} onChange={setProChannels} step={1} min={1} max={10} format={(v) => `${v}`} />
-            </Field>
-            <Field label="Billing">
-              <Seg
-                options={[{ value: 'yearly', label: 'Yearly · save ~20%' }, { value: 'monthly', label: 'Monthly' }]}
-                value={yearly ? 'yearly' : 'monthly'}
-                onChange={(v) => setYearly(v === 'yearly')}
-              />
-            </Field>
-
-            <View style={[s.plan, plan === 'free' && { borderColor: C.accent, borderWidth: 1.5 }]}>
-              <Text style={s.planT}>Free{plan === 'free' ? ' · current' : ''}</Text>
-              <Text style={s.planS}>2 connected channels · 10 scheduled posts per channel</Text>
-              <Text style={s.planS}>Unlimited studio, templates & ideas (exports carry a small badge)</Text>
-              <Text style={s.planS}>No AI generation · 7-day analytics</Text>
+          <View style={{ marginTop: 16, gap: 14 }}>
+            {/* current plan at a glance */}
+            <View style={[s.plan, { borderColor: C.accent, borderWidth: 1.5, gap: 4 }]}>
+              <Text style={s.planEyebrow}>Your plan</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={s.planName}>{planName}</Text>
+                <View style={s.pill}><Text style={s.pillT}>Current</Text></View>
+              </View>
+              <Text style={s.planPrice}>{plan === 'free' ? 'Free forever' : plan === 'pro' ? proTotal : teamTotal}</Text>
               {plan !== 'free' ? (
-                <View style={{ marginTop: 8 }}><GhostBtn label="Switch to Free" onPress={() => choosePlan('free', 'Free')} /></View>
-              ) : (
-                <Text style={s.currentTag}>Current plan</Text>
-              )}
+                <View style={{ marginTop: 8 }}>
+                  <GhostBtn label="Manage subscription" onPress={() => Alert.alert('Manage subscription', 'Subscriptions are managed in the Play Store app under Payments & subscriptions.')} />
+                </View>
+              ) : null}
             </View>
 
-            <View style={[s.plan, plan === 'pro' && { borderColor: C.accent, borderWidth: 1.5 }]}>
-              <Text style={s.planT}>Sosial Pro{plan === 'pro' ? ' · current' : ''}</Text>
-              <Text style={s.planS}>Pay per channel — add or drop channels anytime.</Text>
-              <Text style={[s.planS, { color: C.ink, fontFamily: 'PlusJakartaSans_700Bold' }]}>
-                {yearly
-                  ? `$${49 * proChannels}/yr ($4.08/mo per channel)`
-                  : `$${(4.99 * proChannels).toFixed(2)}/mo ($4.99 per channel)`}
-              </Text>
-              <Text style={s.planS}>MY: {yearly ? `RM ${219 * proChannels}/yr` : `RM ${(21.9 * proChannels).toFixed(2)}/mo`}</Text>
-              <Text style={s.planS}>Everything in Free, plus: unlimited scheduled posts · approvals · no export badge</Text>
-              <Text style={s.planS}>500 AI generations / month · 1-year analytics + comments</Text>
-              {plan === 'free' ? (
-                <TouchableOpacity onPress={() => choosePlan('pro', `Sosial Pro (${proTotal})`)} style={[s.save, { marginTop: 8 }]} activeOpacity={0.85}>
-                  <Text style={s.saveT}>Upgrade to Pro · {proTotal}</Text>
-                </TouchableOpacity>
-              ) : plan === 'team' ? (
-                <View style={{ marginTop: 8 }}><GhostBtn label="Switch to Pro" onPress={() => choosePlan('pro', 'Sosial Pro')} /></View>
-              ) : (
-                <Text style={s.currentTag}>Current plan</Text>
-              )}
+            {/* one tuner for both paid plans */}
+            <View style={[s.plan, { gap: 12 }]}>
+              <Field label="Billing">
+                <Seg
+                  options={[{ value: 'yearly', label: 'Yearly · save ~20%' }, { value: 'monthly', label: 'Monthly' }]}
+                  value={yearly ? 'yearly' : 'monthly'}
+                  onChange={(v) => setYearly(v === 'yearly')}
+                />
+              </Field>
+              <Field label="Channels" hint={`${proChannels} channel${proChannels === 1 ? '' : 's'} — applies to Pro & Team`}>
+                <Stepper value={proChannels} onChange={setProChannels} step={1} min={1} max={10} format={(v) => `${v}`} />
+              </Field>
             </View>
 
-            <View style={[s.plan, plan === 'team' && { borderColor: C.accent, borderWidth: 1.5 }]}>
-              <Text style={s.planT}>Sosial Team{plan === 'team' ? ' · current' : ''}</Text>
-              <Text style={s.planS}>Everything in Pro, plus seats for the whole crew.</Text>
-              <Text style={[s.planS, { color: C.ink, fontFamily: 'PlusJakartaSans_700Bold' }]}>
-                {yearly
-                  ? `$${99 * proChannels}/yr ($8.25/mo per channel)`
-                  : `$${(9.99 * proChannels).toFixed(2)}/mo ($9.99 per channel)`}
-              </Text>
-              <Text style={s.planS}>MY: {yearly ? `RM ${439 * proChannels}/yr` : `RM ${(43.9 * proChannels).toFixed(2)}/mo`}</Text>
-              <Text style={s.planS}>Unlimited seats · owner assigns members to specific channels (or all)</Text>
-              <Text style={s.planS}>1,000 AI generations / month · approvals · priority support</Text>
-              {plan !== 'team' ? (
-                <TouchableOpacity onPress={() => choosePlan('team', `Sosial Team (${teamTotal})`)} style={[s.save, { marginTop: 8 }]} activeOpacity={0.85}>
-                  <Text style={s.saveT}>{plan === 'free' ? 'Upgrade' : 'Switch'} to Team · {teamTotal}</Text>
-                </TouchableOpacity>
-              ) : (
-                <Text style={s.currentTag}>Current plan</Text>
-              )}
-            </View>
+            <PlanCard
+              name="Free"
+              current={plan === 'free'}
+              price="Free"
+              features={[
+                { text: '2 connected channels · 10 scheduled posts each' },
+                { text: 'Unlimited studio, templates & ideas' },
+                { text: '7-day analytics' },
+                { text: 'AI generation', off: true },
+              ]}
+              action={plan !== 'free' ? { label: 'Switch to Free', ghost: true, onPress: () => choosePlan('free', 'Free') } : undefined}
+            />
 
-            {plan !== 'free' ? (
-              <TouchableOpacity
-                onPress={() => Alert.alert('Manage subscription', 'Subscriptions are managed in the Play Store app under Payments & subscriptions.')}
-                style={s.save} activeOpacity={0.85}
-              >
-                <Text style={s.saveT}>Manage subscription</Text>
-              </TouchableOpacity>
-            ) : null}
+            <PlanCard
+              name="Sosial Pro"
+              current={plan === 'pro'}
+              price={proTotal}
+              sub={yearly ? `$4.08/mo per channel · RM ${219 * proChannels}/yr` : `$4.99/mo per channel · RM ${(21.9 * proChannels).toFixed(2)}/mo`}
+              also="Everything in Free, plus:"
+              features={[
+                { text: 'Unlimited scheduled posts' },
+                { text: 'Approval workflow' },
+                { text: 'No export badge' },
+                { text: '500 AI generations / month' },
+                { text: '1-year analytics + comments' },
+              ]}
+              action={plan === 'free'
+                ? { label: `Upgrade to Pro · ${proTotal}`, onPress: () => choosePlan('pro', `Sosial Pro (${proTotal})`) }
+                : plan === 'team'
+                  ? { label: 'Switch to Pro', ghost: true, onPress: () => choosePlan('pro', 'Sosial Pro') }
+                  : undefined}
+            />
+
+            <PlanCard
+              name="Sosial Team"
+              current={plan === 'team'}
+              price={teamTotal}
+              sub={yearly ? `$8.25/mo per channel · RM ${439 * proChannels}/yr` : `$9.99/mo per channel · RM ${(43.9 * proChannels).toFixed(2)}/mo`}
+              also="Everything in Pro, plus:"
+              features={[
+                { text: 'Unlimited seats for the whole crew' },
+                { text: 'Per-channel member roles' },
+                { text: '1,000 AI generations / month' },
+                { text: 'Priority support' },
+              ]}
+              action={plan === 'free'
+                ? { label: `Upgrade to Team · ${teamTotal}`, ghost: true, onPress: () => choosePlan('team', `Sosial Team (${teamTotal})`) }
+                : plan === 'pro'
+                  ? { label: `Switch to Team · ${teamTotal}`, onPress: () => choosePlan('team', `Sosial Team (${teamTotal})`) }
+                  : undefined}
+            />
           </View>
         ) : null}
 
@@ -814,6 +821,50 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   );
 }
 
+/** One plan, scannable: name + price anchor, short checkmark list, one action. */
+function PlanCard({ name, current, price, sub, also, features, action }: {
+  name: string;
+  current: boolean;
+  price: string;
+  sub?: string;
+  also?: string;
+  features: { text: string; off?: boolean }[];
+  action?: { label: string; ghost?: boolean; onPress: () => void };
+}) {
+  const { C } = useTheme();
+  const s = makeS(C);
+  return (
+    <View style={[s.plan, current && { borderColor: C.accent, borderWidth: 1.5 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={s.planT}>{name}</Text>
+        {current ? <View style={s.pill}><Text style={s.pillT}>Current</Text></View> : null}
+      </View>
+      <Text style={s.planPrice}>{price}</Text>
+      {sub ? <Text style={s.planSub}>{sub}</Text> : null}
+      {also ? <Text style={s.planAlso}>{also}</Text> : null}
+      <View style={{ gap: 7, marginTop: 6 }}>
+        {features.map((f, i) => (
+          <View key={i} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+            <Ionicons name={f.off ? 'close-circle-outline' : 'checkmark-circle'} size={15} color={f.off ? C.faint : C.greenText} style={{ marginTop: 2 }} />
+            <Text style={[s.planFeat, f.off && { color: C.faint }]}>{f.text}</Text>
+          </View>
+        ))}
+      </View>
+      {action ? (
+        <View style={{ marginTop: 10 }}>
+          {action.ghost ? (
+            <GhostBtn label={action.label} onPress={action.onPress} />
+          ) : (
+            <TouchableOpacity onPress={action.onPress} style={s.save} activeOpacity={0.85}>
+              <Text style={s.saveT}>{action.label}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const makeS = (C: Palette) => StyleSheet.create({
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 18 },
@@ -844,5 +895,13 @@ const makeS = (C: Palette) => StyleSheet.create({
   planT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, color: C.ink },
   currentTag: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accent, marginTop: 6 },
   planS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 20, color: C.muted },
+  planEyebrow: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: C.muted },
+  planName: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, letterSpacing: -0.3, color: C.ink },
+  planPrice: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 22, letterSpacing: -0.4, color: C.ink, marginTop: 2 },
+  planSub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted },
+  planAlso: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 4 },
+  planFeat: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 20, color: C.soft, flex: 1 },
+  pill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  pillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.accentInk },
   body: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, lineHeight: 22, color: C.soft },
 });

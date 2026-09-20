@@ -50,7 +50,10 @@ export async function openaiChatJson(key: string, system: string, user: string):
       response_format: { type: 'json_object' },
       // NOTE: GPT-5-family Chat Completions uses max_completion_tokens —
       // legacy max_tokens risks a 400, and reasoning models reject temperature.
-      max_completion_tokens: 4096,
+      // Generous budget: reasoning tokens share it, and a starved budget comes
+      // back as truncated (unparseable) JSON.
+      reasoning_effort: 'low',
+      max_completion_tokens: 16384,
     }),
   });
   const j: any = await r.json().catch(() => ({}));
@@ -67,7 +70,10 @@ export async function openaiResponsesJson(key: string, input: string, search: bo
   const body: any = {
     model: MODEL,
     input: `${SYSTEM_JSON}\n\n${input}`,
-    max_output_tokens: 4096,
+    // Low reasoning: short-form copy needs judgment, not a thesis — keeps
+    // latency down and leaves the token budget for the actual JSON output.
+    reasoning: { effort: 'low' },
+    max_output_tokens: 16384,
     text: { format: { type: 'json_object' } },
   };
   if (search) body.tools = [{ type: 'web_search' }];
