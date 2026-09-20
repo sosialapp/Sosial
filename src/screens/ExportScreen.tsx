@@ -7,13 +7,11 @@ import { capturePage, saveUrisToGallery, saveAllImages } from '../utils/export';
 import { useComposer } from '../store/ComposerContext';
 import type { ManagedPost } from '../utils/managed';
 import { useTheme, Palette, T, R } from '../theme';
-import { PillToggle } from '../components/ui';
-
 export default function ExportScreen({ onBack, plan }: { onBack: () => void; plan: 'free' | 'pro' | 'team' }) {
-  const { post, sizeRatio, patchPageById } = usePost();
+  const { post, sizeRatio } = usePost();
   const { C } = useTheme();
   const s = makeS(C);
-  // free plan forces the badge on; paid respects the per-page toggle
+  // free plan forces the badge on; paid defaults it on (toggle removed)
   const wmFor = (p: { showWatermark?: boolean }) => (plan === 'free' ? true : (p.showWatermark ?? true));
   const [busy, setBusy] = useState(false);
   /** per-page save in flight — the big buttons stay idle so the spinner shows on the tapped page only */
@@ -28,16 +26,6 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
   }, [post]);
 
   if (!post) return null;
-
-  const allWmOn = post.pages.every((p) => p.showWatermark ?? true);
-  const toggleAllWm = () => {
-    if (allWmOn && plan === 'free') {
-      Alert.alert('Pro feature', 'Removing the watermark needs Pro or Team. Upgrade in Account to turn it off.');
-      return;
-    }
-    const next = !allWmOn;
-    post.pages.forEach((p) => patchPageById(p.id, { showWatermark: next }));
-  };
 
   const { width: SCREEN_W } = Dimensions.get('window');
   const pvScale = Math.min(0.66, (SCREEN_W - 96) / CANVAS_W);
@@ -126,7 +114,9 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      {/* removeClippedSubviews off: the hidden capture renderers sit far offscreen
+          and Android would otherwise detach them, hanging capture forever */}
+      <ScrollView removeClippedSubviews={false} contentContainerStyle={{ padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn}>
           <Ionicons name="chevron-back" size={20} color={C.ink} />
         </TouchableOpacity>
@@ -136,16 +126,6 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
         <Text style={[T.small, { color: C.muted, marginTop: 6, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13 }]}>
           {post.pages.length} image{post.pages.length > 1 ? 's' : ''} ready to save and post.
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13, marginTop: 14 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Watermark {plan === 'free' ? '· Pro to remove' : ''}</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>
-              {plan === 'free' ? 'Free plan — exports carry the “Made with Sosial” badge.' : '“Made with Sosial” badge on exports.'}
-            </Text>
-          </View>
-          <PillToggle on={plan === 'free' ? true : allWmOn} onPress={toggleAllWm} />
-        </View>
-
         {/* hidden renderers for capture — 2x layout for high-resolution exports */}
         <View style={{ position: 'absolute', left: -9999, top: 0, opacity: 0, pointerEvents: 'none' }}>
           {post.pages.map((p, i) => (

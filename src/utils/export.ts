@@ -62,20 +62,38 @@ export async function ensureMediaPermission(): Promise<boolean> {
   return requestPermission(await getMediaLibrary());
 }
 
+/** Rejects if `p` hasn't settled in `ms` — native capture/save calls have
+ *  hung forever on some devices, leaving the UI spinner stuck with no error.
+ *  A timeout converts that into a named failure the UI can report. */
+function withTimeout<T>(p: Promise<T>, ms: number, stage: string): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  const guard = new Promise<never>((_, rej) => {
+    t = setTimeout(() => rej(new Error(`${stage} timed out — please try again.`)), ms);
+  });
+  return Promise.race([p, guard]).finally(() => {
+    if (t !== undefined) clearTimeout(t);
+  });
+}
+
 async function saveOne(ML: MLHandle, uri: string): Promise<void> {
-  if (ML.kind === 'next') {
-    await ML.mod.Asset.create(uri);
-  } else {
-    await ML.mod.saveToLibraryAsync(uri);
-  }
+  const write = ML.kind === 'next'
+    ? ML.mod.Asset.create(uri)
+    : ML.mod.saveToLibraryAsync(uri);
+  await withTimeout(write, 30000, 'Gallery write');
 }
 
 /** Capture a single ViewShot ref to a tmp png file.
  *  The tmpfile is returned as-is — an extra copy just doubled the file I/O. */
-export async function capturePage(ref: any, _tag: string): Promise<string> {
+export async function capturePage(ref: any, tag: string): Promise<string> {
+  if (!ref) throw new Error('Nothing to capture — the page view is missing.');
   try {
-    return await captureRef(ref, { format: 'png', quality: 1, result: 'tmpfile' });
-  } catch {
+    return await withTimeout(
+      captureRef(ref, { format: 'png', quality: 1, result: 'tmpfile' }),
+      20000,
+      `Capture ${tag}`,
+    );
+  } catch (e: any) {
+    if (/timed out/.test(e?.message ?? '')) throw e;
     throw new Error('Failed to capture page');
   }
 }
@@ -91,17 +109,19 @@ async function saveViaSAF(uris: string[]): Promise<number> {
     let saved = 0;
     for (let i = 0; i < uris.length; i++) {
       try {
-        const base64 = await FileSystem.readAsStringAsync(uris[i], {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const fileUri = await SAF.createFileAsync(
-          perm.directoryUri,
-          `quickpost_${Date.now()}_${i}.png`,
-          'image/png',
-        );
-        await FileSystem.writeAsStringAsync(fileUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        await withTimeout((async () => {
+          const base64 = await FileSystem.readAsStringAsync(uris[i], {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const fileUri = await SAF.createFileAsync(
+            perm.directoryUri,
+            `quickpost_${Date.now()}_${i}.png`,
+            'image/png',
+          );
+          await FileSystem.writeAsStringAsync(fileUri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        })(), 60000, 'Folder write');
         saved++;
       } catch (e) {
         console.warn('saf save failed', e);
