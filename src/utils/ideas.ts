@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
 
 /** One chain segment: text plus an optional per-post photo/video.
- *  Publishing keeps today's rule — the head segment's media rides the post,
- *  replies stay text-only — so reply media never silently vanishes. */
+ *  Posting carries every segment's media into the composer, where chain
+ *  channels publish each reply with its own attachment. */
 export interface ThreadSeg {
   text: string;
   media: { uri: string; kind: 'image' | 'video' } | null;

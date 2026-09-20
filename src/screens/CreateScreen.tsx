@@ -15,7 +15,7 @@ import { loadIdeas, saveIdea, deleteIdea, Idea, ThreadSeg } from '../utils/ideas
 import PostScreen from './PostScreen';
 import { ScheduleForm } from '../components/ScheduleSheet';
 import { useComposer } from '../store/ComposerContext';
-import { MediaAttachment, ManagedPost } from '../utils/managed';
+import { MediaAttachment, ManagedPost, ThreadSegmentMedia } from '../utils/managed';
 import { joinThread } from '../utils/thread';
 import { SocialResult } from '../utils/ai/social';
 import { deleteProjectPreset, instantiatePreset, renameProjectPreset,
@@ -49,17 +49,20 @@ function ideaMedia(idea: Idea): MediaAttachment[] {
 
 /** Build a fresh (unsaved) post to prefill the composer, so any Create surface
  *  can hand off to the proven scheduling sheet instead of duplicating it. */
-function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread?: string[] | null }): ManagedPost {
+function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread?: string[] | null; threadMedia?: (ThreadSegmentMedia | null)[] | null }): ManagedPost {
   const raw = opts.thread ?? [];
-  const segs = raw.map((s) => s.trim()).filter(Boolean);
+  // Pair text+attachment BEFORE dropping empties so indices stay aligned.
+  const pairs = raw.map((s, i) => ({ text: s.trim(), med: opts.threadMedia?.[i] ?? null })).filter((x) => x.text);
   // A 2+ entry starter (even blank) opens the composer in thread mode.
-  const thread = segs.length > 1 ? segs : (raw.length > 1 ? raw : undefined);
+  const thread = pairs.length > 1 ? pairs.map((p) => p.text) : (raw.length > 1 ? raw : undefined);
+  const med = pairs.length > 1 ? pairs.map((p) => p.med) : undefined;
   return {
     id: '',
     title: '',
     body: thread ? joinThread(thread) : (opts.body ?? ''),
     attachments: opts.media ? [opts.media] : [],
     thread,
+    threadMedia: med && med.some(Boolean) ? med : undefined,
     platforms: [],
     createdAt: Date.now(),
     status: 'draft',
@@ -144,32 +147,30 @@ function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…' }
       {segs.map((seg, i) => (
         <View key={i} style={s.segBox}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={s.segLabel}>Post {i + 1}</Text>
+            <Text style={s.segLabel}>{i + 1}/{segs.length}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              {i === 0 ? (
-                seg.media ? (
-                  <View>
-                    {seg.media.kind === 'video' ? (
-                      <View style={[s.segThumb, { backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }]}>
-                        <Ionicons name="play" size={12} color="#fff" />
-                      </View>
-                    ) : (
-                      <Image source={{ uri: seg.media.uri }} style={s.segThumb} />
-                    )}
-                    <TouchableOpacity onPress={() => detach(i)} style={s.segThumbX} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                      <Ionicons name="close" size={9} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity onPress={() => attach(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="image" size={14} color="rgba(255,255,255,0.45)" />
-                  </TouchableOpacity>
-                )
-              ) : null}
               <Text style={[s.segCount, seg.text.length > THREAD_LIMIT && { color: '#F2A3A3' }]}>{seg.text.length}/{THREAD_LIMIT}</Text>
+              <TouchableOpacity onPress={() => attach(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={seg.media ? 'Replace segment photo or video' : 'Attach photo or video to segment'}>
+                {seg.media ? (
+                  seg.media.kind === 'video' ? (
+                    <View style={[s.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
+                      <Ionicons name="play" size={12} color={C.muted} />
+                    </View>
+                  ) : (
+                    <Image source={{ uri: seg.media.uri }} style={s.segThumb} />
+                  )
+                ) : (
+                  <Ionicons name="image-outline" size={16} color={C.muted} />
+                )}
+              </TouchableOpacity>
+              {seg.media ? (
+                <TouchableOpacity onPress={() => detach(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Remove segment photo or video">
+                  <Ionicons name="close-circle" size={16} color={C.muted} />
+                </TouchableOpacity>
+              ) : null}
               {segs.length > 1 ? (
                 <TouchableOpacity onPress={() => remove(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close" size={15} color="rgba(255,255,255,0.55)" />
+                  <Ionicons name="trash-outline" size={16} color={C.muted} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -368,22 +369,16 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const postFromIdea = (idea: Idea) => {
     const segs = idea.thread ?? [];
     const texts = segs.map((s) => s.text);
+    const med = segs.map((s) => (s.media ? { uri: s.media.uri, kind: s.media.kind } : null));
     const head = segs[0]?.media ?? ideaMedia(idea)[0] ?? null;
-    const go = () => openComposer(draftPost({
+    // Every segment's attachment rides into the composer — chain channels
+    // publish each reply with its own photo/video.
+    openComposer(draftPost({
       body: idea.body,
       media: head,
       thread: texts.length > 1 ? texts : null,
+      threadMedia: texts.length > 1 ? med : undefined,
     }));
-    // Replies publish text-only everywhere — say so instead of dropping
-    // their photos silently.
-    if (segs.length > 1 && segs.slice(1).some((s) => s.media)) {
-      Alert.alert('Heads up', 'Only Post 1’s photo/video can publish in a thread — reply photos stay on the idea.', [
-        { text: 'Keep editing', style: 'cancel' },
-        { text: 'Post anyway', onPress: go },
-      ]);
-      return;
-    }
-    go();
   };
 
   /** Idea → design studio: reopen the linked project, or spin up a fresh one. */
@@ -816,7 +811,6 @@ const makeS = (C: Palette) => StyleSheet.create({
   segInput: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, minHeight: 54, textAlignVertical: 'top', color: '#F5F1E8' },
   segPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' },
   segThumb: { width: 34, height: 34, borderRadius: 9 },
-  segThumbX: { position: 'absolute', top: -5, right: -5, width: 15, height: 15, borderRadius: 8, backgroundColor: '#000000AA', alignItems: 'center', justifyContent: 'center' },
   card: { backgroundColor: C.paper, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 14 },
   miniAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
   miniAvatarT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.onInk },
