@@ -5,7 +5,7 @@ import { useTheme, Palette, R } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Section, Field } from './ui';
 import PostCanvas from './PostCanvas';
 import { RULES } from '../utils/ai/rules';
-import { ContentBrief, DEFAULT_BRIEF, GenResult, AiLanguage, AI_LANGUAGES } from '../utils/ai/types';
+import { ContentBrief, DEFAULT_BRIEF, GenResult } from '../utils/ai/types';
 import { generate } from '../utils/ai/provider';
 import { getAiKey, hasBuiltInKey } from '../utils/ai/key';
 import { applyGenResult } from '../utils/ai/apply';
@@ -23,7 +23,6 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const { C } = useTheme();
   const st = makeSt(C);
   const [prompt, setPrompt] = useState('');
-  const [language, setLanguage] = useState<AiLanguage>(DEFAULT_BRIEF.language);
   const [pages, setPages] = useState(3);
   const [maxWords, setMaxWords] = useState(DEFAULT_BRIEF.maxWordsPerPage);
   const [maxBlocks, setMaxBlocks] = useState(DEFAULT_BRIEF.maxBlocksPerPage);
@@ -46,7 +45,8 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   }, [visible]);
 
   const brief: ContentBrief = {
-    prompt, language,
+    // language is always auto — the copy mirrors whatever language the prompt is in
+    prompt, language: 'auto',
     pages, maxWordsPerPage: maxWords, maxBlocksPerPage: maxBlocks, includeImages,
   };
 
@@ -81,9 +81,10 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <TouchableOpacity activeOpacity={1} onPress={close} style={st.bg}>
-        {/* Plain View, not a touchable: a nested press-responder competes with
-            the ScrollView's pan responder and intermittently eats scrolls. */}
+      <View style={st.bg}>
+        {/* Backdrop is an absolute sibling BEHIND the sheet: taps outside close,
+            taps on the form do nothing, and it never competes with the scroll pan. */}
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} />
         <View style={st.sheet}>
           <ScrollView
             style={{ flexShrink: 1 }}
@@ -108,19 +109,6 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
                 multiline
                 style={{ minHeight: 70, textAlignVertical: 'top' }}
               />
-            </Field>
-
-            <Field label="Language" hint="Auto writes in your prompt's language.">
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {AI_LANGUAGES.map((l) => {
-                  const on = language === l.id;
-                  return (
-                    <TouchableOpacity key={l.id} onPress={() => setLanguage(l.id)} style={[st.chip, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                      <Text style={[st.chipT, on && { color: C.onInk }]}>{l.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
             </Field>
 
             <Section no="01" title="Rules" hint="Hard limits the content is always trimmed to." />
@@ -214,7 +202,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
             </View>
           </ScrollView>
         </View>
-      </TouchableOpacity>
+      </View>
       </KeyboardAvoidingView>
     </Modal>
   );
