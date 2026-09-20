@@ -48,14 +48,21 @@ export async function fetchPostStats(channel: string, remoteId: string): Promise
         const m = await loadMetaState();
         if (!m.pageToken) throw new Error('Facebook not connected');
         const tok = encodeURIComponent(m.pageToken);
-        const j: any = await (await fetch(graph(`/${id}?fields=likes.summary(true),comments.summary(true),shares&access_token=${tok}`))).json().catch(() => ({}));
-        if (j?.error) throw new Error(j.error.message ?? 'Could not read post.');
-        return {
-          likes: num(j.likes?.summary?.total_count),
-          comments: num(j.comments?.summary?.total_count),
-          views: null,
-          shares: num(j.shares?.count),
+        // Core field first — `shares` works with pages_read_engagement alone.
+        const core: any = await (await fetch(graph(`/${id}?fields=shares&access_token=${tok}`))).json().catch(() => ({}));
+        if (core?.error) throw new Error(core.error.message ?? 'Could not read post.');
+        const out: SentPostStats = { likes: 0, comments: 0, views: null, shares: num(core.shares?.count) };
+        // Like/comment totals need pages_read_user_content. Ask per edge with
+        // summary=total_count so one refusal can't zero the other (Meta #10).
+        let denied = false;
+        const edge = async (path: 'likes' | 'comments') => {
+          const j: any = await (await fetch(graph(`/${id}/${path}?summary=total_count&limit=0&access_token=${tok}`))).json().catch(() => ({}));
+          if (j?.error) { denied = true; return; }
+          out[path] = num(j?.summary?.total_count);
         };
+        await Promise.all([edge('likes'), edge('comments')]);
+        if (denied) out.note = 'Like/comment counts need the pages_read_user_content permission on this login.';
+        return out;
       }
       case 'instagram': {
         const m = await loadMetaState();

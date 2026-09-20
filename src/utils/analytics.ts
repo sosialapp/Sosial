@@ -404,17 +404,29 @@ async function ttStats(m: MetaState, start: number, end: number): Promise<Channe
   // per-video stats need the video.list scope — tokens granted before it existed skip this
   if (openId) {
     try {
-      const r = await fetch(`${TT_API}/v2/video/list/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
-        body: JSON.stringify({
-          open_id: openId, cursor: 0, max_count: 20,
-          fields: ['id', 'title', 'create_time', 'view_count', 'like_count', 'comment_count', 'share_count'],
-        }),
-      });
-      const j: any = await r.json().catch(() => ({}));
-      if (j?.error?.code !== 'ok') throw new Error('video.list not granted');
-      const inRange = ((j?.data?.videos ?? []) as any[]).filter((x) => {
+      // `fields` is a QUERY param on this endpoint (comma-separated); passing it
+      // in the body is silently ignored and every metric comes back empty.
+      const fields = 'id,title,create_time,view_count,like_count,comment_count,share_count';
+      // Newest-first, so page until we run out or cross the range start. Capped
+      // so a huge range can't hammer the API.
+      const collected: any[] = [];
+      let cursor = 0;
+      for (let page = 0; page < 10; page++) {
+        const r = await fetch(`${TT_API}/v2/video/list/?fields=${fields}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
+          body: JSON.stringify({ cursor, max_count: 20 }),
+        });
+        const j: any = await r.json().catch(() => ({}));
+        if (j?.error?.code !== 'ok') throw new Error('video.list not granted');
+        const vids: any[] = Array.isArray(j?.data?.videos) ? j.data.videos : [];
+        collected.push(...vids);
+        const oldest = vids.reduce((min, x) => Math.min(min, num(x.create_time) || Infinity), Infinity);
+        const next = num(j?.data?.cursor);
+        if (!j?.data?.has_more || !vids.length || oldest * 1000 < start || !next || next === cursor) break;
+        cursor = next;
+      }
+      const inRange = collected.filter((x) => {
         const t = num(x.create_time) * 1000;
         return t >= start && t < end;
       });
@@ -424,11 +436,13 @@ async function ttStats(m: MetaState, start: number, end: number): Promise<Channe
         likes: num(x.like_count),
         comments: num(x.comment_count),
         views: typeof x.view_count === 'number' ? x.view_count : null,
+        shares: num(x.share_count),
         ts: num(x.create_time) * 1000,
       }));
       base.posts = base.perPost.length;
       base.reactions = base.perPost.reduce((a, p) => a + p.likes, 0);
       base.comments = base.perPost.reduce((a, p) => a + p.comments, 0);
+      base.shares = base.perPost.reduce((a, p) => a + (p.shares ?? 0), 0);
       const v = base.perPost.reduce((a, p) => a + (p.views ?? 0), 0);
       base.views = v > 0 ? v : null;
       if (base.followers) base.engagementRate = ((base.reactions + base.comments) / base.followers) * 100;
