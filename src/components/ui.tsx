@@ -210,10 +210,9 @@ export function useProbedRatio(uri: string, min: number, max: number): number | 
   return ratio;
 }
 
-/** Feed thumbnail: photo in its native aspect (bounded), video in a compact
- *  4:5 box. Row thumbs stay small everywhere instead of ballooning on tall
- *  screenshots or fixed 9:16 boxes. */
-export function FeedPhoto({ uri, width = 104, min = 0.8, max = 1.5, radius = 11 }: { uri: string; width?: DimensionValue; min?: number; max?: number; radius?: number }) {
+/** Feed thumbnail: photo in its true aspect (only pathological extremes clamped),
+ *  video in a 9:16 box (phone clips). Small enough to keep rows compact. */
+export function FeedPhoto({ uri, width = 88, min = 0.45, max = 2, radius = 11 }: { uri: string; width?: DimensionValue; min?: number; max?: number; radius?: number }) {
   const { C } = useTheme();
   const ratio = useProbedRatio(uri, min, max);
   return (
@@ -225,7 +224,7 @@ export function FeedPhoto({ uri, width = 104, min = 0.8, max = 1.5, radius = 11 
   );
 }
 
-export function FeedVideo({ uri, width = 104, radius = 11 }: { uri: string; width?: number; radius?: number }) {
+export function FeedVideo({ uri, width = 88, radius = 11 }: { uri: string; width?: number; radius?: number }) {
   const { C } = useTheme();
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -233,7 +232,7 @@ export function FeedVideo({ uri, width = 104, radius = 11 }: { uri: string; widt
     p.play();
   });
   return (
-    <View style={{ width, aspectRatio: 4 / 5, borderRadius: radius, backgroundColor: C.ink, overflow: 'hidden' }}>
+    <View style={{ width, aspectRatio: 9 / 16, borderRadius: radius, backgroundColor: C.ink, overflow: 'hidden' }}>
       <VideoView style={{ width: '100%', height: '100%' }} player={player} contentFit="cover" nativeControls={false} />
       <View style={{ position: 'absolute', right: 8, bottom: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="play" size={13} color="#fff" />
