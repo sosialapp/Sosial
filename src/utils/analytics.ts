@@ -391,16 +391,28 @@ async function ttStats(m: MetaState, start: number, end: number): Promise<Channe
     const fields = 'open_id,display_name,avatar_url,follower_count,following_count,likes_count,video_count';
     let r = await ttGet(`/v2/user/info/?fields=${fields}`, token);
     let u = r.body?.data?.user;
+    // An old grant (or a flake) can return the identity without counts — retry
+    // stats alone once, sequentially, before declaring the scope missing.
+    if (u?.open_id && u.follower_count == null) {
+      const rs = await ttGet(`/v2/user/info/?fields=follower_count,following_count,likes_count,video_count`, token).catch(() => null);
+      const us = rs?.body?.data?.user;
+      if (us && us.follower_count != null) u = { ...u, ...us };
+    }
     if (!u?.open_id) {
       r = await ttGet(`/v2/user/info/?fields=open_id,display_name,avatar_url`, token);
       u = r.body?.data?.user;
       if (!u?.open_id) throw new Error(`Could not read your TikTok profile (${ttDetail(r)}).`);
-      base.note = 'TikTok didn’t return follower counts for this account (needs the user.info.stats scope).';
+      base.note = 'TikTok isn’t sharing follower stats with this login — reconnect TikTok in Connect to grant access.';
     }
     openId = String(u.open_id);
-    if (u.display_name) base.label = `@${u.display_name}`;
+    // The token decides whose counts these are: if it belongs to a different
+    // account than the one recorded at connect time, say so instead of showing
+    // a "wrong" number next to the old name.
+    if (m.ttOpenId && openId !== m.ttOpenId) {
+      base.note = `TikTok is reporting for a different account${u.display_name ? ` (@${u.display_name})` : ''} — reconnect TikTok to fix the counts.`;
+    } else if (u.display_name) base.label = `@${u.display_name}`;
     if (u.follower_count != null) base.followers = num(u.follower_count) || null;
-    else if (!base.note) base.note = 'TikTok didn’t return a follower count for this account.';
+    else if (!base.note) base.note = 'TikTok isn’t sharing follower stats with this login — reconnect TikTok in Connect to grant access.';
   } catch (e: any) {
     return { ...base, note: e?.message ?? 'TikTok request failed.' };
   }

@@ -210,21 +210,22 @@ export function useProbedRatio(uri: string, min: number, max: number): number | 
   return ratio;
 }
 
-/** Feed thumbnail: photo in its true aspect (only pathological extremes clamped),
- *  video in a 9:16 box (phone clips). Small enough to keep rows compact. */
-export function FeedPhoto({ uri, width = 88, min = 0.45, max = 2, radius = 11 }: { uri: string; width?: DimensionValue; min?: number; max?: number; radius?: number }) {
+/** Feed thumbnail: photo in its true aspect (only pathological extremes clamped)
+ *  unless `aspect` pins a crop box (e.g. 4/5 portrait previews); video in a
+ *  4:5 portrait box to match. Small enough to keep rows compact. */
+export function FeedPhoto({ uri, width = 88, min = 0.45, max = 2, radius = 11, aspect }: { uri: string; width?: DimensionValue; min?: number; max?: number; radius?: number; aspect?: number }) {
   const { C } = useTheme();
   const ratio = useProbedRatio(uri, min, max);
   return (
     <Image
       source={{ uri }}
-      style={{ width, aspectRatio: ratio ?? 1, borderRadius: radius, backgroundColor: C.lineSoft }}
+      style={{ width, aspectRatio: aspect ?? ratio ?? 1, borderRadius: radius, backgroundColor: C.lineSoft }}
       resizeMode="cover"
     />
   );
 }
 
-export function FeedVideo({ uri, width = 88, radius = 11, aspect = 9 / 16 }: { uri: string; width?: number; radius?: number; aspect?: number }) {
+export function FeedVideo({ uri, width = 88, radius = 11, aspect = 4 / 5 }: { uri: string; width?: number; radius?: number; aspect?: number }) {
   const { C } = useTheme();
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;

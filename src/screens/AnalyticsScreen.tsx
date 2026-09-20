@@ -23,6 +23,17 @@ function compact(n: number | null): string {
   return n.toFixed(1);
 }
 
+/** Exact count with thousands separators — follower totals must match the API
+ *  digit-for-digit (compact rounding like "1.2k" reads as a wrong number). */
+function full(n: number | null): string {
+  if (n === null || n === undefined) return '—';
+  try {
+    return Math.round(n).toLocaleString('en-US');
+  } catch {
+    return String(Math.round(n));
+  }
+}
+
 /** likes + comments + shares — the engagement score used for ranking & trends. */
 function scoreOf(p: { likes: number; comments: number; shares?: number }): number {
   return p.likes + p.comments + (p.shares ?? 0);
@@ -225,7 +236,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect }: {
   const maxAvg = Math.max(1, ...rank.map((r) => r.avg));
 
   const kpis: { label: string; value: string; sub: string; tone?: 'up' | 'down' }[] = [
-    { label: 'Followers', value: compact(totals.followers), sub: hasDelta ? `${followerDelta >= 0 ? '+' : ''}${compact(followerDelta)} in range` : 'connected channels', tone: hasDelta ? (followerDelta >= 0 ? 'up' : 'down') : undefined },
+    { label: 'Followers', value: full(totals.followers), sub: hasDelta ? `${followerDelta >= 0 ? '+' : ''}${compact(followerDelta)} in range` : 'connected channels', tone: hasDelta ? (followerDelta >= 0 ? 'up' : 'down') : undefined },
     { label: 'Engagement', value: totals.engagement !== null ? `${totals.engagement.toFixed(1)}%` : '—', sub: 'of followers in range' },
     { label: 'Interactions', value: compact(totals.interactions), sub: trend !== null ? `${trend >= 0 ? '+' : ''}${trend.toFixed(0)}% vs first half` : 'likes + comments', tone: trend !== null ? (trend >= 0 ? 'up' : 'down') : undefined },
     { label: 'Avg / post', value: totals.avgPerPost !== null ? compact(Math.round(totals.avgPerPost * 10) / 10) : '—', sub: 'interactions per post' },
@@ -437,7 +448,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect }: {
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                        <Text style={s.chanBig}>{compact(c.followers)}</Text>
+                        <Text style={s.chanBig}>{full(c.followers)}</Text>
                         {delta !== null ? (
                           <Text style={[s.chanDelta, { color: delta >= 0 ? C.greenText : C.redText }]}>
                             {delta >= 0 ? '+' : ''}{compact(delta)}

@@ -174,7 +174,7 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
               <View style={{ width: 104 }}>
             {first.kind === 'video'
               ? <FeedVideo uri={first.uri} />
-              : <FeedPhoto uri={first.uri} />}
+              : <FeedPhoto uri={first.uri} aspect={4 / 5} />}
               </View>
               <View style={{ flex: 1, gap: 5 }}>
                 <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>

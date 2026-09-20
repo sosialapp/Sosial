@@ -69,8 +69,8 @@ function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread
 }
 
 function MediaThumb({ media }: { media: MediaAttachment }) {
-  if (media.kind === 'video') return <FeedVideo uri={media.uri} width={116} aspect={4 / 5} radius={R.md} />;
-  return <FeedPhoto uri={media.uri} width={116} min={0.8} max={1.5} radius={R.md} />;
+  if (media.kind === 'video') return <FeedVideo uri={media.uri} width={116} radius={R.md} />;
+  return <FeedPhoto uri={media.uri} width={116} aspect={4 / 5} radius={R.md} />;
 }
 
 /** Masonry column width the miniature canvases lay out against. */
@@ -530,7 +530,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                         {cover.kind === 'video' ? (
                           <FeedVideo uri={cover.uri} width={72} />
                         ) : (
-                          <FeedPhoto uri={cover.uri} width={72} />
+                          <FeedPhoto uri={cover.uri} width={72} aspect={4 / 5} />
                         )}
                         <View style={{ flex: 1, gap: 5 }}>
                           <Text style={s.cardT} numberOfLines={1}>{idea.title}</Text>

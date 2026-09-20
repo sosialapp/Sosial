@@ -44,7 +44,7 @@ function slotTomorrow(hour: number, min = 0): number {
   return d.getTime();
 }
 
-/** 9:16 tile pitch: thumb width + strip gap. Drag math depends on it. */
+/** 4:5 tile pitch: thumb width + strip gap. Drag math depends on it. */
 const THUMB_STEP = 108;
 
 /** Muted looping video tile — the strip preview videos were missing. */
