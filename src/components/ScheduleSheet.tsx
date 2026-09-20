@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, LayoutAnimation, PanResponder, UIManager, View, Text, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, Image, ActivityIndicator } from 'react-native';
+import { Animated, Easing, PanResponder, View, Text, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, Image, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -47,11 +47,6 @@ function slotTomorrow(hour: number, min = 0): number {
 /** 9:16 tile pitch: thumb width + strip gap. Drag math depends on it. */
 const THUMB_STEP = 108;
 
-// Reorder transitions ease instead of jumping (Android needs the flag).
-if (Platform.OS === 'android' && (UIManager as any)?.setLayoutAnimationEnabledExperimental) {
-  (UIManager as any).setLayoutAnimationEnabledExperimental(true);
-}
-
 /** Muted looping video tile — the strip preview videos were missing. */
 function VideoThumb({ uri }: { uri: string }) {
   const { C } = useTheme();
@@ -80,62 +75,143 @@ function MediaTile({ it }: { it: SheetMediaItem }) {
 }
 
 /**
- * Long-press to lift, drag horizontally to re-slot. The strip ScrollView
- * keeps scrolling on plain swipes (responder claims only while a tile is
- * lifted), taps still open the viewer — the drop consumes the release tap.
+ * Horizontal media strip with app-icon-style reordering. Long-press to lift a
+ * tile; while it follows your finger the neighbours glide one slot over to open
+ * the drop gap, and the new order is committed once on release. The original
+ * order is kept during the drag (only transforms move) so nothing remounts.
  */
-function DragThumb({ index, count, active, dim, onDrop, children }: {
-  index: number;
-  count: number;
-  active: boolean;
-  dim: boolean;
-  onDrop: (to: number) => void;
-  children: React.ReactNode;
+function MediaStrip({ items, onPick, onRemove, onMove, onOpen }: {
+  items: SheetMediaItem[];
+  onPick: () => void;
+  onRemove: (index: number) => void;
+  onMove?: (from: number, to: number) => void;
+  onOpen: (index: number) => void;
 }) {
-  const x = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
-  // PanResponder is created once, so it must read the live props through a ref
-  // — otherwise it captures the first render's `active=false` and never claims
-  // the gesture (reorder silently does nothing).
-  const live = useRef({ index, count, active, onDrop });
-  live.current = { index, count, active, onDrop };
-  useEffect(() => {
-    Animated.timing(scale, { toValue: active ? 1.07 : 1, duration: 140, useNativeDriver: false }).start();
-  }, [active, scale]);
-  const shouldClaim = (dx: number, dy: number) =>
-    live.current.active && Math.abs(dx) > 4 && Math.abs(dx) > Math.abs(dy);
+  const { C } = useTheme();
+  const st = makeSt(C);
+  const [lift, setLift] = useState<number | null>(null);
+  const dx = useRef(new Animated.Value(0)).current;
+  const shifts = useRef<Animated.Value[]>([]);
+  const hover = useRef<number | null>(null);
+  const skipTap = useRef(false);
+  // Stable identity per item object so reordering never remounts a tile
+  // (a remount would reload video previews mid-drag).
+  const ids = useRef(new WeakMap<object, string>());
+  const seq = useRef(0);
+  const idOf = (o: SheetMediaItem) => {
+    let v = ids.current.get(o);
+    if (!v) { v = `m${seq.current++}`; ids.current.set(o, v); }
+    return v;
+  };
+  const shiftAt = (i: number) => {
+    if (!shifts.current[i]) shifts.current[i] = new Animated.Value(0);
+    return shifts.current[i];
+  };
+  const glide = (v: Animated.Value, to: number) =>
+    Animated.timing(v, { toValue: to, duration: 170, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  /** Where slot `i` sits once a tile is dragged from→to (neighbours slide over). */
+  const shiftFor = (i: number, from: number, to: number) => {
+    if (from < to && i > from && i <= to) return -THUMB_STEP;
+    if (from > to && i >= to && i < from) return THUMB_STEP;
+    return 0;
+  };
+  const openGap = (from: number, to: number) => {
+    for (let i = 0; i < items.length; i++) if (i !== from) glide(shiftAt(i), shiftFor(i, from, to));
+  };
+  const reset = () => {
+    dx.setValue(0);
+    hover.current = null;
+    shifts.current.forEach((v) => v && v.setValue(0));
+  };
+  const cancel = () => { reset(); setLift(null); };
+
+  const live = useRef({ lift, count: items.length, onMove });
+  live.current = { lift, count: items.length, onMove };
+  const claim = (dxv: number, dyv: number) =>
+    live.current.lift !== null && Math.abs(dxv) > 4 && Math.abs(dxv) > Math.abs(dyv);
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      // Capture phase: once a tile is lifted we must win over the child
-      // TouchableOpacity and the strip ScrollView to actually drag it.
-      onMoveShouldSetPanResponderCapture: (_, g) => shouldClaim(g.dx, g.dy),
-      onMoveShouldSetPanResponder: (_, g) => shouldClaim(g.dx, g.dy),
-      onPanResponderMove: (_, g) => x.setValue(g.dx),
+      // Capture phase so the lifted tile wins over the ScrollView + touchables.
+      onMoveShouldSetPanResponderCapture: (_, g) => claim(g.dx, g.dy),
+      onMoveShouldSetPanResponder: (_, g) => claim(g.dx, g.dy),
+      onPanResponderMove: (_, g) => {
+        const from = live.current.lift;
+        if (from === null) return;
+        dx.setValue(g.dx);
+        const to = Math.max(0, Math.min(live.current.count - 1, from + Math.round(g.dx / THUMB_STEP)));
+        if (to !== hover.current) {
+          hover.current = to;
+          for (let i = 0; i < live.current.count; i++) if (i !== from) glide(shiftAt(i), shiftFor(i, from, to));
+        }
+      },
       onPanResponderRelease: (_, g) => {
-        const l = live.current;
-        const to = Math.max(0, Math.min(l.count - 1, l.index + Math.round(g.dx / THUMB_STEP)));
-        x.setValue(0);
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        l.onDrop(to);
+        const from = live.current.lift;
+        if (from === null) { cancel(); return; }
+        const to = Math.max(0, Math.min(live.current.count - 1, from + Math.round(g.dx / THUMB_STEP)));
+        skipTap.current = true;
+        // Settle the lifted tile onto the target slot first, then commit and
+        // zero every transform in one beat — the swap is invisible because the
+        // data order ends up matching where each tile already sits on screen.
+        Animated.timing(dx, { toValue: (to - from) * THUMB_STEP, duration: 130, easing: Easing.out(Easing.cubic), useNativeDriver: false })
+          .start(() => {
+            if (to !== from) live.current.onMove?.(from, to);
+            cancel();
+          });
       },
-      onPanResponderTerminate: () => {
-        x.setValue(0);
-        live.current.onDrop(live.current.index);
-      },
+      onPanResponderTerminate: () => cancel(),
     }),
   ).current;
+
   return (
-    <Animated.View
-      {...pan.panHandlers}
-      style={{
-        transform: [{ translateX: x }, { scale }],
-        opacity: dim ? 0.55 : 1,
-        zIndex: active ? 2 : 0,
-      }}
-    >
-      {children}
-    </Animated.View>
+    <View {...pan.panHandlers}>
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} scrollEnabled={lift === null} contentContainerStyle={{ gap: 8, marginTop: 8, paddingTop: 8, paddingRight: 12, paddingBottom: 2 }}>
+        {items.map((it, i) => {
+          const dragging = lift === i;
+          return (
+            <Animated.View
+              key={idOf(it)}
+              style={{
+                zIndex: dragging ? 4 : 0,
+                elevation: dragging ? 6 : 0,
+                opacity: lift !== null && !dragging ? 0.9 : 1,
+                transform: [{ translateX: dragging ? dx : shiftAt(i) }, ...(dragging ? [{ scale: 1.06 }] : [])],
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  // A settle consumes the release tap; a tap while lifted
+                  // cancels the lift so the strip never stays scroll-locked.
+                  if (skipTap.current) { skipTap.current = false; return; }
+                  if (lift !== null) { cancel(); return; }
+                  onOpen(i);
+                }}
+                onLongPress={() => {
+                  if (items.length < 2) return;
+                  reset();
+                  setLift(i);
+                }}
+                delayLongPress={240}
+                activeOpacity={0.85}
+              >
+                <MediaTile it={it} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => onRemove(i)} style={st.thumbX} activeOpacity={0.7}>
+                <Ionicons name="close" size={12} color="#fff" />
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })}
+        {items.length < MAX_ATTACHMENTS ? (
+          <TouchableOpacity onPress={onPick} style={[st.thumb, st.thumbAdd]} activeOpacity={0.7}>
+            <Ionicons name="add" size={22} color={C.accentInk} />
+          </TouchableOpacity>
+        ) : null}
+      </ScrollView>
+      {items.length > 1 ? (
+        <Text style={st.arrangeHint}>Hold & drag to arrange — first item posts first</Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -331,10 +407,6 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
   const [mode, setMode] = useState<'date' | 'time'>('date');
   const [pickingTime, setPickingTime] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
-  /** Arrange mode: index of the lifted tile (strip scroll locks while set). */
-  const [dragIx, setDragIx] = useState<number | null>(null);
-  /** Drop consumes the release tap so it can't also open the viewer. */
-  const skipTap = useRef(false);
   const [, setTick] = useState(0);
 
   const vCount = media?.items.length ?? 0;
@@ -701,54 +773,13 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
               </View>
               {media.items.length > 0 ? (
                 <>
-                <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} scrollEnabled={dragIx === null} contentContainerStyle={{ gap: 8, marginTop: 8, paddingTop: 8, paddingRight: 12, paddingBottom: 2 }}>
-                  {media.items.map((it, i) => (
-                    <DragThumb
-                      key={`${it.uri}-${i}`}
-                      index={i}
-                      count={media.items.length}
-                      active={dragIx === i}
-                      dim={dragIx !== null && dragIx !== i}
-                      onDrop={(to) => {
-                        const from = dragIx ?? i;
-                        setDragIx(null);
-                        skipTap.current = true;
-                        if (to !== from) media.onMove?.(from, to);
-                      }}
-                    >
-                      <View>
-                        <TouchableOpacity
-                          onPress={() => {
-                            // A real drop consumes the release tap; a hold
-                            // without moving never reaches onDrop, so a tap
-                            // arriving with a tile still lifted CANCELS the
-                            // lift instead of opening the viewer — otherwise
-                            // the strip stays scroll-locked forever.
-                            if (skipTap.current) { skipTap.current = false; return; }
-                            if (dragIx !== null) { setDragIx(null); return; }
-                            setViewer(i);
-                          }}
-                          onLongPress={() => setDragIx(i)}
-                          delayLongPress={280}
-                          activeOpacity={0.8}
-                        >
-                          <MediaTile it={it} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => media.onRemove(i)} style={st.thumbX} activeOpacity={0.7}>
-                          <Ionicons name="close" size={12} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    </DragThumb>
-                  ))}
-                  {media.items.length < MAX_ATTACHMENTS ? (
-                    <TouchableOpacity onPress={media.onPick} style={[st.thumb, st.thumbAdd]} activeOpacity={0.7}>
-                      <Ionicons name="add" size={22} color={C.accentInk} />
-                    </TouchableOpacity>
-                  ) : null}
-                </ScrollView>
-                {media.items.length > 1 ? (
-                  <Text style={st.arrangeHint}>Hold & drag to arrange — first item posts first</Text>
-                ) : null}
+                <MediaStrip
+                  items={media.items}
+                  onPick={media.onPick}
+                  onRemove={media.onRemove}
+                  onMove={media.onMove}
+                  onOpen={setViewer}
+                />
                 </>
               ) : (
                 <View style={{ marginTop: 8 }}>
