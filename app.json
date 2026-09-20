@@ -57,6 +57,9 @@
       "expo-video"
     ],
     "extra": {
+      "eas": {
+        "projectId": "b8bbcdae-f3cc-41d7-8372-955bc1326223"
+      }
     },
     "owner": "naqibhusainiis-team"
   }

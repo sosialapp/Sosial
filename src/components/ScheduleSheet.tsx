@@ -342,7 +342,10 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
       loadMetaState().then((m) => {
         const c = connectedChannelIds(m);
         setConnected(c);
+        // A saved draft can name a channel disconnected since — drop those
+        // (they can't publish) instead of keeping invisible picks.
         if (!explicit) setPlats([]);
+        else if (init) setPlats(init.filter((p) => p === 'any' || c.includes(p)));
       });
       setTypes(initialTypes ?? {});
       setThreadsTopic(initialThreadsTopic ?? '');
@@ -460,11 +463,9 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
   // channel is ticked (which is what tapping it produces)
   const anyOn = plats.includes('any') || (connected.length > 0 && connected.every((c) => plats.includes(c)));
 
-  // Channel chips: Anywhere first, then connected left, rest after (stable —
-  // original order kept inside each group)
-  const orderedChannels = ['any', ...CHANNELS.filter((c) => c !== 'any').sort(
-    (a, b) => Number(connected.includes(b)) - Number(connected.includes(a)),
-  )];
+  // Channel chips: Anywhere first, then connected only — unconnected channels
+  // can't publish, so listing them only leads to "isn't connected" dead ends.
+  const orderedChannels = ['any', ...CHANNELS.filter((c) => c !== 'any' && connected.includes(c))];
 
   const onPick = (_e: any, d?: Date) => {
     if (_e?.type === 'dismissed') {

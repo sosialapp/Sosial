@@ -50,6 +50,7 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [openCh, setOpenCh] = useState<string | null>(null);
   const [photoHost, setPhotoHost] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   const [mastodonInstance, setMastodonInstance] = useState('');
@@ -903,6 +904,17 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
           {orderedChannelRows}
         </View>
 
+        <TouchableOpacity onPress={() => setShowAdvanced((v) => !v)} style={s.uriCard} activeOpacity={0.7}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={s.uriT}>Advanced setup</Text>
+            <Text style={s.uriU} numberOfLines={2}>Photo host override · login redirect URI</Text>
+          </View>
+          <Ionicons name={showAdvanced ? 'chevron-up-outline' : 'chevron-down-outline'} size={18} color={C.faint} />
+        </TouchableOpacity>
+
+        {showAdvanced ? (
+          <>
+            {(!TT_PHOTO_HOST_DEFAULT || photoHost) ? (
         <View style={s.hostCard}>
           <Text style={s.uriT}>TikTok photo host</Text>
           <Text style={s.uriU}>{TT_PHOTO_HOST_DEFAULT ? 'Built-in host is active — every connected TikTok account uses it. Paste a different endpoint below only to override it on this device.' : 'TikTok only pulls photos from a domain you verify in its developer portal. Paste your upload endpoint below — it receives the image (multipart field “file”) and returns a public URL.'}</Text>
@@ -925,6 +937,7 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
             </TouchableOpacity>
           </View>
         </View>
+            ) : null}
 
         {busy ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
@@ -949,6 +962,9 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
           </View>
           <Ionicons name="copy-outline" size={18} color={C.faint} />
         </TouchableOpacity>
+          </>
+        ) : null}
+
         <Text style={s.buildTag}>build {BUILD_TAG}</Text>
       </ScrollView>
     </View>
