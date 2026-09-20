@@ -565,25 +565,15 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
     setTypes((prev) => ({ ...prev, [c]: t }));
   };
 
-  /** Saved types go stale (a draft stored as photo gains a video later) — when
-   *  the attachments contradict the pick, the format follows the media so the
-   *  TikTok/IG type always matches what's actually attached. */
+  /** The explicit pick always wins — auto-detect only fills in while nothing is
+   *  picked yet. Snapping Video back to Photo until a video is attached made
+   *  the choice feel locked; picking the format first, then attaching media,
+   *  is the natural order. Publish follows the actual media anyway and errors
+   *  clearly when the pick and the media disagree. */
   const typeFor = (c: ChannelKey): string => {
-    const items = media?.items ?? [];
-    const hasVideo = items.some((a) => a.kind === 'video');
-    const hasImage = items.some((a) => a.kind === 'image');
     const explicit = types[c] as string | undefined;
-    if (c === 'tiktok') {
-      if (explicit === 'photo' && hasVideo && !hasImage) return 'video';
-      if (explicit === 'video' && !hasVideo) return 'photo';
-      return explicit ?? defaultPlatformType(c, items);
-    }
-    if (c === 'instagram') {
-      if (explicit === 'post' && hasVideo && !hasImage) return 'reel';
-      if (explicit === 'reel' && !hasVideo) return 'post';
-      return explicit ?? defaultPlatformType(c, items);
-    }
-    return explicit ?? defaultPlatformType(c, items);
+    if (explicit) return explicit;
+    return defaultPlatformType(c, media?.items ?? []);
   };
 
   /** Materialize a concrete type for every selected channel, including defaults. */
