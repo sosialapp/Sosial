@@ -470,8 +470,6 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
     setRenaming(null);
   };
 
-  const initial = (email || team || 'Z')[0].toUpperCase();
-
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -550,45 +548,50 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
             {/* feed */}
             <View style={{ gap: 12, marginTop: 14 }}>
               {ideas.map((idea) => {
-                const media = ideaMedia(idea);
+                const cover = ideaMedia(idea)[0];
                 const isThreadIdea = (idea.thread?.length ?? 0) > 1;
+                const preview = isThreadIdea ? idea.thread![0].text : idea.body;
+                const meta = `${fmtDate(idea.createdAt)}${isThreadIdea ? ` · ${idea.thread!.length}-post thread` : ''}${idea.designProjectId ? ' · has design' : ''}`;
                 return (
                   <TouchableOpacity key={idea.id} onPress={() => openEditor(idea)} style={s.card} activeOpacity={0.8}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                      <View style={s.miniAvatar}>
-                        <Text style={s.miniAvatarT}>{initial}</Text>
+                    {cover ? (
+                      <View style={{ flexDirection: 'row', gap: 11 }}>
+                        {cover.kind === 'video' ? (
+                          <View style={[s.thumb104, { alignItems: 'center', justifyContent: 'center' }]}>
+                            <Ionicons name="play" size={20} color="#fff" />
+                          </View>
+                        ) : (
+                          <Image source={{ uri: cover.uri }} style={s.thumb104} />
+                        )}
+                        <View style={{ flex: 1, gap: 5 }}>
+                          <Text style={s.cardT} numberOfLines={1}>{idea.title}</Text>
+                          {preview ? <Text style={s.cardB} numberOfLines={3}>{preview}</Text> : null}
+                          <Text style={s.cardD} numberOfLines={1}>{meta}</Text>
+                        </View>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.cardT} numberOfLines={2}>{idea.title}</Text>
-                        <Text style={s.cardD}>
-                          {fmtDate(idea.createdAt)}
-                          {isThreadIdea ? ` · ${idea.thread!.length}-post thread` : ''}
-                          {idea.designProjectId ? ' · has design' : ''}
-                        </Text>
-                      </View>
-                      {isThreadIdea ? (
-                        <View style={s.badge}><Ionicons name="git-branch" size={11} color={C.accentInk} /></View>
-                      ) : null}
-                    </View>
-                    {idea.body && !isThreadIdea ? <Text style={s.cardB} numberOfLines={4}>{idea.body}</Text> : null}
-                    {isThreadIdea ? <Text style={s.cardB} numberOfLines={3}>{idea.thread![0].text}</Text> : null}
-                    {media[0] ? <MediaThumb media={media[0]} style={s.cardImg} /> : null}
+                    ) : (
+                      <>
+                        <Text style={s.cardT} numberOfLines={1}>{idea.title}</Text>
+                        {preview ? <Text style={[s.cardB, { marginTop: 4 }]} numberOfLines={2}>{preview}</Text> : null}
+                        <Text style={[s.cardD, { marginTop: 5 }]} numberOfLines={1}>{meta}</Text>
+                      </>
+                    )}
                     <View style={s.cardActions}>
-                      <TouchableOpacity onPress={() => designIdea(idea)} style={s.designBtn} activeOpacity={0.8}>
-                        <Ionicons name="color-palette" size={15} color={C.onInk} />
-                        <Text style={s.designBtnT}>Design</Text>
+                      <TouchableOpacity onPress={() => designIdea(idea)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} activeOpacity={0.7}>
+                        <Ionicons name="color-palette" size={14} color={C.accentInk} />
+                        <Text style={s.link}>Design</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => postFromIdea(idea)} style={s.postBtn} activeOpacity={0.8}>
-                        <Ionicons name={isThreadIdea ? 'git-branch' : 'send'} size={15} color={C.ink} />
-                        <Text style={s.postBtnT}>{isThreadIdea ? 'Thread' : 'Post'}</Text>
+                      <TouchableOpacity onPress={() => postFromIdea(idea)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} activeOpacity={0.7}>
+                        <Ionicons name={isThreadIdea ? 'git-branch' : 'send'} size={14} color={C.accentInk} />
+                        <Text style={s.link}>{isThreadIdea ? 'Thread' : 'Post'}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => setAi({ target: 'editor', prompt: idea.body || idea.title })} style={s.postBtn} activeOpacity={0.8}>
-                        <Ionicons name="sparkles" size={15} color={C.ink} />
-                        <Text style={s.postBtnT}>AI</Text>
+                      <TouchableOpacity onPress={() => setAi({ target: 'editor', prompt: idea.body || idea.title })} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} activeOpacity={0.7}>
+                        <Ionicons name="sparkles" size={14} color={C.accentInk} />
+                        <Text style={s.link}>AI</Text>
                       </TouchableOpacity>
                       <View style={{ flex: 1 }} />
                       <TouchableOpacity onPress={() => removeIdea(idea.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Ionicons name="trash" size={18} color={C.faint} />
+                        <Ionicons name="trash-outline" size={17} color={C.faint} />
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
@@ -813,14 +816,11 @@ const makeS = (C: Palette) => StyleSheet.create({
   segPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' },
   segThumb: { width: 34, height: 34, borderRadius: 9 },
   card: { backgroundColor: C.paper, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 14 },
-  miniAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
-  miniAvatarT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.onInk },
   cardT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15.5, letterSpacing: -0.2, color: C.ink },
   cardD: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.faint, marginTop: 1 },
   cardB: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 20, color: C.soft, marginTop: 8 },
-  cardImg: { height: 170, marginTop: 10 },
-  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  badge: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6 },
+  thumb104: { width: 104, height: 104, borderRadius: R.md, backgroundColor: C.ink },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12 },
   designBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 17, paddingVertical: 10 },
   designBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.onInk },
   postBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 10 },
