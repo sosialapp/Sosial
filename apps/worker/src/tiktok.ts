@@ -47,6 +47,8 @@ function friendly(code: string, fallback: string): string {
       return 'TikTok session expired — toggle cloud publishing off and on in Connect to refresh.' + tag;
     case 'url_ownership_unverified':
       return 'TikTok only pulls photos from a domain you own and have verified — set the photo host in Connect → TikTok (video posts don’t need it).' + tag;
+    case 'picture_size_check_failed':
+      return 'TikTok rejected the photo size — photos must fit 1080p (longest side ≤ 1920px). The photo host now resizes automatically, so retry.' + tag;
     default:
       return fallback + tag;
   }
