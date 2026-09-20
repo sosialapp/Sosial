@@ -216,11 +216,11 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <View style={st.bg}>
         {/* Backdrop is an absolute sibling BEHIND the sheet: taps outside close,
             taps on the form do nothing, and it never competes with the scroll pan. */}
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
           <View style={st.sheet}>
             <ScrollView
               style={{ flexShrink: 1 }}
@@ -625,8 +625,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
               )}
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
