@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import { useTheme, Palette, R, T } from '../theme';
-import { SocialGlyph } from '../components/ui';
+import { SocialGlyph, FeedPhoto, FeedVideo } from '../components/ui';
 import { AvatarButton } from '../components/ProfileMenu';
 import ConnectButton from '../components/ConnectButton';
 import ChannelDrawer from '../components/ChannelDrawer';
@@ -46,44 +45,6 @@ function dayLabel(ts: number): string {
   if (day === today) return 'Today';
   if (day === today + 86400000) return 'Tomorrow';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-/** Photo preview in its native aspect (probed, clamped) — the card ratio
- *  follows the post instead of forcing a square. */
-function PhotoPreview({ uri }: { uri: string }) {
-  const { C } = useTheme();
-  const s = makeS(C);
-  const [ratio, setRatio] = useState<number | null>(null);
-  useEffect(() => {
-    let live = true;
-    setRatio(null);
-    Image.getSize(
-      uri,
-      (w, h) => { if (live && w > 0 && h > 0) setRatio(Math.min(2, Math.max(0.5, w / h))); },
-      () => {},
-    );
-    return () => { live = false; };
-  }, [uri]);
-  return <Image source={{ uri }} style={[s.media, { aspectRatio: ratio ?? 4 / 3 }]} resizeMode="cover" />;
-}
-
-/** Muted looping video preview — phone clips default to a 9:16 card. */
-function VideoPreview({ uri }: { uri: string }) {
-  const { C } = useTheme();
-  const s = makeS(C);
-  const player = useVideoPlayer(uri, (p) => {
-    p.loop = true;
-    p.muted = true;
-    p.play();
-  });
-  return (
-    <View style={[s.media, { aspectRatio: 9 / 16 }]}>
-      <VideoView style={{ width: '100%', height: '100%' }} player={player} contentFit="cover" nativeControls={false} />
-      <View style={s.mediaPlay}>
-        <Ionicons name="play" size={13} color="#fff" />
-      </View>
-    </View>
-  );
 }
 
 function ChannelStack({ plats, C }: { plats: string[]; C: Palette }) {
@@ -211,9 +172,9 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
           {first ? (
             <View style={st.cardRow}>
               <View style={{ width: 104 }}>
-                {first.kind === 'video'
-                  ? <VideoPreview uri={first.uri} />
-                  : <PhotoPreview uri={first.uri} />}
+            {first.kind === 'video'
+              ? <FeedVideo uri={first.uri} />
+              : <FeedPhoto uri={first.uri} />}
               </View>
               <View style={{ flex: 1, gap: 5 }}>
                 <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
@@ -433,8 +394,6 @@ const makeS = (C: Palette) => StyleSheet.create({
   actionBtnGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.lineSoft },
   actionBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.onInk },
   errBar: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: C.paleRed, borderRadius: R.md, paddingHorizontal: 9, paddingVertical: 7 },
-  media: { width: '100%', borderRadius: 11, backgroundColor: C.lineSoft, overflow: 'hidden' },
-  mediaPlay: { position: 'absolute', right: 8, bottom: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   t: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, letterSpacing: -0.2, color: C.ink },
   body: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 17, color: C.muted },
   errT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, lineHeight: 16, color: C.redText },

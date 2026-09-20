@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { AvatarButton } from '../components/ProfileMenu';
 import ConnectButton from '../components/ConnectButton';
-import { Txt, PrimaryBtn, GhostBtn } from '../components/ui';
+import { Txt, PrimaryBtn, GhostBtn, FeedPhoto, FeedVideo } from '../components/ui';
 import AICopySheet from '../components/AICopySheet';
 import { usePost, defaultPage } from '../store/PostContext';
 import { CardStyle, QuickPost } from '../types';
@@ -80,7 +80,9 @@ function MediaThumb({ media, style }: { media: MediaAttachment; style?: any }) {
       </View>
     );
   }
-  return <Image source={{ uri: media.uri }} style={[s.mediaThumb, style]} />;
+  // Full-width preview follows the file's own aspect (bounded) instead of a
+  // fixed-height crop.
+  return <FeedPhoto uri={media.uri} width="100%" min={0.5} max={2} radius={R.md} />;
 }
 
 /** Masonry column width the miniature canvases lay out against. */
@@ -557,11 +559,9 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                     {cover ? (
                       <View style={{ flexDirection: 'row', gap: 11 }}>
                         {cover.kind === 'video' ? (
-                          <View style={[s.thumb104, { alignItems: 'center', justifyContent: 'center' }]}>
-                            <Ionicons name="play" size={20} color="#fff" />
-                          </View>
+                          <FeedVideo uri={cover.uri} />
                         ) : (
-                          <Image source={{ uri: cover.uri }} style={s.thumb104} />
+                          <FeedPhoto uri={cover.uri} />
                         )}
                         <View style={{ flex: 1, gap: 5 }}>
                           <Text style={s.cardT} numberOfLines={1}>{idea.title}</Text>
@@ -819,7 +819,6 @@ const makeS = (C: Palette) => StyleSheet.create({
   cardT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15.5, letterSpacing: -0.2, color: C.ink },
   cardD: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.faint, marginTop: 1 },
   cardB: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 20, color: C.soft, marginTop: 8 },
-  thumb104: { width: 104, height: 104, borderRadius: R.md, backgroundColor: C.ink },
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12 },
   designBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 17, paddingVertical: 10 },
   designBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.onInk },

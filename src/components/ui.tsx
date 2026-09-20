@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, TextInputProps, Platform, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, TextInputProps, Platform, ActivityIndicator, DimensionValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import FontAwesome6 from '@expo/vector-icons/build/FontAwesome6';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Svg, Path } from 'react-native-svg';
 import { useTheme, Palette, R } from '../theme';
 
@@ -190,6 +191,54 @@ export function GhostBtn({ label, onPress, danger, left }: { label: string; onPr
         <Text style={[s.ghostT, danger && { color: C.redText }]}>{label}</Text>
       </View>
     </TouchableOpacity>
+  );
+}
+
+/** Native aspect probe (clamped) — thumbs follow the file instead of forcing a box. */
+export function useProbedRatio(uri: string, min: number, max: number): number | null {
+  const [ratio, setRatio] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    setRatio(null);
+    Image.getSize(
+      uri,
+      (w, h) => { if (live && w > 0 && h > 0) setRatio(Math.min(max, Math.max(min, w / h))); },
+      () => {},
+    );
+    return () => { live = false; };
+  }, [uri, min, max]);
+  return ratio;
+}
+
+/** Feed thumbnail: photo in its native aspect (bounded), video in a compact
+ *  4:5 box. Row thumbs stay small everywhere instead of ballooning on tall
+ *  screenshots or fixed 9:16 boxes. */
+export function FeedPhoto({ uri, width = 104, min = 0.8, max = 1.5, radius = 11 }: { uri: string; width?: DimensionValue; min?: number; max?: number; radius?: number }) {
+  const { C } = useTheme();
+  const ratio = useProbedRatio(uri, min, max);
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width, aspectRatio: ratio ?? 1, borderRadius: radius, backgroundColor: C.lineSoft }}
+      resizeMode="cover"
+    />
+  );
+}
+
+export function FeedVideo({ uri, width = 104, radius = 11 }: { uri: string; width?: number; radius?: number }) {
+  const { C } = useTheme();
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  return (
+    <View style={{ width, aspectRatio: 4 / 5, borderRadius: radius, backgroundColor: C.ink, overflow: 'hidden' }}>
+      <VideoView style={{ width: '100%', height: '100%' }} player={player} contentFit="cover" nativeControls={false} />
+      <View style={{ position: 'absolute', right: 8, bottom: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="play" size={13} color="#fff" />
+      </View>
+    </View>
   );
 }
 
