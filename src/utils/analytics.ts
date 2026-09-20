@@ -381,25 +381,28 @@ async function ttStats(m: MetaState, start: number, end: number): Promise<Channe
   } catch (e: any) {
     return { ...base, note: e?.message ?? 'TikTok session expired — reconnect TikTok.' };
   }
-  // 1) basic identity — same minimal fields login uses, must succeed
+  // Identity + stats in ONE call. Firing two back-to-back requests at the same
+  // rate-limited user/info endpoint could let the stats half drop (leaving
+  // followers blank/null), so the count is only ever as reliable as a single
+  // read. Stats fields are scope-gated, so fall back to identity-only if the
+  // merged request comes back without a profile.
   let openId = '';
   try {
-    const r = await ttGet(`/v2/user/info/?fields=open_id,display_name,avatar_url`, token);
-    const u = r.body?.data?.user;
-    if (!u?.open_id) throw new Error(`Could not read your TikTok profile (${ttDetail(r)}).`);
+    const fields = 'open_id,display_name,avatar_url,follower_count,following_count,likes_count,video_count';
+    let r = await ttGet(`/v2/user/info/?fields=${fields}`, token);
+    let u = r.body?.data?.user;
+    if (!u?.open_id) {
+      r = await ttGet(`/v2/user/info/?fields=open_id,display_name,avatar_url`, token);
+      u = r.body?.data?.user;
+      if (!u?.open_id) throw new Error(`Could not read your TikTok profile (${ttDetail(r)}).`);
+      base.note = 'TikTok didn’t return follower counts for this account (needs the user.info.stats scope).';
+    }
     openId = String(u.open_id);
     if (u.display_name) base.label = `@${u.display_name}`;
+    if (u.follower_count != null) base.followers = num(u.follower_count) || null;
+    else if (!base.note) base.note = 'TikTok didn’t return a follower count for this account.';
   } catch (e: any) {
     return { ...base, note: e?.message ?? 'TikTok request failed.' };
-  }
-  // 2) follower counts — may exceed granted scopes; never fatal
-  try {
-    const r = await ttGet(`/v2/user/info/?fields=follower_count,following_count,likes_count,video_count`, token);
-    const u = r.body?.data?.user;
-    if (u) base.followers = num(u.follower_count) || null;
-    else base.note = `TikTok counts unavailable (${ttDetail(r)}).`;
-  } catch (e: any) {
-    base.note = e?.message ?? 'TikTok follower counts unavailable.';
   }
   // per-video stats need the video.list scope — tokens granted before it existed skip this
   if (openId) {

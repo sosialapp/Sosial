@@ -15,7 +15,7 @@ import { loadIdeas, saveIdea, deleteIdea, Idea, ThreadSeg } from '../utils/ideas
 import PostScreen from './PostScreen';
 import { ScheduleForm } from '../components/ScheduleSheet';
 import { useComposer } from '../store/ComposerContext';
-import { MediaAttachment, ManagedPost, ThreadSegmentMedia } from '../utils/managed';
+import { MediaAttachment, ManagedPost, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { joinThread } from '../utils/thread';
 import { SocialResult } from '../utils/ai/social';
 import { deleteProjectPreset, instantiatePreset, renameProjectPreset,
@@ -33,11 +33,10 @@ function fmtDate(ts: number): string {
   }
 }
 
-async function pickMedia(): Promise<MediaAttachment | null> {
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.9 });
-  if (res.canceled || !res.assets?.[0]) return null;
-  const a = res.assets[0];
-  return { uri: a.uri, kind: a.type === 'video' ? 'video' : 'image' };
+async function pickMedia(limit = 1): Promise<MediaAttachment[]> {
+  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: limit > 1, selectionLimit: limit, orderedSelection: true, quality: 0.9 });
+  if (res.canceled || !res.assets?.length) return [];
+  return res.assets.slice(0, limit).map((a) => ({ uri: a.uri, kind: a.type === 'video' ? 'video' : 'image' }));
 }
 
 function ideaMedia(idea: Idea): MediaAttachment[] {
@@ -49,7 +48,7 @@ function ideaMedia(idea: Idea): MediaAttachment[] {
 
 /** Build a fresh (unsaved) post to prefill the composer, so any Create surface
  *  can hand off to the proven scheduling sheet instead of duplicating it. */
-function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread?: string[] | null; threadMedia?: (ThreadSegmentMedia | null)[] | null }): ManagedPost {
+function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread?: string[] | null; threadMedia?: (ThreadSegmentMedia[] | null)[] | null }): ManagedPost {
   const raw = opts.thread ?? [];
   // Pair text+attachment BEFORE dropping empties so indices stay aligned.
   const pairs = raw.map((s, i) => ({ text: s.trim(), med: opts.threadMedia?.[i] ?? null })).filter((x) => x.text);
@@ -62,7 +61,7 @@ function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread
     body: thread ? joinThread(thread) : (opts.body ?? ''),
     attachments: opts.media ? [opts.media] : [],
     thread,
-    threadMedia: med && med.some(Boolean) ? med : undefined,
+    threadMedia: med && med.some((m) => m && m.length) ? med : undefined,
     platforms: [],
     createdAt: Date.now(),
     status: 'draft',
@@ -70,8 +69,8 @@ function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread
 }
 
 function MediaThumb({ media }: { media: MediaAttachment }) {
-  if (media.kind === 'video') return <FeedVideo uri={media.uri} width={116} radius={R.md} />;
-  return <FeedPhoto uri={media.uri} width={116} min={0.65} max={1.5} radius={R.md} />;
+  if (media.kind === 'video') return <FeedVideo uri={media.uri} width={116} aspect={4 / 5} radius={R.md} />;
+  return <FeedPhoto uri={media.uri} width={116} min={0.8} max={1.5} radius={R.md} />;
 }
 
 /** Masonry column width the miniature canvases lay out against. */
@@ -118,21 +117,23 @@ function TplPost({ post, kind, builtIn, onOpen, onMenu }: {
 function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…' }: {
   segments: ThreadSeg[];
   onChange: (s: ThreadSeg[]) => void;
-  pickMedia: () => Promise<MediaAttachment | null>;
+  pickMedia: (limit: number) => Promise<MediaAttachment[]>;
   placeholder?: string;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const blank: ThreadSeg = { text: '', media: null };
+  const blank: ThreadSeg = { text: '', media: [] };
   const segs = segments.length ? segments : [{ ...blank }];
   const setAt = (i: number, v: string) => onChange(segs.map((x, j) => (j === i ? { ...x, text: v } : x)));
   const add = () => { if (segs.length < 12) onChange([...segs, { ...blank }]); };
   const remove = (i: number) => { if (segs.length > 1) onChange(segs.filter((_, j) => j !== i)); };
   const attach = async (i: number) => {
-    const m = await pickMedia();
-    if (m) onChange(segs.map((x, j) => (j === i ? { ...x, media: m } : x)));
+    const remaining = THREAD_MEDIA_MAX - segs[i].media.length;
+    if (remaining <= 0) return;
+    const picked = await pickMedia(remaining);
+    if (picked.length) onChange(segs.map((x, j) => (j === i ? { ...x, media: [...x.media, ...picked].slice(0, THREAD_MEDIA_MAX) } : x)));
   };
-  const detach = (i: number) => onChange(segs.map((x, j) => (j === i ? { ...x, media: null } : x)));
+  const detach = (i: number, mi: number) => onChange(segs.map((x, j) => (j === i ? { ...x, media: x.media.filter((_, k) => k !== mi) } : x)));
   return (
     <View style={{ gap: 8 }}>
       {segs.map((seg, i) => (
@@ -141,30 +142,33 @@ function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…' }
             <Text style={s.segLabel}>{i + 1}/{segs.length}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Text style={[s.segCount, seg.text.length > THREAD_LIMIT && { color: '#F2A3A3' }]}>{seg.text.length}/{THREAD_LIMIT}</Text>
-              <TouchableOpacity onPress={() => attach(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={seg.media ? 'Replace segment photo or video' : 'Attach photo or video to segment'}>
-                {seg.media ? (
-                  seg.media.kind === 'video' ? (
-                    <View style={[s.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
-                      <Ionicons name="play" size={12} color={C.muted} />
-                    </View>
-                  ) : (
-                    <Image source={{ uri: seg.media.uri }} style={s.segThumb} />
-                  )
-                ) : (
-                  <Ionicons name="image-outline" size={16} color={C.muted} />
-                )}
-              </TouchableOpacity>
-              {seg.media ? (
-                <TouchableOpacity onPress={() => detach(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Remove segment photo or video">
-                  <Ionicons name="close-circle" size={16} color={C.muted} />
-                </TouchableOpacity>
-              ) : null}
               {segs.length > 1 ? (
                 <TouchableOpacity onPress={() => remove(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="trash-outline" size={16} color={C.muted} />
                 </TouchableOpacity>
               ) : null}
             </View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {seg.media.map((m, mi) => (
+              <View key={mi}>
+                {m.kind === 'video' ? (
+                  <View style={[s.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
+                    <Ionicons name="play" size={12} color={C.muted} />
+                  </View>
+                ) : (
+                  <Image source={{ uri: m.uri }} style={s.segThumb} />
+                )}
+                <TouchableOpacity onPress={() => detach(i, mi)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={s.segBadge} accessibilityLabel="Remove segment attachment">
+                  <Ionicons name="close" size={11} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {seg.media.length < THREAD_MEDIA_MAX ? (
+              <TouchableOpacity onPress={() => attach(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Attach photo or video to segment">
+                <Ionicons name="image-outline" size={16} color={C.muted} />
+              </TouchableOpacity>
+            ) : null}
           </View>
           <Txt
             value={seg.text}
@@ -281,7 +285,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
     const tags = r.hashtags.length ? '\n\n' + r.hashtags.join(' ') : '';
     const asThread = r.thread.length > 1;
     const head = (asThread ? r.thread[0] : r.caption).split('\n')[0].slice(0, 70);
-    const toSegs = (t: string[]): ThreadSeg[] => t.map((text) => ({ text, media: null }));
+    const toSegs = (t: string[]): ThreadSeg[] => t.map((text) => ({ text, media: [] }));
     if (target === 'idea') {
       if (asThread) { setCThread(toSegs(r.thread)); setCBody(joinThread(r.thread)); }
       else { setCThread(null); setCBody(r.caption + tags); }
@@ -298,16 +302,16 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 
   /** Live segments (text or media); the head's media doubles as the idea cover. */
   const liveSegs = (t: ThreadSeg[] | null): ThreadSeg[] =>
-    (t ?? []).filter((s) => s.text.trim() || s.media);
+    (t ?? []).filter((s) => s.text.trim() || s.media.length);
   const headMediaOf = (segs: ThreadSeg[], fallback: MediaAttachment | null): MediaAttachment | null =>
-    segs[0]?.media ?? fallback;
+    segs[0]?.media?.[0] ?? fallback;
 
   const saveNewIdea = async () => {
     const live = liveSegs(cThread);
     const thread = live.length > 1 ? live : undefined;
     const texts = live.map((s) => s.text.trim()).filter(Boolean);
     const body = thread ? joinThread(texts) : cBody;
-    if (!cTitle.trim() && !body.trim() && !cMedia && !live.some((s) => s.media)) return;
+    if (!cTitle.trim() && !body.trim() && !cMedia && !live.some((s) => s.media.length)) return;
     const head = headMediaOf(live, cMedia);
     await saveIdea({
       title: cTitle.trim() || (body.split('\n')[0] || '').slice(0, 60) || 'Untitled idea',
@@ -360,8 +364,8 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const postFromIdea = (idea: Idea) => {
     const segs = idea.thread ?? [];
     const texts = segs.map((s) => s.text);
-    const med = segs.map((s) => (s.media ? { uri: s.media.uri, kind: s.media.kind } : null));
-    const head = segs[0]?.media ?? ideaMedia(idea)[0] ?? null;
+    const med = segs.map((s) => (s.media.length ? s.media.map((m) => ({ uri: m.uri, kind: m.kind })) : null));
+    const head = segs[0]?.media?.[0] ?? ideaMedia(idea)[0] ?? null;
     // Every segment's attachment rides into the composer — chain channels
     // publish each reply with its own photo/video.
     openComposer(draftPost({
@@ -495,7 +499,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <GhostBtn label="Attach photo or video" onPress={async () => setCMedia(await pickMedia())} />
+                    <GhostBtn label="Attach photo or video" onPress={async () => setCMedia((await pickMedia())[0] ?? null)} />
                   )}
                 </>
               ) : null}
@@ -504,7 +508,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                   <Ionicons name="sparkles" size={15} color={C.accentInk} />
                   <Text style={s.link}>AI writer</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setCThread(cThread ? null : [{ text: '', media: null }, { text: '', media: null }])} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => setCThread(cThread ? null : [{ text: '', media: [] }, { text: '', media: [] }])} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
                   <Ionicons name="git-branch" size={15} color={C.accentInk} />
                   <Text style={s.link}>{cThread ? 'Turn off thread' : 'Post as thread'}</Text>
                 </TouchableOpacity>
@@ -678,7 +682,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <GhostBtn label="Attach photo or video" onPress={async () => setEMedia(await pickMedia())} />
+                    <GhostBtn label="Attach photo or video" onPress={async () => setEMedia((await pickMedia())[0] ?? null)} />
                   )}
                 </>
               ) : null}
@@ -687,7 +691,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                   <Ionicons name="sparkles" size={15} color={C.accentInk} />
                   <Text style={s.link}>AI writer</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setEThread(eThread ? null : [{ text: '', media: null }, { text: '', media: null }])} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => setEThread(eThread ? null : [{ text: '', media: [] }, { text: '', media: [] }])} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
                   <Ionicons name="git-branch" size={15} color={C.accentInk} />
                   <Text style={s.link}>{eThread ? 'Turn off thread' : 'Post as thread'}</Text>
                 </TouchableOpacity>
@@ -766,6 +770,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   segInput: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, minHeight: 54, textAlignVertical: 'top', color: '#F5F1E8' },
   segPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' },
   segThumb: { width: 34, height: 34, borderRadius: 9 },
+  segBadge: { position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.78)', alignItems: 'center', justifyContent: 'center' },
   card: { backgroundColor: C.paper, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 14 },
   cardT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15.5, letterSpacing: -0.2, color: C.ink },
   cardD: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.faint, marginTop: 1 },

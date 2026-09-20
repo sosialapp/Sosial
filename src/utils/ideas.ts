@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
 
-/** One chain segment: text plus an optional per-post photo/video.
+/** One chain segment: text plus optional per-post photos/videos.
  *  Posting carries every segment's media into the composer, where chain
- *  channels publish each reply with its own attachment. */
+ *  channels publish each reply with its own attachment(s). */
 export interface ThreadSeg {
   text: string;
-  media: { uri: string; kind: 'image' | 'video' } | null;
+  media: { uri: string; kind: 'image' | 'video' }[];
 }
 
 /** A content idea: social-style title + description + optional image/video.
@@ -27,8 +27,12 @@ export interface Idea {
  *  chains keep working next to the new media-carrying segments. */
 function normThread(t: unknown): ThreadSeg[] | undefined {
   if (!Array.isArray(t) || t.length === 0) return undefined;
-  if (typeof t[0] === 'string') return (t as string[]).map((s) => ({ text: s, media: null }));
-  return t as ThreadSeg[];
+  if (typeof t[0] === 'string') return (t as string[]).map((s) => ({ text: s, media: [] }));
+  // Multi-attach stores an array; older records stored one object per segment.
+  return (t as any[]).map((s) => ({
+    text: String(s?.text ?? ''),
+    media: Array.isArray(s?.media) ? s.media : s?.media ? [s.media] : [],
+  }));
 }
 
 const KEY = 'zap_ideas_v1';

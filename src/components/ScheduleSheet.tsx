@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, View, Text, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, Image, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
@@ -8,9 +8,9 @@ import { PrimaryBtn, GhostBtn, Txt } from './ui';
 import { PubRow } from './PublishNotice';
 import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
-import { MAX_ATTACHMENTS } from '../utils/metaPublish';
+import { MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
-import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia } from '../utils/managed';
+import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
 import { loadMetaState, connectedChannelIds, MetaState } from '../utils/metaStore';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -124,6 +124,11 @@ function MediaStrip({ items, onPick, onRemove, onMove, onOpen }: {
     shifts.current.forEach((v) => v && v.setValue(0));
   };
   const cancel = () => { reset(); setLift(null); };
+  // The shift values are keyed by slot INDEX, so once the data order changes on
+  // drop they belong to the wrong tiles. Zero them in the same layout pass as
+  // the reorder (before paint) — otherwise the stale shift flashes for a frame
+  // and the strip looks like it jumps when two tiles trade places.
+  useLayoutEffect(() => { reset(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [items]);
 
   const live = useRef({ lift, count: items.length, onMove });
   live.current = { lift, count: items.length, onMove };
@@ -150,13 +155,14 @@ function MediaStrip({ items, onPick, onRemove, onMove, onOpen }: {
         if (from === null) { cancel(); return; }
         const to = Math.max(0, Math.min(live.current.count - 1, from + Math.round(g.dx / THUMB_STEP)));
         skipTap.current = true;
-        // Settle the lifted tile onto the target slot first, then commit and
-        // zero every transform in one beat — the swap is invisible because the
-        // data order ends up matching where each tile already sits on screen.
+        // Settle the lifted tile onto the target slot, then commit the new
+        // order and drop the lift in ONE render. The zeroing runs in the layout
+        // effect above, so the transforms and the data change together.
         Animated.timing(dx, { toValue: (to - from) * THUMB_STEP, duration: 130, easing: Easing.out(Easing.cubic), useNativeDriver: false })
           .start(() => {
             if (to !== from) live.current.onMove?.(from, to);
-            cancel();
+            hover.current = null;
+            setLift(null);
           });
       },
       onPanResponderTerminate: () => cancel(),
@@ -175,7 +181,7 @@ function MediaStrip({ items, onPick, onRemove, onMove, onOpen }: {
                 zIndex: dragging ? 4 : 0,
                 elevation: dragging ? 6 : 0,
                 opacity: lift !== null && !dragging ? 0.9 : 1,
-                transform: [{ translateX: dragging ? dx : shiftAt(i) }, ...(dragging ? [{ scale: 1.06 }] : [])],
+                transform: [{ translateX: dragging ? dx : lift === null ? 0 : shiftAt(i) }, ...(dragging ? [{ scale: 1.06 }] : [])],
               }}
             >
               <TouchableOpacity
@@ -325,13 +331,12 @@ export interface Composer {
   /** Chain segments while threading; null/absent = a normal single post. */
   thread?: string[] | null;
   onThread?: (segs: string[] | null) => void;
-  /** Per-segment attachment (one slot: image or video), aligned to thread by
-   *  index. Absent = the composer doesn't support segment media (segment rows
-   *  stay text-only). */
-  threadMedia?: (ThreadSegmentMedia | null)[] | null;
-  onThreadMedia?: (med: (ThreadSegmentMedia | null)[]) => void;
+  /** Per-segment attachments, aligned to thread by index. Absent = the composer
+   *  doesn't support segment media (segment rows stay text-only). */
+  threadMedia?: (ThreadSegmentMedia[] | null)[] | null;
+  onThreadMedia?: (med: (ThreadSegmentMedia[] | null)[]) => void;
   onPickThreadMedia?: (index: number) => void;
-  onRemoveThreadMedia?: (index: number) => void;
+  onRemoveThreadMedia?: (index: number, mediaIndex: number) => void;
 }
 
 export interface SheetMediaItem {
@@ -477,11 +482,34 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
     return () => { live = false; };
   }, [visible, plats, connected]);
 
+  /** When the attached media can't fit a channel, say so in a popup instead
+   *  of standing help text. Mirrors the publish-time rules. */
+  const attachWarning = (c: string): string | null => {
+    const items = media?.items ?? [];
+    if (!items.length) return null;
+    const label = SOCIAL_META[c]?.label ?? (c[0]?.toUpperCase() ?? '') + c.slice(1);
+    const imgs = items.filter((a) => a.kind === 'image').length;
+    const vids = items.filter((a) => a.kind === 'video').length;
+    const cap = ATTACH_LIMITS[c]?.images ?? MAX_ATTACHMENTS;
+    if (cap === 0 && imgs > 0) return `${label} takes video only — remove the photos.`;
+    if (vids > 0 && imgs > 0) return `${label} takes photos or one video — not both in one post.`;
+    if (vids > 1 || (vids > 0 && c === 'linkedin')) return `${label} doesn’t take ${vids > 1 ? 'more than one video' : 'video'} — attach photos instead.`;
+    if (imgs > cap) return `${label} takes up to ${cap} photo${cap === 1 ? '' : 's'} per post — you’ve attached ${imgs}.`;
+    return null;
+  };
+
+  /** One popup covering every channel the current media won't fit. */
+  const warnAttachments = (targets: string[]) => {
+    const msgs = [...new Set(targets.filter((c) => c !== 'any').map(attachWarning).filter((m): m is string => !!m))];
+    if (msgs.length) Alert.alert('Media won’t fit', msgs.join('\n\n'));
+  };
+
   const togglePlat = (c: string) => {
     if (c === 'any') {
       // Anywhere ticks every connected channel (selected pill color each),
       // keeping the per-channel post-type rows visible
       setPlats(connected.length > 0 ? [...connected] : ['any']);
+      warnAttachments(connected);
       return;
     }
     if ((COMING_SOON as string[]).includes(c)) {
@@ -501,6 +529,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
       if (prev.includes(c)) return without;
       return [...without, c];
     });
+    if (!plats.includes(c)) warnAttachments([c]);
   };
 
   const setType = (c: ChannelKey, t: string) => {
@@ -653,26 +682,6 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                           <Text style={st.label}>{i + 1}/{composer.thread!.length}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: over ? '#D33131' : C.muted }}>{seg.length}/{chainCap}</Text>
-                            {canMed ? (
-                              <TouchableOpacity onPress={() => composer.onPickThreadMedia!(i)} hitSlop={8} accessibilityLabel={segMed ? 'Replace segment photo or video' : 'Attach photo or video to segment'}>
-                                {segMed ? (
-                                  segMed.kind === 'video' ? (
-                                    <View style={[st.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
-                                      <Ionicons name="play" size={12} color={C.muted} />
-                                    </View>
-                                  ) : (
-                                    <Image source={{ uri: segMed.uri }} style={st.segThumb} resizeMode="cover" />
-                                  )
-                                ) : (
-                                  <Ionicons name="image-outline" size={18} color={C.muted} />
-                                )}
-                              </TouchableOpacity>
-                            ) : null}
-                            {canMed && segMed ? (
-                              <TouchableOpacity onPress={() => composer.onRemoveThreadMedia!(i)} hitSlop={8} accessibilityLabel="Remove segment photo or video">
-                                <Ionicons name="close-circle" size={18} color={C.muted} />
-                              </TouchableOpacity>
-                            ) : null}
                             {composer.thread!.length > 1 ? (
                               <TouchableOpacity onPress={() => {
                                 const next = composer.thread!.filter((_, j) => j !== i);
@@ -688,6 +697,29 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                             ) : null}
                           </View>
                         </View>
+                        {canMed ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {(segMed ?? []).map((mm, mi) => (
+                              <View key={mi}>
+                                {mm.kind === 'video' ? (
+                                  <View style={[st.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
+                                    <Ionicons name="play" size={12} color={C.muted} />
+                                  </View>
+                                ) : (
+                                  <Image source={{ uri: mm.uri }} style={st.segThumb} resizeMode="cover" />
+                                )}
+                                <TouchableOpacity onPress={() => composer.onRemoveThreadMedia!(i, mi)} hitSlop={6} style={st.segBadge} accessibilityLabel="Remove segment attachment">
+                                  <Ionicons name="close" size={11} color="#fff" />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                            {(segMed?.length ?? 0) < THREAD_MEDIA_MAX ? (
+                              <TouchableOpacity onPress={() => composer.onPickThreadMedia!(i)} hitSlop={8} accessibilityLabel="Attach photo or video to segment">
+                                <Ionicons name="image-outline" size={18} color={C.muted} />
+                              </TouchableOpacity>
+                            ) : null}
+                          </View>
+                        ) : null}
                         <Txt
                           value={seg}
                           onChangeText={(v) => composer.onThread!(composer.thread!.map((s, j) => (j === i ? v : s)))}
@@ -731,10 +763,10 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                             // so it isn't stranded in the hidden strip.
                             const firstAtt = media?.items.find((a) => a.kind === 'image' || a.kind === 'video');
                             if (firstAtt && composer.onThreadMedia) {
-                              const cur = composer.threadMedia ?? [];
-                              if (!cur[0]) {
-                                composer.onThreadMedia(Array.from({ length: n.length }, (_, j) => (j === 0 ? { uri: firstAtt.uri, kind: firstAtt.kind } : (cur[j] ?? null))));
-                              }
+                            const cur = composer.threadMedia ?? [];
+                            if (!cur[0]?.length) {
+                              composer.onThreadMedia(Array.from({ length: n.length }, (_, j) => (j === 0 ? [{ uri: firstAtt.uri, kind: firstAtt.kind }] : (cur[j] ?? null))));
+                            }
                             }
                           }}
                           hitSlop={6}
@@ -786,7 +818,6 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                   <GhostBtn label="Attach photo or video" onPress={media.onPick} />
                 </View>
               )}
-              <Text style={st.limitHint}>Instagram · up to 10 photos as a carousel — Facebook · up to 10 photos — TikTok · up to 10 photos or 1 video — Threads · one photo per post</Text>
             </View>
             )
           ) : null}
@@ -1165,10 +1196,10 @@ const makeSt = (C: Palette) => ({
   topicClearT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText } as const,
   segPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' } as const,
   segThumb: { width: 26, height: 26, borderRadius: 7, backgroundColor: C.lineSoft, overflow: 'hidden' } as const,
+  segBadge: { position: 'absolute', top: -4, right: -4, width: 15, height: 15, borderRadius: 8, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' } as const,
   clearAllT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.faint } as const,
   countT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted } as const,
-  limitHint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, lineHeight: 16, color: C.faint, marginTop: 6 } as const,
-  thumb: { width: 100, aspectRatio: 9 / 16, borderRadius: R.md, backgroundColor: C.lineSoft, overflow: 'hidden' } as const,
+  thumb: { width: 100, aspectRatio: 4 / 5, borderRadius: R.md, backgroundColor: C.lineSoft, overflow: 'hidden' } as const,
   thumbPlay: { position: 'absolute', right: 6, bottom: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' } as const,
   arrangeHint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint, marginTop: 6 } as const,
   thumbAdd: { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, alignItems: 'center', justifyContent: 'center' } as const,

@@ -120,25 +120,28 @@ export interface ManagedPost {
    *  these for now; the cloud mirror ignores them (text-only chains there).
    *  @deprecated — replaced by threadMedia; still read as a fallback. */
   threadImages?: (string | null)[];
-  /** Per-segment attachment (one slot: an image or a video), aligned to
-   *  `thread` by index. Phone publisher attaches each to its reply. */
-  threadMedia?: (ThreadSegmentMedia | null)[];
+  /** Per-segment attachments (one or more images/videos), aligned to `thread`
+   *  by index — null = none. Phone publisher attaches each to its reply. */
+  threadMedia?: (ThreadSegmentMedia[] | null)[];
 }
 
-/** One chain segment's attachment slot: a single image or video. */
+/** One chain segment's attachment: an image or video. */
 export interface ThreadSegmentMedia {
   uri: string;
   kind: 'image' | 'video';
 }
 
-/** One chain segment paired with its attachment. */
+/** Most attachments a single chain segment may carry (X/Bluesky/Mastodon cap). */
+export const THREAD_MEDIA_MAX = 4;
+
+/** One chain segment paired with its attachments. */
 export interface ThreadSegment {
   text: string;
-  media: ThreadSegmentMedia | null;
+  media: ThreadSegmentMedia[];
 }
 
 /** Fit a media array to a segment count (pad null / truncate). */
-export function alignThreadMedia(media: (ThreadSegmentMedia | null)[] | undefined, n: number): (ThreadSegmentMedia | null)[] {
+export function alignThreadMedia(media: (ThreadSegmentMedia[] | null)[] | undefined, n: number): (ThreadSegmentMedia[] | null)[] {
   const src = media ?? [];
   return Array.from({ length: Math.max(0, n) }, (_, i) => src[i] ?? null);
 }
@@ -153,10 +156,12 @@ export function postSegments(p: ManagedPost): string[] {
 
 /** Raw per-segment attachments aligned to p.thread by index (no text filtering)
  *  — for loading the editor. Legacy threadImages read through as images. */
-export function postThreadMedia(p: ManagedPost): (ThreadSegmentMedia | null)[] {
+export function postThreadMedia(p: ManagedPost): (ThreadSegmentMedia[] | null)[] {
   const n = p.thread?.length ?? 0;
-  const med = p.threadMedia ?? (p.threadImages ?? []).map((u) => (u ? { uri: u, kind: 'image' as const } : null));
-  return alignThreadMedia(med, n);
+  const raw = (p.threadMedia ?? (p.threadImages ?? []).map((u) => (u ? { uri: u, kind: 'image' as const } : null))) as any[];
+  // Pre-multi-attach records stored a bare object per slot — normalise to arrays.
+  const norm = raw.map((m) => (m == null ? null : Array.isArray(m) ? m.filter(Boolean) : [m]));
+  return alignThreadMedia(norm, n);
 }
 
 /** Chain segments paired with their per-segment attachment, in order. Empty-text
@@ -166,7 +171,7 @@ export function postThreadMedia(p: ManagedPost): (ThreadSegmentMedia | null)[] {
 export function postThreadSegments(p: ManagedPost): ThreadSegment[] {
   const med = postThreadMedia(p);
   return (p.thread ?? [])
-    .map((s, i) => ({ text: (s ?? '').trim(), media: med[i] ?? null }))
+    .map((s, i) => ({ text: (s ?? '').trim(), media: med[i] ?? [] }))
     .filter((x) => x.text);
 }
 

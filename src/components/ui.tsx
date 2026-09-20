@@ -224,7 +224,7 @@ export function FeedPhoto({ uri, width = 88, min = 0.45, max = 2, radius = 11 }:
   );
 }
 
-export function FeedVideo({ uri, width = 88, radius = 11 }: { uri: string; width?: number; radius?: number }) {
+export function FeedVideo({ uri, width = 88, radius = 11, aspect = 9 / 16 }: { uri: string; width?: number; radius?: number; aspect?: number }) {
   const { C } = useTheme();
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -232,7 +232,7 @@ export function FeedVideo({ uri, width = 88, radius = 11 }: { uri: string; width
     p.play();
   });
   return (
-    <View style={{ width, aspectRatio: 9 / 16, borderRadius: radius, backgroundColor: C.ink, overflow: 'hidden' }}>
+    <View style={{ width, aspectRatio: aspect, borderRadius: radius, backgroundColor: C.ink, overflow: 'hidden' }}>
       <VideoView style={{ width: '100%', height: '100%' }} player={player} contentFit="cover" nativeControls={false} />
       <View style={{ position: 'absolute', right: 8, bottom: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="play" size={13} color="#fff" />
