@@ -25,3 +25,28 @@ export async function setAiKey(v: string): Promise<void> {
     else await SecureStore.deleteItemAsync(KEY);
   } catch {}
 }
+
+const OPENAI_KEY = 'zap_openai_key_v1';
+
+/** Key baked into the build — preferred AI engine when present. A key saved on-device still wins. */
+const OPENAI_BUILT_IN = (process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? '').trim();
+
+export function hasBuiltInOpenAiKey(): boolean {
+  return OPENAI_BUILT_IN.length > 0;
+}
+
+/** On-device override first, otherwise the built-in build key. */
+export async function getOpenAiKey(): Promise<string | null> {
+  try {
+    const v = await SecureStore.getItemAsync(OPENAI_KEY);
+    if (v && v.trim()) return v.trim();
+  } catch {}
+  return OPENAI_BUILT_IN || null;
+}
+
+export async function setOpenAiKey(v: string): Promise<void> {
+  try {
+    if (v.trim()) await SecureStore.setItemAsync(OPENAI_KEY, v.trim());
+    else await SecureStore.deleteItemAsync(OPENAI_KEY);
+  } catch {}
+}

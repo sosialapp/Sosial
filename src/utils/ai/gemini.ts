@@ -44,7 +44,8 @@ const SCHEMA = {
   required: ['pages'],
 };
 
-function buildPrompt(brief: ContentBrief): string {
+/** Shared carousel prompt — the OpenAI engine reuses it so both models play the same game. */
+export function buildCarouselPrompt(brief: ContentBrief): string {
   return [
     'You write social-media carousel copy.',
     languageLine(brief.language),
@@ -67,7 +68,7 @@ function buildPrompt(brief: ContentBrief): string {
 export async function geminiRaw(brief: ContentBrief, key: string, grounding: boolean): Promise<any[]> {
   const body: any = {
     systemInstruction: { parts: [{ text: 'You output strict JSON only. No markdown fences, no commentary.' }] },
-    contents: [{ role: 'user', parts: [{ text: buildPrompt(brief) }] }],
+    contents: [{ role: 'user', parts: [{ text: buildCarouselPrompt(brief) }] }],
     // NOTE: Gemini 3.6+ dropped the sampling knobs (temperature/top_p/top_k) —
     // sending them returns 400, so only schema + token budget go out.
     generationConfig: grounding

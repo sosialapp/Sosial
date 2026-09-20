@@ -7,12 +7,12 @@ import PostCanvas from './PostCanvas';
 import { RULES } from '../utils/ai/rules';
 import { ContentBrief, DEFAULT_BRIEF, GenResult } from '../utils/ai/types';
 import { generate } from '../utils/ai/provider';
-import { getAiKey, hasBuiltInKey } from '../utils/ai/key';
+import { getAiKey, getOpenAiKey, hasBuiltInKey, hasBuiltInOpenAiKey } from '../utils/ai/key';
 import { applyGenResult } from '../utils/ai/apply';
 import { PostPage } from '../types';
 import { loadAccount } from '../utils/account';
 
-/** Prompt → generate → visual preview → apply. Real Gemini when a key is saved, offline draft engine otherwise. */
+/** Prompt → generate → visual preview → apply. Real model (OpenAI preferred, Gemini fallback) when a key is saved, offline draft engine otherwise. */
 export default function AIGenerateSheet({ visible, template, ratio, onClose, onApply }: {
   visible: boolean;
   template: PostPage;
@@ -29,8 +29,8 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const [includeImages, setIncludeImages] = useState(false);
   const [grounding, setGrounding] = useState(false);
   const [hasKey, setHasKey] = useState(false);
-  // built-in build key means zero setup; a legacy saved key still counts
-  const keyReady = hasKey || hasBuiltInKey();
+  // built-in build key means zero setup; a legacy saved key still counts (either engine)
+  const keyReady = hasKey || hasBuiltInKey() || hasBuiltInOpenAiKey();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState<GenResult | null>(null);
@@ -39,7 +39,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
 
   useEffect(() => {
     if (visible) {
-      getAiKey().then((k) => setHasKey(!!k));
+      Promise.all([getAiKey(), getOpenAiKey()]).then(([g, o]) => setHasKey(!!g || !!o));
       loadAccount().then((a) => setPlan(a.plan));
     }
   }, [visible]);

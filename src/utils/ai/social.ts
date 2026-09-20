@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { THREAD_CAPS } from '../thread';
-import { getAiKey } from './key';
+import { getAiKey, getOpenAiKey } from './key';
+import { openaiSocialRaw, openaiChatJson, OPENAI_PROVIDER } from './openai';
 import { AiLanguage } from './types';
 
 /**
@@ -687,11 +688,19 @@ async function callModel(key: string, prompt: string, schema: unknown | null, gr
   return JSON.parse(m[0]);
 }
 
-export async function geminiSocial(brief: SocialBrief, key: string): Promise<any> {
+/** Prompt + research flag both engines share — one computation, no drift. */
+function socialPromptArgs(brief: SocialBrief): { prompt: string; research: boolean } {
   const platforms = activePlatforms(brief);
   const limit = Math.min(...platforms.map((p) => capFor(p, brief.thread)));
   const research = researchNeeded(brief);
-  const prompt = buildPrompt(brief, { platforms, limit, research, sources: sourcesNeeded(brief, research) });
+  return {
+    prompt: buildPrompt(brief, { platforms, limit, research, sources: sourcesNeeded(brief, research) }),
+    research,
+  };
+}
+
+export async function geminiSocial(brief: SocialBrief, key: string): Promise<any> {
+  const { prompt, research } = socialPromptArgs(brief);
   const raw = await callModel(key, prompt, SCHEMA, research);
   return { ...raw, __researched: research };
 }
@@ -753,19 +762,34 @@ export type SocialPhase = 'research' | 'write' | 'adapt' | 'finalize';
 export type PhaseHandler = (phase: SocialPhase) => void;
 
 export async function generateSocial(brief: SocialBrief, onPhase?: PhaseHandler): Promise<SocialResult> {
-  const key = await getAiKey();
-  if (!key) {
+  // OpenAI first when its key exists, Gemini next, offline draft engine last.
+  const oKey = await getOpenAiKey();
+  const gKey = oKey ? null : await getAiKey();
+  const engine: 'openai' | 'gemini' | null = oKey ? 'openai' : gKey ? 'gemini' : null;
+  if (!engine) {
     onPhase?.('write');
     await new Promise((r) => setTimeout(r, 450));
     return normalizeSocial(mockSocial(brief), brief, 'Draft engine (offline)');
   }
+  const key = (engine === 'openai' ? oKey : gKey) as string;
+  const label = engine === 'openai' ? OPENAI_PROVIDER : 'Gemini 3.8 Flash';
+
+  const runOnce = async (b: SocialBrief) => {
+    if (engine === 'openai') {
+      const { prompt, research } = socialPromptArgs(b);
+      const raw = { ...(await openaiSocialRaw(prompt, research, key)), __researched: research };
+      return { raw, research };
+    }
+    const raw = await geminiSocial(b, key);
+    return { raw, research: researchNeeded(b) };
+  };
 
   const research = researchNeeded(brief);
   const platforms = activePlatforms(brief);
   try {
     if (research) onPhase?.('research');
     onPhase?.('write');
-    let raw = await geminiSocial(brief, key);
+    let { raw } = await runOnce(brief);
     if (platforms.length > 1) onPhase?.('adapt');
     onPhase?.('finalize');
 
@@ -773,21 +797,21 @@ export async function generateSocial(brief: SocialBrief, onPhase?: PhaseHandler)
     if (research && !(Array.isArray(raw.sources) && raw.sources.length) && !raw.uncertainties?.length) {
       raw = { ...raw, uncertainties: ['Live research returned no sources — verify the facts before publishing.'] };
     }
-    return normalizeSocial(raw, brief, research ? 'Gemini 3.8 Flash + Search' : 'Gemini 3.8 Flash');
+    return normalizeSocial(raw, brief, research ? `${label} + Search` : label);
   } catch (e: any) {
     // If the grounded pass failed, retry straight generation so the user still gets copy —
     // with an honest warning that research did not run.
     if (research) {
       try {
-        const raw = await geminiSocial({ ...brief, research: 'off' }, key);
-        const result = normalizeSocial(raw, brief, 'Gemini 3.8 Flash');
+        const { raw } = await runOnce({ ...brief, research: 'off' });
+        const result = normalizeSocial(raw, brief, label);
         return { ...result, researchUsed: false, warnings: ['Live research is temporarily unavailable — this was written without it.', ...result.warnings] };
       } catch {
         /* fall through to the shared error result */
       }
     }
     return {
-      caption: '', thread: [], hashtags: [], provider: 'Gemini 3.8 Flash',
+      caption: '', thread: [], hashtags: [], provider: label,
       warnings: [e?.message ?? 'Something went wrong while writing your post.'],
       imagePrompt: null, imageSeed: 0, imageUrl: null,
       generation: { contentType: brief.thread ? 'thread' : 'post', styleUsed: brief.style, voiceUsed: brief.tone, language: brief.language },
@@ -815,8 +839,9 @@ export async function rewritePosts(
   brief: SocialBrief,
   op: RewriteOp,
 ): Promise<{ posts: string[]; warning?: string }> {
-  const key = await getAiKey();
-  if (!key) return { posts, warning: 'Editing needs a live model — reconnect and try again.' };
+  const oKey = await getOpenAiKey();
+  const gKey = oKey ? null : await getAiKey();
+  if (!oKey && !gKey) return { posts, warning: 'Editing needs a live model — reconnect and try again.' };
   const limit = Math.min(...activePlatforms(brief).map((p) => capFor(p, brief.thread)));
   const prompt = [
     'You are editing an existing social post. Preserve ALL facts, names, numbers and meaning.',
@@ -828,11 +853,13 @@ export async function rewritePosts(
     'Return ONLY JSON: {"posts":["..."]}.',
   ].join('\n');
   try {
-    const raw = await callModel(key, prompt, {
-      type: 'object',
-      properties: { posts: { type: 'array', items: { type: 'string' } } },
-      required: ['posts'],
-    }, false);
+    const raw = oKey
+      ? await openaiChatJson(oKey, 'You output strict JSON only. No markdown fences, no commentary.', prompt)
+      : await callModel(gKey as string, prompt, {
+        type: 'object',
+        properties: { posts: { type: 'array', items: { type: 'string' } } },
+        required: ['posts'],
+      }, false);
     const out = rawPosts(raw);
     if (!out.length) return { posts, warning: 'The rewrite came back empty — kept your original.' };
     return { posts: clampVariant(out, activePlatforms(brief)[0], brief.thread).posts };
