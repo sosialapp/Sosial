@@ -197,6 +197,12 @@ function sweep() {
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
+// Files must stay fetchable by TikTok's crawler, but must never be indexed
+// if a URL leaks — deny crawlers at robots.txt and tag every file noindex.
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+});
+
 app.post('/upload', upload.single('file'), async (req, res) => {
   if (req.query.key !== UPLOAD_KEY) {
     return res.status(401).json({ error: 'bad key' });
@@ -243,6 +249,7 @@ app.get('/f/:name', (req, res) => {
     const ext = path.extname(name).toLowerCase();
     res.setHeader('Content-Type', MIME_FOR[ext] || 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
     fs.createReadStream(full).pipe(res);
   });
 });
