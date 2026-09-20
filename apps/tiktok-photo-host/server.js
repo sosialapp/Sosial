@@ -41,6 +41,8 @@ const TTL_HOURS = Number(process.env.TTL_HOURS || 24);
 const BASE_URL = String(process.env.BASE_URL || '').replace(/\/+$/, '');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const MAX_BYTES = 10 * 1024 * 1024; // TikTok photos are small; 10 MB is generous
+const MIN_SIDE = 360; // TikTok rejects photo posts under 360 px per side
+const MAX_SIDE = 4096; // …and over 4096 px
 
 if (!UPLOAD_KEY) {
   console.error('FATAL: UPLOAD_KEY env is required (refusing to run an open relay).');
@@ -80,26 +82,49 @@ function sniff(buf) {
 }
 
 /**
- * TikTok pulls photos only as JPEG/WEBP; PNG (and HEIC) are rejected at init.
- * Normalize anything else to JPEG here, once, so app and worker both benefit.
+ * TikTok pulls photos only as JPEG/WEBP and rejects images outside
+ * 360–4096 px per side. Normalize every upload here, once, so app and worker
+ * both benefit: apply EXIF rotation, clamp dimensions, emit JPEG.
  * Returns { buf, ext, mime, note }.
  */
 async function normalize(buf) {
   const kind = sniff(buf);
-  if (kind === 'jpeg') return { buf, ext: '.jpg', mime: 'image/jpeg', note: 'jpeg' };
+  if (kind === 'unknown') {
+    const e = new Error('unsupported image — send JPG, PNG, WEBP, GIF or HEIC');
+    e.status = 415;
+    throw e;
+  }
   if (!sharp) {
+    // Without sharp we can only pass through formats TikTok already accepts.
+    if (kind === 'jpeg') return { buf, ext: '.jpg', mime: 'image/jpeg', note: 'jpeg' };
     if (kind === 'webp') return { buf, ext: '.webp', mime: 'image/webp', note: 'webp' };
     const e = new Error(`host cannot accept ${kind} without sharp installed — send JPEG/WEBP or add the sharp dependency`);
     e.status = 415;
     throw e;
   }
   try {
-    const out = await sharp(buf, { failOn: 'none' })
-      .rotate() // apply EXIF orientation before we drop it
+    const meta = await sharp(buf, { failOn: 'none' }).metadata();
+    const w = meta.width || 0;
+    const h = meta.height || 0;
+    const longest = Math.max(w, h);
+    const shortest = Math.min(w, h);
+    // longest/shortest are orientation-independent, so the decision holds even
+    // though rotate() may swap the axes afterwards.
+    let img = sharp(buf, { failOn: 'none' }).rotate();
+    const notes = [];
+    if (longest > MAX_SIDE) {
+      img = img.resize({ width: MAX_SIDE, height: MAX_SIDE, fit: 'inside' });
+      notes.push(`down ${w}x${h}`);
+    } else if (shortest > 0 && shortest < MIN_SIDE) {
+      img = img.resize({ width: MIN_SIDE, height: MIN_SIDE, fit: 'outside' });
+      notes.push(`up ${w}x${h}`);
+    }
+    const out = await img
       .flatten({ background: '#ffffff' }) // JPEG has no alpha; don't let transparency go black
       .jpeg({ quality: 90, mozjpeg: true })
       .toBuffer();
-    return { buf: out, ext: '.jpg', mime: 'image/jpeg', note: `${kind}->jpeg` };
+    const note = kind === 'jpeg' && notes.length === 0 ? 'jpeg' : `${kind}(${notes.join(',') || 'ok'})->jpeg`;
+    return { buf: out, ext: '.jpg', mime: 'image/jpeg', note };
   } catch {
     const e = new Error(`could not convert ${kind} image to JPEG`);
     e.status = 415;
@@ -164,7 +189,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   setTimeout(() => {
     fs.unlink(path.join(DATA_DIR, name), () => {});
   }, TTL_HOURS * 3600 * 1000).unref();
-  if (norm.note !== 'jpeg') console.log(`tiktok-photo-host: stored ${norm.note} (${norm.buf.length}b)`);
+  console.log(`tiktok-photo-host: stored ${norm.note} (${norm.buf.length}b)`);
   res.json({ url: `${BASE_URL}/f/${name}` });
 });
 
