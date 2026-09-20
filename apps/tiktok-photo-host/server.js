@@ -83,6 +83,33 @@ function sniff(buf) {
   return 'unknown';
 }
 
+/** Best-effort width/height without sharp (JPEG/PNG) — lets us fail loudly when
+ *  sharp is missing instead of silently serving a file TikTok will reject. */
+function dims(buf) {
+  if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50) {
+    return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+  }
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) {
+        i += 1;
+        continue;
+      }
+      const marker = buf[i + 1];
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+        i += 2;
+        continue;
+      }
+      const len = buf.readUInt16BE(i + 2);
+      const isSOF = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+      if (isSOF) return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+      i += 2 + len;
+    }
+  }
+  return { w: 0, h: 0 };
+}
+
 /**
  * TikTok photo posts accept only JPEG/WEBP capped at 1080p (longest side
  * 1920px) and 20 MB. Normalize every upload here, once, so app and worker
@@ -97,9 +124,20 @@ async function normalize(buf) {
     throw e;
   }
   if (!sharp) {
-    // Without sharp we can only pass through formats TikTok already accepts.
-    if (kind === 'jpeg') return { buf, ext: '.jpg', mime: 'image/jpeg', note: 'jpeg' };
-    if (kind === 'webp') return { buf, ext: '.webp', mime: 'image/webp', note: 'webp' };
+    // sharp is required to resize; without it, oversized photos would be
+    // silently served and rejected by TikTok with picture_size_check_failed.
+    if (kind === 'jpeg' || kind === 'webp') {
+      const d = dims(buf);
+      if (Math.max(d.w, d.h) > TT_PHOTO_BOX) {
+        const e = new Error(
+          `photo is ${d.w}x${d.h}, over TikTok's 1080p limit, and this host build has no sharp — redeploy so sharp installs.`,
+        );
+        e.status = 500;
+        throw e;
+      }
+      if (kind === 'jpeg') return { buf, ext: '.jpg', mime: 'image/jpeg', note: 'jpeg' };
+      return { buf, ext: '.webp', mime: 'image/webp', note: 'webp' };
+    }
     const e = new Error(`host cannot accept ${kind} without sharp installed — send JPEG/WEBP or add the sharp dependency`);
     e.status = 415;
     throw e;
@@ -219,6 +257,7 @@ app.use((err, _req, res, _next) => {
 
 const first = sweep();
 console.log(`tiktok-photo-host: data=${DATA_DIR} ttl=${TTL_HOURS}h kept=${first.kept} swept=${first.gone}`);
+console.log(`tiktok-photo-host: sharp=${sharp ? 'ok' : 'MISSING (oversized photos will be rejected)'}`);
 setInterval(() => {
   const r = sweep();
   if (r.gone > 0) console.log(`tiktok-photo-host: sweep swept=${r.gone} kept=${r.kept}`);
