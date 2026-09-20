@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { AvatarButton } from '../components/ProfileMenu';
 import ConnectButton from '../components/ConnectButton';
-import { Txt } from '../components/ui';
+import { Txt, PrimaryBtn, GhostBtn } from '../components/ui';
 import AICopySheet from '../components/AICopySheet';
 import { usePost, defaultPage } from '../store/PostContext';
 import { CardStyle, QuickPost } from '../types';
@@ -509,39 +509,42 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 
         {tab === 'ideas' ? (
           <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-            {/* inline composer */}
+            {/* inline composer — same form language as the post tab */}
             <View style={s.composer}>
+              <Text style={s.secLabel}>Title</Text>
               <Txt value={cTitle} onChangeText={setCTitle} placeholder="Idea title…" style={s.cTitle} />
+              <Text style={s.secLabel}>Write</Text>
               {cThread ? (
                 <ThreadEditor segments={cThread} onChange={setCThread} pickMedia={pickMedia} />
               ) : (
                 <Txt value={cBody} onChangeText={setCBody} placeholder="Describe the idea…" multiline style={{ minHeight: 56, textAlignVertical: 'top' }} />
               )}
-              {!cThread && cMedia ? <MediaThumb media={cMedia} style={s.cImg} /> : null}
-              <View style={s.toolRow}>
-                {!cThread ? (
-                  <TouchableOpacity onPress={async () => setCMedia(await pickMedia())} style={s.tool} activeOpacity={0.7}>
-                    <Ionicons name={cMedia?.kind === 'video' ? 'videocam' : 'image'} size={16} color={C.accentInk} />
-                    <Text style={s.toolT}>{cMedia ? 'Change' : 'Photo/video'}</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity onPress={() => setAi({ target: 'idea', prompt: `${cTitle} ${cBody}`.trim() })} style={s.tool} activeOpacity={0.7}>
+              {!cThread ? (
+                <>
+                  <Text style={s.secLabel}>Photo or video</Text>
+                  {cMedia ? (
+                    <View style={{ gap: 8 }}>
+                      <MediaThumb media={cMedia} style={s.cImg} />
+                      <TouchableOpacity onPress={() => setCMedia(null)} hitSlop={6} style={{ alignSelf: 'flex-start' }} activeOpacity={0.7}>
+                        <Text style={s.linkDanger}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <GhostBtn label="Attach photo or video" onPress={async () => setCMedia(await pickMedia())} />
+                  )}
+                </>
+              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+                <TouchableOpacity onPress={() => setAi({ target: 'idea', prompt: `${cTitle} ${cBody}`.trim() })} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
                   <Ionicons name="sparkles" size={15} color={C.accentInk} />
-                  <Text style={s.toolT}>AI</Text>
+                  <Text style={s.link}>AI writer</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setCThread(cThread ? null : [{ text: '', media: null }, { text: '', media: null }])} style={[s.tool, cThread && s.toolOn]} activeOpacity={0.7}>
-                  <Ionicons name="git-branch" size={15} color={cThread ? C.onInk : C.accentInk} />
-                  <Text style={[s.toolT, cThread && { color: C.onInk }]}>Thread</Text>
+                <TouchableOpacity onPress={() => setCThread(cThread ? null : [{ text: '', media: null }, { text: '', media: null }])} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
+                  <Ionicons name="git-branch" size={15} color={C.accentInk} />
+                  <Text style={s.link}>{cThread ? 'Turn off thread' : 'Post as thread'}</Text>
                 </TouchableOpacity>
-                {!cThread && cMedia ? (
-                  <TouchableOpacity onPress={() => setCMedia(null)} style={s.tool} activeOpacity={0.7}>
-                    <Text style={[s.toolT, { color: C.redText }]}>Remove</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
-              <TouchableOpacity onPress={saveNewIdea} style={[s.cPost, s.cPostFull]} activeOpacity={0.8}>
-                <Text style={s.cPostT}>Save idea</Text>
-              </TouchableOpacity>
+              <PrimaryBtn label="Save idea" onPress={saveNewIdea} />
             </View>
 
             {/* feed */}
@@ -692,38 +695,42 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={s.sheet}>
             <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={s.sheetT}>Edit idea</Text>
+              <Text style={s.secLabel}>Title</Text>
               <Txt value={eTitle} onChangeText={setETitle} placeholder="Idea title…" style={s.cTitle} />
-              <View style={{ height: 8 }} />
+              <Text style={s.secLabel}>Write</Text>
               {eThread ? (
                 <ThreadEditor segments={eThread} onChange={setEThread} pickMedia={pickMedia} />
               ) : (
                 <Txt value={eBody} onChangeText={setEBody} placeholder="Describe the idea…" multiline style={{ minHeight: 90, textAlignVertical: 'top' }} />
               )}
-              {!eThread && eMedia ? <MediaThumb media={eMedia} style={[s.cImg, { marginTop: 8 }]} /> : null}
-              <View style={s.toolRow}>
-                {!eThread ? (
-                  <TouchableOpacity onPress={async () => setEMedia(await pickMedia())} style={s.tool} activeOpacity={0.7}>
-                    <Ionicons name="image" size={16} color={C.accentInk} />
-                    <Text style={s.toolT}>{eMedia ? 'Change' : 'Photo/video'}</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity onPress={() => setAi({ target: 'editor', prompt: eBody || eTitle })} style={s.tool} activeOpacity={0.7}>
+              {!eThread ? (
+                <>
+                  <Text style={s.secLabel}>Photo or video</Text>
+                  {eMedia ? (
+                    <View style={{ gap: 8 }}>
+                      <MediaThumb media={eMedia} style={[s.cImg, { marginTop: 0 }]} />
+                      <TouchableOpacity onPress={() => setEMedia(null)} hitSlop={6} style={{ alignSelf: 'flex-start' }} activeOpacity={0.7}>
+                        <Text style={s.linkDanger}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <GhostBtn label="Attach photo or video" onPress={async () => setEMedia(await pickMedia())} />
+                  )}
+                </>
+              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 10 }}>
+                <TouchableOpacity onPress={() => setAi({ target: 'editor', prompt: eBody || eTitle })} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
                   <Ionicons name="sparkles" size={15} color={C.accentInk} />
-                  <Text style={s.toolT}>AI</Text>
+                  <Text style={s.link}>AI writer</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setEThread(eThread ? null : [{ text: '', media: null }, { text: '', media: null }])} style={[s.tool, eThread && s.toolOn]} activeOpacity={0.7}>
-                  <Ionicons name="git-branch" size={15} color={eThread ? C.onInk : C.accentInk} />
-                  <Text style={[s.toolT, eThread && { color: C.onInk }]}>Thread</Text>
+                <TouchableOpacity onPress={() => setEThread(eThread ? null : [{ text: '', media: null }, { text: '', media: null }])} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} activeOpacity={0.7}>
+                  <Ionicons name="git-branch" size={15} color={C.accentInk} />
+                  <Text style={s.link}>{eThread ? 'Turn off thread' : 'Post as thread'}</Text>
                 </TouchableOpacity>
-                {!eThread && eMedia ? (
-                  <TouchableOpacity onPress={() => setEMedia(null)} style={s.tool} activeOpacity={0.7}>
-                    <Text style={[s.toolT, { color: C.redText }]}>Remove</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
-              <TouchableOpacity onPress={saveEditor} style={[s.designBtn, { justifyContent: 'center', marginTop: 12, paddingVertical: 15 }]} activeOpacity={0.85}>
-                <Text style={s.designBtnT}>Save idea</Text>
-              </TouchableOpacity>
+              <View style={{ marginTop: 12 }}>
+                <PrimaryBtn label="Save idea" onPress={saveEditor} />
+              </View>
               {editing ? (
                 <TouchableOpacity onPress={() => postFromIdea(editing)} style={[s.postBtn, { justifyContent: 'center', marginTop: 8, paddingVertical: 14 }]} activeOpacity={0.8}>
                   <Ionicons name="send" size={16} color={C.ink} />
@@ -790,18 +797,12 @@ const makeS = (C: Palette) => StyleSheet.create({
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6 },
   tab: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
   tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
-  composer: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 13, gap: 4 },
+  composer: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 13, gap: 10 },
+  secLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
+  link: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk },
+  linkDanger: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.redText },
   cTitle: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 },
   cImg: { width: '100%', height: 150, borderRadius: R.md, marginTop: 8 },
-  cAttach: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
-  cAttachT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.accentInk },
-  cPost: { backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
-  cPostFull: { alignItems: 'center', justifyContent: 'center', paddingVertical: 14, marginTop: 10 },
-  cPostT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.onInk },
-  toolRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  tool: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
-  toolOn: { backgroundColor: C.ink },
-  toolT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.accentInk },
   mediaThumb: { width: '100%', borderRadius: R.md, resizeMode: 'cover' },
   videoThumb: { height: 150, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center', gap: 4 },
   videoTag: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: '#fff' },
