@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Modal, TextInput, Image, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Modal, TextInput, Image, Dimensions, Animated } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
@@ -14,6 +14,8 @@ import { saveProject, loadProjects, deleteProject, renameProject } from './HomeS
 import { loadIdeas, saveIdea, deleteIdea, Idea, ThreadSeg } from '../utils/ideas';
 import PostScreen from './PostScreen';
 import { ScheduleForm } from '../components/ScheduleSheet';
+import { SegMediaStrip } from '../components/SegMediaStrip';
+import { useVerticalReorder } from '../components/useVerticalReorder';
 import { useComposer } from '../store/ComposerContext';
 import { MediaAttachment, ManagedPost, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { joinThread } from '../utils/thread';
@@ -114,11 +116,12 @@ function TplPost({ post, kind, builtIn, onOpen, onMenu }: {
   );
 }
 
-function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…' }: {
+function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…', onDragChange }: {
   segments: ThreadSeg[];
   onChange: (s: ThreadSeg[]) => void;
   pickMedia: (limit: number) => Promise<MediaAttachment[]>;
   placeholder?: string;
+  onDragChange?: (dragging: boolean) => void;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -134,12 +137,43 @@ function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…' }
     if (picked.length) onChange(segs.map((x, j) => (j === i ? { ...x, media: [...x.media, ...picked].slice(0, THREAD_MEDIA_MAX) } : x)));
   };
   const detach = (i: number, mi: number) => onChange(segs.map((x, j) => (j === i ? { ...x, media: x.media.filter((_, k) => k !== mi) } : x)));
+  const moveMedia = (i: number, from: number, to: number) => onChange(segs.map((x, j) => {
+    if (j !== i) return x;
+    const next = [...x.media];
+    const [m] = next.splice(from, 1);
+    next.splice(to, 0, m);
+    return { ...x, media: next };
+  }));
+  /** Rearrange whole segments (text + its attachments move together). */
+  const moveSeg = (from: number, to: number) => {
+    const next = [...segs];
+    const [m] = next.splice(from, 1);
+    next.splice(to, 0, m);
+    onChange(next);
+  };
+  const drag = useVerticalReorder(segs.length, moveSeg, true, onDragChange);
   return (
     <View style={{ gap: 8 }}>
-      {segs.map((seg, i) => (
-        <View key={i} style={s.segBox}>
+      {segs.map((seg, i) => {
+        const lifted = drag.dragIndex === i;
+        const dropAt = drag.dragIndex !== null && drag.target === i && drag.dragIndex !== i;
+        return (
+        <Animated.View
+          key={i}
+          onLayout={drag.onRowLayout(i)}
+          {...drag.panHandlers}
+          style={[s.segBox, dropAt && { borderTopWidth: 2, borderTopColor: C.accent },
+            lifted && { transform: [{ translateY: drag.dy }], zIndex: 20, elevation: 8, opacity: 0.96 }]}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={s.segLabel}>{i + 1}/{segs.length}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {segs.length > 1 ? (
+                <TouchableOpacity onLongPress={() => drag.begin(i)} delayLongPress={180} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Hold and drag to reorder segment">
+                  <Ionicons name="reorder-three" size={19} color="rgba(255,255,255,0.55)" />
+                </TouchableOpacity>
+              ) : null}
+              <Text style={s.segLabel}>{i + 1}/{segs.length}</Text>
+            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Text style={[s.segCount, seg.text.length > THREAD_LIMIT && { color: '#F2A3A3' }]}>{seg.text.length}/{THREAD_LIMIT}</Text>
               {segs.length > 1 ? (
@@ -149,27 +183,14 @@ function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…' }
               ) : null}
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {seg.media.map((m, mi) => (
-              <View key={mi}>
-                {m.kind === 'video' ? (
-                  <View style={[s.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="play" size={12} color={C.muted} />
-                  </View>
-                ) : (
-                  <Image source={{ uri: m.uri }} style={s.segThumb} />
-                )}
-                <TouchableOpacity onPress={() => detach(i, mi)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={s.segBadge} accessibilityLabel="Remove segment attachment">
-                  <Ionicons name="close" size={11} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ))}
-            {seg.media.length < THREAD_MEDIA_MAX ? (
-              <TouchableOpacity onPress={() => attach(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Attach photo or video to segment">
-                <Ionicons name="image-outline" size={16} color={C.muted} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
+          <SegMediaStrip
+            items={seg.media}
+            max={THREAD_MEDIA_MAX}
+            dark
+            onPick={() => attach(i)}
+            onRemove={(mi) => detach(i, mi)}
+            onMove={(from, to) => moveMedia(i, from, to)}
+          />
           <Txt
             value={seg.text}
             onChangeText={(v) => setAt(i, v)}
@@ -177,8 +198,9 @@ function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…' }
             multiline
             style={s.segInput}
           />
-        </View>
-      ))}
+        </Animated.View>
+        );
+      })}
       {segs.length < 12 ? (
         <View style={{ alignItems: 'center', marginTop: 2 }}>
           <TouchableOpacity onPress={add} style={s.segPlus} activeOpacity={0.7}>
@@ -213,7 +235,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadMedia, setDraftThreadMedia, pickDraftThreadMedia, removeDraftThreadMedia, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, beginInline, endInline } = useComposer();
+  const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadMedia, setDraftThreadMedia, pickDraftThreadMedia, removeDraftThreadMedia, moveDraftThreadMedia, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, beginInline, endInline } = useComposer();
   // Fresh inline composer mount (remount resets its channel/schedule picks).
   const [formKey, setFormKey] = useState(0);
   const [tab, setTab] = useState<'ideas' | 'templates' | 'post' | 'publish'>('post');
@@ -235,6 +257,9 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const [eThread, setEThread] = useState<ThreadSeg[] | null>(null);
   // AI sheet routing (composer AI lives in context; ideas + editor use this one)
   const [ai, setAi] = useState<{ target: 'idea' | 'editor'; prompt: string } | null>(null);
+  // Parent scrolls lock while a chain segment is being dragged, so the pan
+  // doesn't get stolen by the enclosing ScrollView.
+  const [segScrollLock, setSegScrollLock] = useState(false);
   // design/template menus
   const [menu, setMenu] = useState<{ kind: 'project'; item: QuickPost } | { kind: 'preset'; tpl: ProjectPreset } | null>(null);
   /** Two-column masonry split (even/odd) for the template library grid. */
@@ -443,7 +468,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={!segScrollLock}>
         {/* masthead */}
         <View style={s.masthead}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -484,7 +509,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               <Txt value={cTitle} onChangeText={setCTitle} placeholder="Idea title…" style={s.cTitle} />
               <Text style={s.secLabel}>Write</Text>
               {cThread ? (
-                <ThreadEditor segments={cThread} onChange={setCThread} pickMedia={pickMedia} />
+                <ThreadEditor segments={cThread} onChange={setCThread} pickMedia={pickMedia} onDragChange={setSegScrollLock} />
               ) : (
                 <Txt value={cBody} onChangeText={setCBody} placeholder="Describe the idea…" multiline style={{ minHeight: 56, textAlignVertical: 'top' }} />
               )}
@@ -626,7 +651,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               bare
               visible
               title="New post"
-              composer={{ title: '', caption: draftBody, onCaption: setDraftBody, thread: draftThread, onThread: setDraftThread, threadMedia: draftThreadMedia, onThreadMedia: setDraftThreadMedia, onPickThreadMedia: pickDraftThreadMedia, onRemoveThreadMedia: removeDraftThreadMedia }}
+              composer={{ title: '', caption: draftBody, onCaption: setDraftBody, thread: draftThread, onThread: setDraftThread, threadMedia: draftThreadMedia, onThreadMedia: setDraftThreadMedia, onPickThreadMedia: pickDraftThreadMedia, onRemoveThreadMedia: removeDraftThreadMedia, onMoveThreadMedia: moveDraftThreadMedia }}
               media={{ items: draftMedia, onPick: pickDraftMedia, onRemove: removeDraftMedia, onMove: moveDraftMedia }}
               onSave={async (at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy) => {
                 if (await saveDraftPost(at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy)) resetInline();
@@ -640,6 +665,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               }}
               onClose={() => {}}
               onAi={openAi}
+              onSegDragChange={setSegScrollLock}
             />
           </View>
         ) : (
@@ -661,13 +687,13 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
       <Modal visible={editing !== null} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
         <TouchableOpacity activeOpacity={1} onPress={() => setEditing(null)} style={s.sheetBg}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={s.sheet}>
-            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={!segScrollLock}>
               <Text style={s.sheetT}>Edit idea</Text>
               <Text style={s.secLabel}>Title</Text>
               <Txt value={eTitle} onChangeText={setETitle} placeholder="Idea title…" style={s.cTitle} />
               <Text style={s.secLabel}>Write</Text>
               {eThread ? (
-                <ThreadEditor segments={eThread} onChange={setEThread} pickMedia={pickMedia} />
+                <ThreadEditor segments={eThread} onChange={setEThread} pickMedia={pickMedia} onDragChange={setSegScrollLock} />
               ) : (
                 <Txt value={eBody} onChangeText={setEBody} placeholder="Describe the idea…" multiline style={{ minHeight: 90, textAlignVertical: 'top' }} />
               )}

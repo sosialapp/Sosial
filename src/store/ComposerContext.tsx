@@ -87,6 +87,8 @@ interface ComposerCtx {
   setDraftThreadMedia: (med: (ThreadSegmentMedia[] | null)[]) => void;
   pickDraftThreadMedia: (index: number) => Promise<void>;
   removeDraftThreadMedia: (index: number, mediaIndex: number) => void;
+  /** Reorder the attachments inside one chain segment (compact strip drag). */
+  moveDraftThreadMedia: (index: number, from: number, to: number) => void;
   draftMedia: MediaAttachment[];
   pickDraftMedia: () => void;
   removeDraftMedia: (index: number) => void;
@@ -106,7 +108,7 @@ interface ComposerCtx {
   endInline: () => void;
 }
 
-const Ctx = createContext<ComposerCtx>({ refreshedAt: 0, openComposer: () => {}, openPostById: async () => {}, publishPostById: async () => {}, submitForApproval: async () => {}, approvePost: async () => {}, rejectPost: async () => {}, draftBody: '', setDraftBody: () => {}, draftThread: null, setDraftThread: () => {}, draftThreadMedia: [], setDraftThreadMedia: () => {}, pickDraftThreadMedia: async () => {}, removeDraftThreadMedia: () => {}, draftMedia: [], pickDraftMedia: () => {}, removeDraftMedia: () => {}, moveDraftMedia: () => {}, saveDraftPost: async () => false, stashDraftPost: async () => false, postDraftNow: async () => false, importDraft: () => {}, clearDraft: () => {}, openAi: () => {}, beginInline: () => {}, endInline: () => {} });
+const Ctx = createContext<ComposerCtx>({ refreshedAt: 0, openComposer: () => {}, openPostById: async () => {}, publishPostById: async () => {}, submitForApproval: async () => {}, approvePost: async () => {}, rejectPost: async () => {}, draftBody: '', setDraftBody: () => {}, draftThread: null, setDraftThread: () => {}, draftThreadMedia: [], setDraftThreadMedia: () => {}, pickDraftThreadMedia: async () => {}, removeDraftThreadMedia: () => {}, moveDraftThreadMedia: () => {}, draftMedia: [], pickDraftMedia: () => {}, removeDraftMedia: () => {}, moveDraftMedia: () => {}, saveDraftPost: async () => false, stashDraftPost: async () => false, postDraftNow: async () => false, importDraft: () => {}, clearDraft: () => {}, openAi: () => {}, beginInline: () => {}, endInline: () => {} });
 
 export function useComposer(): ComposerCtx {
   return useContext(Ctx);
@@ -200,6 +202,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const next = [...prev];
       const kept = (next[index] ?? []).filter((_, i) => i !== mediaIndex);
       next[index] = kept.length ? kept : null;
+      return next;
+    });
+  };
+
+  /** Reorder the attachments inside one segment (drag in the compact strip). */
+  const moveThreadMedia = (index: number, from: number, to: number) => {
+    setTThreadMedia((prev) => {
+      const seg = prev[index];
+      if (!seg || from === to) return prev;
+      const next = [...prev];
+      const moved = [...seg];
+      const [m] = moved.splice(from, 1);
+      if (!m) return prev;
+      moved.splice(to, 0, m);
+      next[index] = moved;
       return next;
     });
   };
@@ -1105,7 +1122,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ refreshedAt, openComposer, openPostById, publishPostById, submitForApproval, approvePost, rejectPost, draftBody: tBody, setDraftBody: setTBody, draftThread: tThread, setDraftThread: onThread, draftThreadMedia: tThreadMedia, setDraftThreadMedia: onThreadMedia, pickDraftThreadMedia: pickThreadMedia, removeDraftThreadMedia: removeThreadMedia, draftMedia: tMedia, pickDraftMedia: pickMedia, removeDraftMedia: removeMedia, moveDraftMedia: moveMedia, saveDraftPost: save, stashDraftPost: saveDraft, postDraftNow: postNow, importDraft, clearDraft, openAi, beginInline, endInline }}>
+    <Ctx.Provider value={{ refreshedAt, openComposer, openPostById, publishPostById, submitForApproval, approvePost, rejectPost, draftBody: tBody, setDraftBody: setTBody, draftThread: tThread, setDraftThread: onThread, draftThreadMedia: tThreadMedia, setDraftThreadMedia: onThreadMedia, pickDraftThreadMedia: pickThreadMedia, removeDraftThreadMedia: removeThreadMedia, moveDraftThreadMedia: moveThreadMedia, draftMedia: tMedia, pickDraftMedia: pickMedia, removeDraftMedia: removeMedia, moveDraftMedia: moveMedia, saveDraftPost: save, stashDraftPost: saveDraft, postDraftNow: postNow, importDraft, clearDraft, openAi, beginInline, endInline }}>
       {children}
       <ScheduleSheet
         visible={sheet !== null}
@@ -1120,7 +1137,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         initialThreadsTopic={sheet?.post?.threadsTopic}
         initialTtPrivacy={sheet?.post?.ttPrivacy}
         initialYtPrivacy={sheet?.post?.ytPrivacy}
-        composer={{ title: '', caption: tBody, onCaption: setTBody, thread: tThread, onThread, threadMedia: tThreadMedia, onThreadMedia, onPickThreadMedia: pickThreadMedia, onRemoveThreadMedia: removeThreadMedia }}
+        composer={{ title: '', caption: tBody, onCaption: setTBody, thread: tThread, onThread, threadMedia: tThreadMedia, onThreadMedia, onPickThreadMedia: pickThreadMedia, onRemoveThreadMedia: removeThreadMedia, onMoveThreadMedia: moveThreadMedia }}
         media={{ items: tMedia, onPick: pickMedia, onRemove: removeMedia, onMove: moveMedia }}
         onSave={save}
         draftLabel="Save as draft"

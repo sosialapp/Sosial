@@ -80,6 +80,12 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
       onStartShouldSetPanResponder: () => false,
       // Android: let the native touchable receive taps — only steal real drags
       onShouldBlockNativeResponder: () => false,
+      // Capture phase: once a page is lifted, claim the pan BEFORE the
+      // horizontal pager ScrollView so reordering isn't swallowed by a swipe.
+      onMoveShouldSetPanResponderCapture: (_, g) => {
+        const id = dragIdR.current;
+        return id !== null && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy);
+      },
       onMoveShouldSetPanResponder: (_, g) => {
         const id = dragIdR.current;
         return id !== null && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy);
@@ -211,7 +217,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
               >
                     <TouchableOpacity
                       activeOpacity={1}
-                      delayLongPress={450}
+                      delayLongPress={220}
                       onPress={() => {
                         if (dragIdR.current) return;
                         const pi = post.pages.findIndex((x) => x.id === p.id);

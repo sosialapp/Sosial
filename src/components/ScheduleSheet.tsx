@@ -5,6 +5,8 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useTheme, Palette, R } from '../theme';
 import { PrimaryBtn, GhostBtn, Txt } from './ui';
+import { SegMediaStrip } from './SegMediaStrip';
+import { useVerticalReorder } from './useVerticalReorder';
 import { PubRow } from './PublishNotice';
 import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
@@ -337,6 +339,8 @@ export interface Composer {
   onThreadMedia?: (med: (ThreadSegmentMedia[] | null)[]) => void;
   onPickThreadMedia?: (index: number) => void;
   onRemoveThreadMedia?: (index: number, mediaIndex: number) => void;
+  /** Reorder the attachments inside one segment (drag in the compact strip). */
+  onMoveThreadMedia?: (index: number, from: number, to: number) => void;
 }
 
 export interface SheetMediaItem {
@@ -385,6 +389,9 @@ interface Props {
   readOnlyNote?: string;
   /** per-channel remote ids saved at publish time — drives the Sent analytics section */
   remoteIds?: Record<string, string>;
+  /** Notifies the host when a chain segment drag starts/stops, so an enclosing
+   *  ScrollView (bare inline mode) can lock while the row follows the finger. */
+  onSegDragChange?: (dragging: boolean) => void;
 }
 
 /**
@@ -392,7 +399,7 @@ interface Props {
  * `bare` renders the same form inline (Create → Post pill) instead of in the
  * bottom-sheet Modal — state and submit paths are identical either way.
  */
-export function ScheduleForm({ visible, initialAt, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare }: Props & { bare?: boolean }) {
+export function ScheduleForm({ visible, initialAt, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange }: Props & { bare?: boolean }) {
   const { C, mode: themeMode } = useTheme();
   const st = makeSt(C);
   const [plats, setPlats] = useState<string[]>(['any']);
@@ -413,6 +420,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
   const [pickingTime, setPickingTime] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
   const [, setTick] = useState(0);
+  const [segDragging, setSegDragging] = useState(false);
 
   const vCount = media?.items.length ?? 0;
   const vIdx = viewer !== null && vCount > 0 ? Math.min(viewer, vCount - 1) : null;
@@ -426,6 +434,27 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
   const chainPlats = plats.includes('any') ? connected : plats;
   const chainCap = chainLimit(chainPlats) ?? Math.min(...Object.values(THREAD_CAPS));
   const threadOn = !!composer?.thread && composer.thread.length > 0;
+
+  /** Rearrange whole chain segments (text + its attachments move together). */
+  const moveSegment = (from: number, to: number) => {
+    const t = composer?.thread;
+    if (!t || !composer?.onThread) return;
+    const next = [...t];
+    const [m] = next.splice(from, 1);
+    next.splice(to, 0, m);
+    composer.onThread(next);
+    const cur = composer.threadMedia ?? [];
+    if (cur.length) {
+      const nm = [...cur];
+      const [mm] = nm.splice(from, 1);
+      nm.splice(to, 0, mm);
+      composer.onThreadMedia?.(nm);
+    }
+  };
+  const segDrag = useVerticalReorder(composer?.thread?.length ?? 0, moveSegment, true, (d) => {
+    setSegDragging(d);
+    onSegDragChange?.(d);
+  });
 
   useEffect(() => {
     if (visible) {
@@ -676,10 +705,25 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                     const over = seg.length > chainCap;
                     const segMed = composer.threadMedia?.[i] ?? null;
                     const canMed = !!composer.onPickThreadMedia;
+                    const lifted = segDrag.dragIndex === i;
+                    const dropAt = segDrag.dragIndex !== null && segDrag.target === i && segDrag.dragIndex !== i;
                     return (
-                      <View key={i} style={{ gap: 4 }}>
+                      <Animated.View
+                        key={i}
+                        onLayout={segDrag.onRowLayout(i)}
+                        {...segDrag.panHandlers}
+                        style={{ gap: 4, ...(dropAt ? { borderTopWidth: 2, borderTopColor: C.accent, paddingTop: 4 } : {}),
+                          ...(lifted ? { transform: [{ translateY: segDrag.dy }], zIndex: 20, elevation: 8, opacity: 0.97 } : {}) }}
+                      >
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text style={st.label}>{i + 1}/{composer.thread!.length}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {composer.thread!.length > 1 ? (
+                              <TouchableOpacity onLongPress={() => segDrag.begin(i)} delayLongPress={180} hitSlop={8} accessibilityLabel="Hold and drag to reorder segment">
+                                <Ionicons name="reorder-three" size={19} color={C.muted} />
+                              </TouchableOpacity>
+                            ) : null}
+                            <Text style={st.label}>{i + 1}/{composer.thread!.length}</Text>
+                          </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: over ? '#D33131' : C.muted }}>{seg.length}/{chainCap}</Text>
                             {composer.thread!.length > 1 ? (
@@ -698,27 +742,15 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                           </View>
                         </View>
                         {canMed ? (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            {(segMed ?? []).map((mm, mi) => (
-                              <View key={mi}>
-                                {mm.kind === 'video' ? (
-                                  <View style={[st.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
-                                    <Ionicons name="play" size={12} color={C.muted} />
-                                  </View>
-                                ) : (
-                                  <Image source={{ uri: mm.uri }} style={st.segThumb} resizeMode="cover" />
-                                )}
-                                <TouchableOpacity onPress={() => composer.onRemoveThreadMedia!(i, mi)} hitSlop={6} style={st.segBadge} accessibilityLabel="Remove segment attachment">
-                                  <Ionicons name="close" size={11} color="#fff" />
-                                </TouchableOpacity>
-                              </View>
-                            ))}
-                            {(segMed?.length ?? 0) < THREAD_MEDIA_MAX ? (
-                              <TouchableOpacity onPress={() => composer.onPickThreadMedia!(i)} hitSlop={8} accessibilityLabel="Attach photo or video to segment">
-                                <Ionicons name="image-outline" size={18} color={C.muted} />
-                              </TouchableOpacity>
-                            ) : null}
-                          </View>
+                          <SegMediaStrip
+                            items={segMed ?? []}
+                            max={THREAD_MEDIA_MAX}
+                            size={52}
+                            dark={themeMode === 'dark'}
+                            onPick={() => composer.onPickThreadMedia!(i)}
+                            onRemove={(mi) => composer.onRemoveThreadMedia!(i, mi)}
+                            onMove={(from, to) => composer.onMoveThreadMedia?.(i, from, to)}
+                          />
                         ) : null}
                         <Txt
                           value={seg}
@@ -727,7 +759,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                           multiline
                           style={{ minHeight: 72, textAlignVertical: 'top' }}
                         />
-                      </View>
+                      </Animated.View>
                     );
                   })}
                   <View style={{ alignItems: 'center', marginTop: 2 }}>
@@ -1155,7 +1187,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                 the ScrollView or Android drags die in responder negotiation */}
             <TouchableOpacity activeOpacity={1} onPress={() => onClose?.()} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
             <View style={st.sheet}>
-              <ScrollView nestedScrollEnabled style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled">
+              <ScrollView nestedScrollEnabled style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled" scrollEnabled={!segDragging}>
                 {content}
               </ScrollView>
             </View>
