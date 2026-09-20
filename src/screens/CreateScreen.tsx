@@ -19,7 +19,7 @@ import { useVerticalReorder } from '../components/useVerticalReorder';
 import { useComposer } from '../store/ComposerContext';
 import { MediaAttachment, ManagedPost, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { joinThread } from '../utils/thread';
-import { SocialResult } from '../utils/ai/social';
+import { SocialResult, fetchCoverImage } from '../utils/ai/social';
 import { deleteProjectPreset, instantiatePreset, renameProjectPreset,
   saveProjectPreset, seedStarterTemplates, ProjectPreset } from '../utils/presets';
 import PostCanvas, { CANVAS_W } from '../components/PostCanvas';
@@ -305,19 +305,27 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 
   /* ---------------- AI apply routing ---------------- */
 
-  const applyAi = (r: SocialResult) => {
+  const applyAi = async (r: SocialResult) => {
     const target = ai?.target;
     const tags = r.hashtags.length ? '\n\n' + r.hashtags.join(' ') : '';
     const asThread = r.thread.length > 1;
     const head = (asThread ? r.thread[0] : r.caption).split('\n')[0].slice(0, 70);
-    const toSegs = (t: string[]): ThreadSeg[] => t.map((text) => ({ text, media: [] }));
+    // AI cover graphic → local file so the composer owns it like a picked photo.
+    // Never clobbers media the user already attached.
+    let cover: MediaAttachment | null = null;
+    if (r.imageUrl) {
+      const local = await fetchCoverImage(r.imageUrl, r.imageSeed);
+      if (local) cover = { uri: local, kind: 'image' };
+    }
+    const toSegs = (t: string[]): ThreadSeg[] =>
+      t.map((text, i) => ({ text, media: i === 0 && cover ? [cover] : [] }));
     if (target === 'idea') {
       if (asThread) { setCThread(toSegs(r.thread)); setCBody(joinThread(r.thread)); }
-      else { setCThread(null); setCBody(r.caption + tags); }
+      else { setCThread(null); setCBody(r.caption + tags); if (cover && !cMedia) setCMedia(cover); }
       if (!cTitle.trim()) setCTitle(head);
     } else if (target === 'editor') {
       if (asThread) { setEThread(toSegs(r.thread)); setEBody(joinThread(r.thread)); }
-      else { setEThread(null); setEBody(r.caption + tags); }
+      else { setEThread(null); setEBody(r.caption + tags); if (cover && !eMedia) setEMedia(cover); }
       if (!eTitle.trim()) setETitle(head);
     }
     setAi(null);

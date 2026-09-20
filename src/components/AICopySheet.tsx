@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Section, Field, SocialGlyph } from './ui';
 import {
   SocialBrief, SocialResult, SocialTone, SocialPlatform, SocialStyle,
   DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES, THREAD_STYLES,
-  generateSocial, capFor,
+  generateSocial, capFor, coverImageUrl,
 } from '../utils/ai/social';
 import { loadAccount } from '../utils/account';
 
@@ -29,6 +29,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [thread, setThread] = useState(false);
   const [parts, setParts] = useState(DEFAULT_SOCIAL_BRIEF.parts);
   const [hashtags, setHashtags] = useState(true);
+  const [cover, setCover] = useState(DEFAULT_SOCIAL_BRIEF.coverImage);
   const [platform, setPlatform] = useState<SocialPlatform>('any');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -47,7 +48,13 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const brief: SocialBrief = {
     // language is always auto — the copy mirrors whatever language the prompt is in
     prompt, language: 'auto', tone,
-    thread, parts, hashtags, platform, style,
+    thread, parts, hashtags, platform, style, coverImage: cover,
+  };
+
+  const regenImage = () => {
+    if (!result?.imagePrompt) return;
+    const seed = Math.floor(Math.random() * 1000000);
+    setResult({ ...result, imageSeed: seed, imageUrl: coverImageUrl(result.imagePrompt, seed) });
   };
 
   const pickStyle = (id: SocialStyle) => {
@@ -166,6 +173,14 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 <PillToggle on={hashtags} onPress={() => setHashtags((v) => !v)} />
               </View>
 
+              <View style={st.toggleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.toggleT}>AI cover image</Text>
+                  <Text style={st.toggleS}>Topic-matched graphic, made fresh each run</Text>
+                </View>
+                <PillToggle on={cover} onPress={() => setCover((v) => !v)} />
+              </View>
+
               <Field label="Best for" hint="Sets the character cap.">
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {SOCIAL_PLATFORMS.map((p) => {
@@ -239,6 +254,13 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                     </View>
                   ) : null}
 
+                  {result.imageUrl ? (
+                    <View style={{ gap: 8 }}>
+                      <Image source={{ uri: result.imageUrl }} style={st.cover} resizeMode="cover" />
+                      <GhostBtn label="New image" onPress={regenImage} />
+                    </View>
+                  ) : null}
+
                   {hasCopy ? (
                     <PrimaryBtn
                       label={result.thread.length > 1 ? `Use this thread (${result.thread.length})` : 'Use this caption'}
@@ -285,4 +307,5 @@ const makeSt = (C: Palette) => StyleSheet.create({
   segT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 20, color: C.soft },
   tag: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
   tagT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.accentInk },
+  cover: { width: '100%', aspectRatio: 4 / 5, borderRadius: R.lg, backgroundColor: C.card },
 });

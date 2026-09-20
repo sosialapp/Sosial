@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system/legacy';
 import { THREAD_CAPS } from '../thread';
 import { getAiKey } from './key';
 import { AiLanguage, languageLine } from './types';
@@ -11,7 +12,7 @@ import { AiLanguage, languageLine } from './types';
  * real hook, a payoff, and no "1/", "🧵" or "thread" markers.
  */
 
-const MODEL = 'gemini-flash-lite-latest';
+const MODEL = 'gemini-3.8-flash';
 const endpoint = (key: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
@@ -86,6 +87,8 @@ export interface SocialBrief {
   platform: SocialPlatform;
   /** content playbook; 'auto' lets the model commit to the best fit */
   style: SocialStyle;
+  /** also produce a topic-matched AI cover image (free, no key needed) */
+  coverImage: boolean;
 }
 
 export interface SocialResult {
@@ -96,6 +99,12 @@ export interface SocialResult {
   hashtags: string[];
   provider: string;
   warnings: string[];
+  /** cover-image visual description from the model (null when disabled/empty) */
+  imagePrompt: string | null;
+  /** seed the cover URL was built with — bump it for a fresh variant */
+  imageSeed: number;
+  /** ready-to-preview Pollinations URL (null when disabled/empty) */
+  imageUrl: string | null;
 }
 
 export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
@@ -107,6 +116,7 @@ export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
   hashtags: true,
   platform: 'any',
   style: 'auto',
+  coverImage: true,
 };
 
 /** Strictest cap a segment has to fit: the chosen platform, or X's 280 for "any". */
@@ -133,6 +143,33 @@ function clampChars(s: string, limit: number): string {
 /** Strip leading list markers ("1/", "2.", "3)") a model may sneak in. */
 function stripNumbering(s: string): string {
   return s.replace(/^\s*\(?\d{1,2}\s*[\/.)\]:-]\s*/, '').replace(/^\s*[-•]\s*/, '').trim();
+}
+
+/**
+ * Free topic-matched cover graphic (Pollinations Flux, no key, hotlinkable).
+ * Portrait 4:5 suits feed + story crops; seed picks the variant.
+ */
+export function coverImageUrl(desc: string, seed: number): string {
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=1080&height=1350&seed=${seed}&model=flux&nologo=true`;
+}
+
+/** Download a cover URL into the app cache so the composer owns a local file. Null on any failure. */
+export async function fetchCoverImage(url: string, seed: number): Promise<string | null> {
+  try {
+    const base = FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '';
+    if (!base) return null;
+    const dir = `${base}ai-covers/`;
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+    const dest = `${dir}cover-${Date.now()}-${seed}.jpg`;
+    const dl = await FileSystem.downloadAsync(url, dest);
+    if (dl.status !== 200) {
+      await FileSystem.deleteAsync(dest, { idempotent: true }).catch(() => {});
+      return null;
+    }
+    return dl.uri;
+  } catch {
+    return null;
+  }
 }
 
 const HASH_STOP = new Set([
@@ -208,7 +245,11 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
   const hashtags = normHashtags(raw?.hashtags, brief);
   if (outEmpty(caption, thread, hashtags)) warnings.push('Nothing usable came back — try rephrasing the idea.');
 
-  return { caption, thread, hashtags, provider, warnings };
+  const imagePrompt = brief.coverImage ? clean(raw?.image) || null : null;
+  const imageSeed = Math.floor(Math.random() * 1000000);
+  const imageUrl = imagePrompt ? coverImageUrl(imagePrompt, imageSeed) : null;
+
+  return { caption, thread, hashtags, provider, warnings, imagePrompt, imageSeed, imageUrl };
 }
 
 const outEmpty = (caption: string, thread: string[], hashtags: string[]) =>
@@ -309,11 +350,18 @@ function buildPrompt(brief: SocialBrief, limit: number): string {
       'Set "thread" to an empty array.',
     );
   }
+  if (brief.coverImage) {
+    lines.push(
+      'Also describe ONE cover image for this content: vivid and specific to the idea, portrait composition, absolutely no text, words, letters, watermarks, or logos anywhere in the image.',
+    );
+  }
   lines.push(
     brief.hashtags
       ? 'Return 3-5 relevant hashtags separately (no more): a mix of broad reach and niche tags, no camel-case stuffing.'
       : 'Return an empty hashtags array.',
-    'Return ONLY JSON: {"caption":"...","thread":["..."],"hashtags":["..."]}.',
+    brief.coverImage
+      ? 'Return ONLY JSON: {"caption":"...","thread":["..."],"hashtags":["..."],"image":"..."}.'
+      : 'Return ONLY JSON: {"caption":"...","thread":["..."],"hashtags":["..."]}.',
   );
   return lines.join('\n');
 }
@@ -324,6 +372,7 @@ const SCHEMA = {
     caption: { type: 'string' },
     thread: { type: 'array', items: { type: 'string' } },
     hashtags: { type: 'array', items: { type: 'string' } },
+    image: { type: 'string' },
   },
   required: ['caption'],
 };
@@ -374,15 +423,17 @@ export function mockSocial(brief: SocialBrief): any {
     `So pick the smallest version, attach it to something you already do, and let it be boring for a while.`,
     `If ${t} has been on your mind, save this and start today.`,
   ];
+  const image = `Cinematic portrait photo about ${t}, warm honest light, real-world detail, no text`;
   if (!brief.thread) {
     return {
       caption: [beats[0], beats[2], beats[4]].join('\n\n'),
       thread: [],
       hashtags: deriveHashtags(topic),
+      image,
     };
   }
   const n = Math.max(2, Math.min(beats.length, brief.parts));
-  return { caption: beats[0], thread: beats.slice(0, n), hashtags: deriveHashtags(topic) };
+  return { caption: beats[0], thread: beats.slice(0, n), hashtags: deriveHashtags(topic), image };
 }
 
 /* ---------------- entry point ---------------- */
@@ -392,9 +443,9 @@ export async function generateSocial(brief: SocialBrief): Promise<SocialResult> 
   if (key) {
     try {
       const raw = await geminiSocial(brief, key);
-      return normalizeSocial(raw, brief, 'Gemini Flash Lite');
+      return normalizeSocial(raw, brief, 'Gemini 3.8 Flash');
     } catch (e: any) {
-      return { caption: '', thread: [], hashtags: [], provider: 'Gemini Flash Lite', warnings: [e?.message ?? 'Generation failed.'] };
+      return { caption: '', thread: [], hashtags: [], provider: 'Gemini 3.8 Flash', warnings: [e?.message ?? 'Generation failed.'], imagePrompt: null, imageSeed: 0, imageUrl: null };
     }
   }
   await new Promise((r) => setTimeout(r, 500));

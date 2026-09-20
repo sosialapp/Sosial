@@ -1,6 +1,6 @@
 import { ContentBrief, languageLine } from './types';
 
-const MODEL = 'gemini-flash-lite-latest';
+const MODEL = 'gemini-3.8-flash';
 const endpoint = (key: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
