@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, Txt } from '../components/ui';
@@ -11,7 +10,6 @@ import {
   loginFacebook, exchangeFacebookCode, fetchPages, pickPage, FbPage,
   loginInstagram, exchangeInstagramCode, fetchInstagramProfile,
   loginThreads, exchangeThreadsCode, fetchThreadsProfile,
-  BRIDGE_URL,
 } from '../utils/metaAuth';
 import { loginTikTok, completeTikTokLogin } from '../utils/tiktokAuth';
 import { loginX, completeXLogin } from '../utils/xAuth';
@@ -29,7 +27,7 @@ import { BUILD_TAG } from '../utils/build';
 import { disableCloudChannel, syncCloudChannels } from '../utils/cloudChannels';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { IG_APP_ID } from '../utils/metaConfig';
-import { TT_CLIENT_KEY, TT_PHOTO_HOST_DEFAULT } from '../utils/tiktokConfig';
+import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
 function ChannelIcon({ platform }: { platform: string }) {
   const { C } = useTheme();
@@ -49,8 +47,6 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
   const [pages, setPages] = useState<FbPage[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [openCh, setOpenCh] = useState<string | null>(null);
-  const [photoHost, setPhotoHost] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   const [mastodonInstance, setMastodonInstance] = useState('');
@@ -58,7 +54,7 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
   useEffect(() => {
-    loadMetaState().then((m) => { setMeta(m); setPhotoHost(m.ttPhotoHost ?? ''); });
+    loadMetaState().then((m) => { setMeta(m); });
   }, []);
 
   // Master-switch reconciler: any credential change auto-imports (master on)
@@ -441,18 +437,6 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
 
   const pickPinBoard = async (b: PinBoard) => {
     setMeta(await saveMetaState({ pinBoardId: b.id, pinBoardName: b.name }));
-  };
-
-  const savePhotoHost = async () => {
-    const v = photoHost.trim().replace(/\/+$/, '');
-    if (v && !/^https?:\/\//i.test(v)) {
-      Alert.alert('Invalid URL', 'Use a full URL like https://media.example.com/upload');
-      return;
-    }
-    const st = await saveMetaState({ ttPhotoHost: v || undefined });
-    setMeta(st);
-    setPhotoHost(st.ttPhotoHost ?? '');
-    Alert.alert(v ? 'Saved' : 'Cleared', v ? 'TikTok photo posts will upload here.' : (TT_PHOTO_HOST_DEFAULT ? 'Override cleared — using the built-in host.' : 'TikTok photo posts are disabled until you set a host.'));
   };
 
   const configured = META_APP_ID.length > 0;
@@ -904,67 +888,6 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
           {orderedChannelRows}
         </View>
 
-        <TouchableOpacity onPress={() => setShowAdvanced((v) => !v)} style={s.uriCard} activeOpacity={0.7}>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={s.uriT}>Advanced setup</Text>
-            <Text style={s.uriU} numberOfLines={2}>Photo host override · login redirect URI</Text>
-          </View>
-          <Ionicons name={showAdvanced ? 'chevron-up-outline' : 'chevron-down-outline'} size={18} color={C.faint} />
-        </TouchableOpacity>
-
-        {showAdvanced ? (
-          <>
-            {(!TT_PHOTO_HOST_DEFAULT || photoHost) ? (
-        <View style={s.hostCard}>
-          <Text style={s.uriT}>TikTok photo host</Text>
-          <Text style={s.uriU}>{TT_PHOTO_HOST_DEFAULT ? 'Built-in host is active — every connected TikTok account uses it. Paste a different endpoint below only to override it on this device.' : 'TikTok only pulls photos from a domain you verify in its developer portal. Paste your upload endpoint below — it receives the image (multipart field “file”) and returns a public URL.'}</Text>
-          {!photoHost && TT_PHOTO_HOST_DEFAULT ? (
-            <Text style={s.uriU}>Status: using built-in host{TT_PHOTO_HOST_DEFAULT.split('?')[0].replace('https://', ' · ')}</Text>
-          ) : null}
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Txt
-                value={photoHost}
-                onChangeText={setPhotoHost}
-                placeholder="https://media.example.com/upload"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-            </View>
-            <TouchableOpacity onPress={savePhotoHost} style={s.hostSave} activeOpacity={0.7}>
-              <Text style={s.hostSaveT}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-            ) : null}
-
-        {busy ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
-            <ActivityIndicator color={C.accent} />
-            <Text style={s.rowS}>{busy}</Text>
-          </View>
-        ) : null}
-
-        <TouchableOpacity
-          onPress={async () => {
-            try {
-              await Clipboard.setStringAsync(BRIDGE_URL);
-              Alert.alert('Copied', 'Paste this exact URL as a Valid OAuth Redirect URI in every app dashboard.');
-            } catch {}
-          }}
-          style={s.uriCard}
-          activeOpacity={0.7}
-        >
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={s.uriT}>Login redirect URI — tap to copy</Text>
-            <Text style={s.uriU} numberOfLines={2}>{BRIDGE_URL}</Text>
-          </View>
-          <Ionicons name="copy-outline" size={18} color={C.faint} />
-        </TouchableOpacity>
-          </>
-        ) : null}
-
         <Text style={s.buildTag}>build {BUILD_TAG}</Text>
       </ScrollView>
     </View>
@@ -998,11 +921,5 @@ const makeS = (C: Palette) => StyleSheet.create({
   soonHeadT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase', color: C.faint },
   soon: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   soonT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.accentInk },
-  uriCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 14, marginTop: 18 },
-  uriT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.ink },
-  uriU: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },
-  hostCard: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 14, marginTop: 18, gap: 2 },
-  hostSave: { backgroundColor: C.ink, borderRadius: R.md, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
-  hostSaveT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.onInk },
   buildTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint, textAlign: 'center', marginTop: 14, marginBottom: 4 },
 });
