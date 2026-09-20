@@ -94,23 +94,34 @@ function DragThumb({ index, count, active, dim, onDrop, children }: {
 }) {
   const x = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
+  // PanResponder is created once, so it must read the live props through a ref
+  // — otherwise it captures the first render's `active=false` and never claims
+  // the gesture (reorder silently does nothing).
+  const live = useRef({ index, count, active, onDrop });
+  live.current = { index, count, active, onDrop };
   useEffect(() => {
     Animated.timing(scale, { toValue: active ? 1.07 : 1, duration: 140, useNativeDriver: false }).start();
   }, [active, scale]);
+  const shouldClaim = (dx: number, dy: number) =>
+    live.current.active && Math.abs(dx) > 4 && Math.abs(dx) > Math.abs(dy);
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) => active && Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
+      // Capture phase: once a tile is lifted we must win over the child
+      // TouchableOpacity and the strip ScrollView to actually drag it.
+      onMoveShouldSetPanResponderCapture: (_, g) => shouldClaim(g.dx, g.dy),
+      onMoveShouldSetPanResponder: (_, g) => shouldClaim(g.dx, g.dy),
       onPanResponderMove: (_, g) => x.setValue(g.dx),
       onPanResponderRelease: (_, g) => {
-        const to = Math.max(0, Math.min(count - 1, index + Math.round(g.dx / THUMB_STEP)));
+        const l = live.current;
+        const to = Math.max(0, Math.min(l.count - 1, l.index + Math.round(g.dx / THUMB_STEP)));
         x.setValue(0);
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        onDrop(to);
+        l.onDrop(to);
       },
       onPanResponderTerminate: () => {
         x.setValue(0);
-        onDrop(index);
+        live.current.onDrop(live.current.index);
       },
     }),
   ).current;
