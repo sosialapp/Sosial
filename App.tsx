@@ -349,13 +349,13 @@ function Shell() {
 export default function App() {
   return (
     <ThemeProvider>
-      <PostProvider>
-        <ComposerProvider>
-          <SafeAreaProvider>
+      <SafeAreaProvider>
+        <PostProvider>
+          <ComposerProvider>
             <Shell />
-          </SafeAreaProvider>
-        </ComposerProvider>
-      </PostProvider>
+          </ComposerProvider>
+        </PostProvider>
+      </SafeAreaProvider>
     </ThemeProvider>
   );
 }
