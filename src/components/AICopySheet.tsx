@@ -9,7 +9,6 @@ import {
   generateSocial, capFor,
 } from '../utils/ai/social';
 import { AiLanguage, AI_LANGUAGES } from '../utils/ai/types';
-import { getAiKey, setAiKey } from '../utils/ai/key';
 import { loadAccount } from '../utils/account';
 
 /**
@@ -33,8 +32,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [parts, setParts] = useState(DEFAULT_SOCIAL_BRIEF.parts);
   const [hashtags, setHashtags] = useState(true);
   const [platform, setPlatform] = useState<SocialPlatform>('any');
-  const [key, setKey] = useState('');
-  const [hasKey, setHasKey] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState<SocialResult | null>(null);
@@ -46,10 +43,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setPrompt(initialPrompt);
     setResult(null);
     setErr('');
-    getAiKey().then((k) => {
-      setKey(k ?? '');
-      setHasKey(!!k);
-    });
     loadAccount().then((a) => setPlan(a.plan));
   }, [visible, initialPrompt]);
 
@@ -78,11 +71,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     } finally {
       setBusy(false);
     }
-  };
-
-  const saveKey = async () => {
-    await setAiKey(key);
-    setHasKey(!!key.trim());
   };
 
   const close = () => {
@@ -209,18 +197,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 </View>
               </Field>
 
-              <Section no="04" title="Model" hint={hasKey ? 'Gemini 3.8 Flash — your key, your bill.' : 'No key yet — the offline draft engine fills in.'} />
-              <Field label="Gemini API key" hint="Free from Google AI Studio. Stays on this device.">
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <Txt value={key} onChangeText={setKey} placeholder="AIza…" secureTextEntry autoCapitalize="none" autoCorrect={false} />
-                  </View>
-                  <TouchableOpacity onPress={saveKey} style={[st.keyBtn, hasKey && { backgroundColor: C.accentSoft }]} activeOpacity={0.8}>
-                    <Text style={[st.keyBtnT, hasKey && { color: C.accentInk }]}>{hasKey ? 'Saved ✓' : 'Save'}</Text>
-                  </TouchableOpacity>
-                </View>
-              </Field>
-
               {aiLocked ? (
                 <View style={st.lockBox}>
                   <Ionicons name="lock-closed" size={16} color={C.muted} />
@@ -313,8 +289,6 @@ const makeSt = (C: Palette) => StyleSheet.create({
   lockBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 },
   lockT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   lockS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },
-  keyBtn: { backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 16, justifyContent: 'center' },
-  keyBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.onInk },
   previewT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink },
   warn: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 18, color: C.muted },
   err: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.redText },

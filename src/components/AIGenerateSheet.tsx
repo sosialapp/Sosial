@@ -7,7 +7,7 @@ import PostCanvas from './PostCanvas';
 import { RULES } from '../utils/ai/rules';
 import { ContentBrief, DEFAULT_BRIEF, GenResult, AiLanguage, AI_LANGUAGES } from '../utils/ai/types';
 import { generate } from '../utils/ai/provider';
-import { getAiKey, setAiKey } from '../utils/ai/key';
+import { getAiKey, hasBuiltInKey } from '../utils/ai/key';
 import { applyGenResult } from '../utils/ai/apply';
 import { PostPage } from '../types';
 import { loadAccount } from '../utils/account';
@@ -29,8 +29,9 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const [maxBlocks, setMaxBlocks] = useState(DEFAULT_BRIEF.maxBlocksPerPage);
   const [includeImages, setIncludeImages] = useState(false);
   const [grounding, setGrounding] = useState(false);
-  const [key, setKey] = useState('');
   const [hasKey, setHasKey] = useState(false);
+  // built-in build key means zero setup; a legacy saved key still counts
+  const keyReady = hasKey || hasBuiltInKey();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState<GenResult | null>(null);
@@ -39,10 +40,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
 
   useEffect(() => {
     if (visible) {
-      getAiKey().then((k) => {
-        setKey(k ?? '');
-        setHasKey(!!k);
-      });
+      getAiKey().then((k) => setHasKey(!!k));
       loadAccount().then((a) => setPlan(a.plan));
     }
   }, [visible]);
@@ -68,15 +66,10 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
     setResult(null);
     setBusy(true);
     try {
-      setResult(await generate(brief, { grounding: grounding && hasKey }));
+      setResult(await generate(brief, { grounding: grounding && keyReady }));
     } finally {
       setBusy(false);
     }
-  };
-
-  const saveKey = async () => {
-    await setAiKey(key);
-    setHasKey(!!key.trim());
   };
 
   const close = () => {
@@ -154,23 +147,12 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
               <PillToggle on={includeImages} onPress={() => setIncludeImages((v) => !v)} />
             </View>
 
-            <Section no="02" title="Model" hint={hasKey ? 'Gemini 3.8 Flash — your key, your bill.' : 'No key yet — the offline draft engine fills in.'} />
-            <Field label="Gemini API key" hint="Free from Google AI Studio. Stays on this device.">
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <Txt value={key} onChangeText={setKey} placeholder="AIza…" secureTextEntry autoCapitalize="none" autoCorrect={false} />
-                </View>
-                <TouchableOpacity onPress={saveKey} style={[st.keyBtn, hasKey && { backgroundColor: C.accentSoft }]} activeOpacity={0.8}>
-                  <Text style={[st.keyBtnT, hasKey && { color: C.accentInk }]}>{hasKey ? 'Saved ✓' : 'Save'}</Text>
-                </TouchableOpacity>
-              </View>
-            </Field>
-            <View style={[st.toggleRow, !hasKey && { opacity: 0.5 }]}>
+            <View style={[st.toggleRow, !keyReady && { opacity: 0.5 }]}>
               <View style={{ flex: 1 }}>
                 <Text style={st.toggleT}>Latest info</Text>
-                <Text style={st.toggleS}>Google Search grounding for current facts{hasKey ? '' : ' (needs a key)'}</Text>
+                <Text style={st.toggleS}>Google Search grounding for current facts</Text>
               </View>
-              <PillToggle on={grounding && hasKey} onPress={() => hasKey && setGrounding((v) => !v)} />
+              <PillToggle on={grounding && keyReady} onPress={() => keyReady && setGrounding((v) => !v)} />
             </View>
 
             {aiLocked ? (
@@ -253,8 +235,6 @@ const makeSt = (C: Palette) => StyleSheet.create({
   lockBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 },
   lockT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   lockS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },
-  keyBtn: { backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 16, justifyContent: 'center' },
-  keyBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.onInk },
   previewT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink },
   warn: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 18, color: C.muted },
   err: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.redText },
