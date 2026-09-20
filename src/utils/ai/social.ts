@@ -102,7 +102,7 @@ export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
   prompt: '',
   language: 'auto',
   tone: 'story',
-  thread: true,
+  thread: false,
   parts: 5,
   hashtags: true,
   platform: 'any',
