@@ -34,6 +34,27 @@ export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'mastodon', label: 'Mastodon' },
 ];
 
+export type SocialStyle =
+  | 'auto' | 'breaking' | 'thread' | 'listicle' | 'teardown' | 'deepdive'
+  | 'compare' | 'casestudy' | 'postmortem' | 'roundup' | 'hottake';
+
+export const SOCIAL_STYLES: { id: SocialStyle; label: string; hint: string }[] = [
+  { id: 'auto', label: 'Auto', hint: 'Pick the best fit' },
+  { id: 'breaking', label: 'Breaking', hint: 'Urgent news update' },
+  { id: 'thread', label: 'Deep thread', hint: 'Story, one idea per post' },
+  { id: 'listicle', label: 'Listicle', hint: 'Saveable value stack' },
+  { id: 'teardown', label: 'Teardown', hint: 'Feature → business value' },
+  { id: 'deepdive', label: 'Tech dive', hint: 'How it works, in layers' },
+  { id: 'compare', label: 'X vs Y', hint: 'Old way vs modern way' },
+  { id: 'casestudy', label: 'Case study', hint: 'Metric-led social proof' },
+  { id: 'postmortem', label: 'Post-mortem', hint: 'Honest failure lesson' },
+  { id: 'roundup', label: 'Roundup', hint: 'Curated resource vault' },
+  { id: 'hottake', label: 'Hot take', hint: 'Debate-sparking opinion' },
+];
+
+/** Styles that only make sense as multi-post threads. */
+export const THREAD_STYLES: SocialStyle[] = ['thread', 'deepdive'];
+
 export interface SocialBrief {
   prompt: string;
   language: string;
@@ -44,6 +65,8 @@ export interface SocialBrief {
   parts: number;
   hashtags: boolean;
   platform: SocialPlatform;
+  /** content playbook; 'auto' lets the model commit to the best fit */
+  style: SocialStyle;
 }
 
 export interface SocialResult {
@@ -64,6 +87,7 @@ export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
   parts: 5,
   hashtags: true,
   platform: 'any',
+  style: 'auto',
 };
 
 /** Strictest cap a segment has to fit: the chosen platform, or X's 280 for "any". */
@@ -173,18 +197,88 @@ const outEmpty = (caption: string, thread: string[], hashtags: string[]) =>
 
 /* ---------------- model path ---------------- */
 
+const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
+  breaking: [
+    'STYLE: breaking news update. Open with an alert marker (JUST IN / BREAKING / UPDATE) + the headline.',
+    'Then 1-2 sentences of fact, one line on why it matters right now, and end with a [Source: link] placeholder.',
+    'Only use facts present in the idea. If something is unconfirmed, say so — never fill gaps with invented detail.',
+  ].join(' '),
+  thread: [
+    'STYLE: educational thread. Open with a hook that promises a payoff worth reading for.',
+    'Move ONE idea per post in rising order; the last post lands a real takeaway or call-to-action.',
+  ].join(' '),
+  listicle: [
+    'STYLE: listicle / value stack. Hook with a concrete promise ("5 tools that cut my editing time in half").',
+    'Scannable items as "Name — one line on why it matters". Close with one save/share prompt.',
+  ].join(' '),
+  teardown: [
+    'STYLE: feature teardown. Open on the workflow pain, then the feature in ONE sentence.',
+    'Follow with 2-3 metric-led value bullets and a single try-it call-to-action.',
+    'Use only numbers from the idea — if there are none, write the value without numbers. Never invent metrics.',
+  ].join(' '),
+  deepdive: [
+    'STYLE: technical deep-dive thread. Hook with the architectural puzzle ("How X handles Y without falling over").',
+    'Unpack in layers, in order: inputs → processing → storage/caching → edge cases. Close with a docs/blog pointer placeholder.',
+    'Explain like a senior to a smart junior: precise, no jargon walls, no hand-waving.',
+  ].join(' '),
+  compare: [
+    'STYLE: old-way vs modern-way comparison. Hook: "The difference between A and B:".',
+    'Then the legacy flaws (2-3, marked ❌) against the modern habits (2-3, marked ✅).',
+    'Close with ONE sentence naming the mindset shift. Steelman the old way — no strawmen.',
+  ].join(' '),
+  casestudy: [
+    'STYLE: metric-led case study. Hook with the headline result ("How a 12-person SaaS cut churn 31% in 60 days").',
+    'Then the bottleneck, the 2-4 implementation steps, and 3 hard-number bullets.',
+    'Use only numbers from the idea. If the idea has no numbers, write it as a process story, not a results story.',
+  ].join(' '),
+  postmortem: [
+    'STYLE: founder post-mortem. Open with the failure, plainly owned — no humblebrag.',
+    'Then what actually went wrong, the structural fix that followed, and one open question inviting shared experiences.',
+  ].join(' '),
+  roundup: [
+    'STYLE: resource roundup. Hook with invested effort ("I spent 6 years on X. These N resources save you 100+ hours:").',
+    'Group items by category, each as "Name — what it does in one line". Close with one bookmark prompt.',
+  ].join(' '),
+  hottake: [
+    'STYLE: contrarian take. Open with the unpopular claim, stated cleanly — no insults, no dunking on real people.',
+    'Then 2-3 myth-vs-reality beats, and close with a genuine agree/disagree question.',
+  ].join(' '),
+};
+
+const HUMAN_RULES = [
+  'HUMAN VOICE (non-negotiable): you sound like a person, never a brand deck.',
+  'Banned words — never emit: delve, unpack, tapestry, landscape, paradigm, beacon, game-changer, revolutionary, testament, elevate, foster, seamless, unlock/unlocking, next-gen, synergize, supercharge, "in an era of", "in today\'s fast-paced world", "let\'s dive in".',
+  'Banned constructions: "It\'s not X, it\'s Y" contrasts, "Here\'s the truth:" throat-clearing, "Ever wondered…?" openers, and "whether X, Y, or Z" triplets.',
+  'Rhythm: alternate short punchy lines with medium explainers; break lines liberally; no paragraph longer than 3 lines.',
+  'Always use contractions (it\'s, don\'t, can\'t, you\'re, we\'ve). Open sentences with verbs or natural transitions (Look, Here\'s the thing, Honestly, Turns out).',
+  'Show, don\'t tell: concrete specifics over adjectives ("cut render time from 450ms to 42ms", not "blazing fast").',
+  'Emoji: at most ONE per post, structural only (🚨 ❌ ✅ 👇 where the style calls for one). Never mid-sentence, never as word substitutes.',
+  'At most ONE call-to-action per post or thread-close, and keep it soft — an invitation, not a demand.',
+].join('\n');
+
+const HONESTY_RULES = [
+  'HONESTY: never invent metrics, quotes, names, studies, or links.',
+  'If the idea gives you numbers, use them; if not, write around them — never fabricate.',
+  'News-style output ends with a [Source: link] placeholder for the user to fill.',
+].join('\n');
+
 function buildPrompt(brief: SocialBrief, limit: number): string {
   const lines = [
-    'You are a sharp social-media writer. You sound like a real person telling a story, never like a brand or a press release.',
+    'You are a sharp social-media copywriter who sounds like a real person, never like a brand or a press release.',
     `Language: ${brief.language}. Tone: ${brief.tone}.`,
     `The user's raw idea: "${brief.prompt}"`,
+    brief.style === 'auto'
+      ? 'Pick the best-fit playbook for this idea from: breaking news, educational thread, listicle, feature teardown, technical deep-dive, comparison, case study, post-mortem, resource roundup, or hot take — and commit to it fully.'
+      : STYLE_BLOCKS[brief.style],
+    HUMAN_RULES,
+    HONESTY_RULES,
   ];
   if (brief.thread) {
     lines.push(
       `Write it as a NATURAL THREAD of about ${brief.parts} connected posts.`,
       'Open with a hook that earns the next tap. Move ONE idea per post, in a rising order, and land a real payoff in the last one.',
-      'Each post must stand on its own but pull the reader forward. Vary sentence length. Write like you talk.',
-      `Never number the posts, never write "1/", never use "🧵", never say "thread", "in this thread", or "let me explain". No hashtags inside the posts.`,
+      'Each post must stand on its own but pull the reader forward. Write like you talk.',
+      `Never number the posts, never write "1/", never use "🧵", never say "thread", "in this thread", or "let me explain". (Numbering breaks character budgets and cross-posting — the app strips it anyway.) No hashtags inside the posts.`,
       `Keep every post under ${limit} characters.`,
       'Set "caption" to the first post.',
     );
@@ -197,9 +291,8 @@ function buildPrompt(brief: SocialBrief, limit: number): string {
   }
   lines.push(
     brief.hashtags
-      ? 'Return 3-5 relevant hashtags separately (no more).'
+      ? 'Return 3-5 relevant hashtags separately (no more): a mix of broad reach and niche tags, no camel-case stuffing.'
       : 'Return an empty hashtags array.',
-    'No emojis unless one genuinely fits; never more than one. No corporate filler like "game-changer" or "unlock".',
     'Return ONLY JSON: {"caption":"...","thread":["..."],"hashtags":["..."]}.',
   );
   return lines.join('\n');

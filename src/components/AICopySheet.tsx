@@ -4,8 +4,9 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Section, Field, SocialGlyph } from './ui';
 import {
-  SocialBrief, SocialResult, SocialTone, SocialPlatform,
-  DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, generateSocial, capFor,
+  SocialBrief, SocialResult, SocialTone, SocialPlatform, SocialStyle,
+  DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES, THREAD_STYLES,
+  generateSocial, capFor,
 } from '../utils/ai/social';
 import { getAiKey, setAiKey } from '../utils/ai/key';
 import { loadAccount } from '../utils/account';
@@ -25,6 +26,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const st = makeSt(C);
   const [prompt, setPrompt] = useState('');
   const [tone, setTone] = useState<SocialTone>(DEFAULT_SOCIAL_BRIEF.tone);
+  const [style, setStyle] = useState<SocialStyle>(DEFAULT_SOCIAL_BRIEF.style);
   const [thread, setThread] = useState(true);
   const [parts, setParts] = useState(DEFAULT_SOCIAL_BRIEF.parts);
   const [hashtags, setHashtags] = useState(true);
@@ -51,7 +53,13 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
 
   const brief: SocialBrief = {
     prompt, language: 'English', tone,
-    thread, parts, hashtags, platform,
+    thread, parts, hashtags, platform, style,
+  };
+
+  const pickStyle = (id: SocialStyle) => {
+    setStyle(id);
+    // deep thread-native playbooks need multi-post mode to work
+    if (THREAD_STYLES.includes(id)) setThread(true);
   };
 
   const run = async () => {
@@ -132,7 +140,19 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 })}
               </View>
 
-              <Section no="02" title="Format" hint="One caption, or a connected thread." />
+              <Section no="02" title="Style" hint="The playbook — or Auto to let it pick." />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {SOCIAL_STYLES.map((t) => {
+                  const on = style === t.id;
+                  return (
+                    <TouchableOpacity key={t.id} onPress={() => pickStyle(t.id)} style={[st.chip, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
+                      <Text style={[st.chipT, on && { color: C.onInk }]}>{t.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Section no="03" title="Format" hint="One caption, or a connected thread." />
               <View style={st.toggleRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={st.toggleT}>Post as a thread</Text>
@@ -172,7 +192,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 </View>
               </Field>
 
-              <Section no="03" title="Model" hint={hasKey ? 'Gemini 3.8 Flash — your key, your bill.' : 'No key yet — the offline draft engine fills in.'} />
+              <Section no="04" title="Model" hint={hasKey ? 'Gemini 3.8 Flash — your key, your bill.' : 'No key yet — the offline draft engine fills in.'} />
               <Field label="Gemini API key" hint="Free from Google AI Studio. Stays on this device.">
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <View style={{ flex: 1 }}>
