@@ -8,8 +8,8 @@
  * retries without research — same honest-fallback contract as the Gemini path.
  */
 
-const MODEL = 'gpt-4o-mini';
-export const OPENAI_PROVIDER = 'GPT-4o mini';
+const MODEL = 'gpt-5-mini';
+export const OPENAI_PROVIDER = 'GPT-5 mini';
 
 const SYSTEM_JSON = 'You output strict JSON only. No markdown fences, no commentary.';
 
@@ -48,7 +48,9 @@ export async function openaiChatJson(key: string, system: string, user: string):
         { role: 'user', content: user },
       ],
       response_format: { type: 'json_object' },
-      max_tokens: 4096,
+      // NOTE: GPT-5-family Chat Completions uses max_completion_tokens —
+      // legacy max_tokens risks a 400, and reasoning models reject temperature.
+      max_completion_tokens: 4096,
     }),
   });
   const j: any = await r.json().catch(() => ({}));
