@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { usePost } from '../store/PostContext';
 import PostCanvas, { CANVAS_W } from '../components/PostCanvas';
-import { capturePage, saveUrisToGallery, shareSingleFile, saveAllImages } from '../utils/export';
-import { copyCaption } from '../utils/socialShare';
+import { capturePage, saveUrisToGallery, saveAllImages } from '../utils/export';
 import { useComposer } from '../store/ComposerContext';
 import type { ManagedPost } from '../utils/managed';
 import { useTheme, Palette, T, R } from '../theme';
@@ -17,6 +16,8 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
   // free plan forces the badge on; paid respects the per-page toggle
   const wmFor = (p: { showWatermark?: boolean }) => (plan === 'free' ? true : (p.showWatermark ?? true));
   const [busy, setBusy] = useState(false);
+  /** per-page save in flight — the big buttons stay idle so the spinner shows on the tapped page only */
+  const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [savedUris, setSavedUris] = useState<string[]>([]);
   const refs = useRef<any[]>([]);
   const { openComposer } = useComposer();
@@ -41,6 +42,11 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
   const { width: SCREEN_W } = Dimensions.get('window');
   const pvScale = Math.min(0.66, (SCREEN_W - 96) / CANVAS_W);
   const pvSnap = CANVAS_W * pvScale + 14;
+  /** hidden renderers lay out at 2x so captures stay crisp (~2040px wide on a 3x phone) */
+  const CAP_SCALE = 2;
+  // center the strip when every preview fits on screen; scroll from the left otherwise
+  const pvW = CANVAS_W * pvScale;
+  const stripFits = post.pages.length * pvW + Math.max(0, post.pages.length - 1) * 14 <= SCREEN_W - 48 - 24;
 
   const captureAll = async (): Promise<string[]> => {
     const uris: string[] = [];
@@ -59,8 +65,10 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
     setBusy(true);
     try {
       const uris = await saveAllImages(refs.current, post, sizeRatio);
-      setSavedUris(uris);
-      await saveUrisToGallery(uris);
+      const n = await saveUrisToGallery(uris);
+      // only tick every page when every file actually landed — a partial
+      // failure must not mark unsaved pages as saved
+      if (n === uris.length) setSavedUris(uris);
     } catch (e: any) {
       Alert.alert('Save failed', e?.message ?? 'Could not capture pages.');
     } finally {
@@ -94,40 +102,26 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
     }
   };
 
-  const onSaveOne = async (index: number) => {    setBusy(true);
+  const onSaveOne = async (index: number) => {
+    if (busy || savingIdx !== null) return;
+    setSavingIdx(index);
     try {
       await new Promise((r) => setTimeout(r, 700));
       const uri = await capturePage(refs.current[index], `p${index}`);
-      const uris = [...savedUris];
-      uris[index] = uri;
-      setSavedUris(uris);
-      await saveUrisToGallery([uri]);
-      Alert.alert('Saved', `Page ${index + 1} saved to your photo library.`);
+      const n = await saveUrisToGallery([uri]);
+      // saveUrisToGallery already reports failures — only mark the page and
+      // confirm when the file actually landed, never on a failed write
+      if (n > 0) {
+        setSavedUris((prev) => {
+          const next = [...prev];
+          next[index] = uri;
+          return next;
+        });
+      }
     } catch (e: any) {
       Alert.alert('Save failed', e?.message ?? 'Could not capture page.');
     } finally {
-      setBusy(false);
-    }
-  };
-
-  const onShareFile = async (index: number) => {
-    setBusy(true);
-    try {
-      let uris = savedUris;
-      if (!uris[index]) {
-        uris = await captureAll();
-        setSavedUris(uris);
-      }
-      if (!uris[index]) {
-        Alert.alert('Nothing to share', 'Could not capture this page.');
-        return;
-      }
-      // caption goes to clipboard silently, then ONE system sheet with the picture —
-      // stay on this page the whole time
-      await copyCaption(post.pages[index]?.title.text ?? post.name, post.pages[index]?.caption ?? '');
-      await shareSingleFile(uris[index]);
-    } finally {
-      setBusy(false);
+      setSavingIdx(null);
     }
   };
 
@@ -153,11 +147,11 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
           <PillToggle on={plan === 'free' ? true : allWmOn} onPress={toggleAllWm} />
         </View>
 
-        {/* hidden renderers for capture */}
+        {/* hidden renderers for capture — 2x layout for high-resolution exports */}
         <View style={{ position: 'absolute', left: -9999, top: 0, opacity: 0, pointerEvents: 'none' }}>
           {post.pages.map((p, i) => (
-            <View key={p.id} style={{ width: 340, height: 340 * sizeRatio, overflow: 'visible' }}>
-              <PostCanvas ref={(r) => { refs.current[i] = r; }} page={p} ratio={sizeRatio} watermark={wmFor(p)} />
+            <View key={p.id} style={{ width: CANVAS_W * CAP_SCALE, height: CANVAS_W * CAP_SCALE * sizeRatio, overflow: 'visible' }}>
+              <PostCanvas ref={(r) => { refs.current[i] = r; }} page={p} ratio={sizeRatio} scale={CAP_SCALE} watermark={wmFor(p)} />
             </View>
           ))}
         </View>
@@ -170,7 +164,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
           snapToAlignment="start"
           disableIntervalMomentum
           decelerationRate="normal"
-          contentContainerStyle={{ gap: 14, marginTop: 22, paddingRight: 24, ...(post.pages.length === 1 ? { flexGrow: 1, justifyContent: 'center' } : {}) }}
+          contentContainerStyle={{ gap: 14, marginTop: 22, paddingRight: 24, flexGrow: 1, justifyContent: stripFits ? 'center' : 'flex-start' }}
         >
           {post.pages.map((p, i) => (
             <View key={p.id} style={{ gap: 10 }}>
@@ -178,12 +172,19 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
               <View style={s.previewCard}>
                 <PostCanvas page={p} ratio={sizeRatio} scale={pvScale} watermark={wmFor(p)} />
               </View>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity onPress={() => onSaveOne(i)} style={[s.saveMini, savedUris[i] && s.saveMiniDone]} disabled={busy} activeOpacity={0.8}>
-                  <Text style={[s.saveMiniT, savedUris[i] && s.saveMiniDoneT]}>{savedUris[i] ? 'Saved ✓' : 'Save'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => onShareFile(i)} style={s.shareMini} disabled={busy} activeOpacity={0.8}>
-                  <Text style={s.shareMiniT}>Share page {i + 1}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => onSaveOne(i)}
+                  style={[s.dlBtn, savedUris[i] && s.dlBtnDone]}
+                  disabled={busy || savingIdx !== null}
+                  activeOpacity={0.8}
+                  accessibilityLabel={savedUris[i] ? `Page ${i + 1} saved` : `Save page ${i + 1} to device`}
+                >
+                  {savingIdx === i ? (
+                    <ActivityIndicator size="small" color={C.onInk} />
+                  ) : (
+                    <Ionicons name={savedUris[i] ? 'checkmark' : 'download-outline'} size={17} color={savedUris[i] ? C.accentInk : C.onInk} />
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -203,17 +204,6 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
           <Text style={s.saveT}>Post this design</Text>
           <Ionicons name="send-outline" size={18} color={C.onInk} />
         </TouchableOpacity>
-
-        {/* explainer */}
-        <View style={s.note}>
-          <View style={s.noteBar} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.noteT}>How sharing works</Text>
-            <Text style={s.noteS}>
-              Images save to your photo library and the caption copies to the clipboard. Open an app, paste the text, attach the images. No accounts, no API keys.
-            </Text>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
@@ -226,12 +216,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   numBadge: { alignSelf: 'flex-start', backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   numBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.onInk },
   previewCard: { borderRadius: R.lg, overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#1C1917', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  shareMini: { backgroundColor: C.card, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  shareMiniT: { fontFamily: 'PlusJakartaSans_700Bold', color: C.ink, fontSize: 12 },
-  saveMini: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
-  saveMiniT: { fontFamily: 'PlusJakartaSans_700Bold', color: C.onInk, fontSize: 12 },
-  saveMiniDone: { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
-  saveMiniDoneT: { color: C.accentInk },
+  dlBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  dlBtnDone: { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
   save: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.ink, borderRadius: R.md + 2, paddingVertical: 17, paddingHorizontal: 20, marginTop: 22 },
   saveT: { fontFamily: 'PlusJakartaSans_700Bold', color: C.onInk, fontSize: 15 },
   postDesign: { backgroundColor: C.accent, marginTop: 10 },
@@ -243,8 +229,4 @@ const makeS = (C: Palette) => StyleSheet.create({
   dotT: { color: C.onInk, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12 },
   rowT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, letterSpacing: -0.2, color: C.ink, textTransform: 'capitalize' },
   chev: { fontSize: 20, color: C.faint },
-  note: { flexDirection: 'row', gap: 12, marginTop: 28, backgroundColor: C.card, borderRadius: R.lg, padding: 18 },
-  noteBar: { width: 4, borderRadius: 2, backgroundColor: C.accent },
-  noteT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink },
-  noteS: { fontFamily: 'PlusJakartaSans_400Regular', color: C.muted, fontSize: 12.5, marginTop: 6, lineHeight: 19 },
 });

@@ -8,7 +8,7 @@ import { FONTS } from '../utils/fonts';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PillToggle, Seg, Field, Stepper, PrimaryBtn, GhostBtn, SocialGlyph, Swatches, Section } from './ui';
 
-const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'tiktok', 'threads', 'facebook', 'youtube', 'whatsapp'];
+const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'tiktok', 'threads', 'facebook', 'youtube', 'whatsapp', 'x', 'bluesky', 'mastodon', 'pinterest'];
 
 export default function PhotoSocialsEditor() {
   const { C } = useTheme();

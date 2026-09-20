@@ -135,7 +135,7 @@ export async function saveUrisToGallery(uris: string[]) {
     }
     Alert.alert(
       'Gallery unavailable',
-      'This Expo Go version cannot save to the gallery. Update Expo Go to the latest version, or use Share to save the images manually.',
+      'This Expo Go version cannot save to the gallery. Update Expo Go to the latest version, or try a production build.',
     );
     return 0;
   }
@@ -172,8 +172,8 @@ export async function saveUrisToGallery(uris: string[]) {
   Alert.alert(
     'Could not save',
     saved > 0
-      ? `Only ${saved}/${uris.length} image(s) saved. Try the Share button on each page to save them manually.`
-      : 'The gallery refused the images. Try the Share button on each page to save them manually.',
+      ? `Only ${saved}/${uris.length} image(s) saved. Please try again.`
+      : 'The gallery refused the images. Please try again.',
   );
   return saved;
 }
