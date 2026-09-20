@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, PixelRatio } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { usePost } from '../store/PostContext';
 import PostCanvas, { CANVAS_W } from '../components/PostCanvas';
@@ -42,17 +42,17 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
   const { width: SCREEN_W } = Dimensions.get('window');
   const pvScale = Math.min(0.66, (SCREEN_W - 96) / CANVAS_W);
   const pvSnap = CANVAS_W * pvScale + 14;
-  /** hidden renderers lay out at 2x so captures stay crisp (~2040px wide on a 3x phone) */
-  const CAP_SCALE = 2;
+  /** Target ~1080px output. captureRef already captures at full device pixel
+   *  density, so we only scale the hidden layout when the screen is low-density —
+   *  blowing it up on a 3x phone produced 2040px PNGs and multi-second saves. */
+  const CAP_SCALE = Math.min(3, Math.max(1, 1080 / (CANVAS_W * PixelRatio.get())));
   // center the strip when every preview fits on screen; scroll from the left otherwise
   const pvW = CANVAS_W * pvScale;
-  const stripFits = post.pages.length * pvW + Math.max(0, post.pages.length - 1) * 14 <= SCREEN_W - 48 - 24;
+  const stripFits = post.pages.length * pvW + Math.max(0, post.pages.length - 1) * 14 <= SCREEN_W - 48;
 
   const captureAll = async (): Promise<string[]> => {
     const uris: string[] = [];
     for (let i = 0; i < post.pages.length; i++) {
-      // let AutoFit measure passes + fonts settle so capture matches preview
-      await new Promise((r) => setTimeout(r, 700));
       const ref = refs.current[i];
       if (!ref) continue;
       const uri = await capturePage(ref, `p${i}`);
@@ -106,9 +106,8 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
     if (busy || savingIdx !== null) return;
     setSavingIdx(index);
     try {
-      await new Promise((r) => setTimeout(r, 700));
       const uri = await capturePage(refs.current[index], `p${index}`);
-      const n = await saveUrisToGallery([uri]);
+      const n = await saveUrisToGallery([uri], { silent: true });
       // saveUrisToGallery already reports failures — only mark the page and
       // confirm when the file actually landed, never on a failed write
       if (n > 0) {
@@ -164,7 +163,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
           snapToAlignment="start"
           disableIntervalMomentum
           decelerationRate="normal"
-          contentContainerStyle={{ gap: 14, marginTop: 22, paddingRight: 24, flexGrow: 1, justifyContent: stripFits ? 'center' : 'flex-start' }}
+          contentContainerStyle={{ gap: 14, marginTop: 22, paddingRight: stripFits ? 0 : 24, flexGrow: 1, justifyContent: stripFits ? 'center' : 'flex-start' }}
         >
           {post.pages.map((p, i) => (
             <View key={p.id} style={{ gap: 10 }}>

@@ -15,7 +15,12 @@ import type { QuickPost } from '../types';
  */
 type MLHandle = { kind: 'next' | 'legacy'; mod: any };
 
-async function getMediaLibrary(): Promise<MLHandle | null> {
+// resolved once per session — probing the module and asking for permission on
+// every save added seconds to each tap
+let mlHandle: MLHandle | null | undefined;
+let mlGranted = false;
+
+async function probeMediaLibrary(): Promise<MLHandle | null> {
   try {
     const mod = await import('expo-media-library');
     if (!mod.Asset || !mod.requestPermissionsAsync) throw new Error('no next api');
@@ -32,19 +37,29 @@ async function getMediaLibrary(): Promise<MLHandle | null> {
   }
 }
 
-export async function ensureMediaPermission(): Promise<boolean> {
-  const ML = await getMediaLibrary();
+async function getMediaLibrary(): Promise<MLHandle | null> {
+  if (mlHandle === undefined) mlHandle = await probeMediaLibrary();
+  return mlHandle;
+}
+
+async function requestPermission(ML: MLHandle | null): Promise<boolean> {
   if (!ML) return false;
+  if (mlGranted) return true;
   try {
     const { status } = await ML.mod.requestPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Allow photo library access to save your posts.');
       return false;
     }
+    mlGranted = true;
     return true;
   } catch {
     return false;
   }
+}
+
+export async function ensureMediaPermission(): Promise<boolean> {
+  return requestPermission(await getMediaLibrary());
 }
 
 async function saveOne(ML: MLHandle, uri: string): Promise<void> {
@@ -55,17 +70,11 @@ async function saveOne(ML: MLHandle, uri: string): Promise<void> {
   }
 }
 
-/** Capture a single ViewShot ref to a tmp png file */
-export async function capturePage(ref: any, tag: string): Promise<string> {
+/** Capture a single ViewShot ref to a tmp png file.
+ *  The tmpfile is returned as-is — an extra copy just doubled the file I/O. */
+export async function capturePage(ref: any, _tag: string): Promise<string> {
   try {
-    const uri = await captureRef(ref, { format: 'png', quality: 1, result: 'tmpfile' });
-    const dest = `${FileSystem.cacheDirectory ?? ''}quickpost_${tag}_${Date.now()}.png`;
-    try {
-      await FileSystem.copyAsync({ from: uri, to: dest });
-      return dest;
-    } catch {
-      return uri;
-    }
+    return await captureRef(ref, { format: 'png', quality: 1, result: 'tmpfile' });
   } catch {
     throw new Error('Failed to capture page');
   }
@@ -112,8 +121,6 @@ async function saveViaSAF(uris: string[]): Promise<number> {
 export async function saveAllImages(refs: any[], post: QuickPost, _sizeRatio: number): Promise<string[]> {
   const uris: string[] = [];
   for (let i = 0; i < post.pages.length; i++) {
-    // let AutoFit measure passes + fonts settle so capture matches preview
-    await new Promise((r) => setTimeout(r, 700));
     const ref = refs[i];
     if (!ref) continue;
     const uri = await capturePage(ref, `p${i}`);
@@ -125,7 +132,7 @@ export async function saveAllImages(refs: any[], post: QuickPost, _sizeRatio: nu
 
 /** Save URIs to the photo library, falling back to folder-save on Android
  * when the gallery write fails (Expo Go can't write to the media library). */
-export async function saveUrisToGallery(uris: string[]) {
+export async function saveUrisToGallery(uris: string[], opts?: { silent?: boolean }) {
   const ML = await getMediaLibrary();
   if (!ML) {
     // Gallery native module missing (old Expo Go) — fall back gracefully
@@ -139,16 +146,13 @@ export async function saveUrisToGallery(uris: string[]) {
     );
     return 0;
   }
-  const ok = await ensureMediaPermission();
+  const ok = await requestPermission(ML);
   if (!ok) return 0;
-  // re-resolve (permission helper already probed, but keep one handle)
-  const ML2 = await getMediaLibrary();
-  if (!ML2) return 0;
   let saved = 0;
   const failed: string[] = [];
   for (const u of uris) {
     try {
-      await saveOne(ML2, u);
+      await saveOne(ML, u);
       saved++;
     } catch (e) {
       console.warn('save failed', e);
@@ -156,7 +160,8 @@ export async function saveUrisToGallery(uris: string[]) {
     }
   }
   if (saved === uris.length) {
-    Alert.alert('Saved', `Saved ${saved}/${uris.length} image(s) to your gallery.`);
+    // per-page saves show an inline tick, so skip the modal that slowed them down
+    if (!opts?.silent) Alert.alert('Saved', `Saved ${saved}/${uris.length} image(s) to your gallery.`);
     return saved;
   }
   // Gallery write failed (typical on Android Expo Go) — save the rest to a folder
