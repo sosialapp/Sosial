@@ -69,20 +69,9 @@ function draftPost(opts: { body?: string; media?: MediaAttachment | null; thread
   };
 }
 
-function MediaThumb({ media, style }: { media: MediaAttachment; style?: any }) {
-  const { C } = useTheme();
-  const s = makeS(C);
-  if (media.kind === 'video') {
-    return (
-      <View style={[s.mediaThumb, s.videoThumb, style]}>
-        <Ionicons name="play-circle" size={34} color="#fff" />
-        <Text style={s.videoTag}>Video</Text>
-      </View>
-    );
-  }
-  // Full-width preview follows the file's own aspect (bounded) instead of a
-  // fixed-height crop.
-  return <FeedPhoto uri={media.uri} width="100%" min={0.5} max={2} radius={R.md} />;
+function MediaThumb({ media }: { media: MediaAttachment }) {
+  if (media.kind === 'video') return <FeedVideo uri={media.uri} width={116} radius={R.md} />;
+  return <FeedPhoto uri={media.uri} width={116} min={0.65} max={1.5} radius={R.md} />;
 }
 
 /** Masonry column width the miniature canvases lay out against. */
@@ -383,30 +372,6 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
     }));
   };
 
-  /** Idea → design studio: reopen the linked project, or spin up a fresh one. */
-  const designIdea = async (idea: Idea) => {
-    const all = await loadProjects();
-    const linked = idea.designProjectId ? all.find((p) => p.id === idea.designProjectId) : undefined;
-    if (linked) {
-      setEditing(null);
-      onOpenProject(linked);
-      return;
-    }
-    const proj: QuickPost = {
-      id: uid('post'),
-      name: idea.title || 'Untitled',
-      sizeId: 'square',
-      font: 'jakarta',
-      createdAt: Date.now(),
-      pages: [defaultPage('jakarta')],
-    };
-    await saveProject(proj);
-    await saveIdea({ ...idea, designProjectId: proj.id });
-    setEditing(null);
-    loadIdeas().then(setIdeas);
-    onOpenProject(proj);
-  };
-
   /* ---------------- post tab entries ---------------- */
 
   /* ---- templates + designs (from the old library) ---- */
@@ -524,7 +489,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                   <Text style={s.secLabel}>Photo or video</Text>
                   {cMedia ? (
                     <View style={{ gap: 8 }}>
-                      <MediaThumb media={cMedia} style={s.cImg} />
+                      <MediaThumb media={cMedia} />
                       <TouchableOpacity onPress={() => setCMedia(null)} hitSlop={6} style={{ alignSelf: 'flex-start' }} activeOpacity={0.7}>
                         <Text style={s.linkDanger}>Remove</Text>
                       </TouchableOpacity>
@@ -559,9 +524,9 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                     {cover ? (
                       <View style={{ flexDirection: 'row', gap: 11 }}>
                         {cover.kind === 'video' ? (
-                          <FeedVideo uri={cover.uri} />
+                          <FeedVideo uri={cover.uri} width={72} />
                         ) : (
-                          <FeedPhoto uri={cover.uri} />
+                          <FeedPhoto uri={cover.uri} width={72} />
                         )}
                         <View style={{ flex: 1, gap: 5 }}>
                           <Text style={s.cardT} numberOfLines={1}>{idea.title}</Text>
@@ -577,10 +542,6 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                       </>
                     )}
                     <View style={s.cardActions}>
-                      <TouchableOpacity onPress={() => designIdea(idea)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} activeOpacity={0.7}>
-                        <Ionicons name="color-palette" size={14} color={C.accentInk} />
-                        <Text style={s.link}>Design</Text>
-                      </TouchableOpacity>
                       <TouchableOpacity onPress={() => postFromIdea(idea)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} activeOpacity={0.7}>
                         <Ionicons name={isThreadIdea ? 'git-branch' : 'send'} size={14} color={C.accentInk} />
                         <Text style={s.link}>{isThreadIdea ? 'Thread' : 'Post'}</Text>
@@ -711,7 +672,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                   <Text style={s.secLabel}>Photo or video</Text>
                   {eMedia ? (
                     <View style={{ gap: 8 }}>
-                      <MediaThumb media={eMedia} style={[s.cImg, { marginTop: 0 }]} />
+                      <MediaThumb media={eMedia} />
                       <TouchableOpacity onPress={() => setEMedia(null)} hitSlop={6} style={{ alignSelf: 'flex-start' }} activeOpacity={0.7}>
                         <Text style={s.linkDanger}>Remove</Text>
                       </TouchableOpacity>
@@ -738,12 +699,6 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                 <TouchableOpacity onPress={() => postFromIdea(editing)} style={[s.postBtn, { justifyContent: 'center', marginTop: 8, paddingVertical: 14 }]} activeOpacity={0.8}>
                   <Ionicons name="send" size={16} color={C.ink} />
                   <Text style={s.postBtnT}>Post this idea</Text>
-                </TouchableOpacity>
-              ) : null}
-              {editing ? (
-                <TouchableOpacity onPress={() => designIdea(editing)} style={[s.postBtn, { justifyContent: 'center', marginTop: 8, paddingVertical: 14 }]} activeOpacity={0.8}>
-                  <Ionicons name="color-palette" size={16} color={C.ink} />
-                  <Text style={s.postBtnT}>Open in design studio</Text>
                 </TouchableOpacity>
               ) : null}
             </ScrollView>
@@ -805,10 +760,6 @@ const makeS = (C: Palette) => StyleSheet.create({
   link: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk },
   linkDanger: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.redText },
   cTitle: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 },
-  cImg: { width: '100%', height: 150, borderRadius: R.md, marginTop: 8 },
-  mediaThumb: { width: '100%', borderRadius: R.md, resizeMode: 'cover' },
-  videoThumb: { height: 150, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  videoTag: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: '#fff' },
   segBox: { backgroundColor: '#1C1917', borderRadius: R.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 10, gap: 6, marginTop: 6 },
   segLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, letterSpacing: 0.3, color: 'rgba(255,255,255,0.60)' },
   segCount: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: 'rgba(255,255,255,0.45)' },
