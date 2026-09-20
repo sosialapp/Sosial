@@ -63,6 +63,12 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [advanced, setAdvanced] = useState(false);
 
   const [busy, setBusy] = useState(false);
+  // Content mounts after the slide-in animation lands. Mounting dozens of
+  // Text nodes mid-animation races Yoga's background-thread measurement
+  // against the mount commit and trips an RN-core crash
+  // (TextLayoutManager.checkNotNull on a stale spannable cache). The empty
+  // sheet shell still slides up immediately, so it never feels stuck.
+  const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<SocialPhase | null>(null);
   const [err, setErr] = useState('');
   const [result, setResult] = useState<SocialResult | null>(null);
@@ -75,7 +81,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const aiLocked = plan === 'free';
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) { setMounted(false); return; }
+    const t = setTimeout(() => setMounted(true), 400);
     setPrompt(initialPrompt);
     setResult(null);
     setDraft([]);
@@ -88,6 +95,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setLangOpen(false);
     setLangQuery('');
     loadAccount().then((a) => setPlan(a.plan));
+    return () => clearTimeout(t);
   }, [visible, initialPrompt]);
 
   // Thread chains only exist on four channels — drop anything else on switch.
@@ -292,6 +300,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
             taps on the form do nothing, and it never competes with the scroll pan. */}
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} />
           <View style={st.sheet}>
+            {mounted ? (
+            <>
             <ScrollView
               style={{ flexShrink: 1 }}
               nestedScrollEnabled
@@ -775,6 +785,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 />
               )}
             </View>
+            </>
+            ) : null}
           </View>
         </View>
       </KeyboardAvoidingView>
