@@ -10,8 +10,9 @@ import {
   Alert,
 } from 'react-native';
 import Constants from 'expo-constants';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, T, R, Palette } from '../theme';
-import { PrimaryBtn, GhostBtn, Txt } from '../components/ui';
+import { PrimaryBtn, GhostBtn, Txt, GoogleGlyph } from '../components/ui';
 import {
   isSupabaseConfigured,
   signInEmail,
@@ -49,6 +50,8 @@ export default function WelcomeScreen({
   const [mode, setMode] = useState<'in' | 'up'>('up');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -81,6 +84,10 @@ export default function WelcomeScreen({
       setErr('Enter an email and a password (min 6 characters).');
       return;
     }
+    if (mode === 'up' && pw !== pw2) {
+      setErr('Passwords don’t match — retype them.');
+      return;
+    }
     setBusy(true);
     setErr(null);
     setNotice(null);
@@ -90,6 +97,7 @@ export default function WelcomeScreen({
         if (r.needsConfirm) {
           setNotice('Account created — check your inbox for the confirmation link, then sign in.');
           setPw('');
+          setPw2('');
           setMode('in');
           return;
         }
@@ -97,6 +105,7 @@ export default function WelcomeScreen({
         await signInEmail(email, pw);
       }
       setPw('');
+      setPw2('');
       await finish(email);
     } catch (e: any) {
       setErr(e?.message ?? (mode === 'up' ? 'Sign-up failed.' : 'Sign-in failed.'));
@@ -165,6 +174,7 @@ export default function WelcomeScreen({
                     key={m}
                     onPress={() => {
                       setMode(m);
+                      setPw2('');
                       setErr(null);
                       setNotice(null);
                     }}
@@ -189,21 +199,38 @@ export default function WelcomeScreen({
                 keyboardType="email-address"
                 returnKeyType="next"
               />
-              <Txt
+              <PwField
                 value={pw}
                 onChangeText={(v) => {
                   setPw(v);
                   setErr(null);
                 }}
                 placeholder="Password (min 6 chars)"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
+                show={showPw}
+                onToggleShow={() => setShowPw((v) => !v)}
+                eyeColor={C.faint}
+                returnKeyType={mode === 'up' ? 'next' : 'done'}
                 onSubmitEditing={() => {
                   if (!busy) void doSubmit();
                 }}
               />
+              {mode === 'up' ? (
+                <PwField
+                  value={pw2}
+                  onChangeText={(v) => {
+                    setPw2(v);
+                    setErr(null);
+                  }}
+                  placeholder="Repeat password"
+                  show={showPw}
+                  onToggleShow={() => setShowPw((v) => !v)}
+                  eyeColor={C.faint}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (!busy) void doSubmit();
+                  }}
+                />
+              ) : null}
               {err ? <Text style={s.err}>{err}</Text> : null}
               {notice ? <Text style={s.note}>{notice}</Text> : null}
               <PrimaryBtn
@@ -216,6 +243,7 @@ export default function WelcomeScreen({
               />
               <GhostBtn
                 label="Continue with Google"
+                left={<GoogleGlyph size={16} />}
                 onPress={() => {
                   if (!busy) void doGoogle();
                 }}
@@ -233,6 +261,62 @@ export default function WelcomeScreen({
     </KeyboardAvoidingView>
   );
 }
+
+/**
+ * Password input with a show/hide eye. Module-level (not inline) so the
+ * TextInput never remounts and keeps focus while typing.
+ */
+function PwField({
+  value,
+  onChangeText,
+  placeholder,
+  show,
+  onToggleShow,
+  eyeColor,
+  returnKeyType,
+  onSubmitEditing,
+}: {
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder: string;
+  show: boolean;
+  onToggleShow: () => void;
+  eyeColor: string;
+  returnKeyType: 'next' | 'done';
+  onSubmitEditing: () => void;
+}) {
+  return (
+    <View>
+      <Txt
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        secureTextEntry={!show}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        style={{ paddingRight: 44 }}
+      />
+      <TouchableOpacity
+        onPress={onToggleShow}
+        activeOpacity={0.7}
+        accessibilityLabel={show ? 'Hide password' : 'Show password'}
+        style={pwEye}
+      >
+        <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={18} color={eyeColor} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const pwEye = {
+  position: 'absolute',
+  right: 12,
+  top: 0,
+  bottom: 0,
+  justifyContent: 'center',
+} as const;
 
 const makeS = (C: Palette) =>
   StyleSheet.create({
