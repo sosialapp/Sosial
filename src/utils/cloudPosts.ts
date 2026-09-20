@@ -49,6 +49,18 @@ function mapStatus(p: ManagedPost): CloudStatus {
   return 'draft';
 }
 
+/**
+ * Target-level twin of mapStatus. post_targets has no 'draft'/'approval' —
+ * those are 'pending'/'needs_approval' per leg — so reusing the post status
+ * violates post_targets_status_check and the whole push fails loudly.
+ */
+function mapTargetStatus(p: ManagedPost): 'pending' | 'needs_approval' | CloudStatus {
+  const s = mapStatus(p);
+  if (s === 'draft') return 'pending';
+  if (s === 'approval') return 'needs_approval';
+  return s;
+}
+
 /** Mirror one local post (idempotent by client_id). Resolves when done. */
 export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   const session = await currentSession().catch(() => null);
@@ -60,6 +72,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   const wsId = session.workspace.id;
   const userId = session.user.id;
   const status = mapStatus(post);
+  const targetStatus = mapTargetStatus(post);
   const scheduledIso =
     typeof post.scheduledAt === 'number' && post.scheduledAt > 0
       ? new Date(post.scheduledAt).toISOString()
@@ -216,7 +229,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
         format: typeof format === 'string' ? format : null,
         caption: post.body ?? '',
         options,
-        status,
+        status: targetStatus,
         scheduled_at: scheduledIso,
         idempotency_key: `cloud:${post.id}:${channelId}`,
       },
