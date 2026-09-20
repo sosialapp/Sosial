@@ -1,15 +1,20 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { THREAD_CAPS } from '../thread';
 import { getAiKey } from './key';
-import { AiLanguage, languageLine } from './types';
+import { AiLanguage } from './types';
 
 /**
- * Caption + thread generator. Same contract as the carousel engine: real model
- * when the user has a Gemini key, deterministic offline engine otherwise, and
- * every result is clamped to the platform caps afterwards — never trusted.
+ * Caption + thread writer.
  *
- * The thread mode is written for natural storytelling: one idea per post, a
- * real hook, a payoff, and no "1/", "🧵" or "thread" markers.
+ * Contract v2 — the model does the thinking, the UI stays quiet:
+ *  - one idea in → voice / style / structure / length are inferred (Auto)
+ *  - optional multi-platform output: same facts, adapted presentation per channel
+ *  - optional live web research (Google Search grounding) for time-sensitive news,
+ *    with confirmed-fact vs claim separation and source links
+ *  - every result is clamped to platform caps afterwards — never trusted
+ *
+ * The legacy `caption` / `thread` / `hashtags` fields stay on SocialResult so the
+ * composer keeps working untouched.
  */
 
 const MODEL = 'gemini-3.8-flash';
@@ -20,14 +25,16 @@ export type SocialPlatform =
   | 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon'
   | 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest';
 
-export type SocialTone = 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
+/** 'auto' lets the model pick the voice; 'bold' is intentionally a secondary choice. */
+export type SocialTone = 'auto' | 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
 
-export const SOCIAL_TONES: { id: SocialTone; label: string }[] = [
+export const SOCIAL_TONES: { id: SocialTone; label: string; secondary?: boolean }[] = [
+  { id: 'auto', label: 'Auto' },
   { id: 'story', label: 'Story' },
   { id: 'punchy', label: 'Punchy' },
   { id: 'friendly', label: 'Friendly' },
   { id: 'professional', label: 'Pro' },
-  { id: 'bold', label: 'Bold' },
+  { id: 'bold', label: 'Bold', secondary: true },
 ];
 
 export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
@@ -43,6 +50,21 @@ export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'youtube', label: 'YouTube' },
   { id: 'pinterest', label: 'Pinterest' },
 ];
+
+/** How each destination wants to be written — the core message stays identical. */
+export const PLATFORM_ADAPT: Record<SocialPlatform, string> = {
+  any: 'write for a general social feed',
+  x: 'concise and punchy, one idea, no wasted words',
+  threads: 'conversational and warm, thread-native, room to breathe',
+  bluesky: 'casual and curious, community-minded, low hype',
+  mastodon: 'thoughtful and grounded, no engagement-bait, no growth-hack tone',
+  linkedin: 'professional and insight-led, land the business implication',
+  facebook: 'readable and conversational for a broad audience',
+  instagram: 'caption-friendly with clean line breaks, strong first line',
+  tiktok: 'hook-led spoken-script energy, says it out loud well',
+  youtube: 'title/description friendly, searchable phrasing, plain sentences',
+  pinterest: 'descriptive and keyword-rich, idea-led, no slang',
+};
 
 /** Caption limits for channels that aren't chain-capable (joined text length). */
 const TEXT_CAPS: Partial<Record<SocialPlatform, number>> = {
@@ -75,20 +97,53 @@ export const SOCIAL_STYLES: { id: SocialStyle; label: string; hint: string }[] =
 /** Styles that only make sense as multi-post threads. */
 export const THREAD_STYLES: SocialStyle[] = ['thread', 'deepdive'];
 
+/** Auto-research switches. `auto` = the engine decides from the topic. */
+export type Toggle = 'auto' | 'on' | 'off';
+
 export interface SocialBrief {
   prompt: string;
   language: AiLanguage;
   tone: SocialTone;
+  /** content playbook; 'auto' lets the model commit to the best fit */
+  style: SocialStyle;
   /** true = write a connected thread; false = one caption */
   thread: boolean;
   /** target number of thread posts */
   parts: number;
   hashtags: boolean;
-  platform: SocialPlatform;
-  /** content playbook; 'auto' lets the model commit to the best fit */
-  style: SocialStyle;
-  /** also produce a topic-matched AI cover image (free, no key needed) */
+  /** one or more destinations; the model adapts the presentation for each */
+  platforms: SocialPlatform[];
+  /** also produce a topic-matched AI cover image */
   coverImage: boolean;
+  /** live web research for time-sensitive topics */
+  research: Toggle;
+  /** attach source links when research ran */
+  sources: Toggle;
+  emoji: 'auto' | 'on' | 'off';
+  /** include a soft call-to-action */
+  cta: boolean;
+  /** free-form extra direction from the user */
+  instructions: string;
+}
+
+export interface SocialSource {
+  title: string;
+  url: string;
+  publisher?: string;
+  publishedAt?: string;
+}
+
+export interface SocialVariant {
+  platform: SocialPlatform;
+  /** ordered posts; for a single caption this is a one-item array */
+  posts: string[];
+}
+
+export interface SocialGeneration {
+  contentType: 'post' | 'thread';
+  styleUsed: SocialStyle;
+  voiceUsed: SocialTone;
+  language: string;
 }
 
 export interface SocialResult {
@@ -99,33 +154,51 @@ export interface SocialResult {
   hashtags: string[];
   provider: string;
   warnings: string[];
-  /** cover-image visual description from the model (null when disabled/empty) */
+  /** cover-image visual description from the model */
   imagePrompt: string | null;
   /** seed the cover URL was built with — bump it for a fresh variant */
   imageSeed: number;
-  /** ready-to-preview Pollinations URL (null when disabled/empty) */
+  /** ready-to-preview Pollinations URL */
   imageUrl: string | null;
+  /** what the model actually decided in Auto mode */
+  generation: SocialGeneration;
+  /** per-platform adapted output (always ≥ 1 entry) */
+  variants: SocialVariant[];
+  sources: SocialSource[];
+  researchUsed: boolean;
+  /** conflicting / unconfirmed details the user should check before publishing */
+  uncertainties: string[];
 }
 
 export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
   prompt: '',
   language: 'auto',
-  tone: 'story',
+  tone: 'auto',
+  style: 'auto',
   thread: false,
   parts: 5,
   hashtags: true,
-  platform: 'any',
-  style: 'auto',
-  coverImage: true,
+  platforms: ['any'],
+  coverImage: false,
+  research: 'auto',
+  sources: 'auto',
+  emoji: 'auto',
+  cta: false,
+  instructions: '',
 };
 
-/** Strictest cap a segment has to fit: the chosen platform, or X's 280 for "any". */
-export function capFor(platform: SocialPlatform): number {
-  if (platform === 'any') return THREAD_CAPS.x;
-  return THREAD_CAPS[platform] ?? TEXT_CAPS[platform] ?? 280;
-}
-
 const CAPTION_MAX = 2200;
+
+/**
+ * Character budget for the copy we hand back.
+ * - thread: strictest chain limit (X's 280 for "any").
+ * - single caption: the platform's caption cap, or ~2200 for an unspecified destination.
+ */
+export function capFor(platform: SocialPlatform, thread = false): number {
+  if (platform === 'any') return thread ? THREAD_CAPS.x : CAPTION_MAX;
+  if (thread) return THREAD_CAPS[platform] ?? TEXT_CAPS[platform] ?? 280;
+  return TEXT_CAPS[platform] ?? THREAD_CAPS[platform] ?? CAPTION_MAX;
+}
 
 const clean = (s: unknown): string => (typeof s === 'string' ? s.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').trim() : '');
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
@@ -172,6 +245,55 @@ export async function fetchCoverImage(url: string, seed: number): Promise<string
   }
 }
 
+/** Fallback visual brief when the user asks for graphics after the fact. */
+export function imagePromptFromIdea(idea: string): string {
+  const t = clean(idea).replace(/[.!?]+$/, '').slice(0, 140) || 'the topic';
+  return `Editorial cover photo about ${t}, natural light, real-world detail, generous negative space, no text, no logos, no watermarks`;
+}
+
+/* ---------------- platform set helpers ---------------- */
+
+const KNOWN = new Set<SocialPlatform>(SOCIAL_PLATFORMS.map((p) => p.id));
+
+/** Deduped, validated destinations. Falls back to ['any'] so generation always has a target. */
+export function activePlatforms(brief: SocialBrief): SocialPlatform[] {
+  const seen = new Set<SocialPlatform>();
+  const out: SocialPlatform[] = [];
+  for (const p of brief.platforms ?? []) {
+    if (!KNOWN.has(p) || seen.has(p)) continue;
+    seen.add(p);
+    out.push(p);
+  }
+  return out.length ? out : ['any'];
+}
+
+/** Resolved single platform for a variant slot. */
+function asPlatform(v: unknown, fallback: SocialPlatform): SocialPlatform {
+  return typeof v === 'string' && KNOWN.has(v as SocialPlatform) ? (v as SocialPlatform) : fallback;
+}
+
+/* ---------------- news / research detection ---------------- */
+
+const NEWS_HINTS =
+  /\b(today|tonight|yesterday|breaking|news|just\s+(in|now|launched|announced|released|confirmed)|launch(ed|es)?|announce[ds]?|unveil(s|ed)?|attack(ed|s)?|under attack|war|election|ceasefire|missile|strike[s]?|sanction(s|ed)?|killed|died|dead|resign(s|ed|ation)?|sue[ds]?|lawsuit|ipo|earnings|tariff|tax(es)?|ban(ned|s)?|recall(ed|s)?|outage|hack(ed|s)?|leak(ed|s)?|report(s|ed)?|crash(ed|es)?|plunge[ds]?|surge[ds]?|available now|2025|2026)\b/i;
+
+/** Whether this brief should hit the live web. `auto` sniffs the topic for time-sensitivity. */
+export function researchNeeded(brief: SocialBrief): boolean {
+  if (brief.research === 'on') return true;
+  if (brief.research === 'off') return false;
+  return NEWS_HINTS.test(brief.prompt);
+}
+
+/** Whether source links should be attached. */
+export function sourcesNeeded(brief: SocialBrief, usedResearch: boolean): boolean {
+  if (!usedResearch) return false;
+  if (brief.sources === 'on') return true;
+  if (brief.sources === 'off') return false;
+  return true;
+}
+
+/* ---------------- normalization ---------------- */
+
 const HASH_STOP = new Set([
   'the', 'and', 'for', 'with', 'that', 'this', 'your', 'you', 'about', 'from', 'into', 'when',
   'what', 'how', 'why', 'are', 'was', 'were', 'will', 'can', 'not', 'but', 'our', 'their', 'them',
@@ -196,7 +318,7 @@ function normHashtags(raw: unknown, brief: SocialBrief): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const item of list) {
-    let t = clean(item).replace(/^#+/, '').replace(/[^A-Za-z0-9_]/g, '');
+    const t = clean(item).replace(/^#+/, '').replace(/[^A-Za-z0-9_]/g, '');
     if (!t) continue;
     const tag = '#' + t;
     if (seen.has(tag.toLowerCase())) continue;
@@ -207,35 +329,108 @@ function normHashtags(raw: unknown, brief: SocialBrief): string[] {
   return out;
 }
 
+function normSources(raw: unknown): SocialSource[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SocialSource[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as any;
+    const url = clean(o.url);
+    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    out.push({
+      title: clean(o.title) || url,
+      url,
+      publisher: clean(o.publisher) || undefined,
+      publishedAt: clean(o.published_at) || undefined,
+    });
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+function normUncertainties(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((s) => clean(s)).filter(Boolean).slice(0, 4);
+}
+
+/** Pull the ordered post list out of a model response, whichever shape it used. */
+function rawPosts(v: any): string[] {
+  const list = Array.isArray(v?.posts) ? v.posts : Array.isArray(v?.thread) ? v.thread : [];
+  return list.map((s: unknown) => stripNumbering(clean(s))).filter(Boolean);
+}
+
+const STYLE_IDS = new Set<string>(SOCIAL_STYLES.map((s) => s.id));
+const VOICE_IDS = new Set<string>(SOCIAL_TONES.map((t) => t.id));
+
+function resolveGeneration(raw: any, brief: SocialBrief, isThread: boolean): SocialGeneration {
+  const s = clean(raw?.style_used).toLowerCase();
+  const v = clean(raw?.voice_used).toLowerCase();
+  return {
+    contentType: isThread ? 'thread' : 'post',
+    styleUsed: (brief.style !== 'auto' ? brief.style : STYLE_IDS.has(s) ? (s as SocialStyle) : 'auto'),
+    voiceUsed: (brief.tone !== 'auto' ? brief.tone : VOICE_IDS.has(v) && v !== 'auto' ? (v as SocialTone) : 'auto'),
+    language: brief.language === 'auto' ? clean(raw?.language) || 'auto' : brief.language,
+  };
+}
+
+/** Clamp a variant's posts to its own platform cap, reporting whether anything moved. */
+function clampVariant(posts: string[], platform: SocialPlatform, thread = false): { posts: string[]; clamped: boolean } {
+  const limit = capFor(platform, thread);
+  let clamped = false;
+  const out = posts.map((s) => {
+    if (s.length <= limit) return s;
+    clamped = true;
+    return clampChars(s, limit);
+  });
+  return { posts: out, clamped };
+}
+
 /** Clamp a model/offline response into something the composer can always use. */
 export function normalizeSocial(raw: any, brief: SocialBrief, provider: string): SocialResult {
   const warnings: string[] = [];
-  const limit = capFor(brief.platform);
+  const platforms = activePlatforms(brief);
+  const wantsThread = brief.thread;
 
-  let thread: string[] = Array.isArray(raw?.thread)
-    ? raw.thread.map((s: unknown) => stripNumbering(clean(s))).filter(Boolean)
-    : [];
-  let caption = stripNumbering(clean(raw?.caption));
-
-  if (brief.thread) {
-    if (thread.length < 2 && caption) thread = [caption];
-    const maxParts = Math.max(2, Math.min(12, brief.parts));
-    if (thread.length > maxParts) {
-      thread = thread.slice(0, maxParts);
-      warnings.push(`Trimmed the thread to ${maxParts} posts.`);
+  // --- variants: prefer explicit per-platform output, otherwise build from `posts` ---
+  let variants: SocialVariant[] = [];
+  if (Array.isArray(raw?.variants)) {
+    for (const v of raw.variants) {
+      const platform = asPlatform(v?.platform, platforms[0]);
+      const posts = rawPosts(v);
+      if (posts.length) variants.push({ platform, posts });
     }
-    let clamped = false;
-    thread = thread.map((s) => {
-      if (s.length <= limit) return s;
-      clamped = true;
-      return clampChars(s, limit);
-    });
-    if (clamped) warnings.push(`Some posts were trimmed to fit ${limit} characters.`);
-    if (!caption) caption = thread[0] ?? '';
-    else if (caption.length <= limit) caption = clampChars(caption, limit);
+  }
+  if (!variants.length) variants.push({ platform: platforms[0], posts: rawPosts(raw) });
+
+  // A caption is a single post: fold any stray segments back into one block per platform.
+  if (!wantsThread) {
+    variants = variants.map((v) => ({ platform: v.platform, posts: v.posts.length ? [v.posts.join('\n\n')] : [] }));
+  }
+
+  let anyClamped = false;
+  variants = variants.map((v) => {
+    const { posts, clamped } = clampVariant(v.posts, v.platform, wantsThread);
+    if (clamped) anyClamped = true;
+    return { platform: v.platform, posts };
+  });
+  const meaningful = variants.filter((v) => v.posts.length);
+  if (meaningful.length) variants = meaningful;
+  if (anyClamped) warnings.push('Some posts were trimmed to fit the platform character limit.');
+
+  const primary = variants[0];
+  const isThread = wantsThread && primary.posts.length > 1;
+
+  let caption: string;
+  let thread: string[];
+  if (isThread) {
+    thread = primary.posts.slice(0, Math.max(2, Math.min(12, brief.parts)));
+    if (primary.posts.length > thread.length) warnings.push(`Trimmed the thread to ${thread.length} posts.`);
+    caption = thread[0] ?? '';
   } else {
     thread = [];
-    if (!caption && Array.isArray(raw?.thread)) caption = raw.thread.map((s: unknown) => clean(s)).filter(Boolean).join('\n\n');
+    caption = primary.posts.join('\n\n');
     if (caption.length > CAPTION_MAX) {
       caption = clampChars(caption, CAPTION_MAX);
       warnings.push('The caption was trimmed — it was longer than any platform accepts.');
@@ -243,29 +438,44 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
   }
 
   const hashtags = normHashtags(raw?.hashtags, brief);
-  if (outEmpty(caption, thread, hashtags)) warnings.push('Nothing usable came back — try rephrasing the idea.');
+  const sources = normSources(raw?.sources);
+  const uncertainties = normUncertainties(raw?.uncertainties);
+  const researchUsed = !!raw?.__researched || sources.length > 0;
 
-  const imagePrompt = brief.coverImage ? clean(raw?.image) || null : null;
+  if (!caption && !thread.length && !hashtags.length) warnings.push('Nothing usable came back — try rephrasing the idea.');
+
+  const imagePrompt = brief.coverImage ? clean(raw?.image) || imagePromptFromIdea(brief.prompt) : null;
   const imageSeed = Math.floor(Math.random() * 1000000);
   const imageUrl = imagePrompt ? coverImageUrl(imagePrompt, imageSeed) : null;
 
-  return { caption, thread, hashtags, provider, warnings, imagePrompt, imageSeed, imageUrl };
+  return {
+    caption,
+    thread,
+    hashtags,
+    provider,
+    warnings,
+    imagePrompt,
+    imageSeed,
+    imageUrl,
+    generation: resolveGeneration(raw, brief, isThread),
+    variants,
+    sources,
+    researchUsed,
+    uncertainties,
+  };
 }
 
-const outEmpty = (caption: string, thread: string[], hashtags: string[]) =>
-  !caption && thread.length === 0 && hashtags.length === 0;
-
-/* ---------------- model path ---------------- */
+/* ---------------- prompts ---------------- */
 
 const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
   breaking: [
-    'STYLE: breaking news update. Open with an alert marker (JUST IN / BREAKING / UPDATE) + the headline.',
-    'Then 1-2 sentences of fact, one line on why it matters right now, and end with a [Source: link] placeholder.',
-    'Only use facts present in the idea. If something is unconfirmed, say so — never fill gaps with invented detail.',
+    'STYLE: breaking news update. Open with a plain, accurate line — an alert marker (JUST IN / BREAKING / UPDATE) only if the facts justify it.',
+    'Lead with what happened, where and when, then who confirmed it and what is still unclear. End with why it matters.',
+    'Only state facts you can source. Attribute claims to who made them. Never upgrade a claim into a confirmed fact for impact.',
   ].join(' '),
   thread: [
     'STYLE: educational thread. Open with a hook that promises a payoff worth reading for.',
-    'Move ONE idea per post in rising order; the last post lands a real takeaway or call-to-action.',
+    'Move ONE idea per post in rising order; the last post lands a real takeaway.',
   ].join(' '),
   listicle: [
     'STYLE: listicle / value stack. Hook with a concrete promise ("5 tools that cut my editing time in half").',
@@ -278,7 +488,7 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
   ].join(' '),
   deepdive: [
     'STYLE: technical deep-dive thread. Hook with the architectural puzzle ("How X handles Y without falling over").',
-    'Unpack in layers, in order: inputs → processing → storage/caching → edge cases. Close with a docs/blog pointer placeholder.',
+    'Unpack in layers: inputs → processing → storage/caching → edge cases. Close with a docs/blog pointer placeholder.',
     'Explain like a senior to a smart junior: precise, no jargon walls, no hand-waving.',
   ].join(' '),
   compare: [
@@ -289,7 +499,7 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
   casestudy: [
     'STYLE: metric-led case study. Hook with the headline result ("How a 12-person SaaS cut churn 31% in 60 days").',
     'Then the bottleneck, the 2-4 implementation steps, and 3 hard-number bullets.',
-    'Use only numbers from the idea. If the idea has no numbers, write it as a process story, not a results story.',
+    'Use only numbers from the idea. If there are no numbers, write it as a process story, not a results story.',
   ].join(' '),
   postmortem: [
     'STYLE: founder post-mortem. Open with the failure, plainly owned — no humblebrag.',
@@ -307,61 +517,114 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
 
 const HUMAN_RULES = [
   'HUMAN VOICE (non-negotiable): you sound like a person, never a brand deck.',
-  'Banned words — never emit: delve, unpack, tapestry, landscape, paradigm, beacon, game-changer, revolutionary, testament, elevate, foster, seamless, unlock/unlocking, next-gen, synergize, supercharge, "in an era of", "in today\'s fast-paced world", "let\'s dive in".',
+  'Banned words — never emit: delve, unpack, tapestry, landscape, paradigm, beacon, game-changer, revolutionary, testament, elevate, foster, seamless, unlock/unlocking, next-gen, synergize, supercharge, "in an era of", "in today\'s fast-paced world", "let\'s dive in", "here\'s everything you need to know".',
   'Banned constructions: "It\'s not X, it\'s Y" contrasts, "Here\'s the truth:" throat-clearing, "Ever wondered…?" openers, and "whether X, Y, or Z" triplets.',
-  'Rhythm: alternate short punchy lines with medium explainers; break lines liberally; no paragraph longer than 3 lines.',
+  'Rhythm: alternate short punchy lines with medium explainers; break lines liberally; no paragraph longer than 3 lines. Do not overuse em dashes.',
   'Always use contractions (it\'s, don\'t, can\'t, you\'re, we\'ve). Open sentences with verbs or natural transitions (Look, Here\'s the thing, Honestly, Turns out).',
   'Show, don\'t tell: concrete specifics over adjectives ("cut render time from 450ms to 42ms", not "blazing fast").',
-  'Emoji: at most ONE per post, structural only (🚨 ❌ ✅ 👇 where the style calls for one). Never mid-sentence, never as word substitutes.',
+  'One idea per paragraph. Never repeat a point to fill space. Do not force a hook if the topic does not need one.',
   'At most ONE call-to-action per post or thread-close, and keep it soft — an invitation, not a demand.',
 ].join('\n');
 
 const HONESTY_RULES = [
-  'HONESTY: never invent metrics, quotes, names, studies, or links.',
+  'HONESTY: never invent metrics, quotes, names, studies, dates or links.',
   'If the idea gives you numbers, use them; if not, write around them — never fabricate.',
-  'News-style output ends with a [Source: link] placeholder for the user to fill.',
 ].join('\n');
 
-function buildPrompt(brief: SocialBrief, limit: number): string {
+const RESEARCH_RULES = [
+  'RESEARCH: you have live web search. Use it for anything time-sensitive; do not rely on memory.',
+  'Prefer recent, credible sources: Reuters, AP, AFP, BBC, official government statements, official company statements, primary documents, reputable local reporting.',
+  'Separate CONFIRMED FACT from CLAIM from ANALYSIS from UNVERIFIED REPORT. Attribute each claim to who made it ("X claimed…", "authorities confirmed…").',
+  'Never turn an allegation into a confirmed fact. If sources conflict, say so plainly in `uncertainties`.',
+  'Include the relevant date/time when it helps. Discard outdated information.',
+  'Return the sources you actually used in `sources` (real URLs only — never invent one).',
+].join('\n');
+
+function emojiRule(brief: SocialBrief): string {
+  if (brief.emoji === 'off') return 'Emoji: none at all.';
+  if (brief.emoji === 'on') return 'Emoji: sparing — at most one per post, structural only (🚨 ❌ ✅ 👇), never mid-sentence, never as word substitutes.';
+  return 'Emoji: only if the topic and platform genuinely call for them — otherwise none. Never mid-sentence, never as word substitutes.';
+}
+
+function languageRule(brief: SocialBrief): string {
+  if (brief.language !== 'auto') return `Write everything in ${brief.language}.`;
+  return [
+    "LANGUAGE: match the language of the user's idea exactly.",
+    'If it is Malaysian Malay, write natural Malaysian Malay — never convert it to Indonesian (use kau/korang/sebenarnya/benda ni/macam mana/tak semestinya/sebab tu naturally, not as decoration).',
+    'If it is English, write natural English. If it is mixed Malay + English, preserve that natural mix.',
+    'Match their formality level; never force slang, never overdo it.',
+  ].join(' ');
+}
+
+function platformsLine(platforms: SocialPlatform[]): string {
+  if (platforms.length === 1 && platforms[0] === 'any') {
+    return 'DESTINATIONS: general — write one version that works anywhere.';
+  }
+  const parts = platforms.map((p) => `${p} (${PLATFORM_ADAPT[p]})`);
+  if (platforms.length === 1) return `DESTINATION: ${parts[0]}.`;
+  return [
+    `DESTINATIONS: ${parts.join('; ')}.`,
+    'Write ONE entry in `variants` per destination above. Keep the facts and core message identical across them — only the presentation changes (length, tone, structure, opening).',
+  ].join(' ');
+}
+
+const THREAD_STRUCTURES = [
+  'Thread shapes (adapt, do not force): breaking news → what happened / what we know / what is confirmed / what is unclear / why it matters / sources; story → hook / setup / tension / turning point / lesson / payoff; case study → result / background / what they did / why it worked / what most miss / takeaway.',
+  'Every post must earn its place. Never split one paragraph into arbitrary posts.',
+].join(' ');
+
+function buildPrompt(brief: SocialBrief, opts: { platforms: SocialPlatform[]; limit: number; research: boolean; sources: boolean }): string {
+  const today = new Date().toISOString().slice(0, 10);
   const lines = [
-    'You are a sharp social-media copywriter who sounds like a real person, never like a brand or a press release.',
-    languageLine(brief.language),
-    `Tone: ${brief.tone}.`,
+    'You are a sharp social-media writer who sounds like a real person, never like a brand or a press release.',
+    `Today is ${today}.`,
+    languageRule(brief),
+    brief.tone === 'auto'
+      ? 'VOICE: choose the voice that best fits this idea, platform and style, and commit to it fully.'
+      : `Voice: ${brief.tone}.`,
     `The user's raw idea: "${brief.prompt}"`,
     brief.style === 'auto'
-      ? 'Pick the best-fit playbook for this idea from: breaking news, educational thread, listicle, feature teardown, technical deep-dive, comparison, case study, post-mortem, resource roundup, or hot take — and commit to it fully.'
+      ? 'STYLE: pick the single best-fit playbook for this idea (breaking news, educational thread, listicle, feature teardown, technical deep-dive, comparison, case study, post-mortem, resource roundup, or hot take) and commit to it fully.'
       : STYLE_BLOCKS[brief.style],
+    platformsLine(opts.platforms),
     HUMAN_RULES,
     HONESTY_RULES,
+    emojiRule(brief),
   ];
+
+  if (opts.research) {
+    lines.push(RESEARCH_RULES);
+    lines.push(opts.sources
+      ? 'Attach the sources you used in `sources` (real URLs only).'
+      : 'Do not attach source links — return an empty sources array, and fold any essential attribution into the copy.');
+  }
+
   if (brief.thread) {
     lines.push(
-      `Write it as a NATURAL THREAD of about ${brief.parts} connected posts.`,
-      'Open with a hook that earns the next tap. Move ONE idea per post, in a rising order, and land a real payoff in the last one.',
-      'Each post must stand on its own but pull the reader forward. Write like you talk.',
-      `Never number the posts, never write "1/", never use "🧵", never say "thread", "in this thread", or "let me explain". (Numbering breaks character budgets and cross-posting — the app strips it anyway.) No hashtags inside the posts.`,
-      `Keep every post under ${limit} characters.`,
-      'Set "caption" to the first post.',
+      `FORMAT: a NATURAL THREAD of about ${brief.parts} connected posts.`,
+      'Open with a line that earns the next tap. One idea per post, rising order, real payoff in the last one.',
+      THREAD_STRUCTURES,
+      'Never number the posts, never write "1/", never use "🧵", never say "thread", "in this thread" or "let me explain". No hashtags inside the posts.',
+      `Keep every post under ${opts.limit} characters.`,
     );
   } else {
     lines.push(
-      'Write ONE tight caption — a hook line, one or two beats of value, and a soft close. No numbered lists unless the idea is genuinely a list.',
-      `Keep it under ${CAPTION_MAX} characters, but shorter is better.`,
-      'Set "thread" to an empty array.',
+      'FORMAT: ONE tight caption — a strong first line, one or two beats of value, a soft close. No numbered lists unless the idea is genuinely a list.',
+      `Keep it under ${opts.limit} characters, and shorter is better.`,
     );
   }
+
+  if (brief.instructions.trim()) lines.push(`EXTRA DIRECTION from the user (follow it): ${brief.instructions.trim()}`);
+
   if (brief.coverImage) {
-    lines.push(
-      'Also describe ONE cover image for this content: vivid and specific to the idea, portrait composition, absolutely no text, words, letters, watermarks, or logos anywhere in the image.',
-    );
+    lines.push('Also describe ONE cover image: vivid and specific to the idea, portrait composition, absolutely no text, words, letters, watermarks or logos in the image.');
   }
+
+  if (!brief.hashtags) lines.push('Return an empty hashtags array.');
+  else lines.push('Hashtags: 3-5 relevant tags kept separate from the copy (no camel-case stuffing).');
+
   lines.push(
-    brief.hashtags
-      ? 'Return 3-5 relevant hashtags separately (no more): a mix of broad reach and niche tags, no camel-case stuffing.'
-      : 'Return an empty hashtags array.',
-    brief.coverImage
-      ? 'Return ONLY JSON: {"caption":"...","thread":["..."],"hashtags":["..."],"image":"..."}.'
-      : 'Return ONLY JSON: {"caption":"...","thread":["..."],"hashtags":["..."]}.',
+    `Return ONLY JSON with this shape: {"content_type":"post|thread","style_used":"...","voice_used":"...","language":"...","posts":["..."],"variants":[{"platform":"...","posts":["..."]}],"hashtags":["..."],"sources":[{"title":"...","url":"...","publisher":"...","published_at":"..."}],"uncertainties":["..."],"image":"..."}.`,
   );
   return lines.join('\n');
 }
@@ -369,23 +632,52 @@ function buildPrompt(brief: SocialBrief, limit: number): string {
 const SCHEMA = {
   type: 'object',
   properties: {
-    caption: { type: 'string' },
-    thread: { type: 'array', items: { type: 'string' } },
+    content_type: { type: 'string' },
+    style_used: { type: 'string' },
+    voice_used: { type: 'string' },
+    language: { type: 'string' },
+    posts: { type: 'array', items: { type: 'string' } },
+    variants: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { platform: { type: 'string' }, posts: { type: 'array', items: { type: 'string' } } },
+        required: ['platform', 'posts'],
+      },
+    },
     hashtags: { type: 'array', items: { type: 'string' } },
+    sources: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          url: { type: 'string' },
+          publisher: { type: 'string' },
+          published_at: { type: 'string' },
+        },
+        required: ['title', 'url'],
+      },
+    },
+    uncertainties: { type: 'array', items: { type: 'string' } },
     image: { type: 'string' },
   },
-  required: ['caption'],
+  required: ['posts'],
 };
 
-export async function geminiSocial(brief: SocialBrief, key: string): Promise<any> {
-  const limit = capFor(brief.platform);
-  const body = {
+async function callModel(key: string, prompt: string, schema: unknown | null, grounding: boolean): Promise<any> {
+  const body: any = {
     systemInstruction: { parts: [{ text: 'You output strict JSON only. No markdown fences, no commentary.' }] },
-    contents: [{ role: 'user', parts: [{ text: buildPrompt(brief, limit) }] }],
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
     // NOTE: Gemini 3.6+ dropped the sampling knobs (temperature/top_p/top_k) —
     // sending them returns 400, so only schema + token budget go out.
-    generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, maxOutputTokens: 2048 },
+    generationConfig:
+      schema && !grounding
+        ? { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 4096 }
+        : { responseMimeType: 'text/plain', maxOutputTokens: 4096 },
   };
+  if (grounding) body.tools = [{ google_search: {} }];
+
   const r = await fetch(endpoint(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j: any = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(humanErr(j));
@@ -395,11 +687,23 @@ export async function geminiSocial(brief: SocialBrief, key: string): Promise<any
   return JSON.parse(m[0]);
 }
 
+export async function geminiSocial(brief: SocialBrief, key: string): Promise<any> {
+  const platforms = activePlatforms(brief);
+  const limit = Math.min(...platforms.map((p) => capFor(p, brief.thread)));
+  const research = researchNeeded(brief);
+  const prompt = buildPrompt(brief, { platforms, limit, research, sources: sourcesNeeded(brief, research) });
+  const raw = await callModel(key, prompt, SCHEMA, research);
+  return { ...raw, __researched: research };
+}
+
 function humanErr(j: any): string {
   const msg = String(j?.error?.message ?? '');
   if (/API key/i.test(msg)) return 'That API key was rejected — check it and try again.';
   if (/quota|rate|429|RESOURCE_EXHAUSTED/i.test(msg)) return 'Rate limit hit — wait a minute and retry.';
-  return msg || 'Gemini request failed.';
+  if (/UNAVAILABLE|overload|503|high demand/i.test(msg)) return 'The model is busy right now — try again in a moment.';
+  if (/SAFETY|blocked/i.test(msg)) return 'The model declined this one — rephrase the idea and try again.';
+  if (/fetch|network|Failed to fetch|timeout/i.test(msg)) return 'Couldn\'t reach the AI. Check your connection and try again.';
+  return msg || 'Something went wrong while writing your post.';
 }
 
 /* ---------------- offline path ---------------- */
@@ -409,6 +713,7 @@ export function mockSocial(brief: SocialBrief): any {
   const topic = clean(brief.prompt) || 'your idea';
   const t = topic.replace(/[.!?]+$/, '');
   const hooks: Record<SocialTone, string> = {
+    auto: `Here's what actually changed my mind about ${t}.`,
     story: `Let me tell you about ${t}.`,
     punchy: `${cap(t)} — but not how you think.`,
     friendly: `Okay, let's actually talk about ${t}.`,
@@ -423,31 +728,115 @@ export function mockSocial(brief: SocialBrief): any {
     `So pick the smallest version, attach it to something you already do, and let it be boring for a while.`,
     `If ${t} has been on your mind, save this and start today.`,
   ];
-  const image = `Cinematic portrait photo about ${t}, warm honest light, real-world detail, no text`;
-  if (!brief.thread) {
-    return {
-      caption: [beats[0], beats[2], beats[4]].join('\n\n'),
-      thread: [],
-      hashtags: deriveHashtags(topic),
-      image,
-    };
-  }
-  const n = Math.max(2, Math.min(beats.length, brief.parts));
-  return { caption: beats[0], thread: beats.slice(0, n), hashtags: deriveHashtags(topic), image };
+  const image = imagePromptFromIdea(topic);
+  const platforms = activePlatforms(brief);
+  const n = brief.thread ? Math.max(2, Math.min(beats.length, brief.parts)) : 1;
+  const posts = brief.thread ? beats.slice(0, n) : [beats[0], beats[2], beats[4]].join('\n\n').split('\n\n');
+  const variants = platforms.map((platform) => ({ platform, posts }));
+  return {
+    content_type: brief.thread ? 'thread' : 'post',
+    style_used: brief.style === 'auto' ? 'thread' : brief.style,
+    voice_used: brief.tone === 'auto' ? 'story' : brief.tone,
+    posts,
+    variants,
+    hashtags: deriveHashtags(topic),
+    sources: [],
+    uncertainties: [],
+    image,
+    __researched: false,
+  };
 }
 
 /* ---------------- entry point ---------------- */
 
-export async function generateSocial(brief: SocialBrief): Promise<SocialResult> {
+export type SocialPhase = 'research' | 'write' | 'adapt' | 'finalize';
+export type PhaseHandler = (phase: SocialPhase) => void;
+
+export async function generateSocial(brief: SocialBrief, onPhase?: PhaseHandler): Promise<SocialResult> {
   const key = await getAiKey();
-  if (key) {
-    try {
-      const raw = await geminiSocial(brief, key);
-      return normalizeSocial(raw, brief, 'Gemini 3.8 Flash');
-    } catch (e: any) {
-      return { caption: '', thread: [], hashtags: [], provider: 'Gemini 3.8 Flash', warnings: [e?.message ?? 'Generation failed.'], imagePrompt: null, imageSeed: 0, imageUrl: null };
-    }
+  if (!key) {
+    onPhase?.('write');
+    await new Promise((r) => setTimeout(r, 450));
+    return normalizeSocial(mockSocial(brief), brief, 'Draft engine (offline)');
   }
-  await new Promise((r) => setTimeout(r, 500));
-  return normalizeSocial(mockSocial(brief), brief, 'Draft engine (offline)');
+
+  const research = researchNeeded(brief);
+  const platforms = activePlatforms(brief);
+  try {
+    if (research) onPhase?.('research');
+    onPhase?.('write');
+    let raw = await geminiSocial(brief, key);
+    if (platforms.length > 1) onPhase?.('adapt');
+    onPhase?.('finalize');
+
+    // Research was requested but search came back empty → say so, never imply we checked.
+    if (research && !(Array.isArray(raw.sources) && raw.sources.length) && !raw.uncertainties?.length) {
+      raw = { ...raw, uncertainties: ['Live research returned no sources — verify the facts before publishing.'] };
+    }
+    return normalizeSocial(raw, brief, research ? 'Gemini 3.8 Flash + Search' : 'Gemini 3.8 Flash');
+  } catch (e: any) {
+    // If the grounded pass failed, retry straight generation so the user still gets copy —
+    // with an honest warning that research did not run.
+    if (research) {
+      try {
+        const raw = await geminiSocial({ ...brief, research: 'off' }, key);
+        const result = normalizeSocial(raw, brief, 'Gemini 3.8 Flash');
+        return { ...result, researchUsed: false, warnings: ['Live research is temporarily unavailable — this was written without it.', ...result.warnings] };
+      } catch {
+        /* fall through to the shared error result */
+      }
+    }
+    return {
+      caption: '', thread: [], hashtags: [], provider: 'Gemini 3.8 Flash',
+      warnings: [e?.message ?? 'Something went wrong while writing your post.'],
+      imagePrompt: null, imageSeed: 0, imageUrl: null,
+      generation: { contentType: brief.thread ? 'thread' : 'post', styleUsed: brief.style, voiceUsed: brief.tone, language: brief.language },
+      variants: [], sources: [], researchUsed: false, uncertainties: [],
+    };
+  }
+}
+
+/* ---------------- targeted rewrites ---------------- */
+
+export type RewriteOp = 'shorter' | 'punchier' | 'natural' | 'context' | 'tone' | 'style';
+
+const REWRITE_ASKS: Record<RewriteOp, string> = {
+  shorter: 'Make every post noticeably shorter. Cut filler, keep every fact.',
+  punchier: 'Make it punchier: stronger verbs, tighter lines, sharper first words. Keep the meaning.',
+  natural: 'Make it sound more natural and human — vary sentence length, remove anything that reads like AI.',
+  context: 'Add useful context or a concrete example to each point. Do not invent facts.',
+  tone: 'Rewrite with a different, more fitting voice for this idea and platform.',
+  style: 'Restructure it with a different approach while keeping the same facts and message.',
+};
+
+/** Rewrite an existing set of posts in place (targeted transform). Facts must survive. */
+export async function rewritePosts(
+  posts: string[],
+  brief: SocialBrief,
+  op: RewriteOp,
+): Promise<{ posts: string[]; warning?: string }> {
+  const key = await getAiKey();
+  if (!key) return { posts, warning: 'Editing needs a live model — reconnect and try again.' };
+  const limit = Math.min(...activePlatforms(brief).map((p) => capFor(p, brief.thread)));
+  const prompt = [
+    'You are editing an existing social post. Preserve ALL facts, names, numbers and meaning.',
+    languageRule(brief),
+    `Edit instruction: ${REWRITE_ASKS[op]}`,
+    `Keep every post under ${limit} characters. Keep the same number of parts unless the instruction says otherwise.`,
+    'Current posts:',
+    ...posts.map((p, i) => `${i + 1}. ${p}`),
+    'Return ONLY JSON: {"posts":["..."]}.',
+  ].join('\n');
+  try {
+    const raw = await callModel(key, prompt, {
+      type: 'object',
+      properties: { posts: { type: 'array', items: { type: 'string' } } },
+      required: ['posts'],
+    }, false);
+    const out = rawPosts(raw);
+    if (!out.length) return { posts, warning: 'The rewrite came back empty — kept your original.' };
+    return { posts: clampVariant(out, activePlatforms(brief)[0], brief.thread).posts };
+  } catch (e: any) {
+    return { posts, warning: e?.message ?? 'Could not rewrite — kept your original.' };
+  }
 }
