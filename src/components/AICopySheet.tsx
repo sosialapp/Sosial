@@ -11,12 +11,12 @@ import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Field, SocialGlyph, Seg
 import {
   SocialBrief, SocialResult, SocialTone, SocialPlatform, SocialStyle, SocialVariant,
   SocialPhase, Toggle, RewriteOp, SocialSegmentMedia,
-  DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES,
-  THREAD_PLATFORM_IDS, THREAD_POST_MIN,
+  DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES, SocialStyleMeta,
+  THREAD_PLATFORM_IDS, THREAD_POST_MIN, styleSampleFor,
   generateSocial, rewritePosts, capFor, activePlatforms, researchNeeded,
   coverImageUrl, imagePromptFromIdea,
 } from '../utils/ai/social';
-import { AI_LANGUAGES, AiLanguage } from '../utils/ai/types';
+import { WRITER_LANGUAGES } from '../utils/ai/languages';
 import { loadAccount } from '../utils/account';
 
 /**
@@ -44,6 +44,9 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const st = useMemo(() => makeSt(C, insets.bottom), [C, insets.bottom]);
 
   const [prompt, setPrompt] = useState('');
+  const [language, setLanguage] = useState<string>(DEFAULT_SOCIAL_BRIEF.language);
+  const [langOpen, setLangOpen] = useState(false);
+  const [langQuery, setLangQuery] = useState('');
   const [tone, setTone] = useState<SocialTone>(DEFAULT_SOCIAL_BRIEF.tone);
   const [style, setStyle] = useState<SocialStyle>(DEFAULT_SOCIAL_BRIEF.style);
   const [styleOpen, setStyleOpen] = useState(false);
@@ -52,7 +55,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [hashtags, setHashtags] = useState(DEFAULT_SOCIAL_BRIEF.hashtags);
   const [platforms, setPlatforms] = useState<SocialPlatform[]>(DEFAULT_SOCIAL_BRIEF.platforms);
   const [cover, setCover] = useState(DEFAULT_SOCIAL_BRIEF.coverImage);
-  const [language, setLanguage] = useState<AiLanguage>(DEFAULT_SOCIAL_BRIEF.language);
   const [research, setResearch] = useState<Toggle>(DEFAULT_SOCIAL_BRIEF.research);
   const [sources, setSources] = useState<Toggle>(DEFAULT_SOCIAL_BRIEF.sources);
   const [emoji, setEmoji] = useState<'auto' | 'on' | 'off'>(DEFAULT_SOCIAL_BRIEF.emoji);
@@ -83,6 +85,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setErr('');
     setPhase(null);
     setAdvanced(false);
+    setLangOpen(false);
+    setLangQuery('');
     loadAccount().then((a) => setPlan(a.plan));
   }, [visible, initialPrompt]);
 
@@ -261,6 +265,13 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     return list;
   }, [willResearch, destCount]);
 
+  const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
+  const q = langQuery.trim().toLowerCase();
+  const langMatches = q
+    ? WRITER_LANGUAGES.filter((l) => l.id.toLowerCase().includes(q) || l.label.toLowerCase().includes(q)).slice(0, 60)
+    : WRITER_LANGUAGES;
+  const sampleFor = (s: SocialStyleMeta) => styleSampleFor(s, language);
+
   const active = draft[tab];
   const isThreadView = thread && (active?.posts.length ?? 0) > 1;
   const limit = capFor(active?.platform ?? platforms[0], isThreadView);
@@ -311,6 +322,55 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 accessibilityLabel="Your idea"
               />
               <Text style={st.ideaHint}>Rough thoughts are enough — a phrase works.</Text>
+
+              {/* language first — voice, style and examples all follow it */}
+              <View style={{ gap: 9 }}>
+                <Text style={st.label}>Language</Text>
+                <TouchableOpacity onPress={() => setLangOpen((v) => !v)} style={st.rowBtn} activeOpacity={0.8} accessibilityRole="button">
+                  <Text style={st.rowVal}>{language === 'auto' ? 'Auto' : langName(language)}</Text>
+                  <View style={{ flex: 1 }} />
+                  <Ionicons name={langOpen ? 'chevron-up' : 'chevron-down'} size={15} color={C.muted} />
+                </TouchableOpacity>
+                {!langOpen ? (
+                  <Text style={st.helper}>Auto mirrors the language of your idea. Pick one to force it.</Text>
+                ) : (
+                  <View style={{ gap: 8 }}>
+                    <Txt
+                      value={langQuery}
+                      onChangeText={setLangQuery}
+                      placeholder={`Search ${WRITER_LANGUAGES.length} languages…`}
+                      accessibilityLabel="Search languages"
+                    />
+                    <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 264 }} contentContainerStyle={{ gap: 6 }}>
+                      <TouchableOpacity
+                        onPress={() => { setLanguage('auto'); setLangOpen(false); setLangQuery(''); }}
+                        style={[st.langRow, language === 'auto' && st.langRowOn]}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={[st.langRowT, language === 'auto' && st.langRowTOn]}>Auto — match my idea</Text>
+                        {language === 'auto' ? <View style={{ flex: 1 }} /> : null}
+                        {language === 'auto' ? <Ionicons name="checkmark" size={14} color={C.accentInk} /> : null}
+                      </TouchableOpacity>
+                      {langMatches.map((l) => {
+                        const on = language === l.id;
+                        return (
+                          <TouchableOpacity
+                            key={l.id}
+                            onPress={() => { setLanguage(l.id); setLangOpen(false); setLangQuery(''); }}
+                            style={[st.langRow, on && st.langRowOn]}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={[st.langRowT, on && st.langRowTOn]}>{l.label}</Text>
+                            {l.label !== l.id ? <Text style={st.langRowS}>{l.id}</Text> : null}
+                            {on ? <View style={{ flex: 1 }} /> : null}
+                            {on ? <Ionicons name="checkmark" size={14} color={C.accentInk} /> : null}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
 
               {/* voice — every option visible, nothing hidden behind "More" */}
               <View style={{ gap: 9 }}>
@@ -363,7 +423,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                             <View style={{ flex: 1 }} />
                             <Text style={st.styleHint}>{s.hint}</Text>
                           </View>
-                          <Text style={st.styleSample} numberOfLines={2}>e.g. “{s.sample}”</Text>
+                          <Text style={st.styleSample} numberOfLines={2}>e.g. “{sampleFor(s)}”</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -478,24 +538,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                       </View>
                       <PillToggle on={cover} onPress={() => setCover((v) => !v)} />
                     </View>
-
-                    <Text style={st.label}>Language</Text>
-                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-                      {AI_LANGUAGES.map((l) => {
-                        const on = language === l.id;
-                        return (
-                          <TouchableOpacity
-                            key={l.id}
-                            onPress={() => setLanguage(l.id)}
-                            style={[st.chip, on && st.chipOn]}
-                            activeOpacity={0.75}
-                            accessibilityState={{ selected: on }}
-                          >
-                            <Text style={[st.chipT, on && st.chipTOn]}>{l.label}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
 
                     <Field label="Custom instructions" hint="Optional">
                       <Txt
@@ -755,6 +797,11 @@ const makeSt = (C: Palette, bottomInset: number) => StyleSheet.create({
   chipTOn: { color: C.onInk },
   rowBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 11 },
   rowVal: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderColor: C.lineSoft },
+  langRowOn: { borderColor: C.accent, backgroundColor: C.accentSoft },
+  langRowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.muted },
+  langRowTOn: { color: C.accentInk },
+  langRowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.faint },
   plat: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
   platOn: { backgroundColor: C.accentSoft, borderColor: C.accent },
   platT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
