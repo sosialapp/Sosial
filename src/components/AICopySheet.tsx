@@ -14,7 +14,7 @@ import {
   DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES, SocialStyleMeta,
   THREAD_PLATFORM_IDS, THREAD_POST_MIN, styleSampleFor,
   generateSocial, rewritePosts, capFor, activePlatforms, researchNeeded,
-  coverImageUrl, imagePromptFromIdea,
+  coverImageUrl, imagePromptFromIdea, stockImageUrl,
 } from '../utils/ai/social';
 import { WRITER_LANGUAGES } from '../utils/ai/languages';
 import { loadAccount } from '../utils/account';
@@ -160,6 +160,15 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     const seed = Math.floor(Math.random() * 1000000);
     const k = mediaKey(vi, pi);
     setSegMedia((m) => ({ ...m, [k]: [...(m[k] ?? []).slice(0, 3), { uri: coverImageUrl(desc, seed), kind: 'image' }] }));
+  };
+
+  /** Real stock photo matched to the finished post text (remote URL — downloaded on Apply). */
+  const stockPhoto = (vi: number, pi: number) => {
+    const text = draft[vi]?.posts[pi] ?? '';
+    if (!text.trim()) return;
+    const seed = Math.floor(Math.random() * 1000000);
+    const k = mediaKey(vi, pi);
+    setSegMedia((m) => ({ ...m, [k]: [...(m[k] ?? []).slice(0, 3), { uri: stockImageUrl(text, seed), kind: 'image' }] }));
   };
 
   /** The user's own photo/video from the device library. */
@@ -681,6 +690,10 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                               <TouchableOpacity onPress={() => aiImage(tab, i)} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Generate AI image for this post">
                                 <Ionicons name="sparkles" size={13} color={C.accentInk} />
                                 <Text style={st.attBtnT}>AI image</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => stockPhoto(tab, i)} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Fetch a stock photo matching this post">
+                                <Ionicons name="globe-outline" size={13} color={C.accentInk} />
+                                <Text style={st.attBtnT}>Stock</Text>
                               </TouchableOpacity>
                               <TouchableOpacity onPress={() => pickOwnMedia(tab, i)} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Add your own photo or video">
                                 <Ionicons name="image-outline" size={13} color={C.accentInk} />

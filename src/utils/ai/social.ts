@@ -375,16 +375,36 @@ const HASH_STOP = new Set([
   'have', 'has', 'had', 'been', 'just', 'like', 'more', 'most', 'some', 'one', 'out', 'get', 'got',
 ]);
 
-function deriveHashtags(prompt: string, n = 4): string[] {
+/** Meaningful latin-script words, in order of appearance (drives hashtags + stock keywords). */
+function contentWords(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const w of words(prompt.toLowerCase()).map((x) => x.replace(/[^a-z0-9]/g, ''))) {
+  for (const w of words(text.toLowerCase()).map((x) => x.replace(/[^a-z0-9]/g, ''))) {
     if (!w || w.length < 4 || HASH_STOP.has(w) || seen.has(w)) continue;
     seen.add(w);
-    out.push('#' + w);
-    if (out.length >= n) break;
+    out.push(w);
   }
   return out;
+}
+
+function deriveHashtags(prompt: string, n = 4): string[] {
+  return contentWords(prompt).slice(0, n).map((w) => '#' + w);
+}
+
+/** Plain topic keywords for stock-photo lookup. */
+export function keywordsFromText(text: string, n = 3): string[] {
+  return contentWords(text).slice(0, n);
+}
+
+/**
+ * Free topical stock photo (LoremFlickr serves real Flickr photos by keyword,
+ * no key, hotlinkable). Portrait 4:5 suits feed crops; seed picks the variant.
+ * Keywords come from the post itself, so the photo follows the finished copy.
+ */
+export function stockImageUrl(text: string, seed: number): string {
+  const kws = keywordsFromText(text, 3);
+  const key = kws.length ? kws.map((k) => encodeURIComponent(k)).join(',') : 'lifestyle';
+  return `https://loremflickr.com/1080/1350/${key}?lock=${seed}`;
 }
 
 function normHashtags(raw: unknown, brief: SocialBrief): string[] {
@@ -525,7 +545,10 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
 
   if (!caption && !thread.length && !hashtags.length) warnings.push('Nothing usable came back — try rephrasing the idea.');
 
-  const imagePrompt = brief.coverImage ? clean(raw?.image) || imagePromptFromIdea(brief.prompt) : null;
+  // Cover-art brief comes from the FINAL copy — never the rough idea — so the
+  // picture actually matches the post that ships with it.
+  const coverText = (isThread ? thread[0] : caption) || brief.prompt;
+  const imagePrompt = brief.coverImage ? imagePromptFromIdea(coverText) : null;
   const imageSeed = Math.floor(Math.random() * 1000000);
   const imageUrl = imagePrompt ? coverImageUrl(imagePrompt, imageSeed) : null;
 
