@@ -19,8 +19,8 @@ function SegVideo({ uri, size }: { uri: string; size: number }) {
   return (
     <View style={{ width: size, height: size, borderRadius: R.sm + 3, overflow: 'hidden', backgroundColor: '#000' }}>
       <VideoView style={{ width: '100%', height: '100%' }} player={player} contentFit="cover" nativeControls={false} />
-      <View style={{ position: 'absolute', right: 4, bottom: 4, width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name="play" size={10} color="#fff" />
+      <View style={{ position: 'absolute', right: 6, bottom: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="play" size={11} color="#fff" />
       </View>
     </View>
   );
@@ -33,7 +33,7 @@ function SegVideo({ uri, size }: { uri: string; size: number }) {
  * committed once on release. The original order is held during the drag (only
  * transforms move) so nothing remounts and video previews never reload.
  */
-export function SegMediaStrip({ items, onPick, onRemove, onMove, max, size = 56, dark = false }: {
+export function SegMediaStrip({ items, onPick, onRemove, onMove, max, size = 104, dark = false }: {
   items: SegMediaItem[];
   onPick: () => void;
   onRemove: (index: number) => void;
@@ -152,11 +152,11 @@ export function SegMediaStrip({ items, onPick, onRemove, onMove, max, size = 56,
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => onRemove(i)}
-                style={{ position: 'absolute', top: -5, right: -5, width: 17, height: 17, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' }}
+                style={{ position: 'absolute', top: -6, right: -6, width: 21, height: 21, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' }}
                 hitSlop={6}
                 accessibilityLabel="Remove segment attachment"
               >
-                <Ionicons name="close" size={11} color="#fff" />
+                <Ionicons name="close" size={12} color="#fff" />
               </TouchableOpacity>
             </Animated.View>
           );
@@ -173,7 +173,7 @@ export function SegMediaStrip({ items, onPick, onRemove, onMove, max, size = 56,
             activeOpacity={0.7}
             accessibilityLabel="Attach photo or video"
           >
-            <Ionicons name="image-outline" size={20} color={dark ? 'rgba(255,255,255,0.65)' : C.accentInk} />
+            <Ionicons name="image-outline" size={26} color={dark ? 'rgba(255,255,255,0.65)' : C.accentInk} />
           </TouchableOpacity>
         ) : null}
       </ScrollView>

@@ -735,7 +735,6 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                           <SegMediaStrip
                             items={segMed ?? []}
                             max={THREAD_MEDIA_MAX}
-                            size={52}
                             dark={themeMode === 'dark'}
                             onPick={() => composer.onPickThreadMedia!(i)}
                             onRemove={(mi) => composer.onRemoveThreadMedia!(i, mi)}
