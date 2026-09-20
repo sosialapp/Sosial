@@ -217,7 +217,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadImages, setDraftThreadImages, pickDraftThreadImage, removeDraftThreadImage, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, beginInline, endInline } = useComposer();
+  const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadMedia, setDraftThreadMedia, pickDraftThreadMedia, removeDraftThreadMedia, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, beginInline, endInline } = useComposer();
   // Fresh inline composer mount (remount resets its channel/schedule picks).
   const [formKey, setFormKey] = useState(0);
   const [tab, setTab] = useState<'ideas' | 'templates' | 'post' | 'publish'>('post');
@@ -660,7 +660,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               bare
               visible
               title="New post"
-              composer={{ title: '', caption: draftBody, onCaption: setDraftBody, thread: draftThread, onThread: setDraftThread, threadImages: draftThreadImages, onThreadImages: setDraftThreadImages, onPickThreadImage: pickDraftThreadImage, onRemoveThreadImage: removeDraftThreadImage }}
+              composer={{ title: '', caption: draftBody, onCaption: setDraftBody, thread: draftThread, onThread: setDraftThread, threadMedia: draftThreadMedia, onThreadMedia: setDraftThreadMedia, onPickThreadMedia: pickDraftThreadMedia, onRemoveThreadMedia: removeDraftThreadMedia }}
               media={{ items: draftMedia, onPick: pickDraftMedia, onRemove: removeDraftMedia, onMove: moveDraftMedia }}
               onSave={async (at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy) => {
                 if (await saveDraftPost(at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy)) resetInline();

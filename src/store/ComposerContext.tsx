@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { AppState, Platform } from 'react-native';
 import ScheduleSheet from '../components/ScheduleSheet';
 import { uid } from '../constants';
-import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, ManagedPost, PostStatus, MediaAttachment, postAttachments, postThreadSegments, alignThreadImages, ThreadSegment, PlatformTypes, defaultPlatformType, ChannelKey, queueTooSoon, minQueueLabel, isEmptyPost, LEG_COOLDOWN_MS, MAX_AUTO_TRIES, VIDEO_CHANNEL_MS, PHOTO_CHANNEL_MS } from '../utils/managed';
+import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, ManagedPost, PostStatus, MediaAttachment, postAttachments, postThreadSegments, postThreadMedia, alignThreadMedia, ThreadSegment, ThreadSegmentMedia, PlatformTypes, defaultPlatformType, ChannelKey, queueTooSoon, minQueueLabel, isEmptyPost, LEG_COOLDOWN_MS, MAX_AUTO_TRIES, VIDEO_CHANNEL_MS, PHOTO_CHANNEL_MS } from '../utils/managed';
 import { joinThread, isChainPlatform } from '../utils/thread';
 import { loadMetaState, saveMetaState, MetaState, connectedChannelIds } from '../utils/metaStore';
 import { publishFacebook, publishFacebookReel, publishFacebookStory, publishInstagram, publishInstagramStory, publishThreads, uploadTikTokPhoto, MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
@@ -82,11 +82,11 @@ interface ComposerCtx {
   setDraftBody: (v: string) => void;
   draftThread: string[] | null;
   setDraftThread: (segs: string[] | null) => void;
-  /** Per-segment images aligned to draftThread by index (null = none). */
-  draftThreadImages: (string | null)[];
-  setDraftThreadImages: (imgs: (string | null)[]) => void;
-  pickDraftThreadImage: (index: number) => Promise<void>;
-  removeDraftThreadImage: (index: number) => void;
+  /** Per-segment attachments aligned to draftThread by index (null = none). */
+  draftThreadMedia: (ThreadSegmentMedia | null)[];
+  setDraftThreadMedia: (med: (ThreadSegmentMedia | null)[]) => void;
+  pickDraftThreadMedia: (index: number) => Promise<void>;
+  removeDraftThreadMedia: (index: number) => void;
   draftMedia: MediaAttachment[];
   pickDraftMedia: () => void;
   removeDraftMedia: (index: number) => void;
@@ -106,7 +106,7 @@ interface ComposerCtx {
   endInline: () => void;
 }
 
-const Ctx = createContext<ComposerCtx>({ refreshedAt: 0, openComposer: () => {}, openPostById: async () => {}, publishPostById: async () => {}, submitForApproval: async () => {}, approvePost: async () => {}, rejectPost: async () => {}, draftBody: '', setDraftBody: () => {}, draftThread: null, setDraftThread: () => {}, draftThreadImages: [], setDraftThreadImages: () => {}, pickDraftThreadImage: async () => {}, removeDraftThreadImage: () => {}, draftMedia: [], pickDraftMedia: () => {}, removeDraftMedia: () => {}, moveDraftMedia: () => {}, saveDraftPost: async () => false, stashDraftPost: async () => false, postDraftNow: async () => false, importDraft: () => {}, clearDraft: () => {}, openAi: () => {}, beginInline: () => {}, endInline: () => {} });
+const Ctx = createContext<ComposerCtx>({ refreshedAt: 0, openComposer: () => {}, openPostById: async () => {}, publishPostById: async () => {}, submitForApproval: async () => {}, approvePost: async () => {}, rejectPost: async () => {}, draftBody: '', setDraftBody: () => {}, draftThread: null, setDraftThread: () => {}, draftThreadMedia: [], setDraftThreadMedia: () => {}, pickDraftThreadMedia: async () => {}, removeDraftThreadMedia: () => {}, draftMedia: [], pickDraftMedia: () => {}, removeDraftMedia: () => {}, moveDraftMedia: () => {}, saveDraftPost: async () => false, stashDraftPost: async () => false, postDraftNow: async () => false, importDraft: () => {}, clearDraft: () => {}, openAi: () => {}, beginInline: () => {}, endInline: () => {} });
 
 export function useComposer(): ComposerCtx {
   return useContext(Ctx);
@@ -126,10 +126,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   // source of truth while chain mode is on; `tBody` mirrors them joined so the
   // rest of the pipeline (title, guards, body) never needs to know.
   const [tThread, setTThread] = useState<string[] | null>(null);
-  /** Per-segment image (local uri), aligned to tThread by index — null = none.
-   *  Survives save/load on the record; the phone publisher attaches each to
-   *  its reply (head falls back to shared media when unset). */
-  const [tThreadImages, setTThreadImages] = useState<(string | null)[]>([]);
+  /** Per-segment attachment (one slot: image or video), aligned to tThread by
+   *  index — null = none. Survives save/load on the record; chain legs attach
+   *  each to its own reply and ignore shared media. */
+  const [tThreadMedia, setTThreadMedia] = useState<(ThreadSegmentMedia | null)[]>([]);
   const [tMedia, setTMedia] = useState<MediaAttachment[]>([]);
   const [notice, setNotice] = useState<{ mode: 'loading' | 'result' | 'info'; title: string; message?: string; rows?: PubRow[]; channels?: string[] } | null>(null);
   const [privacyAsk, setPrivacyAsk] = useState<{ options: { value: string; label: string }[]; resolve: (v: string) => void } | null>(null);
@@ -155,7 +155,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setNotice(null);
     setTBody(p?.body ?? '');
     setTThread(p?.thread && p.thread.length > 1 ? [...p.thread] : null);
-    setTThreadImages(p?.thread && p.thread.length > 1 ? alignThreadImages(p.threadImages, p.thread.length) : []);
+    setTThreadMedia(p?.thread && p.thread.length > 1 ? postThreadMedia(p) : []);
     setTMedia(p ? postAttachments(p) : []);
     setSheet({ post: p });
   }, []);
@@ -165,31 +165,32 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setTThread(segs);
     if (segs) {
       setTBody(joinThread(segs));
-      // Length changes (add/remove/AI re-split) realign images; text edits
+      // Length changes (add/remove/AI re-split) realign attachments; text edits
       // keep length so attachments stay glued to their segment.
-      setTThreadImages((prev) => alignThreadImages(prev, segs.length));
+      setTThreadMedia((prev) => alignThreadMedia(prev, segs.length));
     }
   }, []);
 
   /** Full-array setter for the segment editor (it always knows the length). */
-  const onThreadImages = useCallback((imgs: (string | null)[]) => {
-    setTThreadImages(imgs.map((u) => u ?? null));
+  const onThreadMedia = useCallback((med: (ThreadSegmentMedia | null)[]) => {
+    setTThreadMedia(med.map((m) => m ?? null));
   }, []);
 
-  /** Attach one image to a single chain segment (images only — video stays shared). */
-  const pickThreadImage = async (index: number) => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: false, quality: 0.9 });
+  /** Attach one image or video to a single chain segment (one slot per segment). */
+  const pickThreadMedia = async (index: number) => {
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: false, quality: 0.9 });
     if (res.canceled || !res.assets?.length) return;
-    const uri = res.assets[0].uri;
-    setTThreadImages((prev) => {
+    const a = res.assets[0];
+    const slot: ThreadSegmentMedia = { uri: a.uri, kind: a.type === 'video' ? 'video' : 'image' };
+    setTThreadMedia((prev) => {
       const next = [...prev];
-      next[index] = uri;
+      next[index] = slot;
       return next;
     });
   };
 
-  const removeThreadImage = (index: number) => {
-    setTThreadImages((prev) => prev.map((u, j) => (j === index ? null : u)));
+  const removeThreadMedia = (index: number) => {
+    setTThreadMedia((prev) => prev.map((m, j) => (j === index ? null : m)));
   };
 
   const openPostById = useCallback(
@@ -257,7 +258,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const clearDraft = useCallback(() => {
     setTBody('');
     setTThread(null);
-    setTThreadImages([]);
+    setTThreadMedia([]);
     setTMedia([]);
   }, []);
 
@@ -265,7 +266,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const importDraft = useCallback((p: ManagedPost | null) => {
     setTBody(p?.body ?? '');
     setTThread(p?.thread && p.thread.length > 1 ? [...p.thread] : null);
-    setTThreadImages(p?.thread && p.thread.length > 1 ? alignThreadImages(p.threadImages, p.thread.length) : []);
+    setTThreadMedia(p?.thread && p.thread.length > 1 ? postThreadMedia(p) : []);
     setTMedia(p ? postAttachments(p) : []);
   }, []);
 
@@ -284,30 +285,31 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const tags = r.hashtags.length ? '\n\n' + r.hashtags.join(' ') : '';
     if (r.thread.length > 1) {
       onThread(r.thread);
-      // Carry the first shared photo onto the head post so it isn't
+      // Carry the first shared attachment onto the head post so it isn't
       // stranded in the (now hidden) shared strip.
-      const firstImg = tMedia.find((m) => m.kind === 'image')?.uri;
-      if (firstImg && !tThreadImages[0]) {
-        setTThreadImages(Array.from({ length: r.thread.length }, (_, j) => (j === 0 ? firstImg : (tThreadImages[j] ?? null))));
+      const firstAtt = tMedia[0];
+      if (firstAtt && !tThreadMedia[0]) {
+        const slot: ThreadSegmentMedia = { uri: firstAtt.uri, kind: firstAtt.kind };
+        setTThreadMedia(Array.from({ length: r.thread.length }, (_, j) => (j === 0 ? slot : (tThreadMedia[j] ?? null))));
       }
     } else {
       onThread(null);
       setTBody(r.caption + tags);
     }
     setAiOpen(false);
-  }, [onThread, tMedia, tThreadImages]);
+  }, [onThread, tMedia, tThreadMedia]);
 
   /** Title is no longer typed — it's the first line of the post text, kept for lists + reminders. */
   const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string): ManagedPost => {
     const firstImage = tMedia.find((m) => m.kind === 'image')?.uri;
     const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri;
-    // Pair text+image BEFORE dropping empties so indices stay aligned.
-    const pairs = (tThread ?? []).map((s, i) => ({ text: (s ?? '').trim(), img: tThreadImages[i] ?? null })).filter((x) => x.text);
+    // Pair text+attachment BEFORE dropping empties so indices stay aligned.
+    const pairs = (tThread ?? []).map((s, i) => ({ text: (s ?? '').trim(), med: tThreadMedia[i] ?? null })).filter((x) => x.text);
     // A chain only survives when some selected channel can actually thread —
     // otherwise the (possibly edited) single body is the post, not stale segments.
     const chainAllowed = plats.includes('any') || plats.some(isChainPlatform);
     const chain = chainAllowed && pairs.length > 1 ? pairs.map((p) => p.text) : undefined;
-    const chainImages = chain ? pairs.map((p) => p.img) : undefined;
+    const chainMedia = chain ? pairs.map((p) => p.med) : undefined;
     const body = chain ? joinThread(chain) : tBody;
     const firstLine = body.trim().split('\n')[0] ?? '';
     return {
@@ -315,9 +317,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       title: firstLine.slice(0, 80),
       body,
       thread: chain,
-      // Store only when at least one segment carries an image — keeps old
+      // Store only when at least one segment carries an attachment — keeps old
       // records byte-identical when the feature is unused.
-      threadImages: chainImages && chainImages.some(Boolean) ? chainImages : undefined,
+      threadMedia: chainMedia && chainMedia.some(Boolean) ? chainMedia : undefined,
       imageUri: firstImage,
       videoUri: firstVideo,
       attachments: [...tMedia],
@@ -717,7 +719,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       // polls run an order of magnitude longer than photos — an 8-minute cap
       // turned every slow video into a false failure (the post still landed,
       // the row stuck overdue, the retry duplicated it).
-      const perChannelMs = atts.some((a) => a.kind === 'video') ? VIDEO_CHANNEL_MS : PHOTO_CHANNEL_MS;
+      // Videos upload + process an order of magnitude slower — a segment video
+      // needs the long cap too, or a slow leg false-fails (and retries dupe).
+      const segHasVideo = (chain ?? []).some((s) => s.media?.kind === 'video');
+      const perChannelMs = atts.some((a) => a.kind === 'video') || segHasVideo ? VIDEO_CHANNEL_MS : PHOTO_CHANNEL_MS;
       await Promise.allSettled(pending.map((ch) => withTimeout(
         (async () => {
         setRow(ch, { state: 'working' });
@@ -754,13 +759,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             } else {
               keep(ch, chain
                 ? await publishChain<string>(chain, (seg, parent) => {
-                    // Chain legs use segment images only — the shared strip is
+                    // Chain legs use segment attachments only — the shared strip is
                     // hidden in thread mode, so shared media must not leak in
                     // invisibly. Non-chain legs below still use it.
-                    const img = seg.imageUri;
+                    const med = seg.media;
                     return publishThreads({
                       threadsId: thId, token: thToken, text: seg.text,
-                      attachments: img ? [{ uri: img, kind: 'image' }] : [],
+                      attachments: med ? [{ uri: med.uri, kind: med.kind }] : [],
                       topicTag: p.threadsTopic,
                       mirrorClientId: undefined,
                       replyToId: parent ?? undefined,
@@ -809,8 +814,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             keep(ch, chain
               ? await publishChain<string>(chain, (seg, parent) => publishX({
                   text: seg.text,
-                  imageUris: seg.imageUri ? [seg.imageUri] : [],
-                  videoUri: undefined,
+                  imageUris: seg.media?.kind === 'image' ? [seg.media.uri] : [],
+                  videoUri: seg.media?.kind === 'video' ? seg.media.uri : undefined,
                   replyTo: parent ?? undefined,
                 }), (id) => id)
               : await publishX({ text: caption, imageUris: imgUris, videoUri: firstVideo?.uri }));
@@ -827,8 +832,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               ? await publishChain<BskyRef>(chain, async (seg, parent) => {
                   const ref = await publishBsky({
                     text: seg.text,
-                    imageUris: seg.imageUri ? [seg.imageUri] : [],
-                    videoUri: undefined,
+                    imageUris: seg.media?.kind === 'image' ? [seg.media.uri] : [],
+                    videoUri: seg.media?.kind === 'video' ? seg.media.uri : undefined,
                     // every reply points at the head as root, the one above as parent
                     replyTo: parent && rootRef ? { root: rootRef, parent } : undefined,
                   });
@@ -845,8 +850,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             keep(ch, chain
               ? await publishChain<string>(chain, (seg, parent) => publishMastodon({
                   text: seg.text,
-                  imageUris: seg.imageUri ? [seg.imageUri] : [],
-                  videoUri: undefined,
+                  imageUris: seg.media?.kind === 'image' ? [seg.media.uri] : [],
+                  videoUri: seg.media?.kind === 'video' ? seg.media.uri : undefined,
                   replyToId: parent ?? undefined,
                 }), (id) => id)
               : await publishMastodon({ text: caption, imageUris: mImgUris, videoUri: firstVideo?.uri }));
@@ -1078,7 +1083,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ refreshedAt, openComposer, openPostById, publishPostById, submitForApproval, approvePost, rejectPost, draftBody: tBody, setDraftBody: setTBody, draftThread: tThread, setDraftThread: onThread, draftThreadImages: tThreadImages, setDraftThreadImages: onThreadImages, pickDraftThreadImage: pickThreadImage, removeDraftThreadImage: removeThreadImage, draftMedia: tMedia, pickDraftMedia: pickMedia, removeDraftMedia: removeMedia, moveDraftMedia: moveMedia, saveDraftPost: save, stashDraftPost: saveDraft, postDraftNow: postNow, importDraft, clearDraft, openAi, beginInline, endInline }}>
+    <Ctx.Provider value={{ refreshedAt, openComposer, openPostById, publishPostById, submitForApproval, approvePost, rejectPost, draftBody: tBody, setDraftBody: setTBody, draftThread: tThread, setDraftThread: onThread, draftThreadMedia: tThreadMedia, setDraftThreadMedia: onThreadMedia, pickDraftThreadMedia: pickThreadMedia, removeDraftThreadMedia: removeThreadMedia, draftMedia: tMedia, pickDraftMedia: pickMedia, removeDraftMedia: removeMedia, moveDraftMedia: moveMedia, saveDraftPost: save, stashDraftPost: saveDraft, postDraftNow: postNow, importDraft, clearDraft, openAi, beginInline, endInline }}>
       {children}
       <ScheduleSheet
         visible={sheet !== null}
@@ -1093,7 +1098,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         initialThreadsTopic={sheet?.post?.threadsTopic}
         initialTtPrivacy={sheet?.post?.ttPrivacy}
         initialYtPrivacy={sheet?.post?.ytPrivacy}
-        composer={{ title: '', caption: tBody, onCaption: setTBody, thread: tThread, onThread, threadImages: tThreadImages, onThreadImages, onPickThreadImage: pickThreadImage, onRemoveThreadImage: removeThreadImage }}
+        composer={{ title: '', caption: tBody, onCaption: setTBody, thread: tThread, onThread, threadMedia: tThreadMedia, onThreadMedia, onPickThreadMedia: pickThreadMedia, onRemoveThreadMedia: removeThreadMedia }}
         media={{ items: tMedia, onPick: pickMedia, onRemove: removeMedia, onMove: moveMedia }}
         onSave={save}
         draftLabel="Save as draft"

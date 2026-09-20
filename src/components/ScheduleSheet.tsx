@@ -10,7 +10,7 @@ import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
 import { MAX_ATTACHMENTS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
-import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel } from '../utils/managed';
+import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia } from '../utils/managed';
 import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
 import { loadMetaState, connectedChannelIds, MetaState } from '../utils/metaStore';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -238,12 +238,13 @@ export interface Composer {
   /** Chain segments while threading; null/absent = a normal single post. */
   thread?: string[] | null;
   onThread?: (segs: string[] | null) => void;
-  /** Per-segment image (local uri), aligned to thread by index. Absent = the
-   *  composer doesn't support segment images (segment rows stay text-only). */
-  threadImages?: (string | null)[] | null;
-  onThreadImages?: (imgs: (string | null)[]) => void;
-  onPickThreadImage?: (index: number) => void;
-  onRemoveThreadImage?: (index: number) => void;
+  /** Per-segment attachment (one slot: image or video), aligned to thread by
+   *  index. Absent = the composer doesn't support segment media (segment rows
+   *  stay text-only). */
+  threadMedia?: (ThreadSegmentMedia | null)[] | null;
+  onThreadMedia?: (med: (ThreadSegmentMedia | null)[]) => void;
+  onPickThreadMedia?: (index: number) => void;
+  onRemoveThreadMedia?: (index: number) => void;
 }
 
 export interface SheetMediaItem {
@@ -561,25 +562,31 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                   </View>
                   {composer.thread!.map((seg, i) => {
                     const over = seg.length > chainCap;
-                    const segImg = composer.threadImages?.[i] ?? null;
-                    const canImg = !!composer.onPickThreadImage;
+                    const segMed = composer.threadMedia?.[i] ?? null;
+                    const canMed = !!composer.onPickThreadMedia;
                     return (
                       <View key={i} style={{ gap: 4 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Text style={st.label}>{i + 1}/{composer.thread!.length}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: over ? '#D33131' : C.muted }}>{seg.length}/{chainCap}</Text>
-                            {canImg ? (
-                              <TouchableOpacity onPress={() => composer.onPickThreadImage!(i)} hitSlop={8} accessibilityLabel={segImg ? 'Replace segment image' : 'Attach image to segment'}>
-                                {segImg ? (
-                                  <Image source={{ uri: segImg }} style={st.segThumb} resizeMode="cover" />
+                            {canMed ? (
+                              <TouchableOpacity onPress={() => composer.onPickThreadMedia!(i)} hitSlop={8} accessibilityLabel={segMed ? 'Replace segment photo or video' : 'Attach photo or video to segment'}>
+                                {segMed ? (
+                                  segMed.kind === 'video' ? (
+                                    <View style={[st.segThumb, { alignItems: 'center', justifyContent: 'center' }]}>
+                                      <Ionicons name="play" size={12} color={C.muted} />
+                                    </View>
+                                  ) : (
+                                    <Image source={{ uri: segMed.uri }} style={st.segThumb} resizeMode="cover" />
+                                  )
                                 ) : (
                                   <Ionicons name="image-outline" size={18} color={C.muted} />
                                 )}
                               </TouchableOpacity>
                             ) : null}
-                            {canImg && segImg ? (
-                              <TouchableOpacity onPress={() => composer.onRemoveThreadImage!(i)} hitSlop={8} accessibilityLabel="Remove segment image">
+                            {canMed && segMed ? (
+                              <TouchableOpacity onPress={() => composer.onRemoveThreadMedia!(i)} hitSlop={8} accessibilityLabel="Remove segment photo or video">
                                 <Ionicons name="close-circle" size={18} color={C.muted} />
                               </TouchableOpacity>
                             ) : null}
@@ -587,10 +594,10 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                               <TouchableOpacity onPress={() => {
                                 const next = composer.thread!.filter((_, j) => j !== i);
                                 composer.onThread!(next);
-                                // Drop the removed segment's image too — index
+                                // Drop the removed segment's attachment too — index
                                 // realignment alone would glue it to a neighbor.
-                                if (composer.onThreadImages && composer.threadImages) {
-                                  composer.onThreadImages(composer.threadImages.filter((_, j) => j !== i));
+                                if (composer.onThreadMedia && composer.threadMedia) {
+                                  composer.onThreadMedia(composer.threadMedia.filter((_, j) => j !== i));
                                 }
                               }} hitSlop={8}>
                                 <Ionicons name="trash-outline" size={18} color={C.muted} />
@@ -637,13 +644,13 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                             const next = splitThread(composer.caption, chainCap);
                             const n = next.length ? next : [''];
                             composer.onThread!(n);
-                            // Carry the first shared photo onto the head post
+                            // Carry the first shared attachment onto the head post
                             // so it isn't stranded in the hidden strip.
-                            const firstImg = media?.items.find((a) => a.kind === 'image')?.uri;
-                            if (firstImg && composer.onThreadImages) {
-                              const cur = composer.threadImages ?? [];
+                            const firstAtt = media?.items.find((a) => a.kind === 'image' || a.kind === 'video');
+                            if (firstAtt && composer.onThreadMedia) {
+                              const cur = composer.threadMedia ?? [];
                               if (!cur[0]) {
-                                composer.onThreadImages(Array.from({ length: n.length }, (_, j) => (j === 0 ? firstImg : (cur[j] ?? null))));
+                                composer.onThreadMedia(Array.from({ length: n.length }, (_, j) => (j === 0 ? { uri: firstAtt.uri, kind: firstAtt.kind } : (cur[j] ?? null))));
                               }
                             }
                           }}

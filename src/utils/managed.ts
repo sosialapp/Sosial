@@ -117,19 +117,29 @@ export interface ManagedPost {
   thread?: string[];
   /** Per-segment image (local uri or http), aligned to `thread` by index —
    *  null/undefined = no image on that segment. Only the phone publisher reads
-   *  these for now; the cloud mirror ignores them (text-only chains there). */
+   *  these for now; the cloud mirror ignores them (text-only chains there).
+   *  @deprecated — replaced by threadMedia; still read as a fallback. */
   threadImages?: (string | null)[];
+  /** Per-segment attachment (one slot: an image or a video), aligned to
+   *  `thread` by index. Phone publisher attaches each to its reply. */
+  threadMedia?: (ThreadSegmentMedia | null)[];
 }
 
-/** One chain segment paired with its image. */
+/** One chain segment's attachment slot: a single image or video. */
+export interface ThreadSegmentMedia {
+  uri: string;
+  kind: 'image' | 'video';
+}
+
+/** One chain segment paired with its attachment. */
 export interface ThreadSegment {
   text: string;
-  imageUri: string | null;
+  media: ThreadSegmentMedia | null;
 }
 
-/** Fit an image array to a segment count (pad null / truncate). */
-export function alignThreadImages(images: (string | null)[] | undefined, n: number): (string | null)[] {
-  const src = images ?? [];
+/** Fit a media array to a segment count (pad null / truncate). */
+export function alignThreadMedia(media: (ThreadSegmentMedia | null)[] | undefined, n: number): (ThreadSegmentMedia | null)[] {
+  const src = media ?? [];
   return Array.from({ length: Math.max(0, n) }, (_, i) => src[i] ?? null);
 }
 
@@ -141,13 +151,22 @@ export function postSegments(p: ManagedPost): string[] {
   return b ? [b] : [];
 }
 
-/** Chain segments paired with their per-segment image, in order. Empty-text
- *  segments drop WITH their image so indices stay aligned with postSegments —
- *  the same trim/drop rule the cloud mirror applies to text. */
+/** Raw per-segment attachments aligned to p.thread by index (no text filtering)
+ *  — for loading the editor. Legacy threadImages read through as images. */
+export function postThreadMedia(p: ManagedPost): (ThreadSegmentMedia | null)[] {
+  const n = p.thread?.length ?? 0;
+  const med = p.threadMedia ?? (p.threadImages ?? []).map((u) => (u ? { uri: u, kind: 'image' as const } : null));
+  return alignThreadMedia(med, n);
+}
+
+/** Chain segments paired with their per-segment attachment, in order. Empty-text
+ *  segments drop WITH their attachment so indices stay aligned with
+ *  postSegments — the same trim/drop rule the cloud mirror applies to text.
+ *  Legacy threadImages records read through as image attachments. */
 export function postThreadSegments(p: ManagedPost): ThreadSegment[] {
-  const imgs = p.threadImages ?? [];
+  const med = postThreadMedia(p);
   return (p.thread ?? [])
-    .map((s, i) => ({ text: (s ?? '').trim(), imageUri: imgs[i] ?? null }))
+    .map((s, i) => ({ text: (s ?? '').trim(), media: med[i] ?? null }))
     .filter((x) => x.text);
 }
 
