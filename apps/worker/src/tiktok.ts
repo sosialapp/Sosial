@@ -293,9 +293,11 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
     return { publishId };
   }
   if (images.length > 0) {
-    const host = String(b.channel.metadata?.ttPhotoHost ?? '').trim().replace(/\/+$/, '');
+    // Per-channel override wins; otherwise the shared host from TT_PHOTO_HOST
+    // (server-side only — never EXPO_PUBLIC_) so every account just works.
+    const host = String(b.channel.metadata?.ttPhotoHost ?? env('TT_PHOTO_HOST') ?? '').trim().replace(/\/+$/, '');
     if (!host) {
-      throw new Error('TikTok photo posts need your verified photo host — set it in Connect → TikTok (video posts work without it).');
+      throw new Error('TikTok photo posts need a photo host — set TT_PHOTO_HOST on the worker (or a Connect → TikTok override).');
     }
     info(`tiktok target ${b.target.id}: PHOTOS x${images.length} (${privacy})`);
     const urls: string[] = [];

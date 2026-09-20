@@ -29,7 +29,7 @@ import { BUILD_TAG } from '../utils/build';
 import { disableCloudChannel, syncCloudChannels } from '../utils/cloudChannels';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { IG_APP_ID } from '../utils/metaConfig';
-import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
+import { TT_CLIENT_KEY, TT_PHOTO_HOST_DEFAULT } from '../utils/tiktokConfig';
 
 function ChannelIcon({ platform }: { platform: string }) {
   const { C } = useTheme();
@@ -451,7 +451,7 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
     const st = await saveMetaState({ ttPhotoHost: v || undefined });
     setMeta(st);
     setPhotoHost(st.ttPhotoHost ?? '');
-    Alert.alert(v ? 'Saved' : 'Cleared', v ? 'TikTok photo posts will upload here.' : 'TikTok photo posts are disabled until you set a host.');
+    Alert.alert(v ? 'Saved' : 'Cleared', v ? 'TikTok photo posts will upload here.' : (TT_PHOTO_HOST_DEFAULT ? 'Override cleared — using the built-in host.' : 'TikTok photo posts are disabled until you set a host.'));
   };
 
   const configured = META_APP_ID.length > 0;
@@ -905,7 +905,10 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
 
         <View style={s.hostCard}>
           <Text style={s.uriT}>TikTok photo host</Text>
-          <Text style={s.uriU}>TikTok only pulls photos from a domain you verify in its developer portal. Paste your upload endpoint below — it receives the image (multipart field “file”) and returns a public URL.</Text>
+          <Text style={s.uriU}>{TT_PHOTO_HOST_DEFAULT ? 'Built-in host is active — every connected TikTok account uses it. Paste a different endpoint below only to override it on this device.' : 'TikTok only pulls photos from a domain you verify in its developer portal. Paste your upload endpoint below — it receives the image (multipart field “file”) and returns a public URL.'}</Text>
+          {!photoHost && TT_PHOTO_HOST_DEFAULT ? (
+            <Text style={s.uriU}>Status: using built-in host{TT_PHOTO_HOST_DEFAULT.split('?')[0].replace('https://', ' · ')}</Text>
+          ) : null}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
             <View style={{ flex: 1 }}>
               <Txt

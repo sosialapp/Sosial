@@ -17,6 +17,10 @@
 export const TT_CLIENT_KEY = process.env.EXPO_PUBLIC_TT_CLIENT_KEY ?? '';
 export const TT_CLIENT_SECRET = process.env.EXPO_PUBLIC_TT_CLIENT_SECRET ?? '';
 
+/** Built-in photo host (full upload URL incl. ?key=) — the default for every
+ *  connected TikTok account. A per-device override in Connect → TikTok wins. */
+export const TT_PHOTO_HOST_DEFAULT = (process.env.EXPO_PUBLIC_TT_PHOTO_HOST ?? '').trim().replace(/\/+$/, '');
+
 export const TT_AUTH_ENDPOINT = 'https://www.tiktok.com/v2/auth/authorize/';
 export const TT_TOKEN_ENDPOINT = 'https://open.tiktokapis.com/v2/oauth/token/';
 export const TT_API = 'https://open.tiktokapis.com';

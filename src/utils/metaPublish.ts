@@ -4,6 +4,7 @@ import { loadMetaState } from './metaStore';
 import { supabase, supabaseUrl, currentSession } from './supabase';
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { TT_PHOTO_HOST_DEFAULT } from './tiktokConfig';
 
 /** Per-platform attachment caps. Code enforces these; the composer shows them. */
 export const MAX_ATTACHMENTS = 10;
@@ -269,7 +270,9 @@ export async function hostedMediaUrl(
  */
 export async function uploadTikTokPhoto(uri: string): Promise<string> {
   const m = await loadMetaState();
-  const host = (m.ttPhotoHost ?? '').trim().replace(/\/+$/, '');
+  // Per-device override wins; otherwise every TikTok account shares the
+  // built-in host from EXPO_PUBLIC_TT_PHOTO_HOST — nothing to paste.
+  const host = (m.ttPhotoHost ?? '').trim().replace(/\/+$/, '') || TT_PHOTO_HOST_DEFAULT;
   if (host) {
     try {
       const form = new FormData();
@@ -289,7 +292,7 @@ export async function uploadTikTokPhoto(uri: string): Promise<string> {
       throw new Error(`TikTok photo host failed: ${e?.message ?? 'upload error'}`);
     }
   }
-  throw new Error('Add your TikTok photo host in Connect → TikTok to post photos. Video posts work without it.');
+  throw new Error('TikTok photo host is not configured — set EXPO_PUBLIC_TT_PHOTO_HOST in .env (or an override in Connect → TikTok) to post photos. Video posts work without it.');
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
