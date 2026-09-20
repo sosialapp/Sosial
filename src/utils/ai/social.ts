@@ -11,7 +11,7 @@ import { AiLanguage, languageLine } from './types';
  * real hook, a payoff, and no "1/", "🧵" or "thread" markers.
  */
 
-const MODEL = 'gemini-3.8-flash';
+const MODEL = 'gemini-3.7-flash';
 const endpoint = (key: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
@@ -392,9 +392,9 @@ export async function generateSocial(brief: SocialBrief): Promise<SocialResult> 
   if (key) {
     try {
       const raw = await geminiSocial(brief, key);
-      return normalizeSocial(raw, brief, 'Gemini 3.8 Flash');
+      return normalizeSocial(raw, brief, 'Gemini 3.7 Flash');
     } catch (e: any) {
-      return { caption: '', thread: [], hashtags: [], provider: 'Gemini 3.8 Flash', warnings: [e?.message ?? 'Generation failed.'] };
+      return { caption: '', thread: [], hashtags: [], provider: 'Gemini 3.7 Flash', warnings: [e?.message ?? 'Generation failed.'] };
     }
   }
   await new Promise((r) => setTimeout(r, 500));
