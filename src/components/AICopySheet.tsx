@@ -5,12 +5,14 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Field, SocialGlyph, Seg } from './ui';
 import {
   SocialBrief, SocialResult, SocialTone, SocialPlatform, SocialStyle, SocialVariant,
-  SocialPhase, Toggle, RewriteOp,
+  SocialPhase, Toggle, RewriteOp, SocialSegmentMedia,
   DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES,
+  THREAD_PLATFORM_IDS, THREAD_POST_MIN,
   generateSocial, rewritePosts, capFor, activePlatforms, researchNeeded,
   coverImageUrl, imagePromptFromIdea,
 } from '../utils/ai/social';
@@ -45,7 +47,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [tone, setTone] = useState<SocialTone>(DEFAULT_SOCIAL_BRIEF.tone);
   const [style, setStyle] = useState<SocialStyle>(DEFAULT_SOCIAL_BRIEF.style);
   const [styleOpen, setStyleOpen] = useState(false);
-  const [moreVoices, setMoreVoices] = useState(false);
   const [thread, setThread] = useState(DEFAULT_SOCIAL_BRIEF.thread);
   const [parts, setParts] = useState(DEFAULT_SOCIAL_BRIEF.parts);
   const [hashtags, setHashtags] = useState(DEFAULT_SOCIAL_BRIEF.hashtags);
@@ -66,6 +67,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [draft, setDraft] = useState<SocialVariant[]>([]);
   const [tab, setTab] = useState(0);
   const [dirty, setDirty] = useState(false);
+  /** per-post attachments, keyed `${variantIndex}:${postIndex}` */
+  const [segMedia, setSegMedia] = useState<Record<string, SocialSegmentMedia[]>>({});
   const [plan, setPlan] = useState<'free' | 'pro' | 'team'>('free');
   const aiLocked = plan === 'free';
 
@@ -76,11 +79,21 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setDraft([]);
     setTab(0);
     setDirty(false);
+    setSegMedia({});
     setErr('');
     setPhase(null);
     setAdvanced(false);
     loadAccount().then((a) => setPlan(a.plan));
   }, [visible, initialPrompt]);
+
+  // Thread chains only exist on four channels — drop anything else on switch.
+  useEffect(() => {
+    if (!thread) return;
+    setPlatforms((prev) => {
+      const kept = prev.filter((p) => (THREAD_PLATFORM_IDS as string[]).includes(p));
+      return kept.length ? kept : ['x'];
+    });
+  }, [thread]);
 
   const brief: SocialBrief = {
     prompt, language, tone, style, thread, parts, hashtags, platforms,
@@ -103,6 +116,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setDraft([]);
     setTab(0);
     setDirty(false);
+    setSegMedia({});
     setBusy(true);
     setPhase(null);
     try {
@@ -120,6 +134,46 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const setPost = (vi: number, pi: number, text: string) => {
     setDraft((d) => d.map((v, i) => (i === vi ? { ...v, posts: v.posts.map((p, j) => (j === pi ? text : p)) } : v)));
     setDirty(true);
+  };
+
+  /* ---------------- per-post media ---------------- */
+
+  const mediaKey = (vi: number, pi: number) => `${vi}:${pi}`;
+
+  /** Topic-matched AI image for one post (remote URL — downloaded on Apply). */
+  const aiImage = (vi: number, pi: number) => {
+    const text = draft[vi]?.posts[pi] ?? '';
+    if (!text.trim()) return;
+    const desc = imagePromptFromIdea(text);
+    const seed = Math.floor(Math.random() * 1000000);
+    const k = mediaKey(vi, pi);
+    setSegMedia((m) => ({ ...m, [k]: [...(m[k] ?? []).slice(0, 3), { uri: coverImageUrl(desc, seed), kind: 'image' }] }));
+  };
+
+  /** The user's own photo/video from the device library. */
+  const pickOwnMedia = async (vi: number, pi: number) => {
+    const k = mediaKey(vi, pi);
+    const have = segMedia[k]?.length ?? 0;
+    const remaining = 4 - have;
+    if (remaining <= 0) return;
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: remaining > 1,
+      selectionLimit: remaining,
+      quality: 0.9,
+    }).catch(() => null);
+    if (!res || res.canceled) return;
+    const picked: SocialSegmentMedia[] = (res.assets ?? []).map((a) => ({
+      uri: a.uri,
+      kind: a.type === 'video' ? 'video' : 'image',
+    }));
+    if (!picked.length) return;
+    setSegMedia((m) => ({ ...m, [k]: [...(m[k] ?? []), ...picked].slice(0, 4) }));
+  };
+
+  const removeMedia = (vi: number, pi: number, mi: number) => {
+    const k = mediaKey(vi, pi);
+    setSegMedia((m) => ({ ...m, [k]: (m[k] ?? []).filter((_, j) => j !== mi) }));
   };
 
   const applyTransform = async (op: RewriteOp) => {
@@ -167,6 +221,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const close = () => {
     setResult(null);
     setDraft([]);
+    setSegMedia({});
     setErr('');
     onClose();
   };
@@ -180,6 +235,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
       variants: draft,
       caption: isThread ? active.posts[0] : active.posts.join('\n\n'),
       thread: isThread ? active.posts : [],
+      segmentMedia: active.posts.map((_, pi) => segMedia[mediaKey(tab, pi)] ?? []),
     };
     onApply(out, brief);
     close();
@@ -192,7 +248,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setPlatforms((prev) => {
       const next = prev.filter((x) => x !== 'any');
       const out = next.includes(p) ? next.filter((x) => x !== p) : [...next, p];
-      return out.length ? out : ['any'];
+      return out.length ? out : (thread ? ['x'] : ['any']);
     });
   };
 
@@ -211,8 +267,11 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const hasCopy = !!result && draft.some((v) => v.posts.some((p) => p.trim()));
   const labelOf = (id: SocialPlatform) => SOCIAL_PLATFORMS.find((p) => p.id === id)?.label ?? id;
 
-  const toneChoices = moreVoices ? SOCIAL_TONES : SOCIAL_TONES.filter((t) => !t.secondary);
   const styleLabel = SOCIAL_STYLES.find((s) => s.id === style)?.label ?? 'Auto';
+  // Thread chains only exist natively on four channels (X, Threads, Mastodon, Bluesky).
+  const platChoices = thread
+    ? THREAD_PLATFORM_IDS.map((id) => SOCIAL_PLATFORMS.find((p) => p.id === id)!).filter(Boolean)
+    : SOCIAL_PLATFORMS;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
@@ -253,11 +312,11 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
               />
               <Text style={st.ideaHint}>Rough thoughts are enough — a phrase works.</Text>
 
-              {/* voice */}
+              {/* voice — every option visible, nothing hidden behind "More" */}
               <View style={{ gap: 9 }}>
                 <Text style={st.label}>How should it sound?</Text>
                 <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-                  {toneChoices.map((t) => {
+                  {SOCIAL_TONES.map((t) => {
                     const on = tone === t.id;
                     return (
                       <TouchableOpacity
@@ -272,11 +331,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                       </TouchableOpacity>
                     );
                   })}
-                  {!moreVoices ? (
-                    <TouchableOpacity onPress={() => setMoreVoices(true)} style={st.chip} activeOpacity={0.75}>
-                      <Text style={st.chipT}>More</Text>
-                    </TouchableOpacity>
-                  ) : null}
                 </ScrollView>
               </View>
 
@@ -289,16 +343,31 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                   <Ionicons name={styleOpen ? 'chevron-up' : 'chevron-down'} size={15} color={C.muted} />
                 </TouchableOpacity>
                 {styleOpen ? (
-                  <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+                  <View style={{ gap: 8 }}>
                     {SOCIAL_STYLES.map((s) => {
                       const on = style === s.id;
                       return (
-                        <TouchableOpacity key={s.id} onPress={() => setStyle(s.id)} style={[st.chip, on && st.chipOn]} activeOpacity={0.75} accessibilityState={{ selected: on }}>
-                          <Text style={[st.chipT, on && st.chipTOn]}>{s.label}</Text>
+                        <TouchableOpacity
+                          key={s.id}
+                          onPress={() => setStyle(s.id)}
+                          style={[st.styleRow, on && st.styleRowOn]}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={[st.radio, on && st.radioOn]}>
+                              {on ? <View style={st.radioDot} /> : null}
+                            </View>
+                            <Text style={st.styleName}>{s.label}</Text>
+                            <View style={{ flex: 1 }} />
+                            <Text style={st.styleHint}>{s.hint}</Text>
+                          </View>
+                          <Text style={st.styleSample} numberOfLines={2}>e.g. “{s.sample}”</Text>
                         </TouchableOpacity>
                       );
                     })}
-                  </ScrollView>
+                  </View>
                 ) : null}
               </View>
 
@@ -319,11 +388,11 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 ) : null}
               </View>
 
-              {/* destination */}
+              {/* destination — threads only go where reply-chains exist */}
               <View style={{ gap: 9 }}>
-                <Text style={st.label}>Post to</Text>
+                <Text style={st.label}>Post to{thread ? ' (thread channels)' : ''}</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {SOCIAL_PLATFORMS.map((p) => {
+                  {platChoices.map((p) => {
                     const on = platforms.includes(p.id);
                     return (
                       <TouchableOpacity
@@ -516,21 +585,61 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                     </ScrollView>
                   ) : null}
 
-                  {active?.posts.map((seg, i) => (
-                    <View key={i} style={st.seg}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={st.segNo}>{active.posts.length > 1 ? `Post ${i + 1}` : 'Caption'}</Text>
-                        <Text style={[st.segCount, seg.length > limit && { color: C.redText }]}>{seg.length}/{limit}</Text>
+                  {active?.posts.map((seg, i) => {
+                    const attachments = segMedia[mediaKey(tab, i)] ?? [];
+                    const tooShort = isThreadView && seg.length < THREAD_POST_MIN;
+                    return (
+                      <View key={i} style={st.seg}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={st.segNo}>{active.posts.length > 1 ? `Post ${i + 1}` : 'Caption'}</Text>
+                          <Text style={[st.segCount, seg.length > limit && { color: C.redText }, !(seg.length > limit) && tooShort && { color: C.yellowText }]}>
+                            {seg.length}/{limit}{tooShort ? ` (min ${THREAD_POST_MIN})` : ''}
+                          </Text>
+                        </View>
+                        <Txt
+                          value={seg}
+                          onChangeText={(t) => setPost(tab, i, t)}
+                          multiline
+                          style={st.segInput}
+                          accessibilityLabel={`Edit ${active.posts.length > 1 ? `post ${i + 1}` : 'caption'}`}
+                        />
+                        {/* attachments for this post: AI-made or your own */}
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                          {attachments.map((m, mi) => (
+                            <View key={`${m.uri}-${mi}`}>
+                              {m.kind === 'video' ? (
+                                <View style={[st.attThumb, { alignItems: 'center', justifyContent: 'center', backgroundColor: C.ink }]}>
+                                  <Ionicons name="play" size={18} color="#fff" />
+                                </View>
+                              ) : (
+                                <Image source={{ uri: m.uri }} style={st.attThumb} resizeMode="cover" />
+                              )}
+                              <TouchableOpacity
+                                onPress={() => removeMedia(tab, i, mi)}
+                                style={st.attX}
+                                hitSlop={8}
+                                accessibilityLabel="Remove attachment"
+                              >
+                                <Ionicons name="close" size={11} color="#fff" />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          {attachments.length < 4 ? (
+                            <>
+                              <TouchableOpacity onPress={() => aiImage(tab, i)} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Generate AI image for this post">
+                                <Ionicons name="sparkles" size={13} color={C.accentInk} />
+                                <Text style={st.attBtnT}>AI image</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => pickOwnMedia(tab, i)} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Add your own photo or video">
+                                <Ionicons name="image-outline" size={13} color={C.accentInk} />
+                                <Text style={st.attBtnT}>Add own</Text>
+                              </TouchableOpacity>
+                            </>
+                          ) : null}
+                        </View>
                       </View>
-                      <Txt
-                        value={seg}
-                        onChangeText={(t) => setPost(tab, i, t)}
-                        multiline
-                        style={st.segInput}
-                        accessibilityLabel={`Edit ${active.posts.length > 1 ? `post ${i + 1}` : 'caption'}`}
-                      />
-                    </View>
-                  ))}
+                    );
+                  })}
 
                   {result.hashtags.length > 0 ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -664,6 +773,18 @@ const makeSt = (C: Palette, bottomInset: number) => StyleSheet.create({
   segNo: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, letterSpacing: 0.4, color: C.accentInk },
   segCount: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.faint },
   segInput: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 20, color: C.soft, backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0, minHeight: 0 },
+  styleRow: { backgroundColor: C.card, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 12, paddingVertical: 10, gap: 5 },
+  styleRowOn: { borderColor: C.accent, backgroundColor: C.accentSoft },
+  radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
+  radioOn: { borderColor: C.accentInk },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accentInk },
+  styleName: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink },
+  styleHint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint },
+  styleSample: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 17, color: C.muted },
+  attThumb: { width: 64, height: 64, borderRadius: R.sm + 2, backgroundColor: C.lineSoft, overflow: 'hidden' },
+  attX: { position: 'absolute', top: -6, right: -6, width: 19, height: 19, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' },
+  attBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: C.accentSoft, borderWidth: 1, borderColor: C.lineSoft },
+  attBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: C.accentInk },
   tag: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
   tagT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.accentInk },
   source: { flexDirection: 'row', gap: 9, alignItems: 'flex-start', backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 10 },

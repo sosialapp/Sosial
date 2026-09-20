@@ -317,15 +317,43 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
       const local = await fetchCoverImage(r.imageUrl, r.imageSeed);
       if (local) cover = { uri: local, kind: 'image' };
     }
-    const toSegs = (t: string[]): ThreadSeg[] =>
-      t.map((text, i) => ({ text, media: i === 0 && cover ? [cover] : [] }));
+    // Per-post attachments from the AI sheet: remote AI images download to
+    // cache first (publishers need local files); device uploads pass through.
+    const segMed = r.segmentMedia ?? [];
+    const localise = async (m: { uri: string; kind: 'image' | 'video' }, seed: number): Promise<MediaAttachment | null> => {
+      if (/^https?:\/\//i.test(m.uri)) {
+        const local = await fetchCoverImage(m.uri, seed);
+        return local ? { uri: local, kind: m.kind } : null;
+      }
+      return { uri: m.uri, kind: m.kind };
+    };
+    const toSegs = async (t: string[]): Promise<ThreadSeg[]> => {
+      const out: ThreadSeg[] = [];
+      for (let i = 0; i < t.length; i++) {
+        const media: MediaAttachment[] = [];
+        for (const [k, item] of ((segMed[i] ?? []) as { uri: string; kind: 'image' | 'video' }[]).slice(0, THREAD_MEDIA_MAX).entries()) {
+          const l = await localise(item, Date.now() + i * 10 + k);
+          if (l) media.push(l);
+        }
+        if (i === 0 && cover && !media.length) media.push(cover);
+        out.push({ text: t[i], media });
+      }
+      return out;
+    };
+    // Single caption: the sheet's first-post attachment wins, cover is fallback.
+    let singleMedia: MediaAttachment | null = null;
+    if (!asThread) {
+      const first = (segMed[0] ?? [])[0] as { uri: string; kind: 'image' | 'video' } | undefined;
+      if (first) singleMedia = await localise(first, Date.now());
+      if (!singleMedia) singleMedia = cover;
+    }
     if (target === 'idea') {
-      if (asThread) { setCThread(toSegs(r.thread)); setCBody(joinThread(r.thread)); }
-      else { setCThread(null); setCBody(r.caption + tags); if (cover && !cMedia) setCMedia(cover); }
+      if (asThread) { setCThread(await toSegs(r.thread)); setCBody(joinThread(r.thread)); }
+      else { setCThread(null); setCBody(r.caption + tags); if (singleMedia && !cMedia) setCMedia(singleMedia); }
       if (!cTitle.trim()) setCTitle(head);
     } else if (target === 'editor') {
-      if (asThread) { setEThread(toSegs(r.thread)); setEBody(joinThread(r.thread)); }
-      else { setEThread(null); setEBody(r.caption + tags); if (cover && !eMedia) setEMedia(cover); }
+      if (asThread) { setEThread(await toSegs(r.thread)); setEBody(joinThread(r.thread)); }
+      else { setEThread(null); setEBody(r.caption + tags); if (singleMedia && !eMedia) setEMedia(singleMedia); }
       if (!eTitle.trim()) setETitle(head);
     }
     setAi(null);

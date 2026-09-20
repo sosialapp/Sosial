@@ -26,16 +26,16 @@ export type SocialPlatform =
   | 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon'
   | 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest';
 
-/** 'auto' lets the model pick the voice; 'bold' is intentionally a secondary choice. */
+/** 'auto' lets the model pick the voice. All voices sit side by side — no hidden rows. */
 export type SocialTone = 'auto' | 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
 
-export const SOCIAL_TONES: { id: SocialTone; label: string; secondary?: boolean }[] = [
+export const SOCIAL_TONES: { id: SocialTone; label: string }[] = [
   { id: 'auto', label: 'Auto' },
   { id: 'story', label: 'Story' },
   { id: 'punchy', label: 'Punchy' },
   { id: 'friendly', label: 'Friendly' },
   { id: 'professional', label: 'Pro' },
-  { id: 'bold', label: 'Bold', secondary: true },
+  { id: 'bold', label: 'Bold' },
 ];
 
 export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
@@ -81,19 +81,25 @@ export type SocialStyle =
   | 'auto' | 'breaking' | 'thread' | 'listicle' | 'teardown' | 'deepdive'
   | 'compare' | 'casestudy' | 'postmortem' | 'roundup' | 'hottake';
 
-export const SOCIAL_STYLES: { id: SocialStyle; label: string; hint: string }[] = [
-  { id: 'auto', label: 'Auto', hint: 'Pick the best fit' },
-  { id: 'breaking', label: 'Breaking', hint: 'Urgent news update' },
-  { id: 'thread', label: 'Deep thread', hint: 'Story, one idea per post' },
-  { id: 'listicle', label: 'Listicle', hint: 'Saveable value stack' },
-  { id: 'teardown', label: 'Teardown', hint: 'Feature → business value' },
-  { id: 'deepdive', label: 'Tech dive', hint: 'How it works, in layers' },
-  { id: 'compare', label: 'X vs Y', hint: 'Old way vs modern way' },
-  { id: 'casestudy', label: 'Case study', hint: 'Metric-led social proof' },
-  { id: 'postmortem', label: 'Post-mortem', hint: 'Honest failure lesson' },
-  { id: 'roundup', label: 'Roundup', hint: 'Curated resource vault' },
-  { id: 'hottake', label: 'Hot take', hint: 'Debate-sparking opinion' },
+export const SOCIAL_STYLES: { id: SocialStyle; label: string; hint: string; sample: string }[] = [
+  { id: 'auto', label: 'Auto', hint: 'Pick the best fit', sample: 'The AI commits to whatever structure fits your idea best.' },
+  { id: 'breaking', label: 'Breaking', hint: 'Urgent news update', sample: 'JUST IN: Council passes the transit bill 7–2. It takes effect in March — here is what changes.' },
+  { id: 'thread', label: 'Deep thread', hint: 'Story, one idea per post', sample: 'I wasted 2 years overthinking content. Here is the system that actually works:' },
+  { id: 'listicle', label: 'Listicle', hint: 'Saveable value stack', sample: '5 free tools that cut my editing time in half — save this:' },
+  { id: 'teardown', label: 'Teardown', hint: 'Feature → business value', sample: 'This checkout added one button and lifted sales 18%. Teardown:' },
+  { id: 'deepdive', label: 'Tech dive', hint: 'How it works, in layers', sample: 'How your feed loads in 200ms without falling over: requests → ranking → cache.' },
+  { id: 'compare', label: 'X vs Y', hint: 'Old way vs modern way', sample: 'Posting daily vs posting well — the difference:' },
+  { id: 'casestudy', label: 'Case study', hint: 'Metric-led social proof', sample: 'How a 12-person team cut churn 31% in 60 days:' },
+  { id: 'postmortem', label: 'Post-mortem', hint: 'Honest failure lesson', sample: 'We shut down our first product. Honest post-mortem:' },
+  { id: 'roundup', label: 'Roundup', hint: 'Curated resource vault', sample: '6 years of lessons, 7 resources that save you 100+ hours:' },
+  { id: 'hottake', label: 'Hot take', hint: 'Debate-sparking opinion', sample: 'Unpopular opinion: follower count is a vanity metric.' },
 ];
+
+/** Thread posts must feel substantial: floor per post (X's 280 cap still fits above it). */
+export const THREAD_POST_MIN = 230;
+
+/** Only these channels support native reply-chains — the thread destination set. */
+export const THREAD_PLATFORM_IDS: SocialPlatform[] = ['x', 'threads', 'mastodon', 'bluesky'];
 
 /** Styles that only make sense as multi-post threads. */
 export const THREAD_STYLES: SocialStyle[] = ['thread', 'deepdive'];
@@ -140,6 +146,12 @@ export interface SocialVariant {
   posts: string[];
 }
 
+/** One attachment on a result post: an AI-made image (remote URL) or the user's own upload (local file). */
+export interface SocialSegmentMedia {
+  uri: string;
+  kind: 'image' | 'video';
+}
+
 export interface SocialGeneration {
   contentType: 'post' | 'thread';
   styleUsed: SocialStyle;
@@ -169,6 +181,8 @@ export interface SocialResult {
   researchUsed: boolean;
   /** conflicting / unconfirmed details the user should check before publishing */
   uncertainties: string[];
+  /** per-post attachments for the ACTIVE variant at apply time (posts-aligned, may be sparse) */
+  segmentMedia?: SocialSegmentMedia[][];
 }
 
 export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
@@ -428,6 +442,8 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
   if (isThread) {
     thread = primary.posts.slice(0, Math.max(2, Math.min(12, brief.parts)));
     if (primary.posts.length > thread.length) warnings.push(`Trimmed the thread to ${thread.length} posts.`);
+    const short = thread.map((p, i) => (p.length < THREAD_POST_MIN ? i + 1 : 0)).filter(Boolean);
+    if (short.length) warnings.push(`Post${short.length > 1 ? 's' : ''} ${short.slice(0, 4).join(', ')} came back under ${THREAD_POST_MIN} characters — expand ${short.length > 1 ? 'them' : 'it'} or Regenerate.`);
     caption = thread[0] ?? '';
   } else {
     thread = [];
@@ -606,7 +622,7 @@ function buildPrompt(brief: SocialBrief, opts: { platforms: SocialPlatform[]; li
       'Open with a line that earns the next tap. One idea per post, rising order, real payoff in the last one.',
       THREAD_STRUCTURES,
       'Never number the posts, never write "1/", never use "🧵", never say "thread", "in this thread" or "let me explain". No hashtags inside the posts.',
-      `Keep every post under ${opts.limit} characters.`,
+      `Every post must be substantial: at least ${THREAD_POST_MIN} characters and at most ${opts.limit}. Never pad with filler — develop the point instead.`,
     );
   } else {
     lines.push(
