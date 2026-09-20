@@ -46,7 +46,7 @@ export const LI_SCOPES = [
 ];
 
 /** Pinned API version (YYYYMM) — keep within LinkedIn's support window. */
-export const LI_VERSION = '202601';
+export const LI_VERSION = '202608';
 
 export const LI_MAX_IMAGES = 9;
 export const LI_MAX_TEXT = 3000;

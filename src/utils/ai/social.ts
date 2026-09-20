@@ -10,7 +10,7 @@ import { getAiKey } from './key';
  * real hook, a payoff, and no "1/", "🧵" or "thread" markers.
  */
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.8-flash';
 const endpoint = (key: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
@@ -220,7 +220,9 @@ export async function geminiSocial(brief: SocialBrief, key: string): Promise<any
   const body = {
     systemInstruction: { parts: [{ text: 'You output strict JSON only. No markdown fences, no commentary.' }] },
     contents: [{ role: 'user', parts: [{ text: buildPrompt(brief, limit) }] }],
-    generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.9, maxOutputTokens: 2048 },
+    // NOTE: Gemini 3.6+ dropped the sampling knobs (temperature/top_p/top_k) —
+    // sending them returns 400, so only schema + token budget go out.
+    generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, maxOutputTokens: 2048 },
   };
   const r = await fetch(endpoint(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j: any = await r.json().catch(() => ({}));
@@ -277,9 +279,9 @@ export async function generateSocial(brief: SocialBrief): Promise<SocialResult> 
   if (key) {
     try {
       const raw = await geminiSocial(brief, key);
-      return normalizeSocial(raw, brief, 'Gemini 2.5 Flash');
+      return normalizeSocial(raw, brief, 'Gemini 3.8 Flash');
     } catch (e: any) {
-      return { caption: '', thread: [], hashtags: [], provider: 'Gemini 2.5 Flash', warnings: [e?.message ?? 'Generation failed.'] };
+      return { caption: '', thread: [], hashtags: [], provider: 'Gemini 3.8 Flash', warnings: [e?.message ?? 'Generation failed.'] };
     }
   }
   await new Promise((r) => setTimeout(r, 500));

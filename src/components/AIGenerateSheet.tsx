@@ -138,7 +138,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
               <PillToggle on={includeImages} onPress={() => setIncludeImages((v) => !v)} />
             </View>
 
-            <Section no="02" title="Model" hint={hasKey ? 'Gemini 2.5 Flash — your key, your bill.' : 'No key yet — the offline draft engine fills in.'} />
+            <Section no="02" title="Model" hint={hasKey ? 'Gemini 3.8 Flash — your key, your bill.' : 'No key yet — the offline draft engine fills in.'} />
             <Field label="Gemini API key" hint="Free from Google AI Studio. Stays on this device.">
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1 }}>

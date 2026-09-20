@@ -22,9 +22,9 @@ export async function generate(brief: ContentBrief, opts: GenOpts = {}): Promise
   if (key) {
     try {
       const raw = await geminiRaw(brief, key, !!opts.grounding);
-      return normalizeResult(raw as any, brief, opts.grounding ? 'Gemini 2.5 Flash + Search' : 'Gemini 2.5 Flash');
+      return normalizeResult(raw as any, brief, opts.grounding ? 'Gemini 3.8 Flash + Search' : 'Gemini 3.8 Flash');
     } catch (e: any) {
-      return { pages: [], provider: 'Gemini 2.5 Flash', warnings: [e?.message ?? 'Generation failed.'] };
+      return { pages: [], provider: 'Gemini 3.8 Flash', warnings: [e?.message ?? 'Generation failed.'] };
     }
   }
   await new Promise((r) => setTimeout(r, 450));

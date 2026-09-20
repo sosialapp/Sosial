@@ -1,6 +1,6 @@
 import { ContentBrief } from './types';
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.8-flash';
 const endpoint = (key: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
@@ -67,9 +67,11 @@ export async function geminiRaw(brief: ContentBrief, key: string, grounding: boo
   const body: any = {
     systemInstruction: { parts: [{ text: 'You output strict JSON only. No markdown fences, no commentary.' }] },
     contents: [{ role: 'user', parts: [{ text: buildPrompt(brief) }] }],
+    // NOTE: Gemini 3.6+ dropped the sampling knobs (temperature/top_p/top_k) —
+    // sending them returns 400, so only schema + token budget go out.
     generationConfig: grounding
-      ? { responseMimeType: 'text/plain', temperature: 0.7, maxOutputTokens: 4096 }
-      : { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.8, maxOutputTokens: 4096 },
+      ? { responseMimeType: 'text/plain', maxOutputTokens: 4096 }
+      : { responseMimeType: 'application/json', responseSchema: SCHEMA, maxOutputTokens: 4096 },
   };
   if (grounding) body.tools = [{ google_search: {} }];
 
