@@ -278,13 +278,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     </View>
   );
 
-  const logout = () => {
-    Alert.alert('Logout', 'Sign out on this device? Your designs and posts stay saved.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', onPress: () => { onUpdate({ email: '' }); onLoggedOut(); } },
-    ]);
-  };
-
   const deleteAccount = () => {
     Alert.alert('Delete Sosial account?', 'This wipes everything on this device: designs, templates, ideas, posts, channels and settings. This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
@@ -446,7 +439,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                     <Text style={s.rowS} numberOfLines={1}>
                       {sbAccount.email} · {sbAccount.workspace.name} ({sbAccount.workspace.role})
                     </Text>
-                    <GhostBtn label="Sign out" onPress={doCloudSignOut} />
+                    <GhostBtn label="Sign out" danger onPress={doCloudSignOut} />
                   </>
                 ) : null}
               </View>
@@ -455,7 +448,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {row('notifications-outline', 'Notification settings', 'Post reminders, comments, digest', () => setView('notif'))}
               {row('mail-outline', 'Email settings', email || 'Set your email', () => { setDraftEmail(email); setDraftTeam(team); setView('email'); })}
               {row('key-outline', 'Change password', undefined, () => { setPw1(''); setPw2(''); setView('password'); })}
-              {row('log-out-outline', 'Logout', undefined, logout, true)}
             </View>
             <View style={s.list}>
               {row('add-circle-outline', 'Connect new channel', 'Facebook, Instagram, Threads', onConnect)}

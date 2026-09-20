@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -149,7 +150,7 @@ export default function WelcomeScreen({
         showsVerticalScrollIndicator={false}
       >
         <View style={s.mark}>
-          <Text style={s.markT}>S</Text>
+          <Image source={require('../../assets/bolt.png')} style={{ width: 38, height: 48 }} resizeMode="contain" />
         </View>
         <Text style={s.title}>Sosial</Text>
         <Text style={s.sub}>Every channel. One calendar.</Text>
@@ -329,15 +330,14 @@ const makeS = (C: Palette) =>
       gap: 6,
     },
     mark: {
-      width: 68,
-      height: 68,
-      borderRadius: 20,
-      backgroundColor: C.accent,
+      width: 84,
+      height: 84,
+      borderRadius: 24,
+      backgroundColor: C.ink,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 8,
+      marginBottom: 10,
     },
-    markT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 34, color: '#FFFFFF' },
     title: { ...(T.display as object), color: C.ink } as any,
     sub: { ...(T.body as object), color: C.muted, textAlign: 'center' } as any,
     strip: {
