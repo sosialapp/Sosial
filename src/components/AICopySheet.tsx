@@ -4,6 +4,7 @@ import {
   Platform, Image, ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Field, SocialGlyph, Seg } from './ui';
 import {
@@ -37,7 +38,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   onApply: (result: SocialResult, brief: SocialBrief) => void;
 }) {
   const { C } = useTheme();
-  const st = useMemo(() => makeSt(C), [C]);
+  const insets = useSafeAreaInsets();
+  const st = useMemo(() => makeSt(C, insets.bottom), [C, insets.bottom]);
 
   const [prompt, setPrompt] = useState('');
   const [tone, setTone] = useState<SocialTone>(DEFAULT_SOCIAL_BRIEF.tone);
@@ -629,9 +631,9 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   );
 }
 
-const makeSt = (C: Palette) => StyleSheet.create({
+const makeSt = (C: Palette, bottomInset: number) => StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, maxHeight: '94%' },
+  sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 0, maxHeight: '94%' },
   title: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.3, color: C.ink },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted },
   idea: { minHeight: 118, textAlignVertical: 'top', fontSize: 16, lineHeight: 23, paddingVertical: 14 },
@@ -668,7 +670,7 @@ const makeSt = (C: Palette) => StyleSheet.create({
   sourceT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, lineHeight: 17, color: C.ink },
   sourceS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted, marginTop: 2 },
   cover: { width: '100%', aspectRatio: 4 / 5, borderRadius: R.lg, backgroundColor: C.card },
-  footer: { paddingTop: 12, borderTopWidth: 1, borderTopColor: C.lineSoft },
+  footer: { paddingTop: 12, paddingBottom: Math.max(14, bottomInset), paddingHorizontal: 20, marginHorizontal: -20, backgroundColor: C.paper, borderTopWidth: 1, borderTopColor: C.lineSoft },
   lockBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 },
   lockT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   lockS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },
