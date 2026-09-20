@@ -115,14 +115,40 @@ export interface ManagedPost {
    *  than one, chain-capable channels (X/Threads/Bluesky/Mastodon) publish them
    *  as replies; every other channel gets `body` — the segments re-joined. */
   thread?: string[];
+  /** Per-segment image (local uri or http), aligned to `thread` by index —
+   *  null/undefined = no image on that segment. Only the phone publisher reads
+   *  these for now; the cloud mirror ignores them (text-only chains there). */
+  threadImages?: (string | null)[];
+}
+
+/** One chain segment paired with its image. */
+export interface ThreadSegment {
+  text: string;
+  imageUri: string | null;
+}
+
+/** Fit an image array to a segment count (pad null / truncate). */
+export function alignThreadImages(images: (string | null)[] | undefined, n: number): (string | null)[] {
+  const src = images ?? [];
+  return Array.from({ length: Math.max(0, n) }, (_, i) => src[i] ?? null);
 }
 
 /** Chain segments for a post: the explicit thread if any, else the body. */
 export function postSegments(p: ManagedPost): string[] {
-  const segs = (p.thread ?? []).map((s) => (s ?? '').trim()).filter(Boolean);
+  const segs = postThreadSegments(p).map((s) => s.text);
   if (segs.length) return segs;
   const b = (p.body ?? '').trim();
   return b ? [b] : [];
+}
+
+/** Chain segments paired with their per-segment image, in order. Empty-text
+ *  segments drop WITH their image so indices stay aligned with postSegments —
+ *  the same trim/drop rule the cloud mirror applies to text. */
+export function postThreadSegments(p: ManagedPost): ThreadSegment[] {
+  const imgs = p.threadImages ?? [];
+  return (p.thread ?? [])
+    .map((s, i) => ({ text: (s ?? '').trim(), imageUri: imgs[i] ?? null }))
+    .filter((x) => x.text);
 }
 
 /** True when this post should publish as a multi-post chain. */

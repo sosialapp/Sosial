@@ -238,6 +238,12 @@ export interface Composer {
   /** Chain segments while threading; null/absent = a normal single post. */
   thread?: string[] | null;
   onThread?: (segs: string[] | null) => void;
+  /** Per-segment image (local uri), aligned to thread by index. Absent = the
+   *  composer doesn't support segment images (segment rows stay text-only). */
+  threadImages?: (string | null)[] | null;
+  onThreadImages?: (imgs: (string | null)[]) => void;
+  onPickThreadImage?: (index: number) => void;
+  onRemoveThreadImage?: (index: number) => void;
 }
 
 export interface SheetMediaItem {
@@ -550,15 +556,39 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                   </View>
                   {composer.thread!.map((seg, i) => {
                     const over = seg.length > chainCap;
+                    const segImg = composer.threadImages?.[i] ?? null;
+                    const canImg = !!composer.onPickThreadImage;
                     return (
                       <View key={i} style={{ gap: 4 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Text style={st.label}>{i + 1}/{composer.thread!.length}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: over ? '#D33131' : C.muted }}>{seg.length}/{chainCap}</Text>
-                            {composer.thread!.length > 1 ? (
-                              <TouchableOpacity onPress={() => composer.onThread!(composer.thread!.filter((_, j) => j !== i))} hitSlop={8}>
+                            {canImg ? (
+                              <TouchableOpacity onPress={() => composer.onPickThreadImage!(i)} hitSlop={8} accessibilityLabel={segImg ? 'Replace segment image' : 'Attach image to segment'}>
+                                {segImg ? (
+                                  <Image source={{ uri: segImg }} style={st.segThumb} resizeMode="cover" />
+                                ) : (
+                                  <Ionicons name="image-outline" size={18} color={C.muted} />
+                                )}
+                              </TouchableOpacity>
+                            ) : null}
+                            {canImg && segImg ? (
+                              <TouchableOpacity onPress={() => composer.onRemoveThreadImage!(i)} hitSlop={8} accessibilityLabel="Remove segment image">
                                 <Ionicons name="close-circle" size={18} color={C.muted} />
+                              </TouchableOpacity>
+                            ) : null}
+                            {composer.thread!.length > 1 ? (
+                              <TouchableOpacity onPress={() => {
+                                const next = composer.thread!.filter((_, j) => j !== i);
+                                composer.onThread!(next);
+                                // Drop the removed segment's image too — index
+                                // realignment alone would glue it to a neighbor.
+                                if (composer.onThreadImages && composer.threadImages) {
+                                  composer.onThreadImages(composer.threadImages.filter((_, j) => j !== i));
+                                }
+                              }} hitSlop={8}>
+                                <Ionicons name="trash-outline" size={18} color={C.muted} />
                               </TouchableOpacity>
                             ) : null}
                           </View>
@@ -1070,6 +1100,7 @@ const makeSt = (C: Palette) => ({
   topicClear: { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' } as const,
   topicClearT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText } as const,
   segPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' } as const,
+  segThumb: { width: 26, height: 26, borderRadius: 7, backgroundColor: C.lineSoft, overflow: 'hidden' } as const,
   clearAllT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.faint } as const,
   countT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted } as const,
   limitHint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, lineHeight: 16, color: C.faint, marginTop: 6 } as const,
