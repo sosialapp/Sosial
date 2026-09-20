@@ -8,6 +8,7 @@ import {
   DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES, THREAD_STYLES,
   generateSocial, capFor,
 } from '../utils/ai/social';
+import { AiLanguage, AI_LANGUAGES } from '../utils/ai/types';
 import { getAiKey, setAiKey } from '../utils/ai/key';
 import { loadAccount } from '../utils/account';
 
@@ -25,6 +26,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const { C } = useTheme();
   const st = makeSt(C);
   const [prompt, setPrompt] = useState('');
+  const [language, setLanguage] = useState<AiLanguage>(DEFAULT_SOCIAL_BRIEF.language);
   const [tone, setTone] = useState<SocialTone>(DEFAULT_SOCIAL_BRIEF.tone);
   const [style, setStyle] = useState<SocialStyle>(DEFAULT_SOCIAL_BRIEF.style);
   const [thread, setThread] = useState(true);
@@ -52,7 +54,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   }, [visible, initialPrompt]);
 
   const brief: SocialBrief = {
-    prompt, language: 'English', tone,
+    prompt, language, tone,
     thread, parts, hashtags, platform, style,
   };
 
@@ -102,7 +104,9 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <TouchableOpacity activeOpacity={1} onPress={close} style={st.bg}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={st.sheet}>
+          {/* Plain View, not a touchable: a nested press-responder competes with
+              the ScrollView's pan responder and intermittently eats scrolls. */}
+          <View style={st.sheet}>
             <ScrollView
               style={{ flexShrink: 1 }}
               nestedScrollEnabled
@@ -126,6 +130,19 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                   multiline
                   style={{ minHeight: 78, textAlignVertical: 'top' }}
                 />
+              </Field>
+
+              <Field label="Language" hint="Auto writes in your prompt's language.">
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {AI_LANGUAGES.map((l) => {
+                    const on = language === l.id;
+                    return (
+                      <TouchableOpacity key={l.id} onPress={() => setLanguage(l.id)} style={[st.chip, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
+                        <Text style={[st.chipT, on && { color: C.onInk }]}>{l.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </Field>
 
               <Section no="01" title="Voice" hint="How it should sound." />
@@ -272,7 +289,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 <GhostBtn label="Close" onPress={close} />
               </View>
             </ScrollView>
-          </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </Modal>

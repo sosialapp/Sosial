@@ -5,7 +5,7 @@ import { useTheme, Palette, R } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Section, Field } from './ui';
 import PostCanvas from './PostCanvas';
 import { RULES } from '../utils/ai/rules';
-import { ContentBrief, DEFAULT_BRIEF, GenResult } from '../utils/ai/types';
+import { ContentBrief, DEFAULT_BRIEF, GenResult, AiLanguage, AI_LANGUAGES } from '../utils/ai/types';
 import { generate } from '../utils/ai/provider';
 import { getAiKey, setAiKey } from '../utils/ai/key';
 import { applyGenResult } from '../utils/ai/apply';
@@ -23,6 +23,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const { C } = useTheme();
   const st = makeSt(C);
   const [prompt, setPrompt] = useState('');
+  const [language, setLanguage] = useState<AiLanguage>(DEFAULT_BRIEF.language);
   const [pages, setPages] = useState(3);
   const [maxWords, setMaxWords] = useState(DEFAULT_BRIEF.maxWordsPerPage);
   const [maxBlocks, setMaxBlocks] = useState(DEFAULT_BRIEF.maxBlocksPerPage);
@@ -47,7 +48,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   }, [visible]);
 
   const brief: ContentBrief = {
-    prompt, language: 'English',
+    prompt, language,
     pages, maxWordsPerPage: maxWords, maxBlocksPerPage: maxBlocks, includeImages,
   };
 
@@ -88,7 +89,9 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <TouchableOpacity activeOpacity={1} onPress={close} style={st.bg}>
-        <TouchableOpacity activeOpacity={1} onPress={() => {}} style={st.sheet}>
+        {/* Plain View, not a touchable: a nested press-responder competes with
+            the ScrollView's pan responder and intermittently eats scrolls. */}
+        <View style={st.sheet}>
           <ScrollView
             style={{ flexShrink: 1 }}
             nestedScrollEnabled
@@ -112,6 +115,19 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
                 multiline
                 style={{ minHeight: 70, textAlignVertical: 'top' }}
               />
+            </Field>
+
+            <Field label="Language" hint="Auto writes in your prompt's language.">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {AI_LANGUAGES.map((l) => {
+                  const on = language === l.id;
+                  return (
+                    <TouchableOpacity key={l.id} onPress={() => setLanguage(l.id)} style={[st.chip, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
+                      <Text style={[st.chipT, on && { color: C.onInk }]}>{l.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </Field>
 
             <Section no="01" title="Rules" hint="Hard limits the content is always trimmed to." />
@@ -192,7 +208,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
 
                 {previewPages.length > 0 ? (
                   <>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
+                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
                       {previewPages.map((p, i) => (
                         <View key={p.id} style={{ alignItems: 'center', gap: 6 }}>
                           <PostCanvas page={p} ratio={ratio} scale={0.3} />
@@ -215,7 +231,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
               <GhostBtn label="Close" onPress={close} />
             </View>
           </ScrollView>
-        </TouchableOpacity>
+        </View>
       </TouchableOpacity>
       </KeyboardAvoidingView>
     </Modal>
@@ -227,6 +243,8 @@ const makeSt = (C: Palette) => StyleSheet.create({
   sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, maxHeight: '92%' },
   title: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.3, color: C.ink },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted },
+  chip: { borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
+  chipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 },
   toggleT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   toggleS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },

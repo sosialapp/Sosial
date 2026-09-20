@@ -1,4 +1,4 @@
-import { ContentBrief } from './types';
+import { ContentBrief, languageLine } from './types';
 
 const MODEL = 'gemini-3.8-flash';
 const endpoint = (key: string) =>
@@ -46,7 +46,8 @@ const SCHEMA = {
 
 function buildPrompt(brief: ContentBrief): string {
   return [
-    `You write social-media carousel copy. Language: ${brief.language}.`,
+    'You write social-media carousel copy.',
+    languageLine(brief.language),
     `User's idea: ${brief.prompt}`,
     `Produce exactly ${brief.pages} cards. Card 1 is the hook, the last card closes with a takeaway.`,
     `Every card: a TEXT block first (heading of at most 6 words + 1-2 short description lines), then ONE context block that fits that card's message — pick from bullets, numbered steps, a small table (short cells), or a chart with 2-6 numeric points. Never repeat the same heading or the same lines twice.`,

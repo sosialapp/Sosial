@@ -1,5 +1,6 @@
 import { THREAD_CAPS } from '../thread';
 import { getAiKey } from './key';
+import { AiLanguage, languageLine } from './types';
 
 /**
  * Caption + thread generator. Same contract as the carousel engine: real model
@@ -57,7 +58,7 @@ export const THREAD_STYLES: SocialStyle[] = ['thread', 'deepdive'];
 
 export interface SocialBrief {
   prompt: string;
-  language: string;
+  language: AiLanguage;
   tone: SocialTone;
   /** true = write a connected thread; false = one caption */
   thread: boolean;
@@ -81,7 +82,7 @@ export interface SocialResult {
 
 export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
   prompt: '',
-  language: 'English',
+  language: 'auto',
   tone: 'story',
   thread: true,
   parts: 5,
@@ -265,7 +266,8 @@ const HONESTY_RULES = [
 function buildPrompt(brief: SocialBrief, limit: number): string {
   const lines = [
     'You are a sharp social-media copywriter who sounds like a real person, never like a brand or a press release.',
-    `Language: ${brief.language}. Tone: ${brief.tone}.`,
+    languageLine(brief.language),
+    `Tone: ${brief.tone}.`,
     `The user's raw idea: "${brief.prompt}"`,
     brief.style === 'auto'
       ? 'Pick the best-fit playbook for this idea from: breaking news, educational thread, listicle, feature teardown, technical deep-dive, comparison, case study, post-mortem, resource roundup, or hot take — and commit to it fully.'
