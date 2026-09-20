@@ -147,7 +147,16 @@ async function pollStatus(publishId: string, token: string, kind: string): Promi
     const status = String(sj?.data?.status ?? '');
     if (status === 'PUBLISH_COMPLETE') return;
     if (status === 'FAILED') {
-      throw new Error(friendly(String(sj?.error?.code ?? ''), `TikTok failed to process the ${kind}.`));
+      const code = String(sj?.error?.code ?? '');
+      // Empty/'ok' code means TikTok's crawler failed to pull the file (as
+      // opposed to a rejected request) — say what to check instead of a bare
+      // "failed to process".
+      if (!code || code === 'ok') {
+        throw new Error(
+          `TikTok could not download the ${kind} from your photo host — check (1) the domain is verified in the TikTok developer portal, (2) the photos.sosial.app DNS record is DNS-only (grey cloud, not proxied), (3) the file is still live (host links expire after 24h).`,
+        );
+      }
+      throw new Error(friendly(code, `TikTok failed to process the ${kind}.`));
     }
     if (Date.now() - start > POLL_MS) {
       throw new Error('TikTok is still processing — check the TikTok app in a few minutes (the post may still land).');
