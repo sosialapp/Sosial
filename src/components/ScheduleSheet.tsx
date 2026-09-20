@@ -11,7 +11,7 @@ import { SOCIAL_META } from '../constants';
 import { MAX_ATTACHMENTS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
 import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel } from '../utils/managed';
-import { chainLimit, splitThread, THREAD_CAPS } from '../utils/thread';
+import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
 import { loadMetaState, connectedChannelIds, MetaState } from '../utils/metaStore';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
@@ -469,6 +469,11 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
   // channel is ticked (which is what tapping it produces)
   const anyOn = plats.includes('any') || (connected.length > 0 && connected.every((c) => plats.includes(c)));
 
+  // The shared strip hides in thread mode when no selected leg needs it —
+  // chain legs carry their own per-segment images. It reappears the moment a
+  // non-chain channel (or Anywhere) is picked, since those legs need it.
+  const showSharedStrip = !threadOn || plats.some((p) => p === 'any' || !isChainPlatform(p));
+
   // Channel chips: Anywhere first, then connected only — unconnected channels
   // can't publish, so listing them only leads to "isn't connected" dead ends.
   const orderedChannels = ['any', ...CHANNELS.filter((c) => c !== 'any' && connected.includes(c))];
@@ -630,7 +635,17 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                         <TouchableOpacity
                           onPress={() => {
                             const next = splitThread(composer.caption, chainCap);
-                            composer.onThread!(next.length ? next : ['']);
+                            const n = next.length ? next : [''];
+                            composer.onThread!(n);
+                            // Carry the first shared photo onto the head post
+                            // so it isn't stranded in the hidden strip.
+                            const firstImg = media?.items.find((a) => a.kind === 'image')?.uri;
+                            if (firstImg && composer.onThreadImages) {
+                              const cur = composer.threadImages ?? [];
+                              if (!cur[0]) {
+                                composer.onThreadImages(Array.from({ length: n.length }, (_, j) => (j === 0 ? firstImg : (cur[j] ?? null))));
+                              }
+                            }
                           }}
                           hitSlop={6}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
@@ -660,7 +675,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                   </ScrollView>
                 </View>
               ) : null
-            ) : (
+            ) : !showSharedStrip ? null : (
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
                 <Text style={st.label}>Photo or video</Text>
@@ -722,7 +737,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                   <GhostBtn label="Attach photo or video" onPress={media.onPick} />
                 </View>
               )}
-              <Text style={st.limitHint}>Instagram · up to 10 photos as a carousel — Facebook · up to 10 photos — TikTok · up to 10 photos or 1 video — Threads · first item only</Text>
+              <Text style={st.limitHint}>Instagram · up to 10 photos as a carousel — Facebook · up to 10 photos — TikTok · up to 10 photos or 1 video — Threads · one photo per post</Text>
             </View>
             )
           ) : null}

@@ -284,12 +284,18 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const tags = r.hashtags.length ? '\n\n' + r.hashtags.join(' ') : '';
     if (r.thread.length > 1) {
       onThread(r.thread);
+      // Carry the first shared photo onto the head post so it isn't
+      // stranded in the (now hidden) shared strip.
+      const firstImg = tMedia.find((m) => m.kind === 'image')?.uri;
+      if (firstImg && !tThreadImages[0]) {
+        setTThreadImages(Array.from({ length: r.thread.length }, (_, j) => (j === 0 ? firstImg : (tThreadImages[j] ?? null))));
+      }
     } else {
       onThread(null);
       setTBody(r.caption + tags);
     }
     setAiOpen(false);
-  }, [onThread]);
+  }, [onThread, tMedia, tThreadImages]);
 
   /** Title is no longer typed — it's the first line of the post text, kept for lists + reminders. */
   const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string): ManagedPost => {
@@ -748,18 +754,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             } else {
               keep(ch, chain
                 ? await publishChain<string>(chain, (seg, parent) => {
-                    // A segment image wins; the head falls back to shared
-                    // media, replies stay text-only when unset.
+                    // Chain legs use segment images only — the shared strip is
+                    // hidden in thread mode, so shared media must not leak in
+                    // invisibly. Non-chain legs below still use it.
                     const img = seg.imageUri;
                     return publishThreads({
                       threadsId: thId, token: thToken, text: seg.text,
-                      imageUri: img ? undefined : (parent ? undefined : p.imageUri),
-                      videoUri: img ? undefined : (parent ? undefined : p.videoUri),
-                      attachments: img ? [{ uri: img, kind: 'image' }] : (parent ? [] : atts),
+                      attachments: img ? [{ uri: img, kind: 'image' }] : [],
                       topicTag: p.threadsTopic,
-                      // Segment images are local-only (no mirror entry); the
-                      // head still resolves shared media from own storage.
-                      mirrorClientId: img || parent ? undefined : p.id,
+                      mirrorClientId: undefined,
                       replyToId: parent ?? undefined,
                     });
                   }, (id) => id)
@@ -806,8 +809,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             keep(ch, chain
               ? await publishChain<string>(chain, (seg, parent) => publishX({
                   text: seg.text,
-                  imageUris: seg.imageUri ? [seg.imageUri] : (parent ? [] : imgUris),
-                  videoUri: seg.imageUri ? undefined : (parent ? undefined : firstVideo?.uri),
+                  imageUris: seg.imageUri ? [seg.imageUri] : [],
+                  videoUri: undefined,
                   replyTo: parent ?? undefined,
                 }), (id) => id)
               : await publishX({ text: caption, imageUris: imgUris, videoUri: firstVideo?.uri }));
@@ -824,8 +827,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               ? await publishChain<BskyRef>(chain, async (seg, parent) => {
                   const ref = await publishBsky({
                     text: seg.text,
-                    imageUris: seg.imageUri ? [seg.imageUri] : (parent ? [] : bsImgUris),
-                    videoUri: seg.imageUri ? undefined : (parent ? undefined : firstVideo?.uri),
+                    imageUris: seg.imageUri ? [seg.imageUri] : [],
+                    videoUri: undefined,
                     // every reply points at the head as root, the one above as parent
                     replyTo: parent && rootRef ? { root: rootRef, parent } : undefined,
                   });
@@ -842,8 +845,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             keep(ch, chain
               ? await publishChain<string>(chain, (seg, parent) => publishMastodon({
                   text: seg.text,
-                  imageUris: seg.imageUri ? [seg.imageUri] : (parent ? [] : mImgUris),
-                  videoUri: seg.imageUri ? undefined : (parent ? undefined : firstVideo?.uri),
+                  imageUris: seg.imageUri ? [seg.imageUri] : [],
+                  videoUri: undefined,
                   replyToId: parent ?? undefined,
                 }), (id) => id)
               : await publishMastodon({ text: caption, imageUris: mImgUris, videoUri: firstVideo?.uri }));
