@@ -512,6 +512,10 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
       caption = clampChars(caption, CAPTION_MAX);
       warnings.push('The caption was trimmed — it was longer than any platform accepts.');
     }
+    // Thread requested but the model returned 0–1 posts: never fail silently.
+    if (wantsThread && primary.posts.length <= 1) {
+      warnings.push(`Asked for a ${Math.max(2, Math.min(12, brief.parts))}-post thread but got a single post — tap Regenerate to try again.`);
+    }
   }
 
   const hashtags = normHashtags(raw?.hashtags, brief);
@@ -683,11 +687,11 @@ function buildPrompt(brief: SocialBrief, opts: { platforms: SocialPlatform[]; li
 
   if (brief.thread) {
     lines.push(
-      `FORMAT: a NATURAL THREAD of about ${brief.parts} connected posts.`,
+      `FORMAT: a NATURAL THREAD of EXACTLY ${brief.parts} connected posts — that count is a hard requirement, not a suggestion. One long post instead of a thread is a failure.`,
       'Open with a line that earns the next tap. One idea per post, rising order, real payoff in the last one.',
       THREAD_STRUCTURES,
       'Never number the posts, never write "1/", never use "🧵", never say "thread", "in this thread" or "let me explain". No hashtags inside the posts.',
-      `Every post must be substantial: at least ${THREAD_POST_MIN} characters and at most ${opts.limit}. Never pad with filler — develop the point instead.`,
+      `BUDGET PER POST: at least ${THREAD_POST_MIN} characters and at most ${opts.limit}. Spend nearly the whole budget on every post — develop each point fully instead of writing short one-liners. Every post outside this range gets flagged.`,
     );
   } else {
     lines.push(

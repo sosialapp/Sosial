@@ -8,8 +8,8 @@
  * retries without research — same honest-fallback contract as the Gemini path.
  */
 
-const MODEL = 'gpt-5-mini';
-export const OPENAI_PROVIDER = 'GPT-5 mini';
+const MODEL = 'gpt-5.6-luna';
+export const OPENAI_PROVIDER = 'GPT-5.6 Luna';
 
 const SYSTEM_JSON = 'You output strict JSON only. No markdown fences, no commentary.';
 
