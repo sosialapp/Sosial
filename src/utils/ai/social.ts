@@ -79,7 +79,7 @@ const TEXT_CAPS: Partial<Record<SocialPlatform, number>> = {
 
 export type SocialStyle =
   | 'auto' | 'breaking' | 'thread' | 'listicle' | 'teardown' | 'deepdive'
-  | 'compare' | 'casestudy' | 'postmortem' | 'roundup' | 'hottake';
+  | 'compare' | 'casestudy' | 'postmortem' | 'roundup' | 'hottake' | 'question';
 
 export interface SocialStyleMeta { id: SocialStyle; label: string; hint: string; sample: string; sampleMs: string; sampleZh: string; sampleTa: string }
 
@@ -139,6 +139,11 @@ export const SOCIAL_STYLES: SocialStyleMeta[] = [
     sampleMs: 'Pendapat tak popular: jumlah follower cuma metrik vanity.',
     sampleZh: '不受欢迎的观点：粉丝数只是虚荣指标。',
     sampleTa: 'பிரபலமற்ற கருத்து: பின்தொடர்பவர் எண்ணிக்கை வெறும் பகட்டு அளவீடு.' },
+  { id: 'question', label: 'Question', hint: 'Opens by asking',
+    sample: 'Be honest: how many of your scheduled posts actually get read?',
+    sampleMs: 'Jujur: berapa banyak pos berjadual anda yang betul-betul dibaca?',
+    sampleZh: '说实话：你定时发布的帖子，有多少真的有人看？',
+    sampleTa: 'நேர்மையாக: உங்கள் திட்டமிட்ட பதிவுகளில் எத்தனை உண்மையில் படிக்கப்படுகின்றன?' },
 ];
 
 /** Style example in the reader's language (verified set, English fallback). */
@@ -584,6 +589,11 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
   hottake: [
     'STYLE: contrarian take. Open with the unpopular claim, stated cleanly — no insults, no dunking on real people.',
     'Then 2-3 myth-vs-reality beats, and close with a genuine agree/disagree question.',
+  ].join(' '),
+  question: [
+    'STYLE: question-led post. Open with ONE sharp question that names the reader\'s pain or curiosity — no throat-clearing before it.',
+    'Answer it in 2-3 short beats with a concrete payoff, then close with a genuine question that invites replies.',
+    'Never stack multiple opening questions, and never use "Ever wondered…?", "What if I told you…?" or "Here\'s the truth:".',
   ].join(' '),
 };
 
