@@ -15,7 +15,9 @@ const MODEL = 'gemini-3.8-flash';
 const endpoint = (key: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
-export type SocialPlatform = 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon';
+export type SocialPlatform =
+  | 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon'
+  | 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest';
 
 export type SocialTone = 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
 
@@ -28,12 +30,28 @@ export const SOCIAL_TONES: { id: SocialTone; label: string }[] = [
 ];
 
 export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
-  { id: 'any', label: 'Anywhere' },
+  { id: 'any', label: 'All channels' },
   { id: 'x', label: 'X' },
   { id: 'bluesky', label: 'Bluesky' },
   { id: 'threads', label: 'Threads' },
   { id: 'mastodon', label: 'Mastodon' },
+  { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'facebook', label: 'Facebook' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'pinterest', label: 'Pinterest' },
 ];
+
+/** Caption limits for channels that aren't chain-capable (joined text length). */
+const TEXT_CAPS: Partial<Record<SocialPlatform, number>> = {
+  facebook: 63206,
+  linkedin: 3000,
+  instagram: 2200,
+  tiktok: 2200,
+  youtube: 5000,
+  pinterest: 800,
+};
 
 export type SocialStyle =
   | 'auto' | 'breaking' | 'thread' | 'listicle' | 'teardown' | 'deepdive'
@@ -94,7 +112,7 @@ export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
 /** Strictest cap a segment has to fit: the chosen platform, or X's 280 for "any". */
 export function capFor(platform: SocialPlatform): number {
   if (platform === 'any') return THREAD_CAPS.x;
-  return THREAD_CAPS[platform] ?? 280;
+  return THREAD_CAPS[platform] ?? TEXT_CAPS[platform] ?? 280;
 }
 
 const CAPTION_MAX = 2200;
