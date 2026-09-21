@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { Txt, Field, GhostBtn } from '../components/ui';
+import { Txt, Field, GhostBtn, SocialGlyph } from '../components/ui';
 import {
   loadTeam, addTeamMember, removeTeamMember, updateMember, memberChannelsLabel,
   assignableChannels, canRemoveMember, canAssignChannels, canChangeRole,
@@ -207,12 +207,12 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                         />
                       </View>
                     ) : null}
+                    {showTrash ? (
+                      <View style={{ marginTop: 8 }}>
+                        <GhostBtn label="Remove" danger onPress={() => dropMember(m)} />
+                      </View>
+                    ) : null}
                   </View>
-                  {showTrash ? (
-                    <TouchableOpacity onPress={() => dropMember(m)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Ionicons name="trash-outline" size={18} color={C.faint} />
-                    </TouchableOpacity>
-                  ) : null}
                 </View>
               );
             })}
@@ -232,6 +232,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                         style={[s.chan, m.channels.includes('all') && { backgroundColor: C.ink, borderColor: C.ink }]}
                         activeOpacity={0.75}
                       >
+                        <Ionicons name="globe-outline" size={13} color={m.channels.includes('all') ? C.onInk : C.muted} />
                         <Text style={[s.chanT, m.channels.includes('all') && { color: C.onInk }]}>All channels</Text>
                       </TouchableOpacity>
                       {chanList.map((c) => {
@@ -243,6 +244,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                             style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
                             activeOpacity={0.75}
                           >
+                            <SocialGlyph platform={c.id} size={13} color={on ? C.onInk : C.muted} />
                             <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
                           </TouchableOpacity>
                         );
@@ -262,13 +264,14 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                 <Field label="Email">
                   <Txt value={mEmail} onChangeText={setMEmail} placeholder="teammate@studio.com" keyboardType="email-address" autoCapitalize="none" />
                 </Field>
-                <Field label="Channels they can post to" hint="All channels, or pick specific ones.">
+                <Field label="Channels they can post to" hint="Connected first — or leave it on All channels.">
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     <TouchableOpacity
                       onPress={() => toggleMChannel('all')}
                       style={[s.chan, mChannels.includes('all') && { backgroundColor: C.ink, borderColor: C.ink }]}
                       activeOpacity={0.75}
                     >
+                      <Ionicons name="globe-outline" size={13} color={mChannels.includes('all') ? C.onInk : C.muted} />
                       <Text style={[s.chanT, mChannels.includes('all') && { color: C.onInk }]}>All channels</Text>
                     </TouchableOpacity>
                     {chanList.map((c) => {
@@ -280,6 +283,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                           style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
                           activeOpacity={0.75}
                         >
+                          <SocialGlyph platform={c.id} size={13} color={on ? C.onInk : C.muted} />
                           <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
                         </TouchableOpacity>
                       );
@@ -314,7 +318,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
   rolePill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   rolePillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk, textTransform: 'capitalize' },
-  chan: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.paper, borderWidth: 1, borderColor: C.lineSoft },
+  chan: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: C.paper, borderWidth: 1, borderColor: C.lineSoft },
   chanT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   plan: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 16, gap: 6 },
   planT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, color: C.ink },

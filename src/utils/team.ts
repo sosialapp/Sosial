@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SOCIAL_META, uid } from '../constants';
+import { MetaState } from './metaStore';
 
 export type TeamRole = 'owner' | 'admin' | 'member';
 
@@ -129,11 +130,19 @@ export function memberChannelsLabel(ids: string[]): string {
   return `${names[0]} +${names.length - 1}`;
 }
 
-/** Assignable channels, connected ones first. */
-export function assignableChannels(meta: { pageName?: string; igName?: string; threadsName?: string }): { id: string; label: string; sub: string }[] {
-  return [
+/** Every channel, connected ones first (stable). Unconnected ones stay pickable. */
+export function assignableChannels(meta: MetaState): { id: string; label: string; sub: string }[] {
+  const all = [
     { id: 'facebook', label: 'Facebook', sub: meta.pageName ?? 'Not connected' },
     { id: 'instagram', label: 'Instagram', sub: meta.igName ?? 'Not connected' },
     { id: 'threads', label: 'Threads', sub: meta.threadsName ?? 'Not connected' },
+    { id: 'tiktok', label: 'TikTok', sub: meta.ttName ?? 'Not connected' },
+    { id: 'x', label: 'X', sub: meta.xName ?? 'Not connected' },
+    { id: 'bluesky', label: 'Bluesky', sub: meta.bskyName ?? meta.bskyHandle ?? 'Not connected' },
+    { id: 'linkedin', label: 'LinkedIn', sub: meta.liOrgName ?? meta.liName ?? 'Not connected' },
+    { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? meta.mastodonInstance ?? 'Not connected' },
+    { id: 'pinterest', label: 'Pinterest', sub: meta.pinUsername ?? 'Not connected' },
+    { id: 'youtube', label: 'YouTube', sub: meta.ytChannelName ?? 'Not connected' },
   ];
+  return [...all].sort((a, b) => (a.sub === 'Not connected' ? 1 : 0) - (b.sub === 'Not connected' ? 1 : 0));
 }
