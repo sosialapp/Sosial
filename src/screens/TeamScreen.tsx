@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { Txt, Field, GhostBtn, SocialGlyph } from '../components/ui';
+import { Txt, Field, SocialGlyph } from '../components/ui';
 import {
   loadTeam, addTeamMember, removeTeamMember, updateMember, memberChannelsLabel,
   assignableChannels, canRemoveMember, canAssignChannels, canChangeRole,
@@ -185,31 +185,23 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                       <View style={s.rolePill}><Text style={s.rolePillT}>{m.role}</Text></View>
                     </View>
                     <Text style={s.rowS} numberOfLines={1}>{m.email} · {memberChannelsLabel(m.channels)}</Text>
-                    {isSelf && actor.role === 'admin' ? (
-                      <View style={{ marginTop: 8 }}><GhostBtn label="Step down to member" onPress={() => stepDown(m)} /></View>
-                    ) : null}
-                    {isSelf && actor.role === 'member' ? (
-                      <View style={{ marginTop: 8 }}><GhostBtn label="Leave team" danger onPress={() => leaveTeam(m)} /></View>
-                    ) : null}
-                    {showRoleFlip ? (
-                      <View style={{ marginTop: 8 }}>
-                        <GhostBtn
-                          label={m.role === 'admin' ? 'Demote to member' : 'Make admin'}
-                          onPress={() => flipRole(m)}
-                        />
-                      </View>
-                    ) : null}
-                    {showChannels ? (
-                      <View style={{ marginTop: 8 }}>
-                        <GhostBtn
-                          label={assigningId === m.id ? 'Done assigning' : 'Assign channels'}
-                          onPress={() => setAssigningId(assigningId === m.id ? null : m.id)}
-                        />
-                      </View>
-                    ) : null}
-                    {showTrash ? (
-                      <View style={{ marginTop: 8 }}>
-                        <GhostBtn label="Remove" danger onPress={() => dropMember(m)} />
+                    {showRoleFlip || showChannels || showTrash || (isSelf && actor.role !== 'owner') ? (
+                      <View style={s.actions}>
+                        {showRoleFlip ? (
+                          <MiniBtn label={m.role === 'admin' ? 'Demote' : 'Make admin'} onPress={() => flipRole(m)} />
+                        ) : null}
+                        {showChannels ? (
+                          <MiniBtn label={assigningId === m.id ? 'Done' : 'Assign channels'} onPress={() => setAssigningId(assigningId === m.id ? null : m.id)} />
+                        ) : null}
+                        {isSelf && actor.role === 'admin' ? (
+                          <MiniBtn label="Step down" onPress={() => stepDown(m)} />
+                        ) : null}
+                        {isSelf && actor.role === 'member' ? (
+                          <MiniBtn label="Leave team" danger onPress={() => leaveTeam(m)} />
+                        ) : null}
+                        {showTrash ? (
+                          <MiniBtn label="Remove" danger onPress={() => dropMember(m)} />
+                        ) : null}
                       </View>
                     ) : null}
                   </View>
@@ -302,6 +294,29 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   );
 }
 
+/** Compact pill action — one quiet row per member instead of stacked full-width buttons. */
+function MiniBtn({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+  const { C } = useTheme();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      style={{
+        borderRadius: 999,
+        paddingHorizontal: 13,
+        paddingVertical: 7,
+        backgroundColor: danger ? C.paleRed : C.surface,
+        borderWidth: 1,
+        borderColor: danger ? C.redText : C.lineSoft,
+      }}
+    >
+      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: danger ? C.redText : C.soft }}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 const makeS = (C: Palette) => StyleSheet.create({
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   kicker: { ...T.tag, color: C.accent, marginTop: 8 },
@@ -318,6 +333,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
   rolePill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   rolePillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk, textTransform: 'capitalize' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   chan: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: C.paper, borderWidth: 1, borderColor: C.lineSoft },
   chanT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   plan: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 16, gap: 6 },
