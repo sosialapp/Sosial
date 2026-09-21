@@ -62,6 +62,10 @@ export const TERMS: LegalDoc = {
         },
         {
           t: 'p',
+          c: 'Concretely, "publishing on your behalf" means posting your scheduled text, photos and video; uploading media where a platform requires it before posting; and reading the minimum profile, delivery-status and statistics fields needed to confirm a post went out and to show you results. The exact permissions for each platform — for example posting and media upload on X, content publishing on Instagram and Threads, video upload and publishing on TikTok, Page posting on Facebook, member and Company Page posting on LinkedIn, video uploads on YouTube, board and Pin writes on Pinterest, and read-write access on your chosen Mastodon instance — are shown by that platform on its own connect screen before you approve them. Bluesky uses a handle plus an app password instead of OAuth; the password is never stored.',
+        },
+        {
+          t: 'p',
           c: 'If a platform changes its API, withdraws access, or suspends your account, publishing to that channel may stop. Sosial is not responsible for changes a third-party platform makes.',
         },
       ],
@@ -144,7 +148,22 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'When you connect a social account, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We do not store your social media password, and we do not read your private messages.',
+          c: 'When you connect a social account, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We do not store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored — only short-lived session tokens are kept. We do not read your private messages on any platform.',
+        },
+        {
+          t: 'ul',
+          c: [
+            'X: read your profile, publish and read posts, and upload media — only for the posts you schedule. A refresh token keeps you signed in so scheduled posts can publish on time.',
+            'Instagram: read your Business or Creator profile, and publish the photos, videos and reels you schedule. We deliberately do not request insights access.',
+            'TikTok: read your basic profile and video statistics, upload and publish the videos and photos you schedule, and list posted videos to confirm delivery.',
+            'Facebook: list the Pages you manage, read their engagement and content, and publish the posts, photos and videos you schedule to them. Personal timelines are never touched.',
+            'Threads: read your profile, publish the posts you schedule, read replies, and read insights for content published through Sosial.',
+            'Bluesky: publish the posts you schedule and upload the images and video they contain, using session tokens from your sign-in.',
+            'Mastodon: read and write access on the instance you choose — verify the account, publish scheduled posts and upload media. Your instance address is stored so publishing reaches the right server.',
+            'LinkedIn: identify you via OpenID, publish posts as you, and read your own posts and their statistics. If you connect a Company Page you administer, the same applies to that Page.',
+            'YouTube: upload videos to your channel, read the channel and video list to confirm delivery and show status, and manage comments on uploads published through Sosial.',
+            'Pinterest: read your account, and read and write boards and Pins — publishing scheduled Pins to the boards you choose.',
+          ],
         },
         {
           t: 'p',
