@@ -11,7 +11,7 @@ export default function SiteFooter() {
 
   return (
     <footer className="border-t border-line bg-card/60">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-10 px-4 py-14 md:grid-cols-[1.5fr_1fr_1fr_1fr] lg:grid-cols-[1.6fr_1fr_1.2fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-10 px-4 py-14 md:grid-cols-[1.5fr_1fr_1fr] lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr]">
         <div className="col-span-2 md:col-span-1">
           <Logo />
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
@@ -27,13 +27,18 @@ export default function SiteFooter() {
           <p className="eyebrow">Product</p>
           <ul className="mt-4 space-y-2.5 text-sm font-semibold text-soft">
             <li>
-              <Link href="/#ai" className="hover:text-ink">
-                AI writer
+              <Link href="/publish" className="hover:text-ink">
+                Publish
               </Link>
             </li>
             <li>
-              <Link href="/#how" className="hover:text-ink">
-                How it works
+              <Link href="/create" className="hover:text-ink">
+                Create
+              </Link>
+            </li>
+            <li>
+              <Link href="/ai-assistant" className="hover:text-ink">
+                AI Assistant
               </Link>
             </li>
             <li>
@@ -46,9 +51,25 @@ export default function SiteFooter() {
                 Pricing
               </Link>
             </li>
+          </ul>
+        </nav>
+
+        <nav aria-label="Who it's for">
+          <p className="eyebrow">Who it&rsquo;s for</p>
+          <ul className="mt-4 space-y-2.5 text-sm font-semibold text-soft">
             <li>
-              <Link href="/integrations" className="hover:text-ink">
-                All integrations
+              <Link href="/audiences/creators" className="hover:text-ink">
+                Creators
+              </Link>
+            </li>
+            <li>
+              <Link href="/audiences/small-business" className="hover:text-ink">
+                Small business
+              </Link>
+            </li>
+            <li>
+              <Link href="/audiences/agencies" className="hover:text-ink">
+                Agencies
               </Link>
             </li>
           </ul>

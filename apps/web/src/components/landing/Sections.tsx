@@ -100,6 +100,18 @@ const PLANS = [
   },
 ];
 
+/** Every cell mirrors the plan cards above — no invented limits. */
+const COMPARE_ROWS: { label: string; values: (string | boolean)[] }[] = [
+  { label: 'Price', values: ['$0 forever', '$5/mo · $48/yr', '$10/mo · $96/yr'] },
+  { label: 'Channels', values: ['Up to 2', 'All ten', 'All ten'] },
+  { label: 'Scheduled posts', values: ['Included', 'Unlimited', 'Unlimited'] },
+  { label: 'Seats', values: ['1', '1', 'Unlimited'] },
+  { label: 'AI writer generations', values: [false, '500 / month', '1,000 / month'] },
+  { label: 'Approval workflow', values: [false, true, true] },
+  { label: 'Roles & per-channel assignment', values: [false, false, true] },
+  { label: 'iOS & Android apps, same workspace', values: [true, true, true] },
+];
+
 export function Pricing() {
   return (
     <Shell id="pricing">
@@ -141,6 +153,47 @@ export function Pricing() {
             </Link>
           </article>
         ))}
+      </div>
+      <div className="mx-auto mt-10 max-w-4xl overflow-x-auto">
+        <table className="w-full min-w-[560px] border-collapse text-sm">
+          <caption className="sr-only">Plan comparison: Free, Pro and Team</caption>
+          <thead>
+            <tr className="border-b border-line">
+              <th scope="col" className="py-3 pr-4 text-left font-display text-xs uppercase tracking-widest text-faint">
+                <span className="sr-only">Feature</span>
+              </th>
+              {['Free', 'Pro', 'Team'].map((n) => (
+                <th key={n} scope="col" className="px-4 py-3 text-center font-display font-extrabold">
+                  {n}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {COMPARE_ROWS.map((row) => (
+              <tr key={row.label} className="border-b border-line-soft last:border-0">
+                <th scope="row" className="py-3 pr-4 text-left font-semibold text-soft">
+                  {row.label}
+                </th>
+                {row.values.map((v, i) => (
+                  <td key={i} className="px-4 py-3 text-center text-soft">
+                    {v === true ? (
+                      <span className="text-accent" aria-label="Included" role="img">
+                        ✓
+                      </span>
+                    ) : v === false ? (
+                      <span className="text-faint" aria-label="Not included" role="img">
+                        —
+                      </span>
+                    ) : (
+                      v
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <p className="mx-auto mt-5 max-w-lg text-center text-xs leading-relaxed text-faint">
         Prices in USD — yearly saves 20%. AI writing, threads and 100+ languages live in the iOS

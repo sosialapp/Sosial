@@ -35,6 +35,10 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/blog') ||
     path.startsWith('/resources') ||
     path.startsWith('/integrations') ||
+    path.startsWith('/publish') ||
+    path.startsWith('/create') ||
+    path.startsWith('/ai-assistant') ||
+    path.startsWith('/audiences') ||
     path.startsWith('/terms') ||
     path.startsWith('/privacy') ||
     path.startsWith('/sitemap') ||
