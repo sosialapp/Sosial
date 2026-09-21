@@ -9,14 +9,19 @@ export const RULES = {
   maxWordsPerHeading: 6,
   maxBulletItems: 5,
   maxWordsPerItem: 12,
-  maxTableRows: 5,
-  maxTableCols: 4,
-  maxChartPoints: 6,
+  maxTableRows: 4,
+  maxTableCols: 3,
+  maxChartPoints: 5,
   minChartPoints: 2,
   minPages: 1,
   maxPages: 10,
   maxPagesHard: 10,
 };
+
+/** Identity for redundancy checks — case, punctuation and spacing blind. */
+function normKey(s: string): string {
+  return s.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, '').replace(/\s+/g, ' ').trim();
+}
 
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
 const wordCount = (s: string) => words(s).length;
@@ -44,7 +49,7 @@ function blockWords(b: GenBlock): number {
   return n;
 }
 
-function normalizeBlock(raw: any, warn: (m: string) => void): GenBlock | null {
+function normalizeBlock(raw: any, warn: (m: string) => void, seen?: Set<string>): GenBlock | null {
   if (!raw || typeof raw.type !== 'string') return null;
   const type = raw.type;
   const heading = raw.heading ? truncateWords(clean(raw.heading), RULES.maxWordsPerHeading) : undefined;
@@ -52,7 +57,18 @@ function normalizeBlock(raw: any, warn: (m: string) => void): GenBlock | null {
   if (type === 'free' || type === 'bullets' || type === 'numbered') {
     const src: string[] = Array.isArray(raw.items) ? raw.items : Array.isArray(raw.lines) ? raw.lines : [];
     let items = src.map((s) => truncateWords(clean(s), RULES.maxWordsPerItem)).filter(Boolean);
-    const cap = type === 'free' ? RULES.maxBulletItems : RULES.maxBulletItems;
+    // Redundancy has nowhere to hide: exact repeats die here, first copy wins.
+    if (seen) {
+      const before = items.length;
+      items = items.filter((s) => {
+        const k = normKey(s);
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      if (items.length < before) warn('Removed repeated lines.');
+    }
+    const cap = RULES.maxBulletItems;
     if (items.length > cap) {
       warn(`Trimmed a ${type} block to ${cap} lines.`);
       items = items.slice(0, cap);
@@ -65,7 +81,7 @@ function normalizeBlock(raw: any, warn: (m: string) => void): GenBlock | null {
     const columns = Array.isArray(raw.columns) ? raw.columns.map((c: any) => truncateWords(clean(c), 4)).slice(0, RULES.maxTableCols) : [];
     let rows: string[][] = Array.isArray(raw.rows)
       ? raw.rows.map((r: any) =>
-          (Array.isArray(r) ? r : []).map((c: any) => truncateWords(clean(c), 6)).slice(0, RULES.maxTableCols),
+          (Array.isArray(r) ? r : []).map((c: any) => truncateWords(clean(c), 4)).slice(0, RULES.maxTableCols),
         )
       : [];
     if (rows.length > RULES.maxTableRows) {
@@ -79,7 +95,11 @@ function normalizeBlock(raw: any, warn: (m: string) => void): GenBlock | null {
   if (type === 'bar' || type === 'vbar' || type === 'pie') {
     let series = Array.isArray(raw.series)
       ? raw.series
-          .map((d: any) => ({ label: truncateWords(clean(d?.label), 4), value: Number(d?.value) }))
+          .map((d: any) => ({
+            label: truncateWords(clean(d?.label), 3),
+            // NOTE: Number('') === 0 — blank values must die, not become zero bars.
+            value: d?.value === '' || d?.value == null ? NaN : Number(d?.value),
+          }))
           .filter((d: any) => d.label && isFinite(d.value))
       : [];
     if (series.length > RULES.maxChartPoints) {
@@ -93,7 +113,11 @@ function normalizeBlock(raw: any, warn: (m: string) => void): GenBlock | null {
     return { type, heading, series };
   }
 
-  if (type === 'image') return { type: 'image', heading };
+  // Image slots render as empty placeholder boxes — photos belong to the editor.
+  if (type === 'image') {
+    warn('Dropped an image placeholder — add photos in the editor.');
+    return null;
+  }
 
   return null;
 }
@@ -106,15 +130,30 @@ export function normalizeResult(pages: GenPage[], brief: ContentBrief, provider:
 
   const out: GenPage[] = [];
   const target = Math.max(RULES.minPages, Math.min(RULES.maxPages, brief.pages || 1));
+  const input = pages.slice(0, target);
+  const seen = new Set<string>();
+  let warnedRoles = false;
 
-  for (const p of pages.slice(0, target)) {
-    const blocks: GenBlock[] = [];
+  input.forEach((p, pi) => {
+    let blocks: GenBlock[] = [];
     for (const raw of (p.blocks ?? [])) {
-      const b = normalizeBlock(raw, (m) => { if (!warnedBlocks) { warnedBlocks = true; warnings.push(m); } });
+      const b = normalizeBlock(raw, (m) => { if (!warnedBlocks) { warnedBlocks = true; warnings.push(m); } }, seen);
       if (b) blocks.push(b);
       if (blocks.length >= brief.maxBlocksPerPage) break;
     }
-    if (blocks.length === 0) continue;
+    // Hook and takeaway cards stay text-only: charts/tables there are where
+    // invented numbers hide. Never strand the card — strip only if text remains.
+    if (input.length > 1 && (pi === 0 || pi === input.length - 1)) {
+      const stripped = blocks.filter((b) => b.type !== 'table' && b.type !== 'bar' && b.type !== 'vbar' && b.type !== 'pie');
+      if (stripped.length && stripped.length < blocks.length) {
+        blocks = stripped;
+        if (!warnedRoles) {
+          warnedRoles = true;
+          warnings.push('Hook and takeaway cards stay text-only — dropped their charts/tables.');
+        }
+      }
+    }
+    if (blocks.length === 0) return;
 
     // per-page word budget: shed from the bottom up until it fits
     let total = blocks.reduce((a, b) => a + blockWords(b), 0);
@@ -147,9 +186,9 @@ export function normalizeResult(pages: GenPage[], brief: ContentBrief, provider:
         }
       }
     }
-    if (blocks.length === 0) continue;
+    if (blocks.length === 0) return;
     out.push({ blocks: blocks.slice(0, brief.maxBlocksPerPage), imagePrompt: p.imagePrompt });
-  }
+  });
 
   if (warnedBlocks) warnings.push('Some blocks were trimmed to fit the card rules.');
   if (warnedWords) warnings.push(`Content trimmed to ${brief.maxWordsPerPage} words per card.`);

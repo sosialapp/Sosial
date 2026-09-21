@@ -23,10 +23,6 @@ export function mockGenerate(brief: ContentBrief): GenPage[] {
     // block 2 — context block, unique per card
     if (max >= 2) blocks.push(contextBlock(i, s));
 
-    if (brief.includeImages && blocks.length < max) {
-      blocks.push({ type: 'image', heading: `Visual ${i + 1} for ${s}` });
-    }
-
     pages.push({ blocks, imagePrompt: `${idea} — illustrative photo ${i + 1}` });
   }
 

@@ -26,7 +26,6 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const [pages, setPages] = useState(3);
   const [maxWords, setMaxWords] = useState(DEFAULT_BRIEF.maxWordsPerPage);
   const [maxBlocks, setMaxBlocks] = useState(DEFAULT_BRIEF.maxBlocksPerPage);
-  const [includeImages, setIncludeImages] = useState(false);
   const [grounding, setGrounding] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   // built-in build key means zero setup; a legacy saved key still counts (either engine)
@@ -47,7 +46,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const brief: ContentBrief = {
     // language is always auto — the copy mirrors whatever language the prompt is in
     prompt, language: 'auto',
-    pages, maxWordsPerPage: maxWords, maxBlocksPerPage: maxBlocks, includeImages,
+    pages, maxWordsPerPage: maxWords, maxBlocksPerPage: maxBlocks,
   };
 
   // real, rendered cards so the preview is never a mystery
@@ -127,14 +126,6 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
             <Field label="Words / card" hint={`${maxWords}`}>
               <Stepper value={maxWords} onChange={setMaxWords} step={5} min={15} max={120} format={(v) => `${v}`} />
             </Field>
-            <View style={st.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={st.toggleT}>Leave image slots</Text>
-                <Text style={st.toggleS}>Adds empty image blocks for you to fill and crop</Text>
-              </View>
-              <PillToggle on={includeImages} onPress={() => setIncludeImages((v) => !v)} />
-            </View>
-
             <View style={[st.toggleRow, !keyReady && { opacity: 0.5 }]}>
               <View style={{ flex: 1 }}>
                 <Text style={st.toggleT}>Latest info</Text>

@@ -17,8 +17,8 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
       <View style={{ gap: Math.max(4 * k, w * 0.02) }}>
         {data.map((d, i) => (
           <View key={i}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111' }}>{d.label}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
+              <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
               <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }}>{d.value}</Text>
             </View>
             <View style={{ height: Math.max(6 * k, w * 0.03), backgroundColor: '#00000015', borderRadius: 6 * k, overflow: 'hidden' }}>

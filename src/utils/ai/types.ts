@@ -40,7 +40,6 @@ export interface ContentBrief {
   pages: number;
   maxWordsPerPage: number;
   maxBlocksPerPage: number;
-  includeImages: boolean;
 }
 
 export interface GenResult {
@@ -58,5 +57,4 @@ export const DEFAULT_BRIEF: ContentBrief = {
   pages: 3,
   maxWordsPerPage: 60,
   maxBlocksPerPage: 2,
-  includeImages: false,
 };
