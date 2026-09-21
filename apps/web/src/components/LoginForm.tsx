@@ -1,7 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { BrandIcon } from '@/components/BrandIcon';
 import { createClient } from '@/lib/supabase/client';
 import { callbackUrl, safeNextPath } from '@/lib/auth';
 
@@ -17,14 +19,20 @@ function friendly(e: unknown): string {
 export default function LoginForm({
   externalError,
   next,
+  initialMode,
+  compact,
 }: {
   externalError?: string | null;
   /** Post-login destination (e.g. an invite link) — same-origin paths only. */
   next?: string | null;
+  /** Starting tab when embedded (e.g. in the auth modal). */
+  initialMode?: 'in' | 'up';
+  /** Hide the brand header — the host (e.g. modal) provides its own. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const target = safeNextPath(next);
-  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [mode, setMode] = useState<'in' | 'up'>(initialMode ?? 'in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -79,15 +87,17 @@ export default function LoginForm({
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-2xl font-extrabold text-white">
-          S
+      {!compact && (
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-bone ring-1 ring-line">
+            <Image src="/bolt.png" alt="Sosial" width={36} height={36} />
+          </div>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight">Sosial</h1>
+          <p className="mt-1 text-sm text-muted">Compose, schedule and publish across every channel.</p>
         </div>
-        <h1 className="font-display text-2xl font-extrabold tracking-tight">Sosial</h1>
-        <p className="mt-1 text-sm text-muted">Compose, schedule and publish across every channel.</p>
-      </div>
+      )}
 
-      <div className="card p-6">
+      <div className={compact ? '' : 'card p-6'}>
         <p className="eyebrow mb-4">{mode === 'in' ? 'Sign in' : 'Create account'}</p>
 
         <form onSubmit={submit} className="space-y-3">
@@ -122,6 +132,7 @@ export default function LoginForm({
         </div>
 
         <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button">
+          <BrandIcon provider="google" className="h-4 w-4" />
           Continue with Google
         </button>
 

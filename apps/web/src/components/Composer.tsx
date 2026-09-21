@@ -118,7 +118,7 @@ export default function Composer({
           <h1 className="font-display text-xl font-extrabold tracking-tight">New post</h1>
         </div>
         <button
-          className="btn bg-zest font-bold text-ink hover:brightness-95"
+          className="btn btn-primary"
           disabled={busy}
           type="submit"
         >
@@ -217,7 +217,7 @@ export default function Composer({
                       type="button"
                       onClick={() => toggle(c.id)}
                       className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        on ? 'border-zest bg-zest/10' : 'border-line bg-paper hover:bg-bone'
+                        on ? 'border-accent bg-accent-soft' : 'border-line bg-paper hover:bg-bone'
                       }`}
                     >
                       <BrandIcon provider={c.provider} className="h-6 w-6 shrink-0" />
@@ -228,7 +228,7 @@ export default function Composer({
                           {meta.limit.toLocaleString()} chars
                         </span>
                       </span>
-                      <span className={`text-xs font-bold ${on ? 'text-ink' : 'text-faint'}`}>
+                      <span className={`text-xs font-bold ${on ? 'text-accent' : 'text-faint'}`}>
                         {on ? '✓' : ''}
                       </span>
                     </button>
@@ -247,7 +247,7 @@ export default function Composer({
                   type="button"
                   onClick={() => setMode(m.id)}
                   className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    mode === m.id ? 'bg-zest text-ink' : 'bg-surface text-soft hover:bg-line'
+                    mode === m.id ? 'bg-accent text-white' : 'bg-surface text-soft hover:bg-line'
                   }`}
                 >
                   {m.label}

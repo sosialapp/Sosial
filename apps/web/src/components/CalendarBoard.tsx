@@ -145,7 +145,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                   <div className="mb-1 flex items-center justify-between">
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                        isToday ? 'bg-zest text-ink' : 'text-muted'
+                        isToday ? 'bg-accent text-white' : 'text-muted'
                       }`}
                     >
                       {day.getDate()}
@@ -221,7 +221,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
           )}
 
           <div className="mt-6 flex flex-col gap-2">
-            <Link href="/composer" className="btn w-full bg-zest font-bold text-ink hover:brightness-95">
+            <Link href="/composer" className="btn btn-primary w-full">
               + New post
             </Link>
             {pending && <p className="text-center text-xs text-muted">Saving…</p>}

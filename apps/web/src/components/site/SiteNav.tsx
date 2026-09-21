@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { resourceHref } from '@/content/types';
+import AuthModal from './AuthModal';
 import Logo from './Logo';
 
 interface MenuLink {
@@ -116,6 +117,7 @@ function MobileSection({ label, links, onGo }: { label: string; links: MenuLink[
 export default function SiteNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
   const close = () => setOpen(false);
 
   useEffect(() => {
@@ -202,12 +204,12 @@ export default function SiteNav() {
         </div>
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
-          <Link href="/login" className="btn btn-ghost">
+          <button type="button" onClick={() => setAuth('in')} className="btn btn-ghost">
             Log in
-          </Link>
-          <Link href="/login" className="btn btn-primary">
+          </button>
+          <button type="button" onClick={() => setAuth('up')} className="btn btn-primary">
             Get started free
-          </Link>
+          </button>
         </div>
 
         <button
@@ -264,16 +266,32 @@ export default function SiteNav() {
               Pricing
             </Link>
             <div className="mt-2 flex flex-col gap-2">
-              <Link href="/login" className="btn btn-ghost" onClick={close}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  close();
+                  setAuth('in');
+                }}
+              >
                 Log in
-              </Link>
-              <Link href="/login" className="btn btn-primary" onClick={close}>
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  close();
+                  setAuth('up');
+                }}
+              >
                 Get started free
-              </Link>
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      <AuthModal open={auth !== null} mode={auth ?? 'in'} onClose={() => setAuth(null)} />
     </header>
   );
 }

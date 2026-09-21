@@ -62,7 +62,7 @@ function NavLinks({ onGo, pathname }: { onGo?: () => void; pathname: string }) {
             onClick={onGo}
             aria-current={active ? 'page' : undefined}
             className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition ${
-              active ? 'bg-zest text-ink' : 'text-soft hover:bg-bone dark:hover:bg-white/5'
+              active ? 'bg-accent text-white' : 'text-soft hover:bg-bone dark:hover:bg-white/5'
             }`}
           >
             {l.icon}
@@ -124,7 +124,7 @@ export default function Sidebar({ workspaceName, email }: { workspaceName: strin
         <NavLinks pathname={pathname} />
 
         <div className="space-y-2 px-3 pb-3">
-          <Link href="/composer" className="btn w-full bg-zest font-bold text-ink hover:brightness-95">
+          <Link href="/composer" className="btn btn-primary w-full">
             + New post
           </Link>
           <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export default function Sidebar({ workspaceName, email }: { workspaceName: strin
             <NavLinks pathname={pathname} onGo={close} />
 
             <div className="mt-auto space-y-2 border-t border-line p-3">
-              <Link href="/composer" onClick={close} className="btn w-full bg-zest font-bold text-ink hover:brightness-95">
+              <Link href="/composer" onClick={close} className="btn btn-primary w-full">
                 + New post
               </Link>
               <form action="/auth/signout" method="post">

@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { BrandIcon } from '@/components/BrandIcon';
+import AuthModal from '@/components/site/AuthModal';
 import type { ProviderKey } from '@/lib/types';
 
 /**
@@ -39,6 +40,7 @@ export default function Hero() {
   const root = useRef<HTMLElement>(null);
   const tiles = useRef<(HTMLSpanElement | null)[]>([]);
   const movers = useRef<{ x: (v: number) => void; y: (v: number) => void }[]>([]);
+  const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
 
   useGSAP(
     () => {
@@ -121,14 +123,15 @@ export default function Hero() {
           and a queue that runs itself.
         </p>
         <div className="animate-rise-2 mt-8 flex flex-wrap items-center justify-center gap-2.5">
-          <Link href="/login" className="btn btn-primary btn-lg">
+          <button type="button" onClick={() => setAuth('up')} className="btn btn-primary btn-lg">
             Start scheduling free
             <span aria-hidden="true">→</span>
-          </Link>
+          </button>
           <a href="#channels" className="btn btn-ghost btn-lg">
             Try the composer
           </a>
         </div>
+        <AuthModal open={auth !== null} mode={auth ?? 'up'} onClose={() => setAuth(null)} />
         <p className="animate-rise-3 mt-4 text-xs text-faint">
           Free forever plan · No credit card · iOS, Android &amp; web
         </p>

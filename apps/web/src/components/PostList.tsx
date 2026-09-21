@@ -117,7 +117,7 @@ export default function PostList({
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  tab === t.id ? 'bg-zest text-ink' : 'bg-surface text-soft hover:bg-line'
+                  tab === t.id ? 'bg-accent text-white' : 'bg-surface text-soft hover:bg-line'
                 }`}
               >
                 {t.label}
@@ -216,7 +216,7 @@ export default function PostList({
                 {canApprove && p.status === 'approval' && (
                   <>
                     <button
-                      className="btn bg-zest font-bold text-ink hover:brightness-95"
+                      className="btn btn-primary"
                       type="button"
                       disabled={busy}
                       onClick={() => run(p.id, (sb) => approvePost(sb, { postId: p.id, userId }))}
