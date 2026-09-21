@@ -74,9 +74,17 @@ export async function openaiResponsesJson(key: string, input: string, search: bo
     // latency down and leaves the token budget for the actual JSON output.
     reasoning: { effort: 'low' },
     max_output_tokens: 16384,
-    text: { format: { type: 'json_object' } },
   };
-  if (search) body.tools = [{ type: 'web_search' }];
+  if (search) {
+    // NOTE: the API rejects web_search combined with a JSON format lock
+    // (400 "web search cannot be used with JSON mode"), so researched calls
+    // go out as plain text and the JSON is parsed out of the reply instead —
+    // same contract as the grounded Gemini path. The prompt still demands
+    // JSON-only output, so the extractor below finds it.
+    body.tools = [{ type: 'web_search' }];
+  } else {
+    body.text = { format: { type: 'json_object' } };
+  }
   const r = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
