@@ -62,15 +62,16 @@ export default function AuthModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={mode === 'in' ? 'Sign in to Sosial' : 'Create your Sosial account'}
-        className="relative max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]"
-      >
+      <div className="relative flex min-h-full items-center justify-center p-4">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={mode === 'in' ? 'Sign in to Sosial' : 'Create your Sosial account'}
+          className="relative my-auto w-full max-w-sm rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]"
+        >
         <button
           type="button"
           onClick={onClose}
@@ -93,6 +94,7 @@ export default function AuthModal({
           </div>
         </div>
         <LoginForm key={mode} initialMode={mode} compact />
+        </div>
       </div>
     </div>
   );
