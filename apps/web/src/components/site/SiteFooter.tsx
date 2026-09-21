@@ -1,11 +1,22 @@
 import Link from 'next/link';
-import { BrandIcon } from '@/components/BrandIcon';
+import { BRAND_NAMES, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { RESOURCES } from '@/content/resources';
 import { resourceHref } from '@/content/types';
 import Logo from './Logo';
 
 /** Footer for every public page. Only links to routes that exist. */
+const SOCIALS: BrandProvider[] = [
+  'facebook',
+  'instagram',
+  'threads',
+  'tiktok',
+  'x',
+  'bluesky',
+  'mastodon',
+  'linkedin',
+];
+
 export default function SiteFooter() {
   const topResources = RESOURCES.slice(0, 5);
 
@@ -21,6 +32,19 @@ export default function SiteFooter() {
           <Link href="/login" className="btn btn-primary mt-5">
             Start scheduling free
           </Link>
+          <div className="mt-5 flex flex-wrap gap-2" aria-label="Sosial on social media">
+            {SOCIALS.map((p) => (
+              <Link
+                key={p}
+                href={`/integrations/${p}`}
+                aria-label={`Sosial on ${BRAND_NAMES[p]}`}
+                title={`Sosial on ${BRAND_NAMES[p]}`}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-paper transition hover:border-accent hover:bg-white"
+              >
+                <BrandIcon provider={p} className="h-4 w-4" />
+              </Link>
+            ))}
+          </div>
         </div>
 
         <nav aria-label="Product">

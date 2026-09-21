@@ -13,7 +13,7 @@ import type { ProviderKey } from '@/lib/types';
 
 const SIZE = 420;
 const C = SIZE / 2;
-const R = 148;
+const R = 160;
 const FLIGHT_MS = 850;
 const STAGGER_MS = 130;
 
@@ -144,7 +144,7 @@ export default function HeroOrbit() {
   return (
     <div
       ref={wrapRef}
-      className="mx-auto w-full max-w-[520px] rounded-3xl border border-line bg-card p-4 shadow-[0_24px_60px_-30px_rgba(28,25,23,0.35)] md:p-5"
+      className="w-full rounded-3xl border border-line bg-card p-4 shadow-[0_24px_60px_-30px_rgba(28,25,23,0.35)] md:p-5"
     >
       <div className="flex items-center justify-between gap-2">
         <span className="pill bg-accent-soft text-accent-ink">Interactive demo</span>
@@ -227,7 +227,7 @@ export default function HeroOrbit() {
                   }}
                 >
                   <circle
-                    r={17}
+                    r={18}
                     fill="#ffffff"
                     className={active ? 'stroke-accent' : 'stroke-line'}
                     strokeWidth={active ? 2.5 : 1.5}
