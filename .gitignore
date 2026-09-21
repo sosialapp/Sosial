@@ -32,3 +32,5 @@ Thumbs.db
 # tiktok-photo-host: uploaded bytes (ephemeral) + local env
 apps/tiktok-photo-host/data/
 apps/tiktok-photo-host/.env
+.vercel
+.env*
