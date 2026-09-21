@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Switch } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { Txt, Field, Stepper, Seg, GhostBtn } from '../components/ui';
+import { Txt, Field, Seg, GhostBtn } from '../components/ui';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import { wipeAllData } from '../utils/account';
@@ -37,7 +37,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const { C } = useTheme();
   const s = makeS(C);
   const [view, setView] = useState<AcctView>('main');
-  const [proChannels, setProChannels] = useState(3);
   const [yearly, setYearly] = useState(true);
   const [draftEmail, setDraftEmail] = useState(email);
   const [draftTeam, setDraftTeam] = useState(team);
@@ -267,8 +266,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     });
   };
 
-  const proTotal = yearly ? `$${49 * proChannels}/yr` : `$${(4.99 * proChannels).toFixed(2)}/mo`;
-  const teamTotal = yearly ? `$${99 * proChannels}/yr` : `$${(9.99 * proChannels).toFixed(2)}/mo`;
+  /** Flat pricing — one price per plan, channels unlimited. */
+  const proTotal = yearly ? '$48/yr' : '$5/mo';
+  const teamTotal = yearly ? '$96/yr' : '$10/mo';
 
   /** Plan switching works today as a local flag; real Play Billing replaces the confirm. */
   const choosePlan = (target: 'free' | 'pro' | 'team', label: string) => {
@@ -451,17 +451,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               ) : null}
             </View>
 
-            {/* one tuner for both paid plans */}
+            {/* billing rhythm for both paid plans */}
             <View style={[s.plan, { gap: 12 }]}>
               <Field label="Billing">
                 <Seg
-                  options={[{ value: 'yearly', label: 'Yearly · save ~20%' }, { value: 'monthly', label: 'Monthly' }]}
+                  options={[{ value: 'yearly', label: 'Yearly · save 20%' }, { value: 'monthly', label: 'Monthly' }]}
                   value={yearly ? 'yearly' : 'monthly'}
                   onChange={(v) => setYearly(v === 'yearly')}
                 />
-              </Field>
-              <Field label="Channels" hint={`${proChannels} channel${proChannels === 1 ? '' : 's'} — applies to Pro & Team`}>
-                <Stepper value={proChannels} onChange={setProChannels} step={1} min={1} max={10} format={(v) => `${v}`} />
               </Field>
             </View>
 
@@ -482,7 +479,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Sosial Pro"
               current={plan === 'pro'}
               price={proTotal}
-              sub={yearly ? `$4.08/mo per channel · RM ${219 * proChannels}/yr` : `$4.99/mo per channel · RM ${(21.9 * proChannels).toFixed(2)}/mo`}
+              sub={yearly ? '$4.00/mo, billed yearly · RM 210/yr' : 'Flat monthly billing · RM 22/mo'}
               also="Everything in Free, plus:"
               features={[
                 { text: 'Unlimited scheduled posts' },
@@ -502,7 +499,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Sosial Team"
               current={plan === 'team'}
               price={teamTotal}
-              sub={yearly ? `$8.25/mo per channel · RM ${439 * proChannels}/yr` : `$9.99/mo per channel · RM ${(43.9 * proChannels).toFixed(2)}/mo`}
+              sub={yearly ? '$8.00/mo, billed yearly · RM 420/yr' : 'Flat monthly billing · RM 44/mo'}
               also="Everything in Pro, plus:"
               features={[
                 { text: 'Unlimited seats for the whole crew' },
