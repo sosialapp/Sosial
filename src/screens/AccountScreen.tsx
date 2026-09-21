@@ -455,7 +455,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             <View style={[s.plan, { gap: 12 }]}>
               <Field label="Billing">
                 <Seg
-                  options={[{ value: 'yearly', label: 'Yearly · save 20%' }, { value: 'monthly', label: 'Monthly' }]}
+                  options={[{ value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly · save 20%' }]}
                   value={yearly ? 'yearly' : 'monthly'}
                   onChange={(v) => setYearly(v === 'yearly')}
                 />
