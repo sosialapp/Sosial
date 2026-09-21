@@ -140,10 +140,10 @@ export default function SiteNav() {
         scrolled ? 'border-line' : 'border-transparent'
       }`}
     >
-      <nav className="mx-auto flex h-16 max-w-[1440px] items-center gap-6 px-4" aria-label="Main">
+      <nav className="relative mx-auto flex h-16 max-w-[1440px] items-center px-4" aria-label="Main">
         <Logo />
 
-        <div className="hidden items-center gap-5 lg:flex">
+        <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-5 lg:flex">
           <DesktopDropdown label="Features">
             <div className="card w-80 p-2 shadow-[0_24px_60px_-24px_rgba(28,25,23,0.35)]">
               {FEATURES.map((l) => (

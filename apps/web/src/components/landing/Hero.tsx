@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { BrandIcon } from '@/components/BrandIcon';
@@ -9,13 +8,27 @@ import AuthModal from '@/components/site/AuthModal';
 import type { ProviderKey } from '@/lib/types';
 
 /**
- * Centered hero with a living logo field: tiles pop in with GSAP, drift on
- * CSS float, and parallax against the cursor at different depths. No-JS
- * floor is the same layout, static.
+ * Centered hero with a living logo field. Every tile drifts on a CSS float,
+ * parallaxes against the cursor, and — on a staggered cycle — flips on both
+ * axes into the *next* brand. Each tile walks the full provider list in order
+ * (offset by its own index), so within one cycle no box ever repeats a logo,
+ * and no two boxes show the same brand at the same step.
  */
 
+const PROVIDERS: ProviderKey[] = [
+  'instagram',
+  'x',
+  'youtube',
+  'linkedin',
+  'tiktok',
+  'bluesky',
+  'pinterest',
+  'threads',
+  'facebook',
+  'mastodon',
+];
+
 const FLOATERS: {
-  key: ProviderKey;
   pos: string;
   show: string;
   box: string;
@@ -24,17 +37,79 @@ const FLOATERS: {
   dur: string;
   depth: number;
 }[] = [
-  { key: 'instagram', pos: 'left-[1%] top-[12%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0s', dur: '5s', depth: 34 },
-  { key: 'x', pos: 'left-[21%] top-[4%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '0.8s', dur: '6s', depth: 20 },
-  { key: 'youtube', pos: 'left-[1%] top-[31%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.6s', dur: '5.4s', depth: 26 },
-  { key: 'linkedin', pos: 'left-[7%] top-[55%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.2s', dur: '6.2s', depth: 14 },
-  { key: 'tiktok', pos: 'left-[15%] top-[80%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.4s', dur: '5.6s', depth: 30 },
-  { key: 'bluesky', pos: 'right-[1%] top-[6%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.1s', dur: '5.2s', depth: 34 },
-  { key: 'pinterest', pos: 'right-[1%] top-[23%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.8s', dur: '6.4s', depth: 20 },
-  { key: 'threads', pos: 'right-[14%] top-[43%]', show: 'hidden md:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.2s', dur: '5.8s', depth: 26 },
-  { key: 'facebook', pos: 'right-[5%] top-[61%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.9s', dur: '5s', depth: 30 },
-  { key: 'mastodon', pos: 'right-[15%] top-[80%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '3.1s', dur: '6s', depth: 14 },
+  { pos: 'left-[1%] top-[12%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0s', dur: '5s', depth: 34 },
+  { pos: 'left-[21%] top-[4%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '0.8s', dur: '6s', depth: 20 },
+  { pos: 'left-[1%] top-[31%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.6s', dur: '5.4s', depth: 26 },
+  { pos: 'left-[7%] top-[55%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.2s', dur: '6.2s', depth: 14 },
+  { pos: 'left-[15%] top-[80%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.4s', dur: '5.6s', depth: 30 },
+  { pos: 'right-[1%] top-[6%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.1s', dur: '5.2s', depth: 34 },
+  { pos: 'right-[1%] top-[23%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.8s', dur: '6.4s', depth: 20 },
+  { pos: 'right-[14%] top-[43%]', show: 'hidden md:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.2s', dur: '5.8s', depth: 26 },
+  { pos: 'right-[5%] top-[61%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.9s', dur: '5s', depth: 30 },
+  { pos: 'right-[15%] top-[80%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '3.1s', dur: '6s', depth: 14 },
 ];
+
+/** Seconds between one tile's flips (also the full-cycle length of its loop). */
+const FLIP_CYCLE = 3.4;
+/** Stagger between tiles so they never all turn together. */
+const FLIP_STAGGER = 0.3;
+
+function FlipTile({
+  providers,
+  seed,
+  box,
+  icon,
+  floatDelay,
+  floatDur,
+}: {
+  providers: ProviderKey[];
+  seed: number;
+  box: string;
+  icon: string;
+  floatDelay: string;
+  floatDur: string;
+}) {
+  const n = providers.length;
+  const [index, setIndex] = useState(seed % n);
+  const face = useRef<HTMLSpanElement>(null);
+  const step = useRef(0);
+
+  useEffect(() => {
+    const el = face.current;
+    if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const tl = gsap.timeline({ repeat: -1, delay: 1.8 + seed * FLIP_STAGGER });
+    tl.to(el, { rotateX: 90, rotateY: 90, duration: 0.34, ease: 'power2.in' })
+      .call(() => {
+        step.current += 1;
+        setIndex((seed + step.current) % n);
+      })
+      // A beat to let React paint the incoming mark while the tile is edge-on.
+      .to({}, { duration: 0.06 })
+      .set(el, { rotateX: -90, rotateY: -90 })
+      .to(el, { rotateX: 0, rotateY: 0, duration: 0.4, ease: 'power2.out' })
+      .to({}, { duration: Math.max(0.2, FLIP_CYCLE - 0.8) });
+
+    return () => {
+      tl.kill();
+    };
+  }, [n, seed]);
+
+  return (
+    <span className="animate-float block" style={{ animationDelay: floatDelay, animationDuration: floatDur }}>
+      <span className="block [perspective:900px]">
+        <span
+          ref={face}
+          className={`hero-tile flex items-center justify-center rounded-3xl border border-line bg-white shadow-[0_20px_50px_-20px_rgba(28,25,23,0.45)] ${box}`}
+          style={{ transformStyle: 'preserve-3d' }}
+        >
+          <BrandIcon provider={providers[index]} className={icon} />
+        </span>
+      </span>
+    </span>
+  );
+}
 
 export default function Hero() {
   const root = useRef<HTMLElement>(null);
@@ -95,19 +170,20 @@ export default function Hero() {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         {FLOATERS.map((f, i) => (
           <span
-            key={f.key}
+            key={f.pos}
             ref={(el) => {
               tiles.current[i] = el;
             }}
             className={`absolute ${f.pos} ${f.show}`}
           >
-            <span className="animate-float block" style={{ animationDelay: f.delay, animationDuration: f.dur }}>
-              <span
-                className={`hero-tile flex items-center justify-center rounded-3xl border border-line bg-white shadow-[0_20px_50px_-20px_rgba(28,25,23,0.45)] ${f.box}`}
-              >
-                <BrandIcon provider={f.key} className={f.icon} />
-              </span>
-            </span>
+            <FlipTile
+              providers={PROVIDERS}
+              seed={i}
+              box={f.box}
+              icon={f.icon}
+              floatDelay={f.delay}
+              floatDur={f.dur}
+            />
           </span>
         ))}
       </div>

@@ -1,11 +1,15 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import { createClient } from '@/lib/supabase/client';
 import { callbackUrl, safeNextPath } from '@/lib/auth';
+
+/** How long a spinner may keep spinning if navigation never lands. */
+const BUSY_WATCHDOG_MS = 20000;
 
 function friendly(e: unknown): string {
   const m = String((e as { message?: string })?.message ?? e ?? '');
@@ -16,7 +20,7 @@ function friendly(e: unknown): string {
   return m || 'Something went wrong.';
 }
 
-/** Small inline spinner for buttons while an auth request is in flight. */
+/** Inline spinner used inside the submit buttons while the request is in flight. */
 function Spinner({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -28,24 +32,6 @@ function Spinner({ className = 'h-4 w-4' }: { className?: string }) {
         strokeLinecap="round"
       />
     </svg>
-  );
-}
-
-/** Buffering animation shown over the form while credentials are verified. */
-function AuthBusy({ label }: { label: string }) {
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-2xl bg-card/92 backdrop-blur-[2px]"
-    >
-      <span className="relative flex h-16 w-16 items-center justify-center">
-        <span className="absolute inset-0 rounded-full border-2 border-accent/20 border-t-accent animate-spin" />
-        <span className="absolute inset-2 rounded-full border-2 border-transparent border-b-accent/40 animate-spin [animation-duration:1.6s] [animation-direction:reverse]" />
-        <Image src="/bolt.png" alt="" width={30} height={30} className="animate-float" aria-hidden="true" />
-      </span>
-      <span className="text-sm font-semibold text-soft">{label}</span>
-    </div>
   );
 }
 
@@ -68,44 +54,63 @@ export default function LoginForm({
   const [mode, setMode] = useState<'in' | 'up'>(initialMode ?? 'in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setPending(mode === 'in' ? 'Signing you in…' : 'Creating your account…');
+  function switchMode(next: 'in' | 'up') {
+    setMode(next);
+    setConfirm('');
+    setPassword('');
     setErr(null);
     setNote(null);
+  }
+
+  function stopBusy() {
+    setBusy(false);
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    setNote(null);
+
+    if (mode === 'up' && password !== confirm) {
+      setErr('Passwords do not match.');
+      return;
+    }
+
+    setBusy(true);
     try {
       const sb = createClient();
       if (mode === 'up') {
         const { data, error } = await sb.auth.signUp({ email: email.trim(), password });
         if (error) throw error;
         if (!data.session) {
+          // Email confirmation is on — there is no dashboard to travel to yet.
           setNote('Check your inbox to confirm your email, then sign in.');
+          stopBusy();
           return;
         }
       } else {
         const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       }
+      // Deliberately keep `busy` set: the button keeps buffering until the
+      // dashboard actually renders, not just until the request resolves.
       router.replace(target);
       router.refresh();
+      window.setTimeout(stopBusy, BUSY_WATCHDOG_MS);
     } catch (e) {
       setErr(friendly(e));
-    } finally {
-      setBusy(false);
-      setPending(null);
+      stopBusy();
     }
   }
 
   async function google() {
-    setBusy(true);
-    setPending('Connecting to Google…');
     setErr(null);
+    setBusy(true);
     try {
       const sb = createClient();
       const redirectTo = callbackUrl(window.location.origin);
@@ -116,12 +121,14 @@ export default function LoginForm({
         },
       });
       if (error) throw error;
+      window.setTimeout(stopBusy, BUSY_WATCHDOG_MS);
     } catch (e) {
       setErr(friendly(e));
-      setBusy(false);
-      setPending(null);
+      stopBusy();
     }
   }
+
+  const signingUp = mode === 'up';
 
   return (
     <div className="w-full max-w-sm">
@@ -136,8 +143,12 @@ export default function LoginForm({
       )}
 
       <div className={`relative ${compact ? '' : 'card p-6'}`}>
-        {busy && <AuthBusy label={pending ?? 'Working…'} />}
-        <p className="eyebrow mb-4">{mode === 'in' ? 'Sign in' : 'Create account'}</p>
+        <p className="eyebrow mb-1">{signingUp ? 'Create account' : 'Sign in'}</p>
+        <p className="mb-4 text-xs leading-relaxed text-muted">
+          {signingUp
+            ? 'Set up a workspace in a few seconds — free forever, no card.'
+            : 'Welcome back. Pick up your calendar where you left it.'}
+        </p>
 
         <form onSubmit={submit} className="space-y-3">
           <input
@@ -154,15 +165,42 @@ export default function LoginForm({
             type="password"
             required
             minLength={6}
-            autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
-            placeholder="Password"
+            autoComplete={signingUp ? 'new-password' : 'current-password'}
+            placeholder={signingUp ? 'Choose a password (6+ characters)' : 'Password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {signingUp && (
+            <input
+              className="field"
+              type="password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              placeholder="Confirm password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          )}
+
           <button className="btn btn-primary w-full" disabled={busy} type="submit" aria-busy={busy}>
             {busy && <Spinner />}
-            {mode === 'in' ? 'Sign in' : 'Create account'}
+            {signingUp ? 'Create account' : 'Sign in'}
           </button>
+
+          {signingUp && (
+            <p className="text-center text-xs leading-relaxed text-faint">
+              By creating an account you agree to our{' '}
+              <Link href="/terms" className="text-muted underline underline-offset-2 hover:text-ink">
+                Terms &amp; Conditions
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="text-muted underline underline-offset-2 hover:text-ink">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          )}
         </form>
 
         <div className="my-4 flex items-center gap-3 text-xs text-faint">
@@ -172,11 +210,7 @@ export default function LoginForm({
         </div>
 
         <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button" aria-busy={busy}>
-          {busy && pending?.startsWith('Connecting') ? (
-            <Spinner />
-          ) : (
-            <BrandIcon provider="google" className="h-4 w-4" />
-          )}
+          {busy ? <Spinner /> : <BrandIcon provider="google" className="h-4 w-4" />}
           Continue with Google
         </button>
 
@@ -186,17 +220,13 @@ export default function LoginForm({
         {note && <p className="mt-4 text-sm text-[#346538]">{note}</p>}
 
         <p className="mt-4 text-center text-xs text-muted">
-          {mode === 'in' ? "Don't have an account? " : 'Already have an account? '}
+          {signingUp ? 'Already have an account? ' : "Don't have an account? "}
           <button
             type="button"
             className="font-semibold text-accent underline-offset-2 hover:underline"
-            onClick={() => {
-              setMode(mode === 'in' ? 'up' : 'in');
-              setErr(null);
-              setNote(null);
-            }}
+            onClick={() => switchMode(signingUp ? 'in' : 'up')}
           >
-            {mode === 'in' ? 'Create one' : 'Sign in'}
+            {signingUp ? 'Sign in' : 'Create one'}
           </button>
         </p>
       </div>

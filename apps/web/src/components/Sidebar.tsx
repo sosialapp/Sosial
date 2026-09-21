@@ -52,7 +52,7 @@ const LINKS = [
 
 function NavLinks({ onGo, pathname }: { onGo?: () => void; pathname: string }) {
   return (
-    <nav className="flex-1 space-y-1 px-3" aria-label="Dashboard">
+    <nav className="flex-1 space-y-1 overflow-y-auto px-3" aria-label="Dashboard">
       {LINKS.map((l) => {
         const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
         return (
@@ -111,7 +111,7 @@ export default function Sidebar({ workspaceName, email }: { workspaceName: strin
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-card lg:flex">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-card lg:sticky lg:top-0 lg:flex lg:h-screen lg:max-h-screen">
         <div className="flex items-center gap-2.5 px-5 pb-2 pt-5">
           <Image src="/bolt.png" alt="Sosial" width={30} height={30} />
           <div className="min-w-0">
