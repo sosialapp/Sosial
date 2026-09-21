@@ -77,18 +77,21 @@ function MediaThumb({ media }: { media: MediaAttachment }) {
 
 /** Masonry column width the miniature canvases lay out against. */
 const TPL_COL_W = (Dimensions.get('window').width - 48 - 12) / 2;
+/** Fixed tile width for the built-in templates slider. */
+const TPL_SLIDE_W = 168;
 
 /**
  * The saved design itself, truly previewed: a miniature of the real canvas
  * (backdrop, title, blocks, chrome — exactly what export produces). Name +
  * meta + dots below like a project library, no outer card or border.
  */
-function TplPost({ post, kind, builtIn, onOpen, onMenu }: {
+function TplPost({ post, kind, builtIn, onOpen, onMenu, width = TPL_COL_W }: {
   post: QuickPost;
   kind: 'Template' | 'Design';
   builtIn?: boolean;
   onOpen: () => void;
   onMenu: () => void;
+  width?: number;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -96,9 +99,9 @@ function TplPost({ post, kind, builtIn, onOpen, onMenu }: {
   if (!page) return null;
   const size = POST_SIZES.find((x) => x.id === post.sizeId);
   return (
-    <View style={{ width: TPL_COL_W }}>
+    <View style={{ width }}>
       <TouchableOpacity onPress={onOpen} activeOpacity={0.85}>
-        <PostCanvas page={page} ratio={size?.ratio ?? 1} scale={TPL_COL_W / CANVAS_W} watermark={false} />
+        <PostCanvas page={page} ratio={size?.ratio ?? 1} scale={width / CANVAS_W} watermark={false} />
       </TouchableOpacity>
       <View style={s.tplMeta}>
         <View style={{ flex: 1 }}>
@@ -637,26 +640,52 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               <Text style={s.tplCtaT}>+ New template design</Text>
               <Ionicons name="arrow-forward" size={18} color={C.onInk} />
             </TouchableOpacity>
-            {presets.length === 0 ? (
-              <Text style={s.hint}>No templates yet — tap ••• on any design and choose “Save as template”.</Text>
-            ) : (
-              <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-                {masonry(presets).map((col, ci) => (
-                  <View key={ci} style={{ flex: 1, gap: 20 }}>
-                    {col.map((tpl) => (
+            {presets.filter((t) => t.builtIn).length ? (
+              <>
+                <Text style={[s.secT, { marginTop: 18 }]}>Starter templates</Text>
+                <View style={{ marginHorizontal: -24, marginTop: 12 }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 12, paddingHorizontal: 24 }}
+                  >
+                    {presets.filter((t) => t.builtIn).map((tpl) => (
                       <TplPost
                         key={tpl.id}
                         post={tpl.post}
                         kind="Template"
-                        builtIn={tpl.builtIn}
+                        builtIn
+                        width={TPL_SLIDE_W}
                         onOpen={() => handleUsePreset(tpl)}
                         onMenu={() => setMenu({ kind: 'preset', tpl })}
                       />
                     ))}
-                  </View>
-                ))}
-              </View>
-            )}
+                  </ScrollView>
+                </View>
+              </>
+            ) : null}
+            {presets.filter((t) => !t.builtIn).length ? (
+              <>
+                <Text style={[s.secT, { marginTop: 26 }]}>Your templates</Text>
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                  {masonry(presets.filter((t) => !t.builtIn)).map((col, ci) => (
+                    <View key={ci} style={{ flex: 1, gap: 20 }}>
+                      {col.map((tpl) => (
+                        <TplPost
+                          key={tpl.id}
+                          post={tpl.post}
+                          kind="Template"
+                          onOpen={() => handleUsePreset(tpl)}
+                          onMenu={() => setMenu({ kind: 'preset', tpl })}
+                        />
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : presets.length === 0 ? (
+              <Text style={[s.hint, { marginTop: 12 }]}>No templates yet — tap ••• on any design and choose “Save as template”.</Text>
+            ) : null}
             <Text style={[s.secT, { marginTop: 26 }]}>Recent</Text>
             {projects.length === 0 ? (
               <Text style={s.hint}>Your recent designs land here.</Text>
