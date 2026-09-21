@@ -6,7 +6,7 @@ import { BrandIcon } from '@/components/BrandIcon';
 import ChannelComposer from '@/components/landing/ChannelComposer';
 import ChannelMarquee from '@/components/landing/ChannelMarquee';
 import { ApprovalPreview, ComposerPreview } from '@/components/landing/Preview';
-import HeroOrbit from '@/components/landing/HeroOrbit';
+import type { ProviderKey } from '@/lib/types';
 import { AiWriter, Faq, Pricing } from '@/components/landing/Sections';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { allArticles } from '@/content/blog';
@@ -15,8 +15,6 @@ import { formatPostDate, resourceHref } from '@/content/types';
 
 /** Re-render daily so the illustrative calendar always shows the current month. */
 export const revalidate = 86400;
-
-const FEATURED = ['instagram', 'tiktok', 'youtube', 'x', 'linkedin', 'threads'] as const;
 
 function Shell({
   id,
@@ -34,53 +32,73 @@ function Shell({
   );
 }
 
+const FLOATERS: {
+  key: ProviderKey;
+  pos: string;
+  show: string;
+  box: string;
+  icon: string;
+  delay: string;
+  dur: string;
+}[] = [
+  { key: 'instagram', pos: 'left-[4%] top-[13%]', show: 'hidden sm:flex', box: 'h-14 w-14', icon: 'h-6 w-6', delay: '0s', dur: '5s' },
+  { key: 'x', pos: 'left-[22%] top-[5%]', show: 'hidden md:flex', box: 'h-12 w-12', icon: 'h-5 w-5', delay: '0.8s', dur: '6s' },
+  { key: 'youtube', pos: 'left-[3%] top-[32%]', show: 'hidden sm:flex', box: 'h-14 w-14', icon: 'h-6 w-6', delay: '1.6s', dur: '5.4s' },
+  { key: 'linkedin', pos: 'left-[8%] top-[55%]', show: 'hidden md:flex', box: 'h-12 w-12', icon: 'h-5 w-5', delay: '2.2s', dur: '6.2s' },
+  { key: 'tiktok', pos: 'left-[16%] top-[81%]', show: 'hidden sm:flex', box: 'h-14 w-14', icon: 'h-6 w-6', delay: '0.4s', dur: '5.6s' },
+  { key: 'bluesky', pos: 'right-[5%] top-[7%]', show: 'hidden sm:flex', box: 'h-14 w-14', icon: 'h-6 w-6', delay: '1.1s', dur: '5.2s' },
+  { key: 'pinterest', pos: 'right-[3%] top-[24%]', show: 'hidden md:flex', box: 'h-12 w-12', icon: 'h-5 w-5', delay: '2.8s', dur: '6.4s' },
+  { key: 'threads', pos: 'right-[15%] top-[44%]', show: 'hidden md:flex', box: 'h-14 w-14', icon: 'h-6 w-6', delay: '0.2s', dur: '5.8s' },
+  { key: 'facebook', pos: 'right-[6%] top-[62%]', show: 'hidden sm:flex', box: 'h-14 w-14', icon: 'h-6 w-6', delay: '1.9s', dur: '5s' },
+  { key: 'mastodon', pos: 'right-[16%] top-[81%]', show: 'hidden md:flex', box: 'h-12 w-12', icon: 'h-5 w-5', delay: '3.1s', dur: '6s' },
+];
+
 function Hero() {
   return (
-    <Shell>
-      <div className="grid grid-cols-1 items-center gap-10 md:grid-cols-2">
-        <div>
-          <Link
-            href="#teams"
-            className="pill animate-rise bg-card text-soft ring-1 ring-line transition hover:bg-paper"
-          >
-            <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent" />
-            New: team approvals
-          </Link>
-          <h1 className="animate-rise-1 mt-5 font-display text-4xl font-extrabold leading-[0.95] tracking-tight md:text-6xl">
-            Every channel.
-            <br />
-            One calendar.
-          </h1>
-          <p className="animate-rise-1 mt-5 max-w-md text-base leading-relaxed text-muted">
-            Write once, schedule everywhere. Ten networks from one composer and one shared calendar —
-            with an AI writer, approvals and a queue that runs itself.
-          </p>
-          <div className="animate-rise-2 mt-7 flex flex-wrap items-center gap-2.5">
-            <Link href="/login" className="btn btn-primary btn-lg">
-              Start scheduling free
-            </Link>
-            <a href="#channels" className="btn btn-ghost btn-lg">
-              Try the composer
-            </a>
-          </div>
-          <p className="animate-rise-3 mt-4 text-xs text-faint">
-            Free forever plan · No credit card · iOS, Android &amp; web
-          </p>
-          <ul className="animate-rise-3 mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-            {FEATURED.map((p) => (
-              <li key={p} className="flex items-center gap-1.5 text-xs font-bold text-muted">
-                <BrandIcon provider={p} className="h-4 w-4" />
-                {CHANNEL_GUIDES.find((c) => c.key === p)?.name}
-              </li>
-            ))}
-            <li className="text-xs font-bold text-faint">+4 more</li>
-          </ul>
-        </div>
-        <div className="animate-rise-2">
-          <HeroOrbit />
-        </div>
+    <section className="hero-grid relative overflow-hidden">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        {FLOATERS.map((f) => (
+          <span key={f.key} className={`absolute ${f.pos} ${f.show}`}>
+            <span
+              className={`animate-float flex items-center justify-center rounded-2xl border border-line bg-white shadow-[0_16px_40px_-20px_rgba(28,25,23,0.4)] ${f.box}`}
+              style={{ animationDelay: f.delay, animationDuration: f.dur }}
+            >
+              <BrandIcon provider={f.key} className={f.icon} />
+            </span>
+          </span>
+        ))}
       </div>
-    </Shell>
+      <div className="relative mx-auto max-w-3xl px-4 pb-20 pt-16 text-center md:pb-28 md:pt-24">
+        <Link
+          href="#teams"
+          className="pill animate-rise bg-card text-soft ring-1 ring-line transition hover:bg-paper"
+        >
+          <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent" />
+          New: team approvals
+        </Link>
+        <h1 className="animate-rise-1 mt-6 font-display text-5xl font-extrabold leading-[0.95] tracking-tight md:text-7xl">
+          Every channel.
+          <br />
+          One calendar.
+        </h1>
+        <p className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted md:text-lg">
+          Write once, schedule everywhere. Ten networks from one composer and one shared calendar —
+          with an AI writer, approvals and a queue that runs itself.
+        </p>
+        <div className="animate-rise-2 mt-8 flex flex-wrap items-center justify-center gap-2.5">
+          <Link href="/login" className="btn btn-primary btn-lg">
+            Start scheduling free
+            <span aria-hidden="true">→</span>
+          </Link>
+          <a href="#channels" className="btn btn-ghost btn-lg">
+            Try the composer
+          </a>
+        </div>
+        <p className="animate-rise-3 mt-4 text-xs text-faint">
+          Free forever plan · No credit card · iOS, Android &amp; web
+        </p>
+      </div>
+    </section>
   );
 }
 

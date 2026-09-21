@@ -116,15 +116,14 @@ body {
   animation-play-state: paused;
 }
 
-/* Hero orbit: spokes flow from the bolt out to every channel. */
-@keyframes dash-flow {
-  to {
-    stroke-dashoffset: -18;
-  }
-}
-.orbit-spoke {
-  stroke-dasharray: 4 5;
-  animation: dash-flow 1.1s linear infinite;
+/* Hero: faint blueprint grid that fades toward the edges. */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgb(28 25 23 / 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(28 25 23 / 0.055) 1px, transparent 1px);
+  background-size: 54px 54px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 42%, black 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 85% at 50% 42%, black 25%, transparent 78%);
 }
 
 /* GSAP-driven elements start hidden only when JS is going to reveal them. */
@@ -142,8 +141,7 @@ body {
   .animate-rise-3,
   .animate-float,
   .reveal,
-  .marquee-track,
-  .orbit-spoke {
+  .marquee-track {
     animation: none;
   }
   .js-prep {
