@@ -149,9 +149,7 @@ export default function WelcomeScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={s.mark}>
-          <Image source={require('../../assets/bolt.png')} style={{ width: 38, height: 48 }} resizeMode="contain" />
-        </View>
+        <Image source={require('../../assets/bolt.png')} style={{ width: 68, height: 88, marginBottom: 10 }} resizeMode="contain" />
         <Text style={s.title}>Sosial</Text>
         <Text style={s.sub}>Every channel. One calendar.</Text>
         <Text style={s.strip}>Compose · Schedule · Published</Text>
@@ -329,15 +327,7 @@ const makeS = (C: Palette) =>
       paddingVertical: 40,
       gap: 6,
     },
-    mark: {
-      width: 84,
-      height: 84,
-      borderRadius: 24,
-      backgroundColor: C.ink,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 10,
-    },
+
     title: { ...(T.display as object), color: C.ink } as any,
     sub: { ...(T.body as object), color: C.muted, textAlign: 'center' } as any,
     strip: {
