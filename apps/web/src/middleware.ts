@@ -31,7 +31,14 @@ export async function middleware(request: NextRequest) {
     path === '/' ||
     path.startsWith('/login') ||
     path.startsWith('/auth') ||
-    path.startsWith('/invite');
+    path.startsWith('/invite') ||
+    path.startsWith('/blog') ||
+    path.startsWith('/resources') ||
+    path.startsWith('/integrations') ||
+    path.startsWith('/terms') ||
+    path.startsWith('/privacy') ||
+    path.startsWith('/sitemap') ||
+    path.startsWith('/robots');
 
   if (!user && !isPublic) {
     const redirect = request.nextUrl.clone();
