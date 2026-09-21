@@ -87,8 +87,8 @@ export default function AuthModal({
           ✕
         </button>
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-bone ring-1 ring-line">
-            <Image src="/bolt.png" alt="" width={28} height={28} aria-hidden="true" />
+          <span className="flex h-11 w-11 items-center justify-center">
+            <Image src="/bolt.png" alt="" width={34} height={34} aria-hidden="true" />
           </span>
           <div>
             <p className="font-display text-lg font-extrabold tracking-tight">

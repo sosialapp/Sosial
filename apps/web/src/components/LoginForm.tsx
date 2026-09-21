@@ -16,6 +16,39 @@ function friendly(e: unknown): string {
   return m || 'Something went wrong.';
 }
 
+/** Small inline spinner for buttons while an auth request is in flight. */
+function Spinner({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Buffering animation shown over the form while credentials are verified. */
+function AuthBusy({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-2xl bg-card/92 backdrop-blur-[2px]"
+    >
+      <span className="relative flex h-16 w-16 items-center justify-center">
+        <span className="absolute inset-0 rounded-full border-2 border-accent/20 border-t-accent animate-spin" />
+        <span className="absolute inset-2 rounded-full border-2 border-transparent border-b-accent/40 animate-spin [animation-duration:1.6s] [animation-direction:reverse]" />
+        <Image src="/bolt.png" alt="" width={30} height={30} className="animate-float" aria-hidden="true" />
+      </span>
+      <span className="text-sm font-semibold text-soft">{label}</span>
+    </div>
+  );
+}
+
 export default function LoginForm({
   externalError,
   next,
@@ -36,12 +69,14 @@ export default function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setPending(mode === 'in' ? 'Signing you in…' : 'Creating your account…');
     setErr(null);
     setNote(null);
     try {
@@ -63,11 +98,13 @@ export default function LoginForm({
       setErr(friendly(e));
     } finally {
       setBusy(false);
+      setPending(null);
     }
   }
 
   async function google() {
     setBusy(true);
+    setPending('Connecting to Google…');
     setErr(null);
     try {
       const sb = createClient();
@@ -82,6 +119,7 @@ export default function LoginForm({
     } catch (e) {
       setErr(friendly(e));
       setBusy(false);
+      setPending(null);
     }
   }
 
@@ -89,15 +127,16 @@ export default function LoginForm({
     <div className="w-full max-w-sm">
       {!compact && (
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-bone ring-1 ring-line">
-            <Image src="/bolt.png" alt="Sosial" width={36} height={36} />
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center">
+            <Image src="/bolt.png" alt="Sosial" width={44} height={44} />
           </div>
           <h1 className="font-display text-2xl font-extrabold tracking-tight">Sosial</h1>
           <p className="mt-1 text-sm text-muted">Compose, schedule and publish across every channel.</p>
         </div>
       )}
 
-      <div className={compact ? '' : 'card p-6'}>
+      <div className={`relative ${compact ? '' : 'card p-6'}`}>
+        {busy && <AuthBusy label={pending ?? 'Working…'} />}
         <p className="eyebrow mb-4">{mode === 'in' ? 'Sign in' : 'Create account'}</p>
 
         <form onSubmit={submit} className="space-y-3">
@@ -120,8 +159,9 @@ export default function LoginForm({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button className="btn btn-primary w-full" disabled={busy} type="submit">
-            {busy ? 'Working…' : mode === 'in' ? 'Sign in' : 'Create account'}
+          <button className="btn btn-primary w-full" disabled={busy} type="submit" aria-busy={busy}>
+            {busy && <Spinner />}
+            {mode === 'in' ? 'Sign in' : 'Create account'}
           </button>
         </form>
 
@@ -131,8 +171,12 @@ export default function LoginForm({
           <span className="h-px flex-1 bg-line" />
         </div>
 
-        <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button">
-          <BrandIcon provider="google" className="h-4 w-4" />
+        <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button" aria-busy={busy}>
+          {busy && pending?.startsWith('Connecting') ? (
+            <Spinner />
+          ) : (
+            <BrandIcon provider="google" className="h-4 w-4" />
+          )}
           Continue with Google
         </button>
 
