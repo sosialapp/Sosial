@@ -27,6 +27,7 @@ const ORBIT_R = 118;
 const NODE = 54;
 
 const ALine = Animated.createAnimatedComponent(Line);
+const ACircle = Animated.createAnimatedComponent(Circle);
 
 /**
  * Sosial at the center, every channel one line away. Hold the bolt: the
@@ -41,17 +42,24 @@ function OrbitIllustration() {
   // beats like a heart. Glyphs counter-rotate so they stay upright.
   const spin = useRef(new Animated.Value(0)).current;
   const heart = useRef(new Animated.Value(0)).current;
+  const march = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const circulate = Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 45000, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(spin, { toValue: 1, duration: 30000, easing: Easing.linear, useNativeDriver: true }),
     );
     const beat = Animated.loop(
       Animated.timing(heart, { toValue: 1, duration: 1700, easing: Easing.linear, useNativeDriver: true }),
     );
+    // Dash period is 3 + 7 = 10 units: shifting exactly one period loops seamlessly, forever.
+    const flow = Animated.loop(
+      Animated.timing(march, { toValue: 1, duration: 2600, easing: Easing.linear, useNativeDriver: true }),
+    );
     circulate.start();
     beat.start();
-    return () => { circulate.stop(); beat.stop(); };
-  }, [spin, heart]);
+    flow.start();
+    return () => { circulate.stop(); beat.stop(); flow.stop(); };
+  }, [spin, heart, march]);
+  const marchOffset = march.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
   const orbitRotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const nodeCounter = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
   // Spokes begin just outside the center glow — never buried under it.
@@ -79,7 +87,7 @@ function OrbitIllustration() {
   return (
     <View style={{ width: ORBIT, height: ORBIT }}>
       <Svg width={ORBIT} height={ORBIT} style={StyleSheet.absoluteFill}>
-        <Circle cx={ORBIT_C} cy={ORBIT_C} r={ORBIT_R} fill="none" stroke={C.lineSoft} strokeWidth={1} strokeDasharray="3 7" />
+        <ACircle cx={ORBIT_C} cy={ORBIT_C} r={ORBIT_R} fill="none" stroke={C.lineSoft} strokeWidth={1} strokeDasharray="3 7" strokeDashoffset={marchOffset} />
         <Circle cx={ORBIT_C} cy={ORBIT_C} r={56} fill={C.accentSoft} />
       </Svg>
       <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate: orbitRotate }] }]}>
