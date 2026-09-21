@@ -12,16 +12,15 @@ import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 
 WebBrowser.maybeCompleteAuthSession();
-import { loadTeam, addTeamMember, removeTeamMember, updateMember, memberChannelsLabel, assignableChannels, canRemoveMember, canAssignChannels, canChangeRole, loadActor, saveActor, TeamMember, Actor } from '../utils/team';
 
-type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'team' | 'changelog' | 'terms' | 'legal';
+type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'changelog' | 'terms' | 'legal';
 
 const CHANGELOG = [
   { v: '1.0.0', notes: ['Buffer-style app: Create, Post and Analytics tabs', 'Ideas feed with design-studio link', 'Queue / drafts / approvals / sent pipeline', 'Per-channel insights, top posts and comments', 'Meta login via secure bridge page'] },
 ];
 
 /** Account settings: notifications, email, password, plan, legal… (all on-device, no backend). */
-export default function AccountScreen({ email, team, plan, notifPosts, notifComments, notifWeekly, onUpdate, onBack, onConnect, onPrivacy, onLoggedOut }: {
+export default function AccountScreen({ email, team, plan, notifPosts, notifComments, notifWeekly, onUpdate, onBack, onConnect, onPrivacy, onLoggedOut, onTeam }: {
   email: string;
   team: string;
   plan: 'free' | 'pro' | 'team';
@@ -33,6 +32,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   onConnect: () => void;
   onPrivacy: () => void;
   onLoggedOut: () => void;
+  onTeam: () => void;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -43,13 +43,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [draftTeam, setDraftTeam] = useState(team);
   const [pw1, setPw1] = useState('');
   const [pw2, setPw2] = useState('');
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [mName, setMName] = useState('');
-  const [mEmail, setMEmail] = useState('');
-  const [mChannels, setMChannels] = useState<string[]>(['all']);
-  const [chanList, setChanList] = useState<{ id: string; label: string; sub: string }[]>([]);
-  const [actingAs, setActingAs] = useState<string>('owner');
-  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   /* Sosial Cloud (Supabase staging) — real accounts live alongside the legacy
    * on-device profile until the profile/team migration lands. */
@@ -225,36 +218,12 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     ]);
   };
 
-  const actor: Actor = actingAs === 'owner'
-    ? { id: null, role: 'owner' }
-    : (() => {
-        const m = members.find((x) => x.id === actingAs);
-        return m ? { id: m.id, role: m.role } : { id: null, role: 'owner' as const };
-      })();
-
-  useEffect(() => {
-    loadTeam().then(setMembers);
-    if (view === 'team') {
-      loadMetaState().then((m) => setChanList(assignableChannels(m)));
-    }
-  }, [view]);
-
-  useEffect(() => {
-    loadActor().then((a) => setActingAs(a.id ?? 'owner'));
-  }, []);
-
-  const changeActor = (id: string | null) => {
-    setActingAs(id ?? 'owner');
-    setAssigningId(null);
-    void saveActor(id);
-  };
-
   const planName = plan === 'pro' ? 'Sosial Pro' : plan === 'team' ? 'Sosial Team' : 'Free plan';
 
   const initial = (email || team || 'Z')[0].toUpperCase();
   const title = view === 'main' ? 'Account' : (
     view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings' :
-    view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription' : view === 'team' ? 'Team' :
+    view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription' :
     view === 'changelog' ? "What's new" : view === 'terms' ? 'Terms of use' : 'Legal'
   );
 
@@ -296,73 +265,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     Linking.openURL('https://play.google.com/store/apps/details?id=com.sosial.app').catch(() => {
       Alert.alert('Rate Sosial', 'Sosial isn’t on the Play Store yet — this link will work after release.');
     });
-  };
-
-  const toggleMChannel = (id: string) => {
-    setMChannels((prev) => {
-      if (id === 'all') return ['all'];
-      const without = prev.filter((x) => x !== 'all' && x !== id);
-      if (prev.includes(id)) return without.length ? without : ['all'];
-      return [...without, id];
-    });
-  };
-
-  const saveMember = async () => {
-    if (!mEmail.trim()) {
-      Alert.alert('Email needed', 'Add the teammate’s email so invites reach them.');
-      return;
-    }
-    setMembers(await addTeamMember({ name: mName, email: mEmail, channels: mChannels }));
-    setMName('');
-    setMEmail('');
-    setMChannels(['all']);
-  };
-
-  const dropMember = (m: TeamMember) => {
-    Alert.alert('Remove teammate', `Remove ${m.name} from the team?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => {
-        setMembers(await removeTeamMember(m.id));
-        resetActingIfGone(m.id);
-      } },
-    ]);
-  };
-
-  const resetActingIfGone = (id: string) => {
-    if (actingAs === id) changeActor(null);
-    if (assigningId === id) setAssigningId(null);
-  };
-
-  const leaveTeam = (m: TeamMember) => {
-    Alert.alert('Leave team?', 'You’ll lose access to these channels on this device.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: async () => {
-        setMembers(await removeTeamMember(m.id));
-        resetActingIfGone(m.id);
-      } },
-    ]);
-  };
-
-  const stepDown = (m: TeamMember) => {
-    Alert.alert('Step down?', `${m.name} will become a regular member.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Step down', onPress: async () => setMembers(await updateMember(m.id, { role: 'member' })) },
-    ]);
-  };
-
-  const flipRole = async (m: TeamMember) => {
-    const next = m.role === 'admin' ? 'member' : 'admin';
-    setMembers(await updateMember(m.id, { role: next }));
-  };
-
-  const toggleMemberChannel = async (m: TeamMember, id: string) => {
-    let next: string[];
-    if (id === 'all') next = ['all'];
-    else {
-      const without = m.channels.filter((x) => x !== 'all' && x !== id);
-      next = m.channels.includes(id) ? (without.length ? without : ['all']) : [...without, id];
-    }
-    setMembers(await updateMember(m.id, { channels: next }));
   };
 
   const proTotal = yearly ? `$${49 * proChannels}/yr` : `$${(4.99 * proChannels).toFixed(2)}/mo`;
@@ -466,7 +368,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 ),
               )}
               {row('card-outline', 'Subscription plan', planName, () => setView('plan'))}
-              {plan === 'team' ? row('people-outline', 'Team', members.length ? `${members.length} teammate${members.length === 1 ? '' : 's'} · invite & roles` : 'Invite people & assign channels', () => setView('team')) : null}
+              {plan === 'team' ? row('people-outline', 'Team', 'Roles, channels & invites', onTeam) : null}
               {row('refresh-outline', 'Restore purchase', undefined, () => Alert.alert('Restore purchase', 'No purchases found on this device.'))}
               {row('star-outline', 'Rate Sosial', 'Review on the Play Store', rateApp)}
               {row('sparkles-outline', "What's new", 'Changelog', () => setView('changelog'))}
@@ -617,165 +519,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
           </View>
         ) : null}
 
-        {view === 'team' ? (
-          plan !== 'team' ? (
-            <View style={{ marginTop: 16, gap: 12 }}>
-              <View style={s.empty}>
-                <Text style={s.emptyT}>Team needs Sosial Team</Text>
-                <Text style={s.emptyS}>The roster, roles and per-channel assignment unlock on the Team plan.</Text>
-                <TouchableOpacity onPress={() => setView('plan')} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
-                  <Text style={s.saveT}>See plans</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-          <View style={{ marginTop: 16, gap: 12 }}>
-            <Text style={s.note}>Roster lives on this device for now — real invites and cross-device sync arrive with the backend.</Text>
 
-            <Field label="Acting as" hint="Preview what each role can do.">
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <TouchableOpacity onPress={() => changeActor(null)} style={[s.chan, actingAs === 'owner' && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                  <Text style={[s.chanT, actingAs === 'owner' && { color: C.onInk }]}>Owner (you)</Text>
-                </TouchableOpacity>
-                {members.map((m) => (
-                  <TouchableOpacity key={m.id} onPress={() => changeActor(m.id)} style={[s.chan, actingAs === m.id && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                    <Text style={[s.chanT, actingAs === m.id && { color: C.onInk }]}>{m.name} · {m.role}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Field>
-
-            <View style={s.head}>
-              <View style={s.avatar}><Text style={s.avatarT}>{initial}</Text></View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={s.email} numberOfLines={1}>{email || 'No email set'}</Text>
-                <Text style={s.team} numberOfLines={1}>{team} · Owner</Text>
-              </View>
-            </View>
-
-            {members.map((m) => {
-              const isSelf = actor.id === m.id;
-              const showRoleFlip = !isSelf && canChangeRole(actor, m, m.role === 'admin' ? 'member' : 'admin');
-              const showChannels = !isSelf && canAssignChannels(actor, m);
-              const showTrash = !isSelf && canRemoveMember(actor, m);
-              return (
-                <View key={m.id} style={s.member}>
-                  <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(m.name || m.email || '?')[0].toUpperCase()}</Text></View>
-                  <View style={{ flex: 1, gap: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                      <Text style={s.rowT} numberOfLines={1}>{m.name}</Text>
-                      <View style={s.rolePill}><Text style={s.rolePillT}>{m.role}</Text></View>
-                    </View>
-                    <Text style={s.rowS} numberOfLines={1}>{m.email} · {memberChannelsLabel(m.channels)}</Text>
-                    {isSelf && actor.role === 'admin' ? (
-                      <View style={{ marginTop: 8 }}><GhostBtn label="Step down to member" onPress={() => stepDown(m)} /></View>
-                    ) : null}
-                    {isSelf && actor.role === 'member' ? (
-                      <View style={{ marginTop: 8 }}><GhostBtn label="Leave team" danger onPress={() => leaveTeam(m)} /></View>
-                    ) : null}
-                    {showRoleFlip ? (
-                      <View style={{ marginTop: 8 }}>
-                        <GhostBtn
-                          label={m.role === 'admin' ? 'Demote to member' : 'Make admin'}
-                          onPress={() => flipRole(m)}
-                        />
-                      </View>
-                    ) : null}
-                    {showChannels ? (
-                      <View style={{ marginTop: 8 }}>
-                        <GhostBtn
-                          label={assigningId === m.id ? 'Done assigning' : 'Assign channels'}
-                          onPress={() => setAssigningId(assigningId === m.id ? null : m.id)}
-                        />
-                      </View>
-                    ) : null}
-                  </View>
-                  {showTrash ? (
-                    <TouchableOpacity onPress={() => dropMember(m)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Ionicons name="trash-outline" size={18} color={C.faint} />
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              );
-            })}
-            {members.length === 0 ? (
-              <Text style={s.hint}>No teammates yet — invite your first below.</Text>
-            ) : null}
-            {assigningId ? (
-              (() => {
-                const m = members.find((x) => x.id === assigningId);
-                if (!m || !canAssignChannels(actor, m)) return null;
-                return (
-                  <View style={s.plan}>
-                    <Text style={s.planT}>Channels for {m.name}</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                      <TouchableOpacity
-                        onPress={() => toggleMemberChannel(m, 'all')}
-                        style={[s.chan, m.channels.includes('all') && { backgroundColor: C.ink, borderColor: C.ink }]}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={[s.chanT, m.channels.includes('all') && { color: C.onInk }]}>All channels</Text>
-                      </TouchableOpacity>
-                      {chanList.map((c) => {
-                        const on = m.channels.includes(c.id);
-                        return (
-                          <TouchableOpacity
-                            key={c.id}
-                            onPress={() => toggleMemberChannel(m, c.id)}
-                            style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
-                            activeOpacity={0.75}
-                          >
-                            <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                );
-              })()
-            ) : null}
-
-            {actor.role === 'owner' ? (
-              <View style={s.plan}>
-                <Text style={s.planT}>Invite teammate</Text>
-                <Field label="Name">
-                  <Txt value={mName} onChangeText={setMName} placeholder="e.g. Ain" />
-                </Field>
-                <Field label="Email">
-                  <Txt value={mEmail} onChangeText={setMEmail} placeholder="teammate@studio.com" keyboardType="email-address" autoCapitalize="none" />
-                </Field>
-                <Field label="Channels they can post to" hint="All channels, or pick specific ones.">
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => toggleMChannel('all')}
-                      style={[s.chan, mChannels.includes('all') && { backgroundColor: C.ink, borderColor: C.ink }]}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[s.chanT, mChannels.includes('all') && { color: C.onInk }]}>All channels</Text>
-                    </TouchableOpacity>
-                    {chanList.map((c) => {
-                      const on = mChannels.includes(c.id);
-                      return (
-                        <TouchableOpacity
-                          key={c.id}
-                          onPress={() => toggleMChannel(c.id)}
-                          style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
-                          activeOpacity={0.75}
-                        >
-                          <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </Field>
-                <TouchableOpacity onPress={saveMember} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
-                  <Text style={s.saveT}>Add teammate</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
-          )
-        ) : null}
 
         {view === 'changelog' ? (
           <View style={{ marginTop: 16, gap: 12 }}>
@@ -871,16 +615,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   note: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted, margin: 14 },
   hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted },
   plan: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 16, gap: 6 },
-  member: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 13 },
-  miniAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
-  miniAvatarT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14, color: C.onInk },
-  chan: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.paper, borderWidth: 1, borderColor: C.lineSoft },
-  chanT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
-  rolePill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  rolePillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk, textTransform: 'capitalize' },
-  empty: { backgroundColor: C.card, borderRadius: R.lg, padding: 28, alignItems: 'center' },
-  emptyT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: C.ink },
-  emptyS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6, textAlign: 'center', lineHeight: 19 },
+
   planT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, color: C.ink },
   currentTag: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accent, marginTop: 6 },
   planS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 20, color: C.muted },

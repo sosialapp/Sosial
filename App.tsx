@@ -16,6 +16,7 @@ import SizeScreen from './src/screens/SizeScreen';
 import EditorScreen from './src/screens/EditorScreen';
 import ExportScreen from './src/screens/ExportScreen';
 import ConnectScreen from './src/screens/ConnectScreen';
+import TeamScreen from './src/screens/TeamScreen';
 import PrivacyScreen from './src/screens/PrivacyScreen';
 import BottomNav, { MainTab } from './src/components/BottomNav';
 import ProfileMenu from './src/components/ProfileMenu';
@@ -26,7 +27,7 @@ import { pushProfileToCloud, currentSession, isSupabaseConfigured } from './src/
 import { handleAuthUrl, getPendingAuth } from './src/utils/authFlow';
 import { useTheme, ThemeProvider } from './src/theme';
 
-type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account';
+type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
 
 // Canvas is a fixed-size export artifact — ignore the OS font-size setting
 // so it renders pixel-identical on every device (esp. Android). Also kill
@@ -47,6 +48,7 @@ function Shell() {
   const [route, setRoute] = useState<Route>('create');
   const [connectFrom, setConnectFrom] = useState<Route>('create');
   const [privacyFrom, setPrivacyFrom] = useState<Route>('account');
+  const [teamFrom, setTeamFrom] = useState<Route>('create');
   const [profileOpen, setProfileOpen] = useState(false);
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
@@ -165,6 +167,10 @@ function Shell() {
       }
       if (r === 'privacy') {
         setRoute(privacyFrom);
+        return true;
+      }
+      if (r === 'team') {
+        setRoute(teamFrom);
         return true;
       }
       if (r === 'account') {
@@ -341,10 +347,20 @@ function Shell() {
               onConnect={() => goConnect('account')}
               onPrivacy={() => { setPrivacyFrom('account'); setRoute('privacy'); }}
               onLoggedOut={goWelcomeLocked}
+              onTeam={() => { setTeamFrom('account'); setRoute('team'); }}
             />
           ) : null}
           {route === 'privacy' ? <PrivacyScreen onBack={() => setRoute(privacyFrom)} /> : null}
-          {route === 'connect' ? <ConnectScreen onBack={() => setRoute(connectFrom)} /> : null}
+          {route === 'connect' ? <ConnectScreen onBack={() => setRoute(connectFrom)} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
+          {route === 'team' ? (
+            <TeamScreen
+              plan={account.plan}
+              email={account.email}
+              teamName={account.team}
+              onBack={() => setRoute(teamFrom)}
+              onSeePlans={() => setRoute('account')}
+            />
+          ) : null}
         </View>
         {isTab ? (
           <BottomNav

@@ -24,6 +24,7 @@ import { loginPinterest, completePinLogin } from '../utils/pinAuth';
 import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { BUILD_TAG } from '../utils/build';
+import { loadTeam } from '../utils/team';
 import { disableCloudChannel, syncCloudChannels } from '../utils/cloudChannels';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { IG_APP_ID } from '../utils/metaConfig';
@@ -40,10 +41,11 @@ function ChannelIcon({ platform }: { platform: string }) {
 }
 
 /** One compact row per channel — tap to connect, tap again to manage. */
-export default function ConnectScreen({ onBack }: { onBack: () => void }) {
+export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; onTeam: () => void }) {
   const { C } = useTheme();
   const s = makeS(C);
   const [meta, setMeta] = useState<MetaState>({});
+  const [teamCount, setTeamCount] = useState<number | null>(null);
   const [pages, setPages] = useState<FbPage[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [openCh, setOpenCh] = useState<string | null>(null);
@@ -55,6 +57,7 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
   useEffect(() => {
     loadMetaState().then((m) => { setMeta(m); });
+    loadTeam().then((m) => setTeamCount(m.length));
   }, []);
 
   // Master-switch reconciler: any credential change auto-imports (master on)
@@ -853,6 +856,23 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
         <Text style={s.kicker}>Channels</Text>
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Connect</Text>
 
+        <TouchableOpacity onPress={onTeam} style={s.teamBtn} activeOpacity={0.8}>
+          <View style={s.teamIcon}>
+            <Ionicons name="people-outline" size={19} color={C.onInk} />
+          </View>
+          <View style={{ flex: 1, gap: 1 }}>
+            <Text style={s.teamT}>Team</Text>
+            <Text style={s.teamS}>
+              {teamCount === null
+                ? 'Roles, channels & invites'
+                : teamCount === 0
+                  ? 'Invite teammates & manage roles'
+                  : `${teamCount} teammate${teamCount === 1 ? '' : 's'} · roles & invites`}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.faint} />
+        </TouchableOpacity>
+
         {!configured ? (
           <View style={s.warn}>
             <Text style={s.warnT}>Add your Meta App ID in .env first, then reload.</Text>
@@ -896,6 +916,10 @@ export default function ConnectScreen({ onBack }: { onBack: () => void }) {
 
 const makeS = (C: Palette) => StyleSheet.create({
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  teamBtn: { flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 14, paddingVertical: 13, marginTop: 16 },
+  teamIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
+  teamT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
+  teamS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
   kicker: { ...T.tag, color: C.accent, marginTop: 24 },
   warn: { backgroundColor: C.paleRed, borderRadius: R.lg, padding: 14, marginTop: 16 },
   warnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.redText, lineHeight: 19 },
