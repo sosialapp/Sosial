@@ -54,6 +54,9 @@ function OrbitIllustration() {
   }, [spin, heart]);
   const orbitRotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const nodeCounter = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
+  // Spokes begin just outside the center glow — never buried under it.
+  const TRIM = 58 / ORBIT_R;
+  const trim = (p: { x: number; y: number }) => ({ x: ORBIT_C + (p.x - ORBIT_C) * TRIM, y: ORBIT_C + (p.y - ORBIT_C) * TRIM });
   const heartScale = heart.interpolate({ inputRange: [0, 0.1, 0.2, 0.32, 0.42, 1], outputRange: [1, 1.12, 1, 1.07, 1, 1] });
   const pts = NODES.map((_, i) => {
     const a = ((-90 + i * 36) * Math.PI) / 180;
@@ -81,23 +84,28 @@ function OrbitIllustration() {
       </Svg>
       <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate: orbitRotate }] }]}>
         <Svg width={ORBIT} height={ORBIT} style={StyleSheet.absoluteFill}>
-          {pts.map((p, i) => (
-            <Line key={`base-${i}`} x1={ORBIT_C} y1={ORBIT_C} x2={p.x} y2={p.y} stroke={C.lineSoft} strokeWidth={1} />
-          ))}
-          {pts.map((p, i) => (
-            <ALine
-              key={`lit-${i}`}
-              x1={ORBIT_C}
-              y1={ORBIT_C}
-              x2={p.x}
-              y2={p.y}
-              stroke={BRAND[NODES[i]]}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeDasharray={`${ORBIT_R}`}
-              strokeDashoffset={progress.interpolate({ inputRange: [i * 0.05, i * 0.05 + 0.25], outputRange: [ORBIT_R, 0], extrapolate: 'clamp' })}
-            />
-          ))}
+          {pts.map((p, i) => {
+            const s = trim(p);
+            return (
+              <Line key={`base-${i}`} x1={s.x} y1={s.y} x2={p.x} y2={p.y} stroke={C.lineSoft} strokeWidth={1} strokeDasharray="4 5" />
+            );
+          })}
+          {pts.map((p, i) => {
+            const s = trim(p);
+            return (
+              <ALine
+                key={`lit-${i}`}
+                x1={s.x}
+                y1={s.y}
+                x2={p.x}
+                y2={p.y}
+                stroke={BRAND[NODES[i]]}
+                strokeWidth={2.5}
+                strokeDasharray="4 5"
+                opacity={progress.interpolate({ inputRange: [i * 0.05, i * 0.05 + 0.3], outputRange: [0, 1], extrapolate: 'clamp' })}
+              />
+            );
+          })}
         </Svg>
         {NODES.map((n, i) => {
           const start = 0.6 + i * 0.035;
