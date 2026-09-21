@@ -8,8 +8,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 export type AuthChannel = 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube';
 
+export interface PendingAuth {
+  channel: AuthChannel;
+  /** Set when re-authenticating a specific account (multi-account slice). */
+  accountId?: string;
+}
+
 export interface AuthResult {
   channel: AuthChannel;
+  accountId?: string;
   code?: string;
   error?: string;
   url: string;
@@ -17,25 +24,37 @@ export interface AuthResult {
 
 const PENDING_KEY = 'sosial_pending_auth_v1';
 
-let pendingMemory: AuthChannel | null = null;
+let pendingMemory: PendingAuth | null = null;
 let queue: AuthResult[] = [];
 let listeners: ((r: AuthResult) => void)[] = [];
 
-export async function setPendingAuth(ch: AuthChannel): Promise<void> {
-  pendingMemory = ch;
+export async function setPendingAuth(ch: AuthChannel, accountId?: string): Promise<void> {
+  const p: PendingAuth = { channel: ch, accountId };
+  pendingMemory = p;
   try {
-    await AsyncStorage.setItem(PENDING_KEY, ch);
+    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(p));
   } catch {}
 }
 
-export async function getPendingAuth(): Promise<AuthChannel | null> {
+async function readPendingAuth(): Promise<PendingAuth | null> {
   if (pendingMemory) return pendingMemory;
   try {
     const v = await AsyncStorage.getItem(PENDING_KEY);
-    return (v as AuthChannel) || null;
+    if (!v) return null;
+    if (v.charAt(0) === '{') {
+      const p = JSON.parse(v) as PendingAuth;
+      return p && p.channel ? p : null;
+    }
+    // Legacy plain channel string from before account ids existed.
+    return { channel: v as AuthChannel };
   } catch {
     return null;
   }
+}
+
+export async function getPendingAuth(): Promise<AuthChannel | null> {
+  const p = await readPendingAuth();
+  return p ? p.channel : null;
 }
 
 export async function clearPendingAuth(): Promise<void> {
@@ -106,10 +125,10 @@ export async function markCodeDone(code: string): Promise<void> {
 export async function handleAuthUrl(url: string): Promise<AuthResult | null> {
   if (!url) return null;
   if (!/[?&#](code|error)/.test(url)) return null;
-  const channel = await getPendingAuth();
-  if (!channel) return null;
+  const pending = await readPendingAuth();
+  if (!pending) return null;
   const { code, error } = parseAuthReturn(url);
-  const result: AuthResult = { channel, code, error, url };
+  const result: AuthResult = { channel: pending.channel, accountId: pending.accountId, code, error, url };
   publishAuthResult(result);
   return result;
 }

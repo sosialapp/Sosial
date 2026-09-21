@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { LI_API, LI_VERSION, LI_MAX_IMAGES, LI_MAX_TEXT, LI_MAX_BYTES } from './liConfig';
 import { getValidLi, liAuthorUrn } from './liAuth';
-import { loadMetaState } from './metaStore';
+import { loadProviderFields } from './metaStore';
 import { b64ToBytes } from './bskyPublish';
 
 const vH = (token: string) => ({
@@ -85,10 +85,10 @@ async function uploadLiImage(
  * Image upload owner must match the author, or LinkedIn 403s the post.
  * Returns the post URN (from the x-restli-id response header).
  */
-export async function publishLinkedIn(opts: { text: string; imageUris?: string[] }): Promise<string> {
-  const { token, personUrn } = await getValidLi();
-  const m = await loadMetaState();
-  const author = liAuthorUrn({ liOrgId: m.liOrgId, liPersonUrn: personUrn });
+export async function publishLinkedIn(opts: { text: string; imageUris?: string[]; accountId?: string }): Promise<string> {
+  const { token, personUrn } = await getValidLi(opts.accountId);
+  const fields = await loadProviderFields('linkedin', opts.accountId);
+  const author = liAuthorUrn({ liOrgId: fields.liOrgId as string | undefined, liPersonUrn: personUrn });
   if (!author) throw new Error('LinkedIn not connected');
   const text = fitText(opts.text);
   const uris = (opts.imageUris ?? []).filter(Boolean).slice(0, LI_MAX_IMAGES);

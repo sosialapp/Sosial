@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { SocialGlyph, Txt } from '../components/ui';
+import { SocialGlyph, Txt, ChannelAvatar } from '../components/ui';
 import { SOCIAL_META } from '../constants';
-import { META_APP_ID } from '../utils/metaConfig';
-import { loadMetaState, saveMetaState, MetaState } from '../utils/metaStore';
+import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
+import { loadAccounts, removeAccount, saveProviderFields, makeAccount } from '../utils/metaStore';
+import { accountName, accountAvatar, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
 import {
   loginFacebook, exchangeFacebookCode, fetchPages, pickPage, FbPage,
   loginInstagram, exchangeInstagramCode, fetchInstagramProfile,
@@ -27,36 +28,34 @@ import { BUILD_TAG } from '../utils/build';
 import { loadTeam } from '../utils/team';
 import { disableCloudChannel, syncCloudChannels } from '../utils/cloudChannels';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
-import { IG_APP_ID } from '../utils/metaConfig';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
-function ChannelIcon({ platform }: { platform: string }) {
-  const { C } = useTheme();
-  const s = makeS(C);
-  return (
-    <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: SOCIAL_META[platform]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
-      <SocialGlyph platform={platform} size={17} color="#fff" />
-    </View>
-  );
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest'];
+
+function ChannelIcon({ platform, avatar }: { platform: string; avatar?: string }) {
+  return <ChannelAvatar platform={platform} avatar={avatar} size={38} />;
 }
 
-/** One compact row per channel — tap to connect, tap again to manage. */
+/** One compact row per provider — tap to connect, tap again to manage its accounts. */
 export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; onTeam: () => void }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const [meta, setMeta] = useState<MetaState>({});
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+  const meta = useMemo(() => metaFromAccounts(accounts), [accounts]);
   const [teamCount, setTeamCount] = useState<number | null>(null);
   const [pages, setPages] = useState<FbPage[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [openCh, setOpenCh] = useState<string | null>(null);
+  const [openProvider, setOpenProvider] = useState<ProviderKey | null>(null);
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   const [mastodonInstance, setMastodonInstance] = useState('');
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
+  const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
+
   useEffect(() => {
-    loadMetaState().then((m) => { setMeta(m); });
+    loadAccounts().then(setAccounts);
     loadTeam().then((m) => setTeamCount(m.length));
   }, []);
 
@@ -108,14 +107,15 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     try {
       if (r.channel === 'facebook') {
         const token = await exchangeFacebookCode(r.code);
-        const st = await saveMetaState({
+        await saveProviderFields('facebook', {
           fbUserToken: token,
           pageId: undefined, pageName: undefined, pageToken: undefined,
-        });
-        setMeta(st);
+        }, r.accountId);
+        setAccounts(await loadAccounts());
         const pgs = await fetchPages(token);
         setPages(pgs);
-        setOpenCh('facebook');
+        setOpenProvider('facebook');
+        setSelId((s) => ({ ...s, facebook: r.accountId ?? 'acct_facebook' }));
         if (pgs.length === 0) {
           Alert.alert('No Pages found', 'Create a Facebook Page you manage first — posts publish as the Page.');
         }
@@ -123,43 +123,48 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         const { token, userId } = await exchangeInstagramCode(r.code);
         let name: string | undefined;
         let id = userId;
+        let avatar: string | undefined;
         try {
           const prof = await fetchInstagramProfile(token);
           id = prof.id || userId;
           name = prof.username;
+          avatar = prof.picture;
         } catch {}
-        const st = await saveMetaState({ igToken: token, igId: id, igName: name });
-        setMeta(st);
+        await saveProviderFields('instagram', { igToken: token, igId: id, igName: name, avatar }, r.accountId);
+        setAccounts(await loadAccounts());
       } else if (r.channel === 'threads') {
         const { token, userId } = await exchangeThreadsCode(r.code);
         let name: string | undefined;
+        let avatar: string | undefined;
         try {
           const prof = await fetchThreadsProfile(token);
           name = prof.username;
+          avatar = prof.picture;
         } catch {}
-        const st = await saveMetaState({ threadsToken: token, threadsId: userId, threadsName: name });
-        setMeta(st);
+        await saveProviderFields('threads', { threadsToken: token, threadsId: userId, threadsName: name, avatar }, r.accountId);
+        setAccounts(await loadAccounts());
       } else if (r.channel === 'tiktok') {
-        const { name } = await completeTikTokLogin(r.code);
-        setMeta(await loadMetaState());
-        setOpenCh('tiktok');
+        const { name } = await completeTikTokLogin(r.code, r.accountId);
+        setAccounts(await loadAccounts());
+        setOpenProvider('tiktok');
         if (!name) Alert.alert('Connected', 'TikTok connected — we couldn’t read the display name yet.');
       } else if (r.channel === 'x') {
-        const { name } = await completeXLogin(r.code);
-        setMeta(await loadMetaState());
-        setOpenCh('x');
+        const { name } = await completeXLogin(r.code, r.accountId);
+        setAccounts(await loadAccounts());
+        setOpenProvider('x');
         if (!name) Alert.alert('Connected', 'X connected — we couldn’t read the handle yet.');
       } else if (r.channel === 'mastodon') {
-        const { name } = await completeMastodonLogin(r.code);
-        setMeta(await loadMetaState());
-        setOpenCh('mastodon');
+        const { name } = await completeMastodonLogin(r.code, r.accountId);
+        setAccounts(await loadAccounts());
+        setOpenProvider('mastodon');
         if (!name) Alert.alert('Connected', 'Mastodon connected — we couldn’t read the handle yet.');
       } else if (r.channel === 'linkedin') {
-        const { name } = await completeLiLogin(r.code);
-        setMeta(await loadMetaState());
-        setOpenCh('linkedin');
+        const { name } = await completeLiLogin(r.code, r.accountId);
+        setAccounts(await loadAccounts());
+        setOpenProvider('linkedin');
+        setSelId((s) => ({ ...s, linkedin: r.accountId ?? 'acct_linkedin' }));
         try {
-          const orgs = await listMyLiOrgs();
+          const orgs = await listMyLiOrgs(r.accountId ?? 'acct_linkedin');
           setLiOrgs(orgs);
           if (orgs.length === 0) {
             Alert.alert('No Company Pages found', 'Posting as yourself — admin a LinkedIn Page to post as the business.');
@@ -170,16 +175,20 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         }
         if (!name) Alert.alert('Connected', 'LinkedIn connected — we couldn’t read the name yet.');
       } else if (r.channel === 'youtube') {
-        const { name } = await completeYtLogin(r.code);
-        setMeta(await loadMetaState());
-        setOpenCh('youtube');
+        const { name } = await completeYtLogin(r.code, r.accountId);
+        setAccounts(await loadAccounts());
+        setOpenProvider('youtube');
         if (!name) Alert.alert('Connected', 'YouTube connected — we couldn’t read the channel yet.');
       } else if (r.channel === 'pinterest') {
-        const { name } = await completePinLogin(r.code);
-        setMeta(await loadMetaState());
-        setOpenCh('pinterest');
+        const { name } = await completePinLogin(r.code, r.accountId);
+        const accts = await loadAccounts();
+        setAccounts(accts);
+        setOpenProvider('pinterest');
+        const pid = r.accountId ?? 'acct_pinterest';
+        setSelId((s) => ({ ...s, pinterest: pid }));
         setPinBoards(null);
-        void loadPinBoards();
+        const acct = accts.find((a) => a.id === pid);
+        if (acct) void loadPinBoardsFor(acct);
         if (!name) Alert.alert('Connected', 'Pinterest connected — we couldn’t read the handle yet. Pick a board below.');
       }
       if (r.code) await markCodeDone(r.code);
@@ -208,27 +217,27 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     );
   };
 
-  const doFacebook = async () => {
+  const doFacebook = async (accountId?: string) => {
     setBusy('Opening Facebook…');
-    if (!(await loginFacebook())) backedOut('Facebook');
+    if (!(await loginFacebook(accountId))) backedOut('Facebook');
   };
 
-  const doInstagram = async () => {
+  const doInstagram = async (accountId?: string) => {
     setBusy('Opening Instagram…');
-    if (!(await loginInstagram())) backedOut('Instagram');
+    if (!(await loginInstagram(accountId))) backedOut('Instagram');
   };
 
-  const doThreads = async () => {
+  const doThreads = async (accountId?: string) => {
     setBusy('Opening Threads…');
-    if (!(await loginThreads())) backedOut('Threads');
+    if (!(await loginThreads(accountId))) backedOut('Threads');
   };
 
-  const loadPages = async () => {
-    const st = await loadMetaState();
-    if (!st.fbUserToken) return;
+  const loadPagesFor = async (acct: ConnectedAccount) => {
+    const tok = acct.fields.fbUserToken as string | undefined;
+    if (!tok) { setPages([]); return; }
     setBusy('Loading Pages…');
     try {
-      setPages(await fetchPages(st.fbUserToken));
+      setPages(await fetchPages(tok));
     } catch (e: any) {
       Alert.alert('Failed', e?.message ?? 'Could not load Pages.');
     } finally {
@@ -236,72 +245,43 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
-  const disconnectFB = async () => {
-    // Disconnect revokes the cloud copy too — snapshot carries the ids being cleared.
-    void disableCloudChannel('facebook', meta);
-    const st = await saveMetaState({
-      fbUserToken: undefined, pageId: undefined, pageName: undefined, pageToken: undefined,
-    });
-    setMeta(st);
-    setPages([]);
-    setOpenCh(null);
+  const disconnectAccount = async (account: ConnectedAccount) => {
+    // Disconnect revokes the cloud copy too — provider-wide sweep when it's the
+    // last account (precise external_id removal lands with Slice 4).
+    const remaining = accounts.filter((a) => a.provider === account.provider && a.id !== account.id);
+    if (remaining.length === 0) void disableCloudChannel(account.provider, meta);
+    setAccounts(await removeAccount(account.id));
+    setOpenProvider(null);
+    if (account.provider === 'facebook') setPages([]);
+    if (account.provider === 'pinterest') setPinBoards(null);
+    if (account.provider === 'linkedin') setLiOrgs([]);
   };
 
-  const disconnectIG = async () => {
-    void disableCloudChannel('instagram', meta);
-    const st = await saveMetaState({ igToken: undefined, igId: undefined, igName: undefined });
-    setMeta(st);
-    setOpenCh(null);
-  };
-
-  const disconnectThreads = async () => {
-    void disableCloudChannel('threads', meta);
-    const st = await saveMetaState({ threadsToken: undefined, threadsId: undefined, threadsName: undefined });
-    setMeta(st);
-    setOpenCh(null);
-  };
-
-  const doTikTok = async () => {
+  const doTikTok = async (accountId?: string) => {
     if (!ttConfigured) {
       Alert.alert('Keys missing', 'TikTok client key is empty — check .env, then restart Expo (env loads at startup).');
       return;
     }
     setBusy('Opening TikTok…');
-    if (!(await loginTikTok())) backedOut('TikTok');
+    if (!(await loginTikTok(accountId))) backedOut('TikTok');
   };
 
-  const disconnectTikTok = async () => {
-    void disableCloudChannel('tiktok', meta);
-    const st = await saveMetaState({
-      ttAccessToken: undefined, ttRefreshToken: undefined, ttExpiresAt: undefined,
-      ttOpenId: undefined, ttName: undefined,
-    });
-    setMeta(st);
-    setOpenCh(null);
-  };
-
-  const doX = async () => {
+  const doX = async (accountId?: string) => {
+    if (!xConfigured) {
+      Alert.alert('Keys missing', 'Paste the X Client ID into .env first, then reload.');
+      return;
+    }
     setBusy('Opening X…');
-    if (!(await loginX())) backedOut('X');
+    if (!(await loginX(accountId))) backedOut('X');
   };
 
-  const disconnectX = async () => {
-    void disableCloudChannel('x', meta);
-    const st = await saveMetaState({
-      xAccessToken: undefined, xRefreshToken: undefined, xExpiresAt: undefined,
-      xUserId: undefined, xName: undefined,
-    });
-    setMeta(st);
-    setOpenCh(null);
-  };
-
-  const doBsky = async () => {
+  const doBsky = async (accountId?: string) => {
     setBusy('Connecting Bluesky…');
     try {
-      const { name } = await completeBskyLogin(bskyHandle, bskyPass);
+      const { name } = await completeBskyLogin(bskyHandle, bskyPass, accountId);
       setBskyPass('');
-      setMeta(await loadMetaState());
-      setOpenCh('bluesky');
+      setAccounts(await loadAccounts());
+      setOpenProvider('bluesky');
       if (!name) Alert.alert('Connected', 'Bluesky connected.');
     } catch (e: any) {
       Alert.alert('Bluesky login failed', e?.message ?? 'Try again.');
@@ -310,65 +290,34 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
-  const disconnectBsky = async () => {
-    void disableCloudChannel('bluesky', meta);
-    const st = await saveMetaState({
-      bskyAccessJwt: undefined, bskyRefreshJwt: undefined, bskyExpiresAt: undefined,
-      bskyDid: undefined, bskyHandle: undefined, bskyName: undefined, bskyPdsHost: undefined,
-    });
-    setMeta(st);
-    setOpenCh(null);
-  };
-
-  const doMastodon = async () => {
+  const doMastodon = async (accountId?: string) => {
     setBusy('Opening Mastodon…');
     try {
-      if (!(await loginMastodon(mastodonInstance))) backedOut('Mastodon');
+      if (!(await loginMastodon(mastodonInstance, accountId))) backedOut('Mastodon');
     } catch (e: any) {
       setBusy(null);
       Alert.alert('Mastodon login failed', e?.message ?? 'Try again.');
     }
   };
 
-  const disconnectMastodon = async () => {
-    void disableCloudChannel('mastodon', meta);
-    const st = await saveMetaState({
-      mastodonAccessToken: undefined, mastodonInstance: undefined,
-      mastodonAccountId: undefined, mastodonName: undefined,
-    });
-    setMeta(st);
-    setOpenCh(null);
-  };
-
-  const doLinkedin = async () => {
+  const doLinkedin = async (accountId?: string) => {
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
       return;
     }
     setBusy('Opening LinkedIn…');
     try {
-      if (!(await loginLinkedIn())) backedOut('LinkedIn');
+      if (!(await loginLinkedIn(accountId))) backedOut('LinkedIn');
     } catch (e: any) {
       setBusy(null);
       Alert.alert('LinkedIn login failed', e?.message ?? 'Try again.');
     }
   };
 
-  const disconnectLinkedin = async () => {
-    void disableCloudChannel('linkedin', meta);
-    const st = await saveMetaState({
-      liAccessToken: undefined, liRefreshToken: undefined, liExpiresAt: undefined,
-      liPersonUrn: undefined, liName: undefined, liOrgId: undefined, liOrgName: undefined,
-    });
-    setMeta(st);
-    setLiOrgs([]);
-    setOpenCh(null);
-  };
-
-  const loadLiOrgs = async () => {
+  const loadLiOrgsFor = async (acct: ConnectedAccount) => {
     setBusy('Loading Pages…');
     try {
-      setLiOrgs(await listMyLiOrgs());
+      setLiOrgs(await listMyLiOrgs(acct.id));
     } catch (e: any) {
       Alert.alert('Failed', e?.message ?? 'Could not load Company Pages.');
     } finally {
@@ -376,59 +325,38 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
-  const doYoutube = async () => {
+  const doYoutube = async (accountId?: string) => {
     if (!ytConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
       return;
     }
     setBusy('Opening Google…');
     try {
-      if (!(await loginYouTube())) backedOut('YouTube');
+      if (!(await loginYouTube(accountId))) backedOut('YouTube');
     } catch (e: any) {
       setBusy(null);
       Alert.alert('YouTube login failed', e?.message ?? 'Try again.');
     }
   };
 
-  const disconnectYoutube = async () => {
-    void disableCloudChannel('youtube', meta);
-    const st = await saveMetaState({
-      ytAccessToken: undefined, ytRefreshToken: undefined, ytExpiresAt: undefined,
-      ytChannelName: undefined,
-    });
-    setMeta(st);
-    setOpenCh(null);
-  };
-
-  const doPinterest = async () => {
+  const doPinterest = async (accountId?: string) => {
     if (!pinConfigured) {
       Alert.alert('Keys missing', 'Paste the App ID + secret into .env first, then reload.');
       return;
     }
     setBusy('Opening Pinterest…');
     try {
-      if (!(await loginPinterest())) backedOut('Pinterest');
+      if (!(await loginPinterest(accountId))) backedOut('Pinterest');
     } catch (e: any) {
       setBusy(null);
       Alert.alert('Pinterest login failed', e?.message ?? 'Try again.');
     }
   };
 
-  const disconnectPinterest = async () => {
-    void disableCloudChannel('pinterest', meta);
-    const st = await saveMetaState({
-      pinAccessToken: undefined, pinRefreshToken: undefined, pinExpiresAt: undefined,
-      pinUsername: undefined, pinBoardId: undefined, pinBoardName: undefined,
-    });
-    setMeta(st);
-    setPinBoards(null);
-    setOpenCh(null);
-  };
-
-  const loadPinBoards = async () => {
+  const loadPinBoardsFor = async (acct: ConnectedAccount) => {
     setPinBoardsLoading(true);
     try {
-      const boards = await listPinBoards();
+      const boards = await listPinBoards(acct.id);
       setPinBoards(boards);
       if (boards.length === 0) Alert.alert('No boards yet', 'Create a board in Pinterest first, then pick it here.');
     } catch (e: any) {
@@ -438,8 +366,9 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
-  const pickPinBoard = async (b: PinBoard) => {
-    setMeta(await saveMetaState({ pinBoardId: b.id, pinBoardName: b.name }));
+  const pickPinBoard = async (b: PinBoard, accountId: string) => {
+    await saveProviderFields('pinterest', { pinBoardId: b.id, pinBoardName: b.name }, accountId);
+    setAccounts(await loadAccounts());
   };
 
   const configured = META_APP_ID.length > 0;
@@ -448,404 +377,238 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const liConfigured = LI_CLIENT_ID.length > 0 && !LI_CLIENT_ID.startsWith('PASTE_');
   const ytConfigured = YT_CLIENT_ID.length > 0 && !YT_CLIENT_ID.startsWith('PASTE_');
   const pinConfigured = PIN_CLIENT_ID.length > 0 && !PIN_CLIENT_ID.startsWith('PASTE_');
-  const fbOn = !!meta.fbUserToken;
-  const igOn = !!(meta.igId && meta.igToken);
-  const thOn = !!(meta.threadsId && meta.threadsToken);
-  const ttOn = !!(meta.ttOpenId && (meta.ttAccessToken || meta.ttRefreshToken));
-  const xOn = !!(meta.xUserId && (meta.xAccessToken || meta.xRefreshToken));
-  const bskyOn = !!(meta.bskyDid && (meta.bskyAccessJwt || meta.bskyRefreshJwt));
-  const mastodonOn = !!(meta.mastodonAccessToken && meta.mastodonInstance);
-  const liOn = !!(meta.liPersonUrn && (meta.liAccessToken || meta.liRefreshToken));
-  const ytOn = !!(meta.ytRefreshToken || meta.ytAccessToken);
-  const pinOn = !!meta.pinAccessToken;
 
-  const tap = (ch: 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x' | 'bluesky' | 'mastodon' | 'linkedin' | 'youtube' | 'pinterest', connected: boolean, connect: () => void) => {
-    if (!connected) connect();
-    else setOpenCh(openCh === ch ? null : ch);
+  const providerCfg: Record<ProviderKey, { label: string; manual: boolean; configured: boolean; connect: (accountId?: string) => void }> = {
+    facebook: { label: 'Facebook', manual: false, configured, connect: doFacebook },
+    instagram: { label: 'Instagram', manual: false, configured: IG_APP_ID.length > 0, connect: doInstagram },
+    threads: { label: 'Threads', manual: false, configured, connect: doThreads },
+    tiktok: { label: 'TikTok', manual: false, configured: ttConfigured, connect: doTikTok },
+    x: { label: 'X', manual: false, configured: xConfigured, connect: doX },
+    bluesky: { label: 'Bluesky', manual: true, configured: true, connect: doBsky },
+    mastodon: { label: 'Mastodon', manual: true, configured: true, connect: doMastodon },
+    linkedin: { label: 'LinkedIn', manual: false, configured: liConfigured, connect: doLinkedin },
+    youtube: { label: 'YouTube', manual: false, configured: ytConfigured, connect: doYoutube },
+    pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, connect: doPinterest },
   };
 
-  /* Channel sections as sortable elements — connected rows float to the top
-   * (stable sort keeps the original order inside each group). */
-  const rowFacebook = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('facebook', fbOn, () => { if (configured) void doFacebook(); })} style={s.row} activeOpacity={0.7}>
-      <ChannelIcon platform="facebook" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>Facebook</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.pageName ?? (fbOn ? 'Tap to choose Page' : 'Tap to connect')}</Text>
-      </View>
-      {fbOn ? (
-        <Ionicons name={openCh === 'facebook' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {fbOn && openCh === 'facebook' ? (
-      <View style={s.sub}>
-        {pages.length > 0 ? (
-          pages.map((p) => {
-            const on = meta.pageId === p.id;
-            return (
-              <TouchableOpacity
-                key={p.id}
-                onPress={async () => { await pickPage(p); setMeta(await loadMetaState()); }}
-                style={[s.pageRow, on && { borderWidth: 1.5, borderColor: C.accent }]}
-                activeOpacity={0.75}
-              >
-                <Text style={s.pageT} numberOfLines={1}>{p.name}</Text>
-                {on ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
-              </TouchableOpacity>
-            );
-          })
-        ) : (
-          <TouchableOpacity onPress={loadPages} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>Load my Pages</Text>
+  const accountLabel = (a: ConnectedAccount): string => {
+    const n = accountName(a);
+    if (n) return n;
+    if (a.provider === 'facebook') return 'Choose a Page';
+    if (a.provider === 'pinterest') return 'Connected — pick a board';
+    return 'Connected';
+  };
+
+  const selectedAccountFor = (p: ProviderKey): ConnectedAccount | undefined => {
+    const list = accounts.filter((a) => a.provider === p);
+    const id = selId[p];
+    return list.find((a) => a.id === id) ?? list[0];
+  };
+
+  const selectAccount = (p: ProviderKey, a: ConnectedAccount) => {
+    setSelId((s) => ({ ...s, [p]: a.id }));
+    if (p === 'facebook') void loadPagesFor(a);
+    else if (p === 'linkedin') void loadLiOrgsFor(a);
+    else if (p === 'pinterest') void loadPinBoardsFor(a);
+  };
+
+  const primaryAvatar = (p: ProviderKey): string | undefined => {
+    const list = accounts.filter((a) => a.provider === p);
+    return list[0] ? accountAvatar(list[0]) : undefined;
+  };
+
+  const statusLabel = (p: ProviderKey, list: ConnectedAccount[]): string => {
+    if (list.length === 0) {
+      if (p === 'bluesky') return 'Handle + app password';
+      if (p === 'mastodon') return 'Username + login';
+      return 'Tap to connect';
+    }
+    if (list.length === 1) return accountLabel(list[0]);
+    return `${list.length} accounts`;
+  };
+
+  const renderManualForm = (p: ProviderKey) => {
+    const list = accounts.filter((a) => a.provider === p);
+    const addId = () => (list.length > 0 ? makeAccount(p).id : undefined);
+    if (p === 'bluesky') {
+      return (
+        <>
+          <View style={s.bskyField}>
+            <Txt
+              value={bskyHandle}
+              onChangeText={setBskyHandle}
+              placeholder="yourname"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{ flex: 1, backgroundColor: 'transparent', paddingHorizontal: 0 }}
+            />
+            {!bskyHandle.includes('.') ? <Text style={s.bskySuffix}>.bsky.social</Text> : null}
+          </View>
+          <Txt value={bskyPass} onChangeText={setBskyPass} placeholder="xxxx-xxxx-xxxx-xxxx" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to get your app password</Text>
+            {[
+              'Bluesky → Settings → Privacy and security → App passwords',
+              'Press “+ Add App Password”',
+              'Name it “Sosial”',
+              'Tick “Allow access to your direct messages”',
+              'Copy the one-time password and paste it above',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => void doBsky(addId())} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add this account' : 'Connect Bluesky'}</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={disconnectFB} activeOpacity={0.7} style={s.disc}>
-          <Text style={s.discT}>Disconnect Facebook</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowInstagram = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('instagram', igOn, () => { if (IG_APP_ID) void doInstagram(); })} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="instagram" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>Instagram</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.igName ?? (igOn ? 'Connected' : 'Tap to connect')}</Text>
-      </View>
-      {igOn ? (
-        <Ionicons name={openCh === 'instagram' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {igOn && openCh === 'instagram' ? (
-      <View style={s.sub}>
-        <TouchableOpacity onPress={disconnectIG} activeOpacity={0.7} style={s.disc}>
-          <Text style={s.discT}>Disconnect Instagram</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowThreads = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('threads', thOn, () => { if (configured) void doThreads(); })} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="threads" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>Threads</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.threadsName ?? (thOn ? 'Connected' : 'Tap to connect')}</Text>
-      </View>
-      {thOn ? (
-        <Ionicons name={openCh === 'threads' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {thOn && openCh === 'threads' ? (
-      <View style={s.sub}>
-        <TouchableOpacity onPress={disconnectThreads} activeOpacity={0.7} style={s.disc}>
-          <Text style={s.discT}>Disconnect Threads</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowTiktok = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('tiktok', ttOn, () => void doTikTok())} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="tiktok" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>TikTok</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.ttName ?? (ttOn ? 'Connected' : 'Tap to connect')}</Text>
-      </View>
-      {ttOn ? (
-        <Ionicons name={openCh === 'tiktok' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {ttOn && openCh === 'tiktok' ? (
-      <View style={s.sub}>
-        <TouchableOpacity onPress={disconnectTikTok} activeOpacity={0.7} style={s.disc}>
-          <Text style={s.discT}>Disconnect TikTok</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowX = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('x', xOn, () => { if (xConfigured) void doX(); })} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="x" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>X</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.xName ?? (xOn ? 'Connected' : 'Tap to connect')}</Text>
-      </View>
-      {xOn ? (
-        <Ionicons name={openCh === 'x' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {xOn && openCh === 'x' ? (
-      <View style={s.sub}>
-        <TouchableOpacity onPress={disconnectX} activeOpacity={0.7} style={s.disc}>
-          <Text style={s.discT}>Disconnect X</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowBluesky = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('bluesky', bskyOn, () => setOpenCh((v) => (v === 'bluesky' ? null : 'bluesky')))} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="bluesky" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>Bluesky</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.bskyName ?? (bskyOn ? 'Connected' : 'Handle + app password')}</Text>
-      </View>
-      {bskyOn ? (
-        <Ionicons name={openCh === 'bluesky' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {openCh === 'bluesky' ? (
-      <View style={s.sub}>
-        {bskyOn ? (
-        <TouchableOpacity onPress={disconnectBsky} activeOpacity={0.7} style={s.disc}>
-            <Text style={s.discT}>Disconnect Bluesky</Text>
+        </>
+      );
+    }
+    if (p === 'mastodon') {
+      return (
+        <>
+          <View style={s.bskyField}>
+            <Txt
+              value={mastodonInstance}
+              onChangeText={setMastodonInstance}
+              placeholder="username"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              style={{ flex: 1, backgroundColor: 'transparent', paddingHorizontal: 0 }}
+            />
+            {!mastodonInstance.includes('.') ? <Text style={s.bskySuffix}>@mastodon.social</Text> : null}
+          </View>
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Mastodon</Text>
+            {[
+              'Type your username — or a full server like fosstodon.org',
+              'Sign in and approve the app on that server',
+              'Posts and analytics then go to your account there',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => void doMastodon(addId())} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add this account' : 'Connect Mastodon'}</Text>
           </TouchableOpacity>
-        ) : (
-          <>
-            <View style={s.bskyField}>
-              <Txt
-                value={bskyHandle}
-                onChangeText={setBskyHandle}
-                placeholder="yourname"
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={{ flex: 1, backgroundColor: 'transparent', paddingHorizontal: 0 }}
-              />
-              {!bskyHandle.includes('.') ? <Text style={s.bskySuffix}>.bsky.social</Text> : null}
-            </View>
-            <Txt value={bskyPass} onChangeText={setBskyPass} placeholder="xxxx-xxxx-xxxx-xxxx" autoCapitalize="none" autoCorrect={false} secureTextEntry />
-            <View style={s.helpCard}>
-              <Text style={s.helpTitle}>How to get your app password</Text>
-              {[
-                'Bluesky → Settings → Privacy and security → App passwords',
-                'Press “+ Add App Password”',
-                'Name it “Sosial”',
-                'Tick “Allow access to your direct messages”',
-                'Copy the one-time password and paste it above',
-              ].map((step, i) => (
-                <View key={i} style={s.helpStep}>
-                  <Text style={s.helpNum}>{i + 1}</Text>
-                  <Text style={s.helpText}>{step}</Text>
-                </View>
-              ))}
-            </View>
-            <TouchableOpacity onPress={doBsky} activeOpacity={0.7} style={s.pageRow}>
-              <Text style={s.pageT}>Connect Bluesky</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-    ) : null}
-  </React.Fragment>);
+        </>
+      );
+    }
+    return null;
+  };
 
-  const rowMastodon = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('mastodon', mastodonOn, () => setOpenCh((v) => (v === 'mastodon' ? null : 'mastodon')))} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="mastodon" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>Mastodon</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.mastodonName ?? (mastodonOn ? 'Connected' : 'Username + login')}</Text>
-      </View>
-      {mastodonOn ? (
-        <Ionicons name={openCh === 'mastodon' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {openCh === 'mastodon' ? (
-      <View style={s.sub}>
-        {mastodonOn ? (
-        <TouchableOpacity onPress={disconnectMastodon} activeOpacity={0.7} style={s.disc}>
-            <Text style={s.discT}>Disconnect Mastodon</Text>
-          </TouchableOpacity>
-        ) : (
-          <>
-            <View style={s.bskyField}>
-              <Txt
-                value={mastodonInstance}
-                onChangeText={setMastodonInstance}
-                placeholder="username"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                style={{ flex: 1, backgroundColor: 'transparent', paddingHorizontal: 0 }}
-              />
-              {!mastodonInstance.includes('.') ? <Text style={s.bskySuffix}>@mastodon.social</Text> : null}
-            </View>
-            <View style={s.helpCard}>
-              <Text style={s.helpTitle}>How to connect Mastodon</Text>
-              {[
-                'Type your username — or a full server like fosstodon.org',
-                'Sign in and approve the app on that server',
-                'Posts and analytics then go to your account there',
-              ].map((step, i) => (
-                <View key={i} style={s.helpStep}>
-                  <Text style={s.helpNum}>{i + 1}</Text>
-                  <Text style={s.helpText}>{step}</Text>
-                </View>
-              ))}
-            </View>
-            <TouchableOpacity onPress={doMastodon} activeOpacity={0.7} style={s.pageRow}>
-              <Text style={s.pageT}>Connect Mastodon</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowLinkedin = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('linkedin', liOn, () => { if (liConfigured) void doLinkedin(); })} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="linkedin" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>LinkedIn</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.liOrgName ?? meta.liName ?? (liOn ? 'Tap to choose Page' : 'Tap to connect')}</Text>
-      </View>
-      {liOn ? (
-        <Ionicons name={openCh === 'linkedin' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {liOn && openCh === 'linkedin' ? (
-      <View style={s.sub}>
-        {liOrgs.length > 0 ? (
-          <React.Fragment>
-            <TouchableOpacity
-              onPress={async () => { await pickLiOrg(null); setMeta(await loadMetaState()); }}
-              style={[s.pageRow, !meta.liOrgId && { borderWidth: 1.5, borderColor: C.accent }]}
-              activeOpacity={0.75}
-            >
-              <Text style={s.pageT} numberOfLines={1}>Post as {meta.liName ?? 'myself'}</Text>
-              {!meta.liOrgId ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
-            </TouchableOpacity>
-            {liOrgs.map((o) => {
-              const on = meta.liOrgId === o.id;
+  const renderSubPanel = (p: ProviderKey) => {
+    if (p === 'facebook') {
+      const acct = selectedAccountFor('facebook');
+      const pageId = acct?.fields.pageId as string | undefined;
+      return (
+        <>
+          {pages.length > 0 ? (
+            pages.map((pg) => {
+              const on = pageId === pg.id;
               return (
                 <TouchableOpacity
-                  key={o.id}
-                  onPress={async () => { await pickLiOrg(o); setMeta(await loadMetaState()); }}
+                  key={pg.id}
+                  onPress={async () => { await pickPage(pg, acct?.id); setAccounts(await loadAccounts()); }}
                   style={[s.pageRow, on && { borderWidth: 1.5, borderColor: C.accent }]}
                   activeOpacity={0.75}
                 >
-                  <Text style={s.pageT} numberOfLines={1}>{o.name}</Text>
+                  <Text style={s.pageT} numberOfLines={1}>{pg.name}</Text>
                   {on ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
                 </TouchableOpacity>
               );
-            })}
-          </React.Fragment>
-        ) : (
-          <TouchableOpacity onPress={loadLiOrgs} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>Load my Company Pages</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={disconnectLinkedin} activeOpacity={0.7} style={s.disc}>
-          <Text style={s.discT}>Disconnect LinkedIn</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowYoutube = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('youtube', ytOn, () => { if (ytConfigured) void doYoutube(); })} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="youtube" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>YouTube</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.ytChannelName ?? (ytOn ? 'Connected' : 'Tap to connect')}</Text>
-      </View>
-      {ytOn ? (
-        <Ionicons name={openCh === 'youtube' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {openCh === 'youtube' ? (
-      <View style={s.sub}>
-        {ytOn ? (
-        <TouchableOpacity onPress={disconnectYoutube} activeOpacity={0.7} style={s.disc}>
-            <Text style={s.discT}>Disconnect YouTube</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={doYoutube} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>Connect YouTube</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    ) : null}
-  </React.Fragment>);
-
-  const rowPinterest = (<React.Fragment>
-    <TouchableOpacity onPress={() => tap('pinterest', pinOn, () => { if (pinConfigured) void doPinterest(); })} style={[s.row, s.rowDiv]} activeOpacity={0.7}>
-      <ChannelIcon platform="pinterest" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowT}>Pinterest</Text>
-        <Text style={s.rowS} numberOfLines={1}>{meta.pinBoardName ?? meta.pinUsername ?? (pinOn ? 'Tap to choose board' : 'Tap to connect')}</Text>
-      </View>
-      {pinOn ? (
-        <Ionicons name={openCh === 'pinterest' ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
-      ) : (
-        <Text style={s.go}>Connect</Text>
-      )}
-    </TouchableOpacity>
-    {pinOn && openCh === 'pinterest' ? (
-      <View style={s.sub}>
-        {pinBoardsLoading ? (
-          <View style={s.pageRow}><Text style={s.pageT}>Loading boards…</Text></View>
-        ) : pinBoards && pinBoards.length > 0 ? (
-          pinBoards.map((b) => {
-            const on = meta.pinBoardId === b.id;
-            return (
+            })
+          ) : (
+            <TouchableOpacity onPress={() => acct && void loadPagesFor(acct)} activeOpacity={0.7} style={s.pageRow}>
+              <Text style={s.pageT}>Load my Pages</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      );
+    }
+    if (p === 'linkedin') {
+      const acct = selectedAccountFor('linkedin');
+      const orgId = acct?.fields.liOrgId as string | undefined;
+      const liName = acct?.fields.liName as string | undefined;
+      return (
+        <>
+          {liOrgs.length > 0 ? (
+            <>
               <TouchableOpacity
-                key={b.id}
-                onPress={() => { void pickPinBoard(b); }}
-                style={[s.pageRow, on && { borderWidth: 1.5, borderColor: C.accent }]}
+                onPress={async () => { await pickLiOrg(null, acct?.id); setAccounts(await loadAccounts()); }}
+                style={[s.pageRow, !orgId && { borderWidth: 1.5, borderColor: C.accent }]}
                 activeOpacity={0.75}
               >
-                <Text style={s.pageT} numberOfLines={1}>{b.name}</Text>
-                {on ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
+                <Text style={s.pageT} numberOfLines={1}>Post as {liName ?? 'myself'}</Text>
+                {!orgId ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
               </TouchableOpacity>
-            );
-          })
-        ) : (
-          <TouchableOpacity onPress={loadPinBoards} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>Load my boards</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={disconnectPinterest} activeOpacity={0.7} style={s.disc}>
-          <Text style={s.discT}>Disconnect Pinterest</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null}
-  </React.Fragment>);
+              {liOrgs.map((o) => {
+                const on = orgId === o.id;
+                return (
+                  <TouchableOpacity
+                    key={o.id}
+                    onPress={async () => { await pickLiOrg(o, acct?.id); setAccounts(await loadAccounts()); }}
+                    style={[s.pageRow, on && { borderWidth: 1.5, borderColor: C.accent }]}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={s.pageT} numberOfLines={1}>{o.name}</Text>
+                    {on ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          ) : (
+            <TouchableOpacity onPress={() => acct && void loadLiOrgsFor(acct)} activeOpacity={0.7} style={s.pageRow}>
+              <Text style={s.pageT}>Load my Company Pages</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      );
+    }
+    if (p === 'pinterest') {
+      const acct = selectedAccountFor('pinterest');
+      const boardId = acct?.fields.pinBoardId as string | undefined;
+      return (
+        <>
+          {pinBoardsLoading ? (
+            <View style={s.pageRow}><Text style={s.pageT}>Loading boards…</Text></View>
+          ) : pinBoards && pinBoards.length > 0 ? (
+            pinBoards.map((b) => {
+              const on = boardId === b.id;
+              return (
+                <TouchableOpacity
+                  key={b.id}
+                  onPress={() => { if (acct) void pickPinBoard(b, acct.id); }}
+                  style={[s.pageRow, on && { borderWidth: 1.5, borderColor: C.accent }]}
+                  activeOpacity={0.75}
+                >
+                  <Text style={s.pageT} numberOfLines={1}>{b.name}</Text>
+                  {on ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <TouchableOpacity onPress={() => acct && void loadPinBoardsFor(acct)} activeOpacity={0.7} style={s.pageRow}>
+              <Text style={s.pageT}>Load my boards</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      );
+    }
+    return null;
+  };
 
-  const orderedChannelRows = [...[
-    { id: 'facebook', on: fbOn, el: rowFacebook },
-    { id: 'instagram', on: igOn, el: rowInstagram },
-    { id: 'threads', on: thOn, el: rowThreads },
-    { id: 'tiktok', on: ttOn, el: rowTiktok },
-    { id: 'x', on: xOn, el: rowX },
-    { id: 'bluesky', on: bskyOn, el: rowBluesky },
-    { id: 'mastodon', on: mastodonOn, el: rowMastodon },
-    { id: 'linkedin', on: liOn, el: rowLinkedin },
-    { id: 'youtube', on: ytOn, el: rowYoutube },
-    { id: 'pinterest', on: pinOn, el: rowPinterest },
-  ] as { id: string; on: boolean; el: React.ReactNode }[]]
-    .sort((a, b) => Number(b.on) - Number(a.on))
-    .map((r) => <React.Fragment key={r.id}>{r.el}</React.Fragment>);
+  const orderedProviders = [...PROVIDERS].sort(
+    (a, b) =>
+      Number(accounts.some((x) => x.provider === b)) -
+      Number(accounts.some((x) => x.provider === a)),
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
@@ -905,7 +668,64 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         ) : null}
 
         <View style={s.list}>
-          {orderedChannelRows}
+          {orderedProviders.map((p) => {
+            const cfg = providerCfg[p];
+            const list = accounts.filter((a) => a.provider === p);
+            const hasAny = list.length > 0;
+            const expanded = openProvider === p;
+            const connect = () => { if (cfg.configured) cfg.connect(undefined); };
+            return (
+              <View key={p}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!cfg.manual && !hasAny) connect();
+                    else setOpenProvider(expanded ? null : p);
+                  }}
+                  style={[s.row, p !== orderedProviders[0] && s.rowDiv]}
+                  activeOpacity={0.7}
+                >
+                  <ChannelIcon platform={p} avatar={primaryAvatar(p)} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.rowT}>{cfg.label}</Text>
+                    <Text style={s.rowS} numberOfLines={1}>{statusLabel(p, list)}</Text>
+                  </View>
+                  {hasAny ? (
+                    <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
+                  ) : (
+                    <Text style={s.go}>Connect</Text>
+                  )}
+                </TouchableOpacity>
+
+                {expanded ? (
+                  <View style={s.sub}>
+                    {cfg.manual ? renderManualForm(p) : null}
+                    {list.map((a) => {
+                      const isSel = selectedAccountFor(p)?.id === a.id;
+                      return (
+                        <View key={a.id} style={s.acctRow}>
+                          <TouchableOpacity onPress={() => selectAccount(p, a)} activeOpacity={0.7} style={s.acctSel}>
+                            <ChannelAvatar platform={p} avatar={accountAvatar(a)} size={30} badge={list.length > 1} />
+                            <Text style={s.acctT} numberOfLines={1}>{accountLabel(a)}</Text>
+                            {list.length > 1 && isSel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7}>
+                            <Text style={s.discT}>Remove</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                    {!cfg.manual ? renderSubPanel(p) : null}
+                    {!cfg.manual && cfg.configured ? (
+                      <TouchableOpacity onPress={() => cfg.connect(makeAccount(p).id)} activeOpacity={0.7} style={s.addRow}>
+                        <Ionicons name="add-circle-outline" size={16} color={C.accentInk} />
+                        <Text style={s.addRowT}>Add another {cfg.label} account</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
 
         <Text style={s.buildTag}>build {BUILD_TAG}</Text>
@@ -930,6 +750,11 @@ const makeS = (C: Palette) => StyleSheet.create({
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
   go: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   sub: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
+  acctRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  acctSel: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  acctT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
+  addRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, marginTop: 2 },
+  addRowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   bskyField: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, paddingHorizontal: 13 },
   bskySuffix: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14.5, color: C.muted },
   helpCard: { backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, padding: 12, gap: 8 },
@@ -939,11 +764,6 @@ const makeS = (C: Palette) => StyleSheet.create({
   helpText: { flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 17, color: C.muted },
   pageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 13, paddingVertical: 11 },
   pageT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
-  disc: { alignItems: 'center', paddingVertical: 10 },
   discT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText },
-  soonHead: { borderTopWidth: 1, borderTopColor: C.lineSoft, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2 },
-  soonHeadT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase', color: C.faint },
-  soon: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  soonT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.accentInk },
   buildTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint, textAlign: 'center', marginTop: 14, marginBottom: 4 },
 });

@@ -6,7 +6,8 @@ import ScheduleSheet from '../components/ScheduleSheet';
 import { uid } from '../constants';
 import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, ManagedPost, PostStatus, MediaAttachment, postAttachments, postThreadSegments, postThreadMedia, alignThreadMedia, ThreadSegment, ThreadSegmentMedia, THREAD_MEDIA_MAX, PlatformTypes, defaultPlatformType, ChannelKey, queueTooSoon, minQueueLabel, isEmptyPost, LEG_COOLDOWN_MS, MAX_AUTO_TRIES, VIDEO_CHANNEL_MS, PHOTO_CHANNEL_MS } from '../utils/managed';
 import { joinThread, isChainPlatform } from '../utils/thread';
-import { loadMetaState, saveMetaState, MetaState, connectedChannelIds } from '../utils/metaStore';
+import { loadMetaState, loadAccounts, saveProviderFields, MetaState, connectedChannelIds } from '../utils/metaStore';
+import { type ConnectedAccount, type ProviderKey, findAccount, findAccountForProvider } from '../utils/socialAccounts';
 import { publishFacebook, publishFacebookReel, publishFacebookStory, publishInstagram, publishInstagramStory, publishThreads, uploadTikTokPhoto, MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { publishTikTokVideo, publishTikTokPhotos } from '../utils/tiktokPublish';
 import { publishX } from '../utils/xPublish';
@@ -94,9 +95,9 @@ interface ComposerCtx {
   removeDraftMedia: (index: number) => void;
   moveDraftMedia: (from: number, to: number) => void;
   /** queue / draft / post-now against the live draft — true when stored */
-  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string) => Promise<boolean>;
-  stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string) => Promise<boolean>;
-  postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string) => Promise<boolean>;
+  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => Promise<boolean>;
+  stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => Promise<boolean>;
+  postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => Promise<boolean>;
   /** load a post into the live draft WITHOUT opening the sheet */
   importDraft: (p: ManagedPost | null) => void;
   /** wipe the live draft */
@@ -328,7 +329,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, [onThread, tMedia, tThreadMedia]);
 
   /** Title is no longer typed — it's the first line of the post text, kept for lists + reminders. */
-  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string): ManagedPost => {
+  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): ManagedPost => {
     const firstImage = tMedia.find((m) => m.kind === 'image')?.uri;
     const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri;
     // Pair text+attachment BEFORE dropping empties so indices stay aligned.
@@ -352,6 +353,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       videoUri: firstVideo,
       attachments: [...tMedia],
       platforms: plats,
+      accountIds,
       platformTypes: types,
       threadsTopic: threadsTopic?.trim() || undefined,
       ttPrivacy: ttPrivacy || undefined,
@@ -419,7 +421,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string): Promise<boolean> => {
+  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
       showInfo('Too soon', `Earliest is ${minQueueLabel()} — scheduled posts need at least 5 minutes lead time.`);
@@ -438,7 +440,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const keepApproval = sheetRef.current?.post?.status === 'approval';
     const isMember = canSubmit(await loadActor());
     const status: PostStatus = keepApproval || isMember ? 'approval' : 'queued';
-    const rec = buildRec(at, plats, status, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy);
+    const rec = buildRec(at, plats, status, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
     await saveManagedPost(rec);
     // Reminders are best-effort: only armed for posts that actually queue.
     let reminded = false;
@@ -458,10 +460,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const saveDraft = async (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string): Promise<boolean> => {
+  const saveDraft = async (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     const plats = sheetRef.current?.post?.platforms?.length ? sheetRef.current.post.platforms : ['any'];
-    const rec = buildRec(undefined, plats, 'draft', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy);
+    const rec = buildRec(undefined, plats, 'draft', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
     await saveManagedPost(rec);
     await cancelPostReminder(rec.id);
     setSheet(null);
@@ -525,7 +527,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   };
 
   /** "Post now": publish immediately — no queueing, no scheduledAt. */
-  const postNow = async (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string): Promise<boolean> => {
+  const postNow = async (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     // A stuck or background publish used to swallow taps silently here —
     // say so, so a held lock is diagnosable instead of invisible.
@@ -546,7 +548,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
       // Members can't publish directly — their "post now" becomes a pending approval.
       if (canSubmit(await loadActor())) {
-        const rec = buildRec(undefined, plats, 'approval', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy);
+        const rec = buildRec(undefined, plats, 'approval', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
         await saveManagedPost(rec);
         await cancelPostReminder(rec.id);
         setSheet(null);
@@ -556,7 +558,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
       // no scheduledAt → the auto-publish sweep ignores it, so it can't double-post
-      const rec = buildRec(undefined, plats, 'queued', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy);
+      const rec = buildRec(undefined, plats, 'queued', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
       const r = await runPublish(rec);
       if (!r) return false;
       const ok = r.done.length > 0 && r.errs.length === 0 && r.manual.length === 0;
@@ -611,6 +613,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const runPublish = async (p: ManagedPost, opts?: { silent?: boolean }): Promise<RunResult | null> => {
     const m = await loadMetaState();
+    const accounts = await loadAccounts();
+    /** Resolve the account a channel should publish as: explicit per-post pick
+     *  first, then the provider's default account, then any account for that
+     *  provider (legacy fallback). Returns undefined when none is connected. */
+    const accountFor = (ch: string): ConnectedAccount | undefined => {
+      const aid = p.accountIds?.[ch];
+      if (aid) {
+        const byId = findAccount(accounts, aid);
+        if (byId) return byId;
+      }
+      const def = findAccount(accounts, `acct_${ch}`);
+      if (def) return def;
+      return findAccountForProvider(accounts, ch as ProviderKey);
+    };
+    const acctFields = (ch: string): Record<string, unknown> => accountFor(ch)?.fields ?? {};
     let plats = resolvePlats(p.platforms, m);
     // buildRec derives title from the body's first line — posting title + body
     // would print that line twice. Independent titles (e.g. design names from
@@ -705,7 +722,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
       if (pending.includes('tiktok') && plats.includes('tiktok') && !ttPrivacy) {
         try {
-          const token = await getValidToken();
+          const ttAcct = accountFor('tiktok');
+          const token = await getValidToken(ttAcct?.id);
           const ci = await fetchCreatorInfo(token);
           const options = ci.privacyOptions.length > 0 ? ci.privacyOptions : ['SELF_ONLY'];
           // NEVER wait on a modal here. A prompt that can't present over the
@@ -713,8 +731,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           // publish lock: the tap does nothing and every later tap is stuck.
           // The sheet's Audience picker is the explicit control; this is just
           // a safe default (remembered audience first, then the widest offered).
+          const ttLast = acctFields('tiktok').ttLastPrivacy as string | undefined;
           ttPrivacy =
-            options.find((o) => o === m.ttLastPrivacy) ??
+            options.find((o) => o === ttLast) ??
             options.find((o) => o === 'SELF_ONLY') ??
             options.find((o) => o === 'PUBLIC_TO_EVERYONE') ??
             options[0] ??
@@ -757,29 +776,36 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         try {
           const type = (p.platformTypes?.[ch as ChannelKey] as string | undefined) ?? defaultPlatformType(ch as ChannelKey, atts);
           if (ch === 'facebook') {
-            if (!m.pageId || !m.pageToken) throw new Error('Facebook not connected');
+            const fb = acctFields('facebook');
+            const fbPageId = fb.pageId as string | undefined;
+            const fbPageToken = fb.pageToken as string | undefined;
+            if (!fbPageId || !fbPageToken) throw new Error('Facebook not connected');
             if (type === 'story') {
-              keep(ch, await publishFacebookStory({ pageId: m.pageId, pageToken: m.pageToken, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
+              keep(ch, await publishFacebookStory({ pageId: fbPageId, pageToken: fbPageToken, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
             } else if (type === 'reel') {
-              keep(ch, await publishFacebookReel({ pageId: m.pageId, pageToken: m.pageToken, message: caption, videoUri: p.videoUri, attachments: atts }));
+              keep(ch, await publishFacebookReel({ pageId: fbPageId, pageToken: fbPageToken, message: caption, videoUri: p.videoUri, attachments: atts }));
             } else {
-              keep(ch, await publishFacebook({ pageId: m.pageId, pageToken: m.pageToken, message: caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
+              keep(ch, await publishFacebook({ pageId: fbPageId, pageToken: fbPageToken, message: caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
             }
             done.push('Facebook');
           } else if (ch === 'instagram') {
-            if (!m.igId || !m.igToken) throw new Error('Instagram not connected');
+            const ig = acctFields('instagram');
+            const igId = ig.igId as string | undefined;
+            const igToken = ig.igToken as string | undefined;
+            if (!igId || !igToken) throw new Error('Instagram not connected');
             if (type === 'story') {
-              keep(ch, await publishInstagramStory({ igId: m.igId, igToken: m.igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
+              keep(ch, await publishInstagramStory({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
             } else if (type === 'reel' && !atts.some((a) => a.kind === 'video')) {
               throw new Error('Instagram Reels need a video.');
             } else {
-              keep(ch, await publishInstagram({ igId: m.igId, igToken: m.igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
+              keep(ch, await publishInstagram({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
             }
             done.push('Instagram');
           } else if (ch === 'threads') {
             // Narrow into consts — TS drops property narrowing inside callbacks.
-            const thId = m.threadsId;
-            const thToken = m.threadsToken;
+            const th = acctFields('threads');
+            const thId = th.threadsId as string | undefined;
+            const thToken = th.threadsToken as string | undefined;
             if (!thId || !thToken) throw new Error('Threads not connected');
             if (type === 'ghost') {
               // real ghost post: text-only container flagged to auto-archive in 24h
@@ -804,7 +830,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }
             done.push('Threads');
           } else if (ch === 'tiktok') {
-            if (!m.ttRefreshToken && !m.ttAccessToken) throw new Error('TikTok not connected');
+            const tt = acctFields('tiktok');
+            const ttAcct = accountFor('tiktok');
+            if (!tt.ttRefreshToken && !tt.ttAccessToken) throw new Error('TikTok not connected');
             if (firstVideo && atts.some((a) => a.kind === 'image')) {
               throw new Error('TikTok can’t mix photos and video — send one or the other (a Live Photo counts as a photo).');
             }
@@ -820,21 +848,25 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
                 title: caption || 'Sosial post',
                 privacyLevel: ttPrivacy as string,
                 imageUrls: urls,
+                accountId: ttAcct?.id,
               }));
             } else {
               keep(ch, await publishTikTokVideo({
                 title: caption.slice(0, 150) || 'Sosial post',
                 privacyLevel: ttPrivacy as string,
                 videoUri: firstVideo.uri,
+                accountId: ttAcct?.id,
               }));
             }
             done.push('TikTok');
             // remember the audience that actually published — an unaudited app
             // can only post SELF_ONLY, and re-defaulting to Public would fail
             // every future post the same way
-            if (ttPrivacy) saveMetaState({ ttLastPrivacy: ttPrivacy });
+            if (ttPrivacy) saveProviderFields('tiktok', { ttLastPrivacy: ttPrivacy }, ttAcct?.id);
           } else if (ch === 'x') {
-            if (!m.xUserId || (!m.xAccessToken && !m.xRefreshToken)) throw new Error('X not connected');
+            const xf = acctFields('x');
+            const xAcct = accountFor('x');
+            if (!xf.xUserId || (!xf.xAccessToken && !xf.xRefreshToken)) throw new Error('X not connected');
             if (firstVideo && atts.some((a) => a.kind === 'image')) {
               throw new Error('X can’t mix photos and video — send one or the other.');
             }
@@ -849,12 +881,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
                     imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
                     videoUri: vid?.uri,
                     replyTo: parent ?? undefined,
+                    accountId: xAcct?.id,
                   });
                 }, (id) => id)
-              : await publishX({ text: caption, imageUris: imgUris, videoUri: firstVideo?.uri }));
+              : await publishX({ text: caption, imageUris: imgUris, videoUri: firstVideo?.uri, accountId: xAcct?.id }));
             done.push('X');
           } else if (ch === 'bluesky') {
-            if (!m.bskyDid || (!m.bskyAccessJwt && !m.bskyRefreshJwt)) throw new Error('Bluesky not connected');
+            const bs = acctFields('bluesky');
+            const bsAcct = accountFor('bluesky');
+            if (!bs.bskyDid || (!bs.bskyAccessJwt && !bs.bskyRefreshJwt)) throw new Error('Bluesky not connected');
             if (firstVideo && atts.some((a) => a.kind === 'image')) {
               throw new Error('Bluesky can’t mix photos and video — send one or the other.');
             }
@@ -871,14 +906,17 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
                     videoUri: vid?.uri,
                     // every reply points at the head as root, the one above as parent
                     replyTo: parent && rootRef ? { root: rootRef, parent } : undefined,
+                    accountId: bsAcct?.id,
                   });
                   if (!rootRef) rootRef = ref;
                   return ref;
                 }, (r) => r.uri)
-              : (await publishBsky({ text: caption, imageUris: bsImgUris, videoUri: firstVideo?.uri })).uri);
+              : (await publishBsky({ text: caption, imageUris: bsImgUris, videoUri: firstVideo?.uri, accountId: bsAcct?.id })).uri);
             done.push('Bluesky');
           } else if (ch === 'mastodon') {
-            if (!m.mastodonAccessToken || !m.mastodonInstance) throw new Error('Mastodon not connected');
+            const ma = acctFields('mastodon');
+            const maAcct = accountFor('mastodon');
+            if (!ma.mastodonAccessToken || !ma.mastodonInstance) throw new Error('Mastodon not connected');
             // Mastodon takes either a single video or up to 4 images — never both
             const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.mastodon.images);
             const mImgUris = imgs.map((a) => a.uri);
@@ -891,26 +929,33 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
                     imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
                     videoUri: vid?.uri,
                     replyToId: parent ?? undefined,
+                    accountId: maAcct?.id,
                   });
                 }, (id) => id)
-              : await publishMastodon({ text: caption, imageUris: mImgUris, videoUri: firstVideo?.uri }));
+              : await publishMastodon({ text: caption, imageUris: mImgUris, videoUri: firstVideo?.uri, accountId: maAcct?.id }));
             done.push('Mastodon');
           } else if (ch === 'pinterest') {
-            if (!m.pinAccessToken) throw new Error('Pinterest not connected');
+            const pi = acctFields('pinterest');
+            const piAcct = accountFor('pinterest');
+            if (!pi.pinAccessToken) throw new Error('Pinterest not connected');
             // One Pin per image on the default board, plus a video Pin when attached
             const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.pinterest.images);
-            keep(ch, await publishPinterest({ text: caption, imageUris: imgs.map((a) => a.uri), videoUri: firstVideo?.uri }));
+            keep(ch, await publishPinterest({ text: caption, imageUris: imgs.map((a) => a.uri), videoUri: firstVideo?.uri, accountId: piAcct?.id }));
             done.push('Pinterest');
           } else if (ch === 'linkedin') {
-            if (!m.liPersonUrn) throw new Error('LinkedIn not connected');
+            const li = acctFields('linkedin');
+            const liAcct = accountFor('linkedin');
+            if (!li.liPersonUrn) throw new Error('LinkedIn not connected');
             // Text and/or up to 9 photos as a member post
             const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.linkedin.images);
-            keep(ch, await publishLinkedIn({ text: caption, imageUris: imgs.map((a) => a.uri) }));
+            keep(ch, await publishLinkedIn({ text: caption, imageUris: imgs.map((a) => a.uri), accountId: liAcct?.id }));
             done.push('LinkedIn');
           } else if (ch === 'youtube') {
-            if (!m.ytRefreshToken && !m.ytAccessToken) throw new Error('YouTube not connected');
+            const yt = acctFields('youtube');
+            const ytAcct = accountFor('youtube');
+            if (!yt.ytRefreshToken && !yt.ytAccessToken) throw new Error('YouTube not connected');
             // Video-only — photos/text alone throw a clear error
-            keep(ch, await publishYouTube({ text: caption, videoUri: firstVideo?.uri, kind: (type as 'video' | 'short' | undefined) ?? 'video', privacy: (p.ytPrivacy as 'public' | 'unlisted' | 'private' | undefined) ?? 'public' }));
+            keep(ch, await publishYouTube({ text: caption, videoUri: firstVideo?.uri, kind: (type as 'video' | 'short' | undefined) ?? 'video', privacy: (p.ytPrivacy as 'public' | 'unlisted' | 'private' | undefined) ?? 'public', accountId: ytAcct?.id }));
             done.push('YouTube');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
@@ -1132,6 +1177,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         remoteIds={sheet?.post?.remoteIds}
         initialAt={sheet?.post?.scheduledAt}
         initialPlatforms={sheet?.post?.platforms}
+        initialAccountIds={sheet?.post?.accountIds}
         initialTypes={sheet?.post?.platformTypes}
         initialSourceUrl={sheet?.post?.sourceUrl}
         initialThreadsTopic={sheet?.post?.threadsTopic}

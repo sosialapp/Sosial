@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { PIN_API, PIN_MAX_BYTES, PIN_MAX_DESC, PIN_MAX_IMAGES, PIN_MAX_TITLE, PIN_MAX_VIDEO_BYTES } from './pinConfig';
 import { getValidPin } from './pinAuth';
-import { loadMetaState } from './metaStore';
+import { loadProviderFields } from './metaStore';
 
 function perr(j: any, status: number, fallback: string): string {
   const m =
@@ -21,8 +21,8 @@ export interface PinBoard {
 }
 
 /** Boards the account owns — the user picks one as the default Pin target. */
-export async function listPinBoards(): Promise<PinBoard[]> {
-  const { token } = await getValidPin();
+export async function listPinBoards(accountId?: string): Promise<PinBoard[]> {
+  const { token } = await getValidPin(accountId);
   const out: PinBoard[] = [];
   let bookmark: string | undefined;
   for (let page = 0; page < 4; page++) {
@@ -92,20 +92,23 @@ export async function publishPinterest(opts: {
   text: string;
   imageUris?: string[];
   videoUri?: string;
+  accountId?: string;
 }): Promise<string[]> {
-  const m = await loadMetaState();
-  if (!m.pinAccessToken) throw new Error('Pinterest not connected');
-  if (!m.pinBoardId) throw new Error('Pick a Pinterest board in Connect first.');
+  const fields = await loadProviderFields('pinterest', opts.accountId);
+  const pinAccessToken = fields.pinAccessToken as string | undefined;
+  const pinBoardId = fields.pinBoardId as string | undefined;
+  if (!pinAccessToken) throw new Error('Pinterest not connected');
+  if (!pinBoardId) throw new Error('Pick a Pinterest board in Connect first.');
   const images = (opts.imageUris ?? []).filter(Boolean).slice(0, PIN_MAX_IMAGES);
   if (images.length === 0 && !opts.videoUri) {
     throw new Error('Pinterest Pins need a photo or video — attach media first.');
   }
-  const { token } = await getValidPin();
+  const { token } = await getValidPin(opts.accountId);
   const firstLine = (opts.text ?? '').trim().split('\n')[0];
   const ids: string[] = [];
   if (opts.videoUri) {
     try {
-      ids.push(await createVideoPin(m.pinBoardId, token, firstLine || 'Sosial video', opts.text ?? '', opts.videoUri));
+      ids.push(await createVideoPin(pinBoardId, token, firstLine || 'Sosial video', opts.text ?? '', opts.videoUri));
     } catch (e: any) {
       throw new Error(`Video: ${e?.message ?? 'upload failed'}`);
     }
@@ -115,7 +118,7 @@ export async function publishPinterest(opts: {
       ? `${firstLine} (${i + 1}/${images.length})`
       : firstLine || 'Sosial Pin';
     try {
-      ids.push(await createImagePin(m.pinBoardId, token, title, opts.text ?? '', images[i]));
+      ids.push(await createImagePin(pinBoardId, token, title, opts.text ?? '', images[i]));
     } catch (e: any) {
       throw new Error(`Photo ${i + 1}/${images.length}: ${e?.message ?? 'upload failed'}`);
     }

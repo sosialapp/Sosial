@@ -93,8 +93,8 @@ async function uploadVideo(token: string, uri: string, title: string, descriptio
  * auto-classifies vertical ≤3min uploads, so both kinds upload identically.
  * Returns the new video id.
  */
-export async function publishYouTube(opts: { text: string; videoUri?: string; kind?: 'video' | 'short'; privacy?: 'public' | 'unlisted' | 'private' }): Promise<string> {
-  const { token } = await getValidYt();
+export async function publishYouTube(opts: { text: string; videoUri?: string; kind?: 'video' | 'short'; privacy?: 'public' | 'unlisted' | 'private'; accountId?: string }): Promise<string> {
+  const { token } = await getValidYt(opts.accountId);
   const videoUri = opts.videoUri && opts.videoUri.trim() ? opts.videoUri : undefined;
   if (!videoUri) {
     throw new Error('YouTube needs a video — attach one to post here.');

@@ -65,5 +65,6 @@ export async function wipeAllData(): Promise<void> {
   } catch {}
   try {
     await SecureStore.deleteItemAsync('zap_meta_v1');
+    await SecureStore.deleteItemAsync('zap_accounts_v1');
   } catch {}
 }

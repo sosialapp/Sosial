@@ -226,8 +226,9 @@ export async function publishX(opts: {
   imageUris?: string[];
   videoUri?: string;
   replyTo?: string;
+  accountId?: string;
 }): Promise<string> {
-  const token = await getValidXToken();
+  const token = await getValidXToken(opts.accountId);
   const text = fitText(opts.text);
   const uris = (opts.imageUris ?? []).filter(Boolean).slice(0, X_MAX_IMAGES);
   const videoUri = (opts.videoUri ?? '').trim() ? opts.videoUri : undefined;

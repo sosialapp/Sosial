@@ -5,6 +5,7 @@ import FontAwesome6 from '@expo/vector-icons/build/FontAwesome6';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Svg, Path } from 'react-native-svg';
 import { useTheme, Palette, R } from '../theme';
+import { SOCIAL_META } from '../constants';
 
 /** Real brand glyph for a social platform — optically balanced per brand */
 const GLYPH_SCALE: Record<string, number> = {
@@ -45,6 +46,31 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
     pinterest: 'logo-pinterest',
   };
   return <Ionicons name={map[platform] ?? 'ellipse'} size={s} color={color} />;
+}
+
+/** Channel avatar: profile picture of a connected account with the social
+ *  logo stacked in the corner; falls back to the brand tile when no avatar. */
+export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { platform: string; avatar?: string; size?: number; badge?: boolean }) {
+  const { C } = useTheme();
+  const bg = SOCIAL_META[platform]?.bg ?? C.ink;
+  const r = Math.round(size * 0.3);
+  const badgeSize = Math.max(12, Math.round(size * 0.46));
+  return (
+    <View style={{ width: size, height: size }}>
+      {avatar ? (
+        <Image source={{ uri: avatar }} style={{ width: size, height: size, borderRadius: r, backgroundColor: C.lineSoft }} resizeMode="cover" />
+      ) : (
+        <View style={{ width: size, height: size, borderRadius: r, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+          <SocialGlyph platform={platform} size={Math.round(size * 0.45)} color="#fff" />
+        </View>
+      )}
+      {avatar && badge ? (
+        <View style={{ position: 'absolute', right: -2, bottom: -2, width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bone }}>
+          <SocialGlyph platform={platform} size={Math.round(badgeSize * 0.56)} color="#fff" />
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 /** Numbered editorial section header — "01 · Photo" */

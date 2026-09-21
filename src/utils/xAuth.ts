@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { X_CLIENT_ID, X_AUTH_ENDPOINT, X_TOKEN_ENDPOINT, X_API, X_SCOPES } from './xConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
-import { loadMetaState, saveMetaState } from './metaStore';
+import { loadProviderFields, saveProviderFields } from './metaStore';
 
 /** X nests errors three different ways — normalize to a human string.
  *  The machine code (invalid_grant etc.) is appended so failures are debuggable. */
@@ -51,7 +51,7 @@ async function challengeFor(verifier: string): Promise<string> {
 
 /* ---------------- Login (same bridge page as Meta/TikTok) ---------------- */
 
-export async function loginX(): Promise<boolean> {
+export async function loginX(accountId?: string): Promise<boolean> {
   const verifier = await newVerifier();
   const challenge = await challengeFor(verifier);
   // the verifier must survive an Expo Go reload mid-login — the code is
@@ -67,7 +67,7 @@ export async function loginX(): Promise<boolean> {
     `&state=${encodeURIComponent(appReturnUrl())}` +
     `&code_challenge=${encodeURIComponent(challenge)}` +
     `&code_challenge_method=S256`;
-  const ok = await openAuth(url, 'x');
+  const ok = await openAuth(url, 'x', accountId);
   if (!ok) {
     try {
       await AsyncStorage.removeItem(VERIFIER_KEY);
@@ -138,56 +138,62 @@ export async function refreshXToken(refreshToken: string): Promise<XTokens> {
  * refreshing 10 min before expiry. Throws a reconnect message when the
  * refresh token itself is dead.
  */
-export async function getValidXToken(): Promise<string> {
-  const m = await loadMetaState();
-  if (m.xAccessToken && m.xExpiresAt && m.xExpiresAt > Date.now() + 600000) {
-    return m.xAccessToken;
+export async function getValidXToken(accountId?: string): Promise<string> {
+  const f = await loadProviderFields('x', accountId);
+  const access = f.xAccessToken as string | undefined;
+  const expiresAt = f.xExpiresAt as number | undefined;
+  const refresh = f.xRefreshToken as string | undefined;
+  if (access && expiresAt && expiresAt > Date.now() + 600000) {
+    return access;
   }
-  if (!m.xRefreshToken) throw new Error('X not connected');
+  if (!refresh) throw new Error('X not connected');
   try {
-    const t = await refreshXToken(m.xRefreshToken);
-    await saveMetaState({
+    const t = await refreshXToken(refresh);
+    await saveProviderFields('x', {
       xAccessToken: t.accessToken,
       xRefreshToken: t.refreshToken,
       xExpiresAt: t.expiresAt,
-    });
+    }, accountId);
     return t.accessToken;
   } catch (e: any) {
     const msg = String(e?.message ?? '');
     if (/invalid_grant|invalid_request|expired/i.test(msg)) {
-      await saveMetaState({ xAccessToken: undefined, xRefreshToken: undefined, xExpiresAt: undefined });
+      await saveProviderFields('x', { xAccessToken: undefined, xRefreshToken: undefined, xExpiresAt: undefined }, accountId);
       throw new Error('X session expired — reconnect X.');
     }
     throw e;
   }
 }
 
-export async function fetchXProfile(token: string): Promise<{ id: string; name?: string }> {
-  const r = await fetch(`${X_API}/users/me?user.fields=id,name,username`, {
+export async function fetchXProfile(token: string): Promise<{ id: string; name?: string; picture?: string }> {
+  const r = await fetch(`${X_API}/users/me?user.fields=id,name,username,profile_image_url`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const j: any = await r.json().catch(() => ({}));
   const u = j?.data;
   if (!u?.id) throw new Error(xerr(j, 'Could not read your X profile.'));
-  return { id: String(u.id), name: u.username ? `@${u.username}` : undefined };
+  return { id: String(u.id), name: u.username ? `@${u.username}` : undefined, picture: u.profile_image_url ? String(u.profile_image_url).replace('_normal.', '.') : undefined };
 }
 
 /** Full login: code -> tokens -> profile, all saved to the vault. */
-export async function completeXLogin(code: string): Promise<{ name?: string }> {
+export async function completeXLogin(code: string, accountId?: string): Promise<{ name?: string }> {
   const t = await exchangeXCode(code);
   let name: string | undefined;
   let id = '';
+  let avatar: string | undefined;
   try {
     const prof = await fetchXProfile(t.accessToken);
     id = prof.id;
     name = prof.name;
+    avatar = prof.picture;
   } catch {}
-  await saveMetaState({
+  await saveProviderFields('x', {
     xAccessToken: t.accessToken,
     xRefreshToken: t.refreshToken || undefined,
     xExpiresAt: t.expiresAt,
     xUserId: id || undefined,
     xName: name,
-  });
+    avatar,
+  }, accountId);
   return { name };
 }

@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { Txt, Field, SocialGlyph } from '../components/ui';
+import { Txt, Field, ChannelAvatar } from '../components/ui';
 import {
   loadTeam, addTeamMember, removeTeamMember, updateMember, memberChannelsLabel,
-  assignableChannels, canRemoveMember, canAssignChannels, canChangeRole,
-  loadActor, saveActor, TeamMember, Actor,
+  assignableChannels, normalizeChannels, canRemoveMember, canAssignChannels, canChangeRole,
+  loadActor, saveActor, saveTeam, TeamMember, Actor, AssignableChannel,
 } from '../utils/team';
-import { loadMetaState } from '../utils/metaStore';
+import { loadAccounts } from '../utils/metaStore';
+import { ConnectedAccount } from '../utils/socialAccounts';
 
 /**
  * Workspace roster: invite, roles (admin/member), per-channel assignment,
@@ -30,14 +31,26 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [mName, setMName] = useState('');
   const [mEmail, setMEmail] = useState('');
   const [mChannels, setMChannels] = useState<string[]>(['all']);
-  const [chanList, setChanList] = useState<{ id: string; label: string; sub: string }[]>([]);
+  const [chanList, setChanList] = useState<AssignableChannel[]>([]);
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [actingAs, setActingAs] = useState<string>('owner');
   const [assigningId, setAssigningId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadTeam().then(setMembers);
-    loadMetaState().then((m) => setChanList(assignableChannels(m)));
-    loadActor().then((a) => setActingAs(a.id ?? 'owner'));
+    (async () => {
+      const accts = await loadAccounts();
+      setAccounts(accts);
+      setChanList(assignableChannels(accts));
+      const team = await loadTeam();
+      let changed = false;
+      const normalized = team.map((m) => {
+        const next = normalizeChannels(m.channels, accts);
+        if (next.join(',') !== m.channels.join(',')) { changed = true; return { ...m, channels: next }; }
+        return m;
+      });
+      setMembers(changed ? await saveTeam(normalized) : team);
+      setActingAs((await loadActor()).id ?? 'owner');
+    })();
   }, []);
 
   const actor: Actor = actingAs === 'owner'
@@ -184,7 +197,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                       <Text style={s.rowT} numberOfLines={1}>{m.name}</Text>
                       <View style={s.rolePill}><Text style={s.rolePillT}>{m.role}</Text></View>
                     </View>
-                    <Text style={s.rowS} numberOfLines={1}>{m.email} · {memberChannelsLabel(m.channels)}</Text>
+                    <Text style={s.rowS} numberOfLines={1}>{m.email} · {memberChannelsLabel(m.channels, accounts)}</Text>
                     {showRoleFlip || showChannels || showTrash || (isSelf && actor.role !== 'owner') ? (
                       <View style={s.actions}>
                         {showRoleFlip ? (
@@ -236,7 +249,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                             style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
                             activeOpacity={0.75}
                           >
-                            <SocialGlyph platform={c.id} size={13} color={on ? C.onInk : C.muted} />
+                            <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} badge={false} />
                             <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
                           </TouchableOpacity>
                         );
@@ -275,7 +288,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                           style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
                           activeOpacity={0.75}
                         >
-                          <SocialGlyph platform={c.id} size={13} color={on ? C.onInk : C.muted} />
+                          <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} badge={false} />
                           <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
                         </TouchableOpacity>
                       );

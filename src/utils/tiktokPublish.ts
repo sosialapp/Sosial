@@ -129,8 +129,9 @@ export async function publishTikTokVideo(opts: {
   title: string;
   privacyLevel: string;
   videoUri: string;
+  accountId?: string;
 }): Promise<string> {
-  const token = await getValidToken();
+  const token = await getValidToken(opts.accountId);
 
   // XHR (native Networking) can read file:// URIs — one Blob, sliced per
   // chunk, never the whole file decoded in JS memory.
@@ -200,8 +201,9 @@ export async function publishTikTokPhotos(opts: {
   privacyLevel: string;
   /** public https URLs, 1–35 */
   imageUrls: string[];
+  accountId?: string;
 }): Promise<string> {
-  const token = await getValidToken();
+  const token = await getValidToken(opts.accountId);
   if (!opts.imageUrls.length) throw new Error('TikTok photo post needs at least one photo.');
 
   const initJ: any = await fetchJson(`${TT_API}/v2/post/publish/content/init/`, {

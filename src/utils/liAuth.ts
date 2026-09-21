@@ -1,6 +1,6 @@
 import { LI_CLIENT_ID, LI_CLIENT_SECRET, LI_AUTH_ENDPOINT, LI_TOKEN_ENDPOINT, LI_API, LI_SCOPES, LI_VERSION } from './liConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
-import { loadMetaState, saveMetaState } from './metaStore';
+import { loadProviderFields, saveProviderFields } from './metaStore';
 
 /** LinkedIn errors look like { error, error_description } or { message, status }. */
 function lerr(j: any, fallback: string): string {
@@ -20,14 +20,14 @@ function qs(p: Record<string, string>): string {
 
 /* ---------------- Login (same bridge page as the other OAuth channels) ---------------- */
 
-export async function loginLinkedIn(): Promise<boolean> {
+export async function loginLinkedIn(accountId?: string): Promise<boolean> {
   const url =
     `${LI_AUTH_ENDPOINT}?response_type=code` +
     `&client_id=${encodeURIComponent(LI_CLIENT_ID)}` +
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
     `&scope=${encodeURIComponent(LI_SCOPES.join(' '))}` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  return openAuth(url, 'linkedin');
+  return openAuth(url, 'linkedin', accountId);
 }
 
 export interface LiTokens {
@@ -83,25 +83,29 @@ export async function refreshLiToken(refreshToken: string): Promise<LiTokens> {
  * The single entry every LinkedIn call uses. Returns a live access token plus
  * the member URN, refreshing 10 min before expiry.
  */
-export async function getValidLi(): Promise<{ token: string; personUrn: string }> {
-  const m = await loadMetaState();
-  if (!m.liPersonUrn) throw new Error('LinkedIn not connected');
-  if (m.liAccessToken && m.liExpiresAt && m.liExpiresAt > Date.now() + 600000) {
-    return { token: m.liAccessToken, personUrn: m.liPersonUrn };
+export async function getValidLi(accountId?: string): Promise<{ token: string; personUrn: string }> {
+  const f = await loadProviderFields('linkedin', accountId);
+  const personUrn = f.liPersonUrn as string | undefined;
+  const access = f.liAccessToken as string | undefined;
+  const expiresAt = f.liExpiresAt as number | undefined;
+  const refresh = f.liRefreshToken as string | undefined;
+  if (!personUrn) throw new Error('LinkedIn not connected');
+  if (access && expiresAt && expiresAt > Date.now() + 600000) {
+    return { token: access, personUrn };
   }
-  if (!m.liRefreshToken) throw new Error('LinkedIn session expired — reconnect LinkedIn.');
+  if (!refresh) throw new Error('LinkedIn session expired — reconnect LinkedIn.');
   try {
-    const t = await refreshLiToken(m.liRefreshToken);
-    await saveMetaState({
+    const t = await refreshLiToken(refresh);
+    await saveProviderFields('linkedin', {
       liAccessToken: t.accessToken,
       liRefreshToken: t.refreshToken,
       liExpiresAt: t.expiresAt,
-    });
-    return { token: t.accessToken, personUrn: m.liPersonUrn };
+    }, accountId);
+    return { token: t.accessToken, personUrn };
   } catch (e: any) {
     const msg = String(e?.message ?? '');
     if (/invalid_grant|invalid_request|expired|unauthorized/i.test(msg)) {
-      await saveMetaState({ liAccessToken: undefined, liRefreshToken: undefined, liExpiresAt: undefined });
+      await saveProviderFields('linkedin', { liAccessToken: undefined, liRefreshToken: undefined, liExpiresAt: undefined }, accountId);
       throw new Error('LinkedIn session expired — reconnect LinkedIn.');
     }
     throw e;
@@ -109,7 +113,7 @@ export async function getValidLi(): Promise<{ token: string; personUrn: string }
 }
 
 /** OpenID userinfo → person URN + display name. */
-export async function fetchLiProfile(token: string): Promise<{ urn: string; name?: string }> {
+export async function fetchLiProfile(token: string): Promise<{ urn: string; name?: string; picture?: string }> {
   const r = await fetch(`${LI_API}/v2/userinfo`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -118,20 +122,21 @@ export async function fetchLiProfile(token: string): Promise<{ urn: string; name
   const given = String(j.given_name ?? '');
   const family = String(j.family_name ?? '');
   const full = `${given} ${family}`.trim();
-  return { urn: `urn:li:person:${j.sub}`, name: full ? `@${full}` : undefined };
+  return { urn: `urn:li:person:${j.sub}`, name: full ? `@${full}` : undefined, picture: j.picture ? String(j.picture) : undefined };
 }
 
 /** Full login: code -> tokens -> profile, all saved to the vault. */
-export async function completeLiLogin(code: string): Promise<{ name?: string }> {
+export async function completeLiLogin(code: string, accountId?: string): Promise<{ name?: string }> {
   const t = await exchangeLiCode(code);
   const prof = await fetchLiProfile(t.accessToken);
-  await saveMetaState({
+  await saveProviderFields('linkedin', {
     liAccessToken: t.accessToken,
     liRefreshToken: t.refreshToken || undefined,
     liExpiresAt: t.expiresAt,
     liPersonUrn: prof.urn,
     liName: prof.name,
-  });
+    avatar: prof.picture,
+  }, accountId);
   return { name: prof.name };
 }
 
@@ -192,16 +197,16 @@ export async function fetchLiOrgs(token: string): Promise<LiOrg[]> {
 }
 
 /** Pick a Company Page to post/analyze as (pass null for "just me"). */
-export async function pickLiOrg(org: LiOrg | null): Promise<void> {
-  await saveMetaState({
+export async function pickLiOrg(org: LiOrg | null, accountId?: string): Promise<void> {
+  await saveProviderFields('linkedin', {
     liOrgId: org?.id,
     liOrgName: org?.name,
-  });
+  }, accountId);
 }
 
 /** My admin orgs with a fresh token — what the Connect picker calls. */
-export async function listMyLiOrgs(): Promise<LiOrg[]> {
-  const { token } = await getValidLi();
+export async function listMyLiOrgs(accountId?: string): Promise<LiOrg[]> {
+  const { token } = await getValidLi(accountId);
   return fetchLiOrgs(token);
 }
 

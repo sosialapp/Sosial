@@ -3,7 +3,7 @@ import {
   TT_API, TT_SCOPES,
 } from './tiktokConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
-import { loadMetaState, saveMetaState } from './metaStore';
+import { loadProviderFields, saveProviderFields } from './metaStore';
 import * as WebBrowser from 'expo-web-browser';
 
 /** TikTok nests errors as { error: { code, message } } with code 'ok' on success. */
@@ -22,14 +22,14 @@ function qs(p: Record<string, string>): string {
 
 /* ---------------- Login (same bridge page as Meta — it forwards ?code=) ---------------- */
 
-export async function loginTikTok(): Promise<boolean> {
+export async function loginTikTok(accountId?: string): Promise<boolean> {
   const url =
     `${TT_AUTH_ENDPOINT}?client_key=${encodeURIComponent(TT_CLIENT_KEY)}` +
     `&scope=${encodeURIComponent(TT_SCOPES.join(','))}` +
     `&response_type=code` +
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  return openAuth(url, 'tiktok');
+  return openAuth(url, 'tiktok', accountId);
 }
 
 /**
@@ -100,41 +100,45 @@ export async function refreshTikTokToken(refreshToken: string): Promise<TikTokTo
  * refreshing 10 min before expiry. Throws a reconnect message when the
  * refresh token itself is dead (invalid_grant).
  */
-export async function getValidToken(): Promise<string> {
-  const m = await loadMetaState();
-  if (m.ttAccessToken && m.ttExpiresAt && m.ttExpiresAt > Date.now() + 600000) {
-    return m.ttAccessToken;
+export async function getValidToken(accountId?: string): Promise<string> {
+  const f = await loadProviderFields('tiktok', accountId);
+  const access = f.ttAccessToken as string | undefined;
+  const expiresAt = f.ttExpiresAt as number | undefined;
+  const refresh = f.ttRefreshToken as string | undefined;
+  const openId = f.ttOpenId as string | undefined;
+  if (access && expiresAt && expiresAt > Date.now() + 600000) {
+    return access;
   }
-  if (!m.ttRefreshToken) throw new Error('TikTok not connected');
+  if (!refresh) throw new Error('TikTok not connected');
   try {
-    const t = await refreshTikTokToken(m.ttRefreshToken);
-    await saveMetaState({
+    const t = await refreshTikTokToken(refresh);
+    await saveProviderFields('tiktok', {
       ttAccessToken: t.accessToken,
       ttRefreshToken: t.refreshToken,
       ttExpiresAt: t.expiresAt,
-      ttOpenId: t.openId || m.ttOpenId,
-    });
+      ttOpenId: t.openId || openId,
+    }, accountId);
     return t.accessToken;
   } catch (e: any) {
     const msg = String(e?.message ?? '');
     if (/invalid_grant|invalid_request/i.test(msg)) {
-      await saveMetaState({
+      await saveProviderFields('tiktok', {
         ttAccessToken: undefined, ttRefreshToken: undefined, ttExpiresAt: undefined,
-      });
+      }, accountId);
       throw new Error('TikTok session expired — reconnect TikTok.');
     }
     throw e;
   }
 }
 
-export async function fetchTikTokProfile(token: string): Promise<{ openId: string; name?: string }> {
+export async function fetchTikTokProfile(token: string): Promise<{ openId: string; name?: string; avatar?: string }> {
   const r = await fetch(`${TT_API}/v2/user/info/?fields=open_id,display_name,avatar_url`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const j: any = await r.json().catch(() => ({}));
   const u = j?.data?.user;
   if (!u?.open_id) throw new Error(terr(j, 'Could not read your TikTok profile.'));
-  return { openId: String(u.open_id), name: u.display_name ? `@${u.display_name}` : undefined };
+  return { openId: String(u.open_id), name: u.display_name ? `@${u.display_name}` : undefined, avatar: u.avatar_url ? String(u.avatar_url) : undefined };
 }
 
 export interface CreatorInfo {
@@ -161,14 +165,16 @@ export async function fetchCreatorInfo(token: string): Promise<CreatorInfo> {
 }
 
 /** Full login: code -> tokens -> profile, all saved to the vault. */
-export async function completeTikTokLogin(code: string): Promise<{ name?: string }> {
+export async function completeTikTokLogin(code: string, accountId?: string): Promise<{ name?: string }> {
   const t = await exchangeTikTokCode(code);
   let name: string | undefined;
   let openId = t.openId;
+  let avatar: string | undefined;
   try {
     const prof = await fetchTikTokProfile(t.accessToken);
     openId = prof.openId || openId;
     name = prof.name;
+    avatar = prof.avatar;
   } catch {}
   if (!name) {
     try {
@@ -176,12 +182,13 @@ export async function completeTikTokLogin(code: string): Promise<{ name?: string
       name = ci.nickname;
     } catch {}
   }
-  await saveMetaState({
+  await saveProviderFields('tiktok', {
     ttAccessToken: t.accessToken,
     ttRefreshToken: t.refreshToken,
     ttExpiresAt: t.expiresAt,
     ttOpenId: openId || undefined,
     ttName: name,
-  });
+    avatar,
+  }, accountId);
   return { name };
 }

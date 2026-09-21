@@ -1,10 +1,10 @@
 import { YT_CLIENT_ID, YT_CLIENT_SECRET, YT_AUTH_ENDPOINT, YT_TOKEN_ENDPOINT, YT_API, YT_SCOPES } from './ytConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
-import { loadMetaState, saveMetaState } from './metaStore';
+import { loadProviderFields, saveProviderFields } from './metaStore';
 
 /* ---------------- Login (same bridge page as the other OAuth channels) ---------------- */
 
-export async function loginYouTube(): Promise<boolean> {
+export async function loginYouTube(accountId?: string): Promise<boolean> {
   const url =
     `${YT_AUTH_ENDPOINT}?response_type=code` +
     `&client_id=${encodeURIComponent(YT_CLIENT_ID)}` +
@@ -13,7 +13,7 @@ export async function loginYouTube(): Promise<boolean> {
     `&access_type=offline` +
     `&prompt=consent` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  return openAuth(url, 'youtube');
+  return openAuth(url, 'youtube', accountId);
 }
 
 /* ---------------- Token exchange + refresh ---------------- */
@@ -86,48 +86,55 @@ export async function refreshYtToken(refreshToken: string): Promise<YtTokens> {
 }
 
 /** Single entry every YouTube call uses — refreshes 10 min before expiry. */
-export async function getValidYt(force = false): Promise<{ token: string }> {
-  const m = await loadMetaState();
-  if (!m.ytRefreshToken && !m.ytAccessToken) throw new Error('YouTube not connected');
-  if (!force && m.ytAccessToken && m.ytExpiresAt && Date.now() < m.ytExpiresAt - 600000) {
-    return { token: m.ytAccessToken };
+export async function getValidYt(accountId?: string, force = false): Promise<{ token: string }> {
+  const f = await loadProviderFields('youtube', accountId);
+  const access = f.ytAccessToken as string | undefined;
+  const expiresAt = f.ytExpiresAt as number | undefined;
+  const refresh = f.ytRefreshToken as string | undefined;
+  if (!refresh && !access) throw new Error('YouTube not connected');
+  if (!force && access && expiresAt && Date.now() < expiresAt - 600000) {
+    return { token: access };
   }
-  if (!m.ytRefreshToken) {
-    if (m.ytAccessToken && m.ytExpiresAt && Date.now() < m.ytExpiresAt) return { token: m.ytAccessToken };
+  if (!refresh) {
+    if (access && expiresAt && Date.now() < expiresAt) return { token: access };
     throw new Error('YouTube session expired — reconnect YouTube.');
   }
-  const t = await refreshYtToken(m.ytRefreshToken);
-  await saveMetaState({
+  const t = await refreshYtToken(refresh);
+  await saveProviderFields('youtube', {
     ytAccessToken: t.access,
     ytRefreshToken: t.refresh || undefined,
     ytExpiresAt: t.expiresAt,
-  });
+  }, accountId);
   return { token: t.access };
 }
 
-export async function fetchYtProfile(token: string): Promise<{ name?: string }> {
+export async function fetchYtProfile(token: string): Promise<{ name?: string; avatar?: string }> {
   const r = await fetch(`${YT_API}/channels?part=snippet&mine=true`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const j: any = await r.json().catch(() => ({}));
   const title = j?.items?.[0]?.snippet?.title;
   if (!r.ok || !title) throw new Error(yerr(j, 'Could not read your YouTube channel.'));
-  return { name: String(title) };
+  const thumbs = j?.items?.[0]?.snippet?.thumbnails;
+  const avatar = thumbs?.high?.url ?? thumbs?.medium?.url ?? thumbs?.default?.url;
+  return { name: String(title), avatar: avatar ? String(avatar) : undefined };
 }
 
 /** Full login: exchange the code, read the channel title, save tokens. */
-export async function completeYtLogin(code: string): Promise<{ name?: string }> {
+export async function completeYtLogin(code: string, accountId?: string): Promise<{ name?: string }> {
   const t = await exchangeYtCode(code);
-  await saveMetaState({
+  await saveProviderFields('youtube', {
     ytAccessToken: t.access,
     ytRefreshToken: t.refresh || undefined,
     ytExpiresAt: t.expiresAt,
-  });
+  }, accountId);
   let name: string | undefined;
+  let avatar: string | undefined;
   try {
     const prof = await fetchYtProfile(t.access);
     name = prof.name;
+    avatar = prof.avatar;
   } catch {}
-  await saveMetaState({ ytChannelName: name });
+  await saveProviderFields('youtube', { ytChannelName: name, avatar }, accountId);
   return { name };
 }

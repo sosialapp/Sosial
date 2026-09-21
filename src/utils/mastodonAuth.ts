@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MASTODON_CLIENT_NAME, MASTODON_SCOPES, mastodonBase, normalizeInstance } from './mastodonConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
-import { loadMetaState, saveMetaState } from './metaStore';
+import { loadProviderFields, saveProviderFields } from './metaStore';
 
 /**
  * Mastodon apps are registered per instance, and the client id/secret are
@@ -61,7 +61,7 @@ async function clearPending(): Promise<void> {
  * Register Sosial on the entered instance, then open that instance's consent
  * page through the shared bridge. Returns false when the user backs out.
  */
-export async function loginMastodon(instanceInput: string): Promise<boolean> {
+export async function loginMastodon(instanceInput: string, accountId?: string): Promise<boolean> {
   const instance = normalizeInstance(instanceInput);
   const base = mastodonBase(instance);
   const r = await fetch(`${base}/api/v1/apps`, {
@@ -88,7 +88,7 @@ export async function loginMastodon(instanceInput: string): Promise<boolean> {
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
     `&scope=${encodeURIComponent(MASTODON_SCOPES.join(' '))}` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  const ok = await openAuth(url, 'mastodon');
+  const ok = await openAuth(url, 'mastodon', accountId);
   if (!ok) await clearPending();
   return ok;
 }
@@ -114,38 +114,44 @@ async function exchangeMastodonCode(code: string): Promise<{ token: string; inst
   return { token: String(j.access_token), instance: pending.instance };
 }
 
-export async function fetchMastodonProfile(instance: string, token: string): Promise<{ id: string; name?: string }> {
+export async function fetchMastodonProfile(instance: string, token: string): Promise<{ id: string; name?: string; avatar?: string }> {
   const r = await fetch(`${mastodonBase(instance)}/api/v1/accounts/verify_credentials`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const j: any = await r.json().catch(() => ({}));
   if (!j?.id) throw new Error(merr(j, 'Could not read your Mastodon profile.'));
-  return { id: String(j.id), name: j.acct ? `@${j.acct}` : undefined };
+  return { id: String(j.id), name: j.acct ? `@${j.acct}` : undefined, avatar: j.avatar ? String(j.avatar) : undefined };
 }
 
 /** Full login: exchange the code, read the profile, save instance + token. */
-export async function completeMastodonLogin(code: string): Promise<{ name?: string }> {
+export async function completeMastodonLogin(code: string, accountId?: string): Promise<{ name?: string }> {
   const { token, instance } = await exchangeMastodonCode(code);
   await clearPending();
   let name: string | undefined;
   let id = '';
+  let avatar: string | undefined;
   try {
     const prof = await fetchMastodonProfile(instance, token);
     id = prof.id;
     name = prof.name;
+    avatar = prof.avatar;
   } catch {}
-  await saveMetaState({
+  await saveProviderFields('mastodon', {
     mastodonAccessToken: token,
     mastodonInstance: instance,
     mastodonAccountId: id || undefined,
     mastodonName: name,
-  });
+    avatar,
+  }, accountId);
   return { name };
 }
 
 /** Mastodon tokens don't expire — the single entry every call uses. */
-export async function getValidMastodon(): Promise<{ token: string; instance: string; accountId: string }> {
-  const m = await loadMetaState();
-  if (!m.mastodonAccessToken || !m.mastodonInstance) throw new Error('Mastodon not connected');
-  return { token: m.mastodonAccessToken, instance: m.mastodonInstance, accountId: m.mastodonAccountId ?? '' };
+export async function getValidMastodon(accountId?: string): Promise<{ token: string; instance: string; accountId: string }> {
+  const f = await loadProviderFields('mastodon', accountId);
+  const token = f.mastodonAccessToken as string | undefined;
+  const instance = f.mastodonInstance as string | undefined;
+  const mid = f.mastodonAccountId as string | undefined;
+  if (!token || !instance) throw new Error('Mastodon not connected');
+  return { token, instance, accountId: mid ?? '' };
 }

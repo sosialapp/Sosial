@@ -99,8 +99,9 @@ export async function publishMastodon(opts: {
   videoUri?: string;
   /** thread chain: publish this status as a reply to an earlier one */
   replyToId?: string;
+  accountId?: string;
 }): Promise<string> {
-  const { token, instance } = await getValidMastodon();
+  const { token, instance } = await getValidMastodon(opts.accountId);
   const text = fitText(opts.text);
   const videoUri = opts.videoUri && opts.videoUri.trim() ? opts.videoUri : undefined;
   const images = videoUri ? [] : (opts.imageUris ?? []).filter(Boolean).slice(0, MASTODON_MAX_IMAGES);

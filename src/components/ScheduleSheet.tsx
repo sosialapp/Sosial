@@ -8,13 +8,14 @@ import { PrimaryBtn, GhostBtn, Txt } from './ui';
 import { SegMediaStrip } from './SegMediaStrip';
 import { useVerticalReorder } from './useVerticalReorder';
 import { PubRow } from './PublishNotice';
-import { SocialGlyph } from './ui';
+import { SocialGlyph, ChannelAvatar } from './ui';
 import { SOCIAL_META } from '../constants';
 import { MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
 import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
-import { loadMetaState, connectedChannelIds, MetaState } from '../utils/metaStore';
+import { loadMetaState, loadAccounts, connectedChannelIds, MetaState } from '../utils/metaStore';
+import { type ConnectedAccount, accountConnected, accountName, accountAvatar } from '../utils/socialAccounts';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
 import { fetchPostStats, SentPostStats } from '../utils/postStats';
@@ -360,6 +361,7 @@ interface Props {
   visible: boolean;
   initialAt?: number;
   initialPlatforms?: string[];
+  initialAccountIds?: Record<string, string>;
   initialTypes?: PlatformTypes;
   initialSourceUrl?: string;
   initialThreadsTopic?: string;
@@ -370,10 +372,10 @@ interface Props {
   composer?: Composer;
   media?: SheetMedia;
   onDelete?: () => void;
-  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string) => void;
-  onPostNow?: (plats: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string) => void;
+  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => void;
+  onPostNow?: (plats: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => void;
   draftLabel?: string;
-  onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string) => void;
+  onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => void;
   onClose?: () => void;
   /** Live publish progress (shown inline while the "Post now" button spins). */
   /** Open the AI caption/thread writer onto this draft. */
@@ -399,11 +401,14 @@ interface Props {
  * `bare` renders the same form inline (Create → Post pill) instead of in the
  * bottom-sheet Modal — state and submit paths are identical either way.
  */
-export function ScheduleForm({ visible, initialAt, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange }: Props & { bare?: boolean }) {
+export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange }: Props & { bare?: boolean }) {
   const { C, mode: themeMode } = useTheme();
   const st = makeSt(C);
   const [plats, setPlats] = useState<string[]>(['any']);
   const [connected, setConnected] = useState<string[]>([]);
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+  const [accountIds, setAccountIds] = useState<Record<string, string>>({});
+  const [acctOpen, setAcctOpen] = useState<string | null>(null);
   const [types, setTypes] = useState<PlatformTypes>({});
   const [threadsTopic, setThreadsTopic] = useState('');
   const [topicOpen, setTopicOpen] = useState(false);
@@ -471,6 +476,16 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
         if (!explicit) setPlats([]);
         else if (init) setPlats(init.filter((p) => p === 'any' || c.includes(p)));
       });
+      // Multi-account providers offer a per-channel account picker.
+      loadAccounts().then((all) => {
+        setAccounts(all);
+        const valid = new Set(all.map((a) => a.id));
+        const next: Record<string, string> = {};
+        for (const [k, v] of Object.entries(initialAccountIds ?? {})) {
+          if (valid.has(v)) next[k] = v;
+        }
+        setAccountIds(next);
+      });
       setTypes(initialTypes ?? {});
       setThreadsTopic(initialThreadsTopic ?? '');
       setTopicOpen(false);
@@ -485,7 +500,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
       setShowPicker(false);
       setMode('date');
     }
-  }, [visible, initialAt, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy]);
+  }, [visible, initialAt, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, initialAccountIds]);
 
   // TikTok audience options come from the account itself — load them while the
   // sheet is open so the choice can be made upfront instead of at publish.
@@ -585,6 +600,27 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
     return out as PlatformTypes;
   };
 
+  /** Connected accounts for one provider (a picker shows only when >1). */
+  const accountsFor = (c: string): ConnectedAccount[] =>
+    accounts.filter((a) => a.provider === c && accountConnected(a));
+  /** Default account for a provider: the migrated default id first, else first connected. */
+  const defaultAccountIdFor = (c: string): string | undefined => {
+    const def = accounts.find((a) => a.id === `acct_${c}` && accountConnected(a));
+    if (def) return def.id;
+    return accountsFor(c)[0]?.id;
+  };
+  const selectedAccountId = (c: string): string | undefined => accountIds[c] ?? defaultAccountIdFor(c);
+  /** Per-channel account ids for the selected channels (provider → account id). */
+  const finalAccountIds = (): Record<string, string> | undefined => {
+    const out: Record<string, string> = {};
+    for (const c of plats) {
+      if (c === 'any') continue;
+      const id = selectedAccountId(c);
+      if (id) out[c] = id;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  };
+
   const at = preset === 'now' ? Date.now() + 60000 : custom.getTime();
 
   // The 5-minute floor slides forward as time passes — a pick that was fine
@@ -653,7 +689,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
       Alert.alert('Pick a future time', 'Reminders can only fire in the future.');
       return;
     }
-    onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined);
+    onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds());
   };
 
   /** Delete asks twice — queue removals can't be undone. */
@@ -928,6 +964,15 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                         <Text style={st.topicChev}>›</Text>
                       </TouchableOpacity>
                     ) : null}
+                    {accountsFor(c).length > 1 ? (
+                      <TouchableOpacity onPress={() => setAcctOpen((v) => (v === c ? null : c))} style={st.topicLink} activeOpacity={0.7}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <ChannelAvatar platform={c} avatar={(() => { const a = accounts.find((x) => x.id === selectedAccountId(c)); return a ? accountAvatar(a) : undefined; })()} size={16} badge={false} />
+                          <Text style={st.topicLinkT} numberOfLines={1}>{(() => { const a = accounts.find((x) => x.id === selectedAccountId(c)); return a ? accountName(a) ?? 'Account' : 'Account'; })()}</Text>
+                        </View>
+                        <Text style={st.topicChev}>›</Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                   {c === 'tiktok' && privacyOpen && ttPrivacyOptions.length > 0 ? (
                     <View style={{ gap: 6 }}>
@@ -945,6 +990,22 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
                           <Text style={[st.typeChipT, ytPrivacy === o.id && { color: C.onInk }]}>{o.label}</Text>
                         </TouchableOpacity>
                       ))}
+                    </View>
+                  ) : null}
+                  {accountsFor(c).length > 1 && acctOpen === c ? (
+                    <View style={{ gap: 6 }}>
+                      {accountsFor(c).map((a) => {
+                        const sel = selectedAccountId(c) === a.id;
+                        const label = accountName(a) ?? a.provider;
+                        return (
+                          <TouchableOpacity key={a.id} onPress={() => { setAccountIds((prev) => ({ ...prev, [c]: a.id })); setAcctOpen(null); }} style={[st.typeChip, sel && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <ChannelAvatar platform={c} avatar={accountAvatar(a)} size={18} badge={false} />
+                              <Text style={[st.typeChipT, sel && { color: C.onInk }]}>{label}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   ) : null}
                   {c === 'threads' && topicOpen ? (
@@ -1064,7 +1125,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
               label={bulkCount ? `Queue ${bulkCount} page${bulkCount > 1 ? 's' : ''}` : preset === 'now' ? 'Post now' : `Queue for ${fmtDateTime(at)}`}
               loading={preset === 'now' && onPostNow && !bulkCount && !!publishing}
               loadingLabel="Posting…"
-              onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels()) onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined); } : save}
+              onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels()) onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds()); } : save}
             />
           </View>
           </>
@@ -1104,7 +1165,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialType
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               {!readOnly && onDraft ? (
                 <View style={{ flex: 1 }}>
-                  <GhostBtn label={draftLabel ?? 'Save as draft'} onPress={() => onDraft?.(finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined)} />
+                  <GhostBtn label={draftLabel ?? 'Save as draft'} onPress={() => onDraft?.(finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds())} />
                 </View>
               ) : null}
               {onDelete ? (

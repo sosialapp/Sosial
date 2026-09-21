@@ -325,13 +325,14 @@ export async function publishBsky(opts: {
   imageUris?: string[];
   videoUri?: string;
   replyTo?: { root: BskyRef; parent: BskyRef };
+  accountId?: string;
 }): Promise<BskyRef> {
-  const creds = await getValidBsky();
+  const creds = await getValidBsky(opts.accountId);
   try {
     return await publishBskyWith(creds, opts);
   } catch (e: any) {
     if (/expired|unauthorized|401|ExpiredToken|invalid token/i.test(String(e?.message ?? ''))) {
-      return await publishBskyWith(await getValidBsky(true), opts);
+      return await publishBskyWith(await getValidBsky(opts.accountId, true), opts);
     }
     throw e;
   }

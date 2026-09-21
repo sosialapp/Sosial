@@ -1,6 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SOCIAL_META, uid } from '../constants';
-import { MetaState } from './metaStore';
+import {
+  type ConnectedAccount,
+  type ProviderKey,
+  accountAvatar,
+  accountName,
+  connectedAccounts,
+  findAccount,
+  findAccountForProvider,
+} from './socialAccounts';
 
 export type TeamRole = 'owner' | 'admin' | 'member';
 
@@ -9,7 +17,7 @@ export interface TeamMember {
   name: string;
   email: string;
   role: TeamRole;
-  /** channel ids the member may post to, or ['all'] for every channel */
+  /** account ids the member may post to, or ['all'] for every account */
   channels: string[];
   createdAt: number;
 }
@@ -62,6 +70,11 @@ export async function updateMember(id: string, patch: Partial<Pick<TeamMember, '
 export async function removeTeamMember(id: string): Promise<TeamMember[]> {
   const list = await loadTeam();
   return persist(list.filter((x) => x.id !== id));
+}
+
+/** Persist a full, already-built roster (used for one-shot migrations). */
+export async function saveTeam(list: TeamMember[]): Promise<TeamMember[]> {
+  return persist(list);
 }
 
 /* ---------------- permissions (mirrored by the backend later) ---------------- */
@@ -121,28 +134,62 @@ export async function saveActor(id: string | null): Promise<Actor> {
   return loadActor();
 }
 
-/** 'All channels' or 'Facebook +2' style label. */
-export function memberChannelsLabel(ids: string[]): string {
+/** 'All channels' or 'Facebook +2' style label, resolving account ids to names. */
+export function memberChannelsLabel(ids: string[], accounts: ConnectedAccount[] = []): string {
   if (ids.includes('all')) return 'All channels';
-  const names = ids.map((k) => SOCIAL_META[k]?.label ?? k);
+  const names = ids.map((id) => {
+    const a = findAccount(accounts, id);
+    if (a) return accountName(a) ?? SOCIAL_META[a.provider]?.label ?? id;
+    return SOCIAL_META[id]?.label ?? id;
+  });
   if (names.length === 0) return 'No channels';
   if (names.length === 1) return names[0];
   return `${names[0]} +${names.length - 1}`;
 }
 
-/** Every channel, connected ones first (stable). Unconnected ones stay pickable. */
-export function assignableChannels(meta: MetaState): { id: string; label: string; sub: string }[] {
-  const all = [
-    { id: 'facebook', label: 'Facebook', sub: meta.pageName ?? 'Not connected' },
-    { id: 'instagram', label: 'Instagram', sub: meta.igName ?? 'Not connected' },
-    { id: 'threads', label: 'Threads', sub: meta.threadsName ?? 'Not connected' },
-    { id: 'tiktok', label: 'TikTok', sub: meta.ttName ?? 'Not connected' },
-    { id: 'x', label: 'X', sub: meta.xName ?? 'Not connected' },
-    { id: 'bluesky', label: 'Bluesky', sub: meta.bskyName ?? meta.bskyHandle ?? 'Not connected' },
-    { id: 'linkedin', label: 'LinkedIn', sub: meta.liOrgName ?? meta.liName ?? 'Not connected' },
-    { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? meta.mastodonInstance ?? 'Not connected' },
-    { id: 'pinterest', label: 'Pinterest', sub: meta.pinUsername ?? 'Not connected' },
-    { id: 'youtube', label: 'YouTube', sub: meta.ytChannelName ?? 'Not connected' },
-  ];
-  return [...all].sort((a, b) => (a.sub === 'Not connected' ? 1 : 0) - (b.sub === 'Not connected' ? 1 : 0));
+/** One assignable entry per connected account (account-level scoping). */
+export interface AssignableChannel {
+  id: string;
+  provider: ProviderKey;
+  label: string;
+  sub: string;
+  avatar?: string;
+}
+
+/** Every connected account, grouped by provider order (stable). */
+export function assignableChannels(accounts: ConnectedAccount[]): AssignableChannel[] {
+  const connected = connectedAccounts(accounts);
+  const order = Object.keys(SOCIAL_META);
+  const byProvider = new Map<ProviderKey, ConnectedAccount[]>();
+  for (const a of connected) {
+    const list = byProvider.get(a.provider) ?? [];
+    list.push(a);
+    byProvider.set(a.provider, list);
+  }
+  const providers = Array.from(byProvider.keys()).sort(
+    (a, b) => order.indexOf(a) - order.indexOf(b),
+  );
+  const out: AssignableChannel[] = [];
+  for (const p of providers) {
+    for (const a of byProvider.get(p)!) {
+      out.push({
+        id: a.id,
+        provider: p,
+        label: accountName(a) ?? SOCIAL_META[p]?.label ?? p,
+        sub: SOCIAL_META[p]?.label ?? p,
+        avatar: accountAvatar(a),
+      });
+    }
+  }
+  return out;
+}
+
+/** Migrate a legacy provider-key channel list to account ids in place. */
+export function normalizeChannels(ids: string[], accounts: ConnectedAccount[]): string[] {
+  if (ids.includes('all')) return ['all'];
+  return ids.map((id) => {
+    if (findAccount(accounts, id)) return id;
+    const a = findAccountForProvider(accounts, id as ProviderKey);
+    return a?.id ?? id;
+  });
 }

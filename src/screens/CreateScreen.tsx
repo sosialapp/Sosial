@@ -718,15 +718,15 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               title="New post"
               composer={{ title: '', caption: draftBody, onCaption: setDraftBody, thread: draftThread, onThread: setDraftThread, threadMedia: draftThreadMedia, onThreadMedia: setDraftThreadMedia, onPickThreadMedia: pickDraftThreadMedia, onRemoveThreadMedia: removeDraftThreadMedia, onMoveThreadMedia: moveDraftThreadMedia }}
               media={{ items: draftMedia, onPick: pickDraftMedia, onRemove: removeDraftMedia, onMove: moveDraftMedia }}
-              onSave={async (at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy) => {
-                if (await saveDraftPost(at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy)) resetInline();
+              onSave={async (at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds) => {
+                if (await saveDraftPost(at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds)) resetInline();
               }}
               draftLabel="Save as draft"
-              onDraft={async (types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy) => {
-                if (await stashDraftPost(types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy)) resetInline();
+              onDraft={async (types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds) => {
+                if (await stashDraftPost(types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds)) resetInline();
               }}
-              onPostNow={async (plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy) => {
-                if (await postDraftNow(plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy)) resetInline();
+              onPostNow={async (plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds) => {
+                if (await postDraftNow(plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds)) resetInline();
               }}
               onClose={() => {}}
               onAi={openAi}

@@ -1,17 +1,17 @@
 import { PIN_CLIENT_ID, PIN_CLIENT_SECRET, PIN_AUTH_ENDPOINT, PIN_TOKEN_ENDPOINT, PIN_API, PIN_SCOPES } from './pinConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
-import { loadMetaState, saveMetaState } from './metaStore';
+import { loadProviderFields, saveProviderFields } from './metaStore';
 
 /* ---------------- Login (same bridge page as the other OAuth channels) ---------------- */
 
-export async function loginPinterest(): Promise<boolean> {
+export async function loginPinterest(accountId?: string): Promise<boolean> {
   const url =
     `${PIN_AUTH_ENDPOINT}?response_type=code` +
     `&client_id=${encodeURIComponent(PIN_CLIENT_ID)}` +
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
     `&scope=${encodeURIComponent(PIN_SCOPES.join(','))}` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  return openAuth(url, 'pinterest');
+  return openAuth(url, 'pinterest', accountId);
 }
 
 /* ---------------- Token exchange (HTTP Basic, not body creds) ---------------- */
@@ -92,47 +92,54 @@ export async function refreshPinToken(refreshToken: string): Promise<PinTokens> 
 }
 
 /** Single entry every Pinterest call uses — refreshes up to a day before expiry. */
-export async function getValidPin(force = false): Promise<{ token: string }> {
-  const m = await loadMetaState();
-  if (!m.pinAccessToken) throw new Error('Pinterest not connected');
-  if (!force && m.pinExpiresAt && Date.now() < m.pinExpiresAt - 24 * 3600 * 1000) {
-    return { token: m.pinAccessToken };
+export async function getValidPin(accountId?: string, force = false): Promise<{ token: string }> {
+  const f = await loadProviderFields('pinterest', accountId);
+  const access = f.pinAccessToken as string | undefined;
+  const expiresAt = f.pinExpiresAt as number | undefined;
+  const refresh = f.pinRefreshToken as string | undefined;
+  if (!access) throw new Error('Pinterest not connected');
+  if (!force && expiresAt && Date.now() < expiresAt - 24 * 3600 * 1000) {
+    return { token: access };
   }
-  if (!m.pinRefreshToken) {
-    if (!m.pinExpiresAt || Date.now() >= m.pinExpiresAt) throw new Error('Pinterest session expired — reconnect Pinterest.');
-    return { token: m.pinAccessToken };
+  if (!refresh) {
+    if (!expiresAt || Date.now() >= expiresAt) throw new Error('Pinterest session expired — reconnect Pinterest.');
+    return { token: access };
   }
-  const t = await refreshPinToken(m.pinRefreshToken);
-  await saveMetaState({
+  const t = await refreshPinToken(refresh);
+  await saveProviderFields('pinterest', {
     pinAccessToken: t.access,
     pinRefreshToken: t.refresh || undefined,
     pinExpiresAt: t.expiresAt,
-  });
+  }, accountId);
   return { token: t.access };
 }
 
-export async function fetchPinProfile(token: string): Promise<{ username?: string }> {
+export async function fetchPinProfile(token: string): Promise<{ username?: string; avatar?: string }> {
   const r = await fetch(`${PIN_API}/user_account`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const j: any = await r.json().catch(() => ({}));
   if (!r.ok || !j?.username) throw new Error(perr(j, 'Could not read your Pinterest profile.'));
-  return { username: String(j.username) };
+  const img = j.profile_image;
+  const avatar = img?.medium_https ?? img?.small_https ?? img?.large_https;
+  return { username: String(j.username), avatar: avatar ? String(avatar) : undefined };
 }
 
 /** Full login: exchange the code, read the profile, save tokens. Board comes later. */
-export async function completePinLogin(code: string): Promise<{ name?: string }> {
+export async function completePinLogin(code: string, accountId?: string): Promise<{ name?: string }> {
   const t = await exchangePinCode(code);
-  await saveMetaState({
+  await saveProviderFields('pinterest', {
     pinAccessToken: t.access,
     pinRefreshToken: t.refresh || undefined,
     pinExpiresAt: t.expiresAt,
-  });
+  }, accountId);
   let name: string | undefined;
+  let avatar: string | undefined;
   try {
     const prof = await fetchPinProfile(t.access);
     name = prof.username ? `@${prof.username}` : undefined;
+    avatar = prof.avatar;
   } catch {}
-  await saveMetaState({ pinUsername: name });
+  await saveProviderFields('pinterest', { pinUsername: name, avatar }, accountId);
   return { name };
 }

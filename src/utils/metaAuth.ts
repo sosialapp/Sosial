@@ -7,7 +7,7 @@ import {
   IG_APP_ID, IG_APP_SECRET, IG_SCOPES, IG_AUTH_ENDPOINT, IG_TOKEN_ENDPOINT, IG_GRAPH,
   THREADS_APP_ID, THREADS_APP_SECRET, THREADS_AUTH_ENDPOINT, THREADS_SCOPES, THREADS_API,
 } from './metaConfig';
-import { saveMetaState } from './metaStore';
+import { saveProviderFields } from './metaStore';
 import { setPendingAuth, clearPendingAuth, handleAuthUrl, AuthChannel } from './authFlow';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -44,8 +44,8 @@ function errMsg(j: any, fallback: string): string {
  * restarts mid-login, App.tsx replays the return URL and the Connect screen
  * completes the exchange on the new instance.
  */
-export async function openAuth(authUrl: string, channel: AuthChannel): Promise<boolean> {
-  await setPendingAuth(channel);
+export async function openAuth(authUrl: string, channel: AuthChannel, accountId?: string): Promise<boolean> {
+  await setPendingAuth(channel, accountId);
   if (__DEV__) console.log(`[auth] opening ${channel}:`, authUrl.split('?')[0]);
   // A Custom Tab left over from the previous login can hijack the return path
   // of the next one (fully exiting the app on some devices) — make sure any
@@ -75,7 +75,7 @@ export async function openAuth(authUrl: string, channel: AuthChannel): Promise<b
 
 /* ---------------- Facebook ---------------- */
 
-export async function loginFacebook(): Promise<boolean> {
+export async function loginFacebook(accountId?: string): Promise<boolean> {
   const url =
     `${FB_AUTH_ENDPOINT}?client_id=${encodeURIComponent(META_APP_ID)}` +
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
@@ -83,7 +83,7 @@ export async function loginFacebook(): Promise<boolean> {
     `&scope=${encodeURIComponent(FB_SCOPES.join(','))}` +
     `&auth_type=rerequest` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  return openAuth(url, 'facebook');
+  return openAuth(url, 'facebook', accountId);
 }
 
 /** code -> short token -> 60-day token. Throws a human message on failure. */
@@ -104,31 +104,33 @@ export interface FbPage {
   id: string;
   name: string;
   access_token: string;
+  picture?: { data?: { url?: string } };
   instagram_business_account?: { id: string; username?: string };
 }
 
 export async function fetchPages(userToken: string): Promise<FbPage[]> {
   const r = await fetch(
-    graph(`/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${encodeURIComponent(userToken)}`),
+    graph(`/me/accounts?fields=id,name,access_token,picture,instagram_business_account{id,username}&access_token=${encodeURIComponent(userToken)}`),
   );
   const j: any = await r.json().catch(() => ({}));
   if (j.error) throw new Error(errMsg(j, 'Could not list your Pages.'));
   return (j.data ?? []) as FbPage[];
 }
 
-export async function pickPage(p: FbPage): Promise<void> {
+export async function pickPage(p: FbPage, accountId?: string): Promise<void> {
   // FB only — never touch the Instagram keys; it has its own login and its own
   // token, and clearing it here used to silently disconnect Instagram.
-  await saveMetaState({
+  await saveProviderFields('facebook', {
     pageId: p.id,
     pageName: p.name,
     pageToken: p.access_token,
-  });
+    avatar: p.picture?.data?.url,
+  }, accountId);
 }
 
 /* ---------------- Instagram Business Login (own OAuth, own app) ---------------- */
 
-export async function loginInstagram(): Promise<boolean> {
+export async function loginInstagram(accountId?: string): Promise<boolean> {
   // enable_fb_login=false keeps the flow on instagram.com. Without it, a
   // lingering Facebook session (e.g. after connecting Facebook first) bounces
   // the user to a facebook.com URL that errors for IG-scoped requests.
@@ -139,7 +141,7 @@ export async function loginInstagram(): Promise<boolean> {
     `&scope=${encodeURIComponent(IG_SCOPES.join(','))}` +
     `&enable_fb_login=false` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  return openAuth(url, 'instagram');
+  return openAuth(url, 'instagram', accountId);
 }
 
 /** code -> 1h token -> 60d token, plus the scoped IG user id. */
@@ -172,23 +174,23 @@ export async function exchangeInstagramCode(code: string): Promise<{ token: stri
   return { token: j2.access_token as string, userId };
 }
 
-export async function fetchInstagramProfile(token: string): Promise<{ id: string; username?: string }> {
-  const r = await fetch(`${IG_GRAPH}/me?fields=id,username&access_token=${encodeURIComponent(token)}`);
+export async function fetchInstagramProfile(token: string): Promise<{ id: string; username?: string; picture?: string }> {
+  const r = await fetch(`${IG_GRAPH}/me?fields=id,username,profile_picture_url&access_token=${encodeURIComponent(token)}`);
   const j: any = await r.json().catch(() => ({}));
   if (j.error) throw new Error(errMsg(j, 'Could not read your Instagram profile.'));
-  return { id: String(j.id), username: j.username ? `@${j.username}` : undefined };
+  return { id: String(j.id), username: j.username ? `@${j.username}` : undefined, picture: j.profile_picture_url ? String(j.profile_picture_url) : undefined };
 }
 
 /* ---------------- Threads (separate OAuth) ---------------- */
 
-export async function loginThreads(): Promise<boolean> {
+export async function loginThreads(accountId?: string): Promise<boolean> {
   const url =
     `${THREADS_AUTH_ENDPOINT}?client_id=${encodeURIComponent(THREADS_APP_ID)}` +
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
     `&response_type=code` +
     `&scope=${encodeURIComponent(THREADS_SCOPES.join(','))}` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
-  return openAuth(url, 'threads');
+  return openAuth(url, 'threads', accountId);
 }
 
 /** code -> short token -> 60-day token, plus the Threads user id. */
@@ -220,11 +222,11 @@ export async function exchangeThreadsCode(code: string): Promise<{ token: string
   return { token: j2.access_token as string, userId: String(j1.user_id ?? '') };
 }
 
-export async function fetchThreadsProfile(token: string): Promise<{ id: string; username?: string }> {
-  const r = await fetch(`${THREADS_API}/v1.0/me?fields=id,username&access_token=${encodeURIComponent(token)}`, {
+export async function fetchThreadsProfile(token: string): Promise<{ id: string; username?: string; picture?: string }> {
+  const r = await fetch(`${THREADS_API}/v1.0/me?fields=id,username,threads_profile_picture_url&access_token=${encodeURIComponent(token)}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const j: any = await r.json().catch(() => ({}));
   if (j.error) throw new Error(errMsg(j, 'Could not read your Threads profile.'));
-  return { id: String(j.id), username: j.username ? `@${j.username}` : undefined };
+  return { id: String(j.id), username: j.username ? `@${j.username}` : undefined, picture: j.threads_profile_picture_url ? String(j.threads_profile_picture_url) : undefined };
 }

@@ -1,5 +1,5 @@
 import { BSKY_RESOLVE, BSKY_PLC } from './bskyConfig';
-import { loadMetaState, saveMetaState } from './metaStore';
+import { loadProviderFields, saveProviderFields } from './metaStore';
 
 /** Bluesky nests errors as { error, message }. */
 function berr(j: any, fallback: string): string {
@@ -104,20 +104,19 @@ export async function createBskySession(identifier: string, password: string): P
 }
 
 /** Silent mint with the long-lived refresh token. */
-export async function refreshBskySession(refreshJwt: string, pdsHost: string): Promise<BskySession> {
+export async function refreshBskySession(refreshJwt: string, pdsHost: string, fallbackDid: string, fallbackHandle: string): Promise<BskySession> {
   const r = await fetch(`${pdsHost}/xrpc/com.atproto.server.refreshSession`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${refreshJwt}` },
   });
   const j: any = await bjson(r);
   if (!j.accessJwt) throw new Error(berr(j, 'Bluesky session expired — reconnect Bluesky.'));
-  const m = await loadMetaState();
   return {
     accessJwt: j.accessJwt as string,
     refreshJwt: (j.refreshJwt as string) || refreshJwt,
     expiresAt: Date.now() + 110 * 60 * 1000,
-    did: String(j.did ?? m.bskyDid ?? ''),
-    handle: String(j.handle ?? m.bskyHandle ?? ''),
+    did: String(j.did ?? fallbackDid),
+    handle: String(j.handle ?? fallbackHandle),
     pdsHost,
   };
 }
@@ -132,32 +131,36 @@ export interface BskyCreds {
  * The single entry every Bluesky call uses. Returns a live access token plus
  * the account's DID + PDS host, refreshing 10 min before expiry.
  */
-export async function getValidBsky(force = false): Promise<BskyCreds> {
-  const m = await loadMetaState();
-  if (!m.bskyDid || !m.bskyPdsHost) throw new Error('Bluesky not connected');
-  const did = m.bskyDid;
-  const pdsHost = m.bskyPdsHost;
-  if (!force && m.bskyAccessJwt && m.bskyExpiresAt && m.bskyExpiresAt > Date.now() + 600000) {
-    return { token: m.bskyAccessJwt, did, pdsHost };
+export async function getValidBsky(accountId?: string, force = false): Promise<BskyCreds> {
+  const f = await loadProviderFields('bluesky', accountId);
+  const did = f.bskyDid as string | undefined;
+  const pdsHost = f.bskyPdsHost as string | undefined;
+  const access = f.bskyAccessJwt as string | undefined;
+  const expiresAt = f.bskyExpiresAt as number | undefined;
+  const refresh = f.bskyRefreshJwt as string | undefined;
+  const handle = f.bskyHandle as string | undefined;
+  if (!did || !pdsHost) throw new Error('Bluesky not connected');
+  if (!force && access && expiresAt && expiresAt > Date.now() + 600000) {
+    return { token: access, did, pdsHost };
   }
-  if (!m.bskyRefreshJwt) throw new Error('Bluesky not connected');
+  if (!refresh) throw new Error('Bluesky not connected');
   try {
-    const s = await refreshBskySession(m.bskyRefreshJwt, pdsHost);
-    await saveMetaState({
+    const s = await refreshBskySession(refresh, pdsHost, did, handle ?? '');
+    await saveProviderFields('bluesky', {
       bskyAccessJwt: s.accessJwt,
       bskyRefreshJwt: s.refreshJwt,
       bskyExpiresAt: s.expiresAt,
       bskyDid: s.did || did,
-      bskyHandle: s.handle || m.bskyHandle,
+      bskyHandle: s.handle || handle,
       bskyPdsHost: pdsHost,
-    });
+    }, accountId);
     return { token: s.accessJwt, did: s.did || did, pdsHost };
   } catch (e: any) {
     const msg = String(e?.message ?? '');
     if (/expired|invalid|unauthorized|bad request/i.test(msg)) {
-      await saveMetaState({
+      await saveProviderFields('bluesky', {
         bskyAccessJwt: undefined, bskyRefreshJwt: undefined, bskyExpiresAt: undefined,
-      });
+      }, accountId);
       throw new Error('Bluesky session expired — reconnect Bluesky.');
     }
     throw e;
@@ -165,10 +168,18 @@ export async function getValidBsky(force = false): Promise<BskyCreds> {
 }
 
 /** Full login: handle + app password -> session, all saved to the vault. */
-export async function completeBskyLogin(identifier: string, password: string): Promise<{ name?: string }> {
+export async function completeBskyLogin(identifier: string, password: string, accountId?: string): Promise<{ name?: string }> {
   const s = await createBskySession(identifier, password);
   const name = s.handle ? `@${s.handle}` : undefined;
-  await saveMetaState({
+  let avatar: string | undefined;
+  try {
+    const r = await fetch(`${s.pdsHost}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(s.did)}`, {
+      headers: { Authorization: `Bearer ${s.accessJwt}` },
+    });
+    const j: any = await r.json().catch(() => ({}));
+    avatar = j?.avatar ? String(j.avatar) : undefined;
+  } catch {}
+  await saveProviderFields('bluesky', {
     bskyAccessJwt: s.accessJwt,
     bskyRefreshJwt: s.refreshJwt || undefined,
     bskyExpiresAt: s.expiresAt,
@@ -176,6 +187,7 @@ export async function completeBskyLogin(identifier: string, password: string): P
     bskyHandle: s.handle,
     bskyName: name,
     bskyPdsHost: s.pdsHost,
-  });
+    avatar,
+  }, accountId);
   return { name };
 }

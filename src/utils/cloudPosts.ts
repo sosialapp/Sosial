@@ -2,6 +2,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, supabaseUrl, currentSession } from './supabase';
 import { loadManagedPosts, saveManagedPost, postAttachments, type ManagedPost } from './managed';
 import { isChainPlatform } from './thread';
+import { loadAccounts } from './metaStore';
+import { findAccount, findAccountForProvider, accountExternalId, type ConnectedAccount, type ProviderKey } from './socialAccounts';
 
 /**
  * App → cloud write path (post-Wave-A slice). Every local save/delete
@@ -99,17 +101,38 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   if (pErr || !prow) throw new Error(`cloud post upsert failed: ${pErr?.message ?? 'no row'}`);
   const postId = String((prow as any).id);
 
-  // Cloud channels for this workspace (provider → first connected row).
+  // Cloud channels for this workspace, keyed two ways so a post can target a
+  // SPECIFIC account's channel (provider + external_id) and still fall back to
+  // the first row when there's no account hint (e.g. YouTube has no stored id).
   const { data: chans, error: chansErr } = await sb
     .from('connected_channels')
-    .select('id, provider')
+    .select('id, provider, external_id')
     .eq('workspace_id', wsId)
     .eq('status', 'connected');
   if (chansErr) console.log('[cloud] channels lookup failed:', chansErr.message);
+  const byKey = new Map<string, string>();
   const byProvider = new Map<string, string>();
   for (const c of (chans ?? []) as any[]) {
-    if (!byProvider.has(String(c.provider))) byProvider.set(String(c.provider), String(c.id));
+    const provider = String(c.provider);
+    const id = String(c.id);
+    const ext = c.external_id ? String(c.external_id) : '';
+    if (!byProvider.has(provider)) byProvider.set(provider, id);
+    if (ext) byKey.set(`${provider}:${ext}`, id);
   }
+
+  // Resolve the account a platform leg should publish to: the account picked in
+  // the composer, else the primary account for that provider, else any account.
+  const accounts = await loadAccounts();
+  const accountFor = (platform: string): ConnectedAccount | undefined => {
+    const aid = post.accountIds?.[platform];
+    if (aid) {
+      const a = findAccount(accounts, aid);
+      if (a) return a;
+    }
+    const def = findAccount(accounts, `acct_${platform}`);
+    if (def) return def;
+    return findAccountForProvider(accounts, platform as ProviderKey);
+  };
 
   // ORDER MATTERS (atomicity): media uploads + asset rows FIRST, targets
   // LAST. If any media step throws, no targets exist, so the worker can
@@ -205,7 +228,9 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   // Platforms with no cloud row stay local-only (correct — nothing to publish with).
   let made = 0;
   for (const platform of post.platforms ?? []) {
-    const channelId = byProvider.get(platform);
+    const acct = accountFor(platform);
+    const ext = acct ? accountExternalId(acct) : undefined;
+    const channelId = ext ? byKey.get(`${platform}:${ext}`) : byProvider.get(platform);
     if (!channelId) continue;
     const options: Record<string, unknown> = {};
     if (post.threadsTopic) options.threadsTopic = post.threadsTopic;

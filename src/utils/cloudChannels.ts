@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadMetaState, connectedChannelIds, type MetaState } from './metaStore';
+import { loadMetaState, loadAccounts, loadProviderFields, type MetaState } from './metaStore';
+import { connectedAccounts } from './socialAccounts';
 import { getValidYt } from './ytAuth';
 import { currentSession, importChannelToken, removeChannelToken } from './supabase';
 
@@ -75,92 +76,96 @@ async function fetchYtChannelId(token: string): Promise<string | null> {
 export async function buildImportPayload(
   key: CloudChannelKey,
   m: MetaState,
+  accountId?: string,
 ): Promise<ImportPayload | null> {
+  const f: MetaState = accountId
+    ? ({ ...m, ...(await loadProviderFields(key, accountId).catch(() => ({}))) } as MetaState)
+    : m;
   switch (key) {
     case 'facebook':
-      if (!m.pageId || !m.pageToken) return null;
-      return { provider: 'facebook', external_id: m.pageId, display_name: m.pageName, access_token: m.pageToken };
+      if (!f.pageId || !f.pageToken) return null;
+      return { provider: 'facebook', external_id: f.pageId, display_name: f.pageName, access_token: f.pageToken };
     case 'instagram':
-      if (!m.igId || !m.igToken) return null;
-      return { provider: 'instagram', external_id: m.igId, display_name: m.igName, access_token: m.igToken };
+      if (!f.igId || !f.igToken) return null;
+      return { provider: 'instagram', external_id: f.igId, display_name: f.igName, access_token: f.igToken };
     case 'threads':
-      if (!m.threadsId || !m.threadsToken) return null;
-      return { provider: 'threads', external_id: m.threadsId, display_name: m.threadsName, access_token: m.threadsToken };
+      if (!f.threadsId || !f.threadsToken) return null;
+      return { provider: 'threads', external_id: f.threadsId, display_name: f.threadsName, access_token: f.threadsToken };
     case 'tiktok': {
-      if (!m.ttOpenId || (!m.ttAccessToken && !m.ttRefreshToken)) return null;
+      if (!f.ttOpenId || (!f.ttAccessToken && !f.ttRefreshToken)) return null;
       // Verified photo host rides along so closed-app photo posts can use it
       // (TikTok rejects PULL_FROM_URL hosts the user hasn't verified).
       const metadata: Record<string, string> = {};
-      const host = (m.ttPhotoHost ?? '').trim().replace(/\/+$/, '');
+      const host = (f.ttPhotoHost ?? '').trim().replace(/\/+$/, '');
       if (host) metadata.ttPhotoHost = host;
       return {
-        provider: 'tiktok', external_id: m.ttOpenId, display_name: m.ttName,
-        access_token: m.ttAccessToken ?? m.ttRefreshToken ?? '',
-        refresh_token: m.ttRefreshToken, expires_at: iso(m.ttExpiresAt), metadata,
+        provider: 'tiktok', external_id: f.ttOpenId, display_name: f.ttName,
+        access_token: f.ttAccessToken ?? f.ttRefreshToken ?? '',
+        refresh_token: f.ttRefreshToken, expires_at: iso(f.ttExpiresAt), metadata,
       };
     }
     case 'x':
-      if (!m.xUserId || (!m.xAccessToken && !m.xRefreshToken)) return null;
+      if (!f.xUserId || (!f.xAccessToken && !f.xRefreshToken)) return null;
       return {
-        provider: 'x', external_id: m.xUserId, display_name: m.xName,
-        access_token: m.xAccessToken ?? m.xRefreshToken ?? '',
-        refresh_token: m.xRefreshToken, expires_at: iso(m.xExpiresAt),
+        provider: 'x', external_id: f.xUserId, display_name: f.xName,
+        access_token: f.xAccessToken ?? f.xRefreshToken ?? '',
+        refresh_token: f.xRefreshToken, expires_at: iso(f.xExpiresAt),
         // Public OAuth client id — the worker needs it for silent refresh.
         metadata: { xClientId: process.env.EXPO_PUBLIC_X_CLIENT_ID ?? '' },
       };
     case 'bluesky': {
       // Session tokens only — the app password itself is never stored on
       // device. When the refresh JWT dies, the user re-enables to refresh.
-      if (!m.bskyDid || (!m.bskyAccessJwt && !m.bskyRefreshJwt)) return null;
+      if (!f.bskyDid || (!f.bskyAccessJwt && !f.bskyRefreshJwt)) return null;
       return {
-        provider: 'bluesky', external_id: m.bskyDid, handle: m.bskyHandle, display_name: m.bskyName,
-        instance_url: m.bskyPdsHost,
-        access_token: m.bskyAccessJwt ?? m.bskyRefreshJwt ?? '',
-        refresh_token: m.bskyRefreshJwt, expires_at: iso(m.bskyExpiresAt),
+        provider: 'bluesky', external_id: f.bskyDid, handle: f.bskyHandle, display_name: f.bskyName,
+        instance_url: f.bskyPdsHost,
+        access_token: f.bskyAccessJwt ?? f.bskyRefreshJwt ?? '',
+        refresh_token: f.bskyRefreshJwt, expires_at: iso(f.bskyExpiresAt),
       };
     }
     case 'linkedin': {
-      if (!m.liPersonUrn || (!m.liAccessToken && !m.liRefreshToken)) return null;
+      if (!f.liPersonUrn || (!f.liAccessToken && !f.liRefreshToken)) return null;
       const metadata: Record<string, string> = {};
-      if (m.liOrgId) metadata.liOrgId = m.liOrgId;
-      if (m.liOrgName) metadata.liOrgName = m.liOrgName;
+      if (f.liOrgId) metadata.liOrgId = f.liOrgId;
+      if (f.liOrgName) metadata.liOrgName = f.liOrgName;
       return {
-        provider: 'linkedin', external_id: m.liPersonUrn, display_name: m.liName,
-        access_token: m.liAccessToken ?? m.liRefreshToken ?? '',
-        refresh_token: m.liRefreshToken, expires_at: iso(m.liExpiresAt), metadata,
+        provider: 'linkedin', external_id: f.liPersonUrn, display_name: f.liName,
+        access_token: f.liAccessToken ?? f.liRefreshToken ?? '',
+        refresh_token: f.liRefreshToken, expires_at: iso(f.liExpiresAt), metadata,
       };
     }
     case 'mastodon':
-      if (!m.mastodonAccountId || !m.mastodonAccessToken || !m.mastodonInstance) return null;
+      if (!f.mastodonAccountId || !f.mastodonAccessToken || !f.mastodonInstance) return null;
       return {
-        provider: 'mastodon', external_id: m.mastodonAccountId, display_name: m.mastodonName,
-        instance_url: m.mastodonInstance, access_token: m.mastodonAccessToken,
+        provider: 'mastodon', external_id: f.mastodonAccountId, display_name: f.mastodonName,
+        instance_url: f.mastodonInstance, access_token: f.mastodonAccessToken,
       };
     case 'pinterest': {
-      if (!m.pinUsername || !m.pinAccessToken) return null;
+      if (!f.pinUsername || !f.pinAccessToken) return null;
       const metadata: Record<string, string> = {};
-      if (m.pinBoardId) metadata.pinBoardId = m.pinBoardId;
-      if (m.pinBoardName) metadata.pinBoardName = m.pinBoardName;
+      if (f.pinBoardId) metadata.pinBoardId = f.pinBoardId;
+      if (f.pinBoardName) metadata.pinBoardName = f.pinBoardName;
       return {
-        provider: 'pinterest', external_id: m.pinUsername, display_name: m.pinUsername,
-        access_token: m.pinAccessToken, refresh_token: m.pinRefreshToken,
-        expires_at: iso(m.pinExpiresAt), metadata,
+        provider: 'pinterest', external_id: f.pinUsername, display_name: f.pinUsername,
+        access_token: f.pinAccessToken, refresh_token: f.pinRefreshToken,
+        expires_at: iso(f.pinExpiresAt), metadata,
       };
     }
     case 'youtube': {
-      if (!m.ytAccessToken && !m.ytRefreshToken) return null;
-      let token = m.ytAccessToken;
+      if (!f.ytAccessToken && !f.ytRefreshToken) return null;
+      let token = f.ytAccessToken;
       try {
-        ({ token } = await getValidYt());
+        ({ token } = await getValidYt(accountId));
       } catch {
         return null;
       }
       const channelId = await fetchYtChannelId(token);
       if (!channelId) return null;
       return {
-        provider: 'youtube', external_id: channelId, display_name: m.ytChannelName,
-        access_token: token, refresh_token: m.ytRefreshToken,
-        expires_at: iso(m.ytExpiresAt),
+        provider: 'youtube', external_id: channelId, display_name: f.ytChannelName,
+        access_token: token, refresh_token: f.ytRefreshToken,
+        expires_at: iso(f.ytExpiresAt),
       };
     }
     default:
@@ -175,10 +180,18 @@ export async function buildImportPayload(
 export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
   const session = await currentSession();
   if (!session) throw new Error('Sign in to Sosial Cloud first (Account tab) — cloud publishing needs your workspace.');
-  const meta = await loadMetaState();
-  const payload = await buildImportPayload(key, meta);
-  if (!payload) throw new Error('Reconnect this channel first — there are no credentials on this device to send.');
-  await importChannelToken({ workspace_id: session.workspace.id, ...payload });
+  const accounts = await loadAccounts();
+  const targets = connectedAccounts(accounts).filter((a) => a.provider === key);
+  if (targets.length === 0) {
+    const payload = await buildImportPayload(key, await loadMetaState());
+    if (!payload) throw new Error('Reconnect this channel first — there are no credentials on this device to send.');
+    await importChannelToken({ workspace_id: session.workspace.id, ...payload });
+  } else {
+    for (const a of targets) {
+      const payload = await buildImportPayload(key, {}, a.id);
+      if (payload) await importChannelToken({ workspace_id: session.workspace.id, ...payload });
+    }
+  }
   await setCloudChannel(key, true);
 }
 
@@ -257,14 +270,16 @@ export async function syncCloudChannels(): Promise<CloudSyncResult> {
   const out: CloudSyncResult = { wanted: [], imported: [], removed: [], failed: [] };
   try {
     const master = await loadCloudMaster();
-    const meta = await loadMetaState();
-    const connected = connectedChannelIds(meta);
+    const accounts = await loadAccounts();
+    const connAccts = connectedAccounts(accounts);
+    const wanted: string[] = [...new Set(connAccts.map((a) => a.provider))];
     const flags = await loadCloudChannels();
     const session = await currentSession().catch(() => null);
 
     if (!master) {
       // Master off: remove every flagged cloud copy (provider-wide when the
       // device tokens needed for a precise external_id are already gone).
+      const meta = await loadMetaState();
       for (const ch of flags) {
         try {
           if (session) {
@@ -286,30 +301,30 @@ export async function syncCloudChannels(): Promise<CloudSyncResult> {
       return out;
     }
 
-    out.wanted = connected;
+    out.wanted = wanted;
     if (!session) return out; // desired state waits for sign-in; no failure
     const flagged = new Set(flags);
-    for (const ch of connected) {
-      if (flagged.has(ch)) {
-        out.imported.push(ch);
-        continue;
-      }
+    for (const a of connAccts) {
+      const ch = a.provider;
       try {
-        const payload = await buildImportPayload(ch as CloudChannelKey, meta);
+        const payload = await buildImportPayload(ch, {}, a.id);
         if (!payload) {
-          out.failed.push({ ch, message: 'Reconnect this channel first.' });
+          if (!out.failed.some((f) => f.ch === ch)) out.failed.push({ ch, message: 'Reconnect this channel first.' });
           continue;
         }
         await importChannelToken({ workspace_id: session.workspace.id, ...payload });
-        await setCloudChannel(ch, true);
-        out.imported.push(ch);
+        if (!flagged.has(ch)) {
+          await setCloudChannel(ch, true);
+          flagged.add(ch);
+        }
+        if (!out.imported.includes(ch)) out.imported.push(ch);
       } catch (e: any) {
-        out.failed.push({ ch, message: e?.message ?? 'Import failed.' });
+        if (!out.failed.some((f) => f.ch === ch)) out.failed.push({ ch, message: e?.message ?? 'Import failed.' });
       }
     }
     // Heal stale flags (e.g. a disconnect whose server cleanup failed).
     for (const ch of flags) {
-      if (!connected.includes(ch)) {
+      if (!wanted.includes(ch)) {
         try {
           await removeChannelToken({ workspace_id: session.workspace.id, provider: ch });
         } catch {}
