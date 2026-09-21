@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Animated, Pressable, Easing } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { useTheme, T, Palette } from '../theme';
@@ -24,7 +24,7 @@ const BRAND: Record<string, string> = {
 const ORBIT = 300;
 const ORBIT_C = ORBIT / 2;
 const ORBIT_R = 118;
-const NODE = 46;
+const NODE = 54;
 
 const ALine = Animated.createAnimatedComponent(Line);
 
@@ -37,6 +37,24 @@ function OrbitIllustration() {
   const { C } = useTheme();
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef<Animated.CompositeAnimation | null>(null);
+  // Ambient life: the ring circulates around the bolt while the bolt itself
+  // beats like a heart. Glyphs counter-rotate so they stay upright.
+  const spin = useRef(new Animated.Value(0)).current;
+  const heart = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const circulate = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 45000, easing: Easing.linear, useNativeDriver: true }),
+    );
+    const beat = Animated.loop(
+      Animated.timing(heart, { toValue: 1, duration: 1700, easing: Easing.linear, useNativeDriver: true }),
+    );
+    circulate.start();
+    beat.start();
+    return () => { circulate.stop(); beat.stop(); };
+  }, [spin, heart]);
+  const orbitRotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const nodeCounter = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
+  const heartScale = heart.interpolate({ inputRange: [0, 0.1, 0.2, 0.32, 0.42, 1], outputRange: [1, 1.12, 1, 1.07, 1, 1] });
   const pts = NODES.map((_, i) => {
     const a = ((-90 + i * 36) * Math.PI) / 180;
     return { x: ORBIT_C + ORBIT_R * Math.cos(a), y: ORBIT_C + ORBIT_R * Math.sin(a) };
@@ -59,25 +77,60 @@ function OrbitIllustration() {
     <View style={{ width: ORBIT, height: ORBIT }}>
       <Svg width={ORBIT} height={ORBIT} style={StyleSheet.absoluteFill}>
         <Circle cx={ORBIT_C} cy={ORBIT_C} r={ORBIT_R} fill="none" stroke={C.lineSoft} strokeWidth={1} strokeDasharray="3 7" />
-        {pts.map((p, i) => (
-          <Line key={`base-${i}`} x1={ORBIT_C} y1={ORBIT_C} x2={p.x} y2={p.y} stroke={C.lineSoft} strokeWidth={1} />
-        ))}
-        {pts.map((p, i) => (
-          <ALine
-            key={`lit-${i}`}
-            x1={ORBIT_C}
-            y1={ORBIT_C}
-            x2={p.x}
-            y2={p.y}
-            stroke={BRAND[NODES[i]]}
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeDasharray={`${ORBIT_R}`}
-            strokeDashoffset={progress.interpolate({ inputRange: [i * 0.05, i * 0.05 + 0.25], outputRange: [ORBIT_R, 0], extrapolate: 'clamp' })}
-          />
-        ))}
         <Circle cx={ORBIT_C} cy={ORBIT_C} r={56} fill={C.accentSoft} />
       </Svg>
+      <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate: orbitRotate }] }]}>
+        <Svg width={ORBIT} height={ORBIT} style={StyleSheet.absoluteFill}>
+          {pts.map((p, i) => (
+            <Line key={`base-${i}`} x1={ORBIT_C} y1={ORBIT_C} x2={p.x} y2={p.y} stroke={C.lineSoft} strokeWidth={1} />
+          ))}
+          {pts.map((p, i) => (
+            <ALine
+              key={`lit-${i}`}
+              x1={ORBIT_C}
+              y1={ORBIT_C}
+              x2={p.x}
+              y2={p.y}
+              stroke={BRAND[NODES[i]]}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeDasharray={`${ORBIT_R}`}
+              strokeDashoffset={progress.interpolate({ inputRange: [i * 0.05, i * 0.05 + 0.25], outputRange: [ORBIT_R, 0], extrapolate: 'clamp' })}
+            />
+          ))}
+        </Svg>
+        {NODES.map((n, i) => {
+          const start = 0.6 + i * 0.035;
+          const span: [number, number] = [start, Math.min(start + 0.18, 1)];
+          const fill = progress.interpolate({ inputRange: span, outputRange: [C.card, BRAND[n]], extrapolate: 'clamp' });
+          const lit = progress.interpolate({ inputRange: span, outputRange: [0, 1], extrapolate: 'clamp' });
+          return (
+            <Animated.View
+              key={n}
+              style={{
+                position: 'absolute',
+                left: pts[i].x - NODE / 2,
+                top: pts[i].y - NODE / 2,
+                width: NODE,
+                height: NODE,
+                borderRadius: NODE / 2,
+                backgroundColor: fill,
+                borderWidth: 1,
+                borderColor: C.lineSoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Animated.View style={{ width: NODE, height: NODE, transform: [{ rotate: nodeCounter }], alignItems: 'center', justifyContent: 'center' }}>
+                <SocialGlyph platform={n} size={24} color={C.ink} />
+                <Animated.View style={{ position: 'absolute', opacity: lit }}>
+                  <SocialGlyph platform={n} size={24} color="#fff" />
+                </Animated.View>
+              </Animated.View>
+            </Animated.View>
+          );
+        })}
+      </Animated.View>
       <Pressable
         onPressIn={hold}
         onPressOut={release}
@@ -85,39 +138,12 @@ function OrbitIllustration() {
         accessibilityLabel="Hold the bolt to light up connected channels"
         style={{ position: 'absolute', left: ORBIT_C - 60, top: ORBIT_C - 60, width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Animated.View style={{ transform: [{ scale: boltScale }] }}>
-          <Image source={require('../../assets/bolt.png')} style={{ width: 56, height: 72 }} resizeMode="contain" />
+        <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+          <Animated.View style={{ transform: [{ scale: boltScale }] }}>
+            <Image source={require('../../assets/bolt.png')} style={{ width: 56, height: 72 }} resizeMode="contain" />
+          </Animated.View>
         </Animated.View>
       </Pressable>
-      {NODES.map((n, i) => {
-        const start = 0.6 + i * 0.035;
-        const span: [number, number] = [start, Math.min(start + 0.18, 1)];
-        const fill = progress.interpolate({ inputRange: span, outputRange: [C.card, BRAND[n]], extrapolate: 'clamp' });
-        const lit = progress.interpolate({ inputRange: span, outputRange: [0, 1], extrapolate: 'clamp' });
-        return (
-          <Animated.View
-            key={n}
-            style={{
-              position: 'absolute',
-              left: pts[i].x - NODE / 2,
-              top: pts[i].y - NODE / 2,
-              width: NODE,
-              height: NODE,
-              borderRadius: NODE / 2,
-              backgroundColor: fill,
-              borderWidth: 1,
-              borderColor: C.lineSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <SocialGlyph platform={n} size={20} color={C.ink} />
-            <Animated.View style={{ position: 'absolute', opacity: lit }}>
-              <SocialGlyph platform={n} size={20} color="#fff" />
-            </Animated.View>
-          </Animated.View>
-        );
-      })}
     </View>
   );
 }
