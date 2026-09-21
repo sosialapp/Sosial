@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BrandIcon } from '@/components/BrandIcon';
+import { BrandIcon, brandColor } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { channelHref } from '@/content/types';
 
@@ -36,7 +36,10 @@ export default function IntegrationsIndex() {
               className="card flex h-full flex-col p-5 transition hover:border-accent"
             >
               <span className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-paper ring-1 ring-line">
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: `${brandColor(c.key)}14` }}
+                >
                   <BrandIcon provider={c.key} className="h-5 w-5" />
                 </span>
                 <span className="font-display text-xl font-extrabold tracking-tight">

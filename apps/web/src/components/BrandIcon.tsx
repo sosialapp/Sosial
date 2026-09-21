@@ -3,9 +3,12 @@
  *
  * The SVG path data is the official artwork from the simple-icons project
  * (CC0) — inlined rather than pulled from an icon package or CDN so the marks
- * ship in the bundle, render with zero layout shift and take the exact brand
- * colour used elsewhere in the product.
+ * ship in the bundle, render with zero layout shift and paint in the channel's
+ * real brand colour. Pass `mono` for a single-colour mark that inherits
+ * `currentColor`.
  */
+
+import { PROVIDER_META } from '@/lib/providers';
 
 export type BrandProvider =
   | 'instagram'
@@ -59,18 +62,37 @@ export const BRAND_NAMES: Record<BrandProvider, string> = {
   google: 'Google',
 };
 
+/** Providers that aren't social channels (kept out of PROVIDER_META). */
+const EXTRA_COLORS: Partial<Record<BrandProvider, string>> = {
+  google: '#4285F4',
+};
+
+/**
+ * The channel's real brand colour. Social channels reuse PROVIDER_META so the
+ * web and the app can never drift apart.
+ */
+export function brandColor(provider: BrandProvider): string {
+  const meta = PROVIDER_META[provider as keyof typeof PROVIDER_META];
+  return meta?.color ?? EXTRA_COLORS[provider] ?? '#78716C';
+}
+
 export function BrandIcon({
   provider,
   className = 'h-5 w-5',
   title,
+  mono = false,
 }: {
   provider: BrandProvider;
   className?: string;
   title?: string;
+  /** Render in `currentColor` instead of the channel's brand colour. */
+  mono?: boolean;
 }) {
   const label = title ?? BRAND_NAMES[provider];
+  const color = mono ? 'currentColor' : brandColor(provider);
+
   // Instagram's mark is a gradient in the real world — keep it faithful.
-  if (provider === 'instagram') {
+  if (provider === 'instagram' && !mono) {
     return (
       <svg role="img" aria-label={label} viewBox="0 0 24 24" className={className} fill="none">
         <defs>
@@ -89,7 +111,7 @@ export function BrandIcon({
   return (
     <svg role="img" aria-label={label} viewBox="0 0 24 24" className={className}>
       <title>{label}</title>
-      <path d={PATHS[provider]} fill="currentColor" />
+      <path d={PATHS[provider]} fill={color} />
     </svg>
   );
 }
