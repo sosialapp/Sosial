@@ -16,7 +16,7 @@ function Shell({
       id={id}
       className={`scroll-mt-20 ${band ? 'border-y border-line bg-card/60' : ''}`}
     >
-      <div className="mx-auto max-w-6xl px-4 py-16 md:py-24">{children}</div>
+      <div className="mx-auto max-w-7xl px-4 py-16 md:py-24">{children}</div>
     </section>
   );
 }

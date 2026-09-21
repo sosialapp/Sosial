@@ -24,7 +24,7 @@ export function PageHero({
   return (
     <section className="border-b border-line bg-card/60">
       <div
-        className={`mx-auto max-w-6xl px-4 py-14 md:py-20 ${
+        className={`mx-auto max-w-7xl px-4 py-14 md:py-20 ${
           visual ? 'grid grid-cols-1 items-center gap-10 lg:grid-cols-2' : 'max-w-3xl'
         }`}
       >
@@ -63,7 +63,7 @@ export interface BlockItem {
 
 export function FeatureBlocks({ items }: { items: BlockItem[] }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-14 md:py-20">
+    <div className="mx-auto max-w-7xl px-4 py-14 md:py-20">
       <div className="space-y-14 md:space-y-20">
         {items.map((b, i) => (
           <div
@@ -136,7 +136,7 @@ export function CtaBand({
   secondary?: { href: string; label: string };
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-14 md:py-20">
+    <div className="mx-auto max-w-7xl px-4 py-14 md:py-20">
       <div className="rounded-3xl bg-accent px-6 py-14 text-center md:py-16">
         <h2 className="mx-auto max-w-xl font-display text-3xl font-extrabold tracking-tight text-white md:text-4xl">
           {title}
@@ -169,7 +169,7 @@ export function CardTrio({
 }) {
   return (
     <section className="border-y border-line bg-card/60">
-      <div className="mx-auto max-w-6xl px-4 py-14 md:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-14 md:py-20">
         <p className="eyebrow">{eyebrow}</p>
         <h2 className="mt-2 max-w-xl font-display text-2xl font-extrabold tracking-tight md:text-3xl">
           {title}

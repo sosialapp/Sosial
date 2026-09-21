@@ -5,18 +5,18 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app'),
   title: {
-    default: 'Sosial — Every channel. One calendar.',
+    default: 'Sosial — Social Media Scheduler & Management for Every Channel',
     template: '%s · Sosial',
   },
   description:
-    'Write once, schedule everywhere. Sosial publishes to ten channels from one shared calendar — with an AI writer, approvals and a queue that runs itself.',
+    'Plan, write and publish social media posts across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest — from one composer, calendar and queue.',
   icons: { icon: '/bolt.png' },
   openGraph: {
     type: 'website',
     siteName: 'Sosial',
-    title: 'Sosial — Every channel. One calendar.',
+    title: 'Sosial — Social Media Scheduler & Management for Every Channel',
     description:
-      'Write once, schedule everywhere. Ten channels from one shared calendar, with an AI writer, approvals and a queue that runs itself.',
+      'Plan, write and publish across ten social networks from one composer, calendar and queue — with an AI writer and approvals built in.',
     images: ['/bolt.png'],
   },
   twitter: { card: 'summary', images: ['/bolt.png'] },
