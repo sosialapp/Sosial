@@ -5,7 +5,8 @@ import Tilt from '@/components/anim/Tilt';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelComposer from '@/components/landing/ChannelComposer';
 import ChannelMarquee from '@/components/landing/ChannelMarquee';
-import { ApprovalPreview, CalendarPreview, ComposerPreview } from '@/components/landing/Preview';
+import { ApprovalPreview, ComposerPreview } from '@/components/landing/Preview';
+import HeroOrbit from '@/components/landing/HeroOrbit';
 import { AiWriter, Faq, Pricing } from '@/components/landing/Sections';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { allArticles } from '@/content/blog';
@@ -30,25 +31,6 @@ function Shell({
     <section id={id} className={`scroll-mt-20 ${band ? 'border-y border-line bg-card/60' : ''}`}>
       <div className="mx-auto max-w-6xl px-4 py-16 md:py-24">{children}</div>
     </section>
-  );
-}
-
-function BrowserFrame({ url, children }: { url: string; children: ReactNode }) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-[0_24px_60px_-30px_rgba(28,25,23,0.35)]">
-      <div className="flex items-center gap-3 border-b border-line bg-paper px-4 py-2.5">
-        <span className="flex gap-1.5" aria-hidden="true">
-          <i className="h-2.5 w-2.5 rounded-full bg-line" />
-          <i className="h-2.5 w-2.5 rounded-full bg-line" />
-          <i className="h-2.5 w-2.5 rounded-full bg-line" />
-        </span>
-        <span className="mx-auto w-full max-w-xs truncate rounded-full bg-bone px-3 py-1 text-center text-xs text-muted">
-          {url}
-        </span>
-        <span className="w-10" aria-hidden="true" />
-      </div>
-      <div className="p-3 md:p-4">{children}</div>
-    </div>
   );
 }
 
@@ -95,9 +77,7 @@ function Hero() {
           </ul>
         </div>
         <div className="animate-rise-2">
-          <BrowserFrame url="sosial.app/calendar">
-            <CalendarPreview />
-          </BrowserFrame>
+          <HeroOrbit />
         </div>
       </div>
     </Shell>
