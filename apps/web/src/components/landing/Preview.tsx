@@ -133,6 +133,40 @@ export function ComposerPreview() {
   );
 }
 
+export function WriterPreview() {
+  return (
+    <div className="card p-4" aria-hidden="true">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-sm font-bold">Write with AI</p>
+        <span className="pill bg-accent-soft text-accent-ink">GPT-5.6 Luna</span>
+      </div>
+      <p className="mt-2 rounded-xl bg-bone px-3 py-2 text-xs leading-relaxed text-soft">
+        why I stopped chasing viral hacks and started posting one honest update a day…
+      </p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {['Breaking', 'Thread', 'Listicle', 'Teardown'].map((s, i) => (
+          <span
+            key={s}
+            className={`pill ring-1 ring-line ${i === 1 ? 'bg-ink text-white' : 'bg-paper text-soft'}`}
+          >
+            {s}
+          </span>
+        ))}
+      </div>
+      <div className="mt-2.5 rounded-xl border border-line bg-paper p-3">
+        <p className="text-xs leading-relaxed text-ink">
+          I wasted 2 years overthinking content. Here is the system that actually works:
+        </p>
+        <p className="mt-1.5 text-xs font-semibold text-accent">#contenttips #buildinpublic</p>
+      </div>
+      <div className="mt-2.5 flex items-center justify-between">
+        <span className="pill bg-paper text-soft ring-1 ring-line">Auto · Melayu</span>
+        <span className="text-[11px] font-bold text-muted">232/280</span>
+      </div>
+    </div>
+  );
+}
+
 export function ApprovalPreview() {
   return (
     <div className="card p-4" aria-hidden="true">

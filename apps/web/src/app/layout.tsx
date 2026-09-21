@@ -1,10 +1,16 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Sosial',
-  description: 'Compose, schedule and publish across every channel.',
+  title: 'Sosial — Every channel. One calendar.',
+  description:
+    'Write once, schedule everywhere. Sosial publishes to ten channels from one shared calendar — with an AI writer, approvals and a queue that runs itself.',
+  icons: { icon: '/bolt.png' },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#f2ede2',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

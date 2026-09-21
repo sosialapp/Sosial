@@ -24,6 +24,59 @@ body {
   height: 100%;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* Hero entrance — runs once on load. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-rise-1 {
+  animation-delay: 0.1s;
+}
+
+.animate-rise-2 {
+  animation-delay: 0.2s;
+}
+
+/* Scroll reveal — pure CSS scroll-driven animation: no JS, so content is
+   always visible without JavaScript and in unsupporting browsers. */
+.reveal {
+  animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 25%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-rise,
+  .animate-rise-1,
+  .animate-rise-2,
+  .reveal {
+    animation: none;
+  }
+}
+
 body {
   background: var(--color-bone);
   color: var(--color-ink);
