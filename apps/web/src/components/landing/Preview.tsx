@@ -17,13 +17,13 @@ interface SamplePost {
 
 const SAMPLE: SamplePost[] = [
   { day: 2, time: '9:00', providers: ['instagram', 'tiktok'], text: 'Launch day teaser' },
-  { day: 5, time: '12:30', providers: ['linkedin'], text: 'Hiring post goes out' },
-  { day: 5, time: '18:00', providers: ['youtube', 'x'], text: 'Weekly roundup video' },
-  { day: 9, time: '8:15', providers: ['threads', 'bluesky', 'mastodon'], text: 'Morning thread' },
+  { day: 4, time: '12:30', providers: ['linkedin'], text: 'Hiring post goes out' },
+  { day: 7, time: '18:00', providers: ['youtube', 'x'], text: 'Weekly roundup video' },
+  { day: 11, time: '8:15', providers: ['threads', 'bluesky', 'mastodon'], text: 'Morning thread' },
   { day: 14, time: '19:00', providers: ['tiktok', 'instagram'], text: 'Behind the scenes cut' },
-  { day: 16, time: '10:00', providers: ['facebook', 'pinterest'], text: 'Autumn drop is live' },
-  { day: 16, time: '15:45', providers: ['x'], text: 'Flash sale reminder' },
-  { day: 23, time: '11:00', providers: ['instagram', 'youtube', 'tiktok'], text: 'Founder story part two' },
+  { day: 18, time: '10:00', providers: ['facebook', 'pinterest'], text: 'Autumn drop is live' },
+  { day: 18, time: '15:45', providers: ['x'], text: 'Flash sale reminder' },
+  { day: 25, time: '11:00', providers: ['instagram', 'youtube', 'tiktok'], text: 'Founder story part two' },
 ];
 
 function Dots({ providers }: { providers: ProviderKey[] }) {
@@ -43,6 +43,8 @@ function Dots({ providers }: { providers: ProviderKey[] }) {
 
 export function CalendarPreview() {
   const now = new Date();
+  const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const today = dayKey(now);
   const weeks = monthMatrix(now);
   const byDay = new Map<string, SamplePost[]>();
   for (const s of SAMPLE) {
@@ -51,39 +53,53 @@ export function CalendarPreview() {
     const k = dayKey(date);
     byDay.set(k, [...(byDay.get(k) ?? []), s]);
   }
+  const scheduled = [...byDay.values()].reduce((n, items) => n + items.length, 0);
 
   return (
-    <div aria-hidden="true">
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">
+    <div aria-hidden="true" className="overflow-hidden rounded-2xl border border-line bg-card">
+      <div className="flex items-center justify-between border-b border-line bg-paper px-3 py-2.5">
+        <p className="font-display text-sm font-extrabold tracking-tight">{monthLabel}</p>
+        <span className="pill bg-accent-soft text-accent-ink">{scheduled} scheduled</span>
+      </div>
+      <div className="grid grid-cols-7 gap-px bg-line-soft">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-          <div key={d} className="bg-card px-2 py-1.5 text-center text-[10px] font-bold text-muted">
+          <div
+            key={d}
+            className="bg-card px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-faint"
+          >
             {d}
           </div>
         ))}
         {weeks.flat().map((day) => {
-          const items = byDay.get(dayKey(day)) ?? [];
+          const key = dayKey(day);
           const inMonth = day.getMonth() === now.getMonth();
+          const items = inMonth ? (byDay.get(key) ?? []) : [];
+          const isToday = key === today;
           return (
-            <div
-              key={dayKey(day)}
-              className={`min-h-[76px] bg-card p-1.5 ${inMonth ? '' : 'opacity-40'}`}
-            >
-              <span className="text-[11px] font-bold text-muted">{day.getDate()}</span>
-              <div className="mt-0.5 space-y-1">
+            <div key={key} className={`min-h-[84px] bg-card p-1.5 ${inMonth ? '' : 'bg-bone/40'}`}>
+              <span
+                className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+                  isToday ? 'bg-accent text-white' : inMonth ? 'text-soft' : 'text-faint'
+                }`}
+              >
+                {day.getDate()}
+              </span>
+              <div className="mt-1 space-y-1">
                 {items.slice(0, 2).map((p, i) => (
                   <div
                     key={i}
-                    className="rounded-md border border-line bg-paper px-1.5 py-1 text-[10px] leading-tight"
+                    className="flex items-center gap-1 truncate rounded-md bg-bone px-1.5 py-1"
                   >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-accent">{p.time}</span>
-                      <Dots providers={p.providers} />
-                    </div>
-                    <div className="truncate text-soft">{p.text}</div>
+                    <Dots providers={p.providers.slice(0, 3)} />
+                    <span className="truncate text-[10px] font-semibold leading-none text-soft">
+                      {p.text}
+                    </span>
                   </div>
                 ))}
                 {items.length > 2 && (
-                  <span className="text-[10px] text-faint">+{items.length - 2} more</span>
+                  <span className="block text-[10px] font-bold text-faint">
+                    +{items.length - 2} more
+                  </span>
                 )}
               </div>
             </div>

@@ -41,6 +41,24 @@ const RESOURCES: MenuLink[] = [
   },
 ];
 
+/** Soft rounded chevron — no sharp triangles. */
+function Chevron({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 12 12"
+      className={`h-3 w-3 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m2.5 4.5 3.5 3.5 3.5-3.5" />
+    </svg>
+  );
+}
+
 function DesktopDropdown({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="group relative">
@@ -50,11 +68,9 @@ function DesktopDropdown({ label, children }: { label: string; children: React.R
         className="flex items-center gap-1 py-2 text-sm font-semibold text-soft transition hover:text-ink"
       >
         {label}
-        <span aria-hidden="true" className="text-[10px] text-faint transition group-hover:rotate-180">
-          ▼
-        </span>
+        <Chevron className="text-faint transition group-hover:rotate-180" />
       </button>
-      <div className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      <div className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100">
         {children}
       </div>
     </div>
@@ -78,9 +94,7 @@ function MobileSection({ label, links, onGo }: { label: string; links: MenuLink[
     <details className="group rounded-xl">
       <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-3 text-sm font-semibold text-soft hover:bg-card [&::-webkit-details-marker]:hidden">
         {label}
-        <span aria-hidden="true" className="text-[10px] text-faint transition group-open:rotate-180">
-          ▼
-        </span>
+        <Chevron className="text-faint transition group-open:rotate-180" />
       </summary>
       <div className="pb-1 pl-2">
         {links.map((l) => (
