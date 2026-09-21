@@ -35,10 +35,11 @@ type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'a
 
 const TABS: MainTab[] = ['create', 'analytics'];
 
-// First-run gate: fresh installs land on the welcome screen (sign in /
-// create account) unless a cloud session already exists. Skipping or
-// signing in persists, so it never nags again.
+// First-run gate: fresh installs land on the landing screen unless a cloud
+// session already exists. Skipping persists as local-only mode (dashboard on
+// open); signing out clears it so the next open lands back on landing.
 const WELCOME_SEEN_KEY = 'zap_welcome_seen_v1';
+const LOCAL_OK_KEY = 'zap_local_ok_v1';
 
 function Shell() {
   const { C, mode, toggle } = useTheme();
@@ -67,13 +68,19 @@ function Shell() {
     (async () => {
       try {
         const seen = await AsyncStorage.getItem(WELCOME_SEEN_KEY);
-        if (seen) return;
         if (!isSupabaseConfigured()) {
-          setShowLanding(true);
+          if (!seen) setShowLanding(true);
           return;
         }
         const s = await currentSession().catch(() => null);
-        if (!s) setShowLanding(true);
+        if (s) return;
+        // No session: fresh installs land, skippers go straight in, and the
+        // signed-out land back here too.
+        if (seen) {
+          const localOk = await AsyncStorage.getItem(LOCAL_OK_KEY).catch(() => null);
+          if (localOk) return;
+        }
+        setShowLanding(true);
       } catch {
       } finally {
         setWelcomeReady(true);
@@ -108,9 +115,10 @@ function Shell() {
     void pushProfileToCloud(patch);
   };
 
-  const dismissWelcome = async () => {
+  const dismissWelcome = async (skip?: boolean) => {
     try {
       await AsyncStorage.setItem(WELCOME_SEEN_KEY, '1');
+      if (skip) await AsyncStorage.setItem(LOCAL_OK_KEY, '1');
     } catch {}
     setShowWelcome(false);
   };
@@ -125,14 +133,17 @@ function Shell() {
       notifWeekly: profile.notifWeekly,
     });
     await dismissWelcome();
+    try { await AsyncStorage.removeItem(LOCAL_OK_KEY); } catch {}
     setWelcomeLocked(false);
     setRoute('create');
   };
 
-  // Any sign-out lands back on welcome with no skip: signed out means out.
+  // Any sign-out lands back on landing (auth behind it, no skip): signed out means out.
   const goWelcomeLocked = () => {
     setWelcomeLocked(true);
-    setShowWelcome(true);
+    AsyncStorage.removeItem(LOCAL_OK_KEY).catch(() => {});
+    setShowWelcome(false);
+    setShowLanding(true);
   };
 
   const goConnect = (from: Route) => {
@@ -276,7 +287,7 @@ function Shell() {
           <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
           <WelcomeScreen
             onDone={(p) => { void enterFromWelcome(p); }}
-            onSkip={() => { void dismissWelcome(); }}
+            onSkip={() => { void dismissWelcome(true); }}
             allowSkip={!welcomeLocked}
           />
         </SafeAreaView>

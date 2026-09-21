@@ -250,12 +250,14 @@ export default function WelcomeScreen({
                   if (!busy) void doGoogle();
                 }}
               />
-              <Text style={s.fine}>
-                By signing up, you agree to our{' '}
-                <Text style={s.link} onPress={() => setLegal('terms')}>Terms of Use</Text>
-                {' '}and{' '}
-                <Text style={s.link} onPress={() => setLegal('privacy')}>Privacy Policy</Text>.
-              </Text>
+              {mode === 'up' ? (
+                <Text style={s.fine}>
+                  By signing up, you agree to our{' '}
+                  <Text style={s.link} onPress={() => setLegal('terms')}>Terms of Use</Text>
+                  {' '}and{' '}
+                  <Text style={s.link} onPress={() => setLegal('privacy')}>Privacy Policy</Text>.
+                </Text>
+              ) : null}
               {allowSkip ? (
                 <TouchableOpacity onPress={onSkip} activeOpacity={0.7} style={s.skipHit}>
                   <Text style={s.skip}>Explore without an account</Text>
