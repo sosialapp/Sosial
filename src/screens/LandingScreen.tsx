@@ -6,6 +6,16 @@ import { PrimaryBtn, SocialGlyph } from '../components/ui';
 
 const NODES = ['x', 'instagram', 'tiktok', 'facebook', 'threads', 'youtube'];
 
+/** Each channel ignites in its own brand color — no house orange anywhere. */
+const BRAND: Record<string, string> = {
+  x: '#000000',
+  instagram: '#E1306C',
+  tiktok: '#000000',
+  facebook: '#1877F2',
+  threads: '#000000',
+  youtube: '#FF0000',
+};
+
 const ORBIT = 300;
 const ORBIT_C = ORBIT / 2;
 const ORBIT_R = 102;
@@ -54,7 +64,7 @@ function OrbitIllustration() {
             y1={ORBIT_C}
             x2={p.x}
             y2={p.y}
-            stroke={C.accent}
+            stroke={BRAND[NODES[i]]}
             strokeWidth={2.5}
             strokeLinecap="round"
             strokeDasharray={`${ORBIT_R}`}
@@ -76,7 +86,7 @@ function OrbitIllustration() {
       </Pressable>
       {NODES.map((n, i) => {
         const span: [number, number] = [0.55 + i * 0.05, 0.75 + i * 0.05];
-        const fill = progress.interpolate({ inputRange: span, outputRange: [C.card, C.accent], extrapolate: 'clamp' });
+        const fill = progress.interpolate({ inputRange: span, outputRange: [C.card, BRAND[n]], extrapolate: 'clamp' });
         const lit = progress.interpolate({ inputRange: span, outputRange: [0, 1], extrapolate: 'clamp' });
         return (
           <Animated.View
