@@ -116,14 +116,12 @@ body {
   animation-play-state: paused;
 }
 
-/* Hero: faint blueprint grid that fades toward the edges. */
+/* Hero: full-bleed faint blueprint grid. */
 .hero-grid {
   background-image:
-    linear-gradient(to right, rgb(28 25 23 / 0.055) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(28 25 23 / 0.055) 1px, transparent 1px);
+    linear-gradient(to right, rgb(28 25 23 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(28 25 23 / 0.07) 1px, transparent 1px);
   background-size: 54px 54px;
-  -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 42%, black 25%, transparent 78%);
-  mask-image: radial-gradient(ellipse 90% 85% at 50% 42%, black 25%, transparent 78%);
 }
 
 /* GSAP-driven elements start hidden only when JS is going to reveal them. */
