@@ -1,14 +1,58 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, ScrollView } from 'react-native';
-import Ionicons from '@expo/vector-icons/build/Ionicons';
+import Svg, { Circle, Line } from 'react-native-svg';
 import { useTheme, T, Palette } from '../theme';
-import { PrimaryBtn } from '../components/ui';
+import { PrimaryBtn, SocialGlyph } from '../components/ui';
 
-const POINTS: { icon: string; title: string; sub: string }[] = [
-  { icon: 'sparkles', title: 'Write with AI', sub: 'Rough thought in, post-ready caption out.' },
-  { icon: 'calendar-outline', title: 'Schedule every channel', sub: 'One calendar for X, Threads, TikTok and more.' },
-  { icon: 'checkmark-circle-outline', title: 'Publish with confidence', sub: 'Previews and approvals before anything goes live.' },
-];
+const NODES = ['x', 'instagram', 'tiktok', 'facebook', 'threads', 'youtube'];
+
+const ORBIT = 300;
+const ORBIT_C = ORBIT / 2;
+const ORBIT_R = 102;
+const NODE = 54;
+
+/** Sosial at the center, every channel one line away. */
+function OrbitIllustration() {
+  const { C } = useTheme();
+  const pts = NODES.map((_, i) => {
+    const a = ((-90 + i * 60) * Math.PI) / 180;
+    return { x: ORBIT_C + ORBIT_R * Math.cos(a), y: ORBIT_C + ORBIT_R * Math.sin(a) };
+  });
+  return (
+    <View style={{ width: ORBIT, height: ORBIT }}>
+      <Svg width={ORBIT} height={ORBIT} style={StyleSheet.absoluteFill}>
+        <Circle cx={ORBIT_C} cy={ORBIT_C} r={ORBIT_R} fill="none" stroke={C.lineSoft} strokeWidth={1} strokeDasharray="3 7" />
+        {pts.map((p, i) => (
+          <Line key={i} x1={ORBIT_C} y1={ORBIT_C} x2={p.x} y2={p.y} stroke={C.lineSoft} strokeWidth={1} />
+        ))}
+        <Circle cx={ORBIT_C} cy={ORBIT_C} r={56} fill={C.accentSoft} />
+      </Svg>
+      <View style={{ position: 'absolute', left: ORBIT_C - 28, top: ORBIT_C - 36 }}>
+        <Image source={require('../../assets/bolt.png')} style={{ width: 56, height: 72 }} resizeMode="contain" />
+      </View>
+      {NODES.map((n, i) => (
+        <View
+          key={n}
+          style={{
+            position: 'absolute',
+            left: pts[i].x - NODE / 2,
+            top: pts[i].y - NODE / 2,
+            width: NODE,
+            height: NODE,
+            borderRadius: NODE / 2,
+            backgroundColor: C.card,
+            borderWidth: 1,
+            borderColor: C.lineSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <SocialGlyph platform={n} size={22} color={C.ink} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /** First-run brand moment: one promise, one button. Auth lives behind it. */
 export default function LandingScreen({ onGetStarted }: { onGetStarted: () => void }) {
@@ -20,22 +64,9 @@ export default function LandingScreen({ onGetStarted }: { onGetStarted: () => vo
         contentContainerStyle={s.wrap}
         showsVerticalScrollIndicator={false}
       >
-        <Image source={require('../../assets/bolt.png')} style={{ width: 84, height: 108 }} resizeMode="contain" />
+        <OrbitIllustration />
         <Text style={[T.display, { color: C.ink, textAlign: 'center' }]}>Sosial</Text>
         <Text style={s.sub}>Every channel. One calendar.</Text>
-        <View style={s.points}>
-          {POINTS.map((p) => (
-            <View key={p.title} style={s.point}>
-              <View style={s.pointIcon}>
-                <Ionicons name={p.icon as any} size={20} color={C.accentInk} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={s.pointT}>{p.title}</Text>
-                <Text style={s.pointS}>{p.sub}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
       </ScrollView>
       <View style={s.footer}>
         <PrimaryBtn label="Get started" icon="arrow-forward" onPress={onGetStarted} />
@@ -56,25 +87,5 @@ const makeS = (C: Palette) =>
       gap: 8,
     },
     sub: { ...(T.body as object), color: C.muted, textAlign: 'center' } as any,
-    points: { width: '100%', maxWidth: 400, gap: 10, marginTop: 26 },
-    point: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 13,
-      backgroundColor: C.card,
-      borderRadius: 16,
-      paddingHorizontal: 15,
-      paddingVertical: 13,
-    },
-    pointIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      backgroundColor: C.accentSoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pointT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
-    pointS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
     footer: { paddingHorizontal: 28, paddingTop: 8, paddingBottom: 34 },
   });
