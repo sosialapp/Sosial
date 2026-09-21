@@ -45,9 +45,9 @@ export const POST_STATUS_META: Record<PostStatus, { label: string; className: st
   approval: { label: 'Needs approval', className: 'bg-accent-soft text-accent-ink' },
   queued: { label: 'Queued', className: 'bg-accent-soft text-accent-ink' },
   publishing: { label: 'Publishing', className: 'bg-accent-soft text-accent-ink' },
-  sent: { label: 'Sent', className: 'bg-[#EDF3EC] text-[#346538]' },
+  sent: { label: 'Sent', className: 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]' },
   partial: { label: 'Partially sent', className: 'bg-accent-soft text-accent-ink' },
-  failed: { label: 'Failed', className: 'bg-[#FDEBEC] text-[#9F2F2D]' },
+  failed: { label: 'Failed', className: 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]' },
 };
 
 export const TARGET_STATUS_META: Record<TargetStatus, { label: string; className: string }> = {
@@ -55,7 +55,7 @@ export const TARGET_STATUS_META: Record<TargetStatus, { label: string; className
   needs_approval: { label: 'Approval', className: 'bg-accent-soft text-accent-ink' },
   queued: { label: 'Queued', className: 'bg-accent-soft text-accent-ink' },
   publishing: { label: 'Publishing', className: 'bg-accent-soft text-accent-ink' },
-  sent: { label: 'Sent', className: 'bg-[#EDF3EC] text-[#346538]' },
-  failed: { label: 'Failed', className: 'bg-[#FDEBEC] text-[#9F2F2D]' },
+  sent: { label: 'Sent', className: 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]' },
+  failed: { label: 'Failed', className: 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]' },
   skipped: { label: 'Skipped', className: 'bg-surface text-muted' },
 };

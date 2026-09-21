@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation';
+import { BrandIcon } from '@/components/BrandIcon';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 import { providerMeta } from '@/lib/providers';
 
 const STATUS_STYLE: Record<string, string> = {
-  connected: 'bg-[#EDF3EC] text-[#346538]',
+  connected: 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]',
   expired: 'bg-accent-soft text-accent-ink',
-  revoked: 'bg-[#FDEBEC] text-[#9F2F2D]',
-  error: 'bg-[#FDEBEC] text-[#9F2F2D]',
+  revoked: 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]',
+  error: 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]',
 };
 
 export default async function ChannelsPage() {
@@ -33,13 +34,13 @@ export default async function ChannelsPage() {
           const meta = providerMeta(c.provider);
           const sub = c.handle ? `@${c.handle}` : c.display_name ?? c.external_id;
           return (
-            <div key={c.id} className="card flex items-center gap-3 p-4">
-              <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
-                style={{ background: meta.color }}
-              >
-                {meta.glyph}
-              </span>
+              <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4">
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: `${meta.color}14` }}
+                >
+                  <BrandIcon provider={c.provider} className="h-5 w-5" />
+                </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{meta.label}</p>
                 <p className="truncate text-xs text-muted">{sub}</p>

@@ -117,7 +117,7 @@ export default function PostList({
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  tab === t.id ? 'bg-accent text-white' : 'bg-surface text-soft hover:bg-line'
+                  tab === t.id ? 'bg-zest text-ink' : 'bg-surface text-soft hover:bg-line'
                 }`}
               >
                 {t.label}
@@ -128,7 +128,11 @@ export default function PostList({
         </div>
       </header>
 
-      {err && <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D]">{err}</p>}
+      {err && (
+        <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+          {err}
+        </p>
+      )}
 
       <div className="flex-1 space-y-2 p-6">
         {rows.length === 0 && <p className="text-sm text-muted">Nothing here yet.</p>}
@@ -140,7 +144,10 @@ export default function PostList({
           const draftish = p.status === 'draft' || p.status === 'failed';
           const busy = busyId === p.id;
           return (
-            <div key={p.id} className="card flex flex-wrap items-start gap-4 p-4">
+              <div
+                key={p.id}
+                className="flex flex-wrap items-start gap-4 rounded-2xl border border-line bg-card p-4"
+              >
               {media.length > 0 && (
                 <div className="flex shrink-0 gap-1.5">
                   {media.slice(0, 3).map((m) =>
@@ -199,7 +206,7 @@ export default function PostList({
                   <p className="mt-1 text-xs text-accent-ink">Changes requested: “{comment}”</p>
                 )}
                 {p.post_targets.some((t) => t.last_error) && (
-                  <p className="mt-1 text-xs text-[#9F2F2D]">
+                  <p className="mt-1 text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">
                     {p.post_targets.find((t) => t.last_error)?.last_error}
                   </p>
                 )}
@@ -209,7 +216,7 @@ export default function PostList({
                 {canApprove && p.status === 'approval' && (
                   <>
                     <button
-                      className="btn btn-primary"
+                      className="btn bg-zest font-bold text-ink hover:brightness-95"
                       type="button"
                       disabled={busy}
                       onClick={() => run(p.id, (sb) => approvePost(sb, { postId: p.id, userId }))}

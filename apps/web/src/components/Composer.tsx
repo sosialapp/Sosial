@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, type ComposeMode } from '@/lib/posts';
+import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import { fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
 
@@ -116,12 +117,20 @@ export default function Composer({
           <p className="eyebrow">Composer</p>
           <h1 className="font-display text-xl font-extrabold tracking-tight">New post</h1>
         </div>
-        <button className="btn btn-primary" disabled={busy} type="submit">
+        <button
+          className="btn bg-zest font-bold text-ink hover:brightness-95"
+          disabled={busy}
+          type="submit"
+        >
           {busy ? 'Saving…' : submitLabel}
         </button>
       </header>
 
-      {err && <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D]">{err}</p>}
+      {err && (
+        <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+          {err}
+        </p>
+      )}
 
       <div className="flex flex-1 flex-col gap-6 p-6 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-4">
@@ -208,22 +217,18 @@ export default function Composer({
                       type="button"
                       onClick={() => toggle(c.id)}
                       className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        on ? 'border-accent bg-accent-soft' : 'border-line bg-paper hover:bg-bone'
+                        on ? 'border-zest bg-zest/10' : 'border-line bg-paper hover:bg-bone'
                       }`}
                     >
-                      <span
-                        className="flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold text-white"
-                        style={{ background: meta.color }}
-                      >
-                        {meta.glyph}
-                      </span>
+                      <BrandIcon provider={c.provider} className="h-6 w-6 shrink-0" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{meta.label}</span>
                         <span className="block truncate text-xs text-muted">
-                          {c.handle ? `@${c.handle}` : c.display_name ?? c.external_id}
+                          {c.handle ? `@${c.handle}` : c.display_name ?? c.external_id} ·{' '}
+                          {meta.limit.toLocaleString()} chars
                         </span>
                       </span>
-                      <span className={`text-xs font-bold ${on ? 'text-accent' : 'text-faint'}`}>
+                      <span className={`text-xs font-bold ${on ? 'text-ink' : 'text-faint'}`}>
                         {on ? '✓' : ''}
                       </span>
                     </button>
@@ -242,7 +247,7 @@ export default function Composer({
                   type="button"
                   onClick={() => setMode(m.id)}
                   className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    mode === m.id ? 'bg-accent text-white' : 'bg-surface text-soft hover:bg-line'
+                    mode === m.id ? 'bg-zest text-ink' : 'bg-surface text-soft hover:bg-line'
                   }`}
                 >
                   {m.label}

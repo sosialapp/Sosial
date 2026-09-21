@@ -103,7 +103,11 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
         </div>
       </header>
 
-      {err && <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D]">{err}</p>}
+      {err && (
+        <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+          {err}
+        </p>
+      )}
 
       <div className="flex flex-1 flex-col xl:flex-row">
         <div className="min-w-0 flex-1 p-4">
@@ -134,12 +138,14 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                   }}
                   className={`min-h-[104px] cursor-pointer bg-card p-1.5 transition ${
                     inMonth ? '' : 'opacity-45'
-                  } ${isOver ? 'ring-2 ring-inset ring-accent' : ''}`}
+                  } ${selectedKey === k ? 'bg-paper' : ''} ${
+                    isOver ? 'ring-2 ring-inset ring-accent' : ''
+                  }`}
                 >
                   <div className="mb-1 flex items-center justify-between">
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                        isToday ? 'bg-accent text-white' : 'text-muted'
+                        isToday ? 'bg-zest text-ink' : 'text-muted'
                       }`}
                     >
                       {day.getDate()}
@@ -215,7 +221,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
           )}
 
           <div className="mt-6 flex flex-col gap-2">
-            <Link href="/composer" className="btn btn-primary w-full">
+            <Link href="/composer" className="btn w-full bg-zest font-bold text-ink hover:brightness-95">
               + New post
             </Link>
             {pending && <p className="text-center text-xs text-muted">Saving…</p>}

@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   return (
-    <div className="flex min-h-screen">
+    <div className="app-shell flex min-h-screen bg-bone text-ink">
       <Sidebar workspaceName={ctx.workspace.name} email={ctx.user.email ?? ''} />
       <main className="min-w-0 flex-1">{children}</main>
     </div>
