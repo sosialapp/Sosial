@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Alert,
 } from 'react-native';
@@ -14,6 +15,7 @@ import Constants from 'expo-constants';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, T, R, Palette } from '../theme';
 import { PrimaryBtn, GhostBtn, Txt, GoogleGlyph } from '../components/ui';
+import { TERMS_TEXT, PRIVACY_SECTIONS } from '../utils/legal';
 import {
   isSupabaseConfigured,
   signInEmail,
@@ -56,6 +58,7 @@ export default function WelcomeScreen({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [legal, setLegal] = useState<null | 'terms' | 'privacy'>(null);
 
   const finish = async (fallbackEmail: string) => {
     let profile: WelcomeProfile = {
@@ -141,7 +144,7 @@ export default function WelcomeScreen({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1, backgroundColor: C.bone }}
     >
       <ScrollView
@@ -247,7 +250,12 @@ export default function WelcomeScreen({
                   if (!busy) void doGoogle();
                 }}
               />
-              <Text style={s.fine}>One account per email. Your workspace syncs across devices.</Text>
+              <Text style={s.fine}>
+                By signing up, you agree to our{' '}
+                <Text style={s.link} onPress={() => setLegal('terms')}>Terms of Use</Text>
+                {' '}and{' '}
+                <Text style={s.link} onPress={() => setLegal('privacy')}>Privacy Policy</Text>.
+              </Text>
               {allowSkip ? (
                 <TouchableOpacity onPress={onSkip} activeOpacity={0.7} style={s.skipHit}>
                   <Text style={s.skip}>Explore without an account</Text>
@@ -257,6 +265,38 @@ export default function WelcomeScreen({
           )}
         </View>
       </ScrollView>
+      <Modal visible={legal !== null} transparent animationType="slide" onRequestClose={() => setLegal(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={s.sheetBg}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setLegal(null)} />
+            <View style={s.sheet}>
+              <ScrollView
+                style={{ flexShrink: 1 }}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingBottom: 8 }}
+              >
+                <Text style={s.sheetT}>{legal === 'terms' ? 'Terms of Use' : 'Privacy Policy'}</Text>
+                {legal === 'terms' ? (
+                  <Text style={s.sheetB}>{TERMS_TEXT}</Text>
+                ) : (
+                  <View style={{ gap: 14 }}>
+                    {PRIVACY_SECTIONS.map((sec) => (
+                      <View key={sec.title}>
+                        <Text style={s.secT}>{sec.title}</Text>
+                        <Text style={s.sheetB}>{sec.body}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+              <View style={{ paddingTop: 12 }}>
+                <GhostBtn label="Close" onPress={() => setLegal(null)} />
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -361,6 +401,17 @@ const makeS = (C: Palette) =>
       color: C.faint,
       textAlign: 'center',
     },
+    link: {
+      fontFamily: 'PlusJakartaSans_700Bold',
+      fontSize: 11.5,
+      color: C.ink,
+      textDecorationLine: 'underline',
+    },
+    sheetBg: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
+    sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, maxHeight: '88%' },
+    sheetT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.3, color: C.ink },
+    sheetB: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, lineHeight: 21, color: C.soft },
+    secT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15, letterSpacing: -0.2, color: C.ink, marginBottom: 4 },
     skipHit: { paddingVertical: 6, alignItems: 'center' },
     skip: {
       fontFamily: 'PlusJakartaSans_700Bold',

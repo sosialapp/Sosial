@@ -2,45 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-
-const SECTIONS: { title: string; body: string }[] = [
-  {
-    title: 'Local-first, no accounts',
-    body: 'Sosial works entirely on your device. There are no accounts, no sign-ups, and no servers receiving your content. Your designs, posts, templates and schedules are stored only in your phone’s local storage.',
-  },
-  {
-    title: 'Your photos stay yours',
-    body: 'When you pick a profile picture, background, content image or video, the file stays on your device and is used only inside your designs. Exported images save straight to your photo library. Nothing is uploaded anywhere by Sosial itself.',
-  },
-  {
-    title: 'Reminders live on your phone',
-    body: 'Scheduled post alerts are local notifications created and fired by your own device. No reminder data leaves your phone.',
-  },
-  {
-    title: 'Sharing is manual',
-    body: 'Posting to social apps happens through your phone’s share sheet and official apps. Sosial copies your caption to the clipboard and opens the app you choose — it never posts, reads, or accesses your social accounts on its own.',
-  },
-  {
-    title: 'Social connections (optional)',
-    body: 'If you connect a Facebook, Instagram or Threads account in the future, login tokens are kept in your device’s secure storage and used only to publish posts you explicitly approve. You can disconnect at any time from the connected app’s settings, which revokes access immediately.',
-  },
-  {
-    title: 'Analytics & tracking',
-    body: 'Sosial collects no analytics, shows no ads, and embeds no third-party trackers.',
-  },
-  {
-    title: 'Children',
-    body: 'Sosial is a general productivity tool with no age-gated content, and collects no personal data from anyone.',
-  },
-  {
-    title: 'Changes',
-    body: 'If this policy changes, the updated version ships inside the app. Continued use after an update means you accept the current policy.',
-  },
-  {
-    title: 'Contact',
-    body: 'Questions about privacy? Reach us at egateworldwide on GitHub and we’ll answer.',
-  },
-];
+import { PRIVACY_SECTIONS as SECTIONS } from '../utils/legal';
 
 export default function PrivacyScreen({ onBack }: { onBack: () => void }) {
   const { C } = useTheme();

@@ -6,6 +6,7 @@ import { Txt, Field, Stepper, Seg, GhostBtn } from '../components/ui';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import { wipeAllData } from '../utils/account';
+import { TERMS_TEXT } from '../utils/legal';
 import { currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
@@ -791,11 +792,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
         {view === 'terms' ? (
           <View style={{ marginTop: 16 }}>
-            <Text style={s.body}>
-              Sosial is a personal content studio. Your designs, ideas and posts are stored on your own device; social tokens are kept in the device keychain and used only to publish where you ask us to.{'\n\n'}
-              Don’t publish content you don’t own or have rights to. Publishing to Facebook, Instagram and Threads is also governed by Meta’s terms.{'\n\n'}
-              Sosial is provided as-is, without warranties.
-            </Text>
+            <Text style={s.body}>{TERMS_TEXT}</Text>
           </View>
         ) : null}
 

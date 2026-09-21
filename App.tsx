@@ -9,6 +9,7 @@ import { ComposerProvider, useComposer } from './src/store/ComposerContext';
 import { loadProjects } from './src/screens/HomeScreen';
 import CreateScreen from './src/screens/CreateScreen';
 import WelcomeScreen, { WelcomeProfile } from './src/screens/WelcomeScreen';
+import LandingScreen from './src/screens/LandingScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import SizeScreen from './src/screens/SizeScreen';
@@ -49,6 +50,7 @@ function Shell() {
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
   const [welcomeReady, setWelcomeReady] = useState(false);
+  const [showLanding, setShowLanding] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   // True after an explicit sign-out: welcome returns without the skip escape.
   const [welcomeLocked, setWelcomeLocked] = useState(false);
@@ -67,11 +69,11 @@ function Shell() {
         const seen = await AsyncStorage.getItem(WELCOME_SEEN_KEY);
         if (seen) return;
         if (!isSupabaseConfigured()) {
-          setShowWelcome(true);
+          setShowLanding(true);
           return;
         }
         const s = await currentSession().catch(() => null);
-        if (!s) setShowWelcome(true);
+        if (!s) setShowLanding(true);
       } catch {
       } finally {
         setWelcomeReady(true);
@@ -247,6 +249,22 @@ function Shell() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bone }}>
         <ActivityIndicator size="large" color={C.ink} />
+      </View>
+    );
+  }
+
+  if (showLanding) {
+    return (
+      <View style={{ flex: 1 }}>
+        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: C.bone }}>
+          <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
+          <LandingScreen
+            onGetStarted={() => { setShowLanding(false); setShowWelcome(true); }}
+          />
+        </SafeAreaView>
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <Grain />
+        </View>
       </View>
     );
   }
