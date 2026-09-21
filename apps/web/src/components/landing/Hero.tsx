@@ -110,15 +110,8 @@ export default function Hero() {
         ))}
       </div>
 
-      <div className="relative mx-auto max-w-4xl px-4 pb-20 pt-16 text-center md:pb-28 md:pt-24">
-        <Link
-          href="#teams"
-          className="pill animate-rise bg-card text-soft ring-1 ring-line transition hover:bg-paper"
-        >
-          <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent" />
-          New: team approvals
-        </Link>
-        <h1 className="animate-rise-1 mt-6 font-display text-5xl font-extrabold leading-[0.95] tracking-tight md:text-7xl">
+      <div className="relative mx-auto max-w-5xl px-4 pb-20 pt-16 text-center md:pb-28 md:pt-24">
+        <h1 className="animate-rise-1 font-display text-5xl font-extrabold leading-[0.95] tracking-tight md:text-7xl">
           Plan it. Write it. Post it.
           <br />
           <span className="text-accent">To your social media.</span>

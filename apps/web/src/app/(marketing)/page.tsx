@@ -27,7 +27,7 @@ function Shell({
 }) {
   return (
     <section id={id} className={`scroll-mt-20 ${band ? 'border-y border-line bg-card/60' : ''}`}>
-      <div className="mx-auto max-w-7xl px-4 py-16 md:py-24">{children}</div>
+      <div className="mx-auto max-w-[1440px] px-4 py-16 md:py-24">{children}</div>
     </section>
   );
 }
@@ -37,7 +37,7 @@ function Shell({
 function ChannelPlayground() {
   return (
     <section id="channels" className="scroll-mt-20 border-y border-line bg-card/60">
-      <div className="mx-auto max-w-7xl px-4 py-16 md:py-24">
+      <div className="mx-auto max-w-[1440px] px-4 py-16 md:py-24">
         <Reveal className="max-w-2xl">
           <p className="eyebrow">One idea, every channel</p>
           <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">

@@ -16,7 +16,7 @@ function Shell({
       id={id}
       className={`scroll-mt-20 ${band ? 'border-y border-line bg-card/60' : ''}`}
     >
-      <div className="mx-auto max-w-7xl px-4 py-16 md:py-24">{children}</div>
+      <div className="mx-auto max-w-[1440px] px-4 py-16 md:py-24">{children}</div>
     </section>
   );
 }
@@ -121,7 +121,7 @@ export function Pricing() {
       <p className="mx-auto mt-3 max-w-lg text-center text-base leading-relaxed text-muted">
         Every plan schedules to all ten channels. Pay for volume, AI and seats — nothing else.
       </p>
-      <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
         {PLANS.map((p) => (
           <article
             key={p.name}
@@ -154,7 +154,7 @@ export function Pricing() {
           </article>
         ))}
       </div>
-      <div className="mx-auto mt-10 max-w-4xl overflow-x-auto">
+      <div className="mx-auto mt-10 max-w-5xl overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-sm">
           <caption className="sr-only">Plan comparison: Free, Pro and Team</caption>
           <thead>

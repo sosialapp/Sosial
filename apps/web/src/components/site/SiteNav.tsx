@@ -138,7 +138,7 @@ export default function SiteNav() {
         scrolled ? 'border-line' : 'border-transparent'
       }`}
     >
-      <nav className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4" aria-label="Main">
+      <nav className="mx-auto flex h-16 max-w-[1440px] items-center gap-6 px-4" aria-label="Main">
         <Logo />
 
         <div className="hidden items-center gap-5 lg:flex">
@@ -240,7 +240,7 @@ export default function SiteNav() {
 
       {open && (
         <div id="mobile-nav" className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-line bg-bone lg:hidden">
-          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4">
+          <div className="mx-auto flex max-w-[1440px] flex-col gap-1 px-4 py-4">
             <MobileSection label="Features" links={FEATURES} onGo={close} />
             <MobileSection
               label="Integrations"
