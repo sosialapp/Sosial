@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sosial — returning to app…</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; background: #F2EDE2; color: #1C1917;
+         display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+  .card { background: #fff; border-radius: 16px; padding: 28px 32px; text-align: center; max-width: 320px;
+          box-shadow: 0 4px 24px rgba(28,25,23,.08); }
+  a { display: inline-block; margin-top: 14px; background: #C8500F; color: #fff; text-decoration: none;
+      font-weight: 700; padding: 12px 28px; border-radius: 999px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <img src="bolt.png" alt="Sosial" width="72" style="display:block;margin:0 auto">
+  <h2>Login complete</h2>
+  <p>Returning to Sosial…</p>
+  <a id="back" href="#">Open Sosial</a>
+</div>
+<script>
+  // Providers append ?code=… (or ?error=…) plus our `state`, which carries the
+  // address the app asked to be sent back to (exp://… in Expo Go,
+  // sosial://redirect in standalone builds). Forward everything there so
+  // expo-web-browser captures it and closes the session automatically.
+  var params = null;
+  try { params = new URLSearchParams(location.search || ''); } catch (e) { params = null; }
+  var base = params ? params.get('state') : null;
+  if (!base || base.indexOf('://') < 0) base = 'sosial://redirect';
+  var q = location.search || '';
+  var h = location.hash || '';
+  var deep = base + q + h;
+  document.getElementById('back').href = deep;
+  // auto-redirect; the manual button is the fallback if the browser blocks it
+  setTimeout(function () { location.replace(deep); }, 300);
+</script>
+</body>
+</html>
