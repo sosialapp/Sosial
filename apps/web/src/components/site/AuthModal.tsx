@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import LoginForm from '../LoginForm';
 
 /**
@@ -20,6 +21,9 @@ export default function AuthModal({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -59,10 +63,12 @@ export default function AuthModal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  // Portalled to <body>: the header and hero use backdrop-filter/transform,
+  // which create a containing block that would trap `fixed` inside them.
+  return createPortal(
+    <div className="fixed inset-0 z-[100] overflow-y-auto">
       <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
       <div className="relative flex min-h-full items-center justify-center p-4">
         <div
@@ -96,6 +102,7 @@ export default function AuthModal({
         <LoginForm key={mode} initialMode={mode} compact />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
