@@ -81,11 +81,14 @@ const ITEMS: DockItem[] = [
 ];
 
 /**
- * macOS-style dock — magnification ported from the GSAP reference pen
- * (icons swell + spread apart near the cursor with a cosine falloff).
+ * macOS-style dock with a hover float: the hovered icon lifts and swells
+ * while its neighbours peek up. Deliberately discrete (per-item
+ * mouseenter) instead of the continuous cursor-tracked magnification from
+ * the GSAP reference pen — tracking getBoundingClientRect() every
+ * mousemove feeds transformed rects back into the math and jitters.
  *
  * Progressive enhancement: a static, fully usable dock in the markup; the
- * magnification only attaches on fine pointers without reduced-motion.
+ * float only attaches when JS runs without reduced-motion.
  */
 export default function Dock() {
   const pathname = usePathname();
@@ -94,53 +97,39 @@ export default function Dock() {
   useEffect(() => {
     const dock = dockRef.current;
     if (!dock) return;
-    if (!window.matchMedia('(pointer: fine)').matches) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    const select = () =>
-      Array.from(dock.querySelectorAll<HTMLElement>('[data-dock-icon]'));
-    let icons = select();
-    if (!icons.length) return;
-
-    gsap.set(icons, { transformOrigin: '50% 100%' });
     gsap.from(dock, { y: 28, autoAlpha: 0, duration: 0.6, ease: 'power3.out' });
 
-    const pitch = () => {
-      icons = select();
-      if (icons.length < 2) return 60;
-      const gap = icons[1].offsetLeft - icons[0].offsetLeft;
-      return Math.max(44, gap || 60);
-    };
+    const items = Array.from(dock.querySelectorAll<HTMLElement>('[data-dock-item]'));
+    const icons = items.map((el) => el.querySelector<HTMLElement>('[data-dock-icon]')).filter((el): el is HTMLElement => !!el);
+    if (!items.length || !icons.length) return;
+    gsap.set(icons, { transformOrigin: '50% 100%' });
 
-    const onMove = (e: MouseEvent) => {
-      const min = pitch();
-      const max = min * 2.1;
-      const bound = min * Math.PI;
-      for (const icon of icons) {
-        const r = icon.getBoundingClientRect();
-        const distance = r.left + r.width / 2 - e.clientX;
-        let scale = 1;
-        let x = 0;
-        if (Math.abs(distance) < bound) {
-          const rad = (distance / min) * 0.5;
-          scale = 1 + (max / min - 1) * Math.cos(rad);
-          x = 2 * (max - min) * Math.sin(rad);
-        } else {
-          x = (distance < 0 ? 2 : -2) * (max - min);
-        }
-        gsap.to(icon, { duration: 0.3, scale, x, ease: 'power2.out', overwrite: 'auto' });
-      }
-    };
+    const reset = () =>
+      gsap.to(icons, { duration: 0.45, y: 0, scale: 1, ease: 'power3.out', overwrite: 'auto' });
 
-    const onLeave = () => {
-      gsap.to(icons, { duration: 0.35, scale: 1, x: 0, ease: 'power3.out', overwrite: 'auto' });
-    };
-
-    dock.addEventListener('mousemove', onMove);
-    dock.addEventListener('mouseleave', onLeave);
+    const removers: (() => void)[] = [];
+    items.forEach((item, i) => {
+      const enter = () => {
+        icons.forEach((icon, j) => {
+          const d = Math.abs(i - j);
+          gsap.to(icon, {
+            duration: 0.35,
+            y: d === 0 ? -12 : d === 1 ? -6 : 0,
+            scale: d === 0 ? 1.18 : d === 1 ? 1.08 : 1,
+            ease: 'back.out(2)',
+            overwrite: 'auto',
+          });
+        });
+      };
+      item.addEventListener('mouseenter', enter);
+      removers.push(() => item.removeEventListener('mouseenter', enter));
+    });
+    dock.addEventListener('mouseleave', reset);
     return () => {
-      dock.removeEventListener('mousemove', onMove);
-      dock.removeEventListener('mouseleave', onLeave);
+      removers.forEach((fn) => fn());
+      dock.removeEventListener('mouseleave', reset);
     };
   }, []);
 
@@ -156,6 +145,7 @@ export default function Dock() {
             <Link
               key={`${item.label}-${item.href}`}
               href={item.href}
+              data-dock-item
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
               className="group relative flex w-14 flex-col items-center"
