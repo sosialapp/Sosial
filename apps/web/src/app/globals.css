@@ -55,7 +55,7 @@
   --font-weight-extrabold: 500;
   --font-weight-black: 500;
 
-  --radius-card: 14px;
+  --radius-card: 20px;
 }
 
 html,
@@ -195,10 +195,10 @@ body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 10px;
+    border-radius: 999px;
     font-weight: 500;
     font-size: 0.875rem;
-    padding: 0.625rem 1.125rem;
+    padding: 0.625rem 1.25rem;
     border: 1px solid transparent;
     cursor: pointer;
     transition:
@@ -250,7 +250,7 @@ body {
     width: 100%;
     background: var(--color-paper);
     border: 1px solid var(--color-line);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 0.625rem 0.875rem;
     font-size: 0.9rem;
     color: var(--color-ink);
