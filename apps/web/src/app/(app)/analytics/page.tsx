@@ -30,7 +30,7 @@ export default async function AnalyticsPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pt-6 sm:px-6">
+    <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Analytics</p>
       <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight">How you&apos;re doing</h1>
 

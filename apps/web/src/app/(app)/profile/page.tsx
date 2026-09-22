@@ -17,7 +17,7 @@ export default async function ProfilePage() {
   const initial = (ctx.user.email?.[0] ?? ctx.workspace.name[0] ?? 'S').toUpperCase();
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 pt-6 sm:px-6">
+    <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Profile</p>
       <div className="card mt-3 flex items-center gap-4 p-5">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-ink font-display text-xl font-extrabold text-white">

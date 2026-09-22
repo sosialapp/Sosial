@@ -84,7 +84,7 @@ export default function CreateHub({
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pt-6 sm:px-6">
+    <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Create</p>
       <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">New post</h1>
       <p className="mt-1 text-sm text-muted">Catch the idea, then post it everywhere.</p>
