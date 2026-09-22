@@ -53,6 +53,45 @@ export default function Prose({ blocks, className = '' }: { blocks: Block[]; cla
             </figure>
           );
         }
+        if (b.t === 'table') {
+          const rows = b.c
+            .map((r) => r.map((x) => x))
+            .filter((r) => r.some((x) => x.trim()));
+          if (rows.length === 0) return null;
+          const cols = Math.max(...rows.map((r) => r.length));
+          const grid = rows.map((r) => [...r, ...Array(Math.max(0, cols - r.length)).fill('')]);
+          const hasHead = b.head !== false;
+          const head = hasHead ? grid[0] : null;
+          const bodyRows = hasHead ? grid.slice(1) : grid;
+          return (
+            <div key={i} className="mt-6 overflow-x-auto rounded-2xl border border-line">
+              <table className="w-full border-collapse text-sm">
+                {head ? (
+                  <thead>
+                    <tr className="border-b border-line bg-card">
+                      {head.map((cell, j) => (
+                        <th key={j} className="px-4 py-2.5 text-left font-display font-extrabold text-ink">
+                          {renderInline(cell)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                ) : null}
+                <tbody>
+                  {bodyRows.map((row, r) => (
+                    <tr key={r} className="border-t border-line first:border-t-0">
+                      {row.map((cell, j) => (
+                        <td key={j} className="px-4 py-2.5 align-top text-soft">
+                          {renderInline(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
         if (b.t === 'video') {
           if (!b.c) return null;
           const embed = embedUrl(b.c);

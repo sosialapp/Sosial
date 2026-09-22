@@ -6,7 +6,8 @@ export type Block =
   | { t: 'ul'; c: string[] }
   | { t: 'quote'; c: string }
   | { t: 'img'; c: string; alt?: string; caption?: string }
-  | { t: 'video'; c: string };
+  | { t: 'video'; c: string }
+  | { t: 'table'; c: string[][]; head?: boolean };
 
 export type Category = 'Publishing' | 'Strategy' | 'AI' | 'Teams' | 'Growth' | 'Product';
 

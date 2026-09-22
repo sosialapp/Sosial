@@ -29,6 +29,7 @@ const BLOCK_LABELS: Record<BlockType, string> = {
   quote: 'Quote',
   img: 'Image',
   video: 'Video',
+  table: 'Table',
 };
 
 function slugify(s: string): string {
@@ -46,6 +47,7 @@ function wordsOf(blocks: Block[]): number {
   };
   for (const b of blocks) {
     if (b.t === 'ul') b.c.forEach(count);
+    else if (b.t === 'table') b.c.forEach((r) => r.forEach(count));
     else if (b.t === 'img') {
       if (b.caption) count(b.caption);
     } else if (b.t !== 'video') count(b.c);
@@ -71,6 +73,11 @@ function cleanBlocks(blocks: Block[]): Block[] {
       }
     } else if (b.t === 'video') {
       if (b.c.trim()) out.push({ t: 'video', c: b.c.trim() });
+    } else if (b.t === 'table') {
+      const rows = b.c
+        .map((r) => r.map((x) => x.trim()))
+        .filter((r) => r.some((x) => x.length > 0));
+      if (rows.length > 0) out.push({ t: 'table', c: rows, head: b.head !== false });
     } else if (b.c.trim()) {
       out.push({ t: b.t, c: b.c.trim() });
     }
@@ -125,15 +132,54 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
           ? { t, c: '', alt: '', caption: '' }
           : t === 'video'
             ? { t, c: '' }
-            : { t, c: '' },
+            : t === 'table'
+              ? { t, c: [['', ''], ['', '']], head: true }
+              : { t, c: '' },
     ]);
+
+  const setCell = (i: number, r: number, cI: number, v: string) =>
+    setBlocks((prev) =>
+      prev.map((x, j) => {
+        if (j !== i || x.t !== 'table') return x;
+        return {
+          ...x,
+          c: x.c.map((row, ri) => (ri === r ? row.map((cell, ci) => (ci === cI ? v : cell)) : row)),
+        };
+      }),
+    );
+
+  const addRow = (i: number) =>
+    setBlocks((prev) =>
+      prev.map((x, j) => {
+        if (j !== i || x.t !== 'table') return x;
+        const cols = Math.max(1, ...x.c.map((r) => r.length));
+        return { ...x, c: [...x.c, Array(cols).fill('')] };
+      }),
+    );
+
+  const addCol = (i: number) =>
+    setBlocks((prev) =>
+      prev.map((x, j) => {
+        if (j !== i || x.t !== 'table') return x;
+        const rows = x.c.length > 0 ? x.c : [['']];
+        return { ...x, c: rows.map((r) => [...r, '']) };
+      }),
+    );
+
+  const delRow = (i: number, r: number) =>
+    setBlocks((prev) =>
+      prev.map((x, j) => {
+        if (j !== i || x.t !== 'table' || x.c.length <= 1) return x;
+        return { ...x, c: x.c.filter((_, ri) => ri !== r) };
+      }),
+    );
 
   const delBlock = (i: number) => setBlocks((prev) => prev.filter((_, j) => j !== i));
 
-  /** Editable text of a block (ul joins items; media blocks have none). */
+  /** Editable text of a block (ul joins items; media/table blocks have none). */
   const blockText = (b: Block): string | null => {
     if (b.t === 'ul') return b.c.join('\n');
-    if (b.t === 'img' || b.t === 'video') return null;
+    if (b.t === 'img' || b.t === 'video' || b.t === 'table') return null;
     return b.c;
   };
 
@@ -142,7 +188,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
       prev.map((x, j) => {
         if (j !== i) return x;
         if (x.t === 'ul') return { t: 'ul', c: text.split('\n') };
-        if (x.t === 'img' || x.t === 'video') return x;
+        if (x.t === 'img' || x.t === 'video' || x.t === 'table') return x;
         return { t: x.t, c: text };
       }),
     );
@@ -285,6 +331,8 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
       setBlock(i, { t: 'img', c: '', alt: '', caption: '' });
     } else if (t === 'video') {
       setBlock(i, { t: 'video', c: '' });
+    } else if (t === 'table') {
+      setBlock(i, { t: 'table', c: [['', ''], ['', '']], head: true });
     } else {
       const text = blockText(b) ?? '';
       setBlock(i, { t: t as TextType, c: text });
@@ -502,6 +550,46 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
                     </p>
                   ) : null}
                 </div>
+              ) : b.t === 'table' ? (
+                <div className="mt-2 grid gap-2">
+                  <label className="flex items-center gap-2 text-xs font-bold text-muted">
+                    <input
+                      type="checkbox"
+                      checked={b.head !== false}
+                      onChange={(e) => setBlock(i, { ...b, head: e.target.checked })}
+                    />
+                    First row is a header
+                  </label>
+                  {b.c.map((row, r) => (
+                    <div key={r} className="flex items-center gap-1.5">
+                      {row.map((cell, cI) => (
+                        <input
+                          key={cI}
+                          value={cell}
+                          onChange={(e) => setCell(i, r, cI, e.target.value)}
+                          placeholder={r === 0 && b.head !== false ? 'Header' : 'Cell'}
+                          className={`${inputCls} min-w-0 flex-1`}
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => delRow(i, r)}
+                        disabled={b.c.length <= 1}
+                        className="rounded-lg border border-line bg-paper px-2 py-1 text-xs font-bold disabled:opacity-40"
+                      >
+                        −
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={() => addRow(i)} className={toolBtn}>
+                      + Row
+                    </button>
+                    <button type="button" onClick={() => addCol(i)} className={toolBtn}>
+                      + Column
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <textarea
                   value={b.c}
@@ -518,7 +606,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
           ))}
 
           <div className="flex flex-wrap gap-1.5">
-            {(['p', 'h', 'ul', 'quote'] as const).map((t) => (
+            {(['p', 'h', 'ul', 'quote', 'table'] as const).map((t) => (
               <button
                 key={t}
                 type="button"

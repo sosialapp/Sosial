@@ -35,6 +35,13 @@ function isBlock(b: unknown): b is Block {
     const c = (b as { c?: unknown }).c;
     return Array.isArray(c) && c.every((x) => typeof x === 'string');
   }
+  if (t === 'table') {
+    const c = (b as { c?: unknown }).c;
+    return (
+      Array.isArray(c) &&
+      c.every((r) => Array.isArray(r) && r.every((x) => typeof x === 'string'))
+    );
+  }
   return false;
 }
 
