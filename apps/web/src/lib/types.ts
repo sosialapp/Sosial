@@ -99,6 +99,9 @@ export interface PostRow {
   status: PostStatus;
   scheduled_at: string | null;
   timezone: string | null;
+  /** P17 chains: segments of one thread share a chain_id, ordered by chain_position. */
+  chain_id: string | null;
+  chain_position: number;
   created_at: string;
   updated_at: string;
   sent_at: string | null;

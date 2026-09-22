@@ -69,6 +69,9 @@ export interface ComposeArgs {
   scheduleIso: string | null;
   channels: ConnectedChannel[];
   files: { file: File; kind: 'image' | 'video' }[];
+  /** P17 chains: segments of one thread share a chainId, ordered by chainPosition. */
+  chainId?: string;
+  chainPosition?: number;
 }
 
 export function extFor(name: string, kind: string): string {
@@ -124,6 +127,8 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
         status: postStatus,
         scheduled_at: scheduledIso,
         timezone: deviceTimezone(),
+        chain_id: args.chainId ?? null,
+        chain_position: args.chainPosition ?? 0,
       },
       { onConflict: 'client_id' },
     )
@@ -199,6 +204,65 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
   }
 
   return postId;
+}
+
+export interface ChainSegmentInput {
+  body: string;
+  files: { file: File; kind: 'image' | 'video' }[];
+}
+
+export interface ChainArgs {
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceInfo['role'];
+  segments: ChainSegmentInput[];
+  mode: ComposeMode;
+  /** Start instant for part 1 (schedule mode). Ignored for drafts. */
+  startIso: string | null;
+  /** Minutes between parts. */
+  gapMinutes: number;
+  channels: ConnectedChannel[];
+}
+
+/**
+ * Create a threaded chain: one post row per segment sharing a chainId,
+ * schedules staggered by gapMinutes so the minutely cron + worker publish
+ * the parts in order with no worker changes. 'now' maps to a schedule
+ * staggered from this instant. Returns the new post ids in order.
+ */
+export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<string[]> {
+  const gapMs = Math.max(0, Math.min(1440, args.gapMinutes || 0)) * 60_000;
+  const base =
+    args.mode === 'now'
+      ? Date.now()
+      : args.startIso
+        ? new Date(args.startIso).getTime()
+        : null;
+  if (args.mode !== 'draft' && (base === null || Number.isNaN(base))) {
+    throw new Error('Choose a valid start date and time.');
+  }
+  const chainId = crypto.randomUUID();
+  const ids: string[] = [];
+  for (let i = 0; i < args.segments.length; i++) {
+    const seg = args.segments[i];
+    const iso =
+      args.mode === 'draft' || base === null ? null : new Date(base + i * gapMs).toISOString();
+    const id = await createPost(sb, {
+      workspaceId: args.workspaceId,
+      userId: args.userId,
+      role: args.role,
+      title: '',
+      body: seg.body,
+      mode: args.mode === 'now' ? 'schedule' : args.mode,
+      scheduleIso: iso,
+      channels: args.channels,
+      files: seg.files,
+      chainId,
+      chainPosition: i,
+    });
+    ids.push(id);
+  }
+  return ids;
 }
 
 /** Move a post (and its still-queued targets) to a new instant. */

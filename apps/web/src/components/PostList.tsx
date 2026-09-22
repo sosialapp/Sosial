@@ -184,6 +184,11 @@ export default function PostList({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`pill ${meta.className}`}>{meta.label}</span>
+                  {p.chain_id && (
+                    <span className="pill bg-accent-soft text-accent-ink" title="Part of a threaded chain">
+                      Chain · {p.chain_position + 1}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1">
                     {providers.map((pr) => {
                       const pm = providerMeta(pr);
