@@ -69,6 +69,18 @@ export default function StudioEditor({
   const ratio =
     ({ square: 1, portrait: 1.25, story: 16 / 9, landscape: 9 / 16, a4: 1.414 } as const)[project.sizeId] ?? 1.25;
 
+  // Arrow keys flip pages (never while typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+      if (e.key === 'ArrowLeft') setPageIndex((i) => Math.max(0, i - 1));
+      if (e.key === 'ArrowRight') setPageIndex((i) => i + 1);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [project.pages.length]);
+
   const patchPage = (patch: Partial<PostPage>) =>
     setProject((p) => ({ ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? { ...pg, ...patch } : pg)) }));
   const patchBackground = (patch: Partial<BackgroundStyle>) =>
@@ -160,8 +172,30 @@ export default function StudioEditor({
         {/* stage */}
         <div className="flex flex-col items-center gap-2 border-b border-line bg-bone px-4 py-5 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
           <div ref={stageRef} className="w-full max-w-[440px]">
-            <div ref={canvasHostRef}>
+            <div ref={canvasHostRef} className="relative">
               <StudioCanvas page={page} ratio={ratio} width={stageW} watermark />
+              {project.pages.length > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => selectPage(pageIndex - 1)}
+                    disabled={pageIndex === 0}
+                    aria-label="Previous page"
+                    className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-lg font-bold text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-30"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectPage(pageIndex + 1)}
+                    disabled={pageIndex >= project.pages.length - 1}
+                    aria-label="Next page"
+                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-lg font-bold text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-2.5">
@@ -200,20 +234,29 @@ export default function StudioEditor({
 
         {/* sheet */}
         <div className="min-w-0">
-          <div className="flex gap-0 overflow-x-auto border-b border-line px-2">
+          <div className="flex border-b border-line px-2">
             {STEPS.map((t, i) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setStep(t.id)}
-                className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] font-bold transition ${
+                className={`flex min-w-0 flex-1 items-center justify-center gap-1 border-b-2 px-1 py-2.5 text-xs font-bold transition ${
                   step === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
                 }`}
               >
-                <span className={`text-[11px] ${step === t.id ? 'text-accent' : 'text-faint'}`}>
+                <span className={`shrink-0 text-[11px] ${step === t.id ? 'text-accent' : 'text-faint'}`}>
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                {t.label}
+                <span className="truncate">
+                  {t.id === 'photo' ? (
+                    <>
+                      <span className="hidden min-[1500px]:inline">Photo & socials</span>
+                      <span className="min-[1500px]:hidden">Photo</span>
+                    </>
+                  ) : (
+                    t.label
+                  )}
+                </span>
               </button>
             ))}
           </div>
