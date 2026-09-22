@@ -62,6 +62,7 @@ export default function StudioEditor({
   const [step, setStep] = useState<Step>('background');
   const [exporting, setExporting] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
   const canvasHostRef = useRef<HTMLDivElement>(null);
   const { ref: stageRef, width: stageW } = useStageWidth(440);
 
@@ -122,6 +123,20 @@ export default function StudioEditor({
     setPageIndex(j);
   };
 
+  /** Drop-to-reorder from the filmstrip (hold and drag). */
+  const dropPageAt = (targetId: string) => {
+    const from = project.pages.findIndex((pg) => pg.id === dragId);
+    const to = project.pages.findIndex((pg) => pg.id === targetId);
+    setDragId(null);
+    if (from < 0 || to < 0 || from === to) return;
+    const curId = page.id;
+    const next = [...project.pages];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setProject((p) => ({ ...p, pages: next }));
+    setPageIndex(next.findIndex((pg) => pg.id === curId));
+  };
+
   const doSave = () => {
     onSave(project);
     setSavedFlash(true);
@@ -172,49 +187,77 @@ export default function StudioEditor({
         {/* stage */}
         <div className="flex flex-col items-center gap-2 border-b border-line bg-bone px-4 py-5 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
           <div ref={stageRef} className="w-full max-w-[440px]">
-            <div ref={canvasHostRef} className="relative">
+            <div ref={canvasHostRef}>
               <StudioCanvas page={page} ratio={ratio} width={stageW} watermark />
-              {project.pages.length > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => selectPage(pageIndex - 1)}
-                    disabled={pageIndex === 0}
-                    aria-label="Previous page"
-                    className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-lg font-bold text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-30"
-                  >
-                    ‹
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => selectPage(pageIndex + 1)}
-                    disabled={pageIndex >= project.pages.length - 1}
-                    aria-label="Next page"
-                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-lg font-bold text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-30"
-                  >
-                    ›
-                  </button>
-                </>
-              ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex gap-1.5">
+          {/* filmstrip — small previews, hold and drag to rearrange */}
+          {project.pages.length > 1 ? (
+            <div className="flex max-w-full gap-2 overflow-x-auto px-1 py-1">
               {project.pages.map((pg, i) => (
                 <button
                   key={pg.id}
                   type="button"
+                  draggable
                   onClick={() => selectPage(i)}
-                  aria-label={`Page ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${i === pageIndex ? 'w-5 bg-accent' : 'w-1.5 bg-line'}`}
-                />
+                  onDragStart={(e) => {
+                    setDragId(pg.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    dropPageAt(pg.id);
+                  }}
+                  onDragEnd={() => setDragId(null)}
+                  aria-label={`Page ${i + 1}${i === pageIndex ? ', current' : ''}`}
+                  className={`shrink-0 cursor-grab overflow-hidden rounded-lg transition active:cursor-grabbing ${
+                    i === pageIndex ? 'ring-2 ring-accent' : 'opacity-60 hover:opacity-100'
+                  } ${dragId === pg.id ? 'opacity-30' : ''}`}
+                  style={{ width: 64 }}
+                >
+                  <StudioCanvas page={pg} ratio={ratio} width={64} watermark={false} frame={false} />
+                </button>
               ))}
             </div>
-            {project.pages.length > 1 ? (
-              <span className="text-xs font-bold text-muted">
-                {pageIndex + 1} / {project.pages.length}
-              </span>
-            ) : null}
+          ) : null}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => selectPage(pageIndex - 1)}
+              disabled={pageIndex === 0 || project.pages.length < 2}
+              aria-label="Previous page"
+              className="text-lg font-bold text-muted transition hover:text-ink disabled:opacity-30"
+            >
+              ‹
+            </button>
+            <div className="flex items-center gap-2.5">
+              <div className="flex gap-1.5">
+                {project.pages.map((pg, i) => (
+                  <button
+                    key={pg.id}
+                    type="button"
+                    onClick={() => selectPage(i)}
+                    aria-label={`Page ${i + 1}`}
+                    className={`h-1.5 rounded-full transition-all ${i === pageIndex ? 'w-5 bg-accent' : 'w-1.5 bg-line'}`}
+                  />
+                ))}
+              </div>
+              {project.pages.length > 1 ? (
+                <span className="text-xs font-bold text-muted">
+                  {pageIndex + 1} / {project.pages.length}
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => selectPage(pageIndex + 1)}
+              disabled={pageIndex >= project.pages.length - 1 || project.pages.length < 2}
+              aria-label="Next page"
+              className="text-lg font-bold text-muted transition hover:text-ink disabled:opacity-30"
+            >
+              ›
+            </button>
           </div>
           <div className="flex flex-wrap justify-center gap-1.5">
             <button type="button" onClick={duplicatePage} className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold">
