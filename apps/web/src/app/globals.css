@@ -34,12 +34,13 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-display: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
 
-  /* Only two weights ship: 200 (light, default text) and 500 (medium, accents).
-     Every weight utility collapses onto those two so nothing is faux-bolded. */
+  /* Three weights ship: 200 (hairline display), 300 (default body text)
+     and 500 (medium, accents). Every weight utility collapses onto those
+     three so nothing is faux-bolded. */
   --font-weight-thin: 200;
   --font-weight-extralight: 200;
-  --font-weight-light: 200;
-  --font-weight-normal: 200;
+  --font-weight-light: 300;
+  --font-weight-normal: 300;
   --font-weight-medium: 500;
   --font-weight-semibold: 500;
   --font-weight-bold: 500;
@@ -73,7 +74,7 @@ body {
   background: var(--color-bone);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-weight: 200;
+  font-weight: 300;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
