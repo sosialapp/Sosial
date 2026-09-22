@@ -10,8 +10,8 @@ type DockItem = {
   label: string;
   match: (pathname: string) => boolean;
   icon: (active: boolean) => React.ReactNode;
-  /** iOS-style tile gradient (top → bottom). */
-  bg: string;
+  /** Flat glyph color per item (no tile — just the colored mark). */
+  color: string;
   hero?: boolean;
 };
 
@@ -27,10 +27,10 @@ const ITEMS: DockItem[] = [
   {
     href: '/calendar',
     label: 'Dashboard',
-    bg: 'from-[#46cdf5] to-[#1d7fe0]',
+    color: 'text-[#1d7fe0]',
     match: (p) => p === '/calendar' || p === '/queue' || p.startsWith('/calendar/') || p.startsWith('/queue/'),
     icon: () => (
-      <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
         <rect x="3" y="3" width="6" height="6" rx="1.8" />
         <rect x="11" y="3" width="6" height="6" rx="1.8" />
         <rect x="3" y="11" width="6" height="6" rx="1.8" />
@@ -41,10 +41,10 @@ const ITEMS: DockItem[] = [
   {
     href: '/composer',
     label: 'Create',
-    bg: 'from-[#ffb340] to-[#ef6a10]',
+    color: 'text-[#ef6a10]',
     match: (p) => p === '/composer' || p.startsWith('/composer/'),
     icon: () => (
-      <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
         <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
       </svg>
     ),
@@ -52,11 +52,11 @@ const ITEMS: DockItem[] = [
   {
     href: '/composer',
     label: 'New post',
-    bg: 'from-[#f67c2a] to-[#b53a08]',
+    color: 'text-accent',
     match: () => false,
     hero: true,
     icon: () => (
-      <svg viewBox="0 0 20 20" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
         <path d="M10 3.5v13M3.5 10h13" />
       </svg>
     ),
@@ -64,10 +64,10 @@ const ITEMS: DockItem[] = [
   {
     href: '/analytics',
     label: 'Analytics',
-    bg: 'from-[#3ddc84] to-[#12914a]',
+    color: 'text-[#12914a]',
     match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
     icon: () => (
-      <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
         <path d="M3 16.5h14" />
         <path d="M5.5 13.5v-4M10 13.5V6.5M14.5 13.5V9" />
       </svg>
@@ -76,10 +76,10 @@ const ITEMS: DockItem[] = [
   {
     href: '/profile',
     label: 'Profile',
-    bg: 'from-[#b79dff] to-[#7c5cf0]',
+    color: 'text-[#7c5cf0]',
     match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
     icon: () => (
-      <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
         <circle cx="10" cy="7" r="3.2" />
         <path d="M3.8 16.5c.8-3 3.2-4.5 6.2-4.5s5.4 1.5 6.2 4.5" />
       </svg>
@@ -164,12 +164,11 @@ export default function Dock() {
               </span>
               <span
                 data-dock-icon
-                className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-b text-white shadow-[0_8px_18px_-8px_rgba(0,0,0,0.5)] ${
-                  item.hero ? 'h-14 w-14 rounded-[18px]' : 'h-12 w-12 rounded-[15px]'
-                } ${item.bg}`}
+                className={`flex items-center justify-center transition-opacity duration-150 ${
+                  item.hero ? 'h-14 w-14' : 'h-12 w-12'
+                } ${item.color} ${active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
               >
-                <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-black/10" />
-                <span className="relative">{item.icon(active)}</span>
+                {item.icon(active)}
               </span>
               <span
                 aria-hidden="true"
