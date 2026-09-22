@@ -10,6 +10,8 @@ type DockItem = {
   label: string;
   match: (pathname: string) => boolean;
   icon: (active: boolean) => React.ReactNode;
+  /** iOS-style tile gradient (top → bottom). */
+  bg: string;
   hero?: boolean;
 };
 
@@ -25,6 +27,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/calendar',
     label: 'Dashboard',
+    bg: 'from-[#46cdf5] to-[#1d7fe0]',
     match: (p) => p === '/calendar' || p === '/queue' || p.startsWith('/calendar/') || p.startsWith('/queue/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
@@ -38,6 +41,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/composer',
     label: 'Create',
+    bg: 'from-[#ffb340] to-[#ef6a10]',
     match: (p) => p === '/composer' || p.startsWith('/composer/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
@@ -48,6 +52,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/composer',
     label: 'New post',
+    bg: 'from-[#f67c2a] to-[#b53a08]',
     match: () => false,
     hero: true,
     icon: () => (
@@ -59,6 +64,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/analytics',
     label: 'Analytics',
+    bg: 'from-[#3ddc84] to-[#12914a]',
     match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
@@ -70,6 +76,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/profile',
     label: 'Profile',
+    bg: 'from-[#b79dff] to-[#7c5cf0]',
     match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-5 w-5" {...STROKE} aria-hidden="true">
@@ -150,22 +157,19 @@ export default function Dock() {
               aria-current={active ? 'page' : undefined}
               className="group relative flex w-14 flex-col items-center"
             >
-              <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg border border-line bg-ink px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+              {/* Tooltip floats well clear of the risen icon (which climbs ~22px)
+                  and pins above it so the float can never cover the text. */}
+              <span className="pointer-events-none absolute -top-12 z-20 whitespace-nowrap rounded-lg border border-line bg-ink px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                 {item.label}
               </span>
               <span
                 data-dock-icon
-                className={
-                  item.hero
-                    ? 'flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-white shadow-[0_10px_24px_-10px_rgba(200,80,15,0.8)] transition-colors hover:bg-accent-bright'
-                    : `flex h-12 w-12 items-center justify-center rounded-2xl border transition-colors ${
-                        active
-                          ? 'border-accent bg-accent text-white'
-                          : 'border-line bg-paper text-soft hover:bg-bone dark:hover:bg-white/5'
-                      }`
-                }
+                className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-b text-white shadow-[0_8px_18px_-8px_rgba(0,0,0,0.5)] ${
+                  item.hero ? 'h-14 w-14 rounded-[18px]' : 'h-12 w-12 rounded-[15px]'
+                } ${item.bg}`}
               >
-                {item.icon(active)}
+                <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-black/10" />
+                <span className="relative">{item.icon(active)}</span>
               </span>
               <span
                 aria-hidden="true"
