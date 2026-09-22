@@ -10,7 +10,7 @@ import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
-import { registerPushToken } from '../utils/pushTokens';
+import { registerPushToken, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -61,6 +61,48 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [sbAccount, setSbAccount] = useState<{ email: string; workspace: WorkspaceInfo } | null>(null);
   const [cloudImp, setCloudImp] = useState(0);
   const [cloudConn, setCloudConn] = useState(0);
+
+  /* Owner-push self-check: surfaces registration state instead of failing
+   * silently, so a missing device is diagnosable on-device. */
+  const [pushDiag, setPushDiag] = useState<PushDiag | null>(null);
+  const [pushDiagBusy, setPushDiagBusy] = useState(false);
+
+  const retryPush = async () => {
+    setPushDiagBusy(true);
+    try {
+      await registerPushToken();
+      setPushDiag(await pushDiagnostics());
+      const s = await currentSession().catch(() => null);
+      let saved = false;
+      if (s) {
+        const { data } = await supabase()
+          .from('push_tokens')
+          .select('id')
+          .eq('user_id', s.user.id)
+          .limit(1);
+        saved = (data?.length ?? 0) > 0;
+      }
+      Alert.alert(
+        'Device registration',
+        saved
+          ? 'Registered — /admin/notifications should show 1 device.'
+          : 'Not registered. Check: notification permission allowed, physical device (not Expo Go), and google-services.json in the build.',
+      );
+    } finally {
+      setPushDiagBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (view !== 'notif') return;
+    let live = true;
+    void pushDiagnostics().then((d) => {
+      if (live) setPushDiag(d);
+    });
+    return () => {
+      live = false;
+    };
+  }, [view]);
 
   /** Counts for the status row (imported ∩ connected). */
   const refreshCloud = async () => {
@@ -439,6 +481,20 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             {toggleRow('Comments & mentions', 'Alert on new comments (installed app)', notifComments, () => onUpdate({ notifComments: !notifComments }))}
             {toggleRow('Weekly digest', 'A Monday summary of your channels', notifWeekly, () => onUpdate({ notifWeekly: !notifWeekly }))}
             <Text style={s.note}>Reminder alerts need the installed app (not Expo Go) with notifications allowed.</Text>
+            <View style={{ padding: 14, paddingTop: 6, gap: 8 }}>
+              <Text style={s.rowS}>
+                Owner pushes:{' '}
+                {pushDiag
+                  ? `${pushDiag.permission}${pushDiag.token ? ' · token OK' : ' · no token'}${pushDiag.projectId ? '' : ' · EAS project missing'}`
+                  : 'checking…'}
+              </Text>
+              <GhostBtn
+                label={pushDiagBusy ? '…' : 'Retry device registration'}
+                onPress={() => {
+                  if (!pushDiagBusy) void retryPush();
+                }}
+              />
+            </View>
           </View>
         ) : null}
 

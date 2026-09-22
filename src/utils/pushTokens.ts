@@ -30,6 +30,36 @@ async function ensureAndroidChannel(): Promise<void> {
   }
 }
 
+export interface PushDiag {
+  /** OS permission state: granted | denied | undetermined | unavailable */
+  permission: string;
+  /** token minted on-device (unsaved counts too — proves FCM works) */
+  token: string | null;
+  /** whether the build carries the EAS project id */
+  projectId: boolean;
+}
+
+/** Read-only self-check: never prompts, never writes, never throws. */
+export async function pushDiagnostics(): Promise<PushDiag> {
+  const out: PushDiag = { permission: 'unavailable', token: null, projectId: false };
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    out.permission = status;
+    const extra = Constants?.expoConfig?.extra as { eas?: { projectId?: string } } | undefined;
+    const projectId = extra?.eas?.projectId;
+    out.projectId = !!projectId;
+    if (status === 'granted' && projectId) {
+      try {
+        const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+        out.token = data ?? null;
+      } catch {
+        out.token = null;
+      }
+    }
+  } catch {}
+  return out;
+}
+
 /**
  * Register this device for owner pushes. Best-effort, never throws:
  * - simulators and builds without push credentials fail at the token step
