@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   CANVAS_BGS,
   CANVAS_SIZES,
-  STARTER_DESIGNS,
   bgOf,
   sizeOf,
   type CanvasDesign,
@@ -21,7 +20,7 @@ export function DesignPreview({ design }: { design: CanvasDesign }) {
       className="w-full overflow-hidden [container-type:inline-size]"
       style={{
         aspectRatio: `1 / ${ratio}`,
-        borderRadius: 16,
+        borderRadius: 14,
         background: `linear-gradient(135deg, ${bg.from}, ${bg.to})`,
       }}
     >
@@ -70,19 +69,15 @@ const blankDraft = (): Omit<CanvasDesign, 'id' | 'createdAt'> => ({
 });
 
 /**
- * Designs section for the Templates tab: editor + starters + saved gallery.
- * Storage lives in CreateHub; export-and-attach runs through onUse.
+ * The design editor (mobile opens it as its own screen; web toggles it under
+ * the "+ New template design" CTA). Gallery lives in the Templates tab.
  */
 export default function DesignStudio({
-  designs,
   onSave,
-  onDelete,
   onUse,
   busyId,
 }: {
-  designs: CanvasDesign[];
   onSave: (d: Omit<CanvasDesign, 'id' | 'createdAt'>) => void;
-  onDelete: (id: string) => void;
   onUse: (d: CanvasDesign) => void;
   busyId: string | null;
 }) {
@@ -91,152 +86,96 @@ export default function DesignStudio({
   const preview: CanvasDesign = { ...draft, id: 'draft', name: draft.name || 'Untitled', createdAt: 0 };
 
   return (
-    <div className="space-y-3">
-      <div className="card grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-2">
-        <div className="space-y-3">
-          <p className="eyebrow">New design</p>
-          <input
-            value={draft.name}
-            onChange={(e) => set({ name: e.target.value })}
-            placeholder="Design name… e.g. Friday drop"
-            className="field font-display font-bold"
-            aria-label="Design name"
-          />
-          <div>
-            <p className="mb-1.5 text-xs font-bold text-muted">Size</p>
-            <div className="flex gap-1.5">
-              {CANVAS_SIZES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => set({ sizeId: s.id })}
-                  className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-                    draft.sizeId === s.id
-                      ? 'border-accent bg-accent text-white'
-                      : 'border-line bg-paper text-soft hover:bg-bone'
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-1.5 text-xs font-bold text-muted">Backdrop</p>
-            <div className="flex flex-wrap gap-1.5">
-              {CANVAS_BGS.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  title={b.name}
-                  aria-label={`${b.name} backdrop`}
-                  aria-pressed={draft.bgId === b.id}
-                  onClick={() => set({ bgId: b.id })}
-                  className={`h-9 w-9 rounded-full transition ${
-                    draft.bgId === b.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-card' : 'hover:scale-105'
-                  }`}
-                  style={{ background: `linear-gradient(135deg, ${b.from}, ${b.to})` }}
-                />
-              ))}
-            </div>
-          </div>
-          <input
-            value={draft.title}
-            onChange={(e) => set({ title: e.target.value })}
-            placeholder="Headline…"
-            className="field font-display font-bold"
-            aria-label="Design headline"
-          />
-          <textarea
-            value={draft.body}
-            onChange={(e) => set({ body: e.target.value })}
-            placeholder="Supporting copy…"
-            rows={3}
-            className="field min-h-[84px] resize-y"
-            aria-label="Design body"
-          />
-          <input
-            value={draft.handle}
-            onChange={(e) => set({ handle: e.target.value })}
-            placeholder="@yourhandle"
-            className="field"
-            aria-label="Design handle"
-          />
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (!draft.name.trim() || (!draft.title.trim() && !draft.body.trim())) return;
-                onSave({ ...draft, name: draft.name.trim() });
-                setDraft(blankDraft());
-              }}
-              className="btn btn-ghost"
-            >
-              Save design
-            </button>
-            <button type="button" onClick={() => onUse(preview)} disabled={busyId !== null} className="btn btn-primary">
-              {busyId === 'draft' ? 'Rendering…' : 'Use design'}
-            </button>
-          </div>
-        </div>
-        <div className="mx-auto w-full max-w-[300px] lg:max-w-[340px]">
-          <DesignPreview design={preview} />
-        </div>
-      </div>
-
-      <p className="eyebrow pt-1">Starter designs</p>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-        {STARTER_DESIGNS.map((s) => (
-          <article key={s.id} className="card flex flex-col gap-3 p-3">
-            <DesignPreview design={s} />
-            <div className="flex items-center justify-between gap-2 px-1 pb-1">
-              <p className="truncate text-sm font-bold">{s.name}</p>
+    <div className="card grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-2">
+      <div className="space-y-3">
+        <p className="eyebrow">New design</p>
+        <input
+          value={draft.name}
+          onChange={(e) => set({ name: e.target.value })}
+          placeholder="Design name… e.g. Friday drop"
+          className="field font-display font-bold"
+          aria-label="Design name"
+        />
+        <div>
+          <p className="mb-1.5 text-xs font-bold text-muted">Size</p>
+          <div className="flex gap-1.5">
+            {CANVAS_SIZES.map((s) => (
               <button
+                key={s.id}
                 type="button"
-                onClick={() => onUse(s)}
-                disabled={busyId !== null}
-                className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
+                onClick={() => set({ sizeId: s.id })}
+                className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+                  draft.sizeId === s.id
+                    ? 'border-accent bg-accent text-white'
+                    : 'border-line bg-paper text-soft hover:bg-bone'
+                }`}
               >
-                {busyId === s.id ? 'Rendering…' : 'Use'}
+                {s.label}
               </button>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      {designs.length > 0 ? (
-        <>
-          <p className="eyebrow pt-1">Your designs</p>
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-            {designs.map((d) => (
-              <article key={d.id} className="card flex flex-col gap-3 p-3">
-                <DesignPreview design={d} />
-                <div className="flex items-center justify-between gap-2 px-1 pb-1">
-                  <p className="truncate text-sm font-bold">{d.name}</p>
-                  <span className="flex shrink-0 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => onUse(d)}
-                      disabled={busyId !== null}
-                      className="btn btn-primary shrink-0 !px-3 !py-1.5 !text-xs"
-                    >
-                      {busyId === d.id ? 'Rendering…' : 'Use'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(d.id)}
-                      className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
-                      aria-label={`Delete ${d.name}`}
-                    >
-                      Delete
-                    </button>
-                  </span>
-                </div>
-              </article>
             ))}
           </div>
-        </>
-      ) : null}
+        </div>
+        <div>
+          <p className="mb-1.5 text-xs font-bold text-muted">Backdrop</p>
+          <div className="flex flex-wrap gap-1.5">
+            {CANVAS_BGS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                title={b.name}
+                aria-label={`${b.name} backdrop`}
+                aria-pressed={draft.bgId === b.id}
+                onClick={() => set({ bgId: b.id })}
+                className={`h-9 w-9 rounded-full transition ${
+                  draft.bgId === b.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-card' : 'hover:scale-105'
+                }`}
+                style={{ background: `linear-gradient(135deg, ${b.from}, ${b.to})` }}
+              />
+            ))}
+          </div>
+        </div>
+        <input
+          value={draft.title}
+          onChange={(e) => set({ title: e.target.value })}
+          placeholder="Headline…"
+          className="field font-display font-bold"
+          aria-label="Design headline"
+        />
+        <textarea
+          value={draft.body}
+          onChange={(e) => set({ body: e.target.value })}
+          placeholder="Supporting copy…"
+          rows={3}
+          className="field min-h-[84px] resize-y"
+          aria-label="Design body"
+        />
+        <input
+          value={draft.handle}
+          onChange={(e) => set({ handle: e.target.value })}
+          placeholder="@yourhandle"
+          className="field"
+          aria-label="Design handle"
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (!draft.name.trim() || (!draft.title.trim() && !draft.body.trim())) return;
+              onSave({ ...draft, name: draft.name.trim() });
+              setDraft(blankDraft());
+            }}
+            className="btn btn-ghost"
+          >
+            Save design
+          </button>
+          <button type="button" onClick={() => onUse(preview)} disabled={busyId !== null} className="btn btn-primary">
+            {busyId === 'draft' ? 'Rendering…' : 'Use design'}
+          </button>
+        </div>
+      </div>
+      <div className="mx-auto w-full max-w-[300px] lg:max-w-[340px]">
+        <DesignPreview design={preview} />
+      </div>
     </div>
   );
 }

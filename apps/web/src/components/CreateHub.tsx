@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Composer from '@/components/Composer';
-import DesignStudio from '@/components/DesignStudio';
-import { exportDesignPng, type CanvasDesign } from '@/lib/canvasDesign';
+import DesignStudio, { DesignPreview } from '@/components/DesignStudio';
+import { STARTER_DESIGNS, exportDesignPng, sizeOf, type CanvasDesign } from '@/lib/canvasDesign';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
 interface Idea {
@@ -28,6 +28,7 @@ type Tab = 'post' | 'ideas' | 'templates';
 const ideasKey = (workspaceId: string) => `sosial-ideas-${workspaceId}`;
 const templatesKey = (workspaceId: string) => `sosial-templates-${workspaceId}`;
 const designsKey = (workspaceId: string) => `sosial-designs-${workspaceId}`;
+const recentKey = (workspaceId: string) => `sosial-design-recent-${workspaceId}`;
 
 /** Starter content templates — one tap into the composer. */
 const STARTERS: Template[] = [
@@ -113,6 +114,7 @@ export default function CreateHub({
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [designs, setDesigns] = useState<CanvasDesign[]>([]);
+  const [recent, setRecent] = useState<CanvasDesign[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tplName, setTplName] = useState('');
@@ -121,6 +123,9 @@ export default function CreateHub({
   const [prefill, setPrefill] = useState<{ title: string; body: string; key: number } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
   const [renderingId, setRenderingId] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
 
   useEffect(() => {
     setIdeas(readList<Idea>(ideasKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt));
@@ -130,6 +135,7 @@ export default function CreateHub({
     setDesigns(
       readList<CanvasDesign>(designsKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt),
     );
+    setRecent(readList<CanvasDesign>(recentKey(workspaceId)).slice(0, 12));
   }, [workspaceId]);
 
   useEffect(() => {
@@ -197,6 +203,22 @@ export default function CreateHub({
     }
   };
 
+  const persistRecent = (next: CanvasDesign[]) => {
+    setRecent(next);
+    try {
+      localStorage.setItem(recentKey(workspaceId), JSON.stringify(next.slice(0, 12)));
+    } catch {
+      /* private mode */
+    }
+  };
+
+  const renameDesign = () => {
+    if (!renaming) return;
+    const v = renaming.value.trim();
+    if (v) persistDesigns(designs.map((d) => (d.id === renaming.id ? { ...d, name: v } : d)));
+    setRenaming(null);
+  };
+
   const saveDesign = (d: Omit<CanvasDesign, 'id' | 'createdAt'>) => {
     const rec: CanvasDesign = {
       ...d,
@@ -215,6 +237,11 @@ export default function CreateHub({
       setPendingFiles([file]);
       setPrefill({ title: d.title, body: d.body, key: Date.now() });
       setTab('post');
+      // Track usage for the Recent rail (dedupe by id, cap 12).
+      if (d.id !== 'draft') {
+        const stamp = { ...d, createdAt: Date.now() };
+        persistRecent([stamp, ...recent.filter((x) => x.id !== d.id)].slice(0, 12));
+      }
     } catch {
       /* export toast lives here if this ever needs one */
     } finally {
@@ -317,86 +344,290 @@ export default function CreateHub({
         </div>
       ) : (
         <div className="mt-4 space-y-5">
-          <DesignStudio
-            designs={designs}
-            onSave={saveDesign}
-            onDelete={(id) => persistDesigns(designs.filter((x) => x.id !== id))}
-            onUse={useDesign}
-            busyId={renderingId}
-          />
+          {/* Mobile-parity CTA — the editor opens beneath it (mobile opens a screen). */}
+          <button
+            type="button"
+            onClick={() => setEditorOpen((v) => !v)}
+            className="flex w-full items-center justify-between rounded-2xl bg-accent px-5 py-4 font-display text-sm font-extrabold text-white transition hover:brightness-110"
+          >
+            + New template design
+            <span aria-hidden="true">{editorOpen ? '↑' : '→'}</span>
+          </button>
+          {editorOpen ? (
+            <DesignStudio onSave={saveDesign} onUse={useDesign} busyId={renderingId} />
+          ) : null}
 
-          <p className="eyebrow pt-1">Caption templates</p>
-          <div className="card space-y-3 p-4 sm:p-5">
-            <p className="eyebrow">Save your own</p>
-            <input
-              value={tplName}
-              onChange={(e) => setTplName(e.target.value)}
-              placeholder="Template name… e.g. Friday promo"
-              className="field font-display font-bold"
-              aria-label="Template name"
-            />
-            <input
-              value={tplTitle}
-              onChange={(e) => setTplTitle(e.target.value)}
-              placeholder="Post title…"
-              className="field"
-              aria-label="Template post title"
-            />
-            <textarea
-              value={tplBody}
-              onChange={(e) => setTplBody(e.target.value)}
-              placeholder="Caption…"
-              rows={3}
-              className="field min-h-[84px] resize-y"
-              aria-label="Template caption"
-            />
-            <button type="button" onClick={saveTemplate} className="btn btn-primary w-full sm:w-auto">
-              Save template
-            </button>
-          </div>
+          {/* Starter templates — horizontal rail of canvas miniatures. */}
+          {STARTER_DESIGNS.length > 0 ? (
+            <>
+              <p className="eyebrow pt-1">Starter templates</p>
+              <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+                {STARTER_DESIGNS.map((s) => (
+                  <DesignTile
+                    key={s.id}
+                    design={s}
+                    kind="Template"
+                    builtIn
+                    busy={renderingId === s.id}
+                    onUse={() => useDesign(s)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
 
-          <p className="eyebrow pt-1">Starter templates</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {STARTERS.map((s) => (
-              <article key={s.id} className="card flex flex-col p-4 sm:p-5">
-                <p className="font-display font-extrabold">{s.name}</p>
-                <p className="mt-1 line-clamp-3 flex-1 text-sm text-soft">{s.body}</p>
-                <button type="button" onClick={() => useIntoComposer(s)} className="btn btn-ghost mt-3 w-full">
-                  Use template
-                </button>
-              </article>
-            ))}
-          </div>
-
-          {templates.length > 0 ? (
+          {/* Your templates — two-column masonry with ••• menus. */}
+          {designs.length > 0 ? (
             <>
               <p className="eyebrow pt-1">Your templates</p>
+              <div className="columns-2 gap-3 xl:columns-3">
+                {designs.map((d) => (
+                  <div key={d.id} className="mb-3 break-inside-avoid">
+                    <DesignTile
+                      design={d}
+                      kind="Template"
+                      busy={renderingId === d.id}
+                      onUse={() => useDesign(d)}
+                      onMenu={() => setMenuFor(menuFor === d.id ? null : d.id)}
+                      menuOpen={menuFor === d.id}
+                      onRename={() => {
+                        setRenaming({ id: d.id, value: d.name });
+                        setMenuFor(null);
+                      }}
+                      onDuplicate={() => {
+                        persistDesigns([
+                          { ...d, id: `design_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name: `${d.name} copy`, createdAt: Date.now() },
+                          ...designs,
+                        ]);
+                        setMenuFor(null);
+                      }}
+                      onDelete={() => {
+                        persistDesigns(designs.filter((x) => x.id !== d.id));
+                        setMenuFor(null);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          {/* Recent — designs used lately, most recent first. */}
+          {recent.length > 0 ? (
+            <>
+              <p className="eyebrow pt-1">Recent</p>
+              <div className="columns-2 gap-3 xl:columns-3">
+                {recent.map((d, i) => (
+                  <div key={`${d.id}-${i}`} className="mb-3 break-inside-avoid">
+                    <DesignTile
+                      design={d}
+                      kind="Design"
+                      busy={renderingId === d.id}
+                      onUse={() => useDesign(d)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          {/* Caption starters — collapsed, secondary to the canvas library. */}
+          <details className="card p-4 sm:p-5">
+            <summary className="cursor-pointer list-none font-display text-sm font-extrabold [&::-webkit-details-marker]:hidden">
+              Caption starters <span aria-hidden="true" className="text-faint">·</span>{' '}
+              <span className="text-xs font-medium text-muted">tap to browse</span>
+            </summary>
+            <div className="mt-4 space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {templates.map((t) => (
-                  <article key={t.id} className="card flex flex-col p-4 sm:p-5">
-                    <p className="truncate font-display font-extrabold">{t.name}</p>
-                    {t.body ? <p className="mt-1 line-clamp-3 flex-1 text-sm text-soft">{t.body}</p> : null}
-                    <p className="mt-1 text-xs text-faint">{fmtDate(t.createdAt)}</p>
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={() => useIntoComposer(t)} className="btn btn-primary flex-1">
+                {STARTERS.map((s) => (
+                  <article key={s.id} className="rounded-2xl border border-line bg-paper p-3.5">
+                    <p className="truncate text-sm font-bold">{s.name}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-soft">{s.body}</p>
+                    <button type="button" onClick={() => useIntoComposer(s)} className="btn btn-ghost mt-2.5 w-full !py-1.5 !text-xs">
+                      Use caption
+                    </button>
+                  </article>
+                ))}
+              </div>
+              <div className="space-y-2 rounded-2xl border border-line bg-paper p-3.5">
+                <p className="eyebrow">Save your own</p>
+                <input
+                  value={tplName}
+                  onChange={(e) => setTplName(e.target.value)}
+                  placeholder="Template name… e.g. Friday promo"
+                  className="field font-display font-bold"
+                  aria-label="Template name"
+                />
+                <input
+                  value={tplTitle}
+                  onChange={(e) => setTplTitle(e.target.value)}
+                  placeholder="Post title…"
+                  className="field"
+                  aria-label="Template post title"
+                />
+                <textarea
+                  value={tplBody}
+                  onChange={(e) => setTplBody(e.target.value)}
+                  placeholder="Caption…"
+                  rows={3}
+                  className="field min-h-[72px] resize-y"
+                  aria-label="Template caption"
+                />
+                <button type="button" onClick={saveTemplate} className="btn btn-primary w-full sm:w-auto">
+                  Save template
+                </button>
+              </div>
+              {templates.length > 0 ? (
+                <div className="space-y-2">
+                  {templates.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold">{t.name}</p>
+                        {t.body ? <p className="truncate text-xs text-muted">{t.body}</p> : null}
+                      </div>
+                      <button type="button" onClick={() => useIntoComposer(t)} className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs">
                         Use
                       </button>
                       <button
                         type="button"
                         onClick={() => persistTemplates(templates.filter((x) => x.id !== t.id))}
-                        className="btn btn-ghost"
+                        className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
                         aria-label={`Delete ${t.name}`}
                       >
                         Delete
                       </button>
                     </div>
-                  </article>
-                ))}
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </details>
+
+          {/* Rename dialog — mobile parity. */}
+          {renaming ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+              <button type="button" aria-hidden="true" tabIndex={-1} onClick={() => setRenaming(null)} className="absolute inset-0 cursor-default bg-black/40" />
+              <div className="card relative w-full max-w-xs p-5">
+                <p className="font-display text-base font-extrabold">Rename</p>
+                <input
+                  value={renaming.value}
+                  onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') renameDesign();
+                    if (e.key === 'Escape') setRenaming(null);
+                  }}
+                  autoFocus
+                  className="field mt-3"
+                  aria-label="Template name"
+                />
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={renameDesign} className="btn btn-primary flex-1">
+                    Save
+                  </button>
+                  <button type="button" onClick={() => setRenaming(null)} className="btn btn-ghost">
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </>
+            </div>
           ) : null}
         </div>
       )}
     </div>
+  );
+}
+
+/** One template tile: canvas miniature + name/meta + ••• menu (mobile parity). */
+function DesignTile({
+  design,
+  kind,
+  builtIn,
+  busy,
+  onUse,
+  onMenu,
+  menuOpen,
+  onRename,
+  onDuplicate,
+  onDelete,
+}: {
+  design: CanvasDesign;
+  kind: 'Template' | 'Design';
+  builtIn?: boolean;
+  busy: boolean;
+  onUse: () => void;
+  onMenu?: () => void;
+  menuOpen?: boolean;
+  onRename?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <article className="relative">
+      <button
+        type="button"
+        onClick={onUse}
+        disabled={busy}
+        className="block w-full text-left"
+        aria-label={`Use ${design.name}`}
+      >
+        <div className="relative">
+          <DesignPreview design={design} />
+          {builtIn ? (
+            <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-white">
+              STARTER
+            </span>
+          ) : null}
+          {busy ? (
+            <span className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/35 text-xs font-bold text-white">
+              Rendering…
+            </span>
+          ) : null}
+        </div>
+      </button>
+      <div className="mt-2 flex items-center gap-2 px-0.5">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold">{design.name}</p>
+          <p className="truncate text-xs text-muted">
+            {kind} · {sizeOf(design).label}
+          </p>
+        </div>
+        {onMenu ? (
+          <button
+            type="button"
+            onClick={onMenu}
+            aria-label={`Menu for ${design.name}`}
+            aria-expanded={menuOpen}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-paper text-muted transition hover:bg-bone"
+          >
+            •••
+          </button>
+        ) : null}
+      </div>
+      {menuOpen ? (
+        <div
+          role="menu"
+          className="absolute right-2 top-2 z-20 w-40 rounded-xl border border-line bg-card p-1 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]"
+        >
+          <button type="button" role="menuitem" onClick={() => { onUse(); onMenu?.(); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
+            Use template
+          </button>
+          {onRename ? (
+            <button type="button" role="menuitem" onClick={onRename} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
+              Rename
+            </button>
+          ) : null}
+          {onDuplicate ? (
+            <button type="button" role="menuitem" onClick={onDuplicate} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
+              Duplicate
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button type="button" role="menuitem" onClick={onDelete} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-[#9F2F2D] hover:bg-[#FDEBEC] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]">
+              Delete
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </article>
   );
 }
