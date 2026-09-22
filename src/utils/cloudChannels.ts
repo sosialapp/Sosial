@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadMetaState, loadAccounts, loadProviderFields, type MetaState } from './metaStore';
-import { connectedAccounts } from './socialAccounts';
+import { loadMetaState, loadAccounts, loadProviderFields, saveAccounts, makeAccount, type MetaState } from './metaStore';
+import { connectedAccounts, accountExternalId, PROVIDER_KEYS, type ConnectedAccount } from './socialAccounts';
 import { getValidYt } from './ytAuth';
-import { currentSession, importChannelToken, removeChannelToken } from './supabase';
+import { supabase, currentSession, importChannelToken, removeChannelToken } from './supabase';
 
 /**
  * Cloud publishing opt-in (Phase 1 → 2 bridge).
@@ -228,6 +228,163 @@ export async function disableCloudChannel(key: CloudChannelKey, snapshot?: MetaS
     // server cleanup is best-effort; the flag still clears below
   }
   await setCloudChannel(key, false);
+}
+
+/* ---------------- Cloud → device pull ---------------- */
+
+const PULL_LAST_KEY = 'sosial_cloud_pull_last_v1';
+const PULL_MS = 3600 * 1000;
+
+/** Local MetaState key holding the provider's display name. */
+const NAME_FIELD: Record<string, string> = {
+  facebook: 'pageName',
+  instagram: 'igName',
+  threads: 'threadsName',
+  tiktok: 'ttName',
+  x: 'xName',
+  bluesky: 'bskyName',
+  mastodon: 'mastodonName',
+  linkedin: 'liName',
+  pinterest: 'pinUsername',
+  youtube: 'ytChannelName',
+};
+
+/**
+ * Local MetaState key holding the provider's stable external id (mirrors
+ * accountExternalId; '' where no such field exists — youtube matches by
+ * provider only).
+ */
+const IDENTITY_FIELD: Record<string, string> = {
+  facebook: 'pageId',
+  instagram: 'igId',
+  threads: 'threadsId',
+  tiktok: 'ttOpenId',
+  x: 'xUserId',
+  bluesky: 'bskyDid',
+  mastodon: 'mastodonAccountId',
+  linkedin: 'liPersonUrn',
+  pinterest: 'pinUsername',
+  youtube: '',
+};
+
+interface CloudChannelRow {
+  provider: string;
+  external_id: string;
+  display_name: string | null;
+  handle: string | null;
+  instance_url: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface PullResult {
+  /** cloud rows merged into existing local accounts */
+  matched: string[];
+  /** cloud rows adopted as metadata-only placeholders */
+  created: string[];
+  /** cloud rows ignored (unknown provider — never happens today) */
+  skipped: string[];
+  /** failures for the log (never thrown) */
+  failed: { ch: string; message: string }[];
+}
+
+/**
+ * Cloud → device pull: adopt workspace channels imported from other devices.
+ * Metadata-only (names, handles, avatars) — tokens never leave Vault, so
+ * adopted rows are placeholders (fields.cloudOnly) until the user connects
+ * the same account on this device, which upgrades the row in place.
+ * Additive and idempotent: never writes credential fields, never deletes.
+ * Throttled to once an hour; pass force to skip the throttle.
+ */
+export async function pullCloudChannels(force = false): Promise<PullResult> {
+  const out: PullResult = { matched: [], created: [], skipped: [], failed: [] };
+  try {
+    if (!force) {
+      const last = await AsyncStorage.getItem(PULL_LAST_KEY).catch(() => null);
+      if (last && Date.now() - Number(last) < PULL_MS) return out;
+    }
+    const session = await currentSession().catch(() => null);
+    if (!session) return out; // desired state waits for sign-in; no failure
+    await AsyncStorage.setItem(PULL_LAST_KEY, String(Date.now())).catch(() => {});
+    const sb = supabase();
+    const { data, error } = await sb
+      .from('connected_channels')
+      .select('provider, external_id, display_name, handle, instance_url, metadata')
+      .eq('workspace_id', session.workspace.id)
+      .eq('status', 'connected');
+    if (error) {
+      out.failed.push({ ch: '*', message: error.message });
+      return out;
+    }
+    const rows = ((data ?? []) as CloudChannelRow[]).filter(
+      (r) =>
+        typeof r.provider === 'string' &&
+        (PROVIDER_KEYS as readonly string[]).includes(r.provider) &&
+        typeof r.external_id === 'string' &&
+        r.external_id.length > 0,
+    );
+    if (rows.length === 0) return out;
+    const next = await loadAccounts();
+    let dirty = false;
+    const touch = (a: ConnectedAccount) => {
+      const i = next.findIndex((x) => x.id === a.id);
+      if (i >= 0) next[i] = a;
+      else next.push(a);
+      dirty = true;
+    };
+    const str = (v: unknown): string | undefined =>
+      typeof v === 'string' && v.length > 0 ? v : undefined;
+    for (const row of rows) {
+      const provider = row.provider as CloudChannelKey;
+      const same = next.filter((a) => a.provider === provider);
+      const match =
+        same.find((a) => accountExternalId(a) === row.external_id) ??
+        same.find((a) => !accountExternalId(a));
+      const avatar = str(row.metadata?.avatar);
+      if (match) {
+        // Enrich display fields only — credentials are never touched, and
+        // identity fields are only filled, never overwritten.
+        const fields: Record<string, unknown> = { ...match.fields };
+        let changed = false;
+        const fill = (k: string, v: string | null | undefined) => {
+          if (v && !str(fields[k])) {
+            fields[k] = v;
+            changed = true;
+          }
+        };
+        fill(NAME_FIELD[provider], row.display_name);
+        if (provider === 'bluesky') fill('bskyHandle', row.handle);
+        if (provider === 'bluesky') fill('bskyPdsHost', row.instance_url);
+        if (provider === 'mastodon') fill('mastodonInstance', row.instance_url);
+        if (avatar && avatar !== fields.avatar) {
+          fields.avatar = avatar;
+          changed = true;
+        }
+        if (changed) {
+          touch({ ...match, fields });
+          if (!out.matched.includes(provider)) out.matched.push(provider);
+        }
+        continue;
+      }
+      // No local account: adopt a metadata-only placeholder. The identity
+      // rides along so future pulls re-match instead of duplicating;
+      // credentials stay empty so accountConnected() stays false until a
+      // local connect upgrades the row in place.
+      const idKey = IDENTITY_FIELD[provider];
+      const fields: Record<string, unknown> = { cloudOnly: true };
+      if (idKey) fields[idKey] = row.external_id;
+      if (row.display_name) fields[NAME_FIELD[provider]] = row.display_name;
+      if (provider === 'bluesky' && row.handle) fields.bskyHandle = row.handle;
+      if (provider === 'bluesky' && row.instance_url) fields.bskyPdsHost = row.instance_url;
+      if (provider === 'mastodon' && row.instance_url) fields.mastodonInstance = row.instance_url;
+      if (avatar) fields.avatar = avatar;
+      touch({ ...makeAccount(provider, fields) });
+      if (!out.created.includes(provider)) out.created.push(provider);
+    }
+    if (dirty) await saveAccounts(next);
+    return out;
+  } catch {
+    return out;
+  }
 }
 
 /* ---------------- Master switch (one setting, all channels) ---------------- */

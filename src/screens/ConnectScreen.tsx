@@ -6,7 +6,7 @@ import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui'
 import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount } from '../utils/metaStore';
-import { accountName, accountAvatar, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
+import { accountName, accountAvatar, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
 import {
   loginFacebook, exchangeFacebookCode, fetchPages, pickPage, FbPage,
   loginInstagram, exchangeInstagramCode, fetchInstagramProfile,
@@ -26,7 +26,7 @@ import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { BUILD_TAG } from '../utils/build';
 import { loadTeam } from '../utils/team';
-import { disableCloudChannel, syncCloudChannels } from '../utils/cloudChannels';
+import { disableCloudChannel, syncCloudChannels, pullCloudChannels } from '../utils/cloudChannels';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
@@ -56,13 +56,15 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
 
   useEffect(() => {
-    // Backfill first so the mount-triggered cloud sync (via [meta]) already
-    // carries fresh pictures; the helper re-syncs itself if it saves late.
-    backfillMissingAvatars()
-      .catch(() => null)
-      .finally(() => {
-        loadAccounts().then(setAccounts);
-      });
+    // Backfill first so the push below already carries fresh pictures, then
+    // push local channels up and pull cloud-only channels down — one visit
+    // converges both directions before the list paints.
+    void (async () => {
+      await backfillMissingAvatars().catch(() => null);
+      await syncCloudChannels().catch(() => null);
+      await pullCloudChannels().catch(() => null);
+      setAccounts(await loadAccounts().catch(() => []));
+    })();
     loadTeam().then((m) => setTeamCount(m.length));
   }, []);
 
@@ -253,6 +255,13 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   };
 
   const disconnectAccount = async (account: ConnectedAccount) => {
+    if (isCloudOnly(account)) {
+      // Placeholder only — the live channel belongs to another device, so
+      // just drop the local row. Never run the cloud sweep here: it would
+      // revoke the other device's working channel.
+      setAccounts(await removeAccount(account.id));
+      return;
+    }
     // Disconnect revokes the cloud copy too — provider-wide sweep when it's the
     // last account (precise external_id removal lands with Slice 4).
     const remaining = accounts.filter((a) => a.provider === account.provider && a.id !== account.id);
@@ -401,6 +410,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const accountLabel = (a: ConnectedAccount): string => {
     const n = accountName(a);
     if (n) return n;
+    if (isCloudOnly(a)) return 'Via cloud';
     if (a.provider === 'facebook') return 'Choose a Page';
     if (a.provider === 'pinterest') return 'Connected — pick a board';
     return 'Connected';
@@ -414,9 +424,28 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
 
   const selectAccount = (p: ProviderKey, a: ConnectedAccount) => {
     setSelId((s) => ({ ...s, [p]: a.id }));
+    if (isCloudOnly(a)) return; // no device tokens — pickers below can't load
     if (p === 'facebook') void loadPagesFor(a);
     else if (p === 'linkedin') void loadLiOrgsFor(a);
     else if (p === 'pinterest') void loadPinBoardsFor(a);
+  };
+
+  /** "Connect on this device" for a cloud-only placeholder. OAuth providers
+   *  start the browser flow against the placeholder id (the return upgrades
+   *  it in place); manual providers prefill the handle box and select the
+   *  row so "Add this account" upgrades it instead of duplicating. */
+  const connectCloudOnly = (p: ProviderKey, a: ConnectedAccount) => {
+    selectAccount(p, a);
+    if (providerCfg[p].manual) {
+      if (p === 'bluesky' && typeof a.fields.bskyHandle === 'string' && a.fields.bskyHandle) {
+        setBskyHandle(a.fields.bskyHandle.replace(/\.bsky\.social$/, ''));
+      }
+      if (p === 'mastodon' && typeof a.fields.mastodonInstance === 'string' && a.fields.mastodonInstance) {
+        setMastodonInstance(a.fields.mastodonInstance);
+      }
+      return;
+    }
+    if (providerCfg[p].configured) providerCfg[p].connect(a.id);
   };
 
   const statusLabel = (p: ProviderKey, list: ConnectedAccount[]): string => {
@@ -431,7 +460,12 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
 
   const renderManualForm = (p: ProviderKey) => {
     const list = accounts.filter((a) => a.provider === p);
-    const addId = () => (list.length > 0 ? makeAccount(p).id : undefined);
+    // A selected cloud-only row upgrades in place instead of duplicating.
+    const addId = () => {
+      const sel = selectedAccountFor(p);
+      if (sel && isCloudOnly(sel)) return sel.id;
+      return list.length > 0 ? makeAccount(p).id : undefined;
+    };
     if (p === 'bluesky') {
       return (
         <>
@@ -506,6 +540,16 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   };
 
   const renderSubPanel = (p: ProviderKey) => {
+    const sel = selectedAccountFor(p);
+    if (sel && isCloudOnly(sel)) {
+      // Page/org/board pickers need device tokens — the placeholder only
+      // offers the upgrade path (Connect on its row).
+      return (
+        <View style={s.pageRow}>
+          <Text style={s.pageT} numberOfLines={2}>Synced from another device — press Connect on the account above to manage it here.</Text>
+        </View>
+      );
+    }
     if (p === 'facebook') {
       const acct = selectedAccountFor('facebook');
       const pageId = acct?.fields.pageId as string | undefined;
@@ -697,6 +741,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                         <Text style={s.rowS} numberOfLines={1}>
                           {list.slice(0, 2).map((a) => accountName(a) ?? accountLabel(a)).join(' · ')}
                           {list.length > 2 ? `  +${list.length - 2} more` : ''}
+                          {list.length > 0 && list.every(isCloudOnly) ? ' · via cloud' : ''}
                         </Text>
                       </View>
                     )}
@@ -713,16 +758,26 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                     {cfg.manual ? renderManualForm(p) : null}
                     {list.map((a) => {
                       const isSel = selectedAccountFor(p)?.id === a.id;
+                      const cloud = isCloudOnly(a);
                       return (
                         <View key={a.id} style={s.acctRow}>
                           <TouchableOpacity onPress={() => selectAccount(p, a)} activeOpacity={0.7} style={s.acctSel}>
                             <ChannelAvatar platform={p} avatar={accountAvatar(a)} size={30} badge={list.length > 1} />
                             <Text style={s.acctT} numberOfLines={1}>{accountLabel(a)}</Text>
-                            {list.length > 1 && isSel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
+                            {cloud ? (
+                              <View style={s.cloudBadge}><Text style={s.cloudBadgeT}>Cloud</Text></View>
+                            ) : null}
+                            {!cloud && list.length > 1 && isSel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
                           </TouchableOpacity>
-                          <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7}>
-                            <Text style={s.discT}>Remove</Text>
-                          </TouchableOpacity>
+                          {cloud ? (
+                            <TouchableOpacity onPress={() => void connectCloudOnly(p, a)} activeOpacity={0.7}>
+                              <Text style={s.go}>Connect</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7}>
+                              <Text style={s.discT}>Remove</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       );
                     })}
@@ -777,5 +832,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   pageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 13, paddingVertical: 11 },
   pageT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   discT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText },
+  cloudBadge: { backgroundColor: C.accentSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  cloudBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk },
   buildTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint, textAlign: 'center', marginTop: 14, marginBottom: 4 },
 });

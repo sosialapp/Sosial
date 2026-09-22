@@ -171,6 +171,16 @@ export function accountAvatar(a: ConnectedAccount): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
+/**
+ * Metadata-only placeholder adopted from another device's cloud copy
+ * (fields.cloudOnly, no device credentials). Schedulable via the worker;
+ * device-side actions need a local connect first. Derived (not stored as a
+ * state machine) so landing credentials promote it automatically.
+ */
+export function isCloudOnly(a: ConnectedAccount): boolean {
+  return a.fields.cloudOnly === true && !accountConnected(a);
+}
+
 export function connectedAccounts(accounts: ConnectedAccount[]): ConnectedAccount[] {
   return accounts.filter(accountConnected);
 }
