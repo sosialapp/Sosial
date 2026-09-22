@@ -8,8 +8,9 @@ export function channelAvatar(metadata: Record<string, unknown> | null | undefin
 }
 
 /**
- * Mobile-style channel mark: the account's profile picture with the social
- * logo stacked in the corner; brand tile fallback when there's no avatar.
+ * Channel mark: the social logo leads as the main tile; the account's
+ * profile picture rides in the corner, slightly larger than a plain badge
+ * so faces stay recognizable. Brand tile alone when there's no avatar.
  * Plain <img> — avatar hosts are arbitrary, so next/image can't preallow them.
  */
 export default function ChannelAvatar({
@@ -23,40 +24,29 @@ export default function ChannelAvatar({
 }) {
   const meta = providerMeta(provider);
   const r = Math.round(size * 0.3);
-  const badge = Math.max(14, Math.round(size * 0.48));
+  const badge = Math.max(16, Math.round(size * 0.58));
   return (
     <span className="relative inline-block shrink-0" style={{ width: size, height: size }}>
-      {avatar ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={avatar}
-          alt=""
-          width={size}
-          height={size}
-          loading="lazy"
-          className="object-cover"
-          style={{ width: size, height: size, borderRadius: r }}
-        />
-      ) : (
-        <span
-          className="flex items-center justify-center"
-          style={{ width: size, height: size, borderRadius: r, background: `${meta.color}14` }}
-        >
-          <BrandIcon provider={provider as BrandProvider} className="h-1/2 w-1/2" />
-        </span>
-      )}
+      <span
+        className="flex items-center justify-center"
+        style={{ width: size, height: size, borderRadius: r, background: `${meta.color}14` }}
+      >
+        <BrandIcon provider={provider as BrandProvider} className="h-1/2 w-1/2" />
+      </span>
       {avatar ? (
         <span
-          className="absolute flex items-center justify-center rounded-full border-2 border-card"
-          style={{
-            right: -2,
-            bottom: -2,
-            width: badge,
-            height: badge,
-            background: meta.color,
-          }}
+          className="absolute overflow-hidden rounded-full border-2 border-card"
+          style={{ right: -2, bottom: -2, width: badge, height: badge }}
         >
-          <BrandIcon provider={provider as BrandProvider} mono className="h-1/2 w-1/2 text-white" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatar}
+            alt=""
+            width={badge}
+            height={badge}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
         </span>
       ) : null}
     </span>
