@@ -2,7 +2,10 @@ import { redirect } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
-import { providerMeta } from '@/lib/providers';
+import { ALL_PROVIDERS, providerMeta } from '@/lib/providers';
+import type { ConnectedChannel } from '@/lib/types';
+
+export const dynamic = 'force-dynamic';
 
 const STATUS_STYLE: Record<string, string> = {
   connected: 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]',
@@ -11,11 +14,31 @@ const STATUS_STYLE: Record<string, string> = {
   error: 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]',
 };
 
+const DOT: Record<string, string> = {
+  connected: 'bg-[#2f8f5b]',
+  expired: 'bg-[#e6a417]',
+  revoked: 'bg-[#E60023]',
+  error: 'bg-[#E60023]',
+};
+
+function accountLabel(c: ConnectedChannel): string {
+  return c.handle ? `@${c.handle}` : (c.display_name ?? c.external_id);
+}
+
+/** One card per social network — its accounts stack inside, never split out. */
 export default async function ChannelsPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const channels = await fetchChannels(sb, ctx.workspace.id);
+
+  const byProvider = new Map<string, ConnectedChannel[]>();
+  for (const c of channels) {
+    const list = byProvider.get(c.provider) ?? [];
+    list.push(c);
+    byProvider.set(c.provider, list);
+  }
+  const providers = ALL_PROVIDERS.filter((p) => byProvider.has(p));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -24,22 +47,45 @@ export default async function ChannelsPage() {
         <h1 className="font-display text-xl font-extrabold tracking-tight">Connected accounts</h1>
       </header>
 
-      <div className="grid flex-1 gap-3 p-6 sm:grid-cols-2 xl:grid-cols-3">
-        {channels.length === 0 && (
+      <div className="grid flex-1 content-start gap-2.5 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
+        {providers.length === 0 && (
           <p className="text-sm text-muted">
             No channels connected. Connect accounts in the mobile app; they appear here immediately.
           </p>
         )}
-        {channels.map((c) => {
-          const sub = c.handle ? `@${c.handle}` : c.display_name ?? c.external_id;
+        {providers.map((p) => {
+          const list = byProvider.get(p)!;
+          const meta = providerMeta(p);
+          const live = list.filter((c) => c.status === 'connected').length;
+          const overall = live === list.length ? 'connected' : live > 0 ? 'expired' : list[0].status;
+          const overallLabel =
+            live === list.length ? (list.length > 1 ? `${list.length} live` : 'connected') : `${live}/${list.length} live`;
           return (
-              <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4">
-                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={44} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{providerMeta(c.provider).label}</p>
-                <p className="truncate text-xs text-muted">{sub}</p>
+            <div key={p} className="rounded-2xl border border-line bg-card p-3.5">
+              <div className="flex items-center gap-2.5">
+                <ChannelAvatar
+                  provider={p}
+                  avatar={channelAvatar(list.find((c) => c.status === 'connected')?.metadata ?? list[0].metadata)}
+                  size={32}
+                />
+                <p className="min-w-0 flex-1 truncate text-sm font-bold">{meta.label}</p>
+                <span className={`pill shrink-0 ${STATUS_STYLE[overall] ?? 'bg-surface text-soft'}`}>
+                  {overallLabel}
+                </span>
               </div>
-              <span className={`pill ${STATUS_STYLE[c.status] ?? 'bg-surface text-soft'}`}>{c.status}</span>
+              <ul className="mt-2.5 space-y-1.5 border-t border-line-soft pt-2.5">
+                {list.map((c) => (
+                  <li key={c.id} className="flex items-center gap-2">
+                    <ChannelAvatar provider={p} avatar={channelAvatar(c.metadata)} size={22} />
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold">{accountLabel(c)}</span>
+                    <span
+                      aria-hidden="true"
+                      title={c.status}
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[c.status] ?? 'bg-surface'}`}
+                    />
+                  </li>
+                ))}
+              </ul>
             </div>
           );
         })}
