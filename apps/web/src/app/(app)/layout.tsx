@@ -45,7 +45,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <ThemeToggle />
       </header>
       {/* Bottom clearance so the floating dock never covers content. */}
-      <main className="min-w-0 flex-1 pb-32">{children}</main>
+      <main className="mx-auto min-w-0 w-full max-w-7xl flex-1 pb-32">{children}</main>
       <Dock />
     </ThemeScope>
   );
