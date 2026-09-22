@@ -4,7 +4,9 @@ export type Block =
   | { t: 'p'; c: string }
   | { t: 'h'; c: string }
   | { t: 'ul'; c: string[] }
-  | { t: 'quote'; c: string };
+  | { t: 'quote'; c: string }
+  | { t: 'img'; c: string; alt?: string; caption?: string }
+  | { t: 'video'; c: string };
 
 export type Category = 'Publishing' | 'Strategy' | 'AI' | 'Teams' | 'Growth' | 'Product';
 

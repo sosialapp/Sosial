@@ -28,7 +28,7 @@ const COLS = 'slug, title, description, body, tag, minutes, published_at';
 function isBlock(b: unknown): b is Block {
   if (typeof b !== 'object' || b === null) return false;
   const t = (b as { t?: unknown }).t;
-  if (t === 'p' || t === 'h' || t === 'quote') {
+  if (t === 'p' || t === 'h' || t === 'quote' || t === 'img' || t === 'video') {
     return typeof (b as { c?: unknown }).c === 'string';
   }
   if (t === 'ul') {
