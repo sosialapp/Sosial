@@ -4,7 +4,6 @@ import Reveal from '@/components/anim/Reveal';
 import Tilt from '@/components/anim/Tilt';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelComposer from '@/components/landing/ChannelComposer';
-import ChannelMarquee from '@/components/landing/ChannelMarquee';
 import { ApprovalPreview, ComposerPreview } from '@/components/landing/Preview';
 import Hero from '@/components/landing/Hero';
 import { AiWriter, Faq, Pricing } from '@/components/landing/Sections';
@@ -284,7 +283,6 @@ export default function LandingPage() {
   return (
     <>
       <Hero />
-      <ChannelMarquee />
       <ChannelPlayground />
       <AiWriter />
       <How />
