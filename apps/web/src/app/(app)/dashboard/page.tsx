@@ -34,6 +34,98 @@ const greeting = (): string => {
 const todayLabel = (): string =>
   new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
+/** Monday 00:00 of the current week — the week board's anchor. */
+const weekStart = (): Date => {
+  const x = new Date();
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+
+const sameDay = (a: Date, b: Date): boolean =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+/** Postiz-style week board: the current week as seven columns of compact post cards. */
+function WeekBoard({ posts }: { posts: Awaited<ReturnType<typeof fetchPostsLite>> }) {
+  const start = weekStart();
+  const now = new Date();
+  const inWeek = posts
+    .filter((p) => {
+      if (!p.scheduled_at) return false;
+      const t = new Date(p.scheduled_at);
+      return t >= start && t < new Date(start.getTime() + 7 * 86_400_000);
+    })
+    .sort((a, b) => +new Date(a.scheduled_at!) - +new Date(b.scheduled_at!));
+
+  return (
+    <section className="card p-4" aria-label="This week">
+      <div className="flex items-center justify-between">
+        <p className="eyebrow">This week</p>
+        <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
+          Full calendar
+        </Link>
+      </div>
+      <div className="mt-3 overflow-x-auto pb-1">
+        <div className="grid min-w-[672px] grid-cols-7 gap-2">
+          {Array.from({ length: 7 }, (_, i) => {
+            const day = new Date(start);
+            day.setDate(day.getDate() + i);
+            const isToday = sameDay(day, now);
+            const items = inWeek.filter((p) => sameDay(new Date(p.scheduled_at!), day));
+            return (
+              <div key={day.toISOString()} className="min-w-0">
+                <p
+                  className={`mb-1.5 flex items-center justify-center gap-1.5 rounded-[10px] px-1 py-1 text-center text-[11px] font-bold ${
+                    isToday ? 'bg-bolt text-ink' : 'bg-surface text-muted'
+                  }`}
+                >
+                  {day.toLocaleDateString(undefined, { weekday: 'short' })} {day.getDate()}
+                </p>
+                <div className="space-y-1.5">
+                  {items.length === 0 ? (
+                    <p className="rounded-[10px] border border-dashed border-line px-1.5 py-2 text-center text-[10px] text-faint">
+                      —
+                    </p>
+                  ) : (
+                    items.map((p) => {
+                      const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
+                      const t = new Date(p.scheduled_at!);
+                      return (
+                        <div
+                          key={p.id}
+                          className="rounded-[10px] border border-line bg-paper px-2 py-1.5"
+                          title={p.title || 'Untitled post'}
+                        >
+                          <p className="text-[10px] font-bold text-muted">
+                            {t.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] font-semibold">
+                            {p.title || 'Untitled post'}
+                          </p>
+                          <p className="mt-1 flex gap-1" aria-label="Channels">
+                            {providers.slice(0, 5).map((pv) => (
+                              <span
+                                key={pv}
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ background: providerMeta(pv).color }}
+                                title={providerMeta(pv).label}
+                              />
+                            ))}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Stat({ label, value, href }: { label: string; value: string | number; href: string }) {
   return (
     <Link href={href} className="card group p-4 transition hover:border-ink sm:p-5">
@@ -88,7 +180,11 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-5">
+        <WeekBoard posts={posts} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Scheduled" value={queued.length} href="/calendar" />
         <Stat label="Sent this week" value={sentWeek.length} href="/queue" />
         <Stat label="Drafts" value={drafts.length} href="/queue" />
