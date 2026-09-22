@@ -6,6 +6,8 @@ import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { resourceHref } from '@/content/types';
 import { dashboardUrl } from '@/lib/site';
+import { createClient, hasSupabaseEnv } from '@/lib/supabase/client';
+import AuthModal from './AuthModal';
 import Logo from './Logo';
 
 interface MenuLink {
@@ -117,6 +119,9 @@ function MobileSection({ label, links, onGo }: { label: string; links: MenuLink[
 export default function SiteNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
+  /** null = unknown yet (buttons stay disabled to avoid a wrong-state flash). */
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const close = () => setOpen(false);
   const dash = dashboardUrl();
   const GoToSosial = ({ className, onGo }: { className?: string; onGo?: () => void }) =>
@@ -143,6 +148,28 @@ export default function SiteNav() {
       document.body.style.overflow = '';
     };
   }, [open ]);
+
+  // Signed-in visitors get "Go to Sosial"; everyone else gets the auth
+  // buttons. Live subscription so signing in/out (modal, another tab)
+  // flips the nav without a reload.
+  useEffect(() => {
+    if (!hasSupabaseEnv()) {
+      setSignedIn(false);
+      return;
+    }
+    const sb = createClient();
+    let live = true;
+    sb.auth.getUser().then(({ data }) => {
+      if (live) setSignedIn(!!data.user);
+    });
+    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(!!session?.user);
+    });
+    return () => {
+      live = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <header
@@ -214,7 +241,18 @@ export default function SiteNav() {
         </div>
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
-          <GoToSosial className="btn btn-primary" />
+          {signedIn ? (
+            <GoToSosial className="btn btn-primary" />
+          ) : (
+            <>
+              <button type="button" onClick={() => setAuth('in')} className="btn btn-ghost" disabled={signedIn === null}>
+                Log in
+              </button>
+              <button type="button" onClick={() => setAuth('up')} className="btn btn-primary" disabled={signedIn === null}>
+                Get started free
+              </button>
+            </>
+          )}
         </div>
 
         <button
@@ -271,12 +309,40 @@ export default function SiteNav() {
               Pricing
             </Link>
             <div className="mt-2 flex flex-col gap-2">
-              <GoToSosial className="btn btn-primary" onGo={close} />
+              {signedIn ? (
+                <GoToSosial className="btn btn-primary" onGo={close} />
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={signedIn === null}
+                    onClick={() => {
+                      close();
+                      setAuth('in');
+                    }}
+                  >
+                    Log in
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={signedIn === null}
+                    onClick={() => {
+                      close();
+                      setAuth('up');
+                    }}
+                  >
+                    Get started free
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
 
+      <AuthModal open={auth !== null} mode={auth ?? 'in'} onClose={() => setAuth(null)} />
     </header>
   );
 }
