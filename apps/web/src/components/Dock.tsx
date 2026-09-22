@@ -2,17 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
 type DockItem = {
-  href: string;
+  href?: string;
   label: string;
   match: (pathname: string) => boolean;
   icon: (active: boolean) => React.ReactNode;
   /** Flat glyph color per item (no tile — just the colored mark). */
   color: string;
   hero?: boolean;
+  /** Opens the quick-create popup instead of navigating. */
+  popup?: boolean;
 };
 
 const STROKE = {
@@ -56,11 +58,11 @@ const ITEMS: DockItem[] = [
     ),
   },
   {
-    href: '/new',
     label: 'New post',
     color: 'text-accent dark:text-[#ff9e45]',
     match: () => false,
     hero: true,
+    popup: true,
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
         <path d="M10 3.5v13M3.5 10h13" />
@@ -93,6 +95,44 @@ const ITEMS: DockItem[] = [
   },
 ];
 
+/** Quick-create destinations for the + popup — mirrors the mobile sheet. */
+const PLUS_OPTIONS = [
+  {
+    href: '/new?tab=post',
+    label: 'Post',
+    desc: 'Write and schedule',
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-4 w-4" {...STROKE} aria-hidden="true">
+        <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/new?tab=ideas',
+    label: 'Ideas',
+    desc: 'Capture it first',
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-4 w-4" {...STROKE} aria-hidden="true">
+        <path d="M10 2.5a5 5 0 0 0-3 9c.7.6 1 1.4 1 2.2h4c0-.8.3-1.6 1-2.2a5 5 0 0 0-3-9Z" />
+        <path d="M8.5 16.5h3" />
+      </svg>
+    ),
+  },
+  {
+    href: '/new?tab=templates',
+    label: 'From template',
+    desc: 'Start from a starter',
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-4 w-4" {...STROKE} aria-hidden="true">
+        <rect x="3" y="3" width="6" height="6" rx="1.5" />
+        <rect x="11" y="3" width="6" height="6" rx="1.5" />
+        <rect x="3" y="11" width="6" height="6" rx="1.5" />
+        <rect x="11" y="11" width="6" height="6" rx="1.5" />
+      </svg>
+    ),
+  },
+];
+
 /**
  * macOS-style dock with a hover float: the hovered icon lifts and swells
  * while its neighbours peek up. Deliberately discrete (per-item
@@ -106,6 +146,8 @@ const ITEMS: DockItem[] = [
 export default function Dock() {
   const pathname = usePathname();
   const dockRef = useRef<HTMLDivElement>(null);
+  const [plusOpen, setPlusOpen] = useState(false);
+  const closePlus = () => setPlusOpen(false);
 
   useEffect(() => {
     const dock = dockRef.current;
@@ -146,23 +188,39 @@ export default function Dock() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!plusOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closePlus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [plusOpen]);
+
+  useEffect(() => {
+    closePlus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   return (
     <nav aria-label="Primary" className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+      {plusOpen ? (
+        <button
+          type="button"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={closePlus}
+          className="pointer-events-auto fixed inset-0 cursor-default"
+        />
+      ) : null}
       <div
         ref={dockRef}
         className="pointer-events-auto flex items-end gap-1.5 rounded-3xl border border-line bg-card/85 px-3 pb-2.5 pt-2.5 shadow-[0_18px_50px_-16px_rgba(25,21,18,0.45)] backdrop-blur-xl"
       >
         {ITEMS.map((item) => {
           const active = item.match(pathname);
-          return (
-            <Link
-              key={`${item.label}-${item.href}`}
-              href={item.href}
-              data-dock-item
-              aria-label={item.label}
-              aria-current={active ? 'page' : undefined}
-              className="group relative flex w-14 flex-col items-center"
-            >
+          const tile = (
+            <>
               {/* Tooltip floats well clear of the risen icon (which climbs ~22px)
                   and pins above it so the float can never cover the text. */}
               {/* Constant near-black pill — readable in both modes (theme
@@ -182,6 +240,59 @@ export default function Dock() {
                 aria-hidden="true"
                 className={`mt-1 h-1 w-1 rounded-full transition-opacity ${active && !item.hero ? 'bg-accent opacity-100 dark:bg-[#ff9e45]' : 'opacity-0'}`}
               />
+            </>
+          );
+          if (item.popup) {
+            return (
+              <div key={item.label} data-dock-item className="group relative flex w-14 flex-col items-center">
+                <button
+                  type="button"
+                  onClick={() => setPlusOpen((v) => !v)}
+                  aria-label={item.label}
+                  aria-haspopup="menu"
+                  aria-expanded={plusOpen}
+                  className="group flex flex-col items-center"
+                >
+                  {tile}
+                </button>
+                {plusOpen ? (
+                  <div
+                    role="menu"
+                    aria-label="Quick create"
+                    className="absolute bottom-full left-1/2 z-30 mb-4 w-60 -translate-x-1/2 rounded-2xl border border-line bg-card p-1.5 text-left shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
+                  >
+                    {PLUS_OPTIONS.map((o) => (
+                      <Link
+                        key={o.href}
+                        href={o.href}
+                        role="menuitem"
+                        onClick={closePlus}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-bone dark:hover:bg-white/5"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+                          {o.icon}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold">{o.label}</span>
+                          <span className="block truncate text-xs text-muted">{o.desc}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
+          return (
+            <Link
+              key={`${item.label}-${item.href}`}
+              href={item.href!}
+              data-dock-item
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
+              className="group relative flex w-14 flex-col items-center"
+            >
+              {tile}
             </Link>
           );
         })}
