@@ -81,7 +81,7 @@ export default async function DashboardPage() {
             {greeting()}, {ctx.workspace.name}
           </h1>
         </div>
-        <Link href="/composer" className="btn btn-primary">
+        <Link href="/new" className="btn btn-primary">
           + New post
         </Link>
       </div>
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
             <div className="flex h-40 flex-col items-center justify-center gap-2 text-center">
               <p className="font-display text-base font-extrabold">Nothing scheduled</p>
               <p className="max-w-xs text-sm text-muted">Queue something and it will show up here first.</p>
-              <Link href="/composer" className="btn btn-primary mt-2">
+              <Link href="/new" className="btn btn-primary mt-2">
                 Compose
               </Link>
             </div>
@@ -235,7 +235,7 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-white/80">Compose, check the queue, or review the week.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/composer" className="btn bg-white font-bold text-accent hover:bg-bone">
+            <Link href="/new" className="btn bg-white font-bold text-accent hover:bg-bone">
               Compose
             </Link>
             <Link

@@ -49,7 +49,7 @@ export default async function AnalyticsPage() {
           Likes, comments and reach per channel will show up here once the stats pipeline lands. Your totals above are already live.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <Link href="/composer" className="btn btn-primary">
+          <Link href="/new" className="btn btn-primary">
             Create a post
           </Link>
           <Link href="/calendar" className="btn btn-ghost">

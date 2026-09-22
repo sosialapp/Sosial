@@ -45,10 +45,10 @@ const ITEMS: DockItem[] = [
     ),
   },
   {
-    href: '/composer',
+    href: '/new',
     label: 'Create',
     color: 'text-[#ef6a10] dark:text-[#ffab2e]',
-    match: (p) => p === '/composer' || p.startsWith('/composer/'),
+    match: (p) => p === '/new' || p === '/composer' || p.startsWith('/new/') || p.startsWith('/composer/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
         <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
@@ -56,7 +56,7 @@ const ITEMS: DockItem[] = [
     ),
   },
   {
-    href: '/composer',
+    href: '/new',
     label: 'New post',
     color: 'text-accent dark:text-[#ff9e45]',
     match: () => false,

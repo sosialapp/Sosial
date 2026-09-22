@@ -20,17 +20,22 @@ export default function Composer({
   workspaceId,
   userId,
   role,
+  initialTitle = '',
+  initialBody = '',
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
   userId: string;
   role: WorkspaceInfo['role'];
+  /** Prefill for "post this idea" — parent remounts (key) to apply. */
+  initialTitle?: string;
+  initialBody?: string;
 }) {
   const router = useRouter();
   const isMember = role === 'member';
   const ready = channels.filter((c) => c.status === 'connected');
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const [title, setTitle] = useState(initialTitle);
+  const [body, setBody] = useState(initialBody);
   const [mode, setMode] = useState<ComposeMode>('schedule');
   const [when, setWhen] = useState(() => toDateTimeLocal(null));
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
