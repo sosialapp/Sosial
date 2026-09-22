@@ -58,6 +58,14 @@ html {
   scroll-behavior: smooth;
   /* Sticky nav is 4rem tall — keep anchored sections clear of it. */
   scroll-padding-top: 5rem;
+  /* Rubber-band overscroll past the header/footer reveals the canvas, not
+     the body — paint it bone so it never flashes white. */
+  background-color: var(--color-bone);
+}
+
+/* Dark dashboard overscroll matches the night shell (see .app-shell). */
+.dark {
+  background-color: #0d0d11;
 }
 
 ::selection {

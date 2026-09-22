@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { resourceHref } from '@/content/types';
-import AuthModal from './AuthModal';
+import { dashboardUrl } from '@/lib/site';
 import Logo from './Logo';
 
 interface MenuLink {
@@ -117,8 +117,18 @@ function MobileSection({ label, links, onGo }: { label: string; links: MenuLink[
 export default function SiteNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
   const close = () => setOpen(false);
+  const dash = dashboardUrl();
+  const GoToSosial = ({ className, onGo }: { className?: string; onGo?: () => void }) =>
+    dash.startsWith('http') ? (
+      <a href={dash} className={className} onClick={onGo}>
+        Go to Sosial
+      </a>
+    ) : (
+      <Link href={dash} className={className} onClick={onGo}>
+        Go to Sosial
+      </Link>
+    );
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -204,12 +214,7 @@ export default function SiteNav() {
         </div>
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
-          <button type="button" onClick={() => setAuth('in')} className="btn btn-ghost">
-            Log in
-          </button>
-          <button type="button" onClick={() => setAuth('up')} className="btn btn-primary">
-            Get started free
-          </button>
+          <GoToSosial className="btn btn-primary" />
         </div>
 
         <button
@@ -266,32 +271,12 @@ export default function SiteNav() {
               Pricing
             </Link>
             <div className="mt-2 flex flex-col gap-2">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  close();
-                  setAuth('in');
-                }}
-              >
-                Log in
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  close();
-                  setAuth('up');
-                }}
-              >
-                Get started free
-              </button>
+              <GoToSosial className="btn btn-primary" onGo={close} />
             </div>
           </div>
         </div>
       )}
 
-      <AuthModal open={auth !== null} mode={auth ?? 'in'} onClose={() => setAuth(null)} />
     </header>
   );
 }
