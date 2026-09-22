@@ -34,11 +34,11 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-display: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
 
-  /* Three weights ship: 200 (hairline display), 300 (default body text)
-     and 500 (medium, accents). Every weight utility collapses onto those
-     three so nothing is faux-bolded. */
-  --font-weight-thin: 200;
-  --font-weight-extralight: 200;
+  /* Two weights ship: 300 (default text, including hairline display) and
+     500 (medium, accents). Every weight utility collapses onto those two
+     so nothing is faux-bolded. */
+  --font-weight-thin: 300;
+  --font-weight-extralight: 300;
   --font-weight-light: 300;
   --font-weight-normal: 300;
   --font-weight-medium: 500;
