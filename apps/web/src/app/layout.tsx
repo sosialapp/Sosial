@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500&family=Plus+Jakarta+Sans:wght@300;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500&family=Plus+Jakarta+Sans:wght@300;500&family=Space+Grotesk:wght@400;700&family=Playfair+Display:wght@400;700;900&family=Crimson+Pro:wght@400;700&family=Poppins:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Anton&display=swap"
           rel="stylesheet"
         />
       </head>

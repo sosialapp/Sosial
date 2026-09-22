@@ -1,10 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Composer from '@/components/Composer';
-import DesignStudio, { DesignPreview } from '@/components/DesignStudio';
-import { STARTER_DESIGNS, exportDesignPng, sizeOf, type CanvasDesign } from '@/lib/canvasDesign';
+import StudioEditor from '@/components/studio/StudioEditor';
+import StudioCanvas from '@/components/studio/StudioCanvas';
+import { exportCanvasPng } from '@/lib/studio/exportPng';
+import {
+  POST_SIZES,
+  blankPage,
+  blankProject,
+  uid,
+  type StudioProject,
+} from '@/lib/studio/model';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
 interface Idea {
@@ -27,10 +35,58 @@ type Tab = 'post' | 'ideas' | 'templates';
 
 const ideasKey = (workspaceId: string) => `sosial-ideas-${workspaceId}`;
 const templatesKey = (workspaceId: string) => `sosial-templates-${workspaceId}`;
-const designsKey = (workspaceId: string) => `sosial-designs-${workspaceId}`;
-const recentKey = (workspaceId: string) => `sosial-design-recent-${workspaceId}`;
+const projectsKey = (workspaceId: string) => `sosial-studio-v2-${workspaceId}`;
+const recentKey = (workspaceId: string) => `sosial-studio-recent-${workspaceId}`;
 
-/** Starter content templates — one tap into the composer. */
+/** Starter studio projects — real multi-block designs, not mockups. */
+function starterProjects(): StudioProject[] {
+  const launch = blankProject('Launch card');
+  launch.sizeId = 'portrait';
+  launch.pages = [
+    {
+      ...blankPage(),
+      background: { ...blankPage().background, type: 'dots', color: '#111111', patternColor: '#FFE45E', patternSize: 26, patternOpacity: 0.5, mixEnabled: false },
+      title: { text: 'It’s live.', position: 'top', color: '#FFFFFF', size: 40, align: 'left', font: 'jakarta', bold: true, italic: false, subtitle: 'Everything you asked for, in one place.', subtitleSize: 15, subtitleColor: '#F5F1E8' },
+      blocks: [
+        { id: uid('b'), type: 'bullets', heading: 'What’s new', items: ['Faster than ever', 'Works everywhere', 'Free to try'], textColor: '#111111' },
+      ],
+      cardColor: '#FFFFFFF2',
+      socials: [{ id: uid('s'), platform: 'instagram', handle: '@yourhandle', visible: true, font: 'jakarta', bold: true, italic: false }],
+      caption: 'Big news — it’s live! #launch #newdrop',
+    },
+  ];
+  const quote = blankProject('Quote card');
+  quote.sizeId = 'square';
+  quote.pages = [
+    {
+      ...blankPage(),
+      background: { ...blankPage().background, type: 'solid', color: '#F5F1E8', patternColor: '#111111', patternSize: 22, patternOpacity: 0.12, mixEnabled: false },
+      title: { text: '“Show up every day.”', position: 'top', color: '#111111', size: 36, align: 'center', font: 'playfair', bold: true, italic: false, subtitle: 'Consistency beats intensity.', subtitleSize: 15, subtitleColor: '#57534E' },
+      blocks: [],
+      pfp: { ...blankPage().pfp, hidden: true },
+      socials: [],
+      cardColor: '#FFFFFFF2',
+    },
+  ];
+  const promo = blankProject('Promo card');
+  promo.sizeId = 'story';
+  promo.pages = [
+    {
+      ...blankPage(),
+      background: { ...blankPage().background, type: 'stripes', color: '#7C2D12', patternColor: '#F97316', patternSize: 30, patternOpacity: 0.5, mixEnabled: false },
+      title: { text: '20% off ends Sunday', position: 'top', color: '#FFFFFF', size: 38, align: 'left', font: 'jakarta', bold: true, italic: false, subtitle: '', subtitleSize: 15 },
+      blocks: [
+        { id: uid('b'), type: 'table', heading: 'Plans', items: [], table: [['Plan', 'Monthly', 'Yearly'], ['Starter', '$9', '$90'], ['Pro', '$19', '$190']], textColor: '#111111' },
+      ],
+      cardColor: '#FFFFFFF2',
+      socials: [{ id: uid('s'), platform: 'tiktok', handle: '@yourhandle', visible: true, font: 'jakarta', bold: true, italic: false }],
+      caption: 'One weekend only. #sale #promo',
+    },
+  ];
+  return [launch, quote, promo];
+}
+
+/** Starter caption templates — one tap into the composer. */
 const STARTERS: Template[] = [
   {
     id: 'starter-launch',
@@ -94,9 +150,29 @@ const fmtDate = (ts: number): string => {
 
 const TAB_LABEL: Record<Tab, string> = { post: 'Post', ideas: 'Ideas', templates: 'Templates' };
 
+function useBoxWidth(fallback = 300): { ref: React.RefObject<HTMLDivElement | null>; width: number } {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(fallback);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setWidth(Math.max(120, el.clientWidth));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, width };
+}
+
+function ratioOf(project: StudioProject): number {
+  return POST_SIZES.find((s) => s.id === project.sizeId)?.ratio ?? 1.25;
+}
+
 /**
- * Mobile-style Create hub: quick Post composer, Ideas inbox, Templates.
- * Deep-linkable via ?tab=post|ideas|templates (the dock + popup targets it).
+ * Mobile-style Create hub: quick Post composer, Ideas inbox, full canvas
+ * Templates studio (01 Background · 02 Title · 03 Photo & socials ·
+ * Content · Pages · Export).
  */
 export default function CreateHub({
   channels,
@@ -113,8 +189,9 @@ export default function CreateHub({
   const [tab, setTab] = useState<Tab>('post');
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [designs, setDesigns] = useState<CanvasDesign[]>([]);
-  const [recent, setRecent] = useState<CanvasDesign[]>([]);
+  const [projects, setProjects] = useState<StudioProject[]>([]);
+  const [recent, setRecent] = useState<{ project: StudioProject; pageIndex: number; at: number }[]>([]);
+  const [editing, setEditing] = useState<StudioProject | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tplName, setTplName] = useState('');
@@ -122,8 +199,7 @@ export default function CreateHub({
   const [tplBody, setTplBody] = useState('');
   const [prefill, setPrefill] = useState<{ title: string; body: string; key: number } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
-  const [renderingId, setRenderingId] = useState<string | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [renderingKey, setRenderingKey] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
 
@@ -132,10 +208,10 @@ export default function CreateHub({
     setTemplates(
       readList<Template>(templatesKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt),
     );
-    setDesigns(
-      readList<CanvasDesign>(designsKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt),
+    setProjects(
+      readList<StudioProject>(projectsKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt),
     );
-    setRecent(readList<CanvasDesign>(recentKey(workspaceId)).slice(0, 12));
+    setRecent(readList<{ project: StudioProject; pageIndex: number; at: number }>(recentKey(workspaceId)).slice(0, 12));
   }, [workspaceId]);
 
   useEffect(() => {
@@ -158,6 +234,24 @@ export default function CreateHub({
       localStorage.setItem(templatesKey(workspaceId), JSON.stringify(next));
     } catch {
       /* private mode — templates just won't persist */
+    }
+  };
+
+  const persistProjects = (next: StudioProject[]) => {
+    setProjects(next);
+    try {
+      localStorage.setItem(projectsKey(workspaceId), JSON.stringify(next));
+    } catch {
+      /* private mode / quota — designs just won't persist */
+    }
+  };
+
+  const persistRecent = (next: { project: StudioProject; pageIndex: number; at: number }[]) => {
+    setRecent(next);
+    try {
+      localStorage.setItem(recentKey(workspaceId), JSON.stringify(next.slice(0, 12)));
+    } catch {
+      /* private mode */
     }
   };
 
@@ -194,59 +288,46 @@ export default function CreateHub({
     setTab('post');
   };
 
-  const persistDesigns = (next: CanvasDesign[]) => {
-    setDesigns(next);
+  /** Export a studio page PNG and attach it to the composer. */
+  const useStudioPage = async (
+    project: StudioProject,
+    pageIndex: number,
+    node: HTMLElement | null,
+    key: string,
+  ) => {
+    if (!node) return;
+    setRenderingKey(key);
     try {
-      localStorage.setItem(designsKey(workspaceId), JSON.stringify(next));
-    } catch {
-      /* private mode — designs just won't persist */
-    }
-  };
-
-  const persistRecent = (next: CanvasDesign[]) => {
-    setRecent(next);
-    try {
-      localStorage.setItem(recentKey(workspaceId), JSON.stringify(next.slice(0, 12)));
-    } catch {
-      /* private mode */
-    }
-  };
-
-  const renameDesign = () => {
-    if (!renaming) return;
-    const v = renaming.value.trim();
-    if (v) persistDesigns(designs.map((d) => (d.id === renaming.id ? { ...d, name: v } : d)));
-    setRenaming(null);
-  };
-
-  const saveDesign = (d: Omit<CanvasDesign, 'id' | 'createdAt'>) => {
-    const rec: CanvasDesign = {
-      ...d,
-      id: `design_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-      createdAt: Date.now(),
-    };
-    persistDesigns([rec, ...designs]);
-  };
-
-  /** Render the design to PNG and attach it to the composer with its copy. */
-  const useDesign = async (d: CanvasDesign) => {
-    setRenderingId(d.id);
-    try {
-      const blob = await exportDesignPng(d);
-      const file = new File([blob], `${d.name || 'design'}.png`, { type: 'image/png' });
+      const blob = await exportCanvasPng(node, 1080);
+      const page = project.pages[pageIndex] ?? project.pages[0];
+      const file = new File([blob], `${project.name || 'design'}-p${pageIndex + 1}.png`, { type: 'image/png' });
       setPendingFiles([file]);
-      setPrefill({ title: d.title, body: d.body, key: Date.now() });
+      setPrefill({ title: page?.title.text || project.name, body: page?.caption ?? '', key: Date.now() });
+      setEditing(null);
       setTab('post');
-      // Track usage for the Recent rail (dedupe by id, cap 12).
-      if (d.id !== 'draft') {
-        const stamp = { ...d, createdAt: Date.now() };
-        persistRecent([stamp, ...recent.filter((x) => x.id !== d.id)].slice(0, 12));
-      }
+      persistRecent(
+        [{ project, pageIndex, at: Date.now() }, ...recent.filter((r) => !(r.project.id === project.id && r.pageIndex === pageIndex))].slice(0, 12),
+      );
     } catch {
       /* export toast lives here if this ever needs one */
     } finally {
-      setRenderingId(null);
+      setRenderingKey(null);
     }
+  };
+
+  const saveEditing = (p: StudioProject) => {
+    persistProjects(
+      projects.some((x) => x.id === p.id)
+        ? projects.map((x) => (x.id === p.id ? p : x))
+        : [{ ...p, createdAt: Date.now() }, ...projects],
+    );
+  };
+
+  const renameProject = () => {
+    if (!renaming) return;
+    const v = renaming.value.trim();
+    if (v) persistProjects(projects.map((d) => (d.id === renaming.id ? { ...d, name: v } : d)));
+    setRenaming(null);
   };
 
   const postIdea = (idea: Idea) => useIntoComposer(idea);
@@ -255,7 +336,7 @@ export default function CreateHub({
     <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Create</p>
       <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">New post</h1>
-      <p className="mt-1 text-sm text-muted">Catch the idea, start from a template, then post it everywhere.</p>
+      <p className="mt-1 text-sm text-muted">Catch the idea, design the visual, then post it everywhere.</p>
 
       <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Create sections">
         {(Object.keys(TAB_LABEL) as Tab[]).map((t) => (
@@ -342,52 +423,61 @@ export default function CreateHub({
             ))
           )}
         </div>
+      ) : editing ? (
+        <div className="mt-4">
+          <StudioEditor
+            key={editing.id}
+            initial={editing}
+            onSave={(p) => {
+              saveEditing(p);
+              setEditing(p);
+            }}
+            onUsePng={(blob, t, caption) => {
+              const file = new File([blob], `${editing.name || 'design'}.png`, { type: 'image/png' });
+              setPendingFiles([file]);
+              setPrefill({ title: t, body: caption, key: Date.now() });
+              persistRecent(
+                [{ project: editing, pageIndex: 0, at: Date.now() }, ...recent.filter((r) => r.project.id !== editing.id)].slice(0, 12),
+              );
+              setEditing(null);
+              setTab('post');
+            }}
+            onClose={() => setEditing(null)}
+          />
+        </div>
       ) : (
         <div className="mt-4 space-y-5">
           {/* Mobile-parity CTA — the editor opens beneath it (mobile opens a screen). */}
           <button
             type="button"
-            onClick={() => setEditorOpen((v) => !v)}
+            onClick={() => setEditing(blankProject('Untitled design'))}
             className="flex w-full items-center justify-between rounded-2xl bg-accent px-5 py-4 font-display text-sm font-extrabold text-white transition hover:brightness-110"
           >
             + New template design
-            <span aria-hidden="true">{editorOpen ? '↑' : '→'}</span>
+            <span aria-hidden="true">→</span>
           </button>
-          {editorOpen ? (
-            <DesignStudio onSave={saveDesign} onUse={useDesign} busyId={renderingId} />
-          ) : null}
 
-          {/* Starter templates — horizontal rail of canvas miniatures. */}
-          {STARTER_DESIGNS.length > 0 ? (
-            <>
-              <p className="eyebrow pt-1">Starter templates</p>
-              <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-                {STARTER_DESIGNS.map((s) => (
-                  <DesignTile
-                    key={s.id}
-                    design={s}
-                    kind="Template"
-                    builtIn
-                    busy={renderingId === s.id}
-                    onUse={() => useDesign(s)}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
+          {/* Starter templates — horizontal rail of live canvas miniatures. */}
+          <p className="eyebrow pt-1">Starter templates</p>
+          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+            {starterProjects().map((s) => (
+              <StarterTile key={s.id} project={s} busy={renderingKey === s.id} onUse={(node) => useStudioPage(s, 0, node, s.id)} />
+            ))}
+          </div>
 
           {/* Your templates — two-column masonry with ••• menus. */}
-          {designs.length > 0 ? (
+          {projects.length > 0 ? (
             <>
               <p className="eyebrow pt-1">Your templates</p>
               <div className="columns-2 gap-3 xl:columns-3">
-                {designs.map((d) => (
+                {projects.map((d) => (
                   <div key={d.id} className="mb-3 break-inside-avoid">
-                    <DesignTile
-                      design={d}
-                      kind="Template"
-                      busy={renderingId === d.id}
-                      onUse={() => useDesign(d)}
+                    <ProjectTile
+                      project={d}
+                      pageIndex={0}
+                      busy={renderingKey === d.id}
+                      onOpen={() => setEditing(structuredClone(d))}
+                      onUse={(node) => useStudioPage(d, 0, node, d.id)}
                       onMenu={() => setMenuFor(menuFor === d.id ? null : d.id)}
                       menuOpen={menuFor === d.id}
                       onRename={() => {
@@ -395,14 +485,11 @@ export default function CreateHub({
                         setMenuFor(null);
                       }}
                       onDuplicate={() => {
-                        persistDesigns([
-                          { ...d, id: `design_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name: `${d.name} copy`, createdAt: Date.now() },
-                          ...designs,
-                        ]);
+                        persistProjects([{ ...structuredClone(d), id: `design_${Date.now().toString(36)}`, name: `${d.name} copy`, createdAt: Date.now() }, ...projects]);
                         setMenuFor(null);
                       }}
                       onDelete={() => {
-                        persistDesigns(designs.filter((x) => x.id !== d.id));
+                        persistProjects(projects.filter((x) => x.id !== d.id));
                         setMenuFor(null);
                       }}
                     />
@@ -417,13 +504,14 @@ export default function CreateHub({
             <>
               <p className="eyebrow pt-1">Recent</p>
               <div className="columns-2 gap-3 xl:columns-3">
-                {recent.map((d, i) => (
-                  <div key={`${d.id}-${i}`} className="mb-3 break-inside-avoid">
-                    <DesignTile
-                      design={d}
-                      kind="Design"
-                      busy={renderingId === d.id}
-                      onUse={() => useDesign(d)}
+                {recent.map((r, i) => (
+                  <div key={`${r.project.id}-${r.pageIndex}-${i}`} className="mb-3 break-inside-avoid">
+                    <ProjectTile
+                      project={r.project}
+                      pageIndex={r.pageIndex}
+                      busy={false}
+                      onOpen={() => setEditing(structuredClone(r.project))}
+                      onUse={(node) => useStudioPage(r.project, r.pageIndex, node, `${r.project.id}:${r.pageIndex}`)}
                     />
                   </div>
                 ))}
@@ -513,7 +601,7 @@ export default function CreateHub({
                   value={renaming.value}
                   onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') renameDesign();
+                    if (e.key === 'Enter') renameProject();
                     if (e.key === 'Escape') setRenaming(null);
                   }}
                   autoFocus
@@ -521,7 +609,7 @@ export default function CreateHub({
                   aria-label="Template name"
                 />
                 <div className="mt-3 flex gap-2">
-                  <button type="button" onClick={renameDesign} className="btn btn-primary flex-1">
+                  <button type="button" onClick={renameProject} className="btn btn-primary flex-1">
                     Save
                   </button>
                   <button type="button" onClick={() => setRenaming(null)} className="btn btn-ghost">
@@ -537,46 +625,22 @@ export default function CreateHub({
   );
 }
 
-/** One template tile: canvas miniature + name/meta + ••• menu (mobile parity). */
-function DesignTile({
-  design,
-  kind,
-  builtIn,
-  busy,
-  onUse,
-  onMenu,
-  menuOpen,
-  onRename,
-  onDuplicate,
-  onDelete,
-}: {
-  design: CanvasDesign;
-  kind: 'Template' | 'Design';
-  builtIn?: boolean;
-  busy: boolean;
-  onUse: () => void;
-  onMenu?: () => void;
-  menuOpen?: boolean;
-  onRename?: () => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-}) {
+/** Starter rail tile — fixed width, live miniature, tap to render & attach. */
+function StarterTile({ project, busy, onUse }: { project: StudioProject; busy: boolean; onUse: (node: HTMLElement | null) => void }) {
+  const { ref, width } = useBoxWidth(190);
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const page = project.pages[0];
+  if (!page) return null;
   return (
-    <article className="relative">
-      <button
-        type="button"
-        onClick={onUse}
-        disabled={busy}
-        className="block w-full text-left"
-        aria-label={`Use ${design.name}`}
-      >
-        <div className="relative">
-          <DesignPreview design={design} />
-          {builtIn ? (
-            <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-white">
-              STARTER
-            </span>
-          ) : null}
+    <article className="w-[190px] shrink-0 snap-start">
+      <button type="button" onClick={() => onUse(nodeRef.current)} disabled={busy} className="block w-full text-left" aria-label={`Use ${project.name}`}>
+        <div ref={nodeRef} className="relative">
+          <div ref={ref}>
+            <StudioCanvas page={page} ratio={ratioOf(project)} width={width} frame={false} />
+          </div>
+          <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-white">
+            STARTER
+          </span>
           {busy ? (
             <span className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/35 text-xs font-bold text-white">
               Rendering…
@@ -584,31 +648,85 @@ function DesignTile({
           ) : null}
         </div>
       </button>
+      <div className="mt-2 px-0.5">
+        <p className="truncate text-sm font-bold">{project.name}</p>
+        <p className="truncate text-xs text-muted">Template · {project.pages.length} page{project.pages.length === 1 ? '' : 's'}</p>
+      </div>
+    </article>
+  );
+}
+
+/** Gallery tile: live miniature + name/meta + ••• menu (mobile parity). */
+function ProjectTile({
+  project,
+  pageIndex,
+  busy,
+  onOpen,
+  onUse,
+  onMenu,
+  menuOpen,
+  onRename,
+  onDuplicate,
+  onDelete,
+}: {
+  project: StudioProject;
+  pageIndex: number;
+  busy: boolean;
+  onOpen: () => void;
+  onUse: (node: HTMLElement | null) => void;
+  onMenu?: () => void;
+  menuOpen?: boolean;
+  onRename?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+}) {
+  const { ref, width } = useBoxWidth(300);
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const page = project.pages[pageIndex] ?? project.pages[0];
+  if (!page) return null;
+  return (
+    <article className="relative">
+      <button type="button" onClick={onOpen} className="block w-full text-left" aria-label={`Open ${project.name}`}>
+        <div ref={nodeRef}>
+          <div ref={ref}>
+            <StudioCanvas page={page} ratio={ratioOf(project)} width={width} frame={false} />
+          </div>
+        </div>
+      </button>
       <div className="mt-2 flex items-center gap-2 px-0.5">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">{design.name}</p>
+          <p className="truncate text-sm font-bold">{project.name}</p>
           <p className="truncate text-xs text-muted">
-            {kind} · {sizeOf(design).label}
+            Template · {project.pages.length} page{project.pages.length === 1 ? '' : 's'}
           </p>
         </div>
         {onMenu ? (
           <button
             type="button"
             onClick={onMenu}
-            aria-label={`Menu for ${design.name}`}
+            aria-label={`Menu for ${project.name}`}
             aria-expanded={menuOpen}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-paper text-muted transition hover:bg-bone"
           >
             •••
           </button>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            onClick={() => onUse(nodeRef.current)}
+            disabled={busy}
+            className="btn btn-primary shrink-0 !px-3 !py-1.5 !text-xs"
+          >
+            {busy ? '…' : 'Use'}
+          </button>
+        )}
       </div>
       {menuOpen ? (
         <div
           role="menu"
           className="absolute right-2 top-2 z-20 w-40 rounded-xl border border-line bg-card p-1 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]"
         >
-          <button type="button" role="menuitem" onClick={() => { onUse(); onMenu?.(); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
+          <button type="button" role="menuitem" onClick={() => { onUse(nodeRef.current); onMenu?.(); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
             Use template
           </button>
           {onRename ? (
@@ -627,6 +745,11 @@ function DesignTile({
             </button>
           ) : null}
         </div>
+      ) : null}
+      {busy ? (
+        <span className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/35 text-xs font-bold text-white">
+          Rendering…
+        </span>
       ) : null}
     </article>
   );
