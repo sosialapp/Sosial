@@ -36,8 +36,17 @@ export async function fetchPosts(sb: SupabaseClient, workspaceId: string): Promi
   return rows;
 }
 
-export async function fetchChannels(sb: SupabaseClient, workspaceId: string): Promise<ConnectedChannel[]> {
+export async function fetchPostsLite(sb: SupabaseClient, workspaceId: string): Promise<PostWithTargets[]> {
   const { data, error } = await sb
+    .from('posts')
+    .select('*, post_targets(*), approvals(id, status, comment, created_at, decided_at)')
+    .eq('workspace_id', workspaceId)
+    .order('scheduled_at', { ascending: true, nullsFirst: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as PostWithTargets[];
+}
+
+export async function fetchChannels(sb: SupabaseClient, workspaceId: string): Promise<ConnectedChannel[]> {  const { data, error } = await sb
     .from('connected_channels')
     .select('*')
     .eq('workspace_id', workspaceId)

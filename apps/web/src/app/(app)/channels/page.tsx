@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import ConnectGuide from '@/components/ConnectGuide';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 import { ALL_PROVIDERS, providerMeta } from '@/lib/providers';
@@ -42,9 +43,12 @@ export default async function ChannelsPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-line px-6 py-4">
-        <p className="eyebrow">Channels</p>
-        <h1 className="font-display text-xl font-extrabold tracking-tight">Connected accounts</h1>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
+        <div>
+          <p className="eyebrow">Channels</p>
+          <h1 className="font-display text-xl font-extrabold tracking-tight">Connected accounts</h1>
+        </div>
+        <ConnectGuide />
       </header>
 
       <div className="grid flex-1 content-start gap-2.5 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">

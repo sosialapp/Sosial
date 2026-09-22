@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
-import { fetchChannels, fetchPosts } from '@/lib/posts';
+import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const [posts, channels] = await Promise.all([
-    fetchPosts(sb, ctx.workspace.id),
+    fetchPostsLite(sb, ctx.workspace.id),
     fetchChannels(sb, ctx.workspace.id),
   ]);
 

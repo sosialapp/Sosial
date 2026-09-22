@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
-import { fetchChannels, fetchPosts } from '@/lib/posts';
+import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import type { ProviderKey } from '@/lib/types';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
@@ -25,7 +25,7 @@ export default async function AnalyticsPage() {
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const [posts, channels] = await Promise.all([
-    fetchPosts(sb, ctx.workspace.id),
+    fetchPostsLite(sb, ctx.workspace.id),
     fetchChannels(sb, ctx.workspace.id),
   ]);
 

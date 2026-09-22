@@ -4,7 +4,32 @@ import { createServerClient } from '@supabase/ssr';
 /** Refreshes the Supabase session cookie and gates the app behind sign-in.
  *  No-ops (rather than crashing) when env is missing so the login page can
  *  explain the setup state. */
+const PUBLIC_PREFIXES = [
+  '/',
+  '/blog',
+  '/resources',
+  '/integrations',
+  '/publish',
+  '/create',
+  '/ai-assistant',
+  '/audiences',
+  '/terms',
+  '/privacy',
+  '/sitemap',
+  '/robots',
+  '/invite',
+  '/auth',
+];
+
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  // Marketing + auth-callback pages need nothing from Supabase here — skip
+  // the client and the getUser round-trip entirely (this runs on EVERY
+  // navigation). /login stays on the slow path (signed-in redirect).
+  if (path !== '/login' && PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) {
+    return NextResponse.next({ request });
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anon) return NextResponse.next({ request });
@@ -26,7 +51,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const path = request.nextUrl.pathname;
   const isPublic =
     path === '/' ||
     path.startsWith('/login') ||

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import ThemeToggle from '@/components/ThemeToggle';
 import { providerMeta } from '@/lib/providers';
-import { fetchChannels, fetchPosts } from '@/lib/posts';
+import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export default async function ProfilePage() {
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const [posts, channels] = await Promise.all([
-    fetchPosts(sb, ctx.workspace.id),
+    fetchPostsLite(sb, ctx.workspace.id),
     fetchChannels(sb, ctx.workspace.id),
   ]);
   const initial = (ctx.user.email?.[0] ?? ctx.workspace.name[0] ?? 'S').toUpperCase();

@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
 import type { User } from '@supabase/supabase-js';
 import type { WorkspaceInfo } from '../types';
@@ -33,8 +34,13 @@ export async function createClient() {
 }
 
 /** Signed-in user + workspace, bootstrapping the workspace on first login
- *  exactly like the mobile app's myWorkspace(). Null when signed out. */
-export async function getWorkspaceContext(): Promise<{ user: User; workspace: WorkspaceInfo } | null> {
+ *  exactly like the mobile app's myWorkspace(). Null when signed out.
+ *  Cached per request — the layout and every page call this, but the auth +
+ *  member lookups run once per navigation. */
+export const getWorkspaceContext = cache(async (): Promise<{
+  user: User;
+  workspace: WorkspaceInfo;
+} | null> => {
   if (!hasSupabaseEnv()) return null;
   const sb = await createClient();
   const {
@@ -72,4 +78,4 @@ export async function getWorkspaceContext(): Promise<{ user: User; workspace: Wo
     all_channels: true,
   });
   return { user, workspace: { id: String(ws.id), name: String(ws.name ?? 'My team'), role: 'owner' } };
-}
+});

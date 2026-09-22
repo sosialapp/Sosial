@@ -24,9 +24,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           href="/channels"
           className="hidden items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone sm:flex"
         >
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-            <path d="M10 2.5v15M2.5 10h15" strokeLinecap="round" />
-            <circle cx="10" cy="10" r="7.5" />
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8.5 11.5a4.2 4.2 0 0 0 6 .4l2.4-2.4a4.24 4.24 0 0 0-6-6l-1.4 1.4" />
+            <path d="M11.5 8.5a4.2 4.2 0 0 0-6-.4l-2.4 2.4a4.24 4.24 0 0 0 6 6l1.4-1.4" />
           </svg>
           Connect
         </Link>
