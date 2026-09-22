@@ -133,7 +133,7 @@ export function BrandIcon({
     );
   }
   return (
-    <svg role="img" aria-label={label} viewBox="0 0 24 24" className={className}>
+    <svg role="img" aria-label={label} viewBox="0 0 24 24" className={className} data-brand={provider}>
       <title>{label}</title>
       <path d={PATHS[provider]} fill={color} />
     </svg>
