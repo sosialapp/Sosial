@@ -7,13 +7,15 @@ import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import { wipeAllData } from '../utils/account';
 import { TERMS_TEXT } from '../utils/legal';
-import { currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
+import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 
 WebBrowser.maybeCompleteAuthSession();
 
-type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'changelog' | 'terms' | 'legal';
+type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'changelog' | 'terms' | 'legal' | 'report';
+
+type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
 
 const CHANGELOG = [
   { v: '1.0.0', notes: ['Buffer-style app: Create, Post and Analytics tabs', 'Ideas feed with design-studio link', 'Queue / drafts / approvals / sent pipeline', 'Per-channel insights, top posts and comments', 'Meta login via secure bridge page'] },
@@ -42,6 +44,10 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [draftTeam, setDraftTeam] = useState(team);
   const [pw1, setPw1] = useState('');
   const [pw2, setPw2] = useState('');
+  const [repKind, setRepKind] = useState<ReportKind>('bug');
+  const [repSubject, setRepSubject] = useState('');
+  const [repBody, setRepBody] = useState('');
+  const [repBusy, setRepBusy] = useState(false);
 
   /* Sosial Cloud (Supabase staging) — real accounts live alongside the legacy
    * on-device profile until the profile/team migration lands. */
@@ -223,7 +229,8 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const title = view === 'main' ? 'Account' : (
     view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings' :
     view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription' :
-    view === 'changelog' ? "What's new" : view === 'terms' ? 'Terms of use' : 'Legal'
+    view === 'changelog' ? "What's new" : view === 'terms' ? 'Terms of use' :
+    view === 'report' ? 'Report a problem' : 'Legal'
   );
 
   const row = (icon: string, label: string, sub: string | undefined, onPress: () => void, danger?: boolean) => (
@@ -264,6 +271,41 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     Linking.openURL('https://play.google.com/store/apps/details?id=com.sosial.app').catch(() => {
       Alert.alert('Rate Sosial', 'Sosial isn’t on the Play Store yet — this link will work after release.');
     });
+  };
+
+  /** Owner inbox: bugs, ideas, billing help — straight into the reports table. */
+  const sendReport = async () => {
+    const body = repBody.trim();
+    if (!body) {
+      Alert.alert('Empty report', 'Describe the problem first.');
+      return;
+    }
+    setRepBusy(true);
+    try {
+      const session = await currentSession();
+      if (!session) {
+        Alert.alert('Sign in first', 'Reports send from your cloud account — sign in to Sosial Cloud at the top of this screen, then retry.');
+        return;
+      }
+      const { error } = await supabase().from('reports').insert({
+        workspace_id: session.workspace.id,
+        user_id: session.user.id,
+        email: session.user.email ?? '',
+        kind: repKind,
+        subject: repSubject.trim(),
+        body,
+      });
+      if (error) throw new Error(error.message);
+      setRepKind('bug');
+      setRepSubject('');
+      setRepBody('');
+      setView('main');
+      Alert.alert('Report sent', 'Thanks — it’s in the owner inbox.');
+    } catch (e: any) {
+      Alert.alert('Couldn’t send', e?.message ?? 'Try again.');
+    } finally {
+      setRepBusy(false);
+    }
   };
 
   /** Flat pricing — one price per plan, channels unlimited. */
@@ -371,6 +413,12 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {plan === 'team' ? row('people-outline', 'Team', 'Roles, channels & invites', onTeam) : null}
               {row('refresh-outline', 'Restore purchase', undefined, () => Alert.alert('Restore purchase', 'No purchases found on this device.'))}
               {row('star-outline', 'Rate Sosial', 'Review on the Play Store', rateApp)}
+              {row('flag-outline', 'Report a problem', 'Bugs, ideas, billing help', () => {
+                setRepKind('bug');
+                setRepSubject('');
+                setRepBody('');
+                setView('report');
+              })}
               {row('sparkles-outline', "What's new", 'Changelog', () => setView('changelog'))}
             </View>
             <View style={s.list}>
@@ -430,6 +478,36 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               style={s.save} activeOpacity={0.85}
             >
               <Text style={s.saveT}>Update password</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {view === 'report' ? (
+          <View style={{ gap: 12, marginTop: 16 }}>
+            <Text style={s.note}>Bugs, ideas, billing help — goes straight to the owner inbox. Sends from your cloud account.</Text>
+            <Seg<ReportKind>
+              options={[
+                { value: 'bug', label: 'Bug' },
+                { value: 'idea', label: 'Idea' },
+                { value: 'billing', label: 'Billing' },
+                { value: 'other', label: 'Other' },
+              ]}
+              value={repKind}
+              onChange={setRepKind}
+            />
+            <View>
+              <Text style={s.label}>Subject (optional)</Text>
+              <Txt value={repSubject} onChangeText={setRepSubject} placeholder="Short summary" />
+            </View>
+            <View>
+              <Text style={s.label}>Details</Text>
+              <Txt value={repBody} onChangeText={setRepBody} placeholder="What happened? What did you expect?" multiline style={{ minHeight: 120 }} />
+            </View>
+            <TouchableOpacity
+              onPress={() => { if (!repBusy) void sendReport(); }}
+              style={s.save} activeOpacity={0.85}
+            >
+              <Text style={s.saveT}>{repBusy ? 'Sending…' : 'Send report'}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
