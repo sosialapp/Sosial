@@ -82,28 +82,45 @@ async function fetchAvatar(a: ConnectedAccount): Promise<string | undefined> {
   }
 }
 
-export async function backfillMissingAvatars(): Promise<void> {
+export interface BackfillReport {
+  checked: number;
+  saved: number;
+  /** provider ids that failed (usually dead tokens — reconnect fixes them) */
+  failed: string[];
+}
+
+export async function backfillMissingAvatars(): Promise<BackfillReport> {
+  const report: BackfillReport = { checked: 0, saved: 0, failed: [] };
   try {
     const last = await AsyncStorage.getItem(LAST_KEY).catch(() => null);
-    if (last && Date.now() - Number(last) < DAY_MS) return;
+    if (last && Date.now() - Number(last) < DAY_MS) return report;
     await AsyncStorage.setItem(LAST_KEY, String(Date.now())).catch(() => {});
     const accounts = await loadAccounts();
     const missing = accounts.filter(
       (a) => accountConnected(a) && typeof a.fields.avatar !== 'string',
     );
-    if (missing.length === 0) return;
-    let saved = 0;
+    report.checked = missing.length;
+    if (missing.length === 0) return report;
     await Promise.allSettled(
       missing.map(async (a) => {
         try {
           const avatar = await fetchAvatar(a);
           if (avatar) {
             await saveProviderFields(a.provider, { avatar }, a.id);
-            saved += 1;
+            report.saved += 1;
+          } else {
+            report.failed.push(a.provider);
           }
-        } catch {}
+        } catch {
+          report.failed.push(a.provider);
+        }
       }),
     );
-    if (saved > 0) syncCloudChannels().catch(() => {});
+    console.log(
+      `[avatar] backfill: ${report.checked} missing, ${report.saved} saved` +
+        (report.failed.length ? `, failed: ${[...new Set(report.failed)].join(', ')} (reconnect)` : ''),
+    );
+    if (report.saved > 0) syncCloudChannels().catch(() => {});
   } catch {}
+  return report;
 }

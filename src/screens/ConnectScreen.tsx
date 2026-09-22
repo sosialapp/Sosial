@@ -28,6 +28,7 @@ import { BUILD_TAG } from '../utils/build';
 import { loadTeam } from '../utils/team';
 import { disableCloudChannel, syncCloudChannels } from '../utils/cloudChannels';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
+import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
 const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest'];
@@ -55,7 +56,13 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
 
   useEffect(() => {
-    loadAccounts().then(setAccounts);
+    // Backfill first so the mount-triggered cloud sync (via [meta]) already
+    // carries fresh pictures; the helper re-syncs itself if it saves late.
+    backfillMissingAvatars()
+      .catch(() => null)
+      .finally(() => {
+        loadAccounts().then(setAccounts);
+      });
     loadTeam().then((m) => setTeamCount(m.length));
   }, []);
 
