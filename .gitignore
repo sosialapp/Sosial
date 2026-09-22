@@ -21,6 +21,10 @@ android/local.properties
 *.jks
 *.keystore
 
+# firebase client config — uploaded to EAS instead (eas credentials)
+google-services.json
+GoogleService-Info.plist
+
 # logs / os
 *.log
 .DS_Store
