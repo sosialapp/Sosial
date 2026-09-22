@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "761214136430",
+    "project_id": "sosial-f5c55",
+    "storage_bucket": "sosial-f5c55.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:761214136430:android:2a6dce5da1519445c3767f",
+        "android_client_info": {
+          "package_name": "com.sosial.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXoF62pWHe6mr43kwrwqJ8wVDOo6ckAQo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

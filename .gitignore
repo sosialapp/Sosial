@@ -21,8 +21,10 @@ android/local.properties
 *.jks
 *.keystore
 
-# firebase client config — uploaded to EAS instead (eas credentials)
-google-services.json
+# firebase client config — google-services.json ships with the build
+# (EAS has no upload slot for it in this CLI/dashboard version).
+# Lock it down instead: Google Cloud Console → APIs & Services →
+# Credentials → restrict the Android key to com.sosial.app + your SHA-1.
 GoogleService-Info.plist
 
 # logs / os
