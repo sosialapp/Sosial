@@ -28,7 +28,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     return (
       <Card
         title="This invite link is broken"
-        body="Ask your teammate to send a fresh invite — links expire after 7 days."
+        body="Ask your teammate to send a fresh invite. Links expire after 7 days."
         action={
           <Link href="/login" className="btn btn-ghost w-full">
             Go to sign in

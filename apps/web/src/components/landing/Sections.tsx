@@ -25,7 +25,7 @@ function Shell({
 export function AiWriter() {
   const points = [
     ['GPT-5.6 Luna engine', 'Live web research with linked sources on news topics.'],
-    ['Styles with live samples', 'Breaking, threads, teardowns — every post substantial, never padded.'],
+    ['Styles with live samples', 'Breaking, threads, teardowns. Every post substantial, never padded.'],
     ['100+ languages', 'Mirrors your idea, from English and Melayu to Tamil and beyond.'],
   ] as const;
   return (
@@ -40,7 +40,7 @@ export function AiWriter() {
           </h2>
           <p className="mt-3 max-w-md text-base leading-relaxed text-muted">
             Rough thought in, post-ready caption out. Threads, research with sources, and 100+
-            languages — adapted per channel.
+            languages, adapted per channel.
           </p>
           <ul className="mt-6 space-y-4">
             {points.map(([title, body]) => (
@@ -120,7 +120,7 @@ export function Pricing() {
         Flat pricing, no per-channel math.
       </h2>
       <p className="mx-auto mt-3 max-w-lg text-center text-base leading-relaxed text-muted">
-        Every plan schedules to all ten channels. Pay for volume, AI and seats — nothing else.
+        Every plan schedules to all ten channels. Pay for volume, AI and seats. Nothing else.
       </p>
       <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
         {PLANS.map((p) => (
@@ -132,14 +132,13 @@ export function Pricing() {
           >
             <div className="flex items-center justify-between">
               <p className="font-display text-lg font-extrabold">{p.name}</p>
-              {p.featured ? <span className="pill bg-bolt text-ink">Most popular</span> : null}
             </div>
             <p className="mt-2 font-display text-5xl font-extrabold tracking-tight">{p.price}</p>
             <p className="mt-1 text-sm text-muted">{p.per}</p>
             <ul className="mt-5 flex-1 space-y-2.5">
               {p.bullets.map((b) => (
                 <li key={b} className="flex items-start gap-2.5 text-sm leading-relaxed text-soft">
-                  <span className="mt-0.5 text-accent" aria-hidden="true">
+                  <span className="mt-0.5 text-ink" aria-hidden="true">
                     ✓
                   </span>
                   {b}
@@ -184,7 +183,7 @@ export function Pricing() {
                       </span>
                     ) : v === false ? (
                       <span className="text-faint" aria-label="Not included" role="img">
-                        —
+                        ×
                       </span>
                     ) : (
                       v
@@ -197,7 +196,7 @@ export function Pricing() {
         </table>
       </div>
       <p className="mx-auto mt-5 max-w-lg text-center text-xs leading-relaxed text-faint">
-        Prices in USD — yearly saves 20%. AI writing, threads and 100+ languages live in the iOS
+        Prices in USD. Yearly saves 20%. AI writing, threads and 100+ languages live in the iOS
         &amp; Android app, on the same workspace and calendar.
       </p>
     </Shell>
@@ -207,15 +206,15 @@ export function Pricing() {
 const FAQS: { q: string; a: string }[] = [
   {
     q: 'Which platforms can I publish to?',
-    a: 'X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest — ten channels from one composer and one calendar.',
+          a: 'X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest. Ten channels from one composer and one calendar.',
   },
   {
     q: 'How does publishing work?',
-    a: 'Schedule a post and the cloud worker ships every channel inside a minute — even with the app closed. Per-channel results land in the queue.',
+          a: 'Schedule a post and the cloud worker ships every channel inside a minute, even with the app closed. Per-channel results land in the queue.',
   },
   {
     q: 'Is there really a free plan?',
-    a: 'Yes — free forever, with up to 2 channels, the composer, calendar and queue. No credit card, no trial clock.',
+          a: 'Yes. Free forever, with up to 2 channels, the composer, calendar and queue. No credit card, no trial clock.',
   },
   {
     q: 'How do teams and approvals work?',
@@ -223,11 +222,11 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'What can the AI writer do?',
-    a: 'It turns a rough thought into post-ready copy: styles with live samples, substantial threads, live research with sources, per-post images — in 100+ languages, adapted per channel.',
+          a: 'It turns a rough thought into post-ready copy: styles with live samples, substantial threads, live research with sources, per-post images. In 100+ languages, adapted per channel.',
   },
   {
     q: 'Is there a mobile app?',
-    a: 'Yes — the iOS and Android app shares your workspace and calendar with the web dashboard, so drafts and the queue follow you.',
+          a: 'Yes. The iOS and Android app shares your workspace and calendar with the web dashboard, so drafts and the queue follow you.',
   },
 ];
 

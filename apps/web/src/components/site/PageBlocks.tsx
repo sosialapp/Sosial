@@ -82,7 +82,7 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
                 <ul className="mt-5 space-y-2.5">
                   {b.points.map((p) => (
                     <li key={p} className="flex items-start gap-2.5 text-sm leading-relaxed text-soft">
-                      <span className="mt-0.5 text-accent" aria-hidden="true">
+                      <span className="mt-0.5 text-ink" aria-hidden="true">
                         ✓
                       </span>
                       {p}
@@ -181,14 +181,14 @@ export function CardTrio({
                 <h3 className="font-display text-lg font-extrabold tracking-tight">{c.title}</h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{c.body}</p>
                 {c.href ? (
-                  <span className="mt-4 inline-block text-sm font-bold text-accent">
-                    {c.linkLabel ?? 'Learn more'} →
+                  <span className="mt-4 inline-block text-sm font-bold text-ink">
+                    {c.linkLabel ?? 'Learn more'}
                   </span>
                 ) : null}
               </>
             );
             return c.href ? (
-              <Link key={c.title} href={c.href} className="card flex flex-col p-5 transition hover:border-accent">
+              <Link key={c.title} href={c.href} className="card flex flex-col p-5 transition hover:border-ink">
                 {inner}
               </Link>
             ) : (

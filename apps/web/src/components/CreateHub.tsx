@@ -52,7 +52,7 @@ function starterProjects(): StudioProject[] {
       ],
       cardColor: '#FFFFFFF2',
       socials: [{ id: uid('s'), platform: 'instagram', handle: '@yourhandle', visible: true, font: 'jakarta', bold: true, italic: false }],
-      caption: 'Big news — it’s live! #launch #newdrop',
+      caption: 'Big news, it’s live! #launch #newdrop',
     },
   ];
   const quote = blankProject('Quote card');
@@ -92,14 +92,14 @@ const STARTERS: Template[] = [
     id: 'starter-launch',
     name: 'Product launch',
     title: 'We just launched something new',
-    body: 'Big news — it’s live! Here’s what’s new and why you’ll love it.\n\n#launch #newdrop',
+    body: 'Big news, it’s live! Here’s what’s new and why you’ll love it.\n\n#launch #newdrop',
     createdAt: 0,
     builtIn: true,
   },
   {
     id: 'starter-promo',
     name: 'Sale / promo',
-    title: 'Sale is on — don’t miss out',
+    title: 'Sale is on. Don’t miss out',
     body: 'For a limited time: get 20% off everything. Tap the link to shop before it ends.\n\n#sale #promo',
     createdAt: 0,
     builtIn: true,
@@ -108,7 +108,7 @@ const STARTERS: Template[] = [
     id: 'starter-bts',
     name: 'Behind the scenes',
     title: 'A peek behind the curtain',
-    body: 'Here’s what we’ve been working on this week — the messy middle nobody usually sees.\n\n#behindthescenes #buildinpublic',
+    body: 'Here’s what we’ve been working on this week: the messy middle nobody usually sees.\n\n#behindthescenes #buildinpublic',
     createdAt: 0,
     builtIn: true,
   },
@@ -116,7 +116,7 @@ const STARTERS: Template[] = [
     id: 'starter-event',
     name: 'Event reminder',
     title: 'Reminder: we go live soon',
-    body: 'Don’t forget — we’re live this Friday at 6pm. Set a reminder and bring your questions.\n\n#live #event',
+    body: 'Don’t forget: we’re live this Friday at 6pm. Set a reminder and bring your questions.\n\n#live #event',
     createdAt: 0,
     builtIn: true,
   },
@@ -124,7 +124,7 @@ const STARTERS: Template[] = [
     id: 'starter-quote',
     name: 'Quote card',
     title: 'Quote of the week',
-    body: '“Show up every day — the algorithm rewards consistency.”\n\n#motivation #quote',
+    body: '“Show up every day. The algorithm rewards consistency.”\n\n#motivation #quote',
     createdAt: 0,
     builtIn: true,
   },
@@ -397,7 +397,7 @@ export default function CreateHub({
             <div className="card p-8 text-center">
               <p className="font-display text-base font-extrabold">No ideas yet</p>
               <p className="mx-auto mt-1 max-w-xs text-sm text-muted">
-                Jot one above — posting it later takes one tap.
+                Jot one above. Posting it later takes one tap.
               </p>
             </div>
           ) : (
@@ -451,10 +451,9 @@ export default function CreateHub({
           <button
             type="button"
             onClick={() => setEditing(blankProject('Untitled design'))}
-            className="flex w-full items-center justify-between rounded-2xl bg-accent px-5 py-4 font-display text-sm font-extrabold text-white transition hover:brightness-110"
+            className="flex w-full items-center justify-between rounded-2xl bg-ink px-5 py-4 font-display text-sm font-extrabold text-paper transition hover:opacity-90"
           >
             + New template design
-            <span aria-hidden="true">→</span>
           </button>
 
           {/* Starter templates — horizontal rail of live canvas miniatures. */}

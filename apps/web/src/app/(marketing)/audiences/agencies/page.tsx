@@ -4,7 +4,7 @@ import { CardTrio, CtaBand, FaqList, FeatureBlocks, PageHero } from '@/component
 export const metadata: Metadata = {
   title: 'Sosial for agencies',
   description:
-    'Client content without the screenshot ping-pong — member drafts, one-tap approvals, per-channel assignment and roles across every brand you run.',
+    'Client content without the screenshot ping-pong. Member drafts, one-tap approvals, per-channel assignment and roles across every brand you run.',
   alternates: { canonical: '/audiences/agencies' },
 };
 
@@ -24,7 +24,7 @@ export default function AgenciesPage() {
         cards={[
           {
             title: 'Approval archaeology',
-            body: 'Feedback lives across email, chat and annotated screenshots. Nobody can prove what the client actually signed off — until something goes wrong.',
+            body: 'Feedback lives across email, chat and annotated screenshots. Nobody can prove what the client actually signed off, until something goes wrong.',
           },
           {
             title: 'One misclick away',
@@ -52,7 +52,7 @@ export default function AgenciesPage() {
           {
             eyebrow: 'Step three',
             title: 'Assign lanes, shrink the blast radius.',
-            body: 'Limit each member to the channels they actually run. A junior on one client\u2019s Instagram can\u2019t touch another client\u2019s LinkedIn — structurally, not by policy.',
+            body: 'Limit each member to the channels they actually run. A junior on one client\u2019s Instagram can\u2019t touch another client\u2019s LinkedIn. Structural, not policy.',
           },
         ]}
       />
@@ -90,7 +90,7 @@ export default function AgenciesPage() {
           },
           {
             q: 'How many people fit on the Team plan?',
-            a: 'Seats are unlimited on Team — $10 a month covers the whole crew, with roles and per-channel assignment included.',
+            a: 'Seats are unlimited on Team. $10 a month covers the whole crew, with roles and per-channel assignment included.',
           },
           {
             q: 'Can a member only see certain channels?',

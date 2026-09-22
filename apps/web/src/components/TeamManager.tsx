@@ -217,7 +217,7 @@ export default function TeamManager({
         </section>
       ) : (
         <p className="card p-5 text-sm text-muted">
-          Only owners and admins can invite — ask one to add your teammates.
+                      Only owners and admins can invite. Ask one to add your teammates.
         </p>
       )}
     </div>

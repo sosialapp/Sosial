@@ -105,7 +105,7 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
     img.decoding = 'sync';
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Render failed — try again.'));
+      img.onerror = () => reject(new Error('Render failed. Try again.'));
       img.src = url;
     });
     const canvas = document.createElement('canvas');
@@ -117,7 +117,7 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
     ctx.fillRect(0, 0, W, H);
     ctx.drawImage(img, 0, 0, W, H);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('Export failed — try again.');
+    if (!blob) throw new Error('Export failed. Try again.');
     return blob;
   } finally {
     URL.revokeObjectURL(url);

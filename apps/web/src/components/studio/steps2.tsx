@@ -98,7 +98,7 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-accent">
+        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-ink">
           01 · <span className="text-sm tracking-normal text-ink">Card style</span>
         </p>
         <p className="-mt-2 text-xs text-muted">The inner card dressed as a social post.</p>
@@ -119,7 +119,7 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
         <Field label="Card color">
           <Swatches colors={PALETTE} value={page.cardColor ?? '#FFFFFF'} onChange={(c) => patchPage({ cardColor: c })} />
         </Field>
-        <SwitchRow title="Full card" sub="Content card fills the whole canvas — single card" on={page.fullCard ?? false} onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })} />
+        <SwitchRow title="Full card" sub="Content card fills the whole canvas. Single card" on={page.fullCard ?? false} onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })} />
         {!page.fullCard ? (
           <>
             <Field label="Card height">
@@ -149,7 +149,7 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
       </div>
 
       <div className="space-y-3">
-        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-accent">
+        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-ink">
           02 · <span className="text-sm tracking-normal text-ink">Blocks</span>
         </p>
         <p className="-mt-2 text-xs text-muted">Stack content inside the card.</p>
@@ -252,7 +252,7 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                   ) : null}
                   {(b.type === 'bar' || b.type === 'pie' || b.type === 'vbar') ? (
                     <>
-                      <p className="text-xs text-muted">One per line, any format — the number is detected. Example: Jan $40</p>
+                      <p className="text-xs text-muted">One per line, any format. The number is detected. Example: Jan $40</p>
                       <textarea
                         value={draftFor(b, 'chart')}
                         onChange={(e) => setDrafts((d) => ({ ...d, [`${b.id}:chart`]: e.target.value }))}
@@ -377,7 +377,7 @@ export function PagesStep({
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-accent">
+        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-ink">
           01 · <span className="text-sm tracking-normal text-ink">Size</span>
         </p>
         <div className="grid grid-cols-1 gap-1.5">
@@ -394,13 +394,13 @@ export function PagesStep({
                 <span className="block text-sm font-bold">{s.label}</span>
                 <span className="block truncate text-xs text-muted">{s.hint}</span>
               </span>
-              {project.sizeId === s.id ? <span aria-hidden="true" className="text-accent">✓</span> : null}
+              {project.sizeId === s.id ? <span aria-hidden="true" className="text-ink">✓</span> : null}
             </button>
           ))}
         </div>
       </div>
       <div className="space-y-3">
-        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-accent">
+        <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-ink">
           02 · <span className="text-sm tracking-normal text-ink">Pages</span>
         </p>
         <button type="button" onClick={onAdd} className="btn btn-ghost w-full">

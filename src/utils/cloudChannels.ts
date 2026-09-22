@@ -208,8 +208,7 @@ export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
  * flag clear. Never throws — the toggle must always move. Pass the
  * pre-clear snapshot when called from a disconnect handler (avoids a
  * load-vs-clear race on SecureStore).
- */
-export async function disableCloudChannel(key: CloudChannelKey, snapshot?: MetaState): Promise<void> {
+ */export async function disableCloudChannel(key: CloudChannelKey, snapshot?: MetaState): Promise<void> {
   try {
     const session = await currentSession();
     const meta = snapshot ?? (await loadMetaState());
@@ -228,6 +227,23 @@ export async function disableCloudChannel(key: CloudChannelKey, snapshot?: MetaS
     // server cleanup is best-effort; the flag still clears below
   }
   await setCloudChannel(key, false);
+}
+
+/**
+ * Remove one cloud-only placeholder from the workspace: deletes the cloud
+ * channel row (and its vault secrets) by precise external id. The caller
+ * drops the local placeholder row afterwards. YouTube has no per-account
+ * id, so its removal sweeps the provider.
+ */
+export async function removeCloudChannelAccount(account: ConnectedAccount): Promise<void> {
+  const session = await currentSession();
+  if (!session) throw new Error('Sign in to Sosial Cloud first.');
+  const externalId = accountExternalId(account);
+  await removeChannelToken({
+    workspace_id: session.workspace.id,
+    provider: account.provider,
+    ...(externalId ? { external_id: externalId } : {}),
+  });
 }
 
 /* ---------------- Cloud → device pull ---------------- */

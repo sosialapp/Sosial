@@ -59,7 +59,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
             Put this into a live calendar.
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Sosial turns these into scheduled posts across all ten channels — free to start.
+            Sosial turns these into scheduled posts across all ten channels. Free to start.
           </p>
           <Link href="/login" className="btn btn-primary mt-5">
             Start scheduling free

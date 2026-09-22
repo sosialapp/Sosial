@@ -173,7 +173,7 @@ export default function SiteNav() {
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b bg-bone/85 backdrop-blur transition-colors ${
+      className={`sticky top-0 z-40 border-b border-line bg-paper transition-colors ${
         scrolled ? 'border-line' : 'border-transparent'
       }`}
     >
@@ -214,7 +214,6 @@ export default function SiteNav() {
                 className="mt-2 flex items-center justify-between rounded-xl bg-paper-dim px-3 py-2.5 text-sm font-bold text-ink transition hover:bg-paper"
               >
                 All 10 integrations
-                <span aria-hidden="true">→</span>
               </Link>
             </div>
           </DesktopDropdown>

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 const PLANNED = [
   {
     title: 'Sales',
-    desc: 'Revenue, plans and churn — needs a payment provider (Stripe) first.',
+    desc: 'Revenue, plans and churn. Needs a payment provider (Stripe) first.',
   },
   {
     title: 'Marketing email',
@@ -34,10 +34,10 @@ export default async function AdminOverview() {
         >
           <p className="font-display text-3xl font-extrabold">{open ?? 0}</p>
           <p className="mt-1 text-sm font-bold">Open reports</p>
-          <p className="mt-0.5 text-xs text-muted">{total ?? 0} total · tap to triage →</p>
+          <p className="mt-0.5 text-xs text-muted">{total ?? 0} total · tap to triage</p>
         </Link>
         <div className="rounded-2xl border border-line bg-card p-5">
-          <p className="font-display text-3xl font-extrabold">—</p>
+          <p className="font-display text-3xl font-extrabold">$0</p>
           <p className="mt-1 text-sm font-bold">Sales</p>
           <p className="mt-0.5 text-xs text-muted">No payment provider connected yet</p>
         </div>
@@ -48,7 +48,7 @@ export default async function AdminOverview() {
           href="/admin/blog"
           className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
         >
-          <p className="text-sm font-bold">Blog →</p>
+          <p className="text-sm font-bold">Blog</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
             Write, edit and publish posts. Live on /blog within minutes.
           </p>
@@ -57,7 +57,7 @@ export default async function AdminOverview() {
           href="/admin/notifications"
           className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
         >
-          <p className="text-sm font-bold">Push →</p>
+          <p className="text-sm font-bold">Push</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
             Broadcast to every registered device. The worker delivers.
           </p>

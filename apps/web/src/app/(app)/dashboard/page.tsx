@@ -145,7 +145,7 @@ export default async function DashboardPage() {
             ) : null}
           </div>
           {attentionCount === 0 ? (
-            <p className="mt-3 text-sm text-muted">All clear — nothing failed, waiting, or expired.</p>
+            <p className="mt-3 text-sm text-muted">All clear. Nothing failed, waiting, or expired.</p>
           ) : (
             <ul className="mt-3 space-y-2 text-sm">
               {failed.slice(0, 2).map((p) => (
@@ -153,7 +153,7 @@ export default async function DashboardPage() {
                   <Link href="/queue" className="block truncate font-bold hover:text-ink">
                     {p.title || 'Untitled post'}
                   </Link>
-                  <p className="text-xs text-muted">Failed to send — retry from the queue.</p>
+                  <p className="text-xs text-muted">Failed to send. Retry from the queue.</p>
                 </li>
               ))}
               {approvals.slice(0, 2).map((p) => (
@@ -168,7 +168,7 @@ export default async function DashboardPage() {
                 <li key={c.id} className="flex items-center gap-2">
                   <BrandIcon provider={c.provider} className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate font-bold">{providerMeta(c.provider).label}</span>
-                  <span className="text-xs text-muted">{c.status} — reconnect in the app.</span>
+                  <span className="text-xs text-muted">{c.status}. Reconnect in the app.</span>
                 </li>
               ))}
             </ul>
@@ -185,7 +185,7 @@ export default async function DashboardPage() {
           </div>
           {channels.length === 0 ? (
             <p className="mt-3 text-sm text-muted">
-              Nothing connected yet — connect accounts in the mobile app.
+              Nothing connected yet. Connect accounts in the mobile app.
             </p>
           ) : (
             <ul className="mt-3 space-y-2.5">

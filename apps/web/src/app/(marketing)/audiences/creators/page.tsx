@@ -14,7 +14,7 @@ export default function CreatorsPage() {
       <PageHero
         eyebrow="For creators"
         title="Post everywhere without living everywhere."
-        lede="Filming and editing is the job. Reformatting the same idea for six apps is the unpaid second shift — Sosial takes the second shift."
+        lede="Filming and editing is the job. Reformatting the same idea for six apps is the unpaid second shift. Sosial takes the second shift."
         secondary={{ href: '/create', label: 'See the composer' }}
       />
 
@@ -42,7 +42,7 @@ export default function CreatorsPage() {
           {
             eyebrow: 'Step one',
             title: 'Batch in one sitting.',
-            body: 'Film everything, then draft fast. The AI writer turns rough notes into post-ready captions in your style — or bring your own words and skip it entirely.',
+            body: 'Film everything, then draft fast. The AI writer turns rough notes into post-ready captions in your style, or bring your own words and skip it entirely.',
           },
           {
             eyebrow: 'Step two',
@@ -86,7 +86,7 @@ export default function CreatorsPage() {
         items={[
           {
             q: 'Do I need to be on all ten channels?',
-            a: 'No. Start with the two or three where your audience actually is — the Free plan covers two channels — and add more when one workflow already works.',
+            a: 'No. Start with the two or three where your audience actually is. The Free plan covers two channels, and add more when one workflow already works.',
           },
           {
             q: 'Will the AI sound like me?',

@@ -30,7 +30,7 @@ export default function ConnectGuide() {
               {[
                 ['1', 'Open the Sosial app on your phone and sign in to this workspace.'],
                 ['2', 'Go to Connect and link each social account.'],
-                ['3', 'Come back here — accounts (with profile pictures) appear automatically.'],
+                ['3', 'Come back here. Accounts (with profile pictures) appear automatically.'],
               ].map(([n, text]) => (
                 <li key={n} className="flex items-start gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent-ink">
@@ -41,7 +41,7 @@ export default function ConnectGuide() {
               ))}
             </ol>
             <p className="mt-4 rounded-xl bg-bone px-3 py-2.5 text-xs leading-relaxed text-muted dark:bg-white/5">
-              Connecting directly on the web is coming soon — the mobile flow stays put either way.
+              Connecting directly on the web is coming soon. The mobile flow stays put either way.
             </p>
             <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost mt-4 w-full">
               Got it

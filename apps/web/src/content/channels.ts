@@ -22,7 +22,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       { label: 'Caption limit', value: '2,200 characters' },
       { label: 'Carousel', value: 'Up to 20 images or videos' },
       { label: 'Reels length', value: 'Up to 3 minutes' },
-      { label: 'Hashtags', value: '30 max — fewer, more specific wins' },
+      { label: 'Hashtags', value: '30 max: fewer, more specific wins' },
     ],
     tips: [
       {
@@ -39,7 +39,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
     ],
     pitfalls: [
-      'Reusing a 16:9 landscape upload — it letterboxes and loses reach.',
+      'Reusing a 16:9 landscape upload. It letterboxes and loses reach.',
       'Copy-pasting the same caption to Instagram and X, where the tone should differ.',
       'Hashtag blocks of 30 generic tags that read as spam.',
     ],
@@ -50,7 +50,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'Does Sosial publish Reels?',
-        a: 'Yes — attach one vertical video and it publishes as a Reel on the connected Instagram business account.',
+        a: 'Yes. Attach one vertical video and it publishes as a Reel on the connected Instagram business account.',
       },
       {
         q: 'What caption length should I aim for?',
@@ -88,7 +88,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     ],
     pitfalls: [
       'Re-uploading a watermarked video from another platform.',
-      'Long intros before the hook — most viewers have already scrolled.',
+      'Long intros before the hook. Most viewers have already scrolled.',
       'Posting the same clip to Reels and TikTok with the identical caption and no re-cut.',
     ],
     faqs: [
@@ -116,7 +116,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     bestFor: ['Threads that build an argument', 'Timely commentary', 'Product and build-in-public updates'],
     facts: [
       { label: 'Post limit', value: '280 characters' },
-      { label: 'Threads', value: 'No hard cap — keep each post self-contained' },
+      { label: 'Threads', value: 'No hard cap: keep each post self-contained' },
       { label: 'Media', value: 'Up to 4 images or 1 video per post' },
       { label: 'Links', value: 'The card no longer counts toward the limit' },
     ],
@@ -136,7 +136,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     ],
     pitfalls: [
       'Splitting a paragraph mid-sentence across two posts.',
-      'Threads with no payoff — the last post should land the point, not trail off.',
+      'Threads with no payoff. The last post should land the point, not trail off.',
       'Scheduling a time-sensitive take for tomorrow.',
     ],
     faqs: [
@@ -150,14 +150,14 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'Can I schedule the same thread elsewhere?',
-        a: 'Yes — target X, Threads, Bluesky and Mastodon together. Each gets its own character limit applied.',
+        a: 'Yes. Target X, Threads, Bluesky and Mastodon together. Each gets its own character limit applied.',
       },
     ],
   },
   {
     key: 'facebook',
     name: 'Facebook',
-    tagline: 'The widest caption limit — and the most forgiving scheduling window.',
+    tagline: 'The widest caption limit, and the most forgiving scheduling window.',
     intro:
       'Facebook Pages still reach the largest broad-interest audience of any channel, and the 63,206-character caption limit makes it the one place a full article reads naturally. Sosial publishes to your Page on schedule.',
     limit: 63206,
@@ -185,7 +185,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     pitfalls: [
       'Cross-posting an X-length post that reads as an afterthought.',
       'Engagement-bait phrasing that the algorithm suppresses.',
-      'Posting a link with no context — Facebook down-ranks it.',
+      'Posting a link with no context. Facebook down-ranks it.',
     ],
     faqs: [
       {
@@ -194,7 +194,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'Why is my caption truncated?',
-        a: 'That is Facebook\'s own preview behaviour — the full text is always published, it is only collapsed in the feed.',
+        a: 'That is Facebook\'s own preview behaviour, the full text is always published, it is only collapsed in the feed.',
       },
       {
         q: 'Can I schedule to Facebook and Instagram at once?',
@@ -214,7 +214,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       { label: 'Post limit', value: '500 characters' },
       { label: 'Media', value: 'Up to 10 items per post' },
       { label: 'Links', value: 'Included in the 500-character count' },
-      { label: 'Culture', value: 'Hashtags do very little — skip them' },
+      { label: 'Culture', value: 'Hashtags do very little. Skip them' },
     ],
     tips: [
       {
@@ -227,7 +227,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         title: 'Chain long ideas deliberately',
-        body: 'Use a chain when an idea genuinely needs it, and keep each link short — 500 characters is a hard stop.',
+        body: 'Use a chain when an idea genuinely needs it, and keep each link short. 500 characters is a hard stop.',
       },
     ],
     pitfalls: [
@@ -242,7 +242,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'Can Sosial post chains to Threads?',
-        a: 'Yes — Threads is one of the four channels that supports connected chains in the composer.',
+        a: 'Yes. Threads is one of the four channels that supports connected chains in the composer.',
       },
       {
         q: 'Should I include links?',
@@ -279,14 +279,14 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
     ],
     pitfalls: [
-      'Uploading landscape video as a Short — it will letterbox.',
+      'Uploading landscape video as a Short. It will letterbox.',
       'Keyword-stuffed titles that read as spam to humans.',
       'Leaving the description empty when it is free search real estate.',
     ],
     faqs: [
       {
         q: 'Can Sosial upload to YouTube?',
-        a: 'Yes — connect the channel and schedule uploads with the title, description and visibility you set in the composer.',
+        a: 'Yes. Connect the channel and schedule uploads with the title, description and visibility you set in the composer.',
       },
       {
         q: 'Does it support Shorts?',
@@ -303,7 +303,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     name: 'LinkedIn',
     tagline: 'First two lines decide whether a post gets read.',
     intro:
-      'LinkedIn collapses posts after roughly two lines on mobile, so the opening sentences do nearly all the work. The 3,000-character limit is generous — the constraint is attention, not space.',
+      'LinkedIn collapses posts after roughly two lines on mobile, so the opening sentences do nearly all the work. The 3,000-character limit is generous. The constraint is attention, not space.',
     limit: 3000,
     bestFor: ['Lessons and case studies', 'Hiring and company news', 'Industry analysis'],
     facts: [
@@ -328,7 +328,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     ],
     pitfalls: [
       'Burying the point under a warm-up paragraph.',
-      'Hashtag stuffing — three relevant tags is the ceiling.',
+      'Hashtag stuffing: three relevant tags is the ceiling.',
       'Reposting an Instagram caption with emoji-heavy formatting.',
     ],
     faqs: [
@@ -376,7 +376,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     ],
     pitfalls: [
       'Threads longer than three or four posts.',
-      'Ignoring alt text — it reads as careless to a technical audience.',
+      'Ignoring alt text. It reads as careless to a technical audience.',
       'Cross-posting marketing copy verbatim from X.',
     ],
     faqs: [
@@ -430,7 +430,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     faqs: [
       {
         q: 'Which Mastodon server should I use?',
-        a: 'Any server works — Sosial connects to the instance you sign in from. Pick one that matches your topic.',
+        a: 'Any server works. Sosial connects to the instance you sign in from. Pick one that matches your topic.',
       },
       {
         q: 'Why is my limit different from someone else\'s?',
@@ -471,7 +471,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
     ],
     pitfalls: [
-      'Uploading landscape or square images — they get cropped or ignored.',
+      'Uploading landscape or square images. They get cropped or ignored.',
       'Keyword-free descriptions that give the indexer nothing to work with.',
       'Treating Pinterest like a fast-moving feed and giving up after a week.',
     ],
@@ -482,7 +482,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'Can I schedule pins?',
-        a: 'Yes — schedule pins alongside every other channel in the same composer.',
+        a: 'Yes. Schedule pins alongside every other channel in the same composer.',
       },
       {
         q: 'How many pins should I post?',

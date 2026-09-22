@@ -134,7 +134,7 @@ export default function ReportInbox({ initial }: { initial: AdminReport[] }) {
       </div>
       {shown.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-line bg-card p-6 text-center text-sm text-muted">
-          Nothing here — the inbox is clear.
+          Nothing here. The inbox is clear.
         </p>
       ) : (
         <div className="mt-3 grid gap-3">

@@ -178,7 +178,7 @@ export function BlockView({ block, width, font, zoom = 1 }: { block: ContentBloc
           </div>
         ) : (
           <div style={{ width: '100%', height: frameH, borderRadius: 8 * k, borderWidth: hair, borderStyle: 'dashed', borderColor: `${tc}66`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p style={{ ...ff(font), fontSize: sz(10, 0.03), color: `${tc}99`, margin: 0 }}>No image yet — pick one in the editor</p>
+            <p style={{ ...ff(font), fontSize: sz(10, 0.03), color: `${tc}99`, margin: 0 }}>No image yet. Pick one in the editor</p>
           </div>
         )}
       </div>

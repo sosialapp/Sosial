@@ -90,7 +90,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
           <ol className="mt-5 space-y-4">
             {c.tips.map((t, i) => (
               <li key={t.title} className="card p-5">
-                <p className="font-display text-sm font-extrabold text-accent">
+                <p className="font-display text-sm font-extrabold text-ink">
                   {String(i + 1).padStart(2, '0')}
                 </p>
                 <h3 className="mt-1 font-display text-lg font-extrabold tracking-tight">{t.title}</h3>
@@ -114,7 +114,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
 
         <section className="mt-12">
           <h2 className="font-display text-2xl font-extrabold tracking-tight">
-            {c.name} on Sosial — FAQ
+            {c.name} on Sosial: FAQ
           </h2>
           <div className="mt-5 divide-y divide-line overflow-hidden rounded-2xl border border-line">
             {c.faqs.map((f) => (

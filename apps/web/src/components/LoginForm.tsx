@@ -14,9 +14,9 @@ const BUSY_WATCHDOG_MS = 20000;
 function friendly(e: unknown): string {
   const m = String((e as { message?: string })?.message ?? e ?? '');
   if (/invalid login|invalid_credentials/i.test(m)) return 'Wrong email or password.';
-  if (/already registered|already exists|duplicate/i.test(m)) return 'That email already has an account — sign in instead.';
-  if (/email not confirmed/i.test(m)) return 'Confirm your email first — check your inbox.';
-  if (/fetch|network|failed/i.test(m)) return 'Could not reach the cloud backend — check your connection.';
+  if (/already registered|already exists|duplicate/i.test(m)) return 'That email already has an account. Sign in instead.';
+  if (/email not confirmed/i.test(m)) return 'Confirm your email first, then check your inbox.';
+  if (/fetch|network|failed/i.test(m)) return 'Could not reach the cloud backend. Check your connection.';
   return m || 'Something went wrong.';
 }
 
@@ -146,7 +146,7 @@ export default function LoginForm({
         <p className="eyebrow mb-1">{signingUp ? 'Create account' : 'Sign in'}</p>
         <p className="mb-4 text-xs leading-relaxed text-muted">
           {signingUp
-            ? 'Set up a workspace in a few seconds — free forever, no card.'
+            ? 'Set up a workspace in a few seconds. Free forever, no card.'
             : 'Welcome back. Pick up your calendar where you left it.'}
         </p>
 

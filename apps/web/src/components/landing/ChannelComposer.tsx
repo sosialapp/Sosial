@@ -16,7 +16,7 @@ const DEFAULT_IDEA =
   'We just shipped team approvals. Teammates draft, you approve in one tap, and nothing goes out before you say so.';
 
 const HINTS: Record<ProviderKey, string> = {
-  x: 'Tightest limit — keep one idea per post.',
+        x: 'Tightest limit. Keep one idea per post.',
   bluesky: 'Short and honest. Alt text expected.',
   threads: 'Conversational. Hashtags do little.',
   mastodon: 'Community-first. Real hashtags help.',
@@ -143,7 +143,7 @@ export default function ChannelComposer() {
           <span className="btn btn-bolt" aria-hidden="true">
             Schedule {selected.length} {selected.length === 1 ? 'channel' : 'channels'}
           </span>
-          <span className="text-xs text-muted">Try it — this preview is live.</span>
+          <span className="text-xs text-muted">Try it. This preview is live.</span>
         </div>
       </div>
 

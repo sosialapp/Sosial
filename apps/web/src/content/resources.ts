@@ -10,7 +10,7 @@ export const RESOURCES: Resource[] = [
     slug: 'content-calendar-template',
     title: 'The weekly content calendar template',
     description:
-      'A four-format weekly grid you can fill in ten minutes — with the raw material each slot needs.',
+      'A four-format weekly grid you can fill in ten minutes, with the raw material each slot needs.',
     kind: 'Template',
     minutes: 5,
     body: [
@@ -22,10 +22,10 @@ export const RESOURCES: Resource[] = [
       {
         t: 'ul',
         c: [
-          'Monday — One lesson: something you learned or got wrong last week.',
-          'Wednesday — One answer: a question a customer or reader actually asked.',
-          'Friday — One proof: a result, a number, or a before-and-after.',
-          'Optional — One opinion: your take on something happening in your field.',
+          'Monday: One lesson: something you learned or got wrong last week.',
+          'Wednesday: One answer: a question a customer or reader actually asked.',
+          'Friday: One proof: a result, a number, or a before-and-after.',
+          'Optional: One opinion: your take on something happening in your field.',
         ],
       },
       { t: 'h', c: 'The raw material list' },
@@ -38,7 +38,7 @@ export const RESOURCES: Resource[] = [
         t: 'ul',
         c: [
           'Pick one item from the raw material list for each slot.',
-          'Write the caption in the same sitting — do not wait for inspiration.',
+          'Write the caption in the same sitting. Do not wait for inspiration.',
           'Leave one slot empty each week for something timely.',
           'Schedule every post before you close the sheet.',
         ],
@@ -53,7 +53,7 @@ export const RESOURCES: Resource[] = [
     slug: 'caption-formulas-cheat-sheet',
     title: 'Caption formulas cheat sheet',
     description:
-      'Seven reusable caption shapes with examples — for the days you have the idea but not the wording.',
+      'Seven reusable caption shapes with examples, for the days you have the idea but not the wording.',
     kind: 'Cheat sheet',
     minutes: 4,
     body: [
@@ -65,13 +65,13 @@ export const RESOURCES: Resource[] = [
       {
         t: 'ul',
         c: [
-          'Result, reason, ask — "We cut churn 12%. It was one onboarding email. What fixed yours?"',
-          'Mistake, cost, fix — "We lost a week to this. Here is the ten-minute fix."',
-          'Before / after — show the change, then name the one thing that caused it.',
-          'Contrarian — state the common advice, then the specific reason it fails.',
-          'Numbered list — a count, a promise, then the items (only if they are genuinely distinct).',
-          'Real question — two clear options, never "thoughts?".',
-          'Moment / turn / lesson — a story in under 150 words.',
+          'Result, reason, ask: "We cut churn 12%. It was one onboarding email. What fixed yours?"',
+          'Mistake, cost, fix: "We lost a week to this. Here is the ten-minute fix."',
+          'Before / after: show the change, then name the one thing that caused it.',
+          'Contrarian: state the common advice, then the specific reason it fails.',
+          'Numbered list: a count, a promise, then the items (only if they are genuinely distinct).',
+          'Real question: two clear options, never "thoughts?".',
+          'Moment / turn / lesson: a story in under 150 words.',
         ],
       },
       { t: 'h', c: 'How to pick' },
@@ -90,7 +90,7 @@ export const RESOURCES: Resource[] = [
     slug: 'character-limit-cheat-sheet',
     title: 'Every channel limit in one place',
     description:
-      'Caption, title and media limits for all ten channels Sosial publishes to — kept current.',
+      'Caption, title and media limits for all ten channels Sosial publishes to, kept current.',
     kind: 'Cheat sheet',
     minutes: 3,
     body: [
@@ -102,27 +102,27 @@ export const RESOURCES: Resource[] = [
       {
         t: 'ul',
         c: [
-          'X — 280 characters per post.',
-          'Bluesky — 300 characters.',
-          'Threads — 500 characters.',
-          'Mastodon — 500 characters (some servers raise this).',
-          'Pinterest — 500 characters, plus a 100-character title.',
-          'Instagram — 2,200 characters, up to 20 carousel items.',
-          'TikTok — 2,200 characters.',
-          'LinkedIn — 3,000 characters.',
-          'YouTube — 5,000-character description, 100-character title.',
-          'Facebook — 63,206 characters.',
+          'X: 280 characters per post.',
+          'Bluesky: 300 characters.',
+          'Threads: 500 characters.',
+          'Mastodon: 500 characters (some servers raise this).',
+          'Pinterest: 500 characters, plus a 100-character title.',
+          'Instagram: 2,200 characters, up to 20 carousel items.',
+          'TikTok: 2,200 characters.',
+          'LinkedIn: 3,000 characters.',
+          'YouTube: 5,000-character description, 100-character title.',
+          'Facebook: 63,206 characters.',
         ],
       },
       { t: 'h', c: 'Media rules worth knowing' },
       {
         t: 'ul',
         c: [
-          'X — up to 4 images or 1 video per post.',
-          'Instagram — 1080×1350 for feed, 1080×1920 for Reels.',
-          'TikTok — 9:16 at 1080×1920, ideally under 60 seconds.',
-          'Pinterest — 2:3 vertical at 1000×1500.',
-          'YouTube Shorts — vertical, up to 3 minutes.',
+          'X: up to 4 images or 1 video per post.',
+          'Instagram: 1080×1350 for feed, 1080×1920 for Reels.',
+          'TikTok: 9:16 at 1080×1920, ideally under 60 seconds.',
+          'Pinterest: 2:3 vertical at 1000×1500.',
+          'YouTube Shorts: vertical, up to 3 minutes.',
         ],
       },
       {
@@ -141,14 +141,14 @@ export const RESOURCES: Resource[] = [
     body: [
       {
         t: 'p',
-        c: 'Repurposing only works when you extract the individual units of value a piece already contains and give each one the right shape — not when you copy a paragraph and post it.',
+        c: 'Repurposing only works when you extract the individual units of value a piece already contains and give each one the right shape, not when you copy a paragraph and post it.',
       },
-      { t: 'h', c: 'Step 1 — Mine the source' },
+      { t: 'h', c: 'Step 1: Mine the source' },
       {
         t: 'p',
         c: 'Take your article, video or podcast episode and list every unit inside it: each heading, each number, each list, each mistake, each example. A 1,500-word article typically yields twenty units.',
       },
-      { t: 'h', c: 'Step 2 — Assign a format' },
+      { t: 'h', c: 'Step 2: Assign a format' },
       {
         t: 'ul',
         c: [
@@ -159,12 +159,12 @@ export const RESOURCES: Resource[] = [
           'Examples become mini case studies.',
         ],
       },
-      { t: 'h', c: 'Step 3 — Spread it over six to eight weeks' },
+      { t: 'h', c: 'Step 3: Spread it over six to eight weeks' },
       {
         t: 'p',
         c: 'Do not dump the whole set in one week. Spacing keeps the source earning and prevents your feed reading as a single-topic broadcast.',
       },
-      { t: 'h', c: 'Step 4 — Route it through the queue' },
+      { t: 'h', c: 'Step 4: Route it through the queue' },
       {
         t: 'p',
         c: 'Schedule the units into the queue as you produce them. The article publishes once; the posts keep arriving.',
@@ -187,7 +187,7 @@ export const RESOURCES: Resource[] = [
       {
         t: 'ul',
         c: [
-          'Every connected channel still shows as connected — no expired tokens.',
+          'Every connected channel still shows as connected, no expired tokens.',
           'Everyone with access still needs it. Remove people who have left.',
           'At least two people can access billing in case one is unavailable.',
         ],
@@ -198,14 +198,14 @@ export const RESOURCES: Resource[] = [
         c: [
           'The queue never drops below three scheduled posts.',
           'No single niche has dominated the last month.',
-          'Your top three and bottom three posts are a comparison worth making — write one sentence on what separated them.',
+          'Your top three and bottom three posts are a comparison worth making. Write one sentence on what separated them.',
         ],
       },
       { t: 'h', c: 'The mechanics' },
       {
         t: 'ul',
         c: [
-          'Publishing failures in the last quarter were token refreshes, not format rejections — investigate any rejection that repeats.',
+          'Publishing failures in the last quarter were token refreshes, not format rejections. Investigate any rejection that repeats.',
           'Bio, links and pinned posts are still accurate.',
           'Times still match when your audience is actually awake.',
         ],
@@ -220,7 +220,7 @@ export const RESOURCES: Resource[] = [
     slug: 'launch-day-social-playbook',
     title: 'The launch day social playbook',
     description:
-      'A countdown sequence for announcing something — without posting the same thing five times.',
+      'A countdown sequence for announcing something, without posting the same thing five times.',
     kind: 'Playbook',
     minutes: 6,
     body: [
@@ -228,26 +228,26 @@ export const RESOURCES: Resource[] = [
         t: 'p',
         c: 'Launches go wrong when every channel gets the same announcement on the same day. The sequence below gives each moment something different to say.',
       },
-      { t: 'h', c: 'T-minus seven days — the problem' },
+      { t: 'h', c: 'T-minus seven days: the problem' },
       {
         t: 'p',
         c: 'Post about the problem your launch solves, with no mention of the launch. This earns attention before you ask for it.',
       },
-      { t: 'h', c: 'T-minus three days — the build-up' },
+      { t: 'h', c: 'T-minus three days: the build-up' },
       {
         t: 'p',
         c: 'Show something specific: a screenshot, a clip, a detail nobody has seen. Resist announcing; let curiosity build.',
       },
-      { t: 'h', c: 'Launch day — the announcement' },
+      { t: 'h', c: 'Launch day: the announcement' },
       {
         t: 'ul',
         c: [
           'Lead with the outcome, not the feature list.',
-          'Put the link where each channel expects it — in the first comment on LinkedIn, inline on X and Threads.',
+          'Put the link where each channel expects it: in the first comment on LinkedIn, inline on X and Threads.',
           'Adapt the length per channel; the same paragraph does not fit a 280-character post and a LinkedIn update.',
         ],
       },
-      { t: 'h', c: 'T-plus two days — the proof' },
+      { t: 'h', c: 'T-plus two days: the proof' },
       {
         t: 'p',
         c: 'Share an early reaction, a first result, or a question someone asked. Proof posts consistently outperform the announcement itself.',
@@ -262,7 +262,7 @@ export const RESOURCES: Resource[] = [
     slug: 'social-media-glossary',
     title: 'Social media glossary',
     description:
-      'Plain-English definitions for the terms that get used loosely — from reach to repurposing.',
+      'Plain-English definitions for the terms that get used loosely, from reach to repurposing.',
     kind: 'Glossary',
     minutes: 5,
     body: [
@@ -284,12 +284,12 @@ export const RESOURCES: Resource[] = [
       { t: 'h', c: 'Evergreen content' },
       {
         t: 'p',
-        c: 'Content that stays true and useful over time — explanations, frameworks, how-tos. Evergreen posts can be rescheduled and recycled, unlike timely commentary.',
+        c: 'Content that stays true and useful over time: explanations, frameworks, how-tos. Evergreen posts can be rescheduled and recycled, unlike timely commentary.',
       },
       { t: 'h', c: 'Repurposing' },
       {
         t: 'p',
-        c: 'Extracting the individual units of value from one piece — headings, numbers, examples — and giving each its own format and channel. Distinct from cross-posting, which is the same post sent to more places.',
+        c: 'Extracting the individual units of value from one piece: headings, numbers, examples, and giving each its own format and channel. Distinct from cross-posting, which is the same post sent to more places.',
       },
       { t: 'h', c: 'ALT text' },
       {
@@ -310,7 +310,7 @@ export const RESOURCES: Resource[] = [
         t: 'p',
         c: 'The riskiest moment in hiring a social media manager is the first week, when they have access but not context. This plan sequences access deliberately.',
       },
-      { t: 'h', c: 'Day one — read, do not post' },
+      { t: 'h', c: 'Day one: read, do not post' },
       {
         t: 'ul',
         c: [
@@ -319,17 +319,17 @@ export const RESOURCES: Resource[] = [
           'Write down the three questions you would ask the audience.',
         ],
       },
-      { t: 'h', c: 'Day two and three — draft, do not publish' },
+      { t: 'h', c: 'Day two and three: draft, do not publish' },
       {
         t: 'p',
         c: 'Give the new manager member access: they can draft and submit for review, but cannot publish or touch connected accounts. Have them draft a week of content and compare it with what you would have written.',
       },
-      { t: 'h', c: 'Day four and five — approve together' },
+      { t: 'h', c: 'Day four and five: approve together' },
       {
         t: 'p',
-        c: 'Review their drafts line by line. Approve some, send others back with a note. The notes are the onboarding — a written record of your standards.',
+        c: 'Review their drafts line by line. Approve some, send others back with a note. The notes are the onboarding, a written record of your standards.',
       },
-      { t: 'h', c: 'Week two — promote to publishing' },
+      { t: 'h', c: 'Week two: promote to publishing' },
       {
         t: 'p',
         c: 'Once drafts are consistently close, promote them to admin. They can now schedule to the channels they own, while connected accounts and billing stay with the owner.',

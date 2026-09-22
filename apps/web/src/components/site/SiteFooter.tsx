@@ -26,7 +26,7 @@ export default function SiteFooter() {
         <div className="col-span-2 md:col-span-1">
           <Logo />
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
-            Every channel. One calendar. Compose once and publish across ten networks — with an AI
+            Every channel. One calendar. Compose once and publish across ten networks, with an AI
             writer, approvals and a queue that runs itself.
           </p>
           <Link href="/login" className="btn btn-bolt mt-5">

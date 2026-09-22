@@ -227,7 +227,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
             {pending && <p className="text-center text-xs text-muted">Saving…</p>}
             {channels === 0 && (
               <p className="text-center text-xs text-muted">
-                No channels connected yet — connect one in the app.
+                No channels connected yet. Connect one in the app.
               </p>
             )}
           </div>

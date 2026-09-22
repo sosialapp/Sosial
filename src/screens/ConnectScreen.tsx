@@ -26,7 +26,7 @@ import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { BUILD_TAG } from '../utils/build';
 import { loadTeam } from '../utils/team';
-import { disableCloudChannel, syncCloudChannels, pullCloudChannels } from '../utils/cloudChannels';
+import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount } from '../utils/cloudChannels';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
@@ -271,6 +271,35 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     if (account.provider === 'facebook') setPages([]);
     if (account.provider === 'pinterest') setPinBoards(null);
     if (account.provider === 'linkedin') setLiOrgs([]);
+  };
+
+  /**
+   * Remove a cloud-synced account for the whole workspace: deletes the cloud
+   * channel (and its stored tokens), then the local placeholder. This is the
+   * path that makes cloud-owned channels removable — without it they are
+   * locked to the workspace forever.
+   */
+  const removeCloudAccount = async (account: ConnectedAccount) => {
+    Alert.alert(
+      'Remove everywhere?',
+      'This deletes the cloud channel and its stored tokens for the whole workspace. Scheduled posts for it pause until you reconnect.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeCloudChannelAccount(account);
+            } catch (e: any) {
+              Alert.alert('Failed', e?.message ?? 'Could not remove the account.');
+              return;
+            }
+            setAccounts(await removeAccount(account.id));
+          },
+        },
+      ],
+    );
   };
 
   const doTikTok = async (accountId?: string) => {
@@ -770,9 +799,14 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                             {!cloud && list.length > 1 && isSel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
                           </TouchableOpacity>
                           {cloud ? (
-                            <TouchableOpacity onPress={() => void connectCloudOnly(p, a)} activeOpacity={0.7}>
-                              <Text style={s.go}>Connect</Text>
-                            </TouchableOpacity>
+                            <View style={s.cloudActions}>
+                              <TouchableOpacity onPress={() => void connectCloudOnly(p, a)} activeOpacity={0.7}>
+                                <Text style={s.go}>Connect</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => void removeCloudAccount(a)} activeOpacity={0.7}>
+                                <Text style={s.discT}>Remove</Text>
+                              </TouchableOpacity>
+                            </View>
                           ) : (
                             <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7}>
                               <Text style={s.discT}>Remove</Text>
@@ -832,6 +866,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   pageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 13, paddingVertical: 11 },
   pageT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   discT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText },
+  cloudActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cloudBadge: { backgroundColor: C.accentSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
   cloudBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk },
   buildTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint, textAlign: 'center', marginTop: 14, marginBottom: 4 },

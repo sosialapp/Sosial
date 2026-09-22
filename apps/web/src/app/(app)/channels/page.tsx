@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import AvatarSync from '@/components/AvatarSync';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import ConnectGuide from '@/components/ConnectGuide';
+import DisconnectChannel from '@/components/DisconnectChannel';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 import { ALL_PROVIDERS, providerMeta } from '@/lib/providers';
@@ -87,6 +88,13 @@ export default async function ChannelsPage() {
                   <li key={c.id} className="flex items-center gap-2">
                     <ChannelAvatar provider={p} avatar={channelAvatar(c.metadata)} size={22} />
                     <span className="min-w-0 flex-1 truncate text-xs font-semibold">{accountLabel(c)}</span>
+                    {(ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin') && (
+                      <DisconnectChannel
+                        workspaceId={ctx.workspace.id}
+                        provider={c.provider}
+                        externalId={c.external_id}
+                      />
+                    )}
                     <span
                       aria-hidden="true"
                       title={c.status}
@@ -101,8 +109,8 @@ export default async function ChannelsPage() {
       </div>
 
       <p className="px-6 pb-6 text-xs text-faint">
-        Expired or revoked accounts need reconnecting from the mobile app — web token import is
-        future work.
+        Owners and admins can disconnect an account here. Reconnecting stays in the mobile app
+        until web OAuth ships.
       </p>
     </div>
   );

@@ -43,7 +43,7 @@ export interface StepApi {
 function Section({ no, title, hint }: { no: string; title: string; hint?: string }) {
   return (
     <div>
-      <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-accent">
+      <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-ink">
         {no} · <span className="text-sm tracking-normal text-ink">{title}</span>
       </p>
       {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}

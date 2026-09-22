@@ -45,7 +45,7 @@ function ChannelPlayground() {
           </h2>
           <p className="mt-3 text-base leading-relaxed text-muted">
             Type an idea and watch it lay itself out. The counter and the limit are the real
-            platform numbers — the composer trims before you schedule, not after.
+            platform numbers. The composer trims before you schedule, not after.
           </p>
         </Reveal>
         <div className="mt-10">
@@ -144,7 +144,7 @@ function Teams() {
           </h2>
           <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted">
             Members send posts for review instead of publishing. Approve in one tap or send a note
-            back — and limit each person to the channels they actually run.
+            back, and limit each person to the channels they actually run.
           </p>
         </Reveal>
         <div className="reveal mx-auto mt-9 max-w-xl text-left">
@@ -165,7 +165,7 @@ function IntegrationsTeaser() {
             Ten channels, one workspace.
           </h2>
           <p className="mt-3 text-base leading-relaxed text-muted">
-            Real API publishing to every network — with the limits, formats and etiquette of each
+            Real API publishing to every network, with the limits, formats and etiquette of each
             one handled for you.
           </p>
         </Reveal>

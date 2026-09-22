@@ -546,7 +546,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
                     </div>
                   ) : b.c.trim() ? (
                     <p className="text-xs text-muted">
-                      Only YouTube and Vimeo URLs embed — anything else saves as a plain link.
+                      Only YouTube and Vimeo URLs embed. Anything else saves as a plain link.
                     </p>
                   ) : null}
                 </div>

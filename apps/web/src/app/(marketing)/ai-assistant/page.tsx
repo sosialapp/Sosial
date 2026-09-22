@@ -5,7 +5,7 @@ import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/Pag
 export const metadata: Metadata = {
   title: 'AI Assistant',
   description:
-    'Research-backed social copy in 100+ languages — live sources, styles with samples, substantial threads, rewrites and per-channel adaptation. You approve everything.',
+    'Research-backed social copy in 100+ languages. Live sources, styles with samples, substantial threads, rewrites and per-channel adaptation. You approve everything.',
   alternates: { canonical: '/ai-assistant' },
 };
 
@@ -15,7 +15,7 @@ export default function AiAssistantPage() {
       <PageHero
         eyebrow="AI Assistant"
         title="A writer that checks its facts."
-        lede="Rough thought in, post-ready caption out — grounded by live research with linked sources, written in your style, in 100+ languages. Nothing publishes without you."
+        lede="Rough thought in, post-ready caption out. Grounded by live research with linked sources, written in your style, in 100+ languages. Nothing publishes without you."
         secondary={{ href: '/create', label: 'See the composer' }}
         visual={
           <div className="card p-3 md:p-4">
@@ -29,7 +29,7 @@ export default function AiAssistantPage() {
           {
             eyebrow: 'Research',
             title: 'Grounded, not guessed.',
-            body: 'Turn on research and the writer searches the live web before drafting — then hands you the copy alongside the sources it used and flags anything uncertain. News-driven posts finally have receipts.',
+            body: 'Turn on research and the writer searches the live web before drafting, then hands you the copy alongside the sources it used and flags anything uncertain. News-driven posts finally have receipts.',
             points: [
               'Live web research before drafting',
               'Sources returned with every draft',
@@ -39,12 +39,12 @@ export default function AiAssistantPage() {
           {
             eyebrow: 'Languages',
             title: 'Your language first.',
-            body: 'Language comes before everything else in the writer — pick from 100+ and the draft mirrors your idea natively, from English and Melayu to Tamil and beyond. No English-first awkwardness.',
+            body: 'Language comes before everything else in the writer. Pick from 100+ and the draft mirrors your idea natively, from English and Melayu to Tamil and beyond. No English-first awkwardness.',
           },
           {
             eyebrow: 'Styles & threads',
             title: 'Sound like you on a good day.',
-            body: 'Pick a style card — breaking news, threads, teardowns — each with a live sample of what it produces. Long ideas become substantial multi-post threads, split for readability, never padded for length.',
+            body: 'Pick a style card: breaking news, threads, teardowns, each with a live sample of what it produces. Long ideas become substantial multi-post threads, split for readability, never padded for length.',
             points: [
               'Style cards with real output samples',
               'Threads split where a reader would pause',
@@ -54,7 +54,7 @@ export default function AiAssistantPage() {
           {
             eyebrow: 'Rewrite',
             title: 'Second drafts on demand.',
-            body: 'Paste anything — a rough note, a published post, a competitor you admire (structurally) — and get a rewrite in your voice, adapted per channel with limits respected. Your drafts stay yours; the assistant just sharpens them.',
+            body: 'Paste anything (a rough note, a published post, a competitor you admire structurally) and get a rewrite in your voice, adapted per channel with limits respected. Your drafts stay yours; the assistant just sharpens them.',
           },
         ]}
       />
@@ -67,11 +67,11 @@ export default function AiAssistantPage() {
           },
           {
             q: 'Is my content used to train AI models?',
-            a: 'No. Your briefs and drafts are not used to train models — see the privacy policy for the full statement.',
+            a: 'No. Your briefs and drafts are not used to train models. See the privacy policy for the full statement.',
           },
           {
             q: 'Which languages are supported?',
-            a: 'More than a hundred, chosen first before anything else is generated — so the draft is native, not translated.',
+            a: 'More than a hundred, chosen first before anything else is generated, so the draft is native, not translated.',
           },
           {
             q: 'What happens when facts are uncertain?',
@@ -79,7 +79,7 @@ export default function AiAssistantPage() {
           },
           {
             q: 'Can it adapt one idea to all ten channels?',
-            a: 'Yes — generate once, then adapt per channel with each network\u2019s limits and conventions respected.',
+            a: 'Yes. Generate once, then adapt per channel with each network\u2019s limits and conventions respected.',
           },
         ]}
       />

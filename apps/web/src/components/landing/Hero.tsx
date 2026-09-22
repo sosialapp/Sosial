@@ -193,7 +193,7 @@ export default function Hero() {
           Plan it. Write it. Post it.
         </h1>
         <p className="animate-rise-1 mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
-          One composer and one shared calendar for ten networks — with an AI writer, approvals
+          One composer and one shared calendar for ten networks, with an AI writer, approvals
           and a queue that runs itself.
         </p>
         <div className="animate-rise-2 mt-8 flex flex-wrap items-center justify-center gap-2.5">

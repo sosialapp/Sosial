@@ -5,25 +5,25 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app'),
   title: {
-    default: 'Sosial — Social Media Scheduler & Management for Every Channel',
+    default: 'Sosial: Social Media Scheduler and Management for Every Channel',
     template: '%s · Sosial',
   },
   description:
-    'Plan, write and publish social media posts across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest — from one composer, calendar and queue.',
+    'Plan, write and publish social media posts across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest, from one composer, calendar and queue.',
   icons: { icon: '/bolt.png' },
   openGraph: {
     type: 'website',
     siteName: 'Sosial',
-    title: 'Sosial — Social Media Scheduler & Management for Every Channel',
+    title: 'Sosial: Social Media Scheduler and Management for Every Channel',
     description:
-      'Plan, write and publish across ten social networks from one composer, calendar and queue — with an AI writer and approvals built in.',
+      'Plan, write and publish across ten social networks from one composer, calendar and queue, with an AI writer and approvals built in.',
     images: ['/bolt.png'],
   },
   twitter: { card: 'summary', images: ['/bolt.png'] },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f2ede2',
+  themeColor: '#FBF6EA',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

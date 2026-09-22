@@ -5,7 +5,7 @@ import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/Pag
 export const metadata: Metadata = {
   title: 'Create',
   description:
-    'One composer for ten channels — per-channel previews, live character counters, templates, and media that fits every network.',
+    'One composer for ten channels. Per-channel previews, live character counters, templates, and media that fits every network.',
   alternates: { canonical: '/create' },
 };
 
@@ -15,7 +15,7 @@ export default function CreatePage() {
       <PageHero
         eyebrow="Create"
         title="Start from a blank page less."
-        lede="One composer writes for ten networks at once — with live previews, honest character counts, reusable templates and media that fits everywhere."
+        lede="One composer writes for ten networks at once, with live previews, honest character counts, reusable templates and media that fits everywhere."
         secondary={{ href: '/ai-assistant', label: 'Meet the AI writer' }}
         visual={
           <div className="card p-3 md:p-4">
@@ -29,7 +29,7 @@ export default function CreatePage() {
           {
             eyebrow: 'Composer',
             title: 'Write once, preview everywhere.',
-            body: 'Pick your channels and the composer shows each one the way it will actually appear — with a live counter against its real limit. No surprises after you hit schedule.',
+            body: 'Pick your channels and the composer shows each one the way it will actually appear, with a live counter against its real limit. No surprises after you hit schedule.',
             points: [
               'Per-channel preview cards before anything ships',
               'Live counters against true platform limits',
@@ -40,16 +40,16 @@ export default function CreatePage() {
                 <p className="eyebrow">This week, from one draft</p>
                 <div className="mt-3 space-y-2">
                   {[
-                    ['Launch teaser → 10 channels', 'Scheduled'],
-                    ['Roundup video → 6 channels', 'Queued'],
-                    ['Founder story → 4 channels', 'Draft'],
+                    ['Launch teaser · 10 channels', 'Scheduled'],
+                    ['Roundup video · 6 channels', 'Queued'],
+                    ['Founder story · 4 channels', 'Draft'],
                   ].map(([label, status]) => (
                     <div
                       key={label}
                       className="flex items-center justify-between rounded-lg border border-line bg-paper px-2.5 py-2"
                     >
                       <span className="text-xs font-semibold text-soft">{label}</span>
-                      <span className="pill bg-accent-soft text-accent-ink">{status}</span>
+                      <span className="pill bg-paper-dim text-ink">{status}</span>
                     </div>
                   ))}
                 </div>
@@ -59,7 +59,7 @@ export default function CreatePage() {
           {
             eyebrow: 'Templates',
             title: 'Your greatest hits, reusable.',
-            body: 'Starter templates cover launches, roundups and founder stories — and your own best posts become templates too. A proven structure beats a blank page every time.',
+            body: 'Starter templates cover launches, roundups and founder stories, and your own best posts become templates too. A proven structure beats a blank page every time.',
             points: [
               'Starter templates for common post shapes',
               'Save your own winners as templates',
@@ -91,11 +91,11 @@ export default function CreatePage() {
           },
           {
             q: 'Can I edit a post after scheduling it?',
-            a: 'Yes — edit the caption, swap media or move the slot any time before it ships.',
+            a: 'Yes. Edit the caption, swap media or move the slot any time before it ships.',
           },
           {
             q: 'What templates are included?',
-            a: 'Starters for launches, roundups, founder stories and more — plus your own saved templates from posts that performed.',
+            a: 'Starters for launches, roundups, founder stories and more, plus your own saved templates from posts that performed.',
           },
         ]}
       />

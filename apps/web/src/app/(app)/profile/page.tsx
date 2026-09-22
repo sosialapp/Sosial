@@ -40,7 +40,7 @@ export default async function ProfilePage() {
         <ImageSlot
           size="lg"
           className="h-14 w-14 shrink-0"
-          label="Profile photo — upload to fill"
+          label="Profile photo. Upload to fill"
         />
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-extrabold">{ctx.workspace.name}</p>
@@ -70,7 +70,7 @@ export default async function ProfilePage() {
           </Link>
         </div>
         {channels.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Nothing connected yet — connect accounts in the mobile app.</p>
+          <p className="mt-2 text-sm text-muted">Nothing connected yet. Connect accounts in the mobile app.</p>
         ) : (
           <ul className="mt-3 space-y-2.5">
             {channels.slice(0, 4).map((c) => {

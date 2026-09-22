@@ -35,7 +35,7 @@ export default async function BlogIndex({
             Get better at publishing everywhere.
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
-            Strategy, scheduling systems, AI writing and team workflow — written for people who run
+            Strategy, scheduling systems, AI writing and team workflow, written for people who run
             social for a living.
           </p>
         </div>
@@ -93,7 +93,7 @@ export default async function BlogIndex({
         </div>
 
         {posts.length === 0 && (
-          <p className="mt-10 text-sm text-muted">Nothing here yet — try another topic.</p>
+          <p className="mt-10 text-sm text-muted">Nothing here yet. Try another topic.</p>
         )}
       </div>
     </>

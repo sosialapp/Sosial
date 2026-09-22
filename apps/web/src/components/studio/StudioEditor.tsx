@@ -179,7 +179,7 @@ export default function StudioEditor({
           {savedFlash ? 'Saved ✓' : 'Save'}
         </button>
         <button type="button" onClick={doUse} disabled={exporting} className="btn btn-primary shrink-0 !px-3.5 !py-2 !text-xs">
-          {exporting ? 'Rendering…' : 'Use in post →'}
+          {exporting ? 'Rendering…' : 'Use in post'}
         </button>
       </div>
 
@@ -287,7 +287,7 @@ export default function StudioEditor({
                   step === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
                 }`}
               >
-                <span className={`shrink-0 text-[11px] ${step === t.id ? 'text-accent' : 'text-faint'}`}>
+                <span className={`shrink-0 text-[11px] ${step === t.id ? 'text-ink' : 'text-faint'}`}>
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 <span className="truncate">

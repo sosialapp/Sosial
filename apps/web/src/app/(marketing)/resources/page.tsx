@@ -6,7 +6,7 @@ import { resourceHref } from '@/content/types';
 export const metadata: Metadata = {
   title: 'Resource library',
   description:
-    'Free templates, playbooks, cheat sheets and glossaries for social media managers — calendars, caption formulas, audits and launch plans.',
+    'Free templates, playbooks, cheat sheets and glossaries for social media managers: calendars, caption formulas, audits and launch plans.',
   alternates: { canonical: '/resources' },
 };
 

@@ -67,7 +67,7 @@ export default async function AdminBlogList() {
         ))}
         {rows.length === 0 ? (
           <p className="rounded-2xl border border-line bg-card p-6 text-center text-sm text-muted">
-            No posts yet — write the first one.
+            No posts yet. Write the first one.
           </p>
         ) : null}
       </div>

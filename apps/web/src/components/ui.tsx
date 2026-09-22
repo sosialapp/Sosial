@@ -113,7 +113,7 @@ export function ImageSlot({
     <div
       className={`image-slot ${className}`}
       role="img"
-      aria-label={label ?? 'Image placeholder — upload to fill'}
+      aria-label={label ?? 'Image placeholder. Upload to fill'}
     >
       <svg
         viewBox="0 0 24 24"

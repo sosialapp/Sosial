@@ -24,7 +24,7 @@ export async function generateCaptions(
   const segs = (data as { segments?: AiSegment[]; error?: string } | null)?.segments;
   if (!segs?.length) {
     throw new Error(
-      (data as { error?: string } | null)?.error ?? 'The AI returned nothing — try again.',
+      (data as { error?: string } | null)?.error ?? 'The AI returned nothing. Try again.',
     );
   }
   return segs;

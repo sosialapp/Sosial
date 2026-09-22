@@ -12,9 +12,9 @@ export const dynamic = 'force-dynamic';
 const DAY = 24 * 3600_000;
 
 const fmtDate = (iso: string | null): string => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
@@ -158,7 +158,7 @@ export default async function AnalyticsPage() {
           </div>
           {channelRows.length === 0 ? (
             <p className="mt-3 text-sm text-muted">
-              Nothing published yet — your per-channel numbers land here after the first send.
+              Nothing published yet. Your per-channel numbers land here after the first send.
             </p>
           ) : (
             <ul className="mt-3 divide-y divide-line-soft">

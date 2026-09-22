@@ -148,7 +148,7 @@ export default function Composer({
       return;
     }
     if (!chosenProviders.length) {
-      setAiErr('Pick at least one channel — the AI sizes copy to the strictest one.');
+      setAiErr('Pick at least one channel. The AI sizes copy to the strictest one.');
       return;
     }
     const count = kind === 'chain' ? segments.length : 1;
@@ -324,7 +324,7 @@ export default function Composer({
           ) : (
             <>
               <p className="text-sm text-muted">
-                One thread, published as a sequence — part 1 goes first, the rest follow{' '}
+                One thread, published as a sequence. Part 1 goes first, the rest follow{' '}
                 {mode === 'draft' ? 'when you publish them' : `every ${gap} min`}.
               </p>
               {segments.map((s, i) => (
@@ -368,9 +368,9 @@ export default function Composer({
                     className="field min-h-[120px] resize-y leading-relaxed"
                     placeholder={
                       i === 0
-                        ? 'The hook — makes people stop and read on…'
+                        ? 'The hook. Makes people stop and read on…'
                         : i === segments.length - 1
-                          ? 'The landing — takeaway + soft call to action…'
+                          ? 'The landing. Takeaway plus soft call to action…'
                           : 'Build the idea…'
                     }
                     value={s.body}
@@ -476,7 +476,7 @@ export default function Composer({
             {aiErr && <p className="text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">{aiErr}</p>}
             <p className="text-xs text-faint">
               Sized to ≤ {strictest.toLocaleString()} chars for your picked channels. Fills the{' '}
-              {kind === 'chain' ? 'parts below' : 'caption above'} with caption + hashtags — edit freely.
+              {kind === 'chain' ? 'parts below' : 'caption above'} with caption and hashtags. Edit freely.
             </p>
           </div>
 
@@ -572,13 +572,13 @@ export default function Composer({
             )}
             {isMember && mode !== 'draft' && (
               <p className="mt-3 rounded-lg bg-paper-dim px-2.5 py-2 text-xs text-ink">
-                You&apos;re a team member — this goes to an owner or admin for approval first.
+                You&apos;re a team member, so this goes to an owner or admin for approval first.
               </p>
             )}
           </div>
 
           <p className="text-xs text-faint">
-            Posts save to the same workspace the mobile app uses — they show up there too, and the
+            Posts save to the same workspace the mobile app uses. They show up there too, and the
             worker publishes them whether the app is open or not.
           </p>
         </aside>

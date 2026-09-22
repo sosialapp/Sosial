@@ -5,7 +5,7 @@ import { resourceHref } from '@/content/types';
 export const metadata: Metadata = {
   title: 'Sosial for small business',
   description:
-    'Look open every day with a 30-minute weekly ritual — templates, one composer and a queue that publishes while you serve customers.',
+    'Look open every day with a 30-minute weekly ritual. Templates, one composer and a queue that publishes while you serve customers.',
   alternates: { canonical: '/audiences/small-business' },
 };
 
@@ -15,7 +15,7 @@ export default function SmallBusinessPage() {
       <PageHero
         eyebrow="For small business"
         title="Look open every day."
-        lede="There's no marketing team — it's you, between customers. Sosial turns social media into a 30-minute Monday ritual instead of a daily guilt trip."
+        lede="There's no marketing team. It's you, between customers. Sosial turns social media into a 30-minute Monday ritual instead of a daily guilt trip."
         secondary={{ href: '/publish', label: 'See publishing' }}
       />
 
@@ -33,7 +33,7 @@ export default function SmallBusinessPage() {
           },
           {
             title: 'Every app wants something different',
-            body: 'Image sizes, caption lengths, hashtags, best times — a full-time education disguised as a free tool.',
+            body: 'Image sizes, caption lengths, hashtags, best times. A full-time education disguised as a free tool.',
           },
         ]}
       />
@@ -48,7 +48,7 @@ export default function SmallBusinessPage() {
           {
             eyebrow: 'Templates do the writing',
             title: 'Say it once, reuse it forever.',
-            body: 'Starter templates and caption formulas cover the posts every local business needs — new stock, opening hours, happy customers. Swap the details, keep the structure.',
+            body: 'Starter templates and caption formulas cover the posts every local business needs: new stock, opening hours, happy customers. Swap the details, keep the structure.',
           },
           {
             eyebrow: 'Queue and forget',
@@ -91,11 +91,11 @@ export default function SmallBusinessPage() {
           },
           {
             q: 'Which channels should a small business be on?',
-            a: 'Wherever your customers already look — usually two or three. The Free plan covers two channels, so start there and expand when it pays.',
+            a: 'Wherever your customers already look, usually two or three. The Free plan covers two channels, so start there and expand when it pays.',
           },
           {
             q: 'What does it cost?',
-            a: 'Free covers two channels with the composer, calendar and queue. Pro is $5 a month for all ten channels and the AI writer — less than one boosted post.',
+            a: 'Free covers two channels with the composer, calendar and queue. Pro is $5 a month for all ten channels and the AI writer, less than one boosted post.',
           },
         ]}
       />

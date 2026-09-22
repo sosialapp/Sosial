@@ -38,7 +38,7 @@ export default function PushComposer({ audience }: { audience: number }) {
       if (!data?.queued) throw new Error(data?.error ?? 'Queue rejected the broadcast.');
       setTitle('');
       setBody('');
-      setDone(`Queued for ${data.audience ?? audience} device${(data.audience ?? audience) === 1 ? '' : 's'} — the worker delivers within a minute.`);
+      setDone(`Queued for ${data.audience ?? audience} device${(data.audience ?? audience) === 1 ? '' : 's'}. The worker delivers within a minute.`);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Send failed.');
     } finally {
@@ -66,7 +66,7 @@ export default function PushComposer({ audience }: { audience: number }) {
           value={body}
           onChange={(e) => setBody(e.target.value.slice(0, 500))}
           rows={3}
-          placeholder="One or two sentences — the lock screen only."
+          placeholder="One or two sentences for the lock screen."
           className={inputCls}
         />
       </label>
@@ -83,7 +83,7 @@ export default function PushComposer({ audience }: { audience: number }) {
         </button>
         {audience === 0 ? (
           <p className="mt-2 text-xs text-muted">
-            No devices registered yet — open the app signed-in on a physical device first.
+            No devices registered yet. Open the app signed in on a physical device first.
           </p>
         ) : null}
       </div>
