@@ -25,6 +25,7 @@ import { useFontsLoaded } from './src/utils/fonts';
 import { loadAccount, saveAccount, Account } from './src/utils/account';
 import { pushProfileToCloud, currentSession, isSupabaseConfigured } from './src/utils/supabase';
 import { handleAuthUrl, getPendingAuth } from './src/utils/authFlow';
+import { backfillMissingAvatars } from './src/utils/avatarBackfill';
 import { useTheme, ThemeProvider } from './src/theme';
 
 type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
@@ -64,6 +65,9 @@ function Shell() {
 
   React.useEffect(() => {
     loadAccount().then(setAccount);
+    // One-shot picture backfill for pre-avatar accounts (throttled daily,
+    // silent) — pushes fresh pictures to the cloud for the web marks.
+    backfillMissingAvatars().catch(() => {});
   }, []);
 
   React.useEffect(() => {
