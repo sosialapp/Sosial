@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Composer from '@/components/Composer';
+import DesignStudio from '@/components/DesignStudio';
+import { exportDesignPng, type CanvasDesign } from '@/lib/canvasDesign';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
 interface Idea {
@@ -25,6 +27,7 @@ type Tab = 'post' | 'ideas' | 'templates';
 
 const ideasKey = (workspaceId: string) => `sosial-ideas-${workspaceId}`;
 const templatesKey = (workspaceId: string) => `sosial-templates-${workspaceId}`;
+const designsKey = (workspaceId: string) => `sosial-designs-${workspaceId}`;
 
 /** Starter content templates — one tap into the composer. */
 const STARTERS: Template[] = [
@@ -109,17 +112,23 @@ export default function CreateHub({
   const [tab, setTab] = useState<Tab>('post');
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [designs, setDesigns] = useState<CanvasDesign[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tplName, setTplName] = useState('');
   const [tplTitle, setTplTitle] = useState('');
   const [tplBody, setTplBody] = useState('');
   const [prefill, setPrefill] = useState<{ title: string; body: string; key: number } | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  const [renderingId, setRenderingId] = useState<string | null>(null);
 
   useEffect(() => {
     setIdeas(readList<Idea>(ideasKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt));
     setTemplates(
       readList<Template>(templatesKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt),
+    );
+    setDesigns(
+      readList<CanvasDesign>(designsKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt),
     );
   }, [workspaceId]);
 
@@ -179,6 +188,40 @@ export default function CreateHub({
     setTab('post');
   };
 
+  const persistDesigns = (next: CanvasDesign[]) => {
+    setDesigns(next);
+    try {
+      localStorage.setItem(designsKey(workspaceId), JSON.stringify(next));
+    } catch {
+      /* private mode — designs just won't persist */
+    }
+  };
+
+  const saveDesign = (d: Omit<CanvasDesign, 'id' | 'createdAt'>) => {
+    const rec: CanvasDesign = {
+      ...d,
+      id: `design_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: Date.now(),
+    };
+    persistDesigns([rec, ...designs]);
+  };
+
+  /** Render the design to PNG and attach it to the composer with its copy. */
+  const useDesign = async (d: CanvasDesign) => {
+    setRenderingId(d.id);
+    try {
+      const blob = await exportDesignPng(d);
+      const file = new File([blob], `${d.name || 'design'}.png`, { type: 'image/png' });
+      setPendingFiles([file]);
+      setPrefill({ title: d.title, body: d.body, key: Date.now() });
+      setTab('post');
+    } catch {
+      /* export toast lives here if this ever needs one */
+    } finally {
+      setRenderingId(null);
+    }
+  };
+
   const postIdea = (idea: Idea) => useIntoComposer(idea);
 
   return (
@@ -208,13 +251,14 @@ export default function CreateHub({
       {tab === 'post' ? (
         <div className="card mt-4 overflow-hidden">
           <Composer
-            key={prefill?.key ?? 'fresh'}
+            key={`${prefill?.key ?? 'fresh'}-${pendingFiles ? pendingFiles.length : 0}`}
             channels={channels}
             workspaceId={workspaceId}
             userId={userId}
             role={role}
             initialTitle={prefill?.title ?? ''}
             initialBody={prefill?.body ?? ''}
+            initialFiles={pendingFiles ?? undefined}
           />
         </div>
       ) : tab === 'ideas' ? (
@@ -272,7 +316,16 @@ export default function CreateHub({
           )}
         </div>
       ) : (
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-5">
+          <DesignStudio
+            designs={designs}
+            onSave={saveDesign}
+            onDelete={(id) => persistDesigns(designs.filter((x) => x.id !== id))}
+            onUse={useDesign}
+            busyId={renderingId}
+          />
+
+          <p className="eyebrow pt-1">Caption templates</p>
           <div className="card space-y-3 p-4 sm:p-5">
             <p className="eyebrow">Save your own</p>
             <input

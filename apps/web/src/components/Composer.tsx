@@ -22,6 +22,7 @@ export default function Composer({
   role,
   initialTitle = '',
   initialBody = '',
+  initialFiles = [],
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
@@ -30,6 +31,8 @@ export default function Composer({
   /** Prefill for "post this idea" — parent remounts (key) to apply. */
   initialTitle?: string;
   initialBody?: string;
+  /** Files attached by a design template — parent remounts (key) to apply. */
+  initialFiles?: File[];
 }) {
   const router = useRouter();
   const isMember = role === 'member';
@@ -39,7 +42,13 @@ export default function Composer({
   const [mode, setMode] = useState<ComposeMode>('schedule');
   const [when, setWhen] = useState(() => toDateTimeLocal(null));
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
-  const [files, setFiles] = useState<{ file: File; kind: 'image' | 'video'; url: string }[]>([]);
+  const [files, setFiles] = useState<{ file: File; kind: 'image' | 'video'; url: string }[]>(() =>
+    initialFiles.map((file) => ({
+      file,
+      kind: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video',
+      url: URL.createObjectURL(file),
+    })),
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
