@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
 @theme {
   /* Surfaces — warm paper, playful but calm. */
@@ -62,11 +62,6 @@ html {
   overscroll-behavior: none;
   /* Overscroll canvas paint (backup for nested scrollers). */
   background-color: var(--color-bone);
-}
-
-/* Dark dashboard overscroll matches the night shell (see .app-shell). */
-.dark {
-  background-color: #0d0d11;
 }
 
 ::selection {
@@ -290,10 +285,11 @@ body {
 }
 
 /* ------------------------- dashboard dark mode ------------------------ */
-/* Scoped to .app-shell so the marketing site always stays light. Every
-   dashboard surface is built from these tokens, so one override flips the
-   whole app shell — including .card/.btn/.field/.eyebrow/.pill. */
-.dark .app-shell {
+/* Gated on .theme-dark, which only exists inside a ThemeScope (dashboard +
+   login) — the marketing site never renders one, so it always stays light.
+   Every dashboard surface is built from these tokens, so one override flips
+   the whole scope — including .card/.btn/.field/.eyebrow/.pill. */
+.theme-dark {
   --color-bone: #0d0d11;
   --color-card: #16161b;
   --color-paper: #1c1c22;

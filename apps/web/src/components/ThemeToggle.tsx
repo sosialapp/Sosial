@@ -1,30 +1,52 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { THEME_CLASS, THEME_KEY } from './ThemeScope';
 
-const KEY = 'sosial-theme';
+function scopeRoot(anchor: HTMLElement | null): HTMLElement | null {
+  return (
+    anchor?.closest<HTMLElement>('[data-theme-root]') ??
+    document.querySelector<HTMLElement>('[data-theme-root]')
+  );
+}
 
-/** Light/dark switch for the dashboard. Marketing stays light always. */
+/** Light/dark switch. Only works inside a ThemeScope (dashboard, login) —
+ *  anywhere else it renders inert so marketing can never go dark. */
 export default function ThemeToggle() {
+  const btnRef = useRef<HTMLButtonElement>(null);
   const [dark, setDark] = useState(false);
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
-    setDark(document.documentElement.classList.contains('dark'));
+    const root = scopeRoot(null);
+    if (!root) return;
+    setLive(true);
+    const sync = () => setDark(root.classList.contains(THEME_CLASS));
+    sync();
+    window.addEventListener('sosial-theme', sync);
+    return () => window.removeEventListener('sosial-theme', sync);
   }, []);
 
+  if (!live) return null;
+
   const toggle = () => {
-    const next = !dark;
+    const root = scopeRoot(btnRef.current);
+    if (!root) return;
+    const next = !root.classList.contains(THEME_CLASS);
+    root.classList.toggle(THEME_CLASS, next);
     setDark(next);
-    document.documentElement.classList.toggle('dark', next);
     try {
-      localStorage.setItem(KEY, next ? 'dark' : 'light');
+      localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
     } catch {
       /* private mode — theme just won't persist */
     }
+    // Keep a second toggle on the same page (header + profile) in sync.
+    window.dispatchEvent(new Event('sosial-theme'));
   };
 
   return (
     <button
+      ref={btnRef}
       type="button"
       onClick={toggle}
       aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}

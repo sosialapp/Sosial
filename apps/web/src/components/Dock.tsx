@@ -27,7 +27,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/calendar',
     label: 'Dashboard',
-    color: 'text-[#1d7fe0]',
+    color: 'text-[#1d7fe0] dark:text-[#3ee0ff]',
     match: (p) => p === '/calendar' || p === '/queue' || p.startsWith('/calendar/') || p.startsWith('/queue/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
@@ -41,7 +41,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/composer',
     label: 'Create',
-    color: 'text-[#ef6a10]',
+    color: 'text-[#ef6a10] dark:text-[#ffab2e]',
     match: (p) => p === '/composer' || p.startsWith('/composer/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
@@ -52,7 +52,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/composer',
     label: 'New post',
-    color: 'text-accent',
+    color: 'text-accent dark:text-[#ff9e45]',
     match: () => false,
     hero: true,
     icon: () => (
@@ -64,7 +64,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/analytics',
     label: 'Analytics',
-    color: 'text-[#12914a]',
+    color: 'text-[#12914a] dark:text-[#3dff88]',
     match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
@@ -76,7 +76,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/profile',
     label: 'Profile',
-    color: 'text-[#7c5cf0]',
+    color: 'text-[#7c5cf0] dark:text-[#c0a4ff]',
     match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
@@ -159,7 +159,9 @@ export default function Dock() {
             >
               {/* Tooltip floats well clear of the risen icon (which climbs ~22px)
                   and pins above it so the float can never cover the text. */}
-              <span className="pointer-events-none absolute -top-12 z-20 whitespace-nowrap rounded-lg border border-line bg-ink px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+              {/* Constant near-black pill — readable in both modes (theme
+                  tokens flip in dark, so tokens are banned here). */}
+              <span className="pointer-events-none absolute -top-12 z-20 whitespace-nowrap rounded-lg bg-[#191512] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                 {item.label}
               </span>
               <span
@@ -172,7 +174,7 @@ export default function Dock() {
               </span>
               <span
                 aria-hidden="true"
-                className={`mt-1 h-1 w-1 rounded-full transition-opacity ${active && !item.hero ? 'bg-accent opacity-100' : 'opacity-0'}`}
+                className={`mt-1 h-1 w-1 rounded-full transition-opacity ${active && !item.hero ? 'bg-accent opacity-100 dark:bg-[#ff9e45]' : 'opacity-0'}`}
               />
             </Link>
           );

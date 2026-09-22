@@ -1,4 +1,5 @@
 import LoginForm from '@/components/LoginForm';
+import ThemeScope from '@/components/ThemeScope';
 import { oauthErrorMessage } from '@/lib/auth';
 import { hasSupabaseEnv } from '@/lib/supabase/server';
 
@@ -9,7 +10,8 @@ export default async function LoginPage({
 }) {
   const { error, next } = await searchParams;
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <ThemeScope>
+      <main className="flex min-h-screen items-center justify-center bg-bone p-6 text-ink">
       {hasSupabaseEnv() ? (
         <LoginForm externalError={oauthErrorMessage(error)} next={next} />
       ) : (
@@ -28,6 +30,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000`}
           <p className="mt-3 text-xs text-muted">Then restart the dev server.</p>
         </div>
       )}
-    </main>
+      </main>
+    </ThemeScope>
   );
 }
