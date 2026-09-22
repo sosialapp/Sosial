@@ -48,9 +48,13 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  // Cookie-only read: no network round-trip (getUser() phones home on every
+  // tap). A forged cookie only gets past this UX gate — every page and RLS
+  // policy re-verifies with getUser() server-side, which bounces to /login.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
   const isPublic =
     path === '/' ||
     path.startsWith('/login') ||
