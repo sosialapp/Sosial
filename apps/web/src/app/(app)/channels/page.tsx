@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import AvatarSync from '@/components/AvatarSync';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import ConnectGuide from '@/components/ConnectGuide';
 import { fetchChannels } from '@/lib/posts';
@@ -40,9 +41,13 @@ export default async function ChannelsPage() {
     byProvider.set(c.provider, list);
   }
   const providers = ALL_PROVIDERS.filter((p) => byProvider.has(p));
+  const missingAvatars = channels.filter(
+    (c) => c.status === 'connected' && !channelAvatar(c.metadata),
+  ).length;
 
   return (
     <div className="flex min-h-screen flex-col">
+      <AvatarSync workspaceId={ctx.workspace.id} missing={missingAvatars} />
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
         <div>
           <p className="eyebrow">Channels</p>

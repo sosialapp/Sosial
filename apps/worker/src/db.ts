@@ -7,7 +7,13 @@ import { required, env } from './env';
 
 export interface Job {
   id: number;
-  kind: 'publish_target' | 'refresh_token' | 'snapshot_analytics' | 'cleanup_media' | 'send_invite';
+  kind:
+    | 'publish_target'
+    | 'refresh_token'
+    | 'snapshot_analytics'
+    | 'cleanup_media'
+    | 'send_invite'
+    | 'sync_avatars';
   payload: Record<string, any>;
   status: string;
   run_at: string;

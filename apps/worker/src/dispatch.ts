@@ -15,6 +15,7 @@ import { publishFacebookTarget, publishInstagramTarget } from './meta';
 import { publishMastodonTarget } from './mastodon';
 import { publishLinkedInTarget } from './linkedin';
 import { publishPinterestTarget } from './pinterest';
+import { syncWorkspaceAvatars } from './avatars';
 import { info } from './logger';
 
 function notPorted(kind: string): Error {
@@ -120,6 +121,13 @@ async function handleSnapshotAnalytics(job: Job): Promise<void> {
   throw notPorted('snapshot_analytics');
 }
 
+async function handleSyncAvatars(job: Job): Promise<void> {
+  const workspaceId = job.payload?.workspace_id ? String(job.payload.workspace_id) : undefined;
+  info(`sync_avatars workspace ${workspaceId ?? '(all)'} (job ${job.id})`);
+  const { checked, saved, failed } = await syncWorkspaceAvatars(workspaceId);
+  info(`sync_avatars done: ${checked} checked, ${saved} saved, ${failed.length} failed`);
+}
+
 async function handleCleanupMedia(job: Job): Promise<void> {
   info(`cleanup_media (job ${job.id})`);
   throw notPorted('cleanup_media');
@@ -155,6 +163,7 @@ export async function dispatch(job: Job): Promise<void> {
     case 'snapshot_analytics': return handleSnapshotAnalytics(job);
     case 'cleanup_media': return handleCleanupMedia(job);
     case 'send_invite': return handleSendInvite(job);
+    case 'sync_avatars': return handleSyncAvatars(job);
     default: throw new Error(`unknown job kind '${String((job as any)?.kind)}' (job ${job.id})`);
   }
 }

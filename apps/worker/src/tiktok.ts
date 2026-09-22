@@ -88,7 +88,7 @@ function clientCreds(): { key: string; secret: string } {
 }
 
 /** Valid access token, refreshing 10 min before expiry (Vault-backed). */
-async function ensureToken(b: Bundle, force = false): Promise<string> {
+export async function ensureToken(b: Bundle, force = false): Promise<string> {
   const fresh =
     !force && b.secrets.expires_at && Date.parse(b.secrets.expires_at) > Date.now() + 600000;
   if (fresh && b.secrets.access_secret_id) {

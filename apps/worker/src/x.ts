@@ -52,7 +52,7 @@ async function xjson(url: string, init: RequestInit, fallback: string): Promise<
   return j;
 }
 
-async function ensureToken(b: Bundle, force = false): Promise<string> {
+export async function ensureToken(b: Bundle, force = false): Promise<string> {
   const fresh =
     !force && b.secrets.expires_at && Date.parse(b.secrets.expires_at) > Date.now() + 600000;
   if (fresh && b.secrets.access_secret_id) {

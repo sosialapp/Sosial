@@ -76,7 +76,7 @@ async function xrpc(pdsHost: string, method: string, token: string, body: any, c
 }
 
 /** Live session, refreshing proactively (10-min margin, mirrors the app). */
-async function ensureSession(b: Bundle, force = false): Promise<Session> {
+export async function ensureSession(b: Bundle, force = false): Promise<Session> {
   const pdsHost = b.channel.instance_url || 'https://bsky.social';
   const did = b.channel.external_id;
   if (!did) throw new Error('Bluesky channel missing DID — re-enable cloud publishing.');
