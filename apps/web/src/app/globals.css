@@ -5,9 +5,11 @@
 @theme {
   /* Surfaces — warm paper, playful but calm. */
   --color-ink: #191512;
-  --color-soft: #403a33;
-  --color-muted: #756c60;
-  --color-faint: #a79d8e;
+  /* No grey text: soft/muted/faint all resolve to ink in light mode.
+     (Dark-scope overrides below keep their own light values.) */
+  --color-soft: #191512;
+  --color-muted: #191512;
+  --color-faint: #191512;
   --color-paper: #ffffff;
   --color-bone: #f4efe4;
   --color-surface: #e8e0cf;
@@ -242,6 +244,9 @@ body {
   .field:focus {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 3px var(--color-accent-soft);
+  }
+  .field::placeholder {
+    color: var(--color-ink);
   }
   .eyebrow {
     font-family: var(--font-display);
