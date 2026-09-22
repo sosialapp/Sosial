@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
+import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { fetchChannels, fetchPosts } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
@@ -204,12 +205,7 @@ export default async function DashboardPage() {
                 const ok = c.status === 'connected';
                 return (
                   <li key={c.id} className="flex items-center gap-2.5">
-                    <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                      style={{ background: `${meta.color}14` }}
-                    >
-                      <BrandIcon provider={c.provider} className="h-4 w-4" />
-                    </span>
+                    <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={32} />
                     <span className="min-w-0 flex-1 truncate text-sm font-bold">
                       {c.handle ? `@${c.handle}` : (c.display_name ?? meta.label)}
                     </span>

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { BrandIcon } from '@/components/BrandIcon';
+import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 import { providerMeta } from '@/lib/providers';
@@ -31,18 +31,12 @@ export default async function ChannelsPage() {
           </p>
         )}
         {channels.map((c) => {
-          const meta = providerMeta(c.provider);
           const sub = c.handle ? `@${c.handle}` : c.display_name ?? c.external_id;
           return (
               <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4">
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: `${meta.color}14` }}
-                >
-                  <BrandIcon provider={c.provider} className="h-5 w-5" />
-                </span>
+                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={44} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{meta.label}</p>
+                <p className="truncate font-semibold">{providerMeta(c.provider).label}</p>
                 <p className="truncate text-xs text-muted">{sub}</p>
               </div>
               <span className={`pill ${STATUS_STYLE[c.status] ?? 'bg-surface text-soft'}`}>{c.status}</span>
