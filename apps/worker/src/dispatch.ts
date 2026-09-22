@@ -16,6 +16,7 @@ import { publishMastodonTarget } from './mastodon';
 import { publishLinkedInTarget } from './linkedin';
 import { publishPinterestTarget } from './pinterest';
 import { syncWorkspaceAvatars } from './avatars';
+import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
 import { info } from './logger';
 
@@ -113,8 +114,11 @@ async function handlePublishTarget(job: Job): Promise<void> {
 }
 
 async function handleRefreshToken(job: Job): Promise<void> {
-  info(`refresh_token channel ${job.payload?.channel_id} (job ${job.id})`);
-  throw notPorted('refresh_token');
+  const channelId = String(job.payload?.channel_id ?? '');
+  if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
+  info(`refresh_token channel ${channelId} (job ${job.id})`);
+  const outcome = await refreshChannelToken(channelId);
+  info(`refresh_token channel ${channelId}: ${outcome} (job ${job.id})`);
 }
 
 async function handleSnapshotAnalytics(job: Job): Promise<void> {

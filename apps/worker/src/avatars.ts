@@ -27,19 +27,20 @@ const PIN_API = 'https://api.pinterest.com/v5';
 const LI_API = 'https://api.linkedin.com';
 const TT_API = 'https://open.tiktokapis.com/v2';
 
-interface TokenRow {
+export interface TokenRow {
   access_token_secret_id: string | null;
   refresh_token_secret_id: string | null;
   expires_at: string | null;
 }
 
-interface ChannelRow {
+export interface ChannelRow {
   id: string;
   workspace_id: string;
   provider: string;
   external_id: string;
   instance_url: string | null;
   metadata: Record<string, any> | null;
+  status?: string;
   channel_tokens: TokenRow | TokenRow[] | null;
 }
 
@@ -58,7 +59,7 @@ function errText(j: any, fallback: string): string {
   return fallback;
 }
 
-function tokenRow(c: ChannelRow): TokenRow {
+export function tokenRow(c: ChannelRow): TokenRow {
   const t = Array.isArray(c.channel_tokens) ? c.channel_tokens[0] : c.channel_tokens;
   return t ?? { access_token_secret_id: null, refresh_token_secret_id: null, expires_at: null };
 }
@@ -67,7 +68,7 @@ function tokenRow(c: ChannelRow): TokenRow {
  * A Bundle-shaped object is enough for the provider refresh helpers: they read
  * only secrets + channel.id/external_id/instance_url/metadata.
  */
-function bundleFor(c: ChannelRow, t: TokenRow): any {
+export function bundleFor(c: ChannelRow, t: TokenRow): any {
   return {
     target: { id: '', provider: c.provider, caption: null, options: {}, status: 'avatars' },
     post: { id: '', title: '', body: '' },
