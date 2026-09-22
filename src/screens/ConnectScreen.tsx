@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { SocialGlyph, Txt, ChannelAvatar } from '../components/ui';
+import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui';
 import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount } from '../utils/metaStore';
@@ -32,8 +32,8 @@ import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
 const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest'];
 
-function ChannelIcon({ platform, avatar }: { platform: string; avatar?: string }) {
-  return <ChannelAvatar platform={platform} avatar={avatar} size={38} />;
+function ChannelIcon({ platform }: { platform: string }) {
+  return <ChannelAvatar platform={platform} size={56} badge={false} />;
 }
 
 /** One compact row per provider — tap to connect, tap again to manage its accounts. */
@@ -412,11 +412,6 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     else if (p === 'pinterest') void loadPinBoardsFor(a);
   };
 
-  const primaryAvatar = (p: ProviderKey): string | undefined => {
-    const list = accounts.filter((a) => a.provider === p);
-    return list[0] ? accountAvatar(list[0]) : undefined;
-  };
-
   const statusLabel = (p: ProviderKey, list: ConnectedAccount[]): string => {
     if (list.length === 0) {
       if (p === 'bluesky') return 'Handle + app password';
@@ -684,10 +679,20 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                   style={[s.row, p !== orderedProviders[0] && s.rowDiv]}
                   activeOpacity={0.7}
                 >
-                  <ChannelIcon platform={p} avatar={primaryAvatar(p)} />
+                  <ChannelIcon platform={p} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.rowT}>{cfg.label}</Text>
-                    <Text style={s.rowS} numberOfLines={1}>{statusLabel(p, list)}</Text>
+                    {list.length === 0 ? (
+                      <Text style={s.rowS} numberOfLines={1}>{statusLabel(p, list)}</Text>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                        <AccountStack platform={p} avatars={list.map((a) => accountAvatar(a))} size={14} max={2} ring={C.lineSoft} />
+                        <Text style={s.rowS} numberOfLines={1}>
+                          {list.slice(0, 2).map((a) => accountName(a) ?? accountLabel(a)).join(' · ')}
+                          {list.length > 2 ? `  +${list.length - 2} more` : ''}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   {hasAny ? (
                     <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />

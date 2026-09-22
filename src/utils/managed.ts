@@ -85,9 +85,10 @@ export interface ManagedPost {
   /** all attached media in order; legacy imageUri/videoUri mirror the first of each kind */
   attachments?: MediaAttachment[];
   platforms: string[];
-  /** per-channel selected account id (provider → account id). Absent = primary
-   *  account for that provider. */
-  accountIds?: Record<string, string>;
+  /** per-channel selected account ids (provider → account ids). Absent or
+  *  empty = primary account for that provider. Legacy single-string picks
+  *  read back as a one-item list. */
+  accountIds?: Record<string, string[]>;
   /** per-channel post format (reel/story/repost/quote…) */
   platformTypes?: PlatformTypes;
   /** Threads community/topic pill (topic_tag param, max 50 chars) */

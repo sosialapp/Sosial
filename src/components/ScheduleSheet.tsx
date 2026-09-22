@@ -8,14 +8,14 @@ import { PrimaryBtn, GhostBtn, Txt } from './ui';
 import { SegMediaStrip } from './SegMediaStrip';
 import { useVerticalReorder } from './useVerticalReorder';
 import { PubRow } from './PublishNotice';
-import { SocialGlyph, ChannelAvatar } from './ui';
+import { SocialGlyph, ChannelAvatar, AccountStack } from './ui';
 import { SOCIAL_META } from '../constants';
 import { MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
 import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
 import { loadMetaState, loadAccounts, connectedChannelIds, MetaState } from '../utils/metaStore';
-import { type ConnectedAccount, accountConnected, accountName, accountAvatar } from '../utils/socialAccounts';
+import { type ConnectedAccount, accountConnected, accountName, accountAvatar, asIdList } from '../utils/socialAccounts';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
 import { fetchPostStats, SentPostStats } from '../utils/postStats';
@@ -361,7 +361,7 @@ interface Props {
   visible: boolean;
   initialAt?: number;
   initialPlatforms?: string[];
-  initialAccountIds?: Record<string, string>;
+  initialAccountIds?: Record<string, string[]>;
   initialTypes?: PlatformTypes;
   initialSourceUrl?: string;
   initialThreadsTopic?: string;
@@ -372,10 +372,10 @@ interface Props {
   composer?: Composer;
   media?: SheetMedia;
   onDelete?: () => void;
-  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => void;
-  onPostNow?: (plats: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => void;
+  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
+  onPostNow?: (plats: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
   draftLabel?: string;
-  onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => void;
+  onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
   onClose?: () => void;
   /** Live publish progress (shown inline while the "Post now" button spins). */
   /** Open the AI caption/thread writer onto this draft. */
@@ -407,7 +407,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
   const [plats, setPlats] = useState<string[]>(['any']);
   const [connected, setConnected] = useState<string[]>([]);
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
-  const [accountIds, setAccountIds] = useState<Record<string, string>>({});
+  const [accountIds, setAccountIds] = useState<Record<string, string[]>>({});
   const [acctOpen, setAcctOpen] = useState<string | null>(null);
   const [types, setTypes] = useState<PlatformTypes>({});
   const [threadsTopic, setThreadsTopic] = useState('');
@@ -480,9 +480,10 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
       loadAccounts().then((all) => {
         setAccounts(all);
         const valid = new Set(all.map((a) => a.id));
-        const next: Record<string, string> = {};
+        const next: Record<string, string[]> = {};
         for (const [k, v] of Object.entries(initialAccountIds ?? {})) {
-          if (valid.has(v)) next[k] = v;
+          const ids = asIdList(v).filter((id) => valid.has(id));
+          if (ids.length > 0) next[k] = ids;
         }
         setAccountIds(next);
       });
@@ -609,14 +610,26 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
     if (def) return def.id;
     return accountsFor(c)[0]?.id;
   };
-  const selectedAccountId = (c: string): string | undefined => accountIds[c] ?? defaultAccountIdFor(c);
-  /** Per-channel account ids for the selected channels (provider → account id). */
-  const finalAccountIds = (): Record<string, string> | undefined => {
-    const out: Record<string, string> = {};
+  /** Explicitly picked account ids for a provider (empty = not customized). */
+  const pickedAccountIds = (c: string): string[] => {
+    const ids = asIdList(accountIds[c]);
+    const valid = new Set(accountsFor(c).map((a) => a.id));
+    return ids.filter((id) => valid.has(id));
+  };
+  /** Resolved accounts to publish as: explicit picks, else the default. */
+  const selectedAccountIds = (c: string): string[] => {
+    const picked = pickedAccountIds(c);
+    if (picked.length > 0) return picked;
+    const def = defaultAccountIdFor(c);
+    return def ? [def] : [];
+  };
+  /** Per-channel account ids for the selected channels (provider → account ids). */
+  const finalAccountIds = (): Record<string, string[]> | undefined => {
+    const out: Record<string, string[]> = {};
     for (const c of plats) {
       if (c === 'any') continue;
-      const id = selectedAccountId(c);
-      if (id) out[c] = id;
+      const ids = selectedAccountIds(c);
+      if (ids.length > 0) out[c] = ids;
     }
     return Object.keys(out).length > 0 ? out : undefined;
   };
@@ -967,8 +980,13 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
                     {accountsFor(c).length > 1 ? (
                       <TouchableOpacity onPress={() => setAcctOpen((v) => (v === c ? null : c))} style={st.topicLink} activeOpacity={0.7}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <ChannelAvatar platform={c} avatar={(() => { const a = accounts.find((x) => x.id === selectedAccountId(c)); return a ? accountAvatar(a) : undefined; })()} size={16} badge={false} />
-                          <Text style={st.topicLinkT} numberOfLines={1}>{(() => { const a = accounts.find((x) => x.id === selectedAccountId(c)); return a ? accountName(a) ?? 'Account' : 'Account'; })()}</Text>
+                          <AccountStack platform={c} avatars={selectedAccountIds(c).map((id) => { const a = accounts.find((x) => x.id === id); return a ? accountAvatar(a) : undefined; })} size={16} />
+                          <Text style={st.topicLinkT} numberOfLines={1}>{(() => {
+                            const ids = selectedAccountIds(c);
+                            if (ids.length > 1) return `${ids.length} accounts`;
+                            const a = accounts.find((x) => x.id === ids[0]);
+                            return a ? accountName(a) ?? 'Account' : 'Account';
+                          })()}</Text>
                         </View>
                         <Text style={st.topicChev}>›</Text>
                       </TouchableOpacity>
@@ -995,13 +1013,23 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
                   {accountsFor(c).length > 1 && acctOpen === c ? (
                     <View style={{ gap: 6 }}>
                       {accountsFor(c).map((a) => {
-                        const sel = selectedAccountId(c) === a.id;
+                        const sel = selectedAccountIds(c).includes(a.id);
                         const label = accountName(a) ?? a.provider;
                         return (
-                          <TouchableOpacity key={a.id} onPress={() => { setAccountIds((prev) => ({ ...prev, [c]: a.id })); setAcctOpen(null); }} style={[st.typeChip, sel && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
+                          <TouchableOpacity key={a.id} onPress={() => {
+                            setAccountIds((prev) => {
+                              const cur = asIdList(prev[c]);
+                              // Unticking the last account keeps it — a channel
+                              // always publishes as at least one account.
+                              if (cur.includes(a.id) && cur.length <= 1) return prev;
+                              const next = cur.includes(a.id) ? cur.filter((id) => id !== a.id) : [...cur, a.id];
+                              return { ...prev, [c]: next };
+                            });
+                          }} style={[st.typeChip, sel && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                               <ChannelAvatar platform={c} avatar={accountAvatar(a)} size={18} badge={false} />
-                              <Text style={[st.typeChipT, sel && { color: C.onInk }]}>{label}</Text>
+                              <Text style={[st.typeChipT, sel && { color: C.onInk }, { flex: 1 }]}>{label}</Text>
+                              {sel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
                             </View>
                           </TouchableOpacity>
                         );

@@ -3,7 +3,7 @@ import { supabase, supabaseUrl, currentSession } from './supabase';
 import { loadManagedPosts, saveManagedPost, postAttachments, type ManagedPost } from './managed';
 import { isChainPlatform } from './thread';
 import { loadAccounts } from './metaStore';
-import { findAccount, findAccountForProvider, accountExternalId, type ConnectedAccount, type ProviderKey } from './socialAccounts';
+import { findAccount, findAccountForProvider, accountExternalId, asIdList, type ConnectedAccount, type ProviderKey } from './socialAccounts';
 
 /**
  * App → cloud write path (post-Wave-A slice). Every local save/delete
@@ -120,18 +120,19 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
     if (ext) byKey.set(`${provider}:${ext}`, id);
   }
 
-  // Resolve the account a platform leg should publish to: the account picked in
-  // the composer, else the primary account for that provider, else any account.
+  // Resolve the accounts a platform leg should publish to: the accounts
+  // picked in the composer, else the primary account for that provider,
+  // else any account.
   const accounts = await loadAccounts();
-  const accountFor = (platform: string): ConnectedAccount | undefined => {
-    const aid = post.accountIds?.[platform];
-    if (aid) {
-      const a = findAccount(accounts, aid);
-      if (a) return a;
-    }
+  const accountsFor = (platform: string): ConnectedAccount[] => {
+    const picked = asIdList(post.accountIds?.[platform])
+      .map((aid) => findAccount(accounts, aid))
+      .filter((a): a is ConnectedAccount => !!a);
+    if (picked.length > 0) return picked;
     const def = findAccount(accounts, `acct_${platform}`);
-    if (def) return def;
-    return findAccountForProvider(accounts, platform as ProviderKey);
+    if (def) return [def];
+    const any = findAccountForProvider(accounts, platform as ProviderKey);
+    return any ? [any] : [];
   };
 
   // ORDER MATTERS (atomicity): media uploads + asset rows FIRST, targets
@@ -224,44 +225,47 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
     if (linkErr) throw new Error(`cloud media link failed: ${linkErr.message}`);
   }
 
-  // Targets: one per platform that is BOTH selected AND cloud-connected.
-  // Platforms with no cloud row stay local-only (correct — nothing to publish with).
+  // Targets: one per (platform × account) that is BOTH selected AND
+  // cloud-connected. Platforms with no cloud row stay local-only (correct —
+  // nothing to publish with). The (post_id, channel_id) upsert converges on
+  // re-push, so re-saving never duplicates targets.
   let made = 0;
   for (const platform of post.platforms ?? []) {
-    const acct = accountFor(platform);
-    const ext = acct ? accountExternalId(acct) : undefined;
-    const channelId = ext ? byKey.get(`${platform}:${ext}`) : byProvider.get(platform);
-    if (!channelId) continue;
-    const options: Record<string, unknown> = {};
-    if (post.threadsTopic) options.threadsTopic = post.threadsTopic;
-    if (post.ttPrivacy) options.ttPrivacy = post.ttPrivacy;
-    if (post.ytPrivacy) options.ytPrivacy = post.ytPrivacy;
-    if (post.sourceUrl) options.sourceUrl = post.sourceUrl;
-    // Chain segments ride on the target so the worker can replay the exact same
-    // thread the app would have posted (local publisher is source of truth).
-    if (isChainPlatform(platform) && post.thread && post.thread.length > 1) {
-      const segs = post.thread.map((s) => (s ?? '').trim()).filter(Boolean);
-      if (segs.length > 1) options.thread = segs;
+    for (const acct of accountsFor(platform)) {
+      const ext = accountExternalId(acct);
+      const channelId = ext ? byKey.get(`${platform}:${ext}`) : byProvider.get(platform);
+      if (!channelId) continue;
+      const options: Record<string, unknown> = {};
+      if (post.threadsTopic) options.threadsTopic = post.threadsTopic;
+      if (post.ttPrivacy) options.ttPrivacy = post.ttPrivacy;
+      if (post.ytPrivacy) options.ytPrivacy = post.ytPrivacy;
+      if (post.sourceUrl) options.sourceUrl = post.sourceUrl;
+      // Chain segments ride on the target so the worker can replay the exact same
+      // thread the app would have posted (local publisher is source of truth).
+      if (isChainPlatform(platform) && post.thread && post.thread.length > 1) {
+        const segs = post.thread.map((s) => (s ?? '').trim()).filter(Boolean);
+        if (segs.length > 1) options.thread = segs;
+      }
+      const format = (post.platformTypes as any)?.[platform];
+      // idempotency_key is NOT NULL with no default — deterministic so
+      // retries and re-saves converge instead of violating.
+      const { error: tErr } = await sb.from('post_targets').upsert(
+        {
+          post_id: postId,
+          channel_id: channelId,
+          provider: platform,
+          format: typeof format === 'string' ? format : null,
+          caption: post.body ?? '',
+          options,
+          status: targetStatus,
+          scheduled_at: scheduledIso,
+          idempotency_key: `cloud:${post.id}:${channelId}`,
+        },
+        { onConflict: 'post_id,channel_id' },
+      );
+      if (tErr) throw new Error(`cloud target upsert failed (${platform}): ${tErr.message}`);
+      made += 1;
     }
-    const format = (post.platformTypes as any)?.[platform];
-    // idempotency_key is NOT NULL with no default — deterministic so
-    // retries and re-saves converge instead of violating.
-    const { error: tErr } = await sb.from('post_targets').upsert(
-      {
-        post_id: postId,
-        channel_id: channelId,
-        provider: platform,
-        format: typeof format === 'string' ? format : null,
-        caption: post.body ?? '',
-        options,
-        status: targetStatus,
-        scheduled_at: scheduledIso,
-        idempotency_key: `cloud:${post.id}:${channelId}`,
-      },
-      { onConflict: 'post_id,channel_id' },
-    );
-    if (tErr) throw new Error(`cloud target upsert failed (${platform}): ${tErr.message}`);
-    made += 1;
   }
 
   // Sweep superseded objects/rows from earlier pushes of THIS post only

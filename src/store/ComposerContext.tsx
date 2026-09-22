@@ -7,7 +7,7 @@ import { uid } from '../constants';
 import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, ManagedPost, PostStatus, MediaAttachment, postAttachments, postThreadSegments, postThreadMedia, alignThreadMedia, ThreadSegment, ThreadSegmentMedia, THREAD_MEDIA_MAX, PlatformTypes, defaultPlatformType, ChannelKey, queueTooSoon, minQueueLabel, isEmptyPost, LEG_COOLDOWN_MS, MAX_AUTO_TRIES, VIDEO_CHANNEL_MS, PHOTO_CHANNEL_MS } from '../utils/managed';
 import { joinThread, isChainPlatform } from '../utils/thread';
 import { loadMetaState, loadAccounts, saveProviderFields, MetaState, connectedChannelIds } from '../utils/metaStore';
-import { type ConnectedAccount, type ProviderKey, findAccount, findAccountForProvider } from '../utils/socialAccounts';
+import { type ConnectedAccount, type ProviderKey, findAccount, findAccountForProvider, asIdList, accountName } from '../utils/socialAccounts';
 import { publishFacebook, publishFacebookReel, publishFacebookStory, publishInstagram, publishInstagramStory, publishThreads, uploadTikTokPhoto, MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { publishTikTokVideo, publishTikTokPhotos } from '../utils/tiktokPublish';
 import { publishX } from '../utils/xPublish';
@@ -95,9 +95,9 @@ interface ComposerCtx {
   removeDraftMedia: (index: number) => void;
   moveDraftMedia: (from: number, to: number) => void;
   /** queue / draft / post-now against the live draft — true when stored */
-  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => Promise<boolean>;
-  stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => Promise<boolean>;
-  postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>) => Promise<boolean>;
+  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
+  stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
+  postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
   /** load a post into the live draft WITHOUT opening the sheet */
   importDraft: (p: ManagedPost | null) => void;
   /** wipe the live draft */
@@ -329,7 +329,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, [onThread, tMedia, tThreadMedia]);
 
   /** Title is no longer typed — it's the first line of the post text, kept for lists + reminders. */
-  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): ManagedPost => {
+  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): ManagedPost => {
     const firstImage = tMedia.find((m) => m.kind === 'image')?.uri;
     const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri;
     // Pair text+attachment BEFORE dropping empties so indices stay aligned.
@@ -421,7 +421,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): Promise<boolean> => {
+  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
       showInfo('Too soon', `Earliest is ${minQueueLabel()} — scheduled posts need at least 5 minutes lead time.`);
@@ -460,7 +460,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const saveDraft = async (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): Promise<boolean> => {
+  const saveDraft = async (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     const plats = sheetRef.current?.post?.platforms?.length ? sheetRef.current.post.platforms : ['any'];
     const rec = buildRec(undefined, plats, 'draft', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
@@ -527,7 +527,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   };
 
   /** "Post now": publish immediately — no queueing, no scheduledAt. */
-  const postNow = async (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string>): Promise<boolean> => {
+  const postNow = async (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     // A stuck or background publish used to swallow taps silently here —
     // say so, so a held lock is diagnosable instead of invisible.
@@ -614,20 +614,62 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const runPublish = async (p: ManagedPost, opts?: { silent?: boolean }): Promise<RunResult | null> => {
     const m = await loadMetaState();
     const accounts = await loadAccounts();
-    /** Resolve the account a channel should publish as: explicit per-post pick
-     *  first, then the provider's default account, then any account for that
-     *  provider (legacy fallback). Returns undefined when none is connected. */
-    const accountFor = (ch: string): ConnectedAccount | undefined => {
-      const aid = p.accountIds?.[ch];
-      if (aid) {
-        const byId = findAccount(accounts, aid);
-        if (byId) return byId;
-      }
+    /** Per-account remote-id key — lets a channel be partially done (account
+     *  A posted, account B still missing) instead of only done/not-done. */
+    const acctKey = (ch: string, aid: string) => `${ch}:${aid}`;
+    // Seed from already-recorded legs: any account with a remote id never
+    // reposts — foreground retries and sweep passes alike skip done accounts;
+    // timed-out legs park in cooldown.
+    const prevIds: Record<string, string> = {};
+    for (const [k, v] of Object.entries(p.remoteIds ?? {})) if (v) prevIds[k] = String(v);
+    /** Full account resolution for a channel (picked → default → any). */
+    const resolvedAll = (ch: string): ConnectedAccount[] => {
+      const picked = asIdList(p.accountIds?.[ch])
+        .map((aid) => findAccount(accounts, aid))
+        .filter((a): a is ConnectedAccount => !!a);
+      if (picked.length > 0) return picked;
       const def = findAccount(accounts, `acct_${ch}`);
-      if (def) return def;
-      return findAccountForProvider(accounts, ch as ProviderKey);
+      if (def) return [def];
+      const any = findAccountForProvider(accounts, ch as ProviderKey);
+      return any ? [any] : [];
     };
+    /** Channel fully posted: every resolved account has a per-account id — or,
+     *  for pre-multi records, a channel-level id with no per-account keys.
+     *  (The second clause ignores the current picks on purpose: a legacy
+     *  record can't attribute its id, so the old skip-whole-channel rule
+     *  stands. One post-change run converts it to per-account keys.) */
+    const isDone = (ch: string): boolean => {
+      const all = resolvedAll(ch);
+      if (all.length === 0) return !!prevIds[ch];
+      const keyed = all.filter((a) => prevIds[acctKey(ch, a.id)]).length;
+      if (keyed === all.length) return true;
+      const hasAnyAcctKeys = Object.keys(prevIds).some((k) => k.startsWith(`${ch}:`));
+      if (!hasAnyAcctKeys && prevIds[ch]) return true;
+      return false;
+    };
+    /** Accounts still missing a post this run — the only ones a leg attempts. */
+    const accountsFor = (ch: string): ConnectedAccount[] =>
+      resolvedAll(ch).filter((a) => !prevIds[acctKey(ch, a.id)]);
+    const accountFor = (ch: string): ConnectedAccount | undefined => accountsFor(ch)[0] ?? resolvedAll(ch)[0];
     const acctFields = (ch: string): Record<string, unknown> => accountFor(ch)?.fields ?? {};
+    /** A channel's accounts published concurrently — successes keep their ids
+     *  (channel key stays comma-joined for the Sent view); a partial failure
+     *  throws naming the missing accounts so the retry posts only those. */
+    const throwIfPartial = (ch: string, label: string, accts: ConnectedAccount[], res: PromiseSettledResult<unknown>[]) => {
+      const badIdx: number[] = [];
+      let first: unknown = null;
+      res.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          badIdx.push(i);
+          if (first === null) first = r.reason;
+        }
+      });
+      if (badIdx.length === 0) return;
+      if (badIdx.length === accts.length) throw first instanceof Error ? first : new Error(String((first as any)?.message ?? first ?? 'failed'));
+      const names = badIdx.map((i) => accountName(accts[i]) ?? `account ${i + 1}`).join(', ');
+      const why = first instanceof Error ? first.message : String((first as any)?.message ?? first ?? 'failed');
+      throw new Error(`Posted to ${accts.length - badIdx.length} of ${accts.length} accounts — ${names} failed: ${why}. Retry posts only the missing ones.`);
+    };
     let plats = resolvePlats(p.platforms, m);
     // buildRec derives title from the body's first line — posting title + body
     // would print that line twice. Independent titles (e.g. design names from
@@ -648,43 +690,62 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const manual: string[] = [];
     /** per-channel remote ids for the Sent analytics view */
     const remoteIds: Record<string, string> = {};
-    const keep = (ch: string, v: unknown) => {
+    const keepAcct = (ch: string, aid: string, v: unknown) => {
       const s = Array.isArray(v) ? v.map((x) => String(x)).join(',') : String(v ?? '');
-      if (s) remoteIds[ch] = s;
+      if (!s) return;
+      // Per-account key drives resume (retry posts only missing accounts);
+      // the channel key stays comma-joined for the Sent view.
+      remoteIds[acctKey(ch, aid)] = s;
+      remoteIds[ch] = remoteIds[ch] ? `${remoteIds[ch]},${s}` : s;
     };
     const silent = !!opts?.silent;
-    // Seed from already-recorded legs: a channel with a remote id already
-    // posted — never repost it (the duplicate guard). Foreground retries and
-    // sweep passes alike skip done legs; timed-out legs park in cooldown.
-    const prevIds: Record<string, string> = {};
-    for (const [k, v] of Object.entries(p.remoteIds ?? {})) if (v) prevIds[k] = String(v);
     for (const ch of plats) {
-      if (prevIds[ch] && ch !== 'any') {
-        if (remoteIds[ch] === undefined) remoteIds[ch] = prevIds[ch];
+      if (ch !== 'any' && isDone(ch)) {
+        if (remoteIds[ch] === undefined && prevIds[ch]) remoteIds[ch] = prevIds[ch];
+        for (const [k, v] of Object.entries(prevIds)) {
+          if (k.startsWith(`${ch}:`) && remoteIds[k] === undefined) remoteIds[k] = v;
+        }
         const l = labelFor(ch);
         if (!done.includes(l)) done.push(l);
       }
     }
     const honorCooldown = silent; // foreground taps always attempt now
     let pending = plats.filter((ch) => {
-      if (ch === 'any' || !prevIds[ch]) {
-        if (ch !== 'any' && honorCooldown && (p.retryAfter?.[ch] ?? 0) > Date.now()) return false;
-        return true;
-      }
-      return false;
+      if (ch === 'any') return true;
+      if (isDone(ch)) return false;
+      if (honorCooldown && (p.retryAfter?.[ch] ?? 0) > Date.now()) return false;
+      return true;
     });
+    /** Persist ids landed so far for a channel WITHOUT touching its error
+     *  note or cooldown (partial multi-account success: the retry must skip
+     *  posted accounts but still see the failure). Never throws. */
+    const persistPartialLeg = async (ch: string): Promise<void> => {
+      const ids = remoteIds[ch];
+      if (!ids) return;
+      try {
+        await mergePost(p.id, (f) => {
+          const per: Record<string, string> = {};
+          for (const [k, v] of Object.entries(remoteIds)) {
+            if (k === ch || k.startsWith(`${ch}:`)) per[k] = v;
+          }
+          return { ...f, remoteIds: { ...(f.remoteIds ?? {}), ...per } };
+        });
+        bump();
+      } catch {}
+    };
     /** A leg landed (possibly late, after its run timed out): record it now so
      *  the row heals instead of reposting. Never throws. */
     const recordLegDone = async (ch: string): Promise<void> => {
       const ids = remoteIds[ch];
       if (!ids) return;
       try {
+        await persistPartialLeg(ch);
         await mergePost(p.id, (f) => {
           const ce = { ...(f.channelErr ?? {}) };
           delete ce[ch];
           const ra = { ...(f.retryAfter ?? {}) };
           delete ra[ch];
-          return { ...f, remoteIds: { ...(f.remoteIds ?? {}), [ch]: ids }, channelErr: ce, retryAfter: ra };
+          return { ...f, channelErr: ce, retryAfter: ra };
         });
         bump();
       } catch {}
@@ -776,186 +837,229 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         try {
           const type = (p.platformTypes?.[ch as ChannelKey] as string | undefined) ?? defaultPlatformType(ch as ChannelKey, atts);
           if (ch === 'facebook') {
-            const fb = acctFields('facebook');
-            const fbPageId = fb.pageId as string | undefined;
-            const fbPageToken = fb.pageToken as string | undefined;
-            if (!fbPageId || !fbPageToken) throw new Error('Facebook not connected');
-            if (type === 'story') {
-              keep(ch, await publishFacebookStory({ pageId: fbPageId, pageToken: fbPageToken, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
-            } else if (type === 'reel') {
-              keep(ch, await publishFacebookReel({ pageId: fbPageId, pageToken: fbPageToken, message: caption, videoUri: p.videoUri, attachments: atts }));
-            } else {
-              keep(ch, await publishFacebook({ pageId: fbPageId, pageToken: fbPageToken, message: caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
-            }
+            const fbAccts = accountsFor('facebook');
+            if (fbAccts.length === 0) throw new Error('Facebook not connected');
+            const fbRes = await Promise.allSettled(fbAccts.map(async (fbAcct) => {
+              const fbPageId = fbAcct.fields.pageId as string | undefined;
+              const fbPageToken = fbAcct.fields.pageToken as string | undefined;
+              if (!fbPageId || !fbPageToken) throw new Error('Facebook not connected');
+              if (type === 'story') {
+                keepAcct(ch, fbAcct.id, await publishFacebookStory({ pageId: fbPageId, pageToken: fbPageToken, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
+              } else if (type === 'reel') {
+                keepAcct(ch, fbAcct.id, await publishFacebookReel({ pageId: fbPageId, pageToken: fbPageToken, message: caption, videoUri: p.videoUri, attachments: atts }));
+              } else {
+                keepAcct(ch, fbAcct.id, await publishFacebook({ pageId: fbPageId, pageToken: fbPageToken, message: caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
+              }
+            }));
+            throwIfPartial(ch, 'Facebook', fbAccts, fbRes);
             done.push('Facebook');
           } else if (ch === 'instagram') {
-            const ig = acctFields('instagram');
-            const igId = ig.igId as string | undefined;
-            const igToken = ig.igToken as string | undefined;
-            if (!igId || !igToken) throw new Error('Instagram not connected');
-            if (type === 'story') {
-              keep(ch, await publishInstagramStory({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
-            } else if (type === 'reel' && !atts.some((a) => a.kind === 'video')) {
-              throw new Error('Instagram Reels need a video.');
-            } else {
-              keep(ch, await publishInstagram({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
-            }
+            const igAccts = accountsFor('instagram');
+            if (igAccts.length === 0) throw new Error('Instagram not connected');
+            const igRes = await Promise.allSettled(igAccts.map(async (igAcct) => {
+              const igId = igAcct.fields.igId as string | undefined;
+              const igToken = igAcct.fields.igToken as string | undefined;
+              if (!igId || !igToken) throw new Error('Instagram not connected');
+              if (type === 'story') {
+                keepAcct(ch, igAcct.id, await publishInstagramStory({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
+              } else if (type === 'reel' && !atts.some((a) => a.kind === 'video')) {
+                throw new Error('Instagram Reels need a video.');
+              } else {
+                keepAcct(ch, igAcct.id, await publishInstagram({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
+              }
+            }));
+            throwIfPartial(ch, 'Instagram', igAccts, igRes);
             done.push('Instagram');
           } else if (ch === 'threads') {
             // Narrow into consts — TS drops property narrowing inside callbacks.
-            const th = acctFields('threads');
-            const thId = th.threadsId as string | undefined;
-            const thToken = th.threadsToken as string | undefined;
-            if (!thId || !thToken) throw new Error('Threads not connected');
-            if (type === 'ghost') {
-              // real ghost post: text-only container flagged to auto-archive in 24h
-              keep(ch, await publishThreads({ threadsId: thId, token: thToken, text: caption, ghost: true, topicTag: p.threadsTopic }));
-            } else {
-              keep(ch, chain
-                ? await publishChain<string>(chain, (seg, parent) => {
-                    // Chain legs use segment attachments only — the shared strip is
-                    // hidden in thread mode, so shared media must not leak in
-                    // invisibly. Non-chain legs below still use it.
-                    // Threads accepts a single attachment per post — take the first.
-                    const med = (seg.media ?? []).slice(0, 1).map((mm) => ({ uri: mm.uri, kind: mm.kind }));
-                    return publishThreads({
-                      threadsId: thId, token: thToken, text: seg.text,
-                      attachments: med,
-                      topicTag: p.threadsTopic,
-                      mirrorClientId: undefined,
-                      replyToId: parent ?? undefined,
-                    });
-                  }, (id) => id)
-                : await publishThreads({ threadsId: thId, token: thToken, text: caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, topicTag: p.threadsTopic, mirrorClientId: p.id }));
-            }
+            const thAccts = accountsFor('threads');
+            if (thAccts.length === 0) throw new Error('Threads not connected');
+            const thRes = await Promise.allSettled(thAccts.map(async (thAcct) => {
+              const thId = thAcct.fields.threadsId as string | undefined;
+              const thToken = thAcct.fields.threadsToken as string | undefined;
+              if (!thId || !thToken) throw new Error('Threads not connected');
+              if (type === 'ghost') {
+                // real ghost post: text-only container flagged to auto-archive in 24h
+                keepAcct(ch, thAcct.id, await publishThreads({ threadsId: thId, token: thToken, text: caption, ghost: true, topicTag: p.threadsTopic }));
+              } else {
+                keepAcct(ch, thAcct.id, chain
+                  ? await publishChain<string>(chain, (seg, parent) => {
+                      // Chain legs use segment attachments only — the shared strip is
+                      // hidden in thread mode, so shared media must not leak in
+                      // invisibly. Non-chain legs below still use it.
+                      // Threads accepts a single attachment per post — take the first.
+                      const med = (seg.media ?? []).slice(0, 1).map((mm) => ({ uri: mm.uri, kind: mm.kind }));
+                      return publishThreads({
+                        threadsId: thId, token: thToken, text: seg.text,
+                        attachments: med,
+                        topicTag: p.threadsTopic,
+                        mirrorClientId: undefined,
+                        replyToId: parent ?? undefined,
+                      });
+                    }, (id) => id)
+                  : await publishThreads({ threadsId: thId, token: thToken, text: caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, topicTag: p.threadsTopic, mirrorClientId: p.id }));
+              }
+            }));
+            throwIfPartial(ch, 'Threads', thAccts, thRes);
             done.push('Threads');
           } else if (ch === 'tiktok') {
-            const tt = acctFields('tiktok');
-            const ttAcct = accountFor('tiktok');
-            if (!tt.ttRefreshToken && !tt.ttAccessToken) throw new Error('TikTok not connected');
-            if (firstVideo && atts.some((a) => a.kind === 'image')) {
-              throw new Error('TikTok can’t mix photos and video — send one or the other (a Live Photo counts as a photo).');
-            }
-            const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.tiktok.images);
-            if (type === 'photo' || !firstVideo) {
-              // photo carousel — TikTok pulls from public URLs
-              if (!imgs.length) throw new Error(type === 'photo' ? 'Attach at least one photo for a TikTok photo post.' : 'TikTok needs a photo or video');
-              const urls: string[] = [];
-              for (const img of imgs) {
-                urls.push(img.uri.startsWith('http') ? img.uri : await uploadTikTokPhoto(img.uri));
+            const ttAccts = accountsFor('tiktok');
+            if (ttAccts.length === 0) throw new Error('TikTok not connected');
+            const ttSaved: string[] = [];
+            const ttRes = await Promise.allSettled(ttAccts.map(async (ttAcct) => {
+              const tt = ttAcct.fields;
+              if (!tt.ttRefreshToken && !tt.ttAccessToken) throw new Error('TikTok not connected');
+              if (firstVideo && atts.some((a) => a.kind === 'image')) {
+                throw new Error('TikTok can’t mix photos and video — send one or the other (a Live Photo counts as a photo).');
               }
-              keep(ch, await publishTikTokPhotos({
-                title: caption || 'Sosial post',
-                privacyLevel: ttPrivacy as string,
-                imageUrls: urls,
-                accountId: ttAcct?.id,
-              }));
-            } else {
-              keep(ch, await publishTikTokVideo({
-                title: caption.slice(0, 150) || 'Sosial post',
-                privacyLevel: ttPrivacy as string,
-                videoUri: firstVideo.uri,
-                accountId: ttAcct?.id,
-              }));
-            }
-            done.push('TikTok');
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.tiktok.images);
+              if (type === 'photo' || !firstVideo) {
+                // photo carousel — TikTok pulls from public URLs
+                if (!imgs.length) throw new Error(type === 'photo' ? 'Attach at least one photo for a TikTok photo post.' : 'TikTok needs a photo or video');
+                const urls: string[] = [];
+                for (const img of imgs) {
+                  urls.push(img.uri.startsWith('http') ? img.uri : await uploadTikTokPhoto(img.uri));
+                }
+                keepAcct(ch, ttAcct.id, await publishTikTokPhotos({
+                  title: caption || 'Sosial post',
+                  privacyLevel: ttPrivacy as string,
+                  imageUrls: urls,
+                  accountId: ttAcct.id,
+                }));
+              } else {
+                keepAcct(ch, ttAcct.id, await publishTikTokVideo({
+                  title: caption.slice(0, 150) || 'Sosial post',
+                  privacyLevel: ttPrivacy as string,
+                  videoUri: firstVideo.uri,
+                  accountId: ttAcct.id,
+                }));
+              }
+              ttSaved.push(ttAcct.id);
+            }));
             // remember the audience that actually published — an unaudited app
             // can only post SELF_ONLY, and re-defaulting to Public would fail
-            // every future post the same way
-            if (ttPrivacy) saveProviderFields('tiktok', { ttLastPrivacy: ttPrivacy }, ttAcct?.id);
+            // every future post the same way. Sequential: the store is
+            // read-modify-write, so concurrent saves would clobber each other.
+            if (ttPrivacy) for (const aid of ttSaved) await saveProviderFields('tiktok', { ttLastPrivacy: ttPrivacy }, aid);
+            throwIfPartial(ch, 'TikTok', ttAccts, ttRes);
+            done.push('TikTok');
           } else if (ch === 'x') {
-            const xf = acctFields('x');
-            const xAcct = accountFor('x');
-            if (!xf.xUserId || (!xf.xAccessToken && !xf.xRefreshToken)) throw new Error('X not connected');
-            if (firstVideo && atts.some((a) => a.kind === 'image')) {
-              throw new Error('X can’t mix photos and video — send one or the other.');
-            }
-            const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.x.images);
-            const imgUris = imgs.map((a) => a.uri);
-            keep(ch, chain
-              ? await publishChain<string>(chain, (seg, parent) => {
-                  const med = (seg.media ?? []).slice(0, THREAD_MEDIA_MAX);
-                  const vid = med.find((mm) => mm.kind === 'video');
-                  return publishX({
-                    text: seg.text,
-                    imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
-                    videoUri: vid?.uri,
-                    replyTo: parent ?? undefined,
-                    accountId: xAcct?.id,
-                  });
-                }, (id) => id)
-              : await publishX({ text: caption, imageUris: imgUris, videoUri: firstVideo?.uri, accountId: xAcct?.id }));
+            const xAccts = accountsFor('x');
+            if (xAccts.length === 0) throw new Error('X not connected');
+            const xRes = await Promise.allSettled(xAccts.map(async (xAcct) => {
+              const xf = xAcct.fields;
+              if (!xf.xUserId || (!xf.xAccessToken && !xf.xRefreshToken)) throw new Error('X not connected');
+              if (firstVideo && atts.some((a) => a.kind === 'image')) {
+                throw new Error('X can’t mix photos and video — send one or the other.');
+              }
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.x.images);
+              const imgUris = imgs.map((a) => a.uri);
+              keepAcct(ch, xAcct.id, chain
+                ? await publishChain<string>(chain, (seg, parent) => {
+                    const med = (seg.media ?? []).slice(0, THREAD_MEDIA_MAX);
+                    const vid = med.find((mm) => mm.kind === 'video');
+                    return publishX({
+                      text: seg.text,
+                      imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
+                      videoUri: vid?.uri,
+                      replyTo: parent ?? undefined,
+                      accountId: xAcct.id,
+                    });
+                  }, (id) => id)
+                : await publishX({ text: caption, imageUris: imgUris, videoUri: firstVideo?.uri, accountId: xAcct.id }));
+            }));
+            throwIfPartial(ch, 'X', xAccts, xRes);
             done.push('X');
           } else if (ch === 'bluesky') {
-            const bs = acctFields('bluesky');
-            const bsAcct = accountFor('bluesky');
-            if (!bs.bskyDid || (!bs.bskyAccessJwt && !bs.bskyRefreshJwt)) throw new Error('Bluesky not connected');
-            if (firstVideo && atts.some((a) => a.kind === 'image')) {
-              throw new Error('Bluesky can’t mix photos and video — send one or the other.');
-            }
-            const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.bluesky.images);
-            const bsImgUris = imgs.map((a) => a.uri);
-            let rootRef: BskyRef | null = null;
-            keep(ch, chain
-              ? await publishChain<BskyRef>(chain, async (seg, parent) => {
-                  const med = (seg.media ?? []).slice(0, THREAD_MEDIA_MAX);
-                  const vid = med.find((mm) => mm.kind === 'video');
-                  const ref = await publishBsky({
-                    text: seg.text,
-                    imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
-                    videoUri: vid?.uri,
-                    // every reply points at the head as root, the one above as parent
-                    replyTo: parent && rootRef ? { root: rootRef, parent } : undefined,
-                    accountId: bsAcct?.id,
-                  });
-                  if (!rootRef) rootRef = ref;
-                  return ref;
-                }, (r) => r.uri)
-              : (await publishBsky({ text: caption, imageUris: bsImgUris, videoUri: firstVideo?.uri, accountId: bsAcct?.id })).uri);
+            const bsAccts = accountsFor('bluesky');
+            if (bsAccts.length === 0) throw new Error('Bluesky not connected');
+            const bsRes = await Promise.allSettled(bsAccts.map(async (bsAcct) => {
+              const bs = bsAcct.fields;
+              if (!bs.bskyDid || (!bs.bskyAccessJwt && !bs.bskyRefreshJwt)) throw new Error('Bluesky not connected');
+              if (firstVideo && atts.some((a) => a.kind === 'image')) {
+                throw new Error('Bluesky can’t mix photos and video — send one or the other.');
+              }
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.bluesky.images);
+              const bsImgUris = imgs.map((a) => a.uri);
+              let rootRef: BskyRef | null = null;
+              keepAcct(ch, bsAcct.id, chain
+                ? await publishChain<BskyRef>(chain, async (seg, parent) => {
+                    const med = (seg.media ?? []).slice(0, THREAD_MEDIA_MAX);
+                    const vid = med.find((mm) => mm.kind === 'video');
+                    const ref = await publishBsky({
+                      text: seg.text,
+                      imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
+                      videoUri: vid?.uri,
+                      // every reply points at the head as root, the one above as parent
+                      replyTo: parent && rootRef ? { root: rootRef, parent } : undefined,
+                      accountId: bsAcct.id,
+                    });
+                    if (!rootRef) rootRef = ref;
+                    return ref;
+                  }, (r) => r.uri)
+                : (await publishBsky({ text: caption, imageUris: bsImgUris, videoUri: firstVideo?.uri, accountId: bsAcct.id })).uri);
+            }));
+            throwIfPartial(ch, 'Bluesky', bsAccts, bsRes);
             done.push('Bluesky');
           } else if (ch === 'mastodon') {
-            const ma = acctFields('mastodon');
-            const maAcct = accountFor('mastodon');
-            if (!ma.mastodonAccessToken || !ma.mastodonInstance) throw new Error('Mastodon not connected');
-            // Mastodon takes either a single video or up to 4 images — never both
-            const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.mastodon.images);
-            const mImgUris = imgs.map((a) => a.uri);
-            keep(ch, chain
-              ? await publishChain<string>(chain, (seg, parent) => {
-                  const med = (seg.media ?? []).slice(0, THREAD_MEDIA_MAX);
-                  const vid = med.find((mm) => mm.kind === 'video');
-                  return publishMastodon({
-                    text: seg.text,
-                    imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
-                    videoUri: vid?.uri,
-                    replyToId: parent ?? undefined,
-                    accountId: maAcct?.id,
-                  });
-                }, (id) => id)
-              : await publishMastodon({ text: caption, imageUris: mImgUris, videoUri: firstVideo?.uri, accountId: maAcct?.id }));
+            const maAccts = accountsFor('mastodon');
+            if (maAccts.length === 0) throw new Error('Mastodon not connected');
+            const maRes = await Promise.allSettled(maAccts.map(async (maAcct) => {
+              const ma = maAcct.fields;
+              if (!ma.mastodonAccessToken || !ma.mastodonInstance) throw new Error('Mastodon not connected');
+              // Mastodon takes either a single video or up to 4 images — never both
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.mastodon.images);
+              const mImgUris = imgs.map((a) => a.uri);
+              keepAcct(ch, maAcct.id, chain
+                ? await publishChain<string>(chain, (seg, parent) => {
+                    const med = (seg.media ?? []).slice(0, THREAD_MEDIA_MAX);
+                    const vid = med.find((mm) => mm.kind === 'video');
+                    return publishMastodon({
+                      text: seg.text,
+                      imageUris: vid ? [] : med.filter((mm) => mm.kind === 'image').map((mm) => mm.uri),
+                      videoUri: vid?.uri,
+                      replyToId: parent ?? undefined,
+                      accountId: maAcct.id,
+                    });
+                  }, (id) => id)
+                : await publishMastodon({ text: caption, imageUris: mImgUris, videoUri: firstVideo?.uri, accountId: maAcct.id }));
+            }));
+            throwIfPartial(ch, 'Mastodon', maAccts, maRes);
             done.push('Mastodon');
           } else if (ch === 'pinterest') {
-            const pi = acctFields('pinterest');
-            const piAcct = accountFor('pinterest');
-            if (!pi.pinAccessToken) throw new Error('Pinterest not connected');
-            // One Pin per image on the default board, plus a video Pin when attached
-            const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.pinterest.images);
-            keep(ch, await publishPinterest({ text: caption, imageUris: imgs.map((a) => a.uri), videoUri: firstVideo?.uri, accountId: piAcct?.id }));
+            const piAccts = accountsFor('pinterest');
+            if (piAccts.length === 0) throw new Error('Pinterest not connected');
+            const piRes = await Promise.allSettled(piAccts.map(async (piAcct) => {
+              const pi = piAcct.fields;
+              if (!pi.pinAccessToken) throw new Error('Pinterest not connected');
+              // One Pin per image on the default board, plus a video Pin when attached
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.pinterest.images);
+              keepAcct(ch, piAcct.id, await publishPinterest({ text: caption, imageUris: imgs.map((a) => a.uri), videoUri: firstVideo?.uri, accountId: piAcct.id }));
+            }));
+            throwIfPartial(ch, 'Pinterest', piAccts, piRes);
             done.push('Pinterest');
           } else if (ch === 'linkedin') {
-            const li = acctFields('linkedin');
-            const liAcct = accountFor('linkedin');
-            if (!li.liPersonUrn) throw new Error('LinkedIn not connected');
-            // Text and/or up to 9 photos as a member post
-            const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.linkedin.images);
-            keep(ch, await publishLinkedIn({ text: caption, imageUris: imgs.map((a) => a.uri), accountId: liAcct?.id }));
+            const liAccts = accountsFor('linkedin');
+            if (liAccts.length === 0) throw new Error('LinkedIn not connected');
+            const liRes = await Promise.allSettled(liAccts.map(async (liAcct) => {
+              const li = liAcct.fields;
+              if (!li.liPersonUrn) throw new Error('LinkedIn not connected');
+              // Text and/or up to 9 photos as a member post
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.linkedin.images);
+              keepAcct(ch, liAcct.id, await publishLinkedIn({ text: caption, imageUris: imgs.map((a) => a.uri), accountId: liAcct.id }));
+            }));
+            throwIfPartial(ch, 'LinkedIn', liAccts, liRes);
             done.push('LinkedIn');
           } else if (ch === 'youtube') {
-            const yt = acctFields('youtube');
-            const ytAcct = accountFor('youtube');
-            if (!yt.ytRefreshToken && !yt.ytAccessToken) throw new Error('YouTube not connected');
-            // Video-only — photos/text alone throw a clear error
-            keep(ch, await publishYouTube({ text: caption, videoUri: firstVideo?.uri, kind: (type as 'video' | 'short' | undefined) ?? 'video', privacy: (p.ytPrivacy as 'public' | 'unlisted' | 'private' | undefined) ?? 'public', accountId: ytAcct?.id }));
+            const ytAccts = accountsFor('youtube');
+            if (ytAccts.length === 0) throw new Error('YouTube not connected');
+            const ytRes = await Promise.allSettled(ytAccts.map(async (ytAcct) => {
+              const yt = ytAcct.fields;
+              if (!yt.ytRefreshToken && !yt.ytAccessToken) throw new Error('YouTube not connected');
+              // Video-only — photos/text alone throw a clear error
+              keepAcct(ch, ytAcct.id, await publishYouTube({ text: caption, videoUri: firstVideo?.uri, kind: (type as 'video' | 'short' | undefined) ?? 'video', privacy: (p.ytPrivacy as 'public' | 'unlisted' | 'private' | undefined) ?? 'public', accountId: ytAcct.id }));
+            }));
+            throwIfPartial(ch, 'YouTube', ytAccts, ytRes);
             done.push('YouTube');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
@@ -967,7 +1071,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         } catch (e: any) {
           const note = e?.message ?? 'failed';
           errs.push(`${labelFor(ch)}: ${note}`);
-          void noteLegErr(ch, note);
+          // Persist first: any accounts that DID land must not repost on
+          // retry. Awaited with the error note so the sent verdict (which
+          // reads both) never sees a stale combination.
+          await persistPartialLeg(ch);
+          await noteLegErr(ch, note);
           setRow(ch, { state: 'fail', note });
         }
         })(),
@@ -993,7 +1101,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }).catch(() => false);
         if (!landed) {
           errs.push(`${labelFor(ch)}: ${note}`);
-          void noteLegErr(ch, note);
+          await persistPartialLeg(ch);
+          await noteLegErr(ch, note);
           setRow(ch, { state: 'fail', note });
         } else {
           setRow(ch, { state: 'done' });
@@ -1029,7 +1138,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const mergedIds = { ...(fresh.remoteIds ?? {}), ...run.remoteIds };
     const real = resolved.filter((c) => c !== 'any');
     const flippable = (fresh.status ?? 'queued') === 'queued' || fresh.status === 'approval';
-    const sent = flippable && real.length > 0 && real.every((c) => !!mergedIds[c]);
+    // A channel counts as sent only with a remote id AND no outstanding error —
+    // a partially-posted multi-account channel keeps its error note so the
+    // retry finishes the missing accounts instead of flipping sent early.
+    const storedErr = fresh.channelErr ?? {};
+    const sent = flippable && real.length > 0 && real.every((c) => !!mergedIds[c] && !storedErr[c]);
     const next: ManagedPost = {
       ...fresh,
       remoteIds: mergedIds,

@@ -73,6 +73,52 @@ export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { p
   );
 }
 
+/** Overlapping profile pictures for a channel's selected accounts (+n overflow).
+ *  Pass avatar urls in order; falls back to brand tiles where missing. */
+export function AccountStack({ platform, avatars, size = 22, max = 3, ring }: { platform: string; avatars: (string | undefined)[]; size?: number; max?: number; ring?: string }) {
+  const { C } = useTheme();
+  if (avatars.length === 0) return null;
+  const ringColor = ring ?? C.card;
+  const shown = avatars.slice(0, max);
+  const extra = avatars.length - shown.length;
+  const r = Math.round(size * 0.32);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {shown.map((av, i) => (
+        <View
+          key={i}
+          style={{
+            marginLeft: i === 0 ? 0 : -Math.round(size * 0.38),
+            borderWidth: 2,
+            borderColor: ringColor,
+            borderRadius: r + 2,
+            backgroundColor: ringColor,
+          }}
+        >
+          <ChannelAvatar platform={platform} avatar={av} size={size} badge={false} />
+        </View>
+      ))}
+      {extra > 0 ? (
+        <View
+          style={{
+            marginLeft: -Math.round(size * 0.38),
+            width: size + 4,
+            height: size + 4,
+            borderRadius: r + 2,
+            borderWidth: 2,
+            borderColor: ringColor,
+            backgroundColor: C.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: Math.max(9, Math.round(size * 0.4)), color: C.soft }}>+{extra}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** Numbered editorial section header — "01 · Photo" */
 export function Section({ no, title, hint }: { no: string; title: string; hint?: string }) {
   const { C } = useTheme();

@@ -208,3 +208,9 @@ export function findAccountForProvider(
 ): ConnectedAccount | undefined {
   return accounts.find((a) => a.provider === provider);
 }
+
+/** Normalize a stored per-channel pick to a list (legacy single id → one item). */
+export function asIdList(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string');
+  return typeof v === 'string' ? [v] : [];
+}
