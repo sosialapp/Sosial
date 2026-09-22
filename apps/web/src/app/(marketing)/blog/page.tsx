@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BLOG_TAGS, allArticles, articlesByTag } from '@/content/blog';
+import { BLOG_TAGS, allArticles, articlesByTag } from '@/lib/blog';
 import { formatPostDate, type Category } from '@/content/types';
+
+/** ISR so publishes go live without a rebuild. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -21,7 +24,7 @@ export default async function BlogIndex({
 }) {
   const { tag } = await searchParams;
   const active = isTag(tag) ? tag : undefined;
-  const posts = active ? articlesByTag(active) : allArticles();
+  const posts = active ? await articlesByTag(active) : await allArticles();
 
   return (
     <>

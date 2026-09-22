@@ -8,6 +8,9 @@ export type Block =
 
 export type Category = 'Publishing' | 'Strategy' | 'AI' | 'Teams' | 'Growth' | 'Product';
 
+/** Blog tag filter options (client-safe — no server imports). */
+export const BLOG_TAGS = ['Publishing', 'Strategy', 'AI', 'Teams', 'Growth', 'Product'] as const;
+
 export interface Article {
   slug: string;
   title: string;

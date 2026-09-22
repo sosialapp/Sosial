@@ -39,6 +39,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             Reports
           </Link>
           <Link
+            href="/admin/blog"
+            className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone"
+          >
+            Blog
+          </Link>
+          <Link
             href="/dashboard"
             className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone"
           >

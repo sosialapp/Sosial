@@ -16,10 +16,6 @@ const PLANNED = [
     title: 'Marketing email',
     desc: 'Campaigns via an ESP (needs Resend/Postmark + domain DNS).',
   },
-  {
-    title: 'Blog',
-    desc: 'Write and publish posts (needs DB-backed CMS over @/content/blog).',
-  },
 ];
 
 /** Owner overview: live counts today, roadmap cards for the rest. */
@@ -49,6 +45,18 @@ export default async function AdminOverview() {
           <p className="mt-1 text-sm font-bold">Sales</p>
           <p className="mt-0.5 text-xs text-muted">No payment provider connected yet</p>
         </div>
+      </div>
+
+      <div className="mt-3">
+        <Link
+          href="/admin/blog"
+          className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
+        >
+          <p className="text-sm font-bold">Blog →</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Write, edit and publish posts. Live on /blog within minutes.
+          </p>
+        </Link>
       </div>
 
       <h2 className="mt-8 font-display text-lg font-extrabold">Roadmap</h2>

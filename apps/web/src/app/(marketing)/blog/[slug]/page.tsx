@@ -2,11 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Prose from '@/components/site/Prose';
-import { allArticles, article, relatedArticles } from '@/content/blog';
+import { allArticles, article, relatedArticles } from '@/lib/blog';
 import { formatPostDate } from '@/content/types';
 
-export function generateStaticParams() {
-  return allArticles().map((a) => ({ slug: a.slug }));
+/** ISR so publishes go live without a rebuild (new slugs render on demand). */
+export const revalidate = 300;
+
+export async function generateStaticParams() {
+  return (await allArticles()).map((a) => ({ slug: a.slug }));
 }
 
 export async function generateMetadata({
@@ -15,7 +18,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = article(slug);
+  const post = await article(slug);
   if (!post) return { title: 'Article not found' };
   return {
     title: post.title,
@@ -27,10 +30,10 @@ export async function generateMetadata({
 
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = article(slug);
+  const post = await article(slug);
   if (!post) notFound();
 
-  const related = relatedArticles(slug);
+  const related = await relatedArticles(slug);
 
   return (
     <>

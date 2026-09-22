@@ -8,7 +8,7 @@ import { ApprovalPreview, ComposerPreview } from '@/components/landing/Preview';
 import Hero from '@/components/landing/Hero';
 import { AiWriter, Faq, Pricing } from '@/components/landing/Sections';
 import { CHANNEL_GUIDES } from '@/content/channels';
-import { allArticles } from '@/content/blog';
+import { allArticles } from '@/lib/blog';
 import { RESOURCES } from '@/content/resources';
 import { formatPostDate, resourceHref } from '@/content/types';
 
@@ -192,8 +192,8 @@ function IntegrationsTeaser() {
   );
 }
 
-function FromTheBlog() {
-  const posts = allArticles().slice(0, 3);
+async function FromTheBlog() {
+  const posts = (await allArticles()).slice(0, 3);
   return (
     <Shell id="blog" band>
       <div className="flex flex-wrap items-end justify-between gap-4">

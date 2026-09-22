@@ -1,11 +1,11 @@
 import type { MetadataRoute } from 'next';
-import { allArticles } from '@/content/blog';
+import { allArticles } from '@/lib/blog';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { allResources } from '@/content/resources';
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -23,7 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
-  const posts: MetadataRoute.Sitemap = allArticles().map((a) => ({
+  const posts: MetadataRoute.Sitemap = (await allArticles()).map((a) => ({
     url: `${BASE}/blog/${a.slug}`,
     lastModified: new Date(`${a.date}T00:00:00Z`),
     changeFrequency: 'monthly',
