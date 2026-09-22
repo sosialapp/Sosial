@@ -25,10 +25,16 @@ const STROKE = {
 
 const ITEMS: DockItem[] = [
   {
-    href: '/calendar',
+    href: '/dashboard',
     label: 'Dashboard',
     color: 'text-[#1d7fe0] dark:text-[#3ee0ff]',
-    match: (p) => p === '/calendar' || p === '/queue' || p.startsWith('/calendar/') || p.startsWith('/queue/'),
+    match: (p) =>
+      p === '/dashboard' ||
+      p === '/calendar' ||
+      p === '/queue' ||
+      p.startsWith('/dashboard/') ||
+      p.startsWith('/calendar/') ||
+      p.startsWith('/queue/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
         <rect x="3" y="3" width="6" height="6" rx="1.8" />

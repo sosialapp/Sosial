@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
   }
   if (user && path === '/login') {
     const redirect = request.nextUrl.clone();
-    redirect.pathname = '/calendar';
+    redirect.pathname = '/dashboard';
     return NextResponse.redirect(redirect);
   }
   return response;
