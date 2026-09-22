@@ -59,7 +59,7 @@ export function CalendarPreview() {
     <div aria-hidden="true" className="overflow-hidden rounded-2xl border border-line bg-card">
       <div className="flex items-center justify-between border-b border-line bg-paper px-3 py-2.5">
         <p className="font-display text-sm font-extrabold tracking-tight">{monthLabel}</p>
-        <span className="pill bg-accent-soft text-accent-ink">{scheduled} scheduled</span>
+        <span className="pill bg-paper-dim text-ink">{scheduled} scheduled</span>
       </div>
       <div className="grid grid-cols-7 gap-px bg-line-soft">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
@@ -140,11 +140,11 @@ export function ComposerPreview() {
               </span>
               <span className="block truncate text-[11px] text-muted">{r.sub}</span>
             </span>
-            <span className="text-xs font-bold text-accent">✓</span>
+            <span className="text-xs font-bold text-ink">✓</span>
           </div>
         ))}
       </div>
-      <span className="btn btn-primary mt-3 w-full text-xs">Schedule</span>
+      <span className="btn btn-bolt mt-3 w-full text-xs">Schedule</span>
     </div>
   );
 }
@@ -154,7 +154,7 @@ export function WriterPreview() {
     <div className="card p-4" aria-hidden="true">
       <div className="flex items-center justify-between gap-2">
         <p className="font-display text-sm font-bold">Write with AI</p>
-        <span className="pill bg-accent-soft text-accent-ink">GPT-5.6 Luna</span>
+        <span className="pill bg-paper-dim text-ink">GPT-5.6 Luna</span>
       </div>
       <p className="mt-2 rounded-xl bg-bone px-3 py-2 text-xs leading-relaxed text-soft">
         why I stopped chasing viral hacks and started posting one honest update a day…
@@ -173,7 +173,7 @@ export function WriterPreview() {
         <p className="text-xs leading-relaxed text-ink">
           I wasted 2 years overthinking content. Here is the system that actually works:
         </p>
-        <p className="mt-1.5 text-xs font-semibold text-accent">#contenttips #buildinpublic</p>
+        <p className="mt-1.5 text-xs font-semibold text-ink">#contenttips #buildinpublic</p>
       </div>
       <div className="mt-2.5 flex items-center justify-between">
         <span className="pill bg-paper text-soft ring-1 ring-line">Auto · Melayu</span>
@@ -187,13 +187,13 @@ export function ApprovalPreview() {
   return (
     <div className="card p-4" aria-hidden="true">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="pill bg-accent-soft text-accent-ink">Needs approval</span>
+        <span className="pill bg-paper-dim text-ink">Needs approval</span>
         <Dots providers={['instagram', 'tiktok']} />
       </div>
       <p className="mt-2 text-sm text-ink">Launch day teaser is ready for review.</p>
       <p className="mt-1 text-xs text-muted">Sent for review by a teammate.</p>
       <div className="mt-3 flex gap-2">
-        <span className="btn btn-primary flex-1 text-xs">Approve</span>
+        <span className="btn btn-bolt flex-1 text-xs">Approve</span>
         <span className="btn btn-ghost flex-1 text-xs">Request changes</span>
       </div>
     </div>

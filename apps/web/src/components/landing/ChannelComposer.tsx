@@ -60,7 +60,7 @@ function ChannelCard({ provider, idea }: { provider: ProviderKey; idea: string }
 
       <p className="mt-3 flex-1 text-[13px] leading-relaxed text-soft">{shown}</p>
       {over ? (
-        <p className="mt-2 text-[11px] font-bold text-accent">Trimmed to fit {meta.label}</p>
+        <p className="mt-2 text-[11px] font-bold text-ink">Trimmed to fit {meta.label}</p>
       ) : (
         <p className="mt-2 text-[11px] text-faint">{HINTS[provider]}</p>
       )}
@@ -101,7 +101,7 @@ export default function ChannelComposer() {
           <div className="flex gap-3 text-[11px] font-bold">
             <button
               type="button"
-              className="text-accent hover:underline"
+              className="text-ink hover:underline"
               onClick={() => setSelected([...ALL_PROVIDERS])}
             >
               All
@@ -128,7 +128,7 @@ export default function ChannelComposer() {
                 aria-pressed={on}
                 className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
                   on
-                    ? 'border-accent bg-accent-soft text-accent-ink'
+                    ? 'border-ink bg-paper-dim text-ink'
                     : 'border-line bg-paper text-muted hover:border-faint'
                 }`}
               >
@@ -140,7 +140,7 @@ export default function ChannelComposer() {
         </div>
 
         <div className="mt-5 flex items-center gap-3">
-          <span className="btn btn-primary" aria-hidden="true">
+          <span className="btn btn-bolt" aria-hidden="true">
             Schedule {selected.length} {selected.length === 1 ? 'channel' : 'channels'}
           </span>
           <span className="text-xs text-muted">Try it — this preview is live.</span>

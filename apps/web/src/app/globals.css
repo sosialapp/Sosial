@@ -3,29 +3,35 @@
 @custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
 @theme {
-  /* Surfaces — warm paper, playful but calm. */
-  --color-ink: #191512;
-  /* No grey text: soft/muted/faint all resolve to ink in light mode.
-     (Dark-scope overrides below keep their own light values.) */
-  --color-soft: #191512;
-  --color-muted: #191512;
-  --color-faint: #191512;
-  --color-paper: #ffffff;
-  --color-bone: #f4efe4;
-  --color-surface: #e8e0cf;
-  --color-card: #fdfbf6;
-  --color-line: #e3dac5;
-  --color-line-soft: #efe8d6;
+  /* Surfaces — warm paper, lit by the bolt. */
+  --color-ink: #1C1A14;
+  --color-soft: #1C1A14;
+  --color-muted: #1C1A14;
+  --color-faint: #1C1A14;
+  --color-paper: #FBF6EA;
+  --color-bone: #FBF6EA;
+  --color-paper-dim: #F0E8D4;
+  --color-surface: #E3D9BF;
+  --color-card: #FBF6EA;
+  --color-line: #D9CDAE;
+  --color-line-soft: #E3D9BF;
 
-  /* Brand — Sosial ember. */
-  --color-accent: #c8500f;
-  --color-accent-ink: #7c2d12;
-  --color-accent-soft: #fbe4d0;
-  --color-accent-bright: #f26a1b;
+  /* Brand — Sosial bolt. */
+  --color-bolt: #FFC62E;
+  --color-bolt-deep: #F2A400;
+  --color-accent: #FFC62E;
+  --color-accent-bright: #F2A400;
+  --color-accent-ink: #1C1A14;
+  --color-accent-soft: #F0E8D4;
+
+  /* The one violet indulgence — AI moments, max one per screen. */
+  --color-dusk: #4A3FE0;
+  --color-dusk-soft: #ECEAFB;
+  --color-dusk-ink: #2A23A8;
 
   /* Dashboard dark surfaces. */
-  --color-night: #0d0d11;
-  --color-nightcard: #16161b;
+  --color-night: #141210;
+  --color-nightcard: #1C1A18;
 
   /* Playful support hues for illustrations + tags. */
   --color-berry: #d6249f;
@@ -59,21 +65,18 @@ body {
 
 html {
   scroll-behavior: smooth;
-  /* Sticky nav is 4rem tall — keep anchored sections clear of it. */
   scroll-padding-top: 5rem;
-  /* No rubber-band past the top/bottom: the end is the end. */
   overscroll-behavior: none;
-  /* Overscroll canvas paint (backup for nested scrollers). */
-  background-color: var(--color-bone);
+  background-color: var(--color-paper);
 }
 
 ::selection {
-  background: var(--color-accent);
-  color: #fff;
+  background: var(--color-bolt);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--color-bone);
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-weight: 300;
@@ -143,14 +146,13 @@ body {
   animation-play-state: paused;
 }
 
-/* Hero: faint polka-dot field, centred, faded out at the edges. Painted on a
-   pseudo-element so the mask never clips the hero copy or the logo tiles. */
+/* Hero: faint polka-dot field, centred, faded out at the edges. */
 .hero-grid::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgb(28 25 23 / 0.18) 1.5px, transparent 1.6px);
+  background-image: radial-gradient(rgb(28 26 20 / 0.14) 1.5px, transparent 1.6px);
   background-size: 26px 26px;
   background-position: center;
   mask-image: radial-gradient(ellipse 72% 64% at 50% 45%, #000 30%, transparent 100%);
@@ -184,7 +186,7 @@ body {
 
 @layer components {
   .card {
-    background: var(--color-card);
+    background: var(--color-paper-dim);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-card);
   }
@@ -212,12 +214,25 @@ body {
     cursor: not-allowed;
   }
   .btn-primary {
-    background: var(--color-accent);
-    color: #fff;
-    box-shadow: 0 10px 24px -12px rgba(200, 80, 15, 0.7);
+    background: var(--color-ink);
+    color: var(--color-paper);
   }
   .btn-primary:hover:not(:disabled) {
-    background: var(--color-accent-bright);
+    background: #2a261d;
+  }
+  .btn-bolt {
+    background: var(--color-bolt);
+    color: var(--color-ink);
+  }
+  .btn-bolt:hover:not(:disabled) {
+    background: var(--color-bolt-deep);
+  }
+  .btn-dusk {
+    background: var(--color-dusk);
+    color: #fff;
+  }
+  .btn-dusk:hover:not(:disabled) {
+    background: var(--color-dusk-ink);
   }
   .btn-ghost {
     background: transparent;
@@ -225,7 +240,7 @@ body {
     border-color: var(--color-line);
   }
   .btn-ghost:hover:not(:disabled) {
-    background: var(--color-paper);
+    background: var(--color-paper-dim);
   }
   .btn-lg {
     font-size: 1rem;
@@ -242,19 +257,22 @@ body {
     outline: none;
   }
   .field:focus {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px var(--color-accent-soft);
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 3px rgba(28, 26, 20, 0.08);
   }
   .field::placeholder {
     color: var(--color-ink);
+    opacity: 0.5;
   }
+  /* Eyebrow: small bold label, body case, no tracked-out ALL-CAPS. */
   .eyebrow {
     font-family: var(--font-display);
     font-weight: 500;
-    font-size: 0.65rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.01em;
+    text-transform: none;
     color: var(--color-muted);
+    opacity: 0.7;
   }
   .pill {
     display: inline-flex;
@@ -264,6 +282,37 @@ body {
     font-weight: 500;
     padding: 0.15rem 0.6rem;
     white-space: nowrap;
+  }
+  /* Channel pill — small chip per network, one vocabulary everywhere. */
+  .channel-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    background: var(--color-paper-dim);
+    border: 1px solid rgba(28, 26, 20, 0.1);
+    padding: 0.2rem 0.6rem 0.2rem 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-ink);
+    white-space: nowrap;
+  }
+  .channel-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  /* Image placeholder slot — empty until real assets upload. */
+  .image-slot {
+    background: var(--color-paper-dim);
+    border: 1px dashed rgba(28, 26, 20, 0.2);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(28, 26, 20, 0.35);
   }
   /* Tighter editorial measure for long-form blog copy. */
   .prose-sosial p {
@@ -298,21 +347,24 @@ body {
 .theme-dark svg[data-brand='x'] path,
 .theme-dark svg[data-brand='threads'] path {
   fill: #ffffff;
-}/* Gated on .theme-dark, which only exists inside a ThemeScope (dashboard +
+}
+/* Gated on .theme-dark, which only exists inside a ThemeScope (dashboard +
    login) — the marketing site never renders one, so it always stays light.
    Every dashboard surface is built from these tokens, so one override flips
    the whole scope — including .card/.btn/.field/.eyebrow/.pill. */
 .theme-dark {
-  --color-bone: #0d0d11;
-  --color-card: #16161b;
-  --color-paper: #1c1c22;
-  --color-surface: #26262c;
-  --color-line: #2b2b32;
-  --color-line-soft: #222228;
-  --color-ink: #f5f5f4;
-  --color-soft: #d6d3d1;
-  --color-muted: #a8a29e;
-  --color-faint: #78716c;
-  --color-accent-soft: #3a2a1c;
-  --color-accent-ink: #f0b98a;
+  --color-paper: #141210;
+  --color-paper-dim: #1C1A18;
+  --color-bone: #141210;
+  --color-card: #1C1A18;
+  --color-surface: #26241F;
+  --color-line: #2A2823;
+  --color-line-soft: #232120;
+  --color-ink: #F5F1E4;
+  --color-soft: #D6D0BE;
+  --color-muted: #A8A29E;
+  --color-faint: #78716C;
+  --color-accent-soft: #2A2620;
+  --color-accent-ink: #F0B98A;
+  --color-dusk-soft: #1F1B4A;
 }

@@ -29,7 +29,7 @@ export default function SiteFooter() {
             Every channel. One calendar. Compose once and publish across ten networks — with an AI
             writer, approvals and a queue that runs itself.
           </p>
-          <Link href="/login" className="btn btn-primary mt-5">
+          <Link href="/login" className="btn btn-bolt mt-5">
             Start scheduling free
           </Link>
           <div className="mt-5 flex flex-wrap gap-2" aria-label="Sosial on social media">

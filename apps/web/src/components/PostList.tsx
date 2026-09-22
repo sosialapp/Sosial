@@ -185,7 +185,7 @@ export default function PostList({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`pill ${meta.className}`}>{meta.label}</span>
                   {p.chain_id && (
-                    <span className="pill bg-accent-soft text-accent-ink" title="Part of a threaded chain">
+                    <span className="pill bg-paper-dim text-ink" title="Part of a threaded chain">
                       Chain · {p.chain_position + 1}
                     </span>
                   )}
@@ -208,7 +208,7 @@ export default function PostList({
                 </div>
                 <p className="mt-2 text-sm text-ink">{snippet(p)}</p>
                 {comment && (
-                  <p className="mt-1 text-xs text-accent-ink">Changes requested: “{comment}”</p>
+                  <p className="mt-1 text-xs text-ink">Changes requested: “{comment}”</p>
                 )}
                 {p.post_targets.some((t) => t.last_error) && (
                   <p className="mt-1 text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">
@@ -221,7 +221,7 @@ export default function PostList({
                 {canApprove && p.status === 'approval' && (
                   <>
                     <button
-                      className="btn btn-primary"
+                      className="btn btn-bolt"
                       type="button"
                       disabled={busy}
                       onClick={() => run(p.id, (sb) => approvePost(sb, { postId: p.id, userId }))}

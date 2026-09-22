@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { WriterPreview } from './Preview';
+import { StepMarker } from '@/components/ui';
 
 /** Shared section shell: centered max width, forgiving vertical rhythm. */
 function Shell({
@@ -45,7 +46,7 @@ export function AiWriter() {
             {points.map(([title, body]) => (
               <li key={title} className="flex items-start gap-3">
                 <span
-                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white"
+                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-dusk text-[11px] font-bold text-white"
                   aria-hidden="true"
                 >
                   ✓
@@ -126,12 +127,12 @@ export function Pricing() {
           <article
             key={p.name}
             className={`card flex flex-col p-6 ${
-              p.featured ? 'border-accent bg-paper shadow-[0_24px_60px_-30px_rgba(200,80,15,0.45)]' : ''
+              p.featured ? 'border-2 border-bolt bg-paper shadow-[0_24px_60px_-30px_rgba(255,198,46,0.45)]' : ''
             }`}
           >
             <div className="flex items-center justify-between">
               <p className="font-display text-lg font-extrabold">{p.name}</p>
-              {p.featured ? <span className="pill bg-accent text-white">Most popular</span> : null}
+              {p.featured ? <span className="pill bg-bolt text-ink">Most popular</span> : null}
             </div>
             <p className="mt-2 font-display text-5xl font-extrabold tracking-tight">{p.price}</p>
             <p className="mt-1 text-sm text-muted">{p.per}</p>
@@ -147,7 +148,7 @@ export function Pricing() {
             </ul>
             <Link
               href="/login"
-              className={`btn mt-6 w-full ${p.featured ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn mt-6 w-full ${p.featured ? 'btn-bolt' : 'btn-ghost'}`}
             >
               {p.cta}
             </Link>
@@ -178,7 +179,7 @@ export function Pricing() {
                 {row.values.map((v, i) => (
                   <td key={i} className="px-4 py-3 text-center text-soft">
                     {v === true ? (
-                      <span className="text-accent" aria-label="Included" role="img">
+                      <span className="text-ink" aria-label="Included" role="img">
                         ✓
                       </span>
                     ) : v === false ? (

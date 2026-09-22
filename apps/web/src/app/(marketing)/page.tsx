@@ -7,6 +7,7 @@ import ChannelComposer from '@/components/landing/ChannelComposer';
 import { ApprovalPreview, ComposerPreview } from '@/components/landing/Preview';
 import Hero from '@/components/landing/Hero';
 import { AiWriter, Faq, Pricing } from '@/components/landing/Sections';
+import { StepMarker } from '@/components/ui';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { allArticles } from '@/lib/blog';
 import { RESOURCES } from '@/content/resources';
@@ -119,11 +120,11 @@ function How() {
           <Tilt key={s.n} className="h-full">
             <article className="flex h-full flex-col gap-4">
               <div>{s.visual}</div>
-              <div>
-                <p className="font-display text-sm font-extrabold text-accent">{s.n}</p>
-                <h3 className="mt-1 font-display text-xl font-extrabold tracking-tight">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.body}</p>
+              <div className="flex items-center gap-2.5">
+                <StepMarker n={s.n} />
+                <h3 className="mt-0 font-display text-xl font-extrabold tracking-tight">{s.title}</h3>
               </div>
+              <p className="text-sm leading-relaxed text-muted">{s.body}</p>
             </article>
           </Tilt>
         ))}
@@ -175,7 +176,7 @@ function IntegrationsTeaser() {
       <div className="mt-9 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {CHANNEL_GUIDES.map((c) => (
           <Tilt key={c.key} className="h-full">
-            <Link href={`/integrations/${c.key}`} className="card flex h-full flex-col p-5 transition hover:border-accent">
+            <Link href={`/integrations/${c.key}`} className="card flex h-full flex-col p-5 transition hover:border-ink">
               <span className="flex items-center gap-2.5">
                 <BrandIcon provider={c.key} className="h-5 w-5 shrink-0" />
                 <span className="font-display text-lg font-extrabold tracking-tight">{c.name}</span>
@@ -209,8 +210,8 @@ async function FromTheBlog() {
       </div>
       <div className="mt-9 grid grid-cols-1 gap-4 md:grid-cols-3">
         {posts.map((a) => (
-          <Link key={a.slug} href={`/blog/${a.slug}`} className="card flex h-full flex-col p-5 transition hover:border-accent">
-            <span className="pill w-fit bg-accent-soft text-accent-ink">{a.tag}</span>
+          <Link key={a.slug} href={`/blog/${a.slug}`} className="card flex h-full flex-col p-5 transition hover:border-ink">
+            <span className="pill w-fit bg-paper-dim text-ink">{a.tag}</span>
             <h3 className="mt-3 font-display text-lg font-extrabold leading-snug tracking-tight">
               {a.title}
             </h3>
@@ -259,18 +260,18 @@ function ResourcesTeaser() {
 function FinalCta() {
   return (
     <Shell>
-      <div className="reveal rounded-3xl bg-accent px-6 py-14 text-center md:py-20">
-        <h2 className="mx-auto max-w-xl font-display text-3xl font-extrabold tracking-tight text-white md:text-5xl">
+      <div className="reveal rounded-3xl bg-ink px-6 py-14 text-center md:py-20">
+        <h2 className="mx-auto max-w-xl font-display text-3xl font-extrabold tracking-tight text-paper md:text-5xl">
           Never miss a post again.
         </h2>
-        <p className="mx-auto mt-3 max-w-md text-base text-white/85">
+        <p className="mx-auto mt-3 max-w-md text-base text-paper/80">
           One caption is all it takes to fill your week.
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5">
-          <Link href="/login" className="btn bg-white font-bold text-accent hover:bg-bone">
+          <Link href="/login" className="btn btn-bolt font-bold">
             Start scheduling free
           </Link>
-          <Link href="/integrations" className="btn border-white/40 text-white hover:bg-white/10">
+          <Link href="/integrations" className="btn border-paper/30 text-paper hover:bg-paper/10">
             See every channel
           </Link>
         </div>

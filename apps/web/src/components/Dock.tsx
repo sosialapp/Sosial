@@ -49,7 +49,7 @@ const ITEMS: DockItem[] = [
   {
     href: '/new',
     label: 'Create',
-    color: 'text-[#ef6a10] dark:text-[#ffab2e]',
+    color: 'text-[#FFC62E] dark:text-[#FFD84A]',
     match: (p) => p === '/new' || p === '/composer' || p.startsWith('/new/') || p.startsWith('/composer/'),
     icon: () => (
       <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
@@ -269,7 +269,7 @@ export default function Dock() {
                         onClick={closePlus}
                         className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-bone dark:hover:bg-white/5"
                       >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-paper-dim text-ink">
                           {o.icon}
                         </span>
                         <span className="min-w-0">

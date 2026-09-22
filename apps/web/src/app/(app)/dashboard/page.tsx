@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import { ChannelStack } from '@/components/ui';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
+import type { ProviderKey } from '@/lib/types';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -34,11 +36,10 @@ const todayLabel = (): string =>
 
 function Stat({ label, value, href }: { label: string; value: string | number; href: string }) {
   return (
-    <Link href={href} className="card group p-4 transition hover:border-accent sm:p-5">
+    <Link href={href} className="card group p-4 transition hover:border-ink sm:p-5">
       <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{value}</p>
-      <p className="mt-1 flex items-center justify-between text-xs text-muted">
+      <p className="mt-1 text-xs text-muted">
         {label}
-        <span aria-hidden="true" className="transition group-hover:translate-x-0.5 group-hover:text-accent">→</span>
       </p>
     </Link>
   );
@@ -82,7 +83,7 @@ export default async function DashboardPage() {
             {greeting()}, {ctx.workspace.name}
           </h1>
         </div>
-        <Link href="/new" className="btn btn-primary">
+        <Link href="/new" className="btn btn-bolt">
           + New post
         </Link>
       </div>
@@ -99,15 +100,15 @@ export default async function DashboardPage() {
         <section className="card p-5 lg:col-span-2 lg:row-span-2" aria-label="Up next">
           <div className="flex items-center justify-between">
             <p className="eyebrow">Up next</p>
-            <Link href="/calendar" className="text-xs font-bold text-accent hover:underline">
-              Full calendar →
+            <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
+              Full calendar
             </Link>
           </div>
           {upcoming.length === 0 ? (
             <div className="flex h-40 flex-col items-center justify-center gap-2 text-center">
               <p className="font-display text-base font-extrabold">Nothing scheduled</p>
               <p className="max-w-xs text-sm text-muted">Queue something and it will show up here first.</p>
-              <Link href="/new" className="btn btn-primary mt-2">
+              <Link href="/new" className="btn btn-bolt mt-2">
                 Compose
               </Link>
             </div>
@@ -123,19 +124,7 @@ export default async function DashboardPage() {
                       <p className="mt-0.5 text-xs text-muted">{fmtWhen(p.scheduled_at)}</p>
                     </div>
                     <div className="flex shrink-0 items-center" aria-label="Channels">
-                      {providers.slice(0, 4).map((pv, i) => (
-                        <span
-                          key={pv}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-paper"
-                          style={{ marginLeft: i === 0 ? 0 : -8 }}
-                          title={providerMeta(pv).label}
-                        >
-                          <BrandIcon provider={pv} className="h-3.5 w-3.5" />
-                        </span>
-                      ))}
-                      {providers.length > 4 ? (
-                        <span className="ml-1 text-xs font-bold text-muted">+{providers.length - 4}</span>
-                      ) : null}
+                      <ChannelStack providers={providers as ProviderKey[]} />
                     </div>
                     <span className={`pill shrink-0 ${st.className}`}>{st.label}</span>
                   </li>
@@ -161,7 +150,7 @@ export default async function DashboardPage() {
             <ul className="mt-3 space-y-2 text-sm">
               {failed.slice(0, 2).map((p) => (
                 <li key={p.id}>
-                  <Link href="/queue" className="block truncate font-bold hover:text-accent">
+                  <Link href="/queue" className="block truncate font-bold hover:text-ink">
                     {p.title || 'Untitled post'}
                   </Link>
                   <p className="text-xs text-muted">Failed to send — retry from the queue.</p>
@@ -169,7 +158,7 @@ export default async function DashboardPage() {
               ))}
               {approvals.slice(0, 2).map((p) => (
                 <li key={p.id}>
-                  <Link href="/queue" className="block truncate font-bold hover:text-accent">
+                  <Link href="/queue" className="block truncate font-bold hover:text-ink">
                     {p.title || 'Untitled post'}
                   </Link>
                   <p className="text-xs text-muted">Waiting for approval.</p>
@@ -190,8 +179,8 @@ export default async function DashboardPage() {
         <section className="card p-5" aria-label="Channels">
           <div className="flex items-center justify-between">
             <p className="eyebrow">Channels</p>
-            <Link href="/channels" className="text-xs font-bold text-accent hover:underline">
-              Manage →
+            <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
+              Manage
             </Link>
           </div>
           {channels.length === 0 ? (
@@ -225,24 +214,24 @@ export default async function DashboardPage() {
         </section>
 
         {/* Quick actions */}
-        <section className="card flex flex-col justify-between gap-3 bg-accent p-5 text-white lg:col-span-3 lg:flex-row lg:items-center" aria-label="Quick actions">
+        <section className="card flex flex-col justify-between gap-3 bg-ink p-5 text-paper lg:col-span-3 lg:flex-row lg:items-center" aria-label="Quick actions">
           <div>
             <p className="font-display text-lg font-extrabold tracking-tight">Ship today&apos;s posts</p>
-            <p className="mt-1 text-sm text-white/80">Compose, check the queue, or review the week.</p>
+            <p className="mt-1 text-sm text-paper/80">Compose, check the queue, or review the week.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/new" className="btn bg-white font-bold text-accent hover:bg-bone">
+            <Link href="/new" className="btn btn-bolt font-bold">
               Compose
             </Link>
             <Link
               href="/queue"
-              className="btn border border-white/40 font-bold text-white hover:bg-white/10"
+              className="btn border border-paper/30 font-bold text-paper hover:bg-paper/10"
             >
               Queue
             </Link>
             <Link
               href="/calendar"
-              className="btn border border-white/40 font-bold text-white hover:bg-white/10"
+              className="btn border border-paper/30 font-bold text-paper hover:bg-paper/10"
             >
               Calendar
             </Link>

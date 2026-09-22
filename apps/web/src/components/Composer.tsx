@@ -9,7 +9,6 @@ import { generateCaptions, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import { fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
-
 const MODES: { id: ComposeMode; label: string }[] = [
   { id: 'draft', label: 'Save draft' },
   { id: 'schedule', label: 'Schedule' },
@@ -289,7 +288,7 @@ export default function Composer({
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" disabled={busy} type="submit">
+          <button className="btn btn-bolt" disabled={busy} type="submit">
             {busy ? 'Saving…' : submitLabel}
           </button>
         </div>
@@ -469,7 +468,7 @@ export default function Composer({
                 type="button"
                 onClick={runAi}
                 disabled={aiBusy}
-                className="btn btn-primary shrink-0 !px-4 !py-2 !text-xs"
+                className="btn btn-dusk shrink-0 !px-4 !py-2 !text-xs"
               >
                 {aiBusy ? 'Writing…' : kind === 'chain' ? `Write ${segments.length} parts` : 'Write caption'}
               </button>
@@ -498,7 +497,7 @@ export default function Composer({
                       type="button"
                       onClick={() => toggle(c.id)}
                       className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        on ? 'border-accent bg-accent-soft' : 'border-line bg-paper hover:bg-bone'
+                        on ? 'border-ink bg-paper-dim' : 'border-line bg-paper hover:bg-bone'
                       }`}
                     >
                       <BrandIcon provider={c.provider} className="h-6 w-6 shrink-0" />
@@ -509,7 +508,7 @@ export default function Composer({
                           {meta.limit.toLocaleString()} chars
                         </span>
                       </span>
-                      <span className={`text-xs font-bold ${on ? 'text-accent' : 'text-faint'}`}>
+                      <span className={`text-xs font-bold ${on ? 'text-ink' : 'text-faint'}`}>
                         {on ? '✓' : ''}
                       </span>
                     </button>
@@ -572,7 +571,7 @@ export default function Composer({
               <p className="mt-3 text-xs text-muted">Keeps it out of the queue until you publish.</p>
             )}
             {isMember && mode !== 'draft' && (
-              <p className="mt-3 rounded-lg bg-accent-soft px-2.5 py-2 text-xs text-accent-ink">
+              <p className="mt-3 rounded-lg bg-paper-dim px-2.5 py-2 text-xs text-ink">
                 You&apos;re a team member — this goes to an owner or admin for approval first.
               </p>
             )}

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import { ImageSlot } from '@/components/ui';
 import ThemeToggle from '@/components/ThemeToggle';
 import { providerMeta } from '@/lib/providers';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
@@ -36,14 +37,16 @@ export default async function ProfilePage() {
     <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Profile</p>
       <div className="card mt-3 flex items-center gap-4 p-5">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#191512] font-display text-xl font-extrabold text-white">
-          {initial}
-        </div>
+        <ImageSlot
+          size="lg"
+          className="h-14 w-14 shrink-0"
+          label="Profile photo — upload to fill"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-extrabold">{ctx.workspace.name}</p>
           <p className="truncate text-sm text-muted">{ctx.user.email}</p>
         </div>
-        <span className="pill shrink-0 bg-accent-soft text-accent-ink">{ctx.workspace.role}</span>
+        <span className="pill shrink-0 bg-paper-dim text-ink">{ctx.workspace.role}</span>
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-3">
@@ -52,7 +55,7 @@ export default async function ProfilePage() {
           { label: 'Scheduled', value: scheduled, href: '/calendar' },
           { label: 'Channels', value: `${live}/${channels.length}`, href: '/channels' },
         ].map((s) => (
-          <Link key={s.label} href={s.href} className="card group p-4 text-center transition hover:border-accent">
+          <Link key={s.label} href={s.href} className="card group p-4 text-center transition hover:border-ink">
             <p className="font-display text-xl font-extrabold tracking-tight sm:text-2xl">{s.value}</p>
             <p className="mt-0.5 text-xs text-muted">{s.label}</p>
           </Link>
@@ -62,8 +65,8 @@ export default async function ProfilePage() {
       <div className="card mt-3 p-5">
         <div className="flex items-center justify-between">
           <p className="eyebrow">Channels</p>
-          <Link href="/channels" className="text-xs font-bold text-accent hover:underline">
-            Manage →
+          <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
+            Manage
           </Link>
         </div>
         {channels.length === 0 ? (

@@ -101,7 +101,7 @@ function FlipTile({
       <span className="block [perspective:900px]">
         <span
           ref={face}
-          className={`hero-tile flex items-center justify-center rounded-3xl border border-line bg-white shadow-[0_20px_50px_-20px_rgba(28,25,23,0.45)] ${box}`}
+          className={`hero-tile flex items-center justify-center rounded-3xl border border-line bg-paper shadow-[0_20px_50px_-20px_rgba(28,26,20,0.35)] ${box}`}
           style={{ transformStyle: 'preserve-3d' }}
         >
           <BrandIcon provider={providers[index]} className={icon} />
@@ -191,17 +191,14 @@ export default function Hero() {
       <div className="relative mx-auto max-w-5xl px-4 pb-20 pt-16 text-center md:pb-28 md:pt-24">
         <h1 className="animate-rise-1 font-display text-5xl font-extrabold leading-[0.95] tracking-tight md:text-7xl">
           Plan it. Write it. Post it.
-          <br />
-          <span className="text-accent">To your social media.</span>
         </h1>
         <p className="animate-rise-1 mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
           One composer and one shared calendar for ten networks — with an AI writer, approvals
           and a queue that runs itself.
         </p>
         <div className="animate-rise-2 mt-8 flex flex-wrap items-center justify-center gap-2.5">
-          <button type="button" onClick={() => setAuth('up')} className="btn btn-primary btn-lg">
+          <button type="button" onClick={() => setAuth('up')} className="btn btn-bolt btn-lg">
             Start scheduling free
-            <span aria-hidden="true">→</span>
           </button>
           <a href="#channels" className="btn btn-ghost btn-lg">
             Try the composer

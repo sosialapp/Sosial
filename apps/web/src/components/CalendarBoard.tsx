@@ -168,7 +168,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1">
-                          <span className="font-bold text-accent">{formatTime(p.scheduled_at)}</span>
+                          <span className="font-bold text-ink">{formatTime(p.scheduled_at)}</span>
                           <ChannelDots post={p} />
                         </div>
                         <div className="truncate text-soft">{snippet(p)}</div>
@@ -199,7 +199,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
             {selectedPosts.map((p) => (
               <div key={p.id} className="rounded-xl border border-line bg-paper p-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-accent">{formatTime(p.scheduled_at)}</span>
+                  <span className="text-xs font-bold text-ink">{formatTime(p.scheduled_at)}</span>
                   <ChannelDots post={p} />
                 </div>
                 <p className="mt-1 text-sm text-ink">{snippet(p)}</p>
@@ -221,7 +221,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
           )}
 
           <div className="mt-6 flex flex-col gap-2">
-            <Link href="/new" className="btn btn-primary w-full">
+            <Link href="/new" className="btn btn-bolt w-full">
               + New post
             </Link>
             {pending && <p className="text-center text-xs text-muted">Saving…</p>}

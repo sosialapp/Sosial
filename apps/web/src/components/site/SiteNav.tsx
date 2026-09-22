@@ -211,7 +211,7 @@ export default function SiteNav() {
               </div>
               <Link
                 href="/integrations"
-                className="mt-2 flex items-center justify-between rounded-xl bg-bone px-3 py-2.5 text-sm font-bold text-accent transition hover:bg-accent-soft"
+                className="mt-2 flex items-center justify-between rounded-xl bg-paper-dim px-3 py-2.5 text-sm font-bold text-ink transition hover:bg-paper"
               >
                 All 10 integrations
                 <span aria-hidden="true">→</span>
@@ -248,7 +248,7 @@ export default function SiteNav() {
               <button type="button" onClick={() => setAuth('in')} className="btn btn-ghost" disabled={signedIn === null}>
                 Log in
               </button>
-              <button type="button" onClick={() => setAuth('up')} className="btn btn-primary" disabled={signedIn === null}>
+              <button type="button" onClick={() => setAuth('up')} className="btn btn-bolt" disabled={signedIn === null}>
                 Get started free
               </button>
             </>
