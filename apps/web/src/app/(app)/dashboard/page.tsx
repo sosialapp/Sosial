@@ -73,7 +73,7 @@ export default async function DashboardPage() {
   const attentionCount = failed.length + approvals.length + sick.length;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6">
+    <div className="w-full px-4 pt-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="eyebrow">{todayLabel()}</p>
