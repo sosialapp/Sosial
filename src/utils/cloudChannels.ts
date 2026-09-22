@@ -81,16 +81,24 @@ export async function buildImportPayload(
   const f: MetaState = accountId
     ? ({ ...m, ...(await loadProviderFields(key, accountId).catch(() => ({}))) } as MetaState)
     : m;
+  // Profile picture rides in metadata so the web dashboard can render the
+  // same logo+avatar combo as mobile (edge fn persists metadata on upsert;
+  // re-sync refreshes existing rows, unknown avatars fall back to tiles).
+  const avatarField = (f as unknown as Record<string, unknown>).avatar;
+  const avatar = typeof avatarField === 'string' && avatarField ? avatarField : undefined;
+  const withAvatar = (md: Record<string, string>): Record<string, string> =>
+    avatar ? { ...md, avatar } : md;
+  const avatarMeta = avatar ? { metadata: { avatar } } : {};
   switch (key) {
     case 'facebook':
       if (!f.pageId || !f.pageToken) return null;
-      return { provider: 'facebook', external_id: f.pageId, display_name: f.pageName, access_token: f.pageToken };
+      return { provider: 'facebook', external_id: f.pageId, display_name: f.pageName, access_token: f.pageToken, ...avatarMeta };
     case 'instagram':
       if (!f.igId || !f.igToken) return null;
-      return { provider: 'instagram', external_id: f.igId, display_name: f.igName, access_token: f.igToken };
+      return { provider: 'instagram', external_id: f.igId, display_name: f.igName, access_token: f.igToken, ...avatarMeta };
     case 'threads':
       if (!f.threadsId || !f.threadsToken) return null;
-      return { provider: 'threads', external_id: f.threadsId, display_name: f.threadsName, access_token: f.threadsToken };
+      return { provider: 'threads', external_id: f.threadsId, display_name: f.threadsName, access_token: f.threadsToken, ...avatarMeta };
     case 'tiktok': {
       if (!f.ttOpenId || (!f.ttAccessToken && !f.ttRefreshToken)) return null;
       // Verified photo host rides along so closed-app photo posts can use it
@@ -101,7 +109,7 @@ export async function buildImportPayload(
       return {
         provider: 'tiktok', external_id: f.ttOpenId, display_name: f.ttName,
         access_token: f.ttAccessToken ?? f.ttRefreshToken ?? '',
-        refresh_token: f.ttRefreshToken, expires_at: iso(f.ttExpiresAt), metadata,
+        refresh_token: f.ttRefreshToken, expires_at: iso(f.ttExpiresAt), metadata: withAvatar(metadata),
       };
     }
     case 'x':
@@ -111,7 +119,7 @@ export async function buildImportPayload(
         access_token: f.xAccessToken ?? f.xRefreshToken ?? '',
         refresh_token: f.xRefreshToken, expires_at: iso(f.xExpiresAt),
         // Public OAuth client id — the worker needs it for silent refresh.
-        metadata: { xClientId: process.env.EXPO_PUBLIC_X_CLIENT_ID ?? '' },
+        metadata: withAvatar({ xClientId: process.env.EXPO_PUBLIC_X_CLIENT_ID ?? '' }),
       };
     case 'bluesky': {
       // Session tokens only — the app password itself is never stored on
@@ -121,7 +129,7 @@ export async function buildImportPayload(
         provider: 'bluesky', external_id: f.bskyDid, handle: f.bskyHandle, display_name: f.bskyName,
         instance_url: f.bskyPdsHost,
         access_token: f.bskyAccessJwt ?? f.bskyRefreshJwt ?? '',
-        refresh_token: f.bskyRefreshJwt, expires_at: iso(f.bskyExpiresAt),
+        refresh_token: f.bskyRefreshJwt, expires_at: iso(f.bskyExpiresAt), ...avatarMeta,
       };
     }
     case 'linkedin': {
@@ -132,14 +140,14 @@ export async function buildImportPayload(
       return {
         provider: 'linkedin', external_id: f.liPersonUrn, display_name: f.liName,
         access_token: f.liAccessToken ?? f.liRefreshToken ?? '',
-        refresh_token: f.liRefreshToken, expires_at: iso(f.liExpiresAt), metadata,
+        refresh_token: f.liRefreshToken, expires_at: iso(f.liExpiresAt), metadata: withAvatar(metadata),
       };
     }
     case 'mastodon':
       if (!f.mastodonAccountId || !f.mastodonAccessToken || !f.mastodonInstance) return null;
       return {
         provider: 'mastodon', external_id: f.mastodonAccountId, display_name: f.mastodonName,
-        instance_url: f.mastodonInstance, access_token: f.mastodonAccessToken,
+        instance_url: f.mastodonInstance, access_token: f.mastodonAccessToken, ...avatarMeta,
       };
     case 'pinterest': {
       if (!f.pinUsername || !f.pinAccessToken) return null;
@@ -149,7 +157,7 @@ export async function buildImportPayload(
       return {
         provider: 'pinterest', external_id: f.pinUsername, display_name: f.pinUsername,
         access_token: f.pinAccessToken, refresh_token: f.pinRefreshToken,
-        expires_at: iso(f.pinExpiresAt), metadata,
+        expires_at: iso(f.pinExpiresAt), metadata: withAvatar(metadata),
       };
     }
     case 'youtube': {
@@ -165,7 +173,7 @@ export async function buildImportPayload(
       return {
         provider: 'youtube', external_id: channelId, display_name: f.ytChannelName,
         access_token: token, refresh_token: f.ytRefreshToken,
-        expires_at: iso(f.ytExpiresAt),
+        expires_at: iso(f.ytExpiresAt), ...avatarMeta,
       };
     }
     default:
