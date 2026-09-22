@@ -22,7 +22,7 @@ export default async function LoginPage({
             Add the same Supabase project the mobile app uses to{' '}
             <code className="rounded bg-surface px-1.5 py-0.5 text-xs">apps/web/.env.local</code>:
           </p>
-          <pre className="mt-3 overflow-x-auto rounded-xl bg-ink p-3 text-xs text-white">
+          <pre className="mt-3 overflow-x-auto rounded-xl bg-[#191512] p-3 text-xs text-white">
             {`NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000`}

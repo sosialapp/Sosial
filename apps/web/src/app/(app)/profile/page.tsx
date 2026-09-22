@@ -36,7 +36,7 @@ export default async function ProfilePage() {
     <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Profile</p>
       <div className="card mt-3 flex items-center gap-4 p-5">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-ink font-display text-xl font-extrabold text-white">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#191512] font-display text-xl font-extrabold text-white">
           {initial}
         </div>
         <div className="min-w-0 flex-1">

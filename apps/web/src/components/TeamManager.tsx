@@ -105,7 +105,7 @@ export default function TeamManager({
           const self = m.user_id === myUserId;
           return (
             <div key={m.id} className="flex items-center gap-3 px-5 py-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink font-display text-sm font-extrabold text-white">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#191512] font-display text-sm font-extrabold text-white">
                 {(m.email[0] ?? '?').toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
