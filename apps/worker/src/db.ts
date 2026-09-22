@@ -13,7 +13,8 @@ export interface Job {
     | 'snapshot_analytics'
     | 'cleanup_media'
     | 'send_invite'
-    | 'sync_avatars';
+    | 'sync_avatars'
+    | 'send_push';
   payload: Record<string, any>;
   status: string;
   run_at: string;
@@ -83,7 +84,7 @@ export interface InviteRow {
 }
 
 /** Raw REST helper (service_role bypasses RLS — callers own authorization). */
-async function rest<T>(path: string, init?: any): Promise<T> {
+export async function rest<T>(path: string, init?: any): Promise<T> {
   const r = await fetch(`${base}${path}`, {
     ...(init ?? {}),
     headers: {

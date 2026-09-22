@@ -10,6 +10,7 @@ import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
+import { registerPushToken } from '../utils/pushTokens';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -84,6 +85,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
         if (!live) return;
         setSbAccount(s ? { email: s.user.email ?? '', workspace: s.workspace } : null);
         setSbState(s ? 'in' : 'off');
+        if (s) void registerPushToken();
       })
       .catch(() => {
         if (live) setSbState('off');
@@ -104,6 +106,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
           // Fresh sign-in activates the master-switch desired state.
           void refreshCloud();
           void syncCloudChannels().then(() => { void refreshCloud(); });
+          void registerPushToken();
         })
         .catch(() => {});
     });

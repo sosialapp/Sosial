@@ -9,10 +9,6 @@ const PLANNED = [
     desc: 'Revenue, plans and churn — needs a payment provider (Stripe) first.',
   },
   {
-    title: 'Notifications',
-    desc: 'Push to iOS/Android via the worker (needs push-token registration).',
-  },
-  {
     title: 'Marketing email',
     desc: 'Campaigns via an ESP (needs Resend/Postmark + domain DNS).',
   },
@@ -47,7 +43,7 @@ export default async function AdminOverview() {
         </div>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Link
           href="/admin/blog"
           className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
@@ -55,6 +51,15 @@ export default async function AdminOverview() {
           <p className="text-sm font-bold">Blog →</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
             Write, edit and publish posts. Live on /blog within minutes.
+          </p>
+        </Link>
+        <Link
+          href="/admin/notifications"
+          className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
+        >
+          <p className="text-sm font-bold">Push →</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Broadcast to every registered device. The worker delivers.
           </p>
         </Link>
       </div>

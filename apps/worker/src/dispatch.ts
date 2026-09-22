@@ -16,6 +16,7 @@ import { publishMastodonTarget } from './mastodon';
 import { publishLinkedInTarget } from './linkedin';
 import { publishPinterestTarget } from './pinterest';
 import { syncWorkspaceAvatars } from './avatars';
+import { sendPushBroadcast } from './push';
 import { info } from './logger';
 
 function notPorted(kind: string): Error {
@@ -128,6 +129,14 @@ async function handleSyncAvatars(job: Job): Promise<void> {
   info(`sync_avatars done: ${checked} checked, ${saved} saved, ${failed.length} failed`);
 }
 
+async function handleSendPush(job: Job): Promise<void> {
+  const title = String(job.payload?.title ?? '').trim();
+  const body = String(job.payload?.body ?? '').trim();
+  if (!title || !body) throw new Error(`job ${job.id}: send_push needs title + body`);
+  info(`send_push "${title.slice(0, 60)}" (job ${job.id})`);
+  await sendPushBroadcast(title, body);
+}
+
 async function handleCleanupMedia(job: Job): Promise<void> {
   info(`cleanup_media (job ${job.id})`);
   throw notPorted('cleanup_media');
@@ -164,6 +173,7 @@ export async function dispatch(job: Job): Promise<void> {
     case 'cleanup_media': return handleCleanupMedia(job);
     case 'send_invite': return handleSendInvite(job);
     case 'sync_avatars': return handleSyncAvatars(job);
+    case 'send_push': return handleSendPush(job);
     default: throw new Error(`unknown job kind '${String((job as any)?.kind)}' (job ${job.id})`);
   }
 }
