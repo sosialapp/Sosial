@@ -10,7 +10,7 @@ import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
-import { registerPushToken, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
+import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -70,7 +70,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const retryPush = async () => {
     setPushDiagBusy(true);
     try {
-      await registerPushToken();
+      const r = await registerPushTokenFull();
       setPushDiag(await pushDiagnostics());
       const s = await currentSession().catch(() => null);
       let saved = false;
@@ -82,12 +82,24 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
           .limit(1);
         saved = (data?.length ?? 0) > 0;
       }
-      Alert.alert(
-        'Device registration',
-        saved
-          ? 'Registered — /admin/notifications should show 1 device.'
-          : 'Not registered. Check: notification permission allowed, physical device (not Expo Go), and google-services.json in the build.',
-      );
+      if (saved) {
+        Alert.alert(
+          'Device registration',
+          'Registered — /admin/notifications should show 1 device.',
+        );
+        return;
+      }
+      const why =
+        r.stage === 'permission'
+          ? `Permission is "${r.detail ?? 'denied'}" — allow it in Settings → Apps → Sosial → Notifications, then retry.`
+          : r.stage === 'no-project'
+            ? 'Build has no EAS project id — rebuild from a clean checkout.'
+            : r.stage === 'no-token'
+              ? `Expo would not mint a token: ${r.detail ?? 'unknown error'} (usually google-services.json missing from this build).`
+              : r.stage === 'signed-out'
+                ? 'Token minted but you are signed out — sign in to Sosial Cloud first.'
+                : `Token minted but the save failed: ${r.detail ?? 'unknown error'}`;
+      Alert.alert('Device registration', `Not registered.\n\n${why}`);
     } finally {
       setPushDiagBusy(false);
     }

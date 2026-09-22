@@ -60,26 +60,36 @@ export async function pushDiagnostics(): Promise<PushDiag> {
   return out;
 }
 
+export interface PushRegResult {
+  token: string | null;
+  /** machine-readable failure stage for the on-device diagnostic */
+  stage: 'ok' | 'permission' | 'no-project' | 'no-token' | 'signed-out' | 'save-failed';
+  detail?: string;
+}
+
 /**
- * Register this device for owner pushes. Best-effort, never throws:
- * - simulators and builds without push credentials fail at the token step
- * - signed-out users get permission + token but no row (next sign-in saves it)
- * Call fire-and-forget after every sign-in. Returns the Expo token or null.
+ * Staged registration: same flow as registerPushToken but reports exactly
+ * which step failed instead of collapsing to null.
  */
-export async function registerPushToken(): Promise<string | null> {
+export async function registerPushTokenFull(): Promise<PushRegResult> {
   try {
     await ensureAndroidChannel();
     const { status: existing } = await Notifications.getPermissionsAsync();
     const status =
       existing === 'granted' ? existing : (await Notifications.requestPermissionsAsync()).status;
-    if (status !== 'granted') return null;
+    if (status !== 'granted') return { token: null, stage: 'permission', detail: status };
     const extra = Constants?.expoConfig?.extra as { eas?: { projectId?: string } } | undefined;
     const projectId = extra?.eas?.projectId;
-    if (!projectId) return null;
-    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-    if (!token) return null;
+    if (!projectId) return { token: null, stage: 'no-project' };
+    let token: string | null = null;
+    try {
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data ?? null;
+    } catch (e: any) {
+      return { token: null, stage: 'no-token', detail: String(e?.message ?? e).slice(0, 160) };
+    }
+    if (!token) return { token: null, stage: 'no-token', detail: 'empty token' };
     const session = await currentSession().catch(() => null);
-    if (!session) return token;
+    if (!session) return { token, stage: 'signed-out' };
     const { error } = await supabase()
       .from('push_tokens')
       .upsert(
@@ -91,9 +101,21 @@ export async function registerPushToken(): Promise<string | null> {
         },
         { onConflict: 'expo_token' },
       );
-    if (error) return null;
-    return token;
-  } catch {
-    return null;
+    if (error) {
+      return { token, stage: 'save-failed', detail: error.message.slice(0, 160) };
+    }
+    return { token, stage: 'ok' };
+  } catch (e: any) {
+    return { token: null, stage: 'no-token', detail: String(e?.message ?? e).slice(0, 160) };
   }
+}
+
+/**
+ * Register this device for owner pushes. Best-effort, never throws:
+ * - simulators and builds without push credentials fail at the token step
+ * - signed-out users get permission + token but no row (next sign-in saves it)
+ * Call fire-and-forget after every sign-in. Returns the Expo token or null.
+ */
+export async function registerPushToken(): Promise<string | null> {
+  return (await registerPushTokenFull()).token;
 }
