@@ -58,8 +58,9 @@ html {
   scroll-behavior: smooth;
   /* Sticky nav is 4rem tall — keep anchored sections clear of it. */
   scroll-padding-top: 5rem;
-  /* Rubber-band overscroll past the header/footer reveals the canvas, not
-     the body — paint it bone so it never flashes white. */
+  /* No rubber-band past the top/bottom: the end is the end. */
+  overscroll-behavior: none;
+  /* Overscroll canvas paint (backup for nested scrollers). */
   background-color: var(--color-bone);
 }
 
@@ -79,6 +80,7 @@ body {
   font-family: var(--font-sans);
   font-weight: 200;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
 /* ------------------------------- motion ------------------------------- */
