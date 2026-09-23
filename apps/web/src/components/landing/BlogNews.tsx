@@ -52,12 +52,12 @@ export default async function BlogNews() {
                     src={cover}
                     alt=""
                     loading="lazy"
-                    className="aspect-[16/9] w-full border-b border-line object-cover"
+                    className="aspect-square w-full border-b border-line object-cover"
                   />
                 ) : (
                   <ImageSlot
                     size="md"
-                    className="aspect-[16/9] w-full !rounded-none !border-x-0 !border-t-0"
+                    className="aspect-square w-full !rounded-none !border-x-0 !border-t-0"
                     label={`${a.title} cover image placeholder`}
                   />
                 )}

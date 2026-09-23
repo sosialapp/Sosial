@@ -200,14 +200,8 @@ export default function Hero() {
           <button type="button" onClick={() => setAuth('up')} className="btn btn-bolt btn-lg">
             Start scheduling free
           </button>
-          <a href="#channels" className="btn btn-ghost btn-lg">
-            Try the composer
-          </a>
         </div>
         <AuthModal open={auth !== null} mode={auth ?? 'up'} onClose={() => setAuth(null)} />
-        <p className="animate-rise-3 mt-4 text-xs text-faint">
-          Free forever plan · No credit card · iOS, Android &amp; web
-        </p>
       </div>
     </section>
   );
