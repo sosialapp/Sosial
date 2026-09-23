@@ -44,7 +44,7 @@ export default function ChannelAvatar({
         width={size}
         height={size}
         loading="lazy"
-        className="h-full w-full rounded-full object-cover"
+        className="block h-full w-full rounded-full object-cover"
         style={{ background: meta.color }}
       />
       <span

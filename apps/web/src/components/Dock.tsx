@@ -53,7 +53,7 @@ const ITEMS: DockItem[] = [
   },
   {
     href: '/create',
-    label: 'Create',
+    label: 'Post',
     match: (p) => p === '/create' || p === '/new' || p === '/composer' || p.startsWith('/create/') || p.startsWith('/new/') || p.startsWith('/composer/'),
     tint: '#4CAF7D',
     icon: (

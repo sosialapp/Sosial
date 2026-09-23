@@ -463,11 +463,11 @@ export default function CreateHub({
 
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
-      <p className="eyebrow">Create</p>
+      <p className="eyebrow">Post</p>
       <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">New post</h1>
       <p className="mt-1 text-sm text-muted">Catch the idea, design the visual, then post it everywhere.</p>
 
-      <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Create sections">
+      <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Post sections">
         {(Object.keys(TAB_LABEL) as Tab[]).map((t) => (
           <button
             key={t}

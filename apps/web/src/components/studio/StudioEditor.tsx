@@ -397,7 +397,7 @@ export default function StudioEditor({
         </button>
         <button
           type="button"
-          onClick={() => setAiOpen(true)}
+          onClick={() => setAiOpen((v) => !v)}
           aria-pressed={aiOpen}
           className={`btn shrink-0 !px-3.5 !py-2 !text-xs ${
             aiOpen ? 'btn-primary' : 'btn-ghost'
@@ -532,8 +532,11 @@ export default function StudioEditor({
           </div>
         </div>
 
-        {/* sheet */}
-        <div className="flex min-w-0 flex-col">
+        {/* sheet — on lg the inner column is absolute, so it adds no height of
+            its own: the row is as tall as the canvas column and the panel
+            scrolls between the tabs and the tip pinned at the canvas bottom. */}
+        <div className="relative min-w-0">
+          <div className="flex max-h-[560px] min-h-0 flex-col lg:absolute lg:inset-0 lg:max-h-none">
           <div className="flex border-b border-line px-2">
             {STEPS.map((t, i) => (
               <button
@@ -563,7 +566,7 @@ export default function StudioEditor({
               </button>
             ))}
           </div>
-          <div className="min-h-0 max-h-[560px] flex-1 overflow-y-auto p-4 lg:max-h-none">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {aiOpen ? (
               <AiStudioPanel
                 template={page}
@@ -591,6 +594,7 @@ export default function StudioEditor({
           <p className="border-t border-line px-4 py-2.5 text-[11px] leading-relaxed text-muted">
             {aiOpen ? AI_TIP : STEP_TIPS[step]}
           </p>
+          </div>
         </div>
       </div>
     </div>
