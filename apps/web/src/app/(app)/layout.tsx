@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import Dock from '@/components/Dock';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -15,8 +15,9 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Masthead Connect pill, same as the mobile app: card pill with a stacked
- * row of channel avatars (avatar tile + brand badge, max 4 then +n) and
- * "Connect". Stack shows only when channels are connected.
+ * row of brand tiles (20px colour disc + white glyph, max 4 then +n) and
+ * "Connect". deliberately photo-free — profile pictures with corner badges
+ * turn to clutter at this size. Stack shows only when channels are connected.
  */
 function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {
   const MAX_LOGOS = 4;
@@ -33,11 +34,11 @@ function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {
           {shown.map((c, i) => (
             <span
               key={c.id}
-              className="rounded-full ring-2 ring-card"
-              style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i }}
+              className="flex shrink-0 rounded-full ring-2 ring-card"
+              style={{ marginLeft: i === 0 ? 0 : -7, zIndex: shown.length - i }}
               title={providerMeta(c.provider).label}
             >
-              <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
+              <BrandIcon provider={c.provider as BrandProvider} className="h-5 w-5" />
             </span>
           ))}
           {extra > 0 ? (
@@ -45,7 +46,7 @@ function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {
           ) : null}
         </span>
       ) : null}
-      <span className="text-[13px] font-extrabold tracking-tight text-accent-ink">Connect</span>
+      <span className="text-sm font-bold text-soft">Connect</span>
     </Link>
   );
 }
