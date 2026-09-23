@@ -91,6 +91,26 @@ async function inlineImages(root: HTMLElement): Promise<void> {
       }
     }),
   );
+
+  // Belt and braces: the previous build's failure mode was a remote URL that
+  // survived this pass and tainted the canvas at toBlob. Nothing that is not
+  // a data URL may reach the serializer — blank it instead.
+  for (const img of Array.from(root.querySelectorAll('img'))) {
+    const src = img.getAttribute('src') ?? '';
+    if (!src.startsWith('data:')) blankImage(img);
+    img.removeAttribute('srcset');
+    img.removeAttribute('sizes');
+    img.removeAttribute('crossorigin');
+    img.removeAttribute('usemap');
+  }
+  for (const el of Array.from(root.querySelectorAll('image, use'))) {
+    for (const attr of ['href', 'xlink:href']) {
+      const href = el.getAttribute(attr) ?? '';
+      if (href && !href.startsWith('#') && !href.startsWith('data:')) {
+        el.removeAttribute(attr);
+      }
+    }
+  }
 }
 
 /** Render the canvas node at full post width (1080) → PNG blob. */
