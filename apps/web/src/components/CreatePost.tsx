@@ -8,6 +8,7 @@ import AiCard from '@/components/AiCard';
 import DateTimePicker from '@/components/DateTimePicker';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
+import { pictureToFile } from '@/lib/pictures';
 import { createChain, createPost, type ComposeMode } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
@@ -148,6 +149,18 @@ export default function CreatePost({
     setSegs((prev) =>
       prev.map((s, j) => (j === i ? { ...s, media: [...s.media, ...next].slice(0, 10) } : s)),
     );
+  }
+
+  /** Attach an AI picture URL to part 1: download it into a File so the
+   *  normal upload path carries it. */
+  async function addPictureUrl(url: string) {
+    try {
+      const file = await pictureToFile(url);
+      const item = { file, kind: 'image' as const, url: URL.createObjectURL(file) };
+      setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, media: [...s.media, item].slice(0, 10) } : s)));
+    } catch {
+      setErr('Could not fetch that picture — try another.');
+    }
   }
 
   function removeMediaFrom(i: number, mi: number) {
@@ -437,6 +450,7 @@ export default function CreatePost({
               });
             }}
             appliedNote="Applied to the composer — edit freely, then post."
+            onPicture={(url) => void addPictureUrl(url)}
           />
         </div>
       </div>

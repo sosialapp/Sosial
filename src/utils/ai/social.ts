@@ -252,7 +252,7 @@ export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
   style: 'auto',
   thread: false,
   parts: 5,
-  hashtags: true,
+  hashtags: false,
   platforms: ['any'],
   coverImage: false,
   research: 'auto',
@@ -389,22 +389,6 @@ function contentWords(text: string): string[] {
 
 function deriveHashtags(prompt: string, n = 4): string[] {
   return contentWords(prompt).slice(0, n).map((w) => '#' + w);
-}
-
-/** Plain topic keywords for stock-photo lookup. */
-export function keywordsFromText(text: string, n = 3): string[] {
-  return contentWords(text).slice(0, n);
-}
-
-/**
- * Free topical stock photo (LoremFlickr serves real Flickr photos by keyword,
- * no key, hotlinkable). Portrait 4:5 suits feed crops; seed picks the variant.
- * Keywords come from the post itself, so the photo follows the finished copy.
- */
-export function stockImageUrl(text: string, seed: number): string {
-  const kws = keywordsFromText(text, 3);
-  const key = kws.length ? kws.map((k) => encodeURIComponent(k)).join(',') : 'lifestyle';
-  return `https://loremflickr.com/1080/1350/${key}?lock=${seed}`;
 }
 
 function normHashtags(raw: unknown, brief: SocialBrief): string[] {

@@ -69,11 +69,11 @@ export default function CreatePage() {
           {
             eyebrow: 'Media',
             title: 'Photos and video that fit each feed.',
-            body: 'Attach up to four images or a video to any post, pull a stock photo when you have nothing shot, or generate a cover image from the finished copy. Each channel gets media in the shape it expects.',
+            body: 'Attach up to four images or a video to any post, pull a real photo matched to your topic, or generate a cover image from a prompt. Each channel gets media in the shape it expects.',
             points: [
               'Up to 4 images or video per post',
-              'Stock photos when the camera roll is empty',
-              'AI cover images generated from finished copy',
+              'Real topical photos when the camera roll is empty',
+              'AI cover images generated from a prompt',
             ],
           },
         ]}
@@ -87,7 +87,7 @@ export default function CreatePage() {
           },
           {
             q: 'Which media types can I attach?',
-            a: 'Up to four images or a video per post, plus stock photos and AI-generated covers. Each channel page lists exactly what its network accepts.',
+            a: 'Up to four images or a video per post, plus topical photos and AI-generated covers. Each channel page lists exactly what its network accepts.',
           },
           {
             q: 'Can I edit a post after scheduling it?',

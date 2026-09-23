@@ -36,7 +36,7 @@ const PLANS = [
       'All 10 channels connected',
       'Unlimited scheduled posts',
       'AI writer with live research',
-      'Templates and stock media',
+      'Templates and AI media',
       'Analytics across every channel',
     ],
   },

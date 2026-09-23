@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
+import { aiImageUrl, findImages, randomSeed, type FoundImage } from '@/lib/pictures';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 
 type EmojiMode = 'auto' | 'on' | 'off';
@@ -43,6 +44,7 @@ export default function AiCard({
   onPartsChange,
   onResult,
   appliedNote = 'Applied — edit freely.',
+  onPicture,
 }: {
   /** Provider keys the copy should be sized for (strictest wins). */
   providers: string[];
@@ -52,6 +54,8 @@ export default function AiCard({
   onPartsChange: (n: number) => void;
   onResult: (bodies: string[]) => void;
   appliedNote?: string;
+  /** When provided, a Picture section appears and hands the picked image URL back. */
+  onPicture?: (url: string) => void;
 }) {
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('auto');
@@ -60,7 +64,7 @@ export default function AiCard({
   const [tone, setTone] = useState('auto');
   const [style, setStyle] = useState('auto');
   const [styleOpen, setStyleOpen] = useState(false);
-  const [hashtags, setHashtags] = useState(true);
+  const [hashtags, setHashtags] = useState(false);
   const [emoji, setEmoji] = useState<EmojiMode>('auto');
   const [cta, setCta] = useState(true);
   const [instructions, setInstructions] = useState('');
@@ -68,6 +72,58 @@ export default function AiCard({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [appliedAt, setAppliedAt] = useState<number | null>(null);
+
+  /* ------------------------------- picture -------------------------------- */
+  type PicMode = 'prompt' | 'auto';
+  const [picMode, setPicMode] = useState<PicMode>('auto');
+  const [picPrompt, setPicPrompt] = useState('');
+  const [picUrl, setPicUrl] = useState<string | null>(null);
+  const [picResults, setPicResults] = useState<FoundImage[]>([]);
+  const [picBusy, setPicBusy] = useState(false);
+  const [picErr, setPicErr] = useState<string | null>(null);
+  const [picAttachedAt, setPicAttachedAt] = useState<number | null>(null);
+
+  const picQuery = (picPrompt.trim() || topic.trim()).slice(0, 200);
+
+  function makePromptPicture() {
+    setPicErr(null);
+    setPicAttachedAt(null);
+    const q = picQuery;
+    if (!q) {
+      setPicErr('Describe the picture first — or write the idea above and reuse it.');
+      return;
+    }
+    setPicResults([]);
+    setPicUrl(aiImageUrl(q, randomSeed()));
+  }
+
+  async function searchPictures() {
+    setPicErr(null);
+    setPicAttachedAt(null);
+    const q = picQuery;
+    if (!q) {
+      setPicErr('Write the idea above first — auto finds photos for its topic.');
+      return;
+    }
+    setPicBusy(true);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      const images = await findImages(sb, q);
+      setPicResults(images);
+      setPicUrl(images[0]?.url ?? null);
+    } catch (e) {
+      setPicErr(e instanceof Error ? e.message : 'Photo search failed.');
+    } finally {
+      setPicBusy(false);
+    }
+  }
+
+  function usePicture() {
+    if (!picUrl || !onPicture) return;
+    onPicture(picUrl);
+    setPicAttachedAt(Date.now());
+  }
 
   const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
   const langMatches = useMemo(() => {
@@ -311,6 +367,91 @@ export default function AiCard({
             </button>
           </span>
         </div>
+      ) : null}
+
+      {/* Picture — prompt-rendered or real topical photos, attached to the composer */}
+      {onPicture ? (
+        <>
+          <p className="mt-4 text-xs font-bold text-soft">Picture</p>
+          <div className="mt-1.5 flex rounded-full border border-[#E3D9FA] bg-white/60 p-1 dark:border-white/10 dark:bg-white/5" role="group" aria-label="Picture mode">
+            {(['auto', 'prompt'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setPicMode(m);
+                  setPicErr(null);
+                  setPicAttachedAt(null);
+                }}
+                aria-pressed={picMode === m}
+                className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-bold capitalize transition ${
+                  picMode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {m === 'auto' ? 'Auto' : 'Prompt'}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-muted">
+            {picMode === 'auto'
+              ? 'Real photos matched to the idea — maps, people, places.'
+              : 'AI renders whatever you describe.'}
+          </p>
+          {picMode === 'prompt' ? (
+            <textarea
+              value={picPrompt}
+              onChange={(e) => setPicPrompt(e.target.value)}
+              placeholder={topic.trim() ? `e.g. ${topic.trim().slice(0, 60)}…` : 'e.g. A photo of Kyiv at dusk, cinematic…'}
+              rows={2}
+              aria-label="Picture description"
+              className="mt-1.5 min-h-[52px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
+            />
+          ) : null}
+          {picUrl ? (
+            <div className="mt-1.5 overflow-hidden rounded-xl border border-[#E3D9FA] dark:border-white/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={picUrl} alt="AI picture preview" className="max-h-56 w-full object-cover" />
+            </div>
+          ) : null}
+          {picMode === 'auto' && picResults.length > 1 ? (
+            <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+              {picResults.map((img) => (
+                <button
+                  key={img.url}
+                  type="button"
+                  onClick={() => {
+                    setPicUrl(img.url);
+                    setPicAttachedAt(null);
+                  }}
+                  aria-label={`Use photo: ${img.title}`}
+                  title={img.title}
+                  className={`overflow-hidden rounded-lg border transition ${
+                    picUrl === img.url ? 'border-[#5B3DF0] ring-2 ring-[#5B3DF0]/40' : 'border-line opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img.thumb} alt="" className="h-14 w-full object-cover" loading="lazy" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {picErr ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D]">{picErr}</p> : null}
+          {picAttachedAt ? <p className="mt-1.5 text-xs font-bold text-[#346538]">Attached to the composer ✓</p> : null}
+          <div className="mt-1.5 flex gap-1.5">
+            {picMode === 'prompt' ? (
+              <button type="button" onClick={makePromptPicture} className="btn btn-ghost flex-1 !py-2 !text-xs">
+                {picUrl && !picResults.length ? 'Regenerate' : 'Generate'}
+              </button>
+            ) : (
+              <button type="button" onClick={searchPictures} disabled={picBusy} className="btn btn-ghost flex-1 !py-2 !text-xs">
+                {picBusy ? 'Searching…' : picResults.length ? 'Search again' : 'Find photos'}
+              </button>
+            )}
+            <button type="button" onClick={usePicture} disabled={!picUrl} className="btn btn-primary flex-1 !py-2 !text-xs">
+              Use picture
+            </button>
+          </div>
+        </>
       ) : null}
 
       {/* Advanced */}

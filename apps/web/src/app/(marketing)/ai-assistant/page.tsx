@@ -48,7 +48,7 @@ export default function AiAssistantPage() {
             points: [
               'Style cards with real output samples',
               'Threads split where a reader would pause',
-              'Per-post images, stock or AI-generated',
+              'Per-post images, topical or AI-generated',
             ],
           },
           {

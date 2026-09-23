@@ -334,3 +334,23 @@ export async function removeChannelToken(body: {
 }): Promise<void> {
   await callChannelFunction('remove-channel-token', body);
 }
+
+/* ---------------- AI picture search (Edge Function) ---------------- */
+
+export interface FoundImage {
+  title: string;
+  thumb: string;
+  url: string;
+  width: number;
+  height: number;
+}
+
+/** Real topical photos for an idea (Wikimedia Commons, no key). */
+export async function findImages(topic: string): Promise<{ images: FoundImage[]; keywords: string[] }> {
+  const json = await callChannelFunction('find-images', { topic });
+  if (json?.error) throw new Error(String(json.error));
+  if (!Array.isArray(json?.images) || json.images.length === 0) {
+    throw new Error('No photos found for that topic — try different words.');
+  }
+  return { images: json.images as FoundImage[], keywords: Array.isArray(json.keywords) ? json.keywords : [] };
+}
