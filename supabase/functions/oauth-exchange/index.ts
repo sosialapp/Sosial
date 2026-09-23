@@ -159,6 +159,10 @@ async function instagram(b: ExchangeBody): Promise<Response> {
   const j2 = await json(r2);
   const token = str(j2.access_token);
   if (!token) return bad("Instagram would not issue a long-lived token.", 502);
+  // Mobile parity: the STABLE profile id keys the row — never the username.
+  // (A username-keyed row from an id-less exchange would ghost-duplicate the
+  // numeric row on every reconnect, invisible to the upsert.)
+  let profileId = "";
   let username: string | undefined;
   let picture: string | undefined;
   try {
@@ -166,12 +170,17 @@ async function instagram(b: ExchangeBody): Promise<Response> {
       `https://graph.instagram.com/me?${form({ fields: "id,username,profile_picture_url", access_token: token })}`,
     );
     const pj = await json(pr);
-    if (pj.username) username = `@${pj.username}`;
-    if (pj.profile_picture_url) picture = String(pj.profile_picture_url);
+    if (!pj.error) {
+      profileId = str(pj.id);
+      if (pj.username) username = `@${pj.username}`;
+      if (pj.profile_picture_url) picture = String(pj.profile_picture_url);
+    }
   } catch { /* best-effort */ }
+  const externalId = profileId || userId;
+  if (!externalId) return bad("Instagram hid the account id — try again.", 502);
   return ok({
     access_token: token,
-    external_id: userId || username || "instagram",
+    external_id: externalId,
     display_name: username,
     metadata: picture ? { avatar: picture } : {},
   });
@@ -489,10 +498,12 @@ async function threads(b: ExchangeBody): Promise<Response> {
       if (pj.threads_profile_picture_url) picture = String(pj.threads_profile_picture_url);
     }
   } catch { /* best-effort */ }
-  if (!userId && !username) return bad("Threads hid the account — try again.", 502);
+  // Mobile parity: the exchange user id keys the row — a username-keyed row
+  // would ghost-duplicate it on reconnect, invisible to the upsert.
+  if (!userId) return bad("Threads hid the account — try again.", 502);
   return ok({
     access_token: token,
-    external_id: userId || username || "threads",
+    external_id: userId,
     display_name: username,
     metadata: picture ? { avatar: picture } : {},
   });

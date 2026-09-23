@@ -88,6 +88,35 @@ export async function GET(req: Request) {
   if (!payload.access_token || !payload.external_id) {
     return done(`?error=${encodeURIComponent('The provider hid the account — try again.')}`);
   }
+
+  // Ghost sweep (instagram/threads only): a past id-less exchange may have
+  // left a username-keyed row for this same @handle. Usernames are globally
+  // unique on those networks, so same display_name + different key ⇒ stale
+  // ghost. Best-effort — never breaks the connect.
+  if (
+    (flow.provider === 'instagram' || flow.provider === 'threads') &&
+    payload.display_name &&
+    payload.external_id
+  ) {
+    try {
+      const { data: siblings } = await sb
+        .from('connected_channels')
+        .select('external_id')
+        .eq('workspace_id', flow.workspace_id)
+        .eq('provider', flow.provider)
+        .eq('display_name', payload.display_name)
+        .neq('external_id', payload.external_id);
+      for (const sib of (siblings ?? []) as { external_id: string }[]) {
+        if (!sib.external_id) continue;
+        await sb.functions.invoke('remove-channel-token', {
+          body: { workspace_id: flow.workspace_id, provider: flow.provider, external_id: sib.external_id },
+        });
+      }
+    } catch {
+      /* sweep is hygiene, not the connect itself */
+    }
+  }
+
   // Same account twice is a no-op with a name: skip the import when the live
   // row is already there. Expired/revoked/error rows fall through so a
   // reconnect heals them with fresh tokens.
