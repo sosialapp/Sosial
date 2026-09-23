@@ -138,7 +138,7 @@ export default function PublishPage() {
       <CtaBand
         title="Fill next week in one sitting."
         body="One caption, ten channels, zero late-night posting."
-        secondary={{ href: '/create', label: 'See the composer' }}
+        secondary={{ href: '/features/create', label: 'See the composer' }}
       />
     </>
   );

@@ -230,7 +230,7 @@ export default async function AnalyticsPage() {
 
       <div className="card mt-3 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">Likes, comments and reach per post arrive with the stats pipeline.</p>
-        <Link href="/new" className="btn btn-bolt shrink-0">
+        <Link href="/create" className="btn btn-bolt shrink-0">
           Create a post
         </Link>
       </div>

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Create',
   description:
     'One composer for ten channels. Per-channel previews, live character counters, templates, and media that fits every network.',
-  alternates: { canonical: '/create' },
+  alternates: { canonical: '/features/create' },
 };
 
 export default function CreatePage() {

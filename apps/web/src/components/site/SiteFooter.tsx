@@ -53,7 +53,7 @@ export default function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link href="/create" className="hover:text-paper">
+              <Link href="/features/create" className="hover:text-paper">
                 Create
               </Link>
             </li>

@@ -52,9 +52,9 @@ const ITEMS: DockItem[] = [
     ),
   },
   {
-    href: '/new',
+    href: '/create',
     label: 'Create',
-    match: (p) => p === '/new' || p === '/composer' || p.startsWith('/new/') || p.startsWith('/composer/'),
+    match: (p) => p === '/create' || p === '/new' || p === '/composer' || p.startsWith('/create/') || p.startsWith('/new/') || p.startsWith('/composer/'),
     tint: '#4CAF7D',
     icon: (
       <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
@@ -101,7 +101,7 @@ const ITEMS: DockItem[] = [
 
 const PLUS_OPTIONS = [
   {
-    href: '/new?tab=post',
+    href: '/create?tab=post',
     label: 'Post',
     desc: 'Write and schedule',
     icon: (
@@ -111,7 +111,7 @@ const PLUS_OPTIONS = [
     ),
   },
   {
-    href: '/new?tab=ideas',
+    href: '/create?tab=ideas',
     label: 'Ideas',
     desc: 'Capture it first',
     icon: (
@@ -122,7 +122,7 @@ const PLUS_OPTIONS = [
     ),
   },
   {
-    href: '/new?tab=templates',
+    href: '/create?tab=templates',
     label: 'From template',
     desc: 'Start from a starter',
     icon: (

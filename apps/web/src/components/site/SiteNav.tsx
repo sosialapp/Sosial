@@ -17,7 +17,7 @@ interface MenuLink {
 
 const FEATURES: MenuLink[] = [
   { href: '/publish', title: 'Publish', desc: 'One calendar and queue across ten channels' },
-  { href: '/create', title: 'Create', desc: 'Composer, media, templates and previews' },
+  { href: '/features/create', title: 'Create', desc: 'Composer, media, templates and previews' },
   { href: '/ai-assistant', title: 'AI Assistant', desc: 'Research-backed drafts in 100+ languages' },
 ];
 

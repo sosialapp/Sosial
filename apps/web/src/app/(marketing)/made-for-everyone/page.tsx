@@ -25,7 +25,7 @@ export default function MadeForEveryonePage() {
           {
             title: 'Creators and founders',
             body: 'One person, ten channels, no team. Write in the morning, let the queue ship through the day, and keep the evening for actual work.',
-            href: '/create',
+            href: '/features/create',
             linkLabel: 'See the composer',
           },
           {

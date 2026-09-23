@@ -16,7 +16,7 @@ export default function AiAssistantPage() {
         eyebrow="AI Assistant"
         title="A writer that checks its facts."
         lede="Rough thought in, post-ready caption out. Grounded by live research with linked sources, written in your style, in 100+ languages. Nothing publishes without you."
-        secondary={{ href: '/create', label: 'See the composer' }}
+        secondary={{ href: '/features/create', label: 'See the composer' }}
         visual={
           <div className="card p-3 md:p-4">
             <WriterPreview />

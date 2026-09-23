@@ -221,7 +221,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
           )}
 
           <div className="mt-6 flex flex-col gap-2">
-            <Link href="/new" className="btn btn-bolt w-full">
+            <Link href="/create" className="btn btn-bolt w-full">
               + New post
             </Link>
             {pending && <p className="text-center text-xs text-muted">Saving…</p>}
