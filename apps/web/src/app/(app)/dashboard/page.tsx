@@ -148,6 +148,22 @@ export default async function DashboardPage() {
   });
   const rangeLabel = `${monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
+  // Time axis: 2-hour rows from 6 AM to 10 PM; events bucket into the nearest row.
+  const HOURS = [6, 8, 10, 12, 14, 16, 18, 20, 22];
+  const hourLabel = (h: number) => {
+    const ap = h >= 12 ? 'PM' : 'AM';
+    const hh = h % 12 === 0 ? 12 : h % 12;
+    return `${hh} ${ap}`;
+  };
+  const rowFor = (iso: string): number => {
+    const h = new Date(iso).getHours();
+    if (h <= HOURS[0]) return HOURS[0];
+    for (let i = HOURS.length - 1; i >= 0; i--) {
+      if (h >= HOURS[i]) return HOURS[i];
+    }
+    return HOURS[0];
+  };
+
   return (
     <div className="w-full pt-6">
       <div>
@@ -244,66 +260,83 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {/* Week board: seven self-contained day columns. */}
-            <div className="mt-4 grid grid-cols-7 gap-1.5 sm:gap-2">
-              {week.map(({ d, k, posts: dayPosts, isToday }) => (
-                <div
-                  key={k}
-                  className={`flex min-h-[150px] flex-col rounded-xl border p-1.5 sm:p-2 ${
-                    isToday ? 'border-[#2f7cf6]/50 bg-[#2f7cf6]/[0.04]' : 'border-line bg-paper'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[10px] font-bold text-faint">
-                      {WEEKDAYS[(d.getDay() + 6) % 7]?.slice(0, 3) ?? ''}
-                    </span>
+            {/* Week time-grid: hour gutter + seven day columns, one aligned grid. */}
+            <div className="mt-4 overflow-x-auto">
+              <div className="min-w-[680px]">
+                {/* Day header row */}
+                <div className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))] pb-2">
+                  <span />
+                  {week.map(({ d, k, isToday }) => (
+                    <div key={k} className="flex flex-col items-center gap-0.5">
+                      <span className="text-[10px] font-bold text-faint">
+                        {WEEKDAYS[(d.getDay() + 6) % 7]?.slice(0, 3) ?? ''}
+                      </span>
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full font-display text-xs font-extrabold ${
+                          isToday ? 'bg-[#2f7cf6] text-white' : 'text-ink'
+                        }`}
+                      >
+                        {d.getDate()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Hour rows */}
+                {HOURS.map((h, ri) => (
+                  <div key={h} className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))]">
                     <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-full font-display text-xs font-extrabold ${
-                        isToday ? 'bg-[#2f7cf6] text-white' : 'text-ink'
+                      className={`pr-2 text-right text-[10px] font-medium text-faint ${
+                        ri === 0 ? '' : '-translate-y-1'
                       }`}
                     >
-                      {d.getDate()}
+                      {hourLabel(h)}
                     </span>
-                  </div>
-                  <div className="mt-1.5 flex flex-1 flex-col gap-1">
-                    {dayPosts.slice(0, 3).map((p) => {
-                      const pv = p.post_targets?.[0]?.provider;
-                      const meta = pv ? providerMeta(pv) : null;
+                    {week.map(({ k, posts: dayPosts, isToday }) => {
+                      const cell = dayPosts.filter((p) => rowFor(p.scheduled_at!) === h);
                       return (
-                        <Link
-                          key={p.id}
-                          href="/calendar"
-                          className="block rounded-lg px-1.5 py-1 transition hover:opacity-85"
-                          style={meta ? { background: `${meta.color}1A` } : undefined}
+                        <div
+                          key={k}
+                          className={`h-14 border-t border-line-soft p-1 [&:not(:first-child)]:border-l ${
+                            isToday ? 'bg-[#2f7cf6]/[0.04]' : ''
+                          } ${ri === HOURS.length - 1 ? 'border-b' : ''}`}
                         >
-                          <span className="flex items-center gap-1">
-                            {pv ? (
-                              <BrandIcon provider={pv as ProviderKey} className="h-2.5 w-2.5 shrink-0" />
-                            ) : null}
-                            <span
-                              className="truncate text-[10px] font-extrabold"
-                              style={meta ? { color: meta.color } : undefined}
-                            >
-                              {fmtTime(p.scheduled_at)}
-                            </span>
-                          </span>
-                          <span className="mt-0.5 block truncate text-[10px] font-medium text-soft">
-                            {p.title || 'Untitled post'}
-                          </span>
-                        </Link>
+                          {cell.slice(0, 2).map((p) => {
+                            const pv = p.post_targets?.[0]?.provider;
+                            const meta = pv ? providerMeta(pv) : null;
+                            return (
+                              <Link
+                                key={p.id}
+                                href="/calendar"
+                                className="mb-0.5 block rounded-md px-1.5 py-0.5 transition hover:opacity-85"
+                                style={meta ? { background: `${meta.color}1A` } : undefined}
+                              >
+                                <span className="flex items-center gap-1">
+                                  {pv ? (
+                                    <BrandIcon provider={pv as ProviderKey} className="h-2.5 w-2.5 shrink-0" />
+                                  ) : null}
+                                  <span
+                                    className="truncate text-[9px] font-extrabold"
+                                    style={meta ? { color: meta.color } : undefined}
+                                  >
+                                    {fmtTime(p.scheduled_at)}
+                                  </span>
+                                </span>
+                                <span className="block truncate text-[9px] font-medium text-soft">
+                                  {p.title || 'Untitled post'}
+                                </span>
+                              </Link>
+                            );
+                          })}
+                          {cell.length > 2 ? (
+                            <span className="block px-1 text-[9px] font-bold text-muted">+{cell.length - 2} more</span>
+                          ) : null}
+                        </div>
                       );
                     })}
-                    {dayPosts.length > 3 ? (
-                      <span className="px-1 text-[10px] font-bold text-muted">+{dayPosts.length - 3} more</span>
-                    ) : null}
-                    {dayPosts.length === 0 ? (
-                      <span className="mt-auto pb-0.5 text-center text-[10px] text-faint" aria-hidden="true">
-                        —
-                      </span>
-                    ) : null}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </section>
         </div>
