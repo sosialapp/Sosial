@@ -19,7 +19,6 @@ const FEATURES: MenuLink[] = [
   { href: '/publish', title: 'Publish', desc: 'One calendar and queue across ten channels' },
   { href: '/create', title: 'Create', desc: 'Composer, media, templates and previews' },
   { href: '/ai-assistant', title: 'AI Assistant', desc: 'Research-backed drafts in 100+ languages' },
-  { href: '/#teams', title: 'Teams & approvals', desc: 'Draft, review and approve in one tap' },
 ];
 
 const RESOURCES: MenuLink[] = [
@@ -208,10 +207,6 @@ export default function SiteNav() {
               ))}
             </div>
           </DesktopDropdown>
-
-          <Link href="/#pricing" className="py-2 text-sm font-semibold text-soft transition hover:text-ink">
-            Pricing
-          </Link>
         </div>
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
@@ -274,13 +269,6 @@ export default function SiteNav() {
               onGo={close}
             />
             <MobileSection label="Resources" links={RESOURCES} onGo={close} />
-            <Link
-              href="/#pricing"
-              onClick={close}
-              className="rounded-xl px-3 py-3 text-sm font-semibold text-soft hover:bg-card"
-            >
-              Pricing
-            </Link>
             <div className="mt-2 flex flex-col gap-2">
               {signedIn ? (
                 <GoToSosial className="btn btn-primary" onGo={close} />

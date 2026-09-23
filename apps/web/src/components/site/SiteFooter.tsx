@@ -66,16 +66,6 @@ export default function SiteFooter() {
                 AI Assistant
               </Link>
             </li>
-            <li>
-              <Link href="/#teams" className="hover:text-paper">
-                Teams &amp; approvals
-              </Link>
-            </li>
-            <li>
-              <Link href="/#pricing" className="hover:text-paper">
-                Pricing
-              </Link>
-            </li>
           </ul>
         </nav>
 
