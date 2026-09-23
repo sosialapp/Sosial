@@ -189,24 +189,41 @@ export default function DateTimePicker({
 
   return (
     <div ref={rootRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className="flex min-w-0 items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-ink transition hover:border-ink/40"
-      >
-        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
-          <path d="M3 8.5h14M7 2.8v3M13 2.8v3" />
-        </svg>
-        <span className="truncate">{fmtDay(wall)}</span>
-        <span className="text-faint">·</span>
-        <span className="truncate">{fmtClock(wall.minutes)}</span>
-        <span className="rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
-          {offsetLabel(timezone)}
-        </span>
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label="Pick date"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
+        >
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
+            <path d="M3 8.5h14M7 2.8v3M13 2.8v3" />
+          </svg>
+          <span className="truncate">
+            {new Date(wall.y, wall.m - 1, wall.d).toLocaleDateString('en-GB')}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label="Pick time"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
+        >
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
+            <circle cx="10" cy="10" r="6.5" />
+            <path d="M10 6.5V10l2.5 1.5" />
+          </svg>
+          <span className="truncate">{fmtClock(wall.minutes)}</span>
+          <span className="ml-auto shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
+            {offsetLabel(timezone)}
+          </span>
+        </button>
+      </div>
 
       {open ? (
         <div

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Composer from '@/components/Composer';
+import CreatePost from '@/components/CreatePost';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
@@ -347,7 +347,7 @@ export default function CreateHub({
             aria-selected={tab === t}
             onClick={() => setTab(t)}
             className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-              tab === t ? 'border-accent bg-accent text-white' : 'border-line bg-card text-muted hover:bg-paper'
+              tab === t ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
             }`}
           >
             {TAB_LABEL[t]}
@@ -357,8 +357,8 @@ export default function CreateHub({
       </div>
 
       {tab === 'post' ? (
-        <div className="card mt-4 overflow-hidden">
-          <Composer
+        <div className="mt-4">
+          <CreatePost
             key={`${prefill?.key ?? 'fresh'}-${pendingFiles ? pendingFiles.length : 0}`}
             channels={channels}
             workspaceId={workspaceId}
