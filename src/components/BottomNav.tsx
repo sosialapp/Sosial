@@ -84,11 +84,14 @@ const makeS = (C: Palette) => StyleSheet.create({
   float: { paddingHorizontal: 22, paddingBottom: 12, paddingTop: 6, backgroundColor: 'transparent' },
   pill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    borderRadius: 32, overflow: 'hidden', backgroundColor: C.paper,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: C.line,
+    borderRadius: 32, overflow: 'hidden', backgroundColor: C.card,
+    // paper == bone in both themes, so a paper pill melts into the backdrop
+    // and the strip reads as one solid bar — card + a real border + shadow
+    // keep it floating as a pill on either background.
+    borderWidth: 1, borderColor: C.line,
     paddingVertical: 10, paddingHorizontal: 10,
-    shadowColor: '#1C1917', shadowOpacity: 0.14, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 }, elevation: 8,
   },
   item: { alignItems: 'center', gap: 3, minWidth: 72, paddingVertical: 2 },
   itemT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: C.faint },

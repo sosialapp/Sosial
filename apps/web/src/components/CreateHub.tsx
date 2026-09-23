@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import AiCard from '@/components/AiCard';
 import CreatePost from '@/components/CreatePost';
@@ -183,9 +184,8 @@ function ratioOf(project: StudioProject): number {
 }
 
 /**
- * Mobile-style Create hub: quick Post composer, Ideas inbox, full canvas
- * Templates studio (01 Background · 02 Title · 03 Photo & socials ·
- * Content · Pages · Export).
+ * Mobile-style Post hub: quick Post composer, Templates studio, Publish
+ * (queue), Ideas inbox. Tab order mirrors the mobile Create screen.
  */
 export default function CreateHub({
   channels,
@@ -468,7 +468,7 @@ export default function CreateHub({
       <p className="mt-1 text-sm text-muted">Catch the idea, design the visual, then post it everywhere.</p>
 
       <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Post sections">
-        {(Object.keys(TAB_LABEL) as Tab[]).map((t) => (
+        {(['post', 'templates'] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -480,9 +480,26 @@ export default function CreateHub({
             }`}
           >
             {TAB_LABEL[t]}
-            {t === 'ideas' && ideas.length ? ` · ${ideas.length}` : ''}
           </button>
         ))}
+        <Link
+          href="/queue"
+          className="rounded-full border border-line bg-card px-4 py-2 text-xs font-bold text-muted transition hover:bg-paper"
+        >
+          Publish
+        </Link>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'ideas'}
+          onClick={() => setTab('ideas')}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            tab === 'ideas' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+          }`}
+        >
+          {TAB_LABEL.ideas}
+          {ideas.length ? ` · ${ideas.length}` : ''}
+        </button>
       </div>
 
       {tab === 'post' ? (

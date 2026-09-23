@@ -395,7 +395,7 @@ export default async function DashboardPage() {
           <section className="card p-5" aria-label="Content library">
             <div className="flex items-center justify-between">
               <p className="font-display text-base font-extrabold tracking-tight">Content Library</p>
-              <Link href="/create?tab=templates" className="text-xs font-bold text-ink hover:underline">
+              <Link href="/post?tab=templates" className="text-xs font-bold text-ink hover:underline">
                 View all
               </Link>
             </div>
@@ -407,7 +407,7 @@ export default async function DashboardPage() {
               <ThumbSlot className="aspect-square" />
             </div>
             <Link
-              href="/create?tab=templates"
+              href="/post?tab=templates"
               aria-label="Add to library"
               className="mt-3 flex h-9 w-9 items-center justify-center rounded-xl border border-dashed border-line text-muted transition hover:border-ink hover:text-ink"
             >

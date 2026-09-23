@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
-import { createPost, createChain, type ComposeMode } from '@/lib/posts';
+import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { generateCaptions, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
 import DateTimePicker from '@/components/DateTimePicker';
@@ -207,6 +207,14 @@ export default function Composer({
       setErr('Add a caption or some media first.');
       return;
     }
+    const blockedSingle = mediaBlock(
+      chosen.map((c) => c.provider),
+      files,
+    );
+    if (blockedSingle) {
+      setErr(blockedSingle.message);
+      return;
+    }
     setBusy(true);
     try {
       const sb = createClient();
@@ -251,6 +259,15 @@ export default function Composer({
           : null;
     if (!payload) {
       setErr('Write at least one part of the chain first.');
+      return;
+    }
+    // Media rides on part 1 — the media channels judge the chain by it.
+    const blockedChain = mediaBlock(
+      chosen.map((c) => c.provider),
+      files,
+    );
+    if (blockedChain) {
+      setErr(blockedChain.message);
       return;
     }
     setBusy(true);

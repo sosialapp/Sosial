@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 const SECTIONS = [
   { href: '/dashboard', label: 'Dashboard', sub: 'Today at a glance' },
-  { href: '/create', label: 'Create', sub: 'Post, ideas and templates' },
+  { href: '/post', label: 'Post', sub: 'Post, ideas and templates' },
   { href: '/queue', label: 'Queue', sub: 'Everything scheduled and sent' },
   { href: '/calendar', label: 'Calendar', sub: 'The month view' },
   { href: '/analytics', label: 'Analytics', sub: 'Pipeline, channels, rhythm' },

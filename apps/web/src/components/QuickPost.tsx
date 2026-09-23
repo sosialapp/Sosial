@@ -21,7 +21,7 @@ function deviceZone(): string {
 
 /**
  * Quick post: type, pick channels, ship. No media, no title, no AI —
- * the full composer lives at /create.
+  * the full composer lives at /post.
  */
 export default function QuickPost({
   channels,

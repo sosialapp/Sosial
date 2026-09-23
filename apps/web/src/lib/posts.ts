@@ -87,6 +87,30 @@ export async function fetchLiveChannels(sb: SupabaseClient, workspaceId: string)
   return orderChannels((data ?? []) as unknown as ConnectedChannel[]);
 }
 
+/** Channels that refuse text-only posts (mobile mediaBlock parity). */
+const MEDIA_PROVIDERS = ['tiktok', 'instagram', 'pinterest', 'youtube'];
+
+/**
+ * Text-only posts can't go to media channels — YouTube additionally needs
+ * video. Returns the message to show, or null when the media passes.
+ */
+export function mediaBlock(
+  providers: string[],
+  media: { kind: string }[],
+): { message: string } | null {
+  const flagged = [...new Set(providers.filter((p) => MEDIA_PROVIDERS.includes(p)))];
+  const missing = flagged.filter((p) =>
+    p === 'youtube' ? !media.some((m) => m.kind === 'video') : media.length === 0,
+  );
+  if (missing.length === 0) return null;
+  const onlyYt = missing.length === 1 && missing[0] === 'youtube';
+  return {
+    message: onlyYt
+      ? 'YouTube needs a video — photos or text alone can’t go there.'
+      : 'Attach a photo or video — text-only posts can’t go to those channels.',
+  };
+}
+
 /* ------------------------------ mutations ------------------------------ */
 
 export type ComposeMode = 'draft' | 'schedule' | 'now';

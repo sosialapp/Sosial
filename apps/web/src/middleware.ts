@@ -10,6 +10,7 @@ const PUBLIC_PREFIXES = [
   '/resources',
   '/integrations',
   '/publish',
+  '/post',
   '/create',
   '/ai-assistant',
   '/audiences',
@@ -64,6 +65,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/resources') ||
     path.startsWith('/integrations') ||
     path.startsWith('/publish') ||
+    path.startsWith('/post') ||
     path.startsWith('/create') ||
     path.startsWith('/ai-assistant') ||
     path.startsWith('/audiences') ||

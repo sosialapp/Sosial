@@ -5,11 +5,12 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AiCard from '@/components/AiCard';
+import SendIcon from '@/components/SendIcon';
 import DateTimePicker from '@/components/DateTimePicker';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
 import { pictureToFile } from '@/lib/pictures';
-import { createChain, createPost, type ComposeMode } from '@/lib/posts';
+import { createChain, createPost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
@@ -204,6 +205,16 @@ export default function CreatePost({
     const live = segs.filter((s) => s.body.trim() || s.media.length > 0);
     if (live.length === 0) {
       setErr('Add a caption or some media first.');
+      return;
+    }
+    // Media channels refuse text-only posts (only file-backed media uploads).
+    const uploadable = (segs[0]?.media ?? []).filter((m) => Boolean(m.file));
+    const blocked = mediaBlock(
+      chosen.map((c) => c.provider),
+      uploadable,
+    );
+    if (blocked) {
+      setErr(blocked.message);
       return;
     }
     if (segs[0] && segs[0].body.length > limit) {
@@ -428,7 +439,14 @@ export default function CreatePost({
                 Save draft
               </button>
               <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
-                {busy ? 'Sending…' : mode === 'now' ? 'Post now' : 'Schedule post'}
+                {busy ? (
+                  'Sending…'
+                ) : (
+                  <>
+                    <SendIcon className="h-3.5 w-3.5" />
+                    {mode === 'now' ? 'Post now' : 'Schedule post'}
+                  </>
+                )}
               </button>
             </div>
           </section>

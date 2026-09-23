@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
+import SendIcon from '@/components/SendIcon';
 
 type DockItem = {
   href?: string;
@@ -52,16 +53,11 @@ const ITEMS: DockItem[] = [
     ),
   },
   {
-    href: '/create',
+    href: '/post',
     label: 'Post',
-    match: (p) => p === '/create' || p === '/new' || p === '/composer' || p.startsWith('/create/') || p.startsWith('/new/') || p.startsWith('/composer/'),
+    match: (p) => p === '/post' || p === '/create' || p === '/new' || p === '/composer' || p.startsWith('/post/') || p.startsWith('/create/') || p.startsWith('/new/') || p.startsWith('/composer/'),
     tint: '#4CAF7D',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
-        <path d="M17.5 2.5 3.5 10.3l6.2 2.2 2.2 6.2 5.6-16.2Z" />
-        <path d="M9.7 12.5l7.8-10" />
-      </svg>
-    ),
+    icon: <SendIcon className="h-6 w-6" />,
   },
   {
     label: 'New post',
@@ -102,18 +98,13 @@ const ITEMS: DockItem[] = [
 
 const PLUS_OPTIONS = [
   {
-    href: '/create?tab=post',
+    href: '/post?tab=post',
     label: 'Post',
     desc: 'Write and schedule',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-4 w-4" {...STROKE} aria-hidden="true">
-        <path d="M17.5 2.5 3.5 10.3l6.2 2.2 2.2 6.2 5.6-16.2Z" />
-        <path d="M9.7 12.5l7.8-10" />
-      </svg>
-    ),
+    icon: <SendIcon className="h-4 w-4" />,
   },
   {
-    href: '/create?tab=ideas',
+    href: '/post?tab=ideas',
     label: 'Ideas',
     desc: 'Capture it first',
     icon: (
@@ -124,7 +115,7 @@ const PLUS_OPTIONS = [
     ),
   },
   {
-    href: '/create?tab=templates',
+    href: '/post?tab=templates',
     label: 'From template',
     desc: 'Start from a starter',
     icon: (

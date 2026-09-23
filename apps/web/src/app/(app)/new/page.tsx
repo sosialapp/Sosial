@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** /new moved to /create — keep old links alive. */
+/** /new moved to /post — keep old links alive. */
 export default function NewRedirect() {
-  redirect('/create');
+  redirect('/post');
 }
