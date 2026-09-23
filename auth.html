@@ -21,17 +21,23 @@
   <a id="back" href="#">Open Sosial</a>
 </div>
 <script>
-  // Providers append ?code=… (or ?error=…) plus our `state`, which carries the
-  // address the app asked to be sent back to (exp://… in Expo Go,
-  // sosial://redirect in standalone builds). Forward everything there so
-  // expo-web-browser captures it and closes the session automatically.
+  // Providers append ?code=… (or ?error=…) plus our `state`.
+  // MOBILE flow: `state` carries the address the app asked to be sent back
+  // to (exp://… in Expo Go, sosial://redirect in standalone builds) — forward
+  // everything there so expo-web-browser captures it and closes the session.
+  // WEB flow: `state` is an opaque nonce (no ://) — hand the whole query to
+  // the site's OAuth callback route on the same origin instead.
   var params = null;
   try { params = new URLSearchParams(location.search || ''); } catch (e) { params = null; }
-  var base = params ? params.get('state') : null;
-  if (!base || base.indexOf('://') < 0) base = 'sosial://redirect';
+  var state = params ? params.get('state') : null;
   var q = location.search || '';
   var h = location.hash || '';
-  var deep = base + q + h;
+  var deep;
+  if (state && state.indexOf('://') >= 0) {
+    deep = state + q + h;
+  } else {
+    deep = '/api/oauth/callback' + q + h;
+  }
   document.getElementById('back').href = deep;
   // auto-redirect; the manual button is the fallback if the browser blocks it
   setTimeout(function () { location.replace(deep); }, 300);

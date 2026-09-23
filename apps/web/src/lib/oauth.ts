@@ -7,7 +7,12 @@
  * Server env (Vercel, never NEXT_PUBLIC_ — the start route reads these):
  *   TT_CLIENT_KEY, META_APP_ID, IG_APP_ID, X_CLIENT_ID, YT_CLIENT_ID, LI_CLIENT_ID
  * The matching secrets live as Supabase secrets for oauth-exchange.
- * Every dashboard must list the redirect URI: {origin}/api/oauth/callback
+ *
+ * The redirect URI is the same static bridge the mobile app uses
+ * ({origin}/auth.html) — already registered in every provider dashboard, so
+ * no dashboard changes are needed. The bridge forwards to
+ * /api/oauth/callback on the same origin when `state` is a web nonce
+ * (mobile puts a return URL in `state`, which still goes to the app).
  */
 
 export type OAuthProvider =
@@ -33,9 +38,10 @@ export const isOAuthProvider = (v: unknown): v is OAuthProvider =>
 export const oauthLabel = (p: string): string =>
   OAUTH_PROVIDERS.find((x) => x.id === p)?.label ?? p;
 
-/** The exact redirect URI registered in every provider dashboard. */
+/** The redirect URI — the shared mobile/web bridge, already allow-listed
+ *  everywhere. Origin-aware so local dev serves its own copy. */
 export function redirectUri(origin: string): string {
-  return `${origin.replace(/\/+$/, '')}/api/oauth/callback`;
+  return `${origin.replace(/\/+$/, '')}/auth.html`;
 }
 
 const TT_SCOPES = ['user.info.basic', 'user.info.stats', 'video.upload', 'video.publish', 'video.list'];
