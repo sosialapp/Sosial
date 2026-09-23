@@ -31,7 +31,7 @@ export default function ChannelAvatar({
         style={{ width: size, height: size, background: meta.color }}
         title={meta.label}
       >
-        <BrandIcon provider={provider as BrandProvider} mono className="h-1/2 w-1/2 text-white" />
+        <BrandIcon provider={provider as BrandProvider} mono className="h-[62%] w-[62%] text-white" />
       </span>
     );
   }
@@ -58,7 +58,7 @@ export default function ChannelAvatar({
         }}
         aria-hidden="true"
       >
-        <BrandIcon provider={provider as BrandProvider} mono className="text-white" style={{ width: '56%', height: '56%' }} />
+        <BrandIcon provider={provider as BrandProvider} mono className="text-white" style={{ width: '62%', height: '62%' }} />
       </span>
     </span>
   );

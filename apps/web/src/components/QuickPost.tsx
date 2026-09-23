@@ -4,11 +4,19 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import DateTimePicker from '@/components/DateTimePicker';
 import { providerMeta } from '@/lib/providers';
 import { createPost } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
-import { fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
+
+function deviceZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
 
 /**
  * Quick post: type, pick channels, ship. No media, no title, no AI —
@@ -30,7 +38,8 @@ export default function QuickPost({
   const [body, setBody] = useState('');
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
   const [mode, setMode] = useState<'now' | 'schedule'>('now');
-  const [when, setWhen] = useState(() => toDateTimeLocal(null));
+  const [when, setWhen] = useState<string | null>(null);
+  const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -53,8 +62,8 @@ export default function QuickPost({
       setErr('Write something first.');
       return;
     }
-    if (mode === 'schedule' && !fromDateTimeLocal(when)) {
-      setErr('Choose a valid date and time.');
+    if (mode === 'schedule' && !when) {
+      setErr('Choose a date and time first.');
       return;
     }
     setBusy(true);
@@ -68,9 +77,10 @@ export default function QuickPost({
         title: text.split('\n')[0].slice(0, 60),
         body: text,
         mode,
-        scheduleIso: mode === 'schedule' ? fromDateTimeLocal(when) : null,
+        scheduleIso: mode === 'schedule' ? when : null,
         channels: chosen,
         files: [],
+        timezone: tz,
       });
       setBody('');
       setDone(mode === 'now' ? 'Posted. Watch the queue.' : 'Scheduled.');
@@ -141,7 +151,8 @@ export default function QuickPost({
           {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
           {done ? <p className="mt-2 text-xs font-bold text-[#346538]">{done}</p> : null}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          {/* Mode + action on one stable row — only the label changes. */}
+          <div className="mt-3 flex items-center gap-2">
             <div
               className="flex rounded-full border border-line bg-paper p-1"
               role="group"
@@ -164,21 +175,26 @@ export default function QuickPost({
                 </button>
               ))}
             </div>
-            {mode === 'schedule' ? (
-              <input
-                type="datetime-local"
-                value={when}
-                onChange={(e) => setWhen(e.target.value)}
-                aria-label="Schedule for"
-                className="field !w-auto min-w-0 flex-1 py-1.5 text-xs sm:flex-none"
-              />
-            ) : (
-              <span className="flex-1" />
-            )}
+            <span className="flex-1" />
             <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
               {busy ? 'Sending…' : mode === 'now' ? 'Post now' : 'Schedule post'}
             </button>
           </div>
+
+          {/* Date, time and timezone — schedule mode only. */}
+          {mode === 'schedule' ? (
+            <div className="mt-2.5">
+              <DateTimePicker
+                value={when}
+                timezone={tz}
+                onChange={(iso) => {
+                  setWhen(iso);
+                  setDone(null);
+                }}
+                onTimezoneChange={setTz}
+              />
+            </div>
+          ) : null}
         </form>
       )}
     </section>

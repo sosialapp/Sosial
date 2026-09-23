@@ -72,6 +72,8 @@ export interface ComposeArgs {
   /** P17 chains: segments of one thread share a chainId, ordered by chainPosition. */
   chainId?: string;
   chainPosition?: number;
+  /** IANA zone the schedule was chosen in; defaults to the server's device zone. */
+  timezone?: string;
 }
 
 export function extFor(name: string, kind: string): string {
@@ -126,7 +128,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
         body: body.trim(),
         status: postStatus,
         scheduled_at: scheduledIso,
-        timezone: deviceTimezone(),
+        timezone: args.timezone ?? deviceTimezone(),
         chain_id: args.chainId ?? null,
         chain_position: args.chainPosition ?? 0,
       },

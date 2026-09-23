@@ -148,22 +148,6 @@ export default async function DashboardPage() {
   });
   const rangeLabel = `${monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
-  // Time grid rows, every 2h like the reference.
-  const HOURS = [8, 10, 12, 14, 16, 18, 20];
-  const hourLabel = (h: number) => {
-    const ap = h >= 12 ? 'PM' : 'AM';
-    const hh = h % 12 === 0 ? 12 : h % 12;
-    return `${hh} ${ap}`;
-  };
-  const rowFor = (iso: string): number => {
-    const h = new Date(iso).getHours();
-    if (h < HOURS[0]) return HOURS[0];
-    for (let i = HOURS.length - 1; i >= 0; i--) {
-      if (h >= HOURS[i]) return HOURS[i];
-    }
-    return HOURS[0];
-  };
-
   return (
     <div className="w-full pt-6">
       <div>
@@ -260,111 +244,67 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {/* Day header */}
-            <div className="mt-4 grid grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] gap-px">
-              <span />
-              {week.map(({ d, k, isToday }) => (
-                <div key={k} className="flex flex-col items-center gap-0.5 pb-1">
-                  <span className="text-[10px] font-bold text-faint">
-                    {WEEKDAYS[(d.getDay() + 6) % 7]?.slice(0, 3) ?? ''}
-                  </span>
-                  <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full font-display text-sm font-extrabold ${
-                      isToday ? 'bg-[#2f7cf6] text-white' : ''
-                    }`}
-                  >
-                    {d.getDate()}
-                  </span>
+            {/* Week board: seven self-contained day columns. */}
+            <div className="mt-4 grid grid-cols-7 gap-1.5 sm:gap-2">
+              {week.map(({ d, k, posts: dayPosts, isToday }) => (
+                <div
+                  key={k}
+                  className={`flex min-h-[150px] flex-col rounded-xl border p-1.5 sm:p-2 ${
+                    isToday ? 'border-[#2f7cf6]/50 bg-[#2f7cf6]/[0.04]' : 'border-line bg-paper'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-[10px] font-bold text-faint">
+                      {WEEKDAYS[(d.getDay() + 6) % 7]?.slice(0, 3) ?? ''}
+                    </span>
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full font-display text-xs font-extrabold ${
+                        isToday ? 'bg-[#2f7cf6] text-white' : 'text-ink'
+                      }`}
+                    >
+                      {d.getDate()}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex flex-1 flex-col gap-1">
+                    {dayPosts.slice(0, 3).map((p) => {
+                      const pv = p.post_targets?.[0]?.provider;
+                      const meta = pv ? providerMeta(pv) : null;
+                      return (
+                        <Link
+                          key={p.id}
+                          href="/calendar"
+                          className="block rounded-lg px-1.5 py-1 transition hover:opacity-85"
+                          style={meta ? { background: `${meta.color}1A` } : undefined}
+                        >
+                          <span className="flex items-center gap-1">
+                            {pv ? (
+                              <BrandIcon provider={pv as ProviderKey} className="h-2.5 w-2.5 shrink-0" />
+                            ) : null}
+                            <span
+                              className="truncate text-[10px] font-extrabold"
+                              style={meta ? { color: meta.color } : undefined}
+                            >
+                              {fmtTime(p.scheduled_at)}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 block truncate text-[10px] font-medium text-soft">
+                            {p.title || 'Untitled post'}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                    {dayPosts.length > 3 ? (
+                      <span className="px-1 text-[10px] font-bold text-muted">+{dayPosts.length - 3} more</span>
+                    ) : null}
+                    {dayPosts.length === 0 ? (
+                      <span className="mt-auto pb-0.5 text-center text-[10px] text-faint" aria-hidden="true">
+                        —
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
-
-            {/* Time grid */}
-            <div className="overflow-x-auto">
-              <div className="min-w-[560px]">
-                {HOURS.map((h, ri) => (
-                  <div key={h} className="grid grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] gap-px">
-                    <span className="-mt-1.5 pr-1 text-right text-[10px] font-medium text-faint">
-                      {hourLabel(h)}
-                    </span>
-                    {week.map(({ k, posts: dayPosts }) => {
-                      const cell = dayPosts.filter((p) => rowFor(p.scheduled_at!) === h);
-                      return (
-                        <div
-                          key={k}
-                          className={`min-h-[64px] border-t border-line-soft p-1 ${
-                            ri === HOURS.length - 1 ? 'border-b' : ''
-                          }`}
-                        >
-                          {cell.slice(0, 2).map((p) => {
-                            const pv = p.post_targets?.[0]?.provider;
-                            const meta = pv ? providerMeta(pv) : null;
-                            return (
-                              <Link
-                                key={p.id}
-                                href="/calendar"
-                                className="mb-1 block truncate rounded-lg px-1.5 py-1 text-left transition hover:opacity-85"
-                                style={meta ? { background: `${meta.color}1A` } : undefined}
-                              >
-                                <span className="flex items-center gap-1">
-                                  {pv ? <BrandIcon provider={pv as ProviderKey} className="h-3 w-3 shrink-0" /> : null}
-                                  <span className="truncate text-[10px] font-extrabold" style={meta ? { color: meta.color } : undefined}>
-                                    {meta?.label ?? 'Post'}
-                                  </span>
-                                </span>
-                                <span className="block truncate text-[10px] font-medium text-soft">
-                                  {(p.title || 'Untitled post').slice(0, 24)}
-                                </span>
-                                <span className="block text-[10px] text-faint">{fmtTime(p.scheduled_at)}</span>
-                              </Link>
-                            );
-                          })}
-                          {cell.length > 2 ? (
-                            <span className="block px-1 text-[10px] font-bold text-muted">+{cell.length - 2}</span>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Recent activity */}
-          <section className="card p-5" aria-label="Recent activity">
-            <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Recent Activity</p>
-              <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
-                View all
-              </Link>
-            </div>
-            {recent.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">Nothing sent yet. Queue a post and it lands here.</p>
-            ) : (
-              <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {recent.map((p) => {
-                  const pv = (p.post_targets?.[0]?.provider ?? 'instagram') as ProviderKey;
-                  const meta = providerMeta(pv);
-                  const failed = p.status === 'failed';
-                  return (
-                    <li key={p.id} className="flex items-center gap-3">
-                      <BrandIcon provider={pv} className="h-10 w-10 shrink-0" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-bold">
-                          {failed ? 'Failed on ' : 'Posted on '}
-                          {meta.label}
-                        </span>
-                        <span className="block truncate text-xs text-soft">
-                          {p.title || 'Untitled post'}
-                        </span>
-                        <span className="block text-[11px] text-faint">{timeAgo(p.sent_at)}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
           </section>
         </div>
 
@@ -440,6 +380,42 @@ export default async function DashboardPage() {
             >
               +
             </Link>
+          </section>
+
+          {/* Recent activity */}
+          <section className="card p-5" aria-label="Recent activity">
+            <div className="flex items-center justify-between">
+              <p className="font-display text-base font-extrabold tracking-tight">Recent Activity</p>
+              <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
+                View all
+              </Link>
+            </div>
+            {recent.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">Nothing sent yet. Queue a post and it lands here.</p>
+            ) : (
+              <ul className="mt-4 space-y-4">
+                {recent.map((p) => {
+                  const pv = (p.post_targets?.[0]?.provider ?? 'instagram') as ProviderKey;
+                  const meta = providerMeta(pv);
+                  const failed = p.status === 'failed';
+                  return (
+                    <li key={p.id} className="flex items-center gap-3">
+                      <BrandIcon provider={pv} className="h-10 w-10 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-bold">
+                          {failed ? 'Failed on ' : 'Posted on '}
+                          {meta.label}
+                        </span>
+                        <span className="block truncate text-xs text-soft">
+                          {p.title || 'Untitled post'}
+                        </span>
+                        <span className="block text-[11px] text-faint">{timeAgo(p.sent_at)}</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
 
           {/* Needs attention, only when something is actually wrong */}

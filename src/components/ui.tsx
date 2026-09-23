@@ -61,12 +61,12 @@ export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { p
         <Image source={{ uri: avatar }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.lineSoft }} resizeMode="cover" />
       ) : (
         <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-          <SocialGlyph platform={platform} size={Math.round(size * 0.45)} color="#fff" />
+          <SocialGlyph platform={platform} size={Math.round(size * 0.56)} color="#fff" />
         </View>
       )}
       {avatar && badge ? (
         <View style={{ position: 'absolute', right: -2, bottom: -2, width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bone }}>
-          <SocialGlyph platform={platform} size={Math.round(badgeSize * 0.56)} color="#fff" />
+          <SocialGlyph platform={platform} size={Math.round(badgeSize * 0.62)} color="#fff" />
         </View>
       ) : null}
     </View>
