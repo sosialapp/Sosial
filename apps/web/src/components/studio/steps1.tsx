@@ -30,6 +30,7 @@ import {
 } from '@/lib/studio/model';
 import { providerMeta } from '@/lib/providers';
 import { BrandIcon } from '@/components/BrandIcon';
+import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { Field, Seg, Stepper, Swatches, SwitchRow, Toggle } from './controls';
 
 export interface StepApi {
@@ -216,9 +217,9 @@ export function TitleStep({ page, patchTitle, patchPage }: Pick<StepApi, 'page' 
     <div className="space-y-4">
       <div className="card space-y-3 p-4">
         <Section no="01" title="Headline" hint="The first thing people read." />
-        <textarea
+        <EmojiTextarea
           value={t.text}
-          onChange={(e) => patchTitle({ text: e.target.value })}
+          onChange={(v) => patchTitle({ text: v })}
           placeholder="Type your headline…"
           rows={2}
           className="field min-h-[56px] resize-y font-display font-bold"
@@ -248,9 +249,9 @@ export function TitleStep({ page, patchTitle, patchPage }: Pick<StepApi, 'page' 
       </div>
       <div className="card space-y-3 p-4">
         <Section no="02" title="Subtitle" hint="A smaller line under the headline." />
-        <textarea
+        <EmojiTextarea
           value={t.subtitle ?? ''}
-          onChange={(e) => patchTitle({ subtitle: e.target.value })}
+          onChange={(v) => patchTitle({ subtitle: v })}
           placeholder="Smaller line under the headline…"
           rows={2}
           className="field min-h-[48px] resize-y"
@@ -310,9 +311,9 @@ export function TitleStep({ page, patchTitle, patchPage }: Pick<StepApi, 'page' 
       </div>
       <div className="card space-y-3 p-4">
         <Section no="05" title="Caption" hint="Copied into the composer when you post." />
-        <textarea
+        <EmojiTextarea
           value={page.caption ?? ''}
-          onChange={(e) => patchPage({ caption: e.target.value })}
+          onChange={(v) => patchPage({ caption: v })}
           placeholder="Description for Facebook / IG…"
           rows={3}
           className="field min-h-[72px] resize-y"
@@ -382,7 +383,7 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
           <Seg options={[{ value: 'circle', label: 'Circle' }, { value: 'rounded', label: 'Rounded' }]} value={p.shape} onChange={(v) => patchPfp({ shape: v as 'circle' | 'rounded' })} />
         </Field>
         <Field label="Username" hint="Universal name under your photo.">
-          <input value={p.username ?? ''} onChange={(e) => patchPfp({ username: e.target.value })} placeholder="Your name" className="field" />
+          <EmojiInput value={p.username ?? ''} onChange={(v) => patchPfp({ username: v })} placeholder="Your name" className="field" />
         </Field>
       </div>
       <div className="space-y-3" style={{ opacity: p.hidden ? 0.45 : 1 }}>

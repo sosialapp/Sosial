@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { EmojiTextarea } from '@/components/Emoji';
 
 export interface AdminReport {
   id: string;
@@ -69,9 +70,9 @@ function ReportCard({ report }: { report: AdminReport }) {
       <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_180px_auto] sm:items-end">
         <label className="grid gap-1 text-xs font-bold text-muted">
           Admin note (private)
-          <textarea
+          <EmojiTextarea
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={setNote}
             rows={2}
             placeholder="Context, decision, follow-up…"
             className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm font-normal text-ink placeholder:text-faint"

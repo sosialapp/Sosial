@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 
 /** Owner broadcast composer. Queues one send_push job; the worker delivers
  *  to every registered token and prunes dead ones from Expo receipts. */
@@ -53,18 +54,18 @@ export default function PushComposer({ audience }: { audience: number }) {
     <div className="grid gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5">
       <label className="grid gap-1 text-xs font-bold text-muted">
         Title ({title.trim().length}/120)
-        <input
+        <EmojiInput
           value={title}
-          onChange={(e) => setTitle(e.target.value.slice(0, 120))}
+          onChange={(v) => setTitle(v.slice(0, 120))}
           placeholder="Something worth opening the app for"
           className={inputCls}
         />
       </label>
       <label className="grid gap-1 text-xs font-bold text-muted">
         Body ({body.trim().length}/500)
-        <textarea
+        <EmojiTextarea
           value={body}
-          onChange={(e) => setBody(e.target.value.slice(0, 500))}
+          onChange={(v) => setBody(v.slice(0, 500))}
           rows={3}
           placeholder="One or two sentences for the lock screen."
           className={inputCls}

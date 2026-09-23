@@ -7,8 +7,18 @@ import { createClient } from '@/lib/supabase/client';
 import { createPost, createChain, type ComposeMode } from '@/lib/posts';
 import { generateCaptions, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
+import DateTimePicker from '@/components/DateTimePicker';
+import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
-import { fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
+
+function deviceZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 const MODES: { id: ComposeMode; label: string }[] = [
   { id: 'draft', label: 'Save draft' },
   { id: 'schedule', label: 'Schedule' },
@@ -50,7 +60,8 @@ export default function Composer({
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
   const [mode, setMode] = useState<ComposeMode>('schedule');
-  const [when, setWhen] = useState(() => toDateTimeLocal(null));
+  const [whenIso, setWhenIso] = useState<string | null>(null);
+  const [tz, setTz] = useState(deviceZone);
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
   const [files, setFiles] = useState<{ file: File; kind: 'image' | 'video'; url: string }[]>(() =>
     initialFiles.map((file) => ({
@@ -188,7 +199,7 @@ export default function Composer({
       setErr('Pick at least one channel.');
       return;
     }
-    if (mode === 'schedule' && !fromDateTimeLocal(when)) {
+    if (mode === 'schedule' && !whenIso) {
       setErr('Choose a valid date and time.');
       return;
     }
@@ -206,9 +217,10 @@ export default function Composer({
         title,
         body,
         mode,
-        scheduleIso: fromDateTimeLocal(when),
+        scheduleIso: whenIso,
         channels: chosen,
         files,
+        timezone: tz,
       });
       router.push('/queue');
       router.refresh();
@@ -226,7 +238,7 @@ export default function Composer({
       setErr('Pick at least one channel.');
       return;
     }
-    if (mode === 'schedule' && !fromDateTimeLocal(when)) {
+    if (mode === 'schedule' && !whenIso) {
       setErr('Choose a valid start date and time.');
       return;
     }
@@ -250,9 +262,10 @@ export default function Composer({
         role,
         segments: payload,
         mode,
-        startIso: fromDateTimeLocal(when),
+        startIso: whenIso,
         gapMinutes: gap,
         channels: chosen,
+        timezone: tz,
       });
       router.push('/queue');
       router.refresh();
@@ -304,17 +317,17 @@ export default function Composer({
         <div className="min-w-0 flex-1 space-y-4">
           {kind === 'single' ? (
             <>
-              <input
+              <EmojiInput
                 className="field font-display text-lg font-bold"
                 placeholder="Title (optional)"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={setTitle}
               />
-              <textarea
+              <EmojiTextarea
                 className="field min-h-[240px] resize-y leading-relaxed"
                 placeholder="What do you want to share?"
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={setBody}
               />
               <p className="text-xs text-faint">
                 {body.length.toLocaleString()} chars · strictest picked channel allows{' '}
@@ -364,7 +377,7 @@ export default function Composer({
                       </button>
                     </span>
                   </div>
-                  <textarea
+                  <EmojiTextarea
                     className="field min-h-[120px] resize-y leading-relaxed"
                     placeholder={
                       i === 0
@@ -374,7 +387,7 @@ export default function Composer({
                           : 'Build the idea…'
                     }
                     value={s.body}
-                    onChange={(e) => setSegBody(s.key, e.target.value)}
+                    onChange={(v) => setSegBody(s.key, v)}
                   />
                   <p className="mt-1 text-xs text-faint">
                     {s.body.length.toLocaleString()} chars · strictest picked channel allows{' '}
@@ -445,11 +458,11 @@ export default function Composer({
         <aside className="w-full shrink-0 space-y-5 lg:w-80">
           <div className="card space-y-3 p-4">
             <p className="eyebrow">AI captions</p>
-            <textarea
+            <EmojiTextarea
               className="field min-h-[72px] resize-y text-sm"
               placeholder="What is this about? e.g. why we batch content on Sundays…"
               value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+              onChange={setTopic}
             />
             <div className="flex items-center gap-2">
               <select
@@ -535,15 +548,19 @@ export default function Composer({
               ))}
             </div>
             {mode === 'schedule' && (
-              <label className="mt-3 block text-xs font-bold text-muted">
-                {kind === 'chain' ? 'Part 1 goes out at' : 'Goes out at'}
-                <input
-                  className="field mt-1"
-                  type="datetime-local"
-                  value={when}
-                  onChange={(e) => setWhen(e.target.value)}
-                />
-              </label>
+              <div className="mt-3">
+                <p className="text-xs font-bold text-muted">
+                  {kind === 'chain' ? 'Part 1 goes out at' : 'Goes out at'}
+                </p>
+                <div className="mt-1">
+                  <DateTimePicker
+                    value={whenIso}
+                    timezone={tz}
+                    onChange={setWhenIso}
+                    onTimezoneChange={setTz}
+                  />
+                </div>
+              </div>
             )}
             {kind === 'chain' && mode !== 'draft' && (
               <label className="mt-3 block text-xs font-bold text-muted">

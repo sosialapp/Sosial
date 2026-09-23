@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
+import { EmojiTextarea } from '@/components/Emoji';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 
 type EmojiMode = 'auto' | 'on' | 'off';
@@ -142,9 +143,9 @@ export default function AiCard({
       </div>
 
       {/* Idea */}
-      <textarea
+      <EmojiTextarea
         value={topic}
-        onChange={(e) => setTopic(e.target.value)}
+        onChange={setTopic}
         placeholder="e.g. Create a catchy Instagram caption about building better habits for a healthier life…"
         rows={3}
         aria-label="Your idea"
@@ -372,9 +373,9 @@ export default function AiCard({
           </div>
           <div>
             <p className="text-xs font-bold">Custom instructions <span className="font-medium text-faint">· optional</span></p>
-            <textarea
+            <EmojiTextarea
               value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
+              onChange={setInstructions}
               placeholder="e.g. mention our launch on Friday, keep it under 3 lines…"
               rows={2}
               aria-label="Custom instructions"

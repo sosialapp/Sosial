@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AiCard from '@/components/AiCard';
 import CreatePost from '@/components/CreatePost';
+import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
@@ -504,9 +505,9 @@ export default function CreateHub({
           <div className="flex min-w-0 flex-col gap-4 xl:col-span-3">
             <div className="card space-y-3 p-4 sm:p-5">
               <p className="eyebrow">Jot it down</p>
-              <input
+              <EmojiInput
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={setTitle}
                 placeholder="Idea title…"
                 className="field font-display font-bold"
                 aria-label="Idea title"
@@ -796,16 +797,16 @@ export default function CreateHub({
                   className="field font-display font-bold"
                   aria-label="Template name"
                 />
-                <input
+                <EmojiInput
                   value={tplTitle}
-                  onChange={(e) => setTplTitle(e.target.value)}
+                  onChange={setTplTitle}
                   placeholder="Post title…"
                   className="field"
                   aria-label="Template post title"
                 />
-                <textarea
+                <EmojiTextarea
                   value={tplBody}
-                  onChange={(e) => setTplBody(e.target.value)}
+                  onChange={setTplBody}
                   placeholder="Caption…"
                   rows={3}
                   className="field min-h-[72px] resize-y"

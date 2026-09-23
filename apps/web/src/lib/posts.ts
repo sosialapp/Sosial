@@ -224,6 +224,8 @@ export interface ChainArgs {
   /** Minutes between parts. */
   gapMinutes: number;
   channels: ConnectedChannel[];
+  /** IANA zone the start was chosen in; defaults to the server's device zone. */
+  timezone?: string;
 }
 
 /**
@@ -261,6 +263,7 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
       files: seg.files,
       chainId,
       chainPosition: i,
+      timezone: args.timezone,
     });
     ids.push(id);
   }

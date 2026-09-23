@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import DateTimePicker from '@/components/DateTimePicker';
+import { EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
 import { createPost } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
@@ -173,10 +174,10 @@ export default function QuickPost({
             })}
           </div>
 
-          <textarea
+          <EmojiTextarea
             value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
+            onChange={(v) => {
+              setBody(v);
               setDone(null);
             }}
             placeholder="What's on your mind?"

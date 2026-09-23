@@ -13,6 +13,7 @@ import {
   type PostSizeId,
   type StudioProject,
 } from '@/lib/studio/model';
+import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { Field, Seg, Stepper, Swatches, SwitchRow } from './controls';
 import { fileToDataUrl } from './steps1';
 import type { StepApi } from './steps1';
@@ -198,9 +199,9 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                       onChange={(v) => update(b.id, { type: v as BlockType })}
                     />
                   ) : null}
-                  <input
+                  <EmojiInput
                     value={b.heading ?? ''}
-                    onChange={(e) => update(b.id, { heading: e.target.value })}
+                    onChange={(v) => update(b.id, { heading: v })}
                     placeholder="Heading (optional)"
                     className="field"
                   />
@@ -241,9 +242,9 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                   {b.type === 'table' ? (
                     <>
                       <p className="text-xs text-muted">One row per line, commas separate columns.</p>
-                      <textarea
+                      <EmojiTextarea
                         value={draftFor(b, 'table')}
-                        onChange={(e) => setDrafts((d) => ({ ...d, [`${b.id}:table`]: e.target.value }))}
+                        onChange={(v) => setDrafts((d) => ({ ...d, [`${b.id}:table`]: v }))}
                         onBlur={() => commitDraft(b, 'table')}
                         rows={4}
                         className="field min-h-[90px] resize-y font-mono !text-xs"
@@ -253,9 +254,9 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                   {(b.type === 'bar' || b.type === 'pie' || b.type === 'vbar') ? (
                     <>
                       <p className="text-xs text-muted">One per line, any format. The number is detected. Example: Jan $40</p>
-                      <textarea
+                      <EmojiTextarea
                         value={draftFor(b, 'chart')}
-                        onChange={(e) => setDrafts((d) => ({ ...d, [`${b.id}:chart`]: e.target.value }))}
+                        onChange={(v) => setDrafts((d) => ({ ...d, [`${b.id}:chart`]: v }))}
                         onBlur={() => commitDraft(b, 'chart')}
                         rows={4}
                         className="field min-h-[90px] resize-y font-mono !text-xs"

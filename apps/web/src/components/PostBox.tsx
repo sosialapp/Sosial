@@ -1,13 +1,7 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useRef, useState } from 'react';
-
-/** The only UI library besides gsap — full emoji menu with search. */
-const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
-  ssr: false,
-  loading: () => <div className="p-2 text-xs text-faint">Loading…</div>,
-});
+import { EmojiButton } from '@/components/Emoji';
 
 export interface MediaItem {
   /** Present for freshly-picked files; absent for data-URL media from storage. */
@@ -47,7 +41,6 @@ export default function PostBox({
   limit: number;
   label: string;
 }) {
-  const [emojiOpen, setEmojiOpen] = useState(false);
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragFrom = useRef<number | null>(null);
@@ -150,34 +143,7 @@ export default function PostBox({
           </svg>
         </button>
         <span className="mx-1 h-4 w-px bg-line-soft" aria-hidden="true" />
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setEmojiOpen((v) => !v)}
-            aria-label="Insert emoji"
-            aria-expanded={emojiOpen}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
-          >
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden="true">
-              <circle cx="10" cy="10" r="6.5" />
-              <path d="M7.5 8.2h.01M12.5 8.2h.01M7.5 12c.7.8 1.6 1.2 2.5 1.2s1.8-.4 2.5-1.2" />
-            </svg>
-          </button>
-          {emojiOpen ? (
-            <div className="absolute bottom-9 left-0 z-30 rounded-xl border border-line bg-card shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]" role="dialog" aria-label="Emoji picker">
-              <EmojiPicker
-                onEmojiClick={(d: { emoji: string }) => {
-                  onChange(seg.body + d.emoji);
-                  setEmojiOpen(false);
-                }}
-                searchPlaceholder="Search emoji…"
-                width={320}
-                height={380}
-                previewConfig={{ showPreview: false }}
-              />
-            </div>
-          ) : null}
-        </div>
+        <EmojiButton align="top" onPick={(emoji) => onChange(seg.body + emoji)} />
         <span className="flex-1" />
         <span className={`text-[11px] ${over ? 'font-bold text-[#9F2F2D]' : 'text-faint'}`}>
           {seg.body.length} / {limit}

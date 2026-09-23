@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import Prose from '@/components/site/Prose';
 import { embedUrl } from '@/lib/richtext';
 import { BLOG_TAGS, type Block, type Category } from '@/content/types';
@@ -408,9 +409,9 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
         </div>
         <label className="grid gap-1 text-xs font-bold text-muted">
           Description (cards + SEO)
-          <textarea
+          <EmojiTextarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             rows={2}
             className={inputCls}
           />
@@ -494,9 +495,9 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
                 </button>
               </div>
               {b.t === 'ul' ? (
-                <textarea
+                <EmojiTextarea
                   value={b.c.join('\n')}
-                  onChange={(e) => setBlock(i, { t: 'ul', c: e.target.value.split('\n') })}
+                  onChange={(v) => setBlock(i, { t: 'ul', c: v.split('\n') })}
                   onSelect={trackSel(i)}
                   rows={Math.max(2, b.c.length + 1)}
                   placeholder="One item per line"
@@ -518,9 +519,9 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
                     placeholder="Alt text (accessibility)"
                     className={inputCls}
                   />
-                  <input
+                  <EmojiInput
                     value={b.caption ?? ''}
-                    onChange={(e) => setBlock(i, { ...b, caption: e.target.value })}
+                    onChange={(v) => setBlock(i, { ...b, caption: v })}
                     placeholder="Caption (optional, shown under the image)"
                     className={inputCls}
                   />
@@ -591,9 +592,9 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
                   </div>
                 </div>
               ) : (
-                <textarea
+                <EmojiTextarea
                   value={b.c}
-                  onChange={(e) => setBlock(i, { t: b.t, c: e.target.value })}
+                  onChange={(v) => setBlock(i, { t: b.t, c: v })}
                   onSelect={trackSel(i)}
                   rows={b.t === 'h' ? 1 : 4}
                   placeholder={
