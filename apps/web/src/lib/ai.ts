@@ -12,6 +12,16 @@ export interface AiGenerateArgs {
   /** 1 = single caption, more = threaded chain parts. */
   count: number;
   tone: string;
+  /** Language id ('auto' mirrors the idea). Optional, edge fn defaults to auto. */
+  language?: string;
+  /** Style id ('auto' lets the model choose). Optional. */
+  style?: string;
+  /** Extra direction for the writer. Optional. */
+  instructions?: string;
+  /** 'auto' | 'on' | 'off'. Optional. */
+  emoji?: string;
+  /** Soft closing CTA. Defaults true. */
+  cta?: boolean;
 }
 
 /** Call the generate-captions edge function (auth attachs the user JWT). */

@@ -1,6 +1,6 @@
 // generate-captions · AI captions + hashtags for single posts and chains
 //
-// POST { topic, providers, count?, tone? } → 200 { segments: [{ caption, hashtags }] }
+// POST { topic, providers, count?, tone?, language?, style?, instructions?, emoji?, cta? } → 200 { segments: [{ caption, hashtags }] }
 //   · 401 unauthenticated · 402 AI not configured · 502 upstream failure
 //
 // Any signed-in user may call it (composing is a member action); the key
@@ -24,7 +24,8 @@ const LIMITS: Record<string, number> = {
   pinterest: 500,
 };
 
-const TONES = ["auto", "bold", "funny", "professional", "friendly"] as const;
+const TONES = ["auto", "story", "punchy", "friendly", "professional", "bold", "funny"] as const;
+const EMOJIS = ["auto", "on", "off"] as const;
 
 function bad(msg: string, status = 400): Response {
   return Response.json({ error: msg }, { status });
@@ -75,6 +76,12 @@ serve(async (req: Request): Promise<Response> => {
   if (!providers.length) return bad("providers is required.");
   const count = Math.min(8, Math.max(1, countRaw));
   const tone = (TONES as readonly string[]).includes(toneRaw) ? toneRaw : "auto";
+  const language = typeof body["language"] === "string" ? body["language"].trim().slice(0, 40) : "auto";
+  const style = typeof body["style"] === "string" ? body["style"].trim().slice(0, 40) : "auto";
+  const instructions = typeof body["instructions"] === "string" ? body["instructions"].trim().slice(0, 500) : "";
+  const emojiRaw = typeof body["emoji"] === "string" ? body["emoji"] : "auto";
+  const emoji = (EMOJIS as readonly string[]).includes(emojiRaw) ? emojiRaw : "auto";
+  const cta = typeof body["cta"] === "boolean" ? body["cta"] : true;
 
   const cap = Math.min(...providers.map((p) => LIMITS[p] ?? 2200));
 
@@ -96,7 +103,12 @@ serve(async (req: Request): Promise<Response> => {
     ` Each caption ≤ ${cap} characters including spaces. ` +
     "Each hashtags array holds 3-8 lowercase tags WITHOUT the # sign, topical and platform-safe. " +
     (tone === "auto" ? "Match the topic's natural tone." : `Tone: ${tone}.`) +
-    " No numbering, no bullet prefixes, no emojis unless the topic begs for them.";
+    (language && language !== "auto" ? ` Write in ${language}.` : " Match the idea's language.") +
+    (style && style !== "auto" ? ` Structure it as ${style}.` : "") +
+    (instructions ? ` Extra direction: ${instructions}` : "") +
+    (emoji === "off" ? " No emojis at all." : emoji === "on" ? " Include a few fitting emojis." : " No emojis unless the topic begs for them.") +
+    (cta ? "" : " No call-to-action.") +
+    " No numbering, no bullet prefixes.";
 
   let raw = "";
   try {
