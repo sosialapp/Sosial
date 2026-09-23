@@ -1,5 +1,6 @@
 import Hero from '@/components/landing/Hero';
 import ChannelDock from '@/components/landing/ChannelDock';
+import BlogNews from '@/components/landing/BlogNews';
 import { ChannelPill } from '@/components/ui';
 
 /** Landing: navbar (layout) + hero + features bento + footer (layout). */
@@ -9,6 +10,7 @@ export default function LandingPage() {
       <Hero />
       <FeaturesBento />
       <ChannelDock />
+      <BlogNews />
     </>
   );
 }
