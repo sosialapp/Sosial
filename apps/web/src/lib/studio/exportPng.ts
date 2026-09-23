@@ -52,6 +52,17 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/** 1px transparent GIF — stands in for any image that cannot be inlined,
+ *  so no remote URL ever survives into the export (remote survivors are
+ *  what taint the canvas and kill toBlob). */
+const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+function blankImage(img: HTMLImageElement): void {
+  img.setAttribute('src', BLANK_IMG);
+  img.removeAttribute('srcset');
+  img.removeAttribute('sizes');
+}
+
 async function inlineImages(root: HTMLElement): Promise<void> {
   const imgs = Array.from(root.querySelectorAll('img'));
   await Promise.all(
@@ -60,7 +71,10 @@ async function inlineImages(root: HTMLElement): Promise<void> {
       if (!src || src.startsWith('data:')) return;
       try {
         const res = await fetch(src);
-        if (!res.ok) return;
+        if (!res.ok) {
+          blankImage(img);
+          return;
+        }
         img.setAttribute('src', await blobToDataUrl(await res.blob()));
         // Drop srcset/sizes so the inlined src is authoritative.
         img.removeAttribute('srcset');
@@ -71,7 +85,9 @@ async function inlineImages(root: HTMLElement): Promise<void> {
           img.onerror = () => resolve();
         });
       } catch {
-        /* remote host refused — draw without it rather than fail export */
+        // Remote host refused (CORS, offline) — a remote URL left inside the
+        // export taints the canvas, so swap in a blank instead of failing it.
+        blankImage(img);
       }
     }),
   );

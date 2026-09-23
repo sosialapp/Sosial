@@ -200,8 +200,8 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <Check c={c} size={9} k={k} />
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
           <span style={{ flex: 1 }} />
-          <span style={{ width: 11 * k, height: 11 * k, display: 'inline-flex' }}>
-            <BrandIcon provider="instagram" badge={false} className="h-full w-full" />
+          <span style={{ width: 16 * k, height: 16 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BrandIcon provider="instagram" badge={false} className="h-[68%] w-[68%]" />
           </span>
           <ChromeIcon name="dots" size={12 * k} color={c.ink} />
         </div>
@@ -233,8 +233,8 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           </span>
           {c.watermark ? <Watermark font={c.font} size={8} color={c.faint} k={k} /> : null}
           <span style={{ flex: 1 }} />
-          <span style={{ width: 12 * k, height: 12 * k, display: 'inline-flex', color: c.ink }}>
-            <BrandIcon provider="threads" mono className="h-full w-full" />
+          <span style={{ width: 12 * k, height: 12 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: c.ink }}>
+            <BrandIcon provider="threads" mono className="h-[72%] w-[72%]" />
           </span>
         </div>
         <div style={bodyStyle}>{children}</div>
