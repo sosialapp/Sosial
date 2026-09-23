@@ -226,11 +226,14 @@ export default function StudioEditor({
     setExporting('page');
     setExportErr(null);
     try {
-      const blob = await exportPagePng(pageIndex);
+      // Capture the canvas the user actually sees.
+      const node =
+        canvasHostRef.current?.querySelector<HTMLElement>('[data-studio-canvas]') ?? null;
+      const blob = node ? await exportCanvasPng(node, 1080) : await exportPagePng(pageIndex);
       if (blob) downloadBlob(blob, fileName(pageIndex));
       else setExportErr('Could not render that page. Try again.');
-    } catch {
-      setExportErr('Export failed. Try again.');
+    } catch (e) {
+      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
     } finally {
       setExporting(null);
     }
@@ -250,8 +253,8 @@ export default function StudioEditor({
         await new Promise((r) => setTimeout(r, 350));
       }
       if (ok === 0) setExportErr('Could not render the pages. Try again.');
-    } catch {
-      setExportErr('Export failed. Try again.');
+    } catch (e) {
+      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
     } finally {
       setExporting(null);
     }
@@ -272,8 +275,8 @@ export default function StudioEditor({
       } else {
         setExportErr('Could not render the pages. Try again.');
       }
-    } catch {
-      setExportErr('Export failed. Try again.');
+    } catch (e) {
+      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
     } finally {
       setExporting(null);
     }

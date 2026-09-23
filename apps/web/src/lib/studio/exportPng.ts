@@ -81,7 +81,7 @@ async function inlineImages(root: HTMLElement): Promise<void> {
 export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Promise<Blob> {
   const rect = node.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) {
-    throw new Error('Canvas is not rendered yet — try again.');
+    throw new Error('[measure] Canvas is not rendered yet — try again.');
   }
   const scale = fullWidth / rect.width;
   const W = fullWidth;
@@ -99,12 +99,17 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
 
     await inlineImages(clone);
 
-    const svg =
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
-      `<style>${fontCss}</style>` +
-      `<foreignObject x="0" y="0" width="${W}" height="${H}">` +
-      new XMLSerializer().serializeToString(clone) +
-      `</foreignObject></svg>`;
+    let svg: string;
+    try {
+      svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+        `<style>${fontCss}</style>` +
+        `<foreignObject x="0" y="0" width="${W}" height="${H}">` +
+        new XMLSerializer().serializeToString(clone) +
+        `</foreignObject></svg>`;
+    } catch {
+      throw new Error('[serialize] Could not read the canvas. Try again.');
+    }
 
     const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
@@ -112,21 +117,21 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
       const img = new Image();
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
-        img.onerror = () => reject(new Error('SVG_RENDER_FAILED'));
+        img.onerror = () => reject(new Error('[raster] The picture would not draw. Try again.'));
         img.src = url;
       });
       const canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
       const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas unavailable.');
+      if (!ctx) throw new Error('[encode] Canvas unavailable.');
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, W, H);
       ctx.drawImage(img, 0, 0, W, H);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) throw new Error('Export failed. Try again.');
+      if (!blob) throw new Error('[encode] Export failed. Try again.');
       return blob;
     } finally {
       URL.revokeObjectURL(url);
@@ -138,7 +143,7 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
   try {
     return await rasterise(await embeddedFontCss());
   } catch (e) {
-    if (e instanceof Error && e.message !== 'SVG_RENDER_FAILED') throw e;
-    return rasterise('');
+    if (e instanceof Error && e.message.startsWith('[raster]')) return rasterise('');
+    throw e;
   }
 }

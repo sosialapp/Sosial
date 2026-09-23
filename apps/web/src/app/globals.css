@@ -375,6 +375,13 @@ body {
 .theme-dark svg[data-brand='threads'] path {
   fill: #ffffff;
 }
+/* The studio canvas computes its own contrast per card colour —
+   the night override must never leak inside it. */
+.theme-dark [data-studio-canvas] svg[data-brand='tiktok'] path,
+.theme-dark [data-studio-canvas] svg[data-brand='x'] path,
+.theme-dark [data-studio-canvas] svg[data-brand='threads'] path {
+  fill: currentColor;
+}
 /* Gated on .theme-dark, which only exists inside a ThemeScope (dashboard +
    login) — the marketing site never renders one, so it always stays light.
    Every dashboard surface is built from these tokens, so one override flips
