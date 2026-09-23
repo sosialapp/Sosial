@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BRAND_NAMES, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import { BRAND_NAMES, BrandIcon, brandColor, type BrandProvider } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { RESOURCES } from '@/content/resources';
 import { resourceHref } from '@/content/types';
@@ -39,13 +39,10 @@ export default function SiteFooter() {
                 href={`/integrations/${p}`}
                 aria-label={`Sosial on ${BRAND_NAMES[p]}`}
                 title={`Sosial on ${BRAND_NAMES[p]}`}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-paper transition hover:border-bolt hover:bg-white/10"
+                className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white transition hover:opacity-85"
+                style={{ background: brandColor(p) }}
               >
-                <BrandIcon
-                  provider={p}
-                  mono={p === 'x' || p === 'tiktok' || p === 'threads'}
-                  className="h-4 w-4"
-                />
+                <BrandIcon provider={p} mono className="h-4 w-4" />
               </Link>
             ))}
           </div>
