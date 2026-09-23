@@ -2,6 +2,12 @@
 
 @custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
+/* Global scale — every rem-based size (Tailwind spacing + typography) renders
+   10% larger, like a browser zoom stuck at 110%. Hairline borders stay 1px. */
+html {
+  font-size: 110%;
+}
+
 @theme {
   /* Surfaces — strict brand trio: white canvas, ink text, bolt accent. */
   --color-ink: #1C1A14;
