@@ -74,7 +74,7 @@ export default function ChannelDock() {
         <h2 className="mx-auto mt-2 max-w-xl text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           Ten channels, one workspace.
         </h2>
-        <div className="mt-9 overflow-x-auto pb-4">
+        <div className="mt-3 overflow-x-auto px-2 pb-6 pt-6">
           <div
             ref={rowRef}
             className="mx-auto flex w-fit items-end justify-center gap-2.5 px-2 sm:gap-3"
