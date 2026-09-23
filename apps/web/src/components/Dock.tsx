@@ -9,11 +9,8 @@ type DockItem = {
   href?: string;
   label: string;
   match: (pathname: string) => boolean;
-  icon: (active: boolean) => React.ReactNode;
-  /** Flat glyph color per item (no tile — just the colored mark). */
-  color: string;
+  icon: React.ReactNode;
   hero?: boolean;
-  /** Opens the quick-create popup instead of navigating. */
   popup?: boolean;
 };
 
@@ -28,43 +25,45 @@ const STROKE = {
 const ITEMS: DockItem[] = [
   {
     href: '/dashboard',
-    label: 'Dashboard',
-    color: 'text-[#1d7fe0] dark:text-[#3ee0ff]',
-    match: (p) =>
-      p === '/dashboard' ||
-      p === '/calendar' ||
-      p === '/queue' ||
-      p.startsWith('/dashboard/') ||
-      p.startsWith('/calendar/') ||
-      p.startsWith('/queue/'),
-    icon: () => (
-      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
-        <rect x="3" y="3" width="6" height="6" rx="1.8" />
-        <rect x="11" y="3" width="6" height="6" rx="1.8" />
-        <rect x="3" y="11" width="6" height="6" rx="1.8" />
-        <rect x="11" y="11" width="6" height="6" rx="1.8" />
+    label: 'Home',
+    match: (p) => p === '/dashboard' || p === '/queue' || p.startsWith('/dashboard/'),
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
+        <path d="M3.5 9.2 10 3.5l6.5 5.7" />
+        <path d="M5.2 8.5V16a.8.8 0 0 0 .8.8h8a.8.8 0 0 0 .8-.8V8.5" />
+        <path d="M8.2 16.8v-4.2h3.6v4.2" />
+      </svg>
+    ),
+  },
+  {
+    href: '/calendar',
+    label: 'Calendar',
+    match: (p) => p === '/calendar' || p.startsWith('/calendar/'),
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
+        <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
+        <path d="M3 8.5h14" />
+        <path d="M7 2.8v3M13 2.8v3" />
       </svg>
     ),
   },
   {
     href: '/new',
     label: 'Create',
-    color: 'text-[#FFC62E] dark:text-[#FFD84A]',
     match: (p) => p === '/new' || p === '/composer' || p.startsWith('/new/') || p.startsWith('/composer/'),
-    icon: () => (
-      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
       </svg>
     ),
   },
   {
     label: 'New post',
-    color: 'text-accent dark:text-[#ff9e45]',
     match: () => false,
     hero: true,
     popup: true,
-    icon: () => (
-      <svg viewBox="0 0 20 20" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
         <path d="M10 3.5v13M3.5 10h13" />
       </svg>
     ),
@@ -72,10 +71,9 @@ const ITEMS: DockItem[] = [
   {
     href: '/analytics',
     label: 'Analytics',
-    color: 'text-[#12914a] dark:text-[#3dff88]',
     match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
-    icon: () => (
-      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <path d="M3 16.5h14" />
         <path d="M5.5 13.5v-4M10 13.5V6.5M14.5 13.5V9" />
       </svg>
@@ -84,10 +82,9 @@ const ITEMS: DockItem[] = [
   {
     href: '/profile',
     label: 'Profile',
-    color: 'text-[#7c5cf0] dark:text-[#c0a4ff]',
     match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
-    icon: () => (
-      <svg viewBox="0 0 20 20" className="h-7 w-7" {...STROKE} aria-hidden="true">
+    icon: (
+      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <circle cx="10" cy="7" r="3.2" />
         <path d="M3.8 16.5c.8-3 3.2-4.5 6.2-4.5s5.4 1.5 6.2 4.5" />
       </svg>
@@ -95,7 +92,6 @@ const ITEMS: DockItem[] = [
   },
 ];
 
-/** Quick-create destinations for the + popup — mirrors the mobile sheet. */
 const PLUS_OPTIONS = [
   {
     href: '/new?tab=post',
@@ -134,14 +130,9 @@ const PLUS_OPTIONS = [
 ];
 
 /**
- * macOS-style dock with a hover float: the hovered icon lifts and swells
- * while its neighbours peek up. Deliberately discrete (per-item
- * mouseenter) instead of the continuous cursor-tracked magnification from
- * the GSAP reference pen — tracking getBoundingClientRect() every
- * mousemove feeds transformed rects back into the math and jitters.
- *
- * Progressive enhancement: a static, fully usable dock in the markup; the
- * float only attaches when JS runs without reduced-motion.
+ * Left rail nav: home, calendar, create, quick-add +, analytics, profile.
+ * Icons lift to the right on hover (discrete per-item mouseenter, no
+ * cursor tracking). The + menu opens to the right of the rail.
  */
 export default function Dock() {
   const pathname = usePathname();
@@ -154,15 +145,15 @@ export default function Dock() {
     if (!dock) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    gsap.from(dock, { y: 28, autoAlpha: 0, duration: 0.6, ease: 'power3.out' });
+    gsap.from(dock, { x: -24, autoAlpha: 0, duration: 0.55, ease: 'power3.out' });
 
     const items = Array.from(dock.querySelectorAll<HTMLElement>('[data-dock-item]'));
     const icons = items.map((el) => el.querySelector<HTMLElement>('[data-dock-icon]')).filter((el): el is HTMLElement => !!el);
     if (!items.length || !icons.length) return;
-    gsap.set(icons, { transformOrigin: '50% 100%' });
+    gsap.set(icons, { transformOrigin: '50% 50%' });
 
     const reset = () =>
-      gsap.to(icons, { duration: 0.45, y: 0, scale: 1, ease: 'power3.out', overwrite: 'auto' });
+      gsap.to(icons, { duration: 0.4, x: 0, scale: 1, ease: 'power3.out', overwrite: 'auto' });
 
     const removers: (() => void)[] = [];
     items.forEach((item, i) => {
@@ -170,9 +161,9 @@ export default function Dock() {
         icons.forEach((icon, j) => {
           const d = Math.abs(i - j);
           gsap.to(icon, {
-            duration: 0.35,
-            y: d === 0 ? -12 : d === 1 ? -6 : 0,
-            scale: d === 0 ? 1.18 : d === 1 ? 1.08 : 1,
+            duration: 0.32,
+            x: d === 0 ? 8 : d === 1 ? 4 : 0,
+            scale: d === 0 ? 1.14 : d === 1 ? 1.06 : 1,
             ease: 'back.out(2)',
             overwrite: 'auto',
           });
@@ -203,7 +194,7 @@ export default function Dock() {
   }, [pathname]);
 
   return (
-    <nav aria-label="Primary" className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+    <nav aria-label="Primary" className="pointer-events-none fixed inset-y-0 left-0 z-40 flex items-center pl-3">
       {plusOpen ? (
         <button
           type="button"
@@ -215,43 +206,42 @@ export default function Dock() {
       ) : null}
       <div
         ref={dockRef}
-        className="pointer-events-auto flex items-end gap-1.5 rounded-3xl border border-line bg-card/85 px-3 pb-2.5 pt-2.5 shadow-[0_18px_50px_-16px_rgba(25,21,18,0.45)] backdrop-blur-xl"
+        className="pointer-events-auto flex flex-col items-center gap-1.5 rounded-3xl border border-line bg-card/90 px-2.5 py-3 shadow-[0_18px_50px_-16px_rgba(25,21,18,0.45)] backdrop-blur-xl"
       >
         {ITEMS.map((item) => {
           const active = item.match(pathname);
           const tile = (
             <>
-              {/* Tooltip floats well clear of the risen icon (which climbs ~22px)
-                  and pins above it so the float can never cover the text. */}
-              {/* Constant near-black pill — readable in both modes (theme
-                  tokens flip in dark, so tokens are banned here). */}
-              <span className="pointer-events-none absolute -top-12 z-20 whitespace-nowrap rounded-lg bg-[#191512] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+              {/* Tooltip pins to the right of the rail so the lift can never cover it. */}
+              <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#191512] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                 {item.label}
               </span>
               <span
                 data-dock-icon
-                className={`flex items-center justify-center transition-opacity duration-150 ${
-                  item.hero ? 'h-14 w-14' : 'h-12 w-12'
-                } ${item.color} ${active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-colors duration-150 ${
+                  item.hero ? 'bg-accent text-ink shadow-[0_8px_20px_-8px_rgba(255,198,46,0.8)]' : ''
+                } ${
+                  item.hero
+                    ? 'opacity-100'
+                    : active
+                      ? 'bg-accent-soft text-accent-ink opacity-100'
+                      : 'text-soft opacity-55 group-hover:opacity-100'
+                }`}
               >
-                {item.icon(active)}
+                {item.icon}
               </span>
-              <span
-                aria-hidden="true"
-                className={`mt-1 h-1 w-1 rounded-full transition-opacity ${active && !item.hero ? 'bg-accent opacity-100 dark:bg-[#ff9e45]' : 'opacity-0'}`}
-              />
             </>
           );
           if (item.popup) {
             return (
-              <div key={item.label} data-dock-item className="group relative flex w-14 flex-col items-center">
+              <div key={item.label} data-dock-item className="group relative">
                 <button
                   type="button"
                   onClick={() => setPlusOpen((v) => !v)}
                   aria-label={item.label}
                   aria-haspopup="menu"
                   aria-expanded={plusOpen}
-                  className="group flex flex-col items-center"
+                  className="group block"
                 >
                   {tile}
                 </button>
@@ -259,7 +249,7 @@ export default function Dock() {
                   <div
                     role="menu"
                     aria-label="Quick create"
-                    className="absolute bottom-full left-1/2 z-30 mb-4 w-60 -translate-x-1/2 rounded-2xl border border-line bg-card p-1.5 text-left shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
+                    className="absolute left-full top-0 z-30 ml-4 w-60 rounded-2xl border border-line bg-card p-1.5 text-left shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
                   >
                     {PLUS_OPTIONS.map((o) => (
                       <Link
@@ -290,7 +280,7 @@ export default function Dock() {
               data-dock-item
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
-              className="group relative flex w-14 flex-col items-center"
+              className="group relative block"
             >
               {tile}
             </Link>
