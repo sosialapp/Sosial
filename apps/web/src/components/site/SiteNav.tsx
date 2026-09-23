@@ -180,7 +180,7 @@ export default function SiteNav() {
                   <Link
                     key={c.key}
                     href={`/integrations/${c.key}`}
-                    className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition hover:bg-bone"
+                    className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition hover:bg-accent-soft"
                   >
                     <BrandIcon provider={c.key} className="h-4 w-4 shrink-0" />
                     <span className="min-w-0">
