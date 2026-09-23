@@ -67,7 +67,7 @@ function MenuCard({ link }: { link: MenuLink }) {
   return (
     <Link
       href={link.href}
-      className="block rounded-xl px-3 py-2.5 transition hover:bg-bone"
+      className="block rounded-xl px-3 py-2.5 transition hover:bg-accent-soft"
     >
       <span className="block text-sm font-bold text-ink">{link.title}</span>
       <span className="mt-0.5 block text-xs leading-relaxed text-muted">{link.desc}</span>
