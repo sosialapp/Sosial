@@ -569,16 +569,6 @@ export default function CreateHub({
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => document.getElementById('ai-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                  className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
-                >
-                  <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-                    <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
-                  </svg>
-                  AI writer
-                </button>
-                <button
-                  type="button"
                   onClick={() => setIdeaThreadMode(!ideaThread)}
                   aria-pressed={ideaThread}
                   className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
