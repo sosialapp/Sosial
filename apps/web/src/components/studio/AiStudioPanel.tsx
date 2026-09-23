@@ -154,7 +154,7 @@ export default function AiStudioPanel({
               })}
             </ul>
             {result.warnings.length ? (
-              <ul className="space-y-0.5 border-t border-line pt-2 text-[11px] text-faint">
+              <ul className="space-y-0.5 border-t border-line pt-2 text-[11px] text-muted">
                 {result.warnings.map((w, i) => (
                   <li key={i}>{w}</li>
                 ))}

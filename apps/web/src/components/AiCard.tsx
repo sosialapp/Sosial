@@ -138,9 +138,9 @@ export default function AiCard({
         placeholder="e.g. Create a catchy Instagram caption about building better habits for a healthier life…"
         rows={3}
         aria-label="Your idea"
-        className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
+        className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
       />
-      <p className="mt-1 text-[11px] text-faint">Rough thoughts are enough — a phrase works.</p>
+      <p className="mt-1 text-[11px] text-muted">Rough thoughts are enough — a phrase works.</p>
 
       {/* Language */}
       <p className="mt-4 text-xs font-bold text-soft">Language</p>
@@ -191,7 +191,7 @@ export default function AiCard({
                   className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${language === l.id ? 'bg-accent-soft text-accent-ink' : ''}`}
                 >
                   <span className="flex-1 truncate">{l.label}</span>
-                  {l.label !== l.id ? <span className="text-[11px] font-medium text-faint">{l.id}</span> : null}
+                  {l.label !== l.id ? <span className="text-[11px] font-medium text-muted">{l.id}</span> : null}
                 </button>
               ))}
             </div>
@@ -257,7 +257,7 @@ export default function AiCard({
                   </span>
                   <span className="text-xs font-bold">{s.label}</span>
                   <span className="flex-1" />
-                  <span className="text-[11px] text-faint">{s.hint}</span>
+                  <span className="text-[11px] text-muted">{s.hint}</span>
                 </span>
                 <span className="mt-1 block text-[11px] leading-relaxed text-muted">
                   e.g. “{styleSampleFor(s, language)}”
@@ -331,7 +331,7 @@ export default function AiCard({
           <div className="flex items-center gap-2">
             <span className="flex-1">
               <span className="block text-xs font-bold">Add hashtags</span>
-              <span className="block text-[11px] text-faint">Kept separate from the copy</span>
+              <span className="block text-[11px] text-muted">Kept separate from the copy</span>
             </span>
             <Switch on={hashtags} onToggle={() => setHashtags((v) => !v)} label="Add hashtags" />
           </div>
@@ -356,12 +356,12 @@ export default function AiCard({
           <div className="flex items-center gap-2">
             <span className="flex-1">
               <span className="block text-xs font-bold">Soft call-to-action</span>
-              <span className="block text-[11px] text-faint">Closes with an invitation, not a demand</span>
+              <span className="block text-[11px] text-muted">Closes with an invitation, not a demand</span>
             </span>
             <Switch on={cta} onToggle={() => setCta((v) => !v)} label="Soft call-to-action" />
           </div>
           <div>
-            <p className="text-xs font-bold">Custom instructions <span className="font-medium text-faint">· optional</span></p>
+            <p className="text-xs font-bold">Custom instructions <span className="font-medium text-muted">· optional</span></p>
             <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
