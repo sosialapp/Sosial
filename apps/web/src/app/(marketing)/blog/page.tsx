@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BLOG_TAGS, allArticles, articlesByTag } from '@/lib/blog';
-import { formatPostDate, type Category } from '@/content/types';
+import { blogTagClass, formatPostDate, type Category } from '@/content/types';
 
 /** ISR so publishes go live without a rebuild. */
 export const revalidate = 300;
@@ -80,7 +80,7 @@ export default async function BlogIndex({
               href={`/blog/${a.slug}`}
               className="card flex h-full flex-col p-5 transition hover:border-accent"
             >
-              <span className="pill w-fit bg-accent-soft text-accent-ink">{a.tag}</span>
+              <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
               <h2 className="mt-3 font-display text-lg font-extrabold leading-snug tracking-tight">
                 {a.title}
               </h2>

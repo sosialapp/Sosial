@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { allArticles } from '@/lib/blog';
-import { formatPostDate } from '@/content/types';
+import { blogTagClass, formatPostDate } from '@/content/types';
 import { ImageSlot } from '@/components/ui';
 
 /** First image block in the article body, if the author added one. */
@@ -62,7 +62,7 @@ export default async function BlogNews() {
                   />
                 )}
                 <div className="flex flex-1 flex-col p-5">
-                  <span className="pill w-fit bg-paper-dim text-ink">{a.tag}</span>
+                  <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
                   <h3 className="mt-3 font-display text-base font-extrabold leading-snug tracking-tight">
                     {a.title}
                   </h3>

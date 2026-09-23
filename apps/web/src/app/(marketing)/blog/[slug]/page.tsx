@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Prose from '@/components/site/Prose';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
-import { formatPostDate } from '@/content/types';
+import { blogTagClass, formatPostDate } from '@/content/types';
 
 /** ISR so publishes go live without a rebuild (new slugs render on demand). */
 export const revalidate = 300;
@@ -42,7 +42,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           ← All articles
         </Link>
         <div className="mt-6 flex items-center gap-2">
-          <span className="pill bg-accent-soft text-accent-ink">{post.tag}</span>
+          <span className={`pill ${blogTagClass(post.tag)}`}>{post.tag}</span>
           <span className="text-xs font-bold text-faint">
             {formatPostDate(post.date)} · {post.minutes} min read
           </span>
@@ -81,7 +81,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                   href={`/blog/${a.slug}`}
                   className="card flex h-full flex-col p-5 transition hover:border-accent"
                 >
-                  <span className="pill w-fit bg-accent-soft text-accent-ink">{a.tag}</span>
+                  <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
                   <h3 className="mt-3 font-display text-base font-extrabold leading-snug tracking-tight">
                     {a.title}
                   </h3>

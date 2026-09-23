@@ -14,6 +14,20 @@ export type Category = 'Publishing' | 'Strategy' | 'AI' | 'Teams' | 'Growth' | '
 /** Blog tag filter options (client-safe — no server imports). */
 export const BLOG_TAGS = ['Publishing', 'Strategy', 'AI', 'Teams', 'Growth', 'Product'] as const;
 
+/** Soft pastel chip per tag: light fill, dark ink for contrast on both themes. */
+export const BLOG_TAG_STYLES: Record<Category, string> = {
+  Publishing: 'bg-[#FDF3D7] text-[#7A5A00]',
+  Strategy: 'bg-[#E4F2E5] text-[#2F5D33]',
+  AI: 'bg-[#EDE7FB] text-[#4B3B8F]',
+  Teams: 'bg-[#E3EDF9] text-[#2B4E7E]',
+  Growth: 'bg-[#FCE9DC] text-[#8A4B22]',
+  Product: 'bg-[#F9E4EC] text-[#8A3358]',
+};
+
+export function blogTagClass(tag: Category): string {
+  return BLOG_TAG_STYLES[tag] ?? 'bg-paper-dim text-ink';
+}
+
 export interface Article {
   slug: string;
   title: string;
