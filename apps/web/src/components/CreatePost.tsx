@@ -884,21 +884,21 @@ export default function CreatePost({
             {thread ? (
               <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#E3D9FA] bg-white/60 px-3 py-2 dark:border-white/10 dark:bg-white/5">
                 <span className="text-xs font-bold text-soft">Posts</span>
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setPartsCount(parts - 1)}
                     aria-label="Fewer posts"
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-line text-sm font-bold text-soft transition hover:border-ink hover:text-ink"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
                   >
                     −
                   </button>
-                  <span className="min-w-6 text-center text-xs font-extrabold">{parts}</span>
+                  <span className="min-w-7 text-center text-xs font-extrabold">{parts}</span>
                   <button
                     type="button"
                     onClick={() => setPartsCount(parts + 1)}
                     aria-label="More posts"
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-line text-sm font-bold text-soft transition hover:border-ink hover:text-ink"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
                   >
                     +
                   </button>
