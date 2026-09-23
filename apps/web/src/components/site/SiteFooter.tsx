@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import { BRAND_NAMES, BrandIcon, brandColor, type BrandProvider } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
-import { RESOURCES } from '@/content/resources';
-import { resourceHref } from '@/content/types';
 import Logo from './Logo';
 
 /** Footer for every public page. Only links to routes that exist. */
@@ -18,11 +16,9 @@ const SOCIALS: BrandProvider[] = [
 ];
 
 export default function SiteFooter() {
-  const topResources = RESOURCES.slice(0, 5);
-
   return (
     <footer className="bg-ink text-paper">
-      <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-4 py-14 md:grid-cols-[1.5fr_1fr_1fr] lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-4 py-14 md:grid-cols-3 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr]">
         <div className="col-span-2 md:col-span-1">
           <Logo />
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-paper/60">
@@ -66,6 +62,11 @@ export default function SiteFooter() {
                 AI Assistant
               </Link>
             </li>
+            <li>
+              <Link href="/pricing" className="hover:text-paper">
+                Pricing
+              </Link>
+            </li>
           </ul>
         </nav>
 
@@ -101,13 +102,21 @@ export default function SiteFooter() {
                 Resource library
               </Link>
             </li>
-            {topResources.map((r) => (
-              <li key={r.slug}>
-                <Link href={resourceHref(r.slug)} className="hover:text-paper">
-                  {r.title}
-                </Link>
-              </li>
-            ))}
+            <li>
+              <Link href="/compare" className="hover:text-paper">
+                Compare
+              </Link>
+            </li>
+            <li>
+              <Link href="/made-for-everyone" className="hover:text-paper">
+                Made for everyone
+              </Link>
+            </li>
+            <li>
+              <Link href="/transparency" className="hover:text-paper">
+                Transparency
+              </Link>
+            </li>
           </ul>
         </nav>
 
@@ -115,8 +124,8 @@ export default function SiteFooter() {
           <p className="eyebrow text-paper/50">Company</p>
           <ul className="mt-4 space-y-2.5 text-sm font-semibold text-paper/80">
             <li>
-              <Link href="/login" className="hover:text-paper">
-                Log in
+              <Link href="/about" className="hover:text-paper">
+                About
               </Link>
             </li>
             <li>
