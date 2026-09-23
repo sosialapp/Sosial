@@ -7,7 +7,7 @@ import Dock from '@/components/Dock';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
 import { providerMeta } from '@/lib/providers';
-import { fetchChannels } from '@/lib/posts';
+import { fetchLiveChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext, hasSupabaseEnv } from '@/lib/supabase/server';
 import type { ConnectedChannel } from '@/lib/types';
 
@@ -56,7 +56,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
-  const channels = await fetchChannels(sb, ctx.workspace.id);
+  const channels = await fetchLiveChannels(sb, ctx.workspace.id);
 
   return (
     <ThemeScope className="app-shell min-h-screen bg-bone text-ink">

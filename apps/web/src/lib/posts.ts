@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { ALL_PROVIDERS } from './providers';
 import type { ConnectedChannel, PostWithTargets, WorkspaceInfo } from './types';
 
 /** Ordered media + targets for every post in a workspace (RLS-scoped).
@@ -46,13 +47,44 @@ export async function fetchPostsLite(sb: SupabaseClient, workspaceId: string): P
   return (data ?? []) as unknown as PostWithTargets[];
 }
 
-export async function fetchChannels(sb: SupabaseClient, workspaceId: string): Promise<ConnectedChannel[]> {  const { data, error } = await sb
+/** Exact columns the app reads — nothing outside ConnectedChannel. */
+const CHANNEL_COLUMNS =
+  'id, workspace_id, provider, external_id, display_name, handle, instance_url, status, metadata';
+
+/** Canonical provider order (matches the channels page grouping). */
+const PROVIDER_ORDER = new Map<string, number>(ALL_PROVIDERS.map((p, i) => [p, i]));
+
+function orderChannels(rows: ConnectedChannel[]): ConnectedChannel[] {
+  return [...rows].sort(
+    (a, b) =>
+      (PROVIDER_ORDER.get(a.provider) ?? 99) - (PROVIDER_ORDER.get(b.provider) ?? 99) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+}
+
+export async function fetchChannels(sb: SupabaseClient, workspaceId: string): Promise<ConnectedChannel[]> {
+  const { data, error } = await sb
     .from('connected_channels')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('provider', { ascending: true });
+    .select(CHANNEL_COLUMNS)
+    .eq('workspace_id', workspaceId);
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as ConnectedChannel[];
+  return orderChannels((data ?? []) as unknown as ConnectedChannel[]);
+}
+
+/**
+ * Live channels only — mobile pull parity
+ * (pullCloudChannels: same columns, status='connected'). For the Connect
+ * pill, the composers and anything else that can only act on a live
+ * channel; the management surfaces keep fetchChannels (all rows).
+ */
+export async function fetchLiveChannels(sb: SupabaseClient, workspaceId: string): Promise<ConnectedChannel[]> {
+  const { data, error } = await sb
+    .from('connected_channels')
+    .select(CHANNEL_COLUMNS)
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'connected');
+  if (error) throw new Error(error.message);
+  return orderChannels((data ?? []) as unknown as ConnectedChannel[]);
 }
 
 /* ------------------------------ mutations ------------------------------ */

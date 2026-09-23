@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import CreateHub from '@/components/CreateHub';
-import { fetchChannels } from '@/lib/posts';
+import { fetchLiveChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export default async function NewPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
-  const channels = await fetchChannels(sb, ctx.workspace.id);
+  const channels = await fetchLiveChannels(sb, ctx.workspace.id);
   return (
     <Suspense
       fallback={
