@@ -85,7 +85,12 @@ export default function SiteFooter() {
             {CHANNEL_GUIDES.map((c) => (
               <li key={c.key}>
                 <Link href={`/integrations/${c.key}`} className="flex items-center gap-2 hover:text-paper">
-                  <BrandIcon provider={c.key} className="h-3.5 w-3.5 shrink-0 opacity-80" />
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-white"
+                    style={{ background: brandColor(c.key) }}
+                  >
+                    <BrandIcon provider={c.key} mono className="h-3 w-3" />
+                  </span>
                   {c.name}
                 </Link>
               </li>
