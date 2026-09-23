@@ -94,9 +94,31 @@ export default function QuickPost({
 
   return (
     <section className="card p-5" aria-label="Quick post">
-      <div>
-        <p className="font-display text-base font-extrabold tracking-tight">Quick post</p>
-        <p className="mt-0.5 text-xs text-muted">Type, pick channels, ship.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div>
+          <p className="font-display text-base font-extrabold tracking-tight">Quick post</p>
+          <p className="mt-0.5 text-xs text-muted">Type, pick channels, ship.</p>
+        </div>
+        <span className="flex-1" />
+        {/* Mode pill — top, dashboard style */}
+        <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Post mode">
+          {(['now', 'schedule'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                setMode(m);
+                setDone(null);
+              }}
+              aria-pressed={mode === m}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                mode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
+              }`}
+            >
+              {m === 'now' ? 'Post now' : 'Schedule'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {ready.length === 0 ? (
@@ -151,30 +173,8 @@ export default function QuickPost({
           {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
           {done ? <p className="mt-2 text-xs font-bold text-[#346538]">{done}</p> : null}
 
-          {/* Mode + action on one stable row — only the label changes. */}
+          {/* Action stays put — only the label changes. */}
           <div className="mt-3 flex items-center gap-2">
-            <div
-              className="flex rounded-full border border-line bg-paper p-1"
-              role="group"
-              aria-label="Post mode"
-            >
-              {(['now', 'schedule'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    setMode(m);
-                    setDone(null);
-                  }}
-                  aria-pressed={mode === m}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                    mode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  {m === 'now' ? 'Post now' : 'Schedule'}
-                </button>
-              ))}
-            </div>
             <span className="flex-1" />
             <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
               {busy ? 'Sending…' : mode === 'now' ? 'Post now' : 'Schedule post'}

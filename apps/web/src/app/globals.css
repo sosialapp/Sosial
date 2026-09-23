@@ -327,6 +327,39 @@ body {
   }
 }
 
+/* ------------------------------ scrollbars ---------------------------- */
+/* Slim, rounded, brand-tinted — replaces the default OS scrollbar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28, 26, 20, 0.22) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(28, 26, 20, 0.22);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(28, 26, 20, 0.38);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.theme-dark * {
+  scrollbar-color: rgba(245, 241, 228, 0.22) transparent;
+}
+.theme-dark ::-webkit-scrollbar-thumb {
+  background: rgba(245, 241, 228, 0.22);
+}
+.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 241, 228, 0.38);
+}
+
 /* ------------------------- dashboard dark mode ------------------------ */
 /* Near-black brand marks (TikTok, X, Threads) vanish on night surfaces —
    flip them white. CSS fill beats the svg presentation attribute, so light

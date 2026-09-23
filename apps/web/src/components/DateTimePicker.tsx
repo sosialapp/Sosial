@@ -284,9 +284,24 @@ export default function DateTimePicker({
             })}
           </div>
 
-          {/* Time list */}
+          {/* Time: type an exact one or tap a slot */}
           <p className="mt-3 text-[10px] font-extrabold uppercase tracking-wide text-faint">Time</p>
-          <div ref={timeRef} className="mt-1 h-28 overflow-y-auto rounded-xl border border-line bg-paper p-1">
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              type="time"
+              value={`${String(Math.floor(wall.minutes / 60)).padStart(2, '0')}:${String(wall.minutes % 60).padStart(2, '0')}`}
+              onChange={(e) => {
+                const [hh, mm] = e.target.value.split(':').map(Number);
+                if (Number.isFinite(hh) && Number.isFinite(mm)) {
+                  emit({ ...wall, minutes: Math.max(0, Math.min(1439, hh * 60 + mm)) });
+                }
+              }}
+              aria-label="Custom time"
+              className="field !py-1.5 text-xs"
+            />
+            <span className="text-[10px] text-faint">Type any time, or tap below</span>
+          </div>
+          <div ref={timeRef} className="mt-2 h-28 overflow-y-auto rounded-xl border border-line bg-paper p-1">
             <div className="grid grid-cols-2 gap-1">
               {Array.from({ length: 48 }, (_, i) => i * 30).map((m) => (
                 <button

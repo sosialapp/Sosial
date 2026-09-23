@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
@@ -18,7 +19,14 @@ import {
 } from '@/lib/aiStudio';
 import type { ConnectedChannel, ProviderKey, WorkspaceInfo } from '@/lib/types';
 
-const EMOJIS = ['😀', '😍', '🔥', '🎉', '👏', '💡', '🚀', '❤️', '👀', '💪', '🌟', '😂', '🙌', '💯', '✨', '🎯', '📣', '💬', '🤝', '🌈', '☀️', '🎨'];
+/** The only UI library besides gsap — full emoji menu with search. */
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
+  ssr: false,
+  loading: () => <div className="p-2 text-xs text-faint">Loading…</div>,
+});
+
+/** Native reply-chains exist on these four channels only — same as the app. */
+const THREAD_PROVIDERS = ['x', 'threads', 'mastodon', 'bluesky'];
 
 type EmojiMode = 'auto' | 'on' | 'off';
 const EMOJI_OPTS: { id: EmojiMode; label: string }[] = [
@@ -71,10 +79,187 @@ interface MediaItem {
   url: string;
 }
 
+interface Segment {
+  body: string;
+  media: MediaItem[];
+}
+
 /**
- * Create hub post tab: composer card (channel pills, inbox media, thread
- * link, dashboard-style mode row) + AI studio card bound to the same
- * channels, thread and destination state.
+ * One composer box: media strip (hold + drag to rearrange) on top, text,
+ * toolbar (photo, video, emoji) with a live counter. Used for the first
+ * post and every thread part alike.
+ */
+function PostBox({
+  seg,
+  onChange,
+  onAddFiles,
+  onRemoveMedia,
+  onReorderMedia,
+  placeholder,
+  rows = 5,
+  limit,
+  label,
+}: {
+  seg: Segment;
+  onChange: (body: string) => void;
+  onAddFiles: (list: FileList | null) => void;
+  onRemoveMedia: (i: number) => void;
+  onReorderMedia: (from: number, to: number) => void;
+  placeholder: string;
+  rows?: number;
+  limit: number;
+  label: string;
+}) {
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dragFrom = useRef<number | null>(null);
+  const over = seg.body.length > limit;
+
+  function pick(accept: string) {
+    const el = fileRef.current;
+    if (!el) return;
+    el.accept = accept;
+    el.click();
+  }
+
+  return (
+    <div className="rounded-xl border border-line bg-paper focus-within:border-ink/40">
+      {/* Media strip — above the text, hold + drag to rearrange */}
+      {seg.media.length > 0 ? (
+        <div className="flex gap-1.5 overflow-x-auto p-2 pb-0">
+          {seg.media.map((f, i) => (
+            <span
+              key={`${f.file.name}-${i}`}
+              draggable
+              onDragStart={() => {
+                dragFrom.current = i;
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                const from = dragFrom.current;
+                if (from !== null && from !== i) {
+                  onReorderMedia(from, i);
+                  dragFrom.current = i;
+                }
+              }}
+              onDragEnd={() => {
+                dragFrom.current = null;
+              }}
+              className="relative block h-14 w-14 shrink-0 cursor-grab overflow-hidden rounded-lg bg-paper-dim active:cursor-grabbing"
+              title="Drag to rearrange"
+            >
+              {f.kind === 'image' ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={f.url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <video src={f.url} muted playsInline className="h-full w-full object-cover" />
+              )}
+              <button
+                type="button"
+                onClick={() => onRemoveMedia(i)}
+                aria-label="Remove media"
+                className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] leading-none text-white"
+              >
+                ×
+              </button>
+              {seg.media.length > 1 ? (
+                <span className="absolute bottom-0.5 left-0.5 rounded bg-black/55 px-1 text-[9px] font-bold text-white" aria-hidden="true">
+                  {i + 1}
+                </span>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <textarea
+        value={seg.body}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        aria-label={label}
+        className="min-h-[110px] w-full resize-y bg-transparent px-3 pt-2.5 text-sm text-ink placeholder:text-faint focus:outline-none"
+      />
+
+      <div className="flex items-center gap-0.5 border-t border-line-soft px-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => pick('image/*')}
+          aria-label="Add photo"
+          title="Add photo"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="15" height="15" rx="2.5" />
+            <circle cx="7" cy="7" r="1.4" />
+            <path d="m4.5 15.5 4-4 2.5 2.5 2-2 2.5 2.5" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => pick('video/*')}
+          aria-label="Add video"
+          title="Add video"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2" y="4" width="12.5" height="12" rx="2.5" />
+            <path d="m14.5 10 3.5-2.5v5L14.5 10Z" />
+          </svg>
+        </button>
+        <span className="mx-1 h-4 w-px bg-line-soft" aria-hidden="true" />
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setEmojiOpen((v) => !v)}
+            aria-label="Insert emoji"
+            aria-expanded={emojiOpen}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="6.5" />
+              <path d="M7.5 8.2h.01M12.5 8.2h.01M7.5 12c.7.8 1.6 1.2 2.5 1.2s1.8-.4 2.5-1.2" />
+            </svg>
+          </button>
+          {emojiOpen ? (
+            <div className="absolute bottom-9 left-0 z-30 rounded-xl border border-line bg-card shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]" role="dialog" aria-label="Emoji picker">
+              <EmojiPicker
+                onEmojiClick={(d: { emoji: string }) => {
+                  onChange(seg.body + d.emoji);
+                  setEmojiOpen(false);
+                }}
+                searchPlaceholder="Search emoji…"
+                width={320}
+                height={380}
+                previewConfig={{ showPreview: false }}
+              />
+            </div>
+          ) : null}
+        </div>
+        <span className="flex-1" />
+        <span className={`text-[11px] ${over ? 'font-bold text-[#9F2F2D]' : 'text-faint'}`}>
+          {seg.body.length} / {limit}
+        </span>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          onAddFiles(e.target.files);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Create hub post tab: composer card (channel pills, inbox media with drag
+ * reorder, thread link, dashboard-style mode row) + AI studio card bound to
+ * the same channels, thread and destination state.
  */
 export default function CreatePost({
   channels,
@@ -97,28 +282,23 @@ export default function CreatePost({
   const ready = useMemo(() => channels.filter((c) => c.status === 'connected'), [channels]);
 
   /* ------------------------------ composer ------------------------------ */
-  const [body, setBody] = useState(initialBody || initialTitle);
+  const [segs, setSegs] = useState<Segment[]>(() => [
+    {
+      body: initialBody || initialTitle,
+      media: initialFiles.map((file) => ({
+        file,
+        kind: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video',
+        url: URL.createObjectURL(file),
+      })),
+    },
+  ]);
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
-  const [files, setFiles] = useState<MediaItem[]>(() =>
-    initialFiles.map((file) => ({
-      file,
-      kind: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video',
-      url: URL.createObjectURL(file),
-    })),
-  );
   const [thread, setThread] = useState(false);
-  const [extras, setExtras] = useState<string[]>(['']);
-  const [gap, setGap] = useState(10);
   const [mode, setMode] = useState<'now' | 'schedule'>('schedule');
   const [whenIso, setWhenIso] = useState<string | null>(null);
   const [tz, setTz] = useState(deviceZone);
-  const [emojiOpen, setEmojiOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const fileAccept = useRef('image/*,video/*');
 
   /* -------------------------------- AI -------------------------------- */
   const [aiTopic, setAiTopic] = useState('');
@@ -138,6 +318,15 @@ export default function CreatePost({
   const [aiErr, setAiErr] = useState<string | null>(null);
   const [appliedAt, setAppliedAt] = useState<number | null>(null);
 
+  const pickedProviders = useMemo(
+    () => new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider)),
+    [ready, picked],
+  );
+  // Thread mode narrows the cast to chain-capable channels, same as the app.
+  const selectable = useMemo(
+    () => (thread ? ready.filter((c) => THREAD_PROVIDERS.includes(c.provider)) : ready),
+    [ready, thread],
+  );
   const chosenProviders = useMemo(
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
     [ready, picked],
@@ -146,7 +335,6 @@ export default function CreatePost({
     const ls = ready.filter((c) => picked.includes(c.id)).map((c) => providerMeta(c.provider).limit);
     return ls.length ? Math.min(...ls) : 2200;
   }, [ready, picked]);
-  const over = body.length > limit;
 
   const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
   const langMatches = useMemo(() => {
@@ -164,10 +352,16 @@ export default function CreatePost({
   function setThreadMode(v: boolean) {
     setThread(v);
     if (v) {
-      setExtras((prev) => {
-        const need = Math.max(0, parts - 1);
-        if (prev.length >= need) return prev.slice(0, Math.max(1, need));
-        return [...prev, ...Array<string>(Math.max(1, need) - prev.length).fill('')];
+      // Drop channels that cannot carry a reply-chain, and seed part 2.
+      setPicked((prev) => prev.filter((id) => {
+        const c = ready.find((x) => x.id === id);
+        return c ? THREAD_PROVIDERS.includes(c.provider) : false;
+      }));
+      setSegs((prev) => {
+        const need = Math.max(2, parts);
+        const next = [...prev];
+        while (next.length < need) next.push({ body: '', media: [] });
+        return next.slice(0, need);
       });
     }
   }
@@ -175,66 +369,52 @@ export default function CreatePost({
   function setPartsCount(n: number) {
     const clamped = Math.max(2, Math.min(8, n));
     setParts(clamped);
-    setExtras((prev) => {
-      const need = clamped - 1;
-      if (prev.length >= need) return prev.slice(0, need);
-      return [...prev, ...Array<string>(need - prev.length).fill('')];
+    setSegs((prev) => {
+      const next = [...prev];
+      while (next.length < clamped) next.push({ body: '', media: [] });
+      return next.slice(0, clamped);
     });
   }
 
-  function addFiles(list: FileList | null) {
+  /* ------------------------- per-segment helpers ------------------------ */
+
+  function addFilesTo(i: number, list: FileList | null) {
     if (!list) return;
     const next = Array.from(list).map((file) => ({
       file,
       kind: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video',
       url: URL.createObjectURL(file),
     }));
-    setFiles((prev) => {
-      for (const g of prev) URL.revokeObjectURL(g.url);
-      return [...prev, ...next].slice(0, 10);
-    });
+    setSegs((prev) =>
+      prev.map((s, j) => (j === i ? { ...s, media: [...s.media, ...next].slice(0, 10) } : s)),
+    );
   }
 
-  function removeFile(i: number) {
-    setFiles((prev) => {
-      const next = [...prev];
-      const [gone] = next.splice(i, 1);
-      if (gone) URL.revokeObjectURL(gone.url);
-      return next;
-    });
+  function removeMediaFrom(i: number, mi: number) {
+    setSegs((prev) =>
+      prev.map((s, j) => {
+        if (j !== i) return s;
+        const media = [...s.media];
+        const [gone] = media.splice(mi, 1);
+        if (gone) URL.revokeObjectURL(gone.url);
+        return { ...s, media };
+      }),
+    );
   }
 
-  function pickMedia(kind: 'photo' | 'video') {
-    fileAccept.current = kind === 'photo' ? 'image/*' : 'video/*';
-    fileRef.current?.click();
+  function reorderMediaIn(i: number, from: number, to: number) {
+    setSegs((prev) =>
+      prev.map((s, j) => {
+        if (j !== i) return s;
+        const media = [...s.media];
+        const [moved] = media.splice(from, 1);
+        if (moved) media.splice(to, 0, moved);
+        return { ...s, media };
+      }),
+    );
   }
 
-  function insertAtCursor(text: string) {
-    const el = taRef.current;
-    if (!el) {
-      setBody((b) => b + text);
-      return;
-    }
-    const { selectionStart: s, selectionEnd: e, value } = el;
-    const next = `${value.slice(0, s)}${text}${value.slice(e)}`;
-    setBody(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(s + text.length, s + text.length);
-    });
-  }
-
-  function wrap(before: string, after: string = before) {
-    const el = taRef.current;
-    if (!el) return;
-    const { selectionStart: s, selectionEnd: e, value } = el;
-    const next = `${value.slice(0, s)}${before}${value.slice(s, e)}${after}${value.slice(e)}`;
-    setBody(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(s + before.length, e + before.length);
-    });
-  }
+  /* -------------------------------- AI -------------------------------- */
 
   async function runAi() {
     setAiErr(null);
@@ -252,7 +432,7 @@ export default function CreatePost({
     setAiBusy(true);
     try {
       const sb = createClient();
-      const segs = await generateCaptions(sb, {
+      const segsOut = await generateCaptions(sb, {
         topic: t,
         providers: chosenProviders,
         count,
@@ -263,9 +443,12 @@ export default function CreatePost({
         emoji,
         cta,
       });
-      const bodies = segs.map((s) => (hashtags ? withHashtags(s.caption, s.hashtags) : s.caption));
-      setBody(bodies[0] ?? '');
-      setExtras(bodies.length > 1 ? bodies.slice(1) : thread ? [''] : []);
+      const bodies = segsOut.map((s) => (hashtags ? withHashtags(s.caption, s.hashtags) : s.caption));
+      setSegs((prev) => {
+        const next = bodies.map((b) => ({ body: b, media: [] as MediaItem[] }));
+        if (next[0]) next[0].media = prev[0]?.media ?? [];
+        return next;
+      });
       setAppliedAt(Date.now());
     } catch (e2) {
       setAiErr(e2 instanceof Error ? e2.message : 'AI generation failed.');
@@ -273,6 +456,8 @@ export default function CreatePost({
       setAiBusy(false);
     }
   }
+
+  /* ------------------------------- submit ------------------------------- */
 
   async function submit(e: FormEvent, submitMode: ComposeMode) {
     e.preventDefault();
@@ -286,43 +471,41 @@ export default function CreatePost({
       setErr('Choose a date and time first.');
       return;
     }
-    const text = body.trim();
-    const liveParts = thread ? [text, ...extras.map((s) => s.trim())].filter(Boolean) : [text].filter(Boolean);
-    if (liveParts.length === 0 && files.length === 0) {
+    const live = segs.filter((s) => s.body.trim() || s.media.length > 0);
+    if (live.length === 0) {
       setErr('Add a caption or some media first.');
       return;
     }
-    if (over) {
-      setErr(`Caption is ${body.length - limit} characters over the strictest channel limit.`);
+    if (segs[0] && segs[0].body.length > limit) {
+      setErr(`Caption is ${segs[0].body.length - limit} characters over the strictest channel limit.`);
       return;
     }
     setBusy(true);
     try {
       const sb = createClient();
-      const media = files.map(({ file, kind }) => ({ file, kind }));
       if (!thread) {
+        const s0 = segs[0];
         await createPost(sb, {
           workspaceId,
           userId,
           role,
-          title: text.split('\n')[0].slice(0, 60),
-          body: text,
+          title: s0.body.trim().split('\n')[0].slice(0, 60),
+          body: s0.body.trim(),
           mode: submitMode,
           scheduleIso: submitMode === 'schedule' ? whenIso : null,
           channels: chosen,
-          files: media,
+          files: s0.media.map(({ file, kind }) => ({ file, kind })),
           timezone: tz,
         });
       } else {
-        const payload = liveParts.map((b, k) => ({ body: b, files: k === 0 ? media : [] }));
         await createChain(sb, {
           workspaceId,
           userId,
           role,
-          segments: payload.length ? payload : [{ body: '', files: media }],
+          segments: live.map((s) => ({ body: s.body.trim(), files: s.media.map(({ file, kind }) => ({ file, kind })) })),
           mode: submitMode,
           startIso: submitMode === 'schedule' ? whenIso : null,
-          gapMinutes: Math.max(0, Math.min(1440, gap || 0)),
+          gapMinutes: 0,
           channels: chosen,
         });
       }
@@ -340,9 +523,28 @@ export default function CreatePost({
         {/* Left: composer */}
         <div className="min-w-0 xl:col-span-3">
           <section className="card p-5" aria-label="Create your post">
-            <p className="font-display text-base font-extrabold tracking-tight">Create your post</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-display text-base font-extrabold tracking-tight">Create your post</p>
+              <span className="flex-1" />
+              {/* Mode pill — top, dashboard style */}
+              <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Post mode">
+                {(['now', 'schedule'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    aria-pressed={mode === m}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                      mode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
+                    }`}
+                  >
+                    {m === 'now' ? 'Post now' : 'Schedule'}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            {/* Channel pills — dashboard style */}
+            {/* Channel pills — dashboard style; thread narrows the cast */}
             <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Channels">
               {ready.length === 0 ? (
                 <p className="text-xs text-muted">
@@ -353,18 +555,26 @@ export default function CreatePost({
                 </p>
               ) : (
                 ready.map((c) => {
-                  const on = picked.includes(c.id);
+                  const chainOk = !thread || THREAD_PROVIDERS.includes(c.provider);
+                  const on = picked.includes(c.id) && chainOk;
                   return (
                     <button
                       key={c.id}
                       type="button"
-                      onClick={() => toggle(c.id)}
+                      onClick={() => chainOk && toggle(c.id)}
                       aria-pressed={on}
-                      title={c.display_name ?? providerMeta(c.provider).label}
+                      disabled={!chainOk}
+                      title={
+                        !chainOk
+                          ? 'Thread posts go to X, Threads, Mastodon and Bluesky only'
+                          : (c.display_name ?? providerMeta(c.provider).label)
+                      }
                       className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold transition ${
-                        on
-                          ? 'border-ink bg-paper text-ink'
-                          : 'border-line bg-paper text-faint opacity-60 hover:opacity-100'
+                        !chainOk
+                          ? 'cursor-not-allowed border-line bg-paper text-faint opacity-30'
+                          : on
+                            ? 'border-ink bg-paper text-ink'
+                            : 'border-line bg-paper text-faint opacity-60 hover:opacity-100'
                       }`}
                     >
                       <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={24} />
@@ -375,195 +585,74 @@ export default function CreatePost({
               )}
             </div>
 
-            {/* Text box with media + toolbar inside */}
-            <div className="mt-3 rounded-xl border border-line bg-paper focus-within:border-ink/40">
-              <textarea
-                ref={taRef}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
+            {thread ? (
+              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-faint">
+                <BranchIcon className="h-3 w-3" />
+                Thread posts go to X, Threads, Mastodon and Bluesky — parts publish as one reply chain.
+              </p>
+            ) : null}
+
+            {/* Part 1 — same box as every other part */}
+            <div className="mt-3">
+              <PostBox
+                seg={segs[0] ?? { body: '', media: [] }}
+                onChange={(body) => setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, body } : s)))}
+                onAddFiles={(list) => addFilesTo(0, list)}
+                onRemoveMedia={(mi) => removeMediaFrom(0, mi)}
+                onReorderMedia={(from, to) => reorderMediaIn(0, from, to)}
                 placeholder="What's on your mind?"
-                rows={5}
-                aria-label="Post text"
-                className="min-h-[128px] w-full resize-y bg-transparent px-3 pt-2.5 text-sm text-ink placeholder:text-faint focus:outline-none"
-              />
-              {/* Inline attachments */}
-              {files.length > 0 ? (
-                <div className="flex gap-1.5 overflow-x-auto px-3 pb-1">
-                  {files.map((f, i) => (
-                    <span key={i} className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-paper-dim">
-                      {f.kind === 'image' ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={f.url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <video src={f.url} muted playsInline className="h-full w-full object-cover" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeFile(i)}
-                        aria-label="Remove media"
-                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] leading-none text-white"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              {/* Toolbar row */}
-              <div className="flex items-center gap-0.5 border-t border-line-soft px-2 py-1.5">
-                <button
-                  type="button"
-                  onClick={() => pickMedia('photo')}
-                  aria-label="Add photo"
-                  title="Add photo"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
-                >
-                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="2.5" y="2.5" width="15" height="15" rx="2.5" />
-                    <circle cx="7" cy="7" r="1.4" />
-                    <path d="m4.5 15.5 4-4 2.5 2.5 2-2 2.5 2.5" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => pickMedia('video')}
-                  aria-label="Add video"
-                  title="Add video"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
-                >
-                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="2" y="4" width="12.5" height="12" rx="2.5" />
-                    <path d="m14.5 10 3.5-2.5v5L14.5 10Z" />
-                  </svg>
-                </button>
-                <span className="mx-1 h-4 w-px bg-line-soft" aria-hidden="true" />
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setEmojiOpen((v) => !v)}
-                    aria-label="Insert emoji"
-                    aria-expanded={emojiOpen}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
-                  >
-                    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden="true">
-                      <circle cx="10" cy="10" r="6.5" />
-                      <path d="M7.5 8.2h.01M12.5 8.2h.01M7.5 12c.7.8 1.6 1.2 2.5 1.2s1.8-.4 2.5-1.2" />
-                    </svg>
-                  </button>
-                  {emojiOpen ? (
-                    <div className="absolute bottom-9 left-0 z-30 grid w-52 grid-cols-6 gap-0.5 rounded-xl border border-line bg-card p-2 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]" role="menu" aria-label="Emojis">
-                      {EMOJIS.map((em) => (
-                        <button
-                          key={em}
-                          type="button"
-                          onClick={() => {
-                            insertAtCursor(em);
-                            setEmojiOpen(false);
-                          }}
-                          className="rounded-lg p-1.5 text-lg transition hover:bg-paper-dim"
-                        >
-                          {em}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => wrap('**')}
-                  aria-label="Bold"
-                  title="Bold"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-extrabold text-muted transition hover:bg-paper-dim hover:text-ink"
-                >
-                  B
-                </button>
-                <button
-                  type="button"
-                  onClick={() => wrap('_')}
-                  aria-label="Italic"
-                  title="Italic"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-extrabold italic text-muted transition hover:bg-paper-dim hover:text-ink"
-                >
-                  I
-                </button>
-                <button
-                  type="button"
-                  onClick={() => wrap('[', '](https://)')}
-                  aria-label="Insert link"
-                  title="Insert link"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
-                >
-                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M8.2 11.8a3.2 3.2 0 0 0 4.5 0l2.3-2.3a3.2 3.2 0 0 0-4.5-4.5l-1 1" />
-                    <path d="M11.8 8.2a3.2 3.2 0 0 0-4.5 0L5 10.5a3.2 3.2 0 0 0 4.5 4.5l1-1" />
-                  </svg>
-                </button>
-                <span className="flex-1" />
-                <span className={`text-[11px] ${over ? 'font-bold text-[#9F2F2D]' : 'text-faint'}`}>
-                  {body.length} / {limit}
-                </span>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept={fileAccept.current}
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  addFiles(e.target.files);
-                  e.target.value = '';
-                }}
+                limit={limit}
+                label="Post text"
               />
             </div>
 
             {/* Thread parts */}
             {thread ? (
-              <div className="mt-3 space-y-2">
-                {extras.map((s, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <textarea
-                      value={s}
-                      onChange={(e) =>
-                        setExtras((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))
-                      }
-                      placeholder={`Part ${i + 2}…`}
-                      rows={2}
-                      aria-label={`Thread part ${i + 2}`}
-                      className="field min-h-[56px] flex-1 resize-y"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setExtras((prev) => prev.filter((_, j) => j !== i))}
-                      aria-label={`Remove part ${i + 2}`}
-                      className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-                <div className="flex flex-wrap items-center gap-3">
-                  {extras.length + 1 < 8 ? (
-                    <button
-                      type="button"
-                      onClick={() => setExtras((prev) => [...prev, ''])}
-                      className="text-xs font-bold text-ink hover:underline"
-                    >
-                      + Add part
-                    </button>
-                  ) : null}
-                  <label className="flex items-center gap-1.5 text-[11px] text-muted">
-                    Minutes between posts
-                    <input
-                      type="number"
-                      min={0}
-                      max={1440}
-                      value={gap}
-                      onChange={(e) => setGap(Number(e.target.value))}
-                      aria-label="Minutes between posts"
-                      className="field !w-16 !py-1 text-xs"
-                    />
-                  </label>
-                </div>
+              <div className="mt-2 space-y-2">
+                {segs.slice(1).map((s, i) => {
+                  const idx = i + 1;
+                  return (
+                    <div key={idx}>
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-faint">
+                          <BranchIcon className="h-3 w-3" />
+                          Part {idx + 1}
+                        </span>
+                        <span className="flex-1" />
+                        {segs.length > 2 ? (
+                          <button
+                            type="button"
+                            onClick={() => setSegs((prev) => prev.filter((_, j) => j !== idx))}
+                            aria-label={`Remove part ${idx + 1}`}
+                            className="text-[11px] font-bold text-muted transition hover:text-ink"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      <PostBox
+                        seg={s}
+                        onChange={(body) => setSegs((prev) => prev.map((x, j) => (j === idx ? { ...x, body } : x)))}
+                        onAddFiles={(list) => addFilesTo(idx, list)}
+                        onRemoveMedia={(mi) => removeMediaFrom(idx, mi)}
+                        onReorderMedia={(from, to) => reorderMediaIn(idx, from, to)}
+                        placeholder={`Part ${idx + 1}…`}
+                        rows={3}
+                        limit={limit}
+                        label={`Thread part ${idx + 1}`}
+                      />
+                    </div>
+                  );
+                })}
+                {segs.length < 8 ? (
+                  <button
+                    type="button"
+                    onClick={() => setSegs((prev) => [...prev, { body: '', media: [] }])}
+                    className="text-xs font-bold text-ink hover:underline"
+                  >
+                    + Add part
+                  </button>
+                ) : null}
               </div>
             ) : null}
 
@@ -582,23 +671,8 @@ export default function CreatePost({
 
             {err ? <p className="mt-3 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
 
-            {/* Mode + action — dashboard style */}
+            {/* Action row */}
             <div className="mt-3 flex items-center gap-2">
-              <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Post mode">
-                {(['now', 'schedule'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    aria-pressed={mode === m}
-                    className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                      mode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
-                    }`}
-                  >
-                    {m === 'now' ? 'Post now' : 'Schedule'}
-                  </button>
-                ))}
-              </div>
               <span className="flex-1" />
               <button
                 type="button"
@@ -609,13 +683,7 @@ export default function CreatePost({
                 Save draft
               </button>
               <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
-                {busy ? (
-                  'Sending…'
-                ) : mode === 'now' ? (
-                  'Post now'
-                ) : (
-                  'Schedule post'
-                )}
+                {busy ? 'Sending…' : mode === 'now' ? 'Post now' : 'Schedule post'}
               </button>
             </div>
             {mode === 'schedule' ? (
@@ -843,12 +911,12 @@ export default function CreatePost({
             {/* Destination — same channels as the composer */}
             <p className="mt-4 text-xs font-bold text-soft">Post to</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Destination channels">
-              {ready.length === 0 ? (
+              {selectable.length === 0 ? (
                 <Link href="/channels" className="text-xs font-bold text-[#2f7cf6] hover:underline">
                   Connect a channel first
                 </Link>
               ) : (
-                ready.map((c) => {
+                selectable.map((c) => {
                   const on = picked.includes(c.id);
                   return (
                     <button
@@ -870,6 +938,9 @@ export default function CreatePost({
                 })
               )}
             </div>
+            {thread ? (
+              <p className="mt-1 text-[11px] text-faint">Thread channels only — same rule as the app.</p>
+            ) : null}
 
             {/* Advanced */}
             <button
