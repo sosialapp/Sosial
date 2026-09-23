@@ -10,6 +10,8 @@ type DockItem = {
   label: string;
   match: (pathname: string) => boolean;
   icon: React.ReactNode;
+  /** Pastel icon colour — icons only; selection stays yellowish. */
+  tint?: string;
   hero?: boolean;
   popup?: boolean;
 };
@@ -27,6 +29,7 @@ const ITEMS: DockItem[] = [
     href: '/dashboard',
     label: 'Home',
     match: (p) => p === '/dashboard' || p === '/queue' || p.startsWith('/dashboard/'),
+    tint: '#6C9BF5',
     icon: (
       <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <path d="M3.5 9.2 10 3.5l6.5 5.7" />
@@ -39,6 +42,7 @@ const ITEMS: DockItem[] = [
     href: '/calendar',
     label: 'Calendar',
     match: (p) => p === '/calendar' || p.startsWith('/calendar/'),
+    tint: '#F0924E',
     icon: (
       <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
@@ -51,6 +55,7 @@ const ITEMS: DockItem[] = [
     href: '/new',
     label: 'Create',
     match: (p) => p === '/new' || p === '/composer' || p.startsWith('/new/') || p.startsWith('/composer/'),
+    tint: '#4CAF7D',
     icon: (
       <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
@@ -72,6 +77,7 @@ const ITEMS: DockItem[] = [
     href: '/analytics',
     label: 'Analytics',
     match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
+    tint: '#9B7EDE',
     icon: (
       <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <path d="M3 16.5h14" />
@@ -83,6 +89,7 @@ const ITEMS: DockItem[] = [
     href: '/profile',
     label: 'Profile',
     match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
+    tint: '#E87EA1',
     icon: (
       <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
         <circle cx="10" cy="7" r="3.2" />
@@ -224,9 +231,10 @@ export default function Dock() {
                   item.hero
                     ? 'opacity-100'
                     : active
-                      ? 'bg-accent-soft text-accent-ink opacity-100'
-                      : 'text-soft opacity-55 group-hover:opacity-100'
+                      ? 'bg-accent-soft opacity-100'
+                      : 'opacity-100 group-hover:bg-paper-dim'
                 }`}
+                style={item.hero || !item.tint ? undefined : { color: item.tint }}
               >
                 {item.icon}
               </span>

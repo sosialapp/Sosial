@@ -29,8 +29,9 @@ export default function QuickPost({
   const ready = channels.filter((c) => c.status === 'connected');
   const [body, setBody] = useState('');
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
+  const [mode, setMode] = useState<'now' | 'schedule'>('now');
   const [when, setWhen] = useState(() => toDateTimeLocal(null));
-  const [busy, setBusy] = useState<'now' | 'schedule' | null>(null);
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export default function QuickPost({
     setDone(null);
   }
 
-  async function submit(e: FormEvent, mode: 'now' | 'schedule') {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
     setDone(null);
@@ -56,7 +57,7 @@ export default function QuickPost({
       setErr('Choose a valid date and time.');
       return;
     }
-    setBusy(mode);
+    setBusy(true);
     try {
       const sb = createClient();
       const text = body.trim();
@@ -77,25 +78,15 @@ export default function QuickPost({
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : 'Could not save the post.');
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
   return (
     <section className="card p-5" aria-label="Quick post">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-display text-base font-extrabold tracking-tight">Quick post</p>
-          <p className="mt-0.5 text-xs text-muted">Type, pick channels, ship.</p>
-        </div>
-        <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"
-          aria-hidden="true"
-        >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
-          </svg>
-        </span>
+      <div>
+        <p className="font-display text-base font-extrabold tracking-tight">Quick post</p>
+        <p className="mt-0.5 text-xs text-muted">Type, pick channels, ship.</p>
       </div>
 
       {ready.length === 0 ? (
@@ -107,7 +98,7 @@ export default function QuickPost({
           to quick post.
         </p>
       ) : (
-        <form onSubmit={(e) => submit(e, 'now')}>
+        <form onSubmit={submit}>
           <div className="mt-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Channels">
             {ready.map((c) => {
               const on = picked.includes(c.id);
@@ -151,24 +142,41 @@ export default function QuickPost({
           {done ? <p className="mt-2 text-xs font-bold text-[#346538]">{done}</p> : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              type="datetime-local"
-              value={when}
-              onChange={(e) => setWhen(e.target.value)}
-              aria-label="Schedule for"
-              className="field !w-auto flex-1 py-1.5 text-xs sm:flex-none"
-            />
-            <span className="flex-1 sm:hidden" />
-            <button
-              type="button"
-              onClick={(e) => submit(e, 'schedule')}
-              disabled={busy !== null}
-              className="btn btn-ghost !py-1.5 !text-xs"
+            <div
+              className="flex rounded-full border border-line bg-paper p-1"
+              role="group"
+              aria-label="Post mode"
             >
-              {busy === 'schedule' ? 'Scheduling…' : 'Schedule'}
-            </button>
-            <button type="submit" disabled={busy !== null} className="btn btn-primary !py-1.5 !text-xs">
-              {busy === 'now' ? 'Posting…' : 'Post now'}
+              {(['now', 'schedule'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setMode(m);
+                    setDone(null);
+                  }}
+                  aria-pressed={mode === m}
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                    mode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  {m === 'now' ? 'Post now' : 'Schedule'}
+                </button>
+              ))}
+            </div>
+            {mode === 'schedule' ? (
+              <input
+                type="datetime-local"
+                value={when}
+                onChange={(e) => setWhen(e.target.value)}
+                aria-label="Schedule for"
+                className="field !w-auto min-w-0 flex-1 py-1.5 text-xs sm:flex-none"
+              />
+            ) : (
+              <span className="flex-1" />
+            )}
+            <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
+              {busy ? 'Sending…' : mode === 'now' ? 'Post now' : 'Schedule post'}
             </button>
           </div>
         </form>

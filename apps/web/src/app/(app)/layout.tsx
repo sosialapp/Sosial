@@ -33,8 +33,8 @@ function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {
           {shown.map((c, i) => (
             <span
               key={c.id}
-              className="ring-2 ring-card"
-              style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i, borderRadius: 10 }}
+              className="rounded-full ring-2 ring-card"
+              style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i }}
               title={providerMeta(c.provider).label}
             >
               <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
@@ -66,7 +66,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <ConnectHeader channels={channels} />
         <Link
           href="/team"
-          className="hidden rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone sm:block"
+          className="hidden rounded-full border border-line bg-paper px-4 py-2 text-sm font-bold text-soft transition hover:bg-bone sm:block"
         >
           Team
         </Link>

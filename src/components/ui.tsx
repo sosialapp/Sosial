@@ -48,19 +48,19 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
   return <Ionicons name={map[platform] ?? 'ellipse'} size={s} color={color} />;
 }
 
-/** Channel avatar: profile picture of a connected account with the social
- *  logo stacked in the corner; falls back to the brand tile when no avatar. */
+/** Channel avatar: profile picture of a connected account as a circular tile
+ *  with the social logo stacked in a larger circular disc in the corner;
+ *  falls back to the brand disc when no avatar. */
 export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { platform: string; avatar?: string; size?: number; badge?: boolean }) {
   const { C } = useTheme();
   const bg = SOCIAL_META[platform]?.bg ?? C.ink;
-  const r = Math.round(size * 0.3);
-  const badgeSize = Math.max(12, Math.round(size * 0.46));
+  const badgeSize = Math.max(14, Math.round(size * 0.54));
   return (
     <View style={{ width: size, height: size }}>
       {avatar ? (
-        <Image source={{ uri: avatar }} style={{ width: size, height: size, borderRadius: r, backgroundColor: C.lineSoft }} resizeMode="cover" />
+        <Image source={{ uri: avatar }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.lineSoft }} resizeMode="cover" />
       ) : (
-        <View style={{ width: size, height: size, borderRadius: r, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
           <SocialGlyph platform={platform} size={Math.round(size * 0.45)} color="#fff" />
         </View>
       )}
@@ -81,7 +81,7 @@ export function AccountStack({ platform, avatars, size = 22, max = 3, ring }: { 
   const ringColor = ring ?? C.card;
   const shown = avatars.slice(0, max);
   const extra = avatars.length - shown.length;
-  const r = Math.round(size * 0.32);
+  const ringR = size / 2 + 2;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {shown.map((av, i) => (
@@ -91,7 +91,7 @@ export function AccountStack({ platform, avatars, size = 22, max = 3, ring }: { 
             marginLeft: i === 0 ? 0 : -Math.round(size * 0.38),
             borderWidth: 2,
             borderColor: ringColor,
-            borderRadius: r + 2,
+            borderRadius: ringR,
             backgroundColor: ringColor,
           }}
         >
@@ -104,7 +104,7 @@ export function AccountStack({ platform, avatars, size = 22, max = 3, ring }: { 
             marginLeft: -Math.round(size * 0.38),
             width: size + 4,
             height: size + 4,
-            borderRadius: r + 2,
+            borderRadius: ringR,
             borderWidth: 2,
             borderColor: ringColor,
             backgroundColor: C.surface,

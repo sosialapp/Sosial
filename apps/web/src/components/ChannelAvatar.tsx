@@ -9,8 +9,8 @@ export function channelAvatar(metadata: Record<string, unknown> | null | undefin
 
 /**
  * Channel avatar, same as the mobile app: the account's profile picture
- * leads as the main tile; the social logo rides as a small disc stacked in
- * the corner. Brand tile alone when there's no avatar.
+ * leads as a circular tile; the social logo rides as a larger circular disc
+ * stacked in the corner. Brand disc alone when there's no avatar.
  * Plain <img> — avatar hosts are arbitrary, so next/image can't preallow them.
  */
 export default function ChannelAvatar({
@@ -23,13 +23,12 @@ export default function ChannelAvatar({
   size?: number;
 }) {
   const meta = providerMeta(provider);
-  const r = Math.round(size * 0.3);
-  const badgeSize = Math.max(12, Math.round(size * 0.46));
+  const badgeSize = Math.max(16, Math.round(size * 0.56));
   if (!avatar) {
     return (
       <span
-        className="flex shrink-0 items-center justify-center overflow-hidden"
-        style={{ width: size, height: size, borderRadius: r, background: meta.color }}
+        className="flex shrink-0 items-center justify-center overflow-hidden rounded-full"
+        style={{ width: size, height: size, background: meta.color }}
         title={meta.label}
       >
         <BrandIcon provider={provider as BrandProvider} mono className="h-1/2 w-1/2 text-white" />
@@ -45,8 +44,8 @@ export default function ChannelAvatar({
         width={size}
         height={size}
         loading="lazy"
-        className="h-full w-full object-cover"
-        style={{ borderRadius: r, background: meta.color }}
+        className="h-full w-full rounded-full object-cover"
+        style={{ background: meta.color }}
       />
       <span
         className="absolute flex items-center justify-center rounded-full border-2 border-card"

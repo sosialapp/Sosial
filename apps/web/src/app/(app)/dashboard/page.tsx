@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import AnalyticsCard from '@/components/AnalyticsCard';
 import QuickPost from '@/components/QuickPost';
-import { POST_STATUS_META, providerMeta } from '@/lib/providers';
+import { providerMeta } from '@/lib/providers';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey, WEEKDAYS } from '@/lib/format';
 import type { ProviderKey } from '@/lib/types';
@@ -136,12 +137,32 @@ export default async function DashboardPage() {
   const today = new Date();
   const mondayOffset = (today.getDay() + 6) % 7;
   const monday = addDays(today, -mondayOffset);
+  const sunday = addDays(monday, 6);
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(monday, i);
     const k = dayKey(d);
-    const dayPosts = queued.filter((p) => p.scheduled_at && dayKey(new Date(p.scheduled_at)) === k);
+    const dayPosts = queued
+      .filter((p) => p.scheduled_at && dayKey(new Date(p.scheduled_at)) === k)
+      .sort((a, b) => +new Date(a.scheduled_at!) - +new Date(b.scheduled_at!));
     return { d, k, posts: dayPosts, isToday: k === dayKey(today) };
   });
+  const rangeLabel = `${monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+  // Time grid rows, every 2h like the reference.
+  const HOURS = [8, 10, 12, 14, 16, 18, 20];
+  const hourLabel = (h: number) => {
+    const ap = h >= 12 ? 'PM' : 'AM';
+    const hh = h % 12 === 0 ? 12 : h % 12;
+    return `${hh} ${ap}`;
+  };
+  const rowFor = (iso: string): number => {
+    const h = new Date(iso).getHours();
+    if (h < HOURS[0]) return HOURS[0];
+    for (let i = HOURS.length - 1; i >= 0; i--) {
+      if (h >= HOURS[i]) return HOURS[i];
+    }
+    return HOURS[0];
+  };
 
   return (
     <div className="w-full pt-6">
@@ -214,57 +235,99 @@ export default async function DashboardPage() {
           />
 
           {/* Week calendar */}
-          <section className="card p-5" aria-label="Content calendar">
-            <div className="flex items-center justify-between">
+          <section className="card overflow-hidden p-5" aria-label="Content calendar">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="font-display text-base font-extrabold tracking-tight">Content Calendar</p>
-              <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
-                Open calendar
+              <p className="text-xs text-muted">{rangeLabel}</p>
+              <span className="flex-1" />
+              <Link
+                href="/calendar"
+                aria-label="Previous week"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
+              >
+                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m12.5 4.5-6 5.5 6 5.5" />
+                </svg>
+              </Link>
+              <Link
+                href="/calendar"
+                aria-label="Next week"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
+              >
+                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m7.5 4.5 6 5.5-6 5.5" />
+                </svg>
               </Link>
             </div>
-            <div className="mt-4 grid grid-cols-7 gap-1.5">
-              {week.map(({ d, k, posts: dayPosts, isToday }) => (
-                <Link
-                  key={k}
-                  href="/calendar"
-                  className={`flex min-h-[110px] flex-col rounded-xl border p-2 text-left transition hover:border-ink ${
-                    isToday ? 'border-accent bg-accent-soft/50' : 'border-line bg-paper'
-                  }`}
-                >
-                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-faint">
+
+            {/* Day header */}
+            <div className="mt-4 grid grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] gap-px">
+              <span />
+              {week.map(({ d, k, isToday }) => (
+                <div key={k} className="flex flex-col items-center gap-0.5 pb-1">
+                  <span className="text-[10px] font-bold text-faint">
                     {WEEKDAYS[(d.getDay() + 6) % 7]?.slice(0, 3) ?? ''}
                   </span>
                   <span
-                    className={`mt-0.5 font-display text-sm font-extrabold ${isToday ? 'text-accent-ink' : ''}`}
+                    className={`flex h-7 w-7 items-center justify-center rounded-full font-display text-sm font-extrabold ${
+                      isToday ? 'bg-[#2f7cf6] text-white' : ''
+                    }`}
                   >
                     {d.getDate()}
                   </span>
-                  <span className="mt-1.5 flex flex-col gap-1 overflow-hidden">
-                    {dayPosts.slice(0, 2).map((p) => {
-                      const pv = p.post_targets?.[0]?.provider;
-                      const meta = pv ? providerMeta(pv) : null;
+                </div>
+              ))}
+            </div>
+
+            {/* Time grid */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[560px]">
+                {HOURS.map((h, ri) => (
+                  <div key={h} className="grid grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] gap-px">
+                    <span className="-mt-1.5 pr-1 text-right text-[10px] font-medium text-faint">
+                      {hourLabel(h)}
+                    </span>
+                    {week.map(({ k, posts: dayPosts }) => {
+                      const cell = dayPosts.filter((p) => rowFor(p.scheduled_at!) === h);
                       return (
-                        <span
-                          key={p.id}
-                          className="truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold"
-                          style={
-                            meta
-                              ? { background: `${meta.color}14`, color: meta.color }
-                              : undefined
-                          }
+                        <div
+                          key={k}
+                          className={`min-h-[64px] border-t border-line-soft p-1 ${
+                            ri === HOURS.length - 1 ? 'border-b' : ''
+                          }`}
                         >
-                          {meta?.glyph ?? '·'} {fmtTime(p.scheduled_at)}
-                        </span>
+                          {cell.slice(0, 2).map((p) => {
+                            const pv = p.post_targets?.[0]?.provider;
+                            const meta = pv ? providerMeta(pv) : null;
+                            return (
+                              <Link
+                                key={p.id}
+                                href="/calendar"
+                                className="mb-1 block truncate rounded-lg px-1.5 py-1 text-left transition hover:opacity-85"
+                                style={meta ? { background: `${meta.color}1A` } : undefined}
+                              >
+                                <span className="flex items-center gap-1">
+                                  {pv ? <BrandIcon provider={pv as ProviderKey} className="h-3 w-3 shrink-0" /> : null}
+                                  <span className="truncate text-[10px] font-extrabold" style={meta ? { color: meta.color } : undefined}>
+                                    {meta?.label ?? 'Post'}
+                                  </span>
+                                </span>
+                                <span className="block truncate text-[10px] font-medium text-soft">
+                                  {(p.title || 'Untitled post').slice(0, 24)}
+                                </span>
+                                <span className="block text-[10px] text-faint">{fmtTime(p.scheduled_at)}</span>
+                              </Link>
+                            );
+                          })}
+                          {cell.length > 2 ? (
+                            <span className="block px-1 text-[10px] font-bold text-muted">+{cell.length - 2}</span>
+                          ) : null}
+                        </div>
                       );
                     })}
-                    {dayPosts.length > 2 ? (
-                      <span className="text-[10px] font-bold text-muted">+{dayPosts.length - 2} more</span>
-                    ) : null}
-                    {dayPosts.length === 0 ? (
-                      <span className="text-[10px] font-medium text-faint">-</span>
-                    ) : null}
-                  </span>
-                </Link>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
 
@@ -279,29 +342,23 @@ export default async function DashboardPage() {
             {recent.length === 0 ? (
               <p className="mt-3 text-sm text-muted">Nothing sent yet. Queue a post and it lands here.</p>
             ) : (
-              <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {recent.map((p) => {
                   const pv = (p.post_targets?.[0]?.provider ?? 'instagram') as ProviderKey;
                   const meta = providerMeta(pv);
                   const failed = p.status === 'failed';
                   return (
-                    <li key={p.id} className="flex items-start gap-2.5">
-                      <BrandIcon
-                        provider={pv}
-                        className="mt-0.5 h-7 w-7 shrink-0"
-                        title={meta.label}
-                      />
+                    <li key={p.id} className="flex items-center gap-3">
+                      <BrandIcon provider={pv} className="h-10 w-10 shrink-0" />
                       <span className="min-w-0">
                         <span className="block truncate text-xs font-bold">
-                          {failed ? 'Failed: ' : 'Sent: '}
+                          {failed ? 'Failed on ' : 'Posted on '}
+                          {meta.label}
+                        </span>
+                        <span className="block truncate text-xs text-soft">
                           {p.title || 'Untitled post'}
                         </span>
                         <span className="block text-[11px] text-faint">{timeAgo(p.sent_at)}</span>
-                      </span>
-                      <span
-                        className={`pill ml-auto shrink-0 text-[10px] ${POST_STATUS_META[p.status].className}`}
-                      >
-                        {POST_STATUS_META[p.status].label}
                       </span>
                     </li>
                   );
@@ -322,12 +379,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
             {upcoming.length === 0 ? (
-              <div className="mt-4 flex flex-col items-start gap-2">
-                <p className="text-sm text-muted">Nothing scheduled right now.</p>
-                <Link href="/new" className="btn btn-bolt !py-1.5 !text-xs">
-                  Compose
-                </Link>
-              </div>
+              <p className="mt-4 text-sm text-muted">Nothing scheduled right now.</p>
             ) : (
               <ul className="mt-3 divide-y divide-line-soft">
                 {upcoming.map((p) => {
@@ -357,49 +409,14 @@ export default async function DashboardPage() {
           </section>
 
           {/* Analytics snapshot */}
-          <section className="card p-5" aria-label="Analytics overview">
-            <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Analytics Overview</p>
-              <Link href="/analytics" className="text-xs font-bold text-ink hover:underline">
-                View all
-              </Link>
-            </div>
-            <div className="mt-3 flex gap-1.5" aria-hidden="true">
-              {['7D', '30D', '90D'].map((t, i) => (
-                <span
-                  key={t}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold ${
-                    i === 0 ? 'bg-accent-soft text-accent-ink' : 'bg-paper-dim text-muted'
-                  }`}
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
-            {/* Simple sent-per-day bars for the current week. */}
-            <div className="mt-4 flex h-28 items-end gap-1.5" aria-hidden="true">
-              {week.map(({ k, isToday }) => {
-                const count = posts.filter(
-                  (p) =>
-                    (p.status === 'sent' || p.status === 'partial') &&
-                    p.sent_at &&
-                    dayKey(new Date(p.sent_at)) === k,
-                ).length;
-                const h = count === 0 ? 8 : Math.min(100, 20 + count * 20);
-                return (
-                  <div key={k} className="flex flex-1 flex-col items-center gap-1">
-                    <div
-                      className={`w-full rounded-md ${isToday ? 'bg-accent' : 'bg-ink/80'}`}
-                      style={{ height: `${h}%` }}
-                      title={`${count} sent`}
-                    />
-                    <span className="text-[9px] font-bold text-faint">{k.slice(8)}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[11px] text-faint">Posts sent per day this week.</p>
-          </section>
+          <AnalyticsCard
+            sentAt={posts
+              .filter(
+                (p) =>
+                  (p.status === 'sent' || p.status === 'partial') && p.sent_at,
+              )
+              .map((p) => p.sent_at as string)}
+          />
 
           {/* Content library */}
           <section className="card p-5" aria-label="Content library">
