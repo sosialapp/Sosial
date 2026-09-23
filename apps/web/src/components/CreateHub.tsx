@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AiCard from '@/components/AiCard';
 import CreatePost from '@/components/CreatePost';
+import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
@@ -16,10 +17,20 @@ import {
 } from '@/lib/studio/model';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
+interface IdeaMedia {
+  url: string;
+  kind: 'image' | 'video';
+}
+
 interface Idea {
   id: string;
   title: string;
+  /** Part 1 body. */
   body: string;
+  /** Extra thread parts when the idea was captured as a thread. */
+  thread?: string[];
+  /** Media per part (index 0 = part 1), persisted as data URLs. */
+  media?: IdeaMedia[][];
   createdAt: number;
 }
 
@@ -194,17 +205,23 @@ export default function CreateHub({
   const [recent, setRecent] = useState<{ project: StudioProject; pageIndex: number; at: number }[]>([]);
   const [editing, setEditing] = useState<StudioProject | null>(null);
   const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const [ideaSegs, setIdeaSegs] = useState<Segment[]>([{ body: '', media: [] }]);
+  const [ideaThread, setIdeaThread] = useState(false);
+  const [ideaParts, setIdeaParts] = useState(3);
   const [tplName, setTplName] = useState('');
   const [tplTitle, setTplTitle] = useState('');
   const [tplBody, setTplBody] = useState('');
-  const [prefill, setPrefill] = useState<{ title: string; body: string; key: number } | null>(null);
+  const [prefill, setPrefill] = useState<{
+    title: string;
+    body: string;
+    key: number;
+    thread?: boolean;
+    parts?: string[];
+  } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
   const [renderingKey, setRenderingKey] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
-  const [ideaThread, setIdeaThread] = useState(false);
-  const [ideaParts, setIdeaParts] = useState(3);
 
   useEffect(() => {
     setIdeas(readList<Idea>(ideasKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt));
@@ -258,17 +275,101 @@ export default function CreateHub({
     }
   };
 
-  const saveIdea = () => {
-    if (!title.trim() && !body.trim()) return;
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+  /* ----------------------- idea editor helpers ----------------------- */
+
+  function setIdeaThreadMode(v: boolean) {
+    setIdeaThread(v);
+    setIdeaSegs((prev) => {
+      if (!v) return prev.slice(0, 1);
+      const next = [...prev];
+      while (next.length < 2) next.push({ body: '', media: [] });
+      return next;
+    });
+  }
+
+  function addFilesToIdea(i: number, list: FileList | null) {
+    if (!list) return;
+    const next: MediaItem[] = Array.from(list).map((file) => ({
+      file,
+      kind: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video',
+      url: URL.createObjectURL(file),
+    }));
+    setIdeaSegs((prev) =>
+      prev.map((s, j) => (j === i ? { ...s, media: [...s.media, ...next].slice(0, 10) } : s)),
+    );
+  }
+
+  function removeMediaFromIdea(i: number, mi: number) {
+    setIdeaSegs((prev) =>
+      prev.map((s, j) => {
+        if (j !== i) return s;
+        const media = [...s.media];
+        const [gone] = media.splice(mi, 1);
+        if (gone?.file) URL.revokeObjectURL(gone.url);
+        return { ...s, media };
+      }),
+    );
+  }
+
+  function reorderMediaInIdea(i: number, from: number, to: number) {
+    setIdeaSegs((prev) =>
+      prev.map((s, j) => {
+        if (j !== i) return s;
+        const media = [...s.media];
+        const [moved] = media.splice(from, 1);
+        if (moved) media.splice(to, 0, moved);
+        return { ...s, media };
+      }),
+    );
+  }
+
+  const saveIdea = async () => {
+    const p1 = ideaSegs[0];
+    const hasText = title.trim() || ideaSegs.some((s) => s.body.trim());
+    if (!hasText) return;
+    const media = await Promise.all(
+      ideaSegs.map((s) =>
+        Promise.all(
+          s.media.map(async (m) => ({
+            url: m.file ? await fileToDataUrl(m.file).catch(() => m.url) : m.url,
+            kind: m.kind,
+          })),
+        ),
+      ),
+    );
     const idea: Idea = {
       id: `idea_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-      title: title.trim() || body.split('\n')[0].slice(0, 60) || 'Untitled idea',
-      body,
+      title: title.trim() || p1.body.split('\n')[0].slice(0, 60) || 'Untitled idea',
+      body: p1.body,
+      thread: ideaThread && ideaSegs.length > 1 ? ideaSegs.slice(1).map((s) => s.body) : undefined,
+      media: media.some((m) => m.length) ? media : undefined,
       createdAt: Date.now(),
     };
-    persistIdeas([idea, ...ideas]);
+    const next = [idea, ...ideas];
+    setIdeas(next);
+    try {
+      localStorage.setItem(ideasKey(workspaceId), JSON.stringify(next));
+    } catch {
+      // Quota — retry without media so the text always survives.
+      try {
+        const slim = next.map((i) => ({ ...i, media: undefined }));
+        localStorage.setItem(ideasKey(workspaceId), JSON.stringify(slim));
+        setIdeas(slim as Idea[]);
+      } catch {
+        /* private mode — ideas just won't persist */
+      }
+    }
     setTitle('');
-    setBody('');
+    setIdeaSegs([{ body: '', media: [] }]);
+    setIdeaThread(false);
   };
 
   const saveTemplate = () => {
@@ -333,7 +434,32 @@ export default function CreateHub({
     setRenaming(null);
   };
 
-  const postIdea = (idea: Idea) => useIntoComposer(idea);
+  /** Post this idea: prefill the composer, thread parts and media included. */
+  const postIdea = async (idea: Idea) => {
+    const files: File[] = [];
+    for (const m of idea.media?.[0] ?? []) {
+      try {
+        const blob = await (await fetch(m.url)).blob();
+        files.push(
+          new File([blob], `idea.${m.kind === 'video' ? 'mp4' : 'png'}`, {
+            type: m.kind === 'video' ? 'video/mp4' : 'image/png',
+          }),
+        );
+      } catch {
+        /* media no longer readable — post without it */
+      }
+    }
+    const parts = [idea.body, ...(idea.thread ?? [])];
+    setPendingFiles(files.length ? files : null);
+    setPrefill({
+      title: idea.title,
+      body: idea.body,
+      key: Date.now(),
+      thread: (idea.thread?.length ?? 0) > 0,
+      parts: parts.length > 1 ? parts : undefined,
+    });
+    setTab('post');
+  };
 
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
@@ -370,6 +496,8 @@ export default function CreateHub({
             initialTitle={prefill?.title ?? ''}
             initialBody={prefill?.body ?? ''}
             initialFiles={pendingFiles ?? undefined}
+            initialThread={prefill?.thread}
+            initialParts={prefill?.parts}
           />
         </div>
       ) : tab === 'ideas' ? (
@@ -384,14 +512,60 @@ export default function CreateHub({
                 className="field font-display font-bold"
                 aria-label="Idea title"
               />
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
+              <PostBox
+                seg={ideaSegs[0] ?? { body: '', media: [] }}
+                onChange={(v) => setIdeaSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, body: v } : s)))}
+                onAddFiles={(list) => addFilesToIdea(0, list)}
+                onRemoveMedia={(mi) => removeMediaFromIdea(0, mi)}
+                onReorderMedia={(from, to) => reorderMediaInIdea(0, from, to)}
                 placeholder="Describe the idea…"
                 rows={4}
-                className="field min-h-[110px] resize-y"
-                aria-label="Idea body"
+                limit={2200}
+                label="Idea body"
               />
+              {ideaThread ? (
+                <div className="space-y-2">
+                  {ideaSegs.slice(1).map((s, i) => {
+                    const idx = i + 1;
+                    return (
+                      <div key={idx}>
+                        <div className="mb-1 flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-faint">Part {idx + 1}</span>
+                          <span className="flex-1" />
+                          <button
+                            type="button"
+                            onClick={() => setIdeaSegs((prev) => prev.filter((_, j) => j !== idx))}
+                            aria-label={`Remove part ${idx + 1}`}
+                            className="text-[11px] font-bold text-muted transition hover:text-ink"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <PostBox
+                          seg={s}
+                          onChange={(v) => setIdeaSegs((prev) => prev.map((x, j) => (j === idx ? { ...x, body: v } : x)))}
+                          onAddFiles={(list) => addFilesToIdea(idx, list)}
+                          onRemoveMedia={(mi) => removeMediaFromIdea(idx, mi)}
+                          onReorderMedia={(from, to) => reorderMediaInIdea(idx, from, to)}
+                          placeholder={`Part ${idx + 1}…`}
+                          rows={3}
+                          limit={2200}
+                          label={`Idea thread part ${idx + 1}`}
+                        />
+                      </div>
+                    );
+                  })}
+                  {ideaSegs.length < 8 ? (
+                    <button
+                      type="button"
+                      onClick={() => setIdeaSegs((prev) => [...prev, { body: '', media: [] }])}
+                      className="text-xs font-bold text-ink hover:underline"
+                    >
+                      + Add part
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -403,8 +577,22 @@ export default function CreateHub({
                   </svg>
                   AI writer
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIdeaThreadMode(!ideaThread)}
+                  aria-pressed={ideaThread}
+                  className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="6" y1="3" x2="6" y2="15" />
+                    <circle cx="18" cy="6" r="3" />
+                    <circle cx="6" cy="18" r="3" />
+                    <path d="M18 9a9 9 0 0 1-9 9" />
+                  </svg>
+                  {ideaThread ? 'Turn off thread' : 'Post as thread'}
+                </button>
                 <span className="flex-1" />
-                <button type="button" onClick={saveIdea} className="btn btn-primary !py-1.5 !text-xs">
+                <button type="button" onClick={() => void saveIdea()} className="btn btn-primary !py-1.5 !text-xs">
                   Save idea
                 </button>
               </div>
@@ -418,26 +606,47 @@ export default function CreateHub({
                 </p>
               </div>
             ) : (
-              ideas.map((idea) => (
-                <article key={idea.id} className="card p-4 sm:p-5">
-                  <p className="truncate font-display font-extrabold">{idea.title}</p>
-                  {idea.body ? <p className="mt-1 line-clamp-2 text-sm text-soft">{idea.body}</p> : null}
-                  <p className="mt-1 text-xs text-faint">{fmtDate(idea.createdAt)}</p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={() => postIdea(idea)} className="btn btn-primary">
-                      Post this idea
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => persistIdeas(ideas.filter((x) => x.id !== idea.id))}
-                      className="btn btn-ghost"
-                      aria-label={`Delete ${idea.title}`}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              ))
+              ideas.map((idea) => {
+                const cover = idea.media?.[0]?.[0];
+                const isThreadIdea = (idea.thread?.length ?? 0) > 0;
+                return (
+                  <article key={idea.id} className="card p-4 sm:p-5">
+                    <div className="flex gap-3">
+                      {cover ? (
+                        <span className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-paper-dim">
+                          {cover.kind === 'image' ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={cover.url} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <video src={cover.url} muted playsInline className="h-full w-full object-cover" />
+                          )}
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 flex-1">
+                        <p className="truncate font-display font-extrabold">{idea.title}</p>
+                        {idea.body ? <p className="mt-1 line-clamp-2 text-sm text-soft">{idea.body}</p> : null}
+                        <p className="mt-1 text-xs text-faint">
+                          {fmtDate(idea.createdAt)}
+                          {isThreadIdea ? ` · ${(idea.thread?.length ?? 0) + 1}-post thread` : ''}
+                        </p>
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button type="button" onClick={() => void postIdea(idea)} className="btn btn-primary">
+                        Post this idea
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => persistIdeas(ideas.filter((x) => x.id !== idea.id))}
+                        className="btn btn-ghost"
+                        aria-label={`Delete ${idea.title}`}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
             )}
           </div>
 
@@ -445,10 +654,25 @@ export default function CreateHub({
             <AiCard
               providers={channels.filter((c) => c.status === 'connected').map((c) => c.provider)}
               thread={ideaThread}
-              onThreadChange={setIdeaThread}
+              onThreadChange={setIdeaThreadMode}
               parts={ideaParts}
-              onPartsChange={setIdeaParts}
-              onResult={(bodies) => setBody(bodies.join('\n\n'))}
+              onPartsChange={(n) => {
+                const clamped = Math.max(2, Math.min(8, n));
+                setIdeaParts(clamped);
+                setIdeaSegs((prev) => {
+                  const next = [...prev];
+                  while (next.length < clamped) next.push({ body: '', media: [] });
+                  return next.slice(0, clamped);
+                });
+              }}
+              onResult={(bodies) => {
+                setIdeaSegs((prev) => {
+                  const next = bodies.map((b) => ({ body: b, media: [] as MediaItem[] }));
+                  if (next[0]) next[0].media = prev[0]?.media ?? [];
+                  return next;
+                });
+                if (bodies.length > 1) setIdeaThread(true);
+              }}
               appliedNote="Applied to your idea — edit freely, then save."
             />
           </div>
