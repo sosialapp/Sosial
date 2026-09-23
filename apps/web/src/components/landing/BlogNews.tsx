@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { allArticles } from '@/lib/blog';
-import { blogTagClass, formatPostDate } from '@/content/types';
+import { blogTagBorder, blogTagClass, formatPostDate } from '@/content/types';
 import { ImageSlot } from '@/components/ui';
 
 /** First image block in the article body, if the author added one. */
@@ -44,7 +44,8 @@ export default async function BlogNews() {
               <Link
                 key={a.slug}
                 href={`/blog/${a.slug}`}
-                className="card flex h-full flex-col overflow-hidden transition hover:border-ink"
+                className="card flex h-full flex-col overflow-hidden transition hover:brightness-95"
+                style={{ borderColor: blogTagBorder(a.tag) }}
               >
                 {cover ? (
                   // eslint-disable-next-line @next/next/no-img-element

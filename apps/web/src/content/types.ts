@@ -28,6 +28,20 @@ export function blogTagClass(tag: Category): string {
   return BLOG_TAG_STYLES[tag] ?? 'bg-paper-dim text-ink';
 }
 
+/** Card outline that echoes each tag's pastel: yellow, green, violet and so on. */
+export const BLOG_TAG_BORDERS: Record<Category, string> = {
+  Publishing: '#E8C547',
+  Strategy: '#8FC49B',
+  AI: '#A998E0',
+  Teams: '#8FB4DF',
+  Growth: '#EDAE7E',
+  Product: '#E295B4',
+};
+
+export function blogTagBorder(tag: Category): string {
+  return BLOG_TAG_BORDERS[tag] ?? 'var(--color-line)';
+}
+
 export interface Article {
   slug: string;
   title: string;
