@@ -26,7 +26,7 @@ function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {
     <Link
       href="/channels"
       aria-label={channels.length ? `${channels.length} channels, manage` : 'Connect channels'}
-      className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-card py-1.5 pl-2.5 pr-3.5 transition hover:shadow-[0_2px_8px_rgba(28,26,20,0.12)]"
+      className="flex h-11 shrink-0 items-center gap-2 rounded-full border border-line bg-card pl-2.5 pr-4 transition hover:shadow-[0_2px_8px_rgba(28,26,20,0.12)]"
     >
       {shown.length > 0 ? (
         <span className="flex items-center">
@@ -66,7 +66,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <ConnectHeader channels={channels} />
         <Link
           href="/team"
-          className="hidden rounded-full border border-line bg-paper px-4 py-2 text-sm font-bold text-soft transition hover:bg-bone sm:block"
+          className="hidden h-11 items-center rounded-full border border-line bg-paper px-4 text-sm font-bold text-soft transition hover:bg-bone sm:inline-flex"
         >
           Team
         </Link>

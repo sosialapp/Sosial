@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDismiss } from '@/lib/useDismiss';
 
 /**
- * Schedule controls in one row: date (calendar popover) · time (inline
- * text edit) · timezone (searchable dropdown, defaults to the user's zone).
- * Emits the correct UTC instant for the chosen wall time in the chosen
- * zone — browser offset math, no extra deps.
+ * Schedule controls in one row: date (calendar popover) · time (custom
+ * stepper popover) · timezone (searchable dropdown, defaults to the user's
+ * zone). Emits the correct UTC instant for the chosen wall time in the
+ * chosen zone — browser offset math, no extra deps.
  */
 
 type Wall = { y: number; m: number; d: number; minutes: number };
@@ -117,8 +118,161 @@ const fmtDay = (w: Wall): string => {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-const hhmm = (minutes: number): string =>
-  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+/** Friendly 12-hour label, e.g. 9:05 AM. */
+const fmtTime = (minutes: number): string => {
+  const h24 = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${h24 < 12 ? 'AM' : 'PM'}`;
+};
+
+const clampMinutes = (v: number) => Math.max(0, Math.min(1439, v));
+
+const TRIGGER =
+  'flex w-full min-w-0 items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40';
+
+/** A labelled −/+ stepper with a directly editable number. */
+function Stepper({
+  label,
+  display,
+  onDelta,
+  onSet,
+  onBlur,
+  min,
+  max,
+}: {
+  label: string;
+  display: string;
+  onDelta: (dir: 1 | -1) => void;
+  onSet: (raw: string) => void;
+  onBlur: () => void;
+  min: number;
+  max: number;
+}) {
+  return (
+    <div className="rounded-xl border border-line bg-paper p-2">
+      <p className="px-1 text-[10px] font-extrabold uppercase tracking-wide text-faint">{label}</p>
+      <div className="mt-1 flex items-center gap-1">
+        <button
+          type="button"
+          aria-label={`Decrease ${label.toLowerCase()}`}
+          onClick={() => onDelta(-1)}
+          disabled={min === max}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-ink/30 hover:text-ink disabled:opacity-40"
+        >
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+            <path d="M5 10h10" />
+          </svg>
+        </button>
+        <input
+          value={display}
+          onChange={(e) => onSet(e.target.value)}
+          onBlur={onBlur}
+          inputMode="numeric"
+          aria-label={label}
+          className="min-w-0 flex-1 bg-transparent text-center text-lg font-extrabold tabular-nums text-ink outline-none"
+        />
+        <button
+          type="button"
+          aria-label={`Increase ${label.toLowerCase()}`}
+          onClick={() => onDelta(1)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-ink/30 hover:text-ink"
+        >
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+            <path d="M10 5v10M5 10h10" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Hour/minute steppers with quick presets. */
+function TimeField({
+  wall,
+  timezone,
+  onEmit,
+  onClose,
+}: {
+  wall: Wall;
+  timezone: string;
+  onEmit: (minutes: number) => void;
+  onClose: () => void;
+}) {
+  const hh = Math.floor(wall.minutes / 60);
+  const mm = wall.minutes % 60;
+  const [draft, setDraft] = useState({ h: String(hh).padStart(2, '0'), m: String(mm).padStart(2, '0') });
+
+  useEffect(() => {
+    setDraft({ h: String(hh).padStart(2, '0'), m: String(mm).padStart(2, '0') });
+  }, [hh, mm]);
+
+  const setMinutes = (minutes: number) => onEmit(clampMinutes(minutes));
+
+  const onDelta = (part: 'h' | 'm', dir: 1 | -1) => {
+    if (part === 'h') setMinutes(((hh + dir + 24) % 24) * 60 + mm);
+    else setMinutes(hh * 60 + (mm + dir + 60) % 60);
+  };
+
+  const onSet = (part: 'h' | 'm', raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '').slice(0, 2);
+    setDraft((d) => ({ ...d, [part]: digits }));
+    if (!digits) return;
+    const n = Number(digits);
+    if (part === 'h' && n <= 23) setMinutes(n * 60 + mm);
+    if (part === 'm' && n <= 59) setMinutes(hh * 60 + n);
+  };
+
+  const nowMinutes = useMemo(() => utcToWall(new Date().toISOString(), timezone).minutes, [timezone]);
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <Stepper
+        label="Hour"
+        display={draft.h}
+        min={0}
+        max={23}
+        onDelta={(d) => onDelta('h', d)}
+        onSet={(v) => onSet('h', v)}
+        onBlur={() => setDraft((d) => ({ ...d, h: d.h.padStart(2, '0') }))}
+      />
+      <Stepper
+        label="Minute"
+        display={draft.m}
+        min={0}
+        max={59}
+        onDelta={(d) => onDelta('m', d)}
+        onSet={(v) => onSet('m', v)}
+        onBlur={() => setDraft((d) => ({ ...d, m: d.m.padStart(2, '0') }))}
+      />
+      <div className="col-span-2 mt-1 flex flex-wrap gap-1.5">
+        {[
+          { label: 'Now', minutes: nowMinutes },
+          { label: '+30m', minutes: wall.minutes + 30 },
+          { label: '+1h', minutes: wall.minutes + 60 },
+          { label: '9:00', minutes: 540 },
+          { label: '18:00', minutes: 1080 },
+        ].map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => setMinutes(p.minutes)}
+            className="rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] font-bold text-soft transition hover:border-ink/30 hover:text-ink"
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-auto rounded-full bg-ink px-3 py-1 text-[11px] font-extrabold text-paper transition hover:opacity-90"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function DateTimePicker({
   value,
@@ -132,10 +286,10 @@ export default function DateTimePicker({
   onTimezoneChange: (tz: string) => void;
 }) {
   const zones = useMemo(supportedZones, []);
-  const [calOpen, setCalOpen] = useState(false);
-  const [tzOpen, setTzOpen] = useState(false);
+  const [open, setOpen] = useState<null | 'cal' | 'tz' | 'time'>(null);
   const [tzQuery, setTzQuery] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
+  useDismiss(rootRef, open !== null, () => setOpen(null));
 
   const wall: Wall = useMemo(() => {
     if (value) return utcToWall(value, timezone);
@@ -144,31 +298,9 @@ export default function DateTimePicker({
 
   const [view, setView] = useState<{ y: number; m: number }>(() => ({ y: wall.y, m: wall.m }));
   useEffect(() => {
-    if (calOpen) setView({ y: wall.y, m: wall.m });
+    if (open === 'cal') setView({ y: wall.y, m: wall.m });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calOpen]);
-
-  useEffect(() => {
-    if (!calOpen && !tzOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        setCalOpen(false);
-        setTzOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setCalOpen(false);
-        setTzOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [calOpen, tzOpen]);
+  }, [open]);
 
   const emit = (next: Wall) => {
     onChange(zonedToUtc(next.y, next.m, next.d, next.minutes, timezone).toISOString());
@@ -200,14 +332,11 @@ export default function DateTimePicker({
       <div className="relative min-w-0 flex-1 sm:flex-none">
         <button
           type="button"
-          onClick={() => {
-            setCalOpen((v) => !v);
-            setTzOpen(false);
-          }}
+          onClick={() => setOpen((v) => (v === 'cal' ? null : 'cal'))}
           aria-haspopup="dialog"
-          aria-expanded={calOpen}
+          aria-expanded={open === 'cal'}
           aria-label="Pick date"
-          className="flex w-full min-w-[9.5rem] items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
+          className={`${TRIGGER} min-w-[9.5rem]`}
         >
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
@@ -215,7 +344,7 @@ export default function DateTimePicker({
           </svg>
           <span className="truncate">{fmtDay(wall)}</span>
         </button>
-        {calOpen ? (
+        {open === 'cal' ? (
           <div
             role="dialog"
             aria-label="Pick date"
@@ -258,7 +387,7 @@ export default function DateTimePicker({
                     type="button"
                     onClick={() => {
                       emit({ ...wall, y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
-                      setCalOpen(false);
+                      setOpen(null);
                     }}
                     className={`flex h-8 items-center justify-center rounded-lg text-xs font-bold transition ${
                       selected
@@ -279,32 +408,51 @@ export default function DateTimePicker({
         ) : null}
       </div>
 
-      {/* Time — inline text edit */}
-      <input
-        type="time"
-        value={hhmm(wall.minutes)}
-        onChange={(e) => {
-          const [h, m] = e.target.value.split(':').map(Number);
-          if (Number.isFinite(h) && Number.isFinite(m)) {
-            emit({ ...wall, minutes: Math.max(0, Math.min(1439, h * 60 + m)) });
-          }
-        }}
-        aria-label="Time"
-        className="field !w-auto min-w-0 flex-1 !py-2 text-xs font-bold sm:flex-none sm:w-[7.5rem]"
-      />
+      {/* Time — custom stepper popover */}
+      <div className="relative min-w-0 flex-1 sm:flex-none">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => (v === 'time' ? null : 'time'))}
+          aria-haspopup="dialog"
+          aria-expanded={open === 'time'}
+          aria-label="Pick time"
+          className={`${TRIGGER} min-w-[6.5rem] sm:w-[7.5rem]`}
+        >
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="10" cy="10" r="7" />
+            <path d="M10 6.2V10l2.6 1.6" />
+          </svg>
+          <span className="truncate tabular-nums">{fmtTime(wall.minutes)}</span>
+        </button>
+        {open === 'time' ? (
+          <div
+            role="dialog"
+            aria-label="Pick time"
+            className="absolute left-0 top-full z-40 mt-2 w-[15.5rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-line bg-card p-3 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
+          >
+            <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-faint">
+              {fmtDay(wall)} · {fmtTime(wall.minutes)}
+            </p>
+            <TimeField
+              key={timezone}
+              wall={wall}
+              timezone={timezone}
+              onEmit={(minutes) => emit({ ...wall, minutes })}
+              onClose={() => setOpen(null)}
+            />
+          </div>
+        ) : null}
+      </div>
 
       {/* Timezone — searchable dropdown, defaults to the user's zone */}
       <div className="relative min-w-0 flex-[1.5] sm:flex-none">
         <button
           type="button"
-          onClick={() => {
-            setTzOpen((v) => !v);
-            setCalOpen(false);
-          }}
+          onClick={() => setOpen((v) => (v === 'tz' ? null : 'tz'))}
           aria-haspopup="listbox"
-          aria-expanded={tzOpen}
+          aria-expanded={open === 'tz'}
           aria-label="Pick timezone"
-          className="flex w-full min-w-[10.5rem] items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
+          className={`${TRIGGER} min-w-[10.5rem]`}
         >
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
             <circle cx="10" cy="10" r="6.5" />
@@ -315,7 +463,7 @@ export default function DateTimePicker({
             {offsetLabel(timezone)}
           </span>
         </button>
-        {tzOpen ? (
+        {open === 'tz' ? (
           <div
             role="listbox"
             aria-label="Timezone"
@@ -337,7 +485,7 @@ export default function DateTimePicker({
                   // Re-anchor the same wall time to the user's own zone.
                   onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, tz).toISOString());
                   onTimezoneChange(tz);
-                  setTzOpen(false);
+                  setOpen(null);
                 }}
                 className={`flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === deviceZone() ? 'bg-accent-soft text-accent-ink' : ''}`}
               >
@@ -353,7 +501,7 @@ export default function DateTimePicker({
                     // Same wall time, re-anchored to the new zone.
                     onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, z).toISOString());
                     onTimezoneChange(z);
-                    setTzOpen(false);
+                    setOpen(null);
                   }}
                   className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === z ? 'bg-accent-soft text-accent-ink' : ''}`}
                 >

@@ -1,13 +1,30 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useRef, useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { useDismiss } from '@/lib/useDismiss';
 
 /** The only picker UI library — full emoji menu with search, loaded on demand. */
-const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
+const EmojiPicker = dynamic(() => import('@/components/EmojiPickerClient'), {
   ssr: false,
-  loading: () => <div className="p-2 text-xs text-faint">Loading…</div>,
+  loading: () => <div className="p-6 text-center text-xs text-faint">Loading emoji…</div>,
 });
+
+const PANEL_W = 340;
+/** Estimated panel height used to decide whether to open up or down. */
+const PANEL_H = 424;
+const GAP = 8;
+const MARGIN = 8;
+const HEADER_H = 40;
 
 /** Insert `text` at the caret of a text field; returns the next value, restoring the caret. */
 function insertAtCaret(el: HTMLTextAreaElement | HTMLInputElement | null, text: string): string | null {
@@ -27,21 +44,65 @@ function insertAtCaret(el: HTMLTextAreaElement | HTMLInputElement | null, text: 
   return next;
 }
 
-/** The smiley toolbar button + popover, shared by every emoji-capable input. */
+/**
+ * The smiley toolbar button + popover, shared by every emoji-capable input.
+ * The popover is portaled and anchored to the button (flipping up/down to
+ * stay on screen), and closes on outside click or Escape.
+ */
 export function EmojiButton({
   onPick,
-  align = 'top',
+  align = 'bottom',
   className,
 }: {
   onPick: (emoji: string) => void;
-  /** Which way the popover opens relative to the button. */
+  /** Preferred opening direction when both fit. */
   align?: 'top' | 'bottom';
   className?: string;
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [box, setBox] = useState<CSSProperties>({});
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss([btnRef, panelRef], open, close);
+
+  const place = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(PANEL_W, vw - MARGIN * 2);
+    const height = Math.min(PANEL_H, vh - MARGIN * 2);
+    let left = r.right - width;
+    left = Math.min(Math.max(MARGIN, left), vw - width - MARGIN);
+
+    const roomBelow = vh - r.bottom - GAP - MARGIN;
+    const roomAbove = r.top - GAP - MARGIN;
+    const openUp =
+      align === 'top' ? roomAbove >= height || roomAbove >= roomBelow : roomBelow < height && roomAbove > roomBelow;
+    let top = openUp ? r.top - GAP - height : r.bottom + GAP;
+    top = Math.min(Math.max(MARGIN, top), vh - MARGIN - height);
+    setBox({ left, top, width, height });
+  }, [align]);
+
+  useEffect(() => {
+    if (!open) return;
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open, place]);
+
+  const panelH = typeof box.height === 'number' ? box.height : PANEL_H;
+
   return (
-    <div className="relative">
+    <>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Insert emoji"
@@ -57,27 +118,40 @@ export function EmojiButton({
           <path d="M7.5 8.2h.01M12.5 8.2h.01M7.5 12c.7.8 1.6 1.2 2.5 1.2s1.8-.4 2.5-1.2" />
         </svg>
       </button>
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Emoji picker"
-          className={`absolute z-40 rounded-xl border border-line bg-card shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)] ${
-            align === 'top' ? 'bottom-9 left-0' : 'top-9 right-0'
-          }`}
-        >
-          <EmojiPicker
-            onEmojiClick={(d: { emoji: string }) => {
-              onPick(d.emoji);
-              setOpen(false);
-            }}
-            searchPlaceholder="Search emoji…"
-            width={320}
-            height={380}
-            previewConfig={{ showPreview: false }}
-          />
-        </div>
-      ) : null}
-    </div>
+      {open && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={panelRef}
+              role="dialog"
+              aria-label="Emoji picker"
+              style={box}
+              className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-line bg-card p-2 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
+            >
+              <div className="flex shrink-0 items-center justify-between pl-2 pr-1" style={{ height: HEADER_H }}>
+                <span className="text-xs font-extrabold uppercase tracking-wide text-faint">Emoji</span>
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="Close emoji picker"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
+                >
+                  <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+                    <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
+                  </svg>
+                </button>
+              </div>
+              <EmojiPicker
+                height={Math.max(220, panelH - HEADER_H - 16)}
+                onPick={(emoji) => {
+                  onPick(emoji);
+                  setOpen(false);
+                }}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -106,7 +180,7 @@ export function EmojiTextarea({
       />
       <div className="-mt-0.5 flex justify-end">
         <EmojiButton
-          align="top"
+          align="bottom"
           className={buttonClassName}
           onPick={(emoji) => onChange(insertAtCaret(ref.current, emoji) ?? value + emoji)}
         />
@@ -140,7 +214,7 @@ export function EmojiInput({
       />
       <div className="-mt-0.5 flex justify-end">
         <EmojiButton
-          align="top"
+          align="bottom"
           className={buttonClassName}
           onPick={(emoji) => onChange(insertAtCaret(ref.current, emoji) ?? value + emoji)}
         />

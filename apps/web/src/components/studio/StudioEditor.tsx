@@ -20,6 +20,7 @@ import {
 } from '@/lib/studio/model';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import StudioCanvas from './StudioCanvas';
+import AiStudioPanel from './AiStudioPanel';
 import { BackgroundStep, PhotoSocialsStep, TitleStep } from './steps1';
 import { ContentStep, PagesStep } from './steps2';
 
@@ -32,6 +33,16 @@ const STEPS: { id: Step; label: string }[] = [
   { id: 'content', label: 'Content' },
   { id: 'pages', label: 'Pages' },
 ];
+
+/** One grounded hint per step, shown under the sheet so the panel never ends bare. */
+const STEP_TIPS: Record<Step, string> = {
+  background: 'Pick a preset, then tune the pattern size and opacity to keep text readable.',
+  title: 'Keep titles under 6 words — big text and lots of whitespace win the swipe.',
+  photo: 'Square photos crop best; Center focus keeps faces in frame.',
+  content: 'One idea per card. Turn on AI generate to write the copy for you.',
+  pages: 'Hook and takeaway cards stay text-only — put the detail in the middle.',
+};
+const AI_TIP = 'Rough thoughts are enough — a phrase works. Your design stays untouched.';
 
 type Exporting = null | 'use' | 'all' | 'page';
 
@@ -68,6 +79,7 @@ export default function StudioEditor({
   const [exporting, setExporting] = useState<Exporting>(null);
   const [exportErr, setExportErr] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [past, setPast] = useState<StudioProject[]>([]);
   const [future, setFuture] = useState<StudioProject[]>([]);
@@ -190,6 +202,13 @@ export default function StudioEditor({
     next.splice(to, 0, moved);
     commit((p) => ({ ...p, pages: next }));
     setPageIndex(next.findIndex((pg) => pg.id === curId));
+  };
+
+  /** Swap in AI-written cards — design cloned from the current page. */
+  const applyAi = (pages: PostPage[]) => {
+    commit((p) => ({ ...p, pages }));
+    setPageIndex(0);
+    setStep('content');
   };
 
   /* ------------------------------ exports ------------------------------- */
@@ -378,6 +397,19 @@ export default function StudioEditor({
         </button>
         <button
           type="button"
+          onClick={() => setAiOpen(true)}
+          aria-pressed={aiOpen}
+          className={`btn shrink-0 !px-3.5 !py-2 !text-xs ${
+            aiOpen ? 'btn-primary' : 'btn-ghost'
+          }`}
+        >
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+            <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
+          </svg>
+          AI
+        </button>
+        <button
+          type="button"
           onClick={doDownloadAll}
           disabled={busy}
           className="btn btn-ghost shrink-0 !px-3.5 !py-2 !text-xs"
@@ -501,18 +533,21 @@ export default function StudioEditor({
         </div>
 
         {/* sheet */}
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col">
           <div className="flex border-b border-line px-2">
             {STEPS.map((t, i) => (
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setStep(t.id)}
+                onClick={() => {
+                  setStep(t.id);
+                  setAiOpen(false);
+                }}
                 className={`flex min-w-0 flex-1 items-center justify-center gap-1 border-b-2 px-1 py-2.5 text-xs font-bold transition ${
-                  step === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
+                  !aiOpen && step === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
                 }`}
               >
-                <span className={`shrink-0 text-[11px] ${step === t.id ? 'text-ink' : 'text-faint'}`}>
+                <span className={`shrink-0 text-[11px] ${!aiOpen && step === t.id ? 'text-ink' : 'text-faint'}`}>
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 <span className="truncate">
@@ -528,12 +563,19 @@ export default function StudioEditor({
               </button>
             ))}
           </div>
-          <div className="max-h-[560px] overflow-y-auto p-4">
-            {step === 'background' ? <BackgroundStep page={page} patchBackground={patchBackground} /> : null}
-            {step === 'title' ? <TitleStep page={page} patchTitle={patchTitle} patchPage={patchPage} /> : null}
-            {step === 'photo' ? <PhotoSocialsStep page={page} patchPfp={patchPfp} patchPage={patchPage} /> : null}
-            {step === 'content' ? <ContentStep page={page} patchPage={patchPage} /> : null}
-            {step === 'pages' ? (
+          <div className="min-h-0 max-h-[560px] flex-1 overflow-y-auto p-4 lg:max-h-none">
+            {aiOpen ? (
+              <AiStudioPanel
+                template={page}
+                onApply={applyAi}
+                onClose={() => setAiOpen(false)}
+              />
+            ) : null}
+            {!aiOpen && step === 'background' ? <BackgroundStep page={page} patchBackground={patchBackground} /> : null}
+            {!aiOpen && step === 'title' ? <TitleStep page={page} patchTitle={patchTitle} patchPage={patchPage} /> : null}
+            {!aiOpen && step === 'photo' ? <PhotoSocialsStep page={page} patchPfp={patchPfp} patchPage={patchPage} /> : null}
+            {!aiOpen && step === 'content' ? <ContentStep page={page} patchPage={patchPage} /> : null}
+            {!aiOpen && step === 'pages' ? (
               <PagesStep
                 project={project}
                 pageIndex={pageIndex}
@@ -546,6 +588,9 @@ export default function StudioEditor({
               />
             ) : null}
           </div>
+          <p className="border-t border-line px-4 py-2.5 text-[11px] leading-relaxed text-muted">
+            {aiOpen ? AI_TIP : STEP_TIPS[step]}
+          </p>
         </div>
       </div>
     </div>
