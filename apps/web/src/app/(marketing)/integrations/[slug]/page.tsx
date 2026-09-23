@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BrandIcon, brandColor } from '@/components/BrandIcon';
+import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES, channelGuide, relatedChannels } from '@/content/channels';
 import { channelHref } from '@/content/types';
 
@@ -40,12 +40,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
             ← All integrations
           </Link>
           <div className="mt-6 flex items-center gap-3">
-            <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-              style={{ background: `${brandColor(c.key)}14` }}
-            >
-              <BrandIcon provider={c.key} className="h-6 w-6" />
-            </span>
+            <BrandIcon provider={c.key} className="h-12 w-12 shrink-0" />
             <div>
               <p className="eyebrow">Integration</p>
               <h1 className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">

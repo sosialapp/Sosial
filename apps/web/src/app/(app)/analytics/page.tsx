@@ -167,12 +167,7 @@ export default async function AnalyticsPage() {
                 const ok = Math.round((r.sent / Math.max(1, r.total)) * 100);
                 return (
                   <li key={r.provider} className="flex items-center gap-3 py-2.5">
-                    <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                      style={{ background: `${meta.color}14` }}
-                    >
-                      <BrandIcon provider={r.provider} className="h-4 w-4" />
-                    </span>
+                    <BrandIcon provider={r.provider} className="h-8 w-8 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="truncate text-sm font-bold">{meta.label}</p>
@@ -212,11 +207,11 @@ export default async function AnalyticsPage() {
                       {providers.slice(0, 3).map((pv, i) => (
                         <span
                           key={pv}
-                          className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-paper"
-                          style={{ marginLeft: i === 0 ? 0 : -7 }}
+                          className="rounded-full ring-2 ring-card"
+                          style={{ marginLeft: i === 0 ? 0 : -7, zIndex: providers.length - i }}
                           title={providerMeta(pv).label}
                         >
-                          <BrandIcon provider={pv} className="h-3 w-3" />
+                          <BrandIcon provider={pv} className="h-6 w-6" />
                         </span>
                       ))}
                     </div>

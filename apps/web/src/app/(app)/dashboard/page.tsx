@@ -226,13 +226,12 @@ export default async function DashboardPage() {
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {composeChannels.map((c) => (
-                  <span
+                  <BrandIcon
                     key={c.id}
+                    provider={c.provider as ProviderKey}
+                    className="h-9 w-9"
                     title={c.display_name ?? providerMeta(c.provider).label}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-paper-dim ring-1 ring-line"
-                  >
-                    <BrandIcon provider={c.provider as ProviderKey} className="h-4.5 w-4.5" />
-                  </span>
+                  />
                 ))}
                 <Link
                   href="/channels"
@@ -361,12 +360,11 @@ export default async function DashboardPage() {
                   const failed = p.status === 'failed';
                   return (
                     <li key={p.id} className="flex items-start gap-2.5">
-                      <span
-                        className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-paper-dim ring-1 ring-line"
+                      <BrandIcon
+                        provider={pv}
+                        className="mt-0.5 h-7 w-7 shrink-0"
                         title={meta.label}
-                      >
-                        <BrandIcon provider={pv} className="h-3.5 w-3.5" />
-                      </span>
+                      />
                       <span className="min-w-0">
                         <span className="block truncate text-xs font-bold">
                           {failed ? 'Failed: ' : 'Sent: '}
@@ -415,7 +413,7 @@ export default async function DashboardPage() {
                       <ThumbSlot className="h-10 w-10 !rounded-lg" />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
-                          <BrandIcon provider={pv} className="h-3.5 w-3.5 shrink-0" />
+                          <BrandIcon provider={pv} className="h-4 w-4 shrink-0" />
                           <span className="truncate text-[11px] font-bold" style={{ color: meta.color }}>
                             {meta.label}
                           </span>

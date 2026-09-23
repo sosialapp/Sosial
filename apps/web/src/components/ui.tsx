@@ -49,8 +49,7 @@ export function ChannelPill({
   const meta = providerMeta(provider);
   return (
     <span className={`channel-pill ${className}`}>
-      <span className="channel-dot" style={{ background: meta.color }} aria-hidden="true" />
-      <BrandIcon provider={provider as ProviderKey} className="h-3.5 w-3.5" />
+      <BrandIcon provider={provider as ProviderKey} className="h-4 w-4" />
       {handle ? <span className="truncate">@{handle}</span> : <span>{meta.label}</span>}
     </span>
   );
@@ -72,18 +71,14 @@ export function ChannelStack({
       {shown.map((pv, i) => (
         <span
           key={pv}
-          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-paper bg-paper-dim"
-          style={{ marginLeft: i === 0 ? 0 : -8 }}
+          className="rounded-full ring-2 ring-card"
+          style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i }}
           title={providerMeta(pv).label}
         >
-          <span
-            className="channel-dot"
-            style={{ background: providerMeta(pv).color }}
-            aria-hidden="true"
-          />
+          <BrandIcon provider={pv} className="h-7 w-7" />
         </span>
       ))}
-      {extra > 0 ? <span className="ml-1 text-xs font-bold text-muted">+{extra}</span> : null}
+      {extra > 0 ? <span className="ml-1.5 text-xs font-bold text-muted">+{extra}</span> : null}
     </span>
   );
 }

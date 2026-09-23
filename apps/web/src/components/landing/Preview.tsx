@@ -1,5 +1,6 @@
 import { monthMatrix, dayKey } from '@/lib/format';
 import { PROVIDER_META } from '@/lib/providers';
+import { BrandIcon } from '@/components/BrandIcon';
 import type { ProviderKey } from '@/lib/types';
 
 /**
@@ -128,12 +129,7 @@ export function ComposerPreview() {
             key={r.provider}
             className="flex items-center gap-2.5 rounded-xl border border-accent bg-accent-soft px-3 py-2"
           >
-            <span
-              className="flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold text-white"
-              style={{ background: PROVIDER_META[r.provider].color }}
-            >
-              {PROVIDER_META[r.provider].glyph}
-            </span>
+            <BrandIcon provider={r.provider} className="h-6 w-6 shrink-0" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs font-semibold">
                 {PROVIDER_META[r.provider].label}

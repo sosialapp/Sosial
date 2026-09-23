@@ -28,10 +28,10 @@ export default function ChannelAvatar({
   return (
     <span className="relative inline-block shrink-0" style={{ width: size, height: size }}>
       <span
-        className="flex items-center justify-center"
-        style={{ width: size, height: size, borderRadius: r, background: `${meta.color}14` }}
+        className="flex items-center justify-center overflow-hidden"
+        style={{ width: size, height: size, borderRadius: r, background: meta.color }}
       >
-        <BrandIcon provider={provider as BrandProvider} className="h-1/2 w-1/2" />
+        <BrandIcon provider={provider as BrandProvider} mono className="h-1/2 w-1/2 text-white" />
       </span>
       {avatar ? (
         <span

@@ -189,7 +189,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
           <span style={{ flex: 1 }} />
           <span style={{ width: 11 * k, height: 11 * k, display: 'inline-flex' }}>
-            <BrandIcon provider="instagram" className="h-full w-full" />
+            <BrandIcon provider="instagram" badge={false} className="h-full w-full" />
           </span>
           <ChromeIcon name="dots" size={12 * k} color={c.ink} />
         </div>

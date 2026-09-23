@@ -12,48 +12,44 @@ import { createClient, getWorkspaceContext, hasSupabaseEnv } from '@/lib/supabas
 
 export const dynamic = 'force-dynamic';
 
-/** Connected channels as a stacked avatar row, max 4 then +n. Links to /channels. */
-function ChannelStackHeader({
-  channels,
-}: {
-  channels: { id: string; provider: string }[];
-}) {
-  if (channels.length === 0) {
-    return (
-      <Link
-        href="/channels"
-        className="hidden rounded-full border border-dashed border-line px-3 py-1.5 text-xs font-bold text-muted transition hover:border-ink hover:text-ink sm:block"
-      >
-        Connect
-      </Link>
-    );
-  }
-  const shown = channels.slice(0, 4);
-  const extra = channels.length - shown.length;
+/**
+ * Header Connect pill: stacked brand discs + "Connect".
+ * Connected channels when present; facebook/instagram/threads when empty
+ * (same visual as the design reference).
+ */
+function ConnectHeader({ channels }: { channels: { id: string; provider: string }[] }) {
+  const defaults = [
+    { id: 'fb', provider: 'facebook' },
+    { id: 'ig', provider: 'instagram' },
+    { id: 'th', provider: 'threads' },
+  ];
+  const source = channels.length > 0 ? channels : defaults;
+  const shown = source.slice(0, 3);
+  const extra = channels.length > 3 ? channels.length - 3 : 0;
   return (
     <Link
       href="/channels"
-      aria-label={`${channels.length} connected channels`}
-      className="flex items-center"
+      aria-label={channels.length ? `${channels.length} channels, manage` : 'Connect channels'}
+      className="flex shrink-0 items-center gap-2 rounded-full border border-[#E5DDD0] bg-[#F6F1E8] py-1 pl-1 pr-3.5 shadow-[0_1px_2px_rgba(28,26,20,0.06)] transition hover:shadow-[0_2px_8px_rgba(28,26,20,0.12)] sm:pr-4"
     >
-      {shown.map((c, i) => (
-        <span
-          key={c.id}
-          title={providerMeta(c.provider).label}
-          className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-paper ring-1 ring-line"
-          style={{ marginLeft: i === 0 ? 0 : -10, zIndex: shown.length - i }}
-        >
-          <BrandIcon provider={c.provider as never} className="h-4 w-4" />
-        </span>
-      ))}
+      <span className="flex -space-x-2">
+        {shown.map((c, i) => (
+          <span
+            key={c.id}
+            className="rounded-full ring-2 ring-[#F6F1E8]"
+            style={{ zIndex: shown.length - i }}
+            title={providerMeta(c.provider).label}
+          >
+            <BrandIcon provider={c.provider as never} className="h-7 w-7" />
+          </span>
+        ))}
+      </span>
       {extra > 0 ? (
-        <span
-          className="ml-1.5 flex h-8 items-center rounded-full bg-paper-dim px-2 text-xs font-extrabold text-soft ring-1 ring-line"
-          aria-label={`+${extra} more`}
-        >
+        <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-extrabold text-[#5C3317]">
           +{extra}
         </span>
       ) : null}
+      <span className="text-sm font-extrabold tracking-tight text-[#5C3317]">Connect</span>
     </Link>
   );
 }
@@ -71,7 +67,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
         <p className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">{ctx.workspace.name}</p>
         <p className="hidden truncate text-xs text-muted md:block">{ctx.user.email}</p>
-        <ChannelStackHeader channels={channels} />
+        <ConnectHeader channels={channels} />
         <Link
           href="/team"
           className="hidden rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone sm:block"
