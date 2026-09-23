@@ -402,50 +402,57 @@ export default function StudioEditor({
           {/* Filmstrip rides on top once there are 3+ pages */}
           {manyPages ? filmstrip : null}
 
-          {/* Canvas + vertical pager on the side */}
-          <div className="flex w-full max-w-[420px] items-center gap-2">
-            <div ref={stageRef} className="min-w-0 flex-1">
+          {/* Canvas — pagination lives at the bottom, ‹ › on the sides */}
+          <div className="w-full max-w-[420px]">
+            <div ref={stageRef} className="mx-auto">
               <div ref={canvasHostRef}>
                 <StudioCanvas page={page} ratio={ratio} width={stageW} />
               </div>
             </div>
-            {project.pages.length > 1 ? (
-              <div className="flex shrink-0 flex-col items-center gap-1.5 self-center">
-                <button
-                  type="button"
-                  onClick={() => selectPage(pageIndex - 1)}
-                  disabled={pageIndex === 0}
-                  aria-label="Previous page"
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-lg font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
-                >
-                  ‹
-                </button>
-                <div className="flex flex-col items-center gap-1.5">
+          </div>
+
+          {/* Filmstrip below for small decks */}
+          {!manyPages && project.pages.length > 1 ? filmstrip : null}
+
+          {/* Bottom pagination — ‹ on the left, › on the right */}
+          {project.pages.length > 1 ? (
+            <div className="flex w-full max-w-[420px] items-center justify-between">
+              <button
+                type="button"
+                onClick={() => selectPage(pageIndex - 1)}
+                disabled={pageIndex === 0}
+                aria-label="Previous page"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
+              >
+                ‹
+              </button>
+              <div className="flex items-center gap-2.5">
+                <div className="flex gap-1.5">
                   {project.pages.map((pg, i) => (
                     <button
                       key={pg.id}
                       type="button"
                       onClick={() => selectPage(i)}
                       aria-label={`Page ${i + 1}`}
-                      className={`rounded-full transition-all ${i === pageIndex ? 'h-5 w-1.5 bg-accent' : 'h-1.5 w-1.5 bg-line hover:bg-muted'}`}
+                      className={`h-1.5 rounded-full transition-all ${i === pageIndex ? 'w-5 bg-accent' : 'w-1.5 bg-line'}`}
                     />
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => selectPage(pageIndex + 1)}
-                  disabled={pageIndex >= project.pages.length - 1}
-                  aria-label="Next page"
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-lg font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
-                >
-                  ›
-                </button>
+                <span className="text-xs font-bold text-muted">
+                  {pageIndex + 1} / {project.pages.length}
+                </span>
               </div>
-            ) : null}
-          </div>
-
-          {/* Filmstrip below for small decks */}
-          {!manyPages && project.pages.length > 1 ? filmstrip : null}
+              <button
+                type="button"
+                onClick={() => selectPage(pageIndex + 1)}
+                disabled={pageIndex >= project.pages.length - 1}
+                aria-label="Next page"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
+              >
+                ›
+              </button>
+            </div>
+          ) : null}
 
           {/* Per-page downloads — bottom */}
           <div className="flex items-center gap-1.5">
