@@ -119,28 +119,27 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
   if (rect.width === 0 || rect.height === 0) {
     throw new Error('[measure] Canvas is not rendered yet — try again.');
   }
-  const scale = fullWidth / rect.width;
+  // Layout happens at the node's natural size (identical to the preview);
+  // the SVG viewBox scales that finished layout up to the export width.
   const W = fullWidth;
-  const H = Math.round(rect.height * scale);
+  const H = Math.round(rect.height * (fullWidth / rect.width));
 
   const rasterise = async (fontCss: string): Promise<Blob> => {
     const clone = node.cloneNode(true) as HTMLElement;
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    // Render at full width inside the clone so text wraps identically.
-    clone.style.width = `${W}px`;
-    clone.style.height = `${H}px`;
-    clone.style.transform = `scale(${scale})`;
-    clone.style.transformOrigin = 'top left';
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
     clone.style.margin = '0';
+    clone.style.transform = 'none';
 
     await inlineImages(clone);
 
     let svg: string;
     try {
       svg =
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${rect.width} ${rect.height}">` +
         `<style>${fontCss}</style>` +
-        `<foreignObject x="0" y="0" width="${W}" height="${H}">` +
+        `<foreignObject x="0" y="0" width="${rect.width}" height="${rect.height}">` +
         new XMLSerializer().serializeToString(clone) +
         `</foreignObject></svg>`;
     } catch {
