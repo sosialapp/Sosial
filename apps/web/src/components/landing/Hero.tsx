@@ -37,16 +37,16 @@ const FLOATERS: {
   dur: string;
   depth: number;
 }[] = [
-  { pos: 'left-[5%] top-[14%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0s', dur: '5s', depth: 34 },
-  { pos: 'left-[23%] top-[7%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '0.8s', dur: '6s', depth: 20 },
-  { pos: 'left-[5%] top-[33%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.6s', dur: '5.4s', depth: 26 },
-  { pos: 'left-[10%] top-[56%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.2s', dur: '6.2s', depth: 14 },
-  { pos: 'left-[17%] top-[76%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.4s', dur: '5.6s', depth: 30 },
-  { pos: 'right-[5%] top-[9%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.1s', dur: '5.2s', depth: 34 },
-  { pos: 'right-[5%] top-[25%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.8s', dur: '6.4s', depth: 20 },
-  { pos: 'right-[16%] top-[45%]', show: 'hidden md:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.2s', dur: '5.8s', depth: 26 },
-  { pos: 'right-[8%] top-[62%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.9s', dur: '5s', depth: 30 },
-  { pos: 'right-[17%] top-[76%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '3.1s', dur: '6s', depth: 14 },
+  { pos: 'left-[14%] top-[14%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0s', dur: '5s', depth: 34 },
+  { pos: 'left-[28%] top-[7%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '0.8s', dur: '6s', depth: 20 },
+  { pos: 'left-[14%] top-[33%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.6s', dur: '5.4s', depth: 26 },
+  { pos: 'left-[19%] top-[56%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.2s', dur: '6.2s', depth: 14 },
+  { pos: 'left-[22%] top-[76%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.4s', dur: '5.6s', depth: 30 },
+  { pos: 'right-[14%] top-[9%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.1s', dur: '5.2s', depth: 34 },
+  { pos: 'right-[14%] top-[25%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.8s', dur: '6.4s', depth: 20 },
+  { pos: 'right-[23%] top-[45%]', show: 'hidden md:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.2s', dur: '5.8s', depth: 26 },
+  { pos: 'right-[16%] top-[62%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.9s', dur: '5s', depth: 30 },
+  { pos: 'right-[22%] top-[76%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '3.1s', dur: '6s', depth: 14 },
 ];
 
 /** Seconds between one tile's flips (also the full-cycle length of its loop). */
