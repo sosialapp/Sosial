@@ -3,31 +3,26 @@
 @custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
 @theme {
-  /* Surfaces — warm paper, lit by the bolt. */
+  /* Surfaces — strict brand trio: white canvas, ink text, bolt accent. */
   --color-ink: #1C1A14;
   --color-soft: #1C1A14;
   --color-muted: #1C1A14;
   --color-faint: #1C1A14;
-  --color-paper: #FBF6EA;
-  --color-bone: #FBF6EA;
-  --color-paper-dim: #F0E8D4;
-  --color-surface: #E3D9BF;
-  --color-card: #FBF6EA;
-  --color-line: #D9CDAE;
-  --color-line-soft: #E3D9BF;
+  --color-paper: #FFFFFF;
+  --color-bone: #FFFFFF;
+  --color-paper-dim: #FFFFFF;
+  --color-surface: #F4F4F4;
+  --color-card: #FFFFFF;
+  --color-line: #E6E6E6;
+  --color-line-soft: #F0F0F0;
 
-  /* Brand — Sosial bolt. */
+  /* Brand — bolt yellow on black and white. */
   --color-bolt: #FFC62E;
   --color-bolt-deep: #F2A400;
   --color-accent: #FFC62E;
   --color-accent-bright: #F2A400;
   --color-accent-ink: #1C1A14;
-  --color-accent-soft: #F0E8D4;
-
-  /* The one violet indulgence — AI moments, max one per screen. */
-  --color-dusk: #4A3FE0;
-  --color-dusk-soft: #ECEAFB;
-  --color-dusk-ink: #2A23A8;
+  --color-accent-soft: #FDF3D7;
 
   /* Dashboard dark surfaces. */
   --color-night: #141210;
@@ -227,13 +222,6 @@ body {
   .btn-bolt:hover:not(:disabled) {
     background: var(--color-bolt-deep);
   }
-  .btn-dusk {
-    background: var(--color-dusk);
-    color: #fff;
-  }
-  .btn-dusk:hover:not(:disabled) {
-    background: var(--color-dusk-ink);
-  }
   .btn-ghost {
     background: transparent;
     color: var(--color-soft);
@@ -366,5 +354,4 @@ body {
   --color-faint: #78716C;
   --color-accent-soft: #2A2620;
   --color-accent-ink: #F0B98A;
-  --color-dusk-soft: #1F1B4A;
 }

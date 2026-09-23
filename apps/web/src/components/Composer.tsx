@@ -468,7 +468,7 @@ export default function Composer({
                 type="button"
                 onClick={runAi}
                 disabled={aiBusy}
-                className="btn btn-dusk shrink-0 !px-4 !py-2 !text-xs"
+                className="btn btn-bolt shrink-0 !px-4 !py-2 !text-xs"
               >
                 {aiBusy ? 'Writing…' : kind === 'chain' ? `Write ${segments.length} parts` : 'Write caption'}
               </button>

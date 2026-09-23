@@ -92,7 +92,7 @@ export default async function AnalyticsPage() {
       </h1>
 
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Posts sent" value={sent.length} href="/queue" variant="dusk" />
+        <StatCard label="Posts sent" value={sent.length} href="/queue" />
         {[
           { label: 'Sent this week', value: sentWeek, href: '/queue' },
           { label: 'Scheduled', value: queued, href: '/calendar' },

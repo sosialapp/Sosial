@@ -46,7 +46,7 @@ export function AiWriter() {
             {points.map(([title, body]) => (
               <li key={title} className="flex items-start gap-3">
                 <span
-                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-dusk text-[11px] font-bold text-white"
+                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-bold text-paper"
                   aria-hidden="true"
                 >
                   ✓

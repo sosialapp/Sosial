@@ -13,22 +13,16 @@ export function StatCard({
   value,
   label,
   href,
-  variant = 'ink',
 }: {
   value: string | number;
   label: string;
   href?: string;
-  /** 'ink' (default) or 'dusk' — the violet variant is reserved for the
-   *  single AI-moment stat on Create / Analytics. */
-  variant?: 'ink' | 'dusk';
 }) {
-  const cls = `flex flex-col justify-between rounded-[20px] p-5 ${
-    variant === 'dusk' ? 'bg-[var(--color-dusk)] text-white' : 'bg-ink text-paper'
-  }`;
+  const cls = 'flex flex-col justify-between rounded-[20px] bg-ink p-5 text-paper';
   const inner = (
     <>
       <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{value}</p>
-      <p className={`mt-1 text-xs ${variant === 'dusk' ? 'text-white/75' : 'text-paper/70'}`}>{label}</p>
+      <p className="mt-1 text-xs text-paper/70">{label}</p>
     </>
   );
   if (href) {
@@ -154,7 +148,7 @@ export function CTA({
   className = '',
 }: {
   children: ReactNode;
-  variant?: 'ink' | 'bolt' | 'dusk' | 'ghost';
+  variant?: 'ink' | 'bolt' | 'ghost';
   href?: string;
   onClick?: () => void;
   type?: 'button' | 'submit';
@@ -162,7 +156,7 @@ export function CTA({
   className?: string;
 }) {
   const cls = `btn ${
-    variant === 'bolt' ? 'btn-bolt' : variant === 'dusk' ? 'btn-dusk' : variant === 'ghost' ? 'btn-ghost' : 'btn-primary'
+    variant === 'bolt' ? 'btn-bolt' : variant === 'ghost' ? 'btn-ghost' : 'btn-primary'
   } ${className}`;
   if (href) {
     return (

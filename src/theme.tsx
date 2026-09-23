@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/** Sosial — print-studio editorial theme.
- * Warm paper, ink, one persimmon accent. App chrome type: Space Grotesk
- * display + Inter UI. NOTE: custom families must never be paired with
- * fontWeight (iOS drops the font) — use the Bold family files instead.
+/** Sosial — brand trio: bolt yellow on black and white.
+ * App chrome type: Space Grotesk display + Inter UI. NOTE: custom families
+ * must never be paired with fontWeight (iOS drops the font) — use the Bold
+ * family files instead.
  *
  * Colors are dynamic: consume via useTheme(), never import C directly.
  * Every module-scope StyleSheet must be a makeS(C) factory called per render. */
@@ -38,22 +38,22 @@ export interface Palette {
 }
 
 export const LIGHT: Palette = {
-  ink: '#1C1917',
-  soft: '#44403C',
-  muted: '#78716C',
-  faint: '#A8A29E',
+  ink: '#1C1A14',
+  soft: '#33302A',
+  muted: '#6B675F',
+  faint: '#9A958B',
   paper: '#FFFFFF',
-  bone: '#F2EDE2',
-  surface: '#E9E2D2',
-  card: '#FBF9F3',
-  line: '#E2DAC6',
-  lineSoft: '#ECE5D3',
-  accent: '#C8500F',
-  accentInk: '#7C2D12',
-  accentSoft: '#F9E2CF',
+  bone: '#FFFFFF',
+  surface: '#F4F4F4',
+  card: '#FFFFFF',
+  line: '#E2E2E2',
+  lineSoft: '#EFEFEF',
+  accent: '#FFC62E',
+  accentInk: '#1C1A14',
+  accentSoft: '#FDF3D7',
   onInk: '#FFFFFF',
-  paleYellow: '#F9E2CF',
-  yellowText: '#7C2D12',
+  paleYellow: '#FDF3D7',
+  yellowText: '#1C1A14',
   paleBlue: '#E1F3FE',
   blueText: '#1F6C9F',
   paleGreen: '#EDF3EC',
@@ -63,22 +63,22 @@ export const LIGHT: Palette = {
 };
 
 export const DARK: Palette = {
-  ink: '#F5F1E8',
-  soft: '#D6CFC0',
-  muted: '#A39E93',
-  faint: '#6E685E',
-  paper: '#211C15',
-  bone: '#14110C',
-  surface: '#2A241B',
-  card: '#1E1913',
-  line: '#3A3226',
-  lineSoft: '#2C251A',
-  accent: '#E8621A',
-  accentInk: '#F5B98A',
-  accentSoft: '#3A2415',
-  onInk: '#14110C',
-  paleYellow: '#3A2A14',
-  yellowText: '#F0C884',
+  ink: '#FFFFFF',
+  soft: '#D4D4D4',
+  muted: '#A3A3A3',
+  faint: '#737373',
+  paper: '#000000',
+  bone: '#000000',
+  surface: '#1A1A1A',
+  card: '#101010',
+  line: '#2A2A2A',
+  lineSoft: '#1F1F1F',
+  accent: '#FFC62E',
+  accentInk: '#FFC62E',
+  accentSoft: '#2A230A',
+  onInk: '#000000',
+  paleYellow: '#2A230A',
+  yellowText: '#FFD84A',
   paleBlue: '#14303F',
   blueText: '#8FD0F5',
   paleGreen: '#1C3325',
@@ -96,10 +96,10 @@ interface ThemeCtx {
   toggle: () => void;
 }
 
-const Ctx = createContext<ThemeCtx>({ C: LIGHT, mode: 'light', setMode: () => {}, toggle: () => {} });
+const Ctx = createContext<ThemeCtx>({ C: DARK, mode: 'dark', setMode: () => {}, toggle: () => {} });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>('light');
+  const [mode, setModeState] = useState<ThemeMode>('dark');
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((v) => {
       if (v === 'dark' || v === 'light') setModeState(v);
@@ -130,5 +130,5 @@ export const T = {
   tag: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, letterSpacing: 1.8 },
 };
 
-/** Muted editorial data palette (charts) — replaces neon defaults */
-export const DATA = ['#C4703F', '#D9A441', '#7D8C5C', '#5B7B9A', '#8C5B7E', '#4FA3A3', '#E4572E', '#29335C', '#DB5461', '#816C5B', '#3E92CC', '#6FBF73'];
+/** Muted editorial data palette (charts) — bolt-led trio scale */
+export const DATA = ['#FFC62E', '#8A8A8A', '#3A3A3A', '#C9A227', '#6E6E6E', '#1C1A14', '#E8D48B', '#4A4A4A', '#A8842C', '#B5B5B5', '#5C5C5C', '#F2A400'];
