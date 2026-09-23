@@ -4,15 +4,11 @@
  * IDs only); the code↔token exchange plus profile fetch live in the
  * `oauth-exchange` edge function where the secrets stay server-side.
  *
- * Server env (Vercel, never NEXT_PUBLIC_ — the start route reads these):
- *   TT_CLIENT_KEY, META_APP_ID, IG_APP_ID, X_CLIENT_ID, YT_CLIENT_ID, LI_CLIENT_ID
- * The matching secrets live as Supabase secrets for oauth-exchange.
- *
- * The redirect URI is the same static bridge the mobile app uses
- * ({origin}/auth.html) — already registered in every provider dashboard, so
- * no dashboard changes are needed. The bridge forwards to
- * /api/oauth/callback on the same origin when `state` is a web nonce
- * (mobile puts a return URL in `state`, which still goes to the app).
+ * Public client ids come from the `oauth-config` edge function (Supabase
+ * secrets, mirrored from the mobile app) — the start route fetches them with
+ * the user's session, so no Vercel env is needed. The matching private
+ * secrets live as Supabase secrets for oauth-exchange.
+ * Every provider already allow-lists the bridge redirect below.
  */
 
 export type OAuthProvider =
@@ -64,26 +60,38 @@ const q = (p: Record<string, string>): string =>
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join('&');
 
-/** Public client id for a provider (server env). Empty = not configured. */
-export function clientIdFor(provider: OAuthProvider): string {
+/** Public ids as returned by oauth-config (unconfigured providers omitted). */
+export interface OAuthConfig {
+  tiktok?: { client_key?: string };
+  instagram?: { app_id?: string };
+  facebook?: { app_id?: string };
+  x?: { client_id?: string };
+  youtube?: { client_id?: string };
+  linkedin?: { client_id?: string };
+}
+
+/** Public client id for a provider. Empty = not configured. */
+export function clientIdFor(provider: OAuthProvider, config: OAuthConfig): string {
   switch (provider) {
     case 'tiktok':
-      return process.env.TT_CLIENT_KEY ?? '';
+      return config.tiktok?.client_key ?? '';
     case 'instagram':
-      return process.env.IG_APP_ID ?? '';
+      return config.instagram?.app_id ?? '';
     case 'facebook':
-      return process.env.META_APP_ID ?? '';
+      return config.facebook?.app_id ?? '';
     case 'x':
-      return process.env.X_CLIENT_ID ?? '';
+      return config.x?.client_id ?? '';
     case 'youtube':
-      return process.env.YT_CLIENT_ID ?? '';
+      return config.youtube?.client_id ?? '';
     case 'linkedin':
-      return process.env.LI_CLIENT_ID ?? '';
+      return config.linkedin?.client_id ?? '';
   }
 }
 
 export interface AuthorizeArgs {
   provider: OAuthProvider;
+  /** Public ids from oauth-config. */
+  config: OAuthConfig;
   redirectUri: string;
   /** Opaque CSRF nonce — echoed back as `state`. */
   state: string;
@@ -92,8 +100,8 @@ export interface AuthorizeArgs {
 }
 
 /** Provider consent URL. Throws when the provider isn't configured. */
-export function authorizeUrl({ provider, redirectUri: redir, state, challenge }: AuthorizeArgs): string {
-  const id = clientIdFor(provider);
+export function authorizeUrl({ provider, config, redirectUri: redir, state, challenge }: AuthorizeArgs): string {
+  const id = clientIdFor(provider, config);
   if (!id) throw new Error(`${oauthLabel(provider)} is not configured yet.`);
   switch (provider) {
     case 'tiktok':

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
-import { authorizeUrl, isOAuthProvider, redirectUri } from '@/lib/oauth';
+import { authorizeUrl, isOAuthProvider, redirectUri, type OAuthConfig } from '@/lib/oauth';
 import { FLOW_COOKIE, b64e, cookieOpts, type FlowState } from '@/lib/oauthServer';
 
 /** X's verifier alphabet (43–128 chars) — plain base64url can contain `_`,
@@ -56,9 +56,19 @@ export async function GET(req: Request) {
     challenge = createHash('sha256').update(flow.verifier).digest('base64url');
   }
 
+  // Public ids come from Supabase (mirrored from the mobile app) — no Vercel
+  // env to keep in sync. The route's own session authenticates the call.
+  const { data: config } = await sb.functions.invoke('oauth-config', { method: 'GET' });
+
   let dest: string;
   try {
-    dest = authorizeUrl({ provider, redirectUri: redirectUri(origin), state: flow.nonce, challenge });
+    dest = authorizeUrl({
+      provider,
+      config: (config ?? {}) as OAuthConfig,
+      redirectUri: redirectUri(origin),
+      state: flow.nonce,
+      challenge,
+    });
   } catch (e) {
     return back(e instanceof Error ? e.message : 'That provider is not configured yet.');
   }
