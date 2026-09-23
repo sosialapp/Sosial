@@ -64,6 +64,9 @@ export async function GET(req: Request) {
       code,
       verifier: flow.verifier,
       redirect_uri: redirectUri(origin),
+      instance: flow.instance,
+      client_id: flow.clientId,
+      client_secret: flow.clientSecret,
     },
   });
   const payload = (data ?? {}) as ExchangePayload;
@@ -84,6 +87,19 @@ export async function GET(req: Request) {
 
   if (!payload.access_token || !payload.external_id) {
     return done(`?error=${encodeURIComponent('The provider hid the account — try again.')}`);
+  }
+  // Same account twice is a no-op with a name: skip the import when the live
+  // row is already there. Expired/revoked/error rows fall through so a
+  // reconnect heals them with fresh tokens.
+  const { data: existing } = await sb
+    .from('connected_channels')
+    .select('id,status')
+    .eq('workspace_id', flow.workspace_id)
+    .eq('provider', flow.provider)
+    .eq('external_id', payload.external_id)
+    .maybeSingle();
+  if (existing && (existing as { status?: string }).status === 'connected') {
+    return done(`?already=${flow.provider}`);
   }
   const { error: impErr } = await sb.functions.invoke('import-channel-token', {
     body: {

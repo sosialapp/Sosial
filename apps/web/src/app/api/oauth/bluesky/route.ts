@@ -43,6 +43,17 @@ export async function POST(req: Request) {
   if (fail || !payload.access_token || !payload.external_id) {
     return Response.json({ error: fail ?? 'Bluesky login failed.' }, { status: 502 });
   }
+  // Same account twice is a no-op with a name — but let expired rows heal.
+  const { data: existing } = await sb
+    .from('connected_channels')
+    .select('id,status')
+    .eq('workspace_id', workspaceId)
+    .eq('provider', 'bluesky')
+    .eq('external_id', payload.external_id)
+    .maybeSingle();
+  if (existing && (existing as { status?: string }).status === 'connected') {
+    return Response.json({ already: true });
+  }
   const { error: impErr } = await sb.functions.invoke('import-channel-token', {
     body: {
       workspace_id: workspaceId,

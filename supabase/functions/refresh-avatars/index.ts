@@ -14,11 +14,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const BUCKET_MS = 5 * 60 * 1000;
 
+// Browser-invoked (AvatarSync), so preflight must pass like the rest.
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+};
+
 function bad(msg: string, status = 400): Response {
-  return Response.json({ error: msg }, { status });
+  return Response.json({ error: msg }, { status, headers: CORS });
 }
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return bad("POST only", 405);
 
   const supaUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("SB_URL") ?? "";
@@ -69,5 +77,5 @@ serve(async (req: Request): Promise<Response> => {
   );
   if (qErr) return bad(`Could not queue avatar refresh (${qErr.message}).`, 500);
 
-  return Response.json({ queued: true });
+  return Response.json({ queued: true }, { headers: CORS });
 });

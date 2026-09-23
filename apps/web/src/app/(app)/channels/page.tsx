@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function ChannelsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ connected?: string; error?: string; connect?: string }>;
+  searchParams: Promise<{ connected?: string; already?: string; error?: string; connect?: string }>;
 }) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
@@ -52,7 +52,7 @@ export default async function ChannelsPage({
           workspaceId={ctx.workspace.id}
           channels={channels}
           fbPick={fbPick}
-          status={{ connected: params.connected, error: params.error }}
+          status={{ connected: params.connected, already: params.already, error: params.error }}
           canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
         />
       </div>

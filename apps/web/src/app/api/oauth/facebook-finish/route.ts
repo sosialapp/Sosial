@@ -30,6 +30,20 @@ export async function POST(req: Request) {
   } = await sb.auth.getSession();
   if (!session) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
 
+  // Same Page twice is a no-op with a name — but let expired rows heal.
+  const { data: existing } = await sb
+    .from('connected_channels')
+    .select('id,status')
+    .eq('workspace_id', pick.workspace_id)
+    .eq('provider', 'facebook')
+    .eq('external_id', page.id)
+    .maybeSingle();
+  if (existing && (existing as { status?: string }).status === 'connected') {
+    const res = NextResponse.json({ already: true });
+    res.cookies.delete(PICK_COOKIE);
+    return res;
+  }
+
   const { error: impErr } = await sb.functions.invoke('import-channel-token', {
     body: {
       workspace_id: pick.workspace_id,

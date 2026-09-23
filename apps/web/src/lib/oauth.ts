@@ -15,17 +15,23 @@ export type OAuthProvider =
   | 'tiktok'
   | 'instagram'
   | 'facebook'
+  | 'threads'
   | 'x'
   | 'youtube'
-  | 'linkedin';
+  | 'linkedin'
+  | 'pinterest'
+  | 'mastodon';
 
 export const OAUTH_PROVIDERS: { id: OAuthProvider; label: string }[] = [
   { id: 'tiktok', label: 'TikTok' },
   { id: 'instagram', label: 'Instagram' },
   { id: 'facebook', label: 'Facebook' },
+  { id: 'threads', label: 'Threads' },
   { id: 'x', label: 'X' },
   { id: 'youtube', label: 'YouTube' },
   { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'pinterest', label: 'Pinterest' },
+  { id: 'mastodon', label: 'Mastodon' },
 ];
 
 export const isOAuthProvider = (v: unknown): v is OAuthProvider =>
@@ -43,6 +49,7 @@ export function redirectUri(origin: string): string {
 const TT_SCOPES = ['user.info.basic', 'user.info.stats', 'video.upload', 'video.publish', 'video.list'];
 const IG_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish'];
 const FB_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_read_user_content', 'pages_manage_posts'];
+const THREADS_SCOPES = ['threads_basic', 'threads_content_publish', 'threads_read_replies', 'threads_manage_insights'];
 const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write'];
 const YT_SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',
@@ -54,6 +61,7 @@ const LI_SCOPES = [
   'w_member_social', 'r_member_social',
   'w_organization_social', 'r_organization_social',
 ];
+const PIN_SCOPES = ['boards:read', 'boards:write', 'pins:read', 'pins:write', 'user_accounts:read'];
 
 const q = (p: Record<string, string>): string =>
   Object.entries(p)
@@ -65,9 +73,11 @@ export interface OAuthConfig {
   tiktok?: { client_key?: string };
   instagram?: { app_id?: string };
   facebook?: { app_id?: string };
+  threads?: { app_id?: string };
   x?: { client_id?: string };
   youtube?: { client_id?: string };
   linkedin?: { client_id?: string };
+  pinterest?: { client_id?: string };
 }
 
 /** Public client id for a provider. Empty = not configured. */
@@ -79,12 +89,18 @@ export function clientIdFor(provider: OAuthProvider, config: OAuthConfig): strin
       return config.instagram?.app_id ?? '';
     case 'facebook':
       return config.facebook?.app_id ?? '';
+    case 'threads':
+      return config.threads?.app_id ?? '';
     case 'x':
       return config.x?.client_id ?? '';
     case 'youtube':
       return config.youtube?.client_id ?? '';
     case 'linkedin':
       return config.linkedin?.client_id ?? '';
+    case 'pinterest':
+      return config.pinterest?.client_id ?? '';
+    case 'mastodon':
+      return '';
   }
 }
 
@@ -101,6 +117,9 @@ export interface AuthorizeArgs {
 
 /** Provider consent URL. Throws when the provider isn't configured. */
 export function authorizeUrl({ provider, config, redirectUri: redir, state, challenge }: AuthorizeArgs): string {
+  if (provider === 'mastodon') {
+    throw new Error('Enter your instance first — Mastodon registers per server.');
+  }
   const id = clientIdFor(provider, config);
   if (!id) throw new Error(`${oauthLabel(provider)} is not configured yet.`);
   switch (provider) {
@@ -122,6 +141,11 @@ export function authorizeUrl({ provider, config, redirectUri: redir, state, chal
         'https://www.facebook.com/v21.0/dialog/oauth' +
         `?${q({ client_id: id, redirect_uri: redir, response_type: 'code', scope: FB_SCOPES.join(','), auth_type: 'rerequest', state })}`
       );
+    case 'threads':
+      return (
+        'https://www.threads.com/oauth/authorize' +
+        `?${q({ client_id: id, redirect_uri: redir, response_type: 'code', scope: THREADS_SCOPES.join(','), state })}`
+      );
     case 'x':
       if (!challenge) throw new Error('X needs a PKCE challenge.');
       return (
@@ -139,6 +163,11 @@ export function authorizeUrl({ provider, config, redirectUri: redir, state, chal
       return (
         'https://www.linkedin.com/oauth/v2/authorization' +
         `?${q({ response_type: 'code', client_id: id, redirect_uri: redir, scope: LI_SCOPES.join(' '), state })}`
+      );
+    case 'pinterest':
+      return (
+        'https://www.pinterest.com/oauth/' +
+        `?${q({ response_type: 'code', client_id: id, redirect_uri: redir, scope: PIN_SCOPES.join(','), state })}`
       );
   }
 }

@@ -60,6 +60,10 @@ interface ExchangeBody {
   redirect_uri: string;
   handle: string;
   app_password: string;
+  /** Mastodon only: instance + per-instance app credentials from the start route. */
+  instance: string;
+  client_id: string;
+  client_secret: string;
 }
 
 async function tiktok(b: ExchangeBody): Promise<Response> {
@@ -438,6 +442,149 @@ async function bluesky(b: ExchangeBody): Promise<Response> {
   });
 }
 
+async function threads(b: ExchangeBody): Promise<Response> {
+  const id = Deno.env.get("THREADS_APP_ID") ?? "";
+  const secret = Deno.env.get("THREADS_APP_SECRET") ?? "";
+  if (!id || !secret) return bad("Threads is not configured yet.", 402);
+  const API = "https://graph.threads.net";
+  const r1 = await fetch(`${API}/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form({
+      client_id: id,
+      client_secret: secret,
+      code: b.code,
+      grant_type: "authorization_code",
+      redirect_uri: b.redirect_uri,
+    }),
+  });
+  const j1 = await json(r1);
+  if (!j1.access_token) {
+    const e = j1.error as { message?: string } | undefined;
+    return bad(`Threads refused the login. ${str(e?.message).slice(0, 140)}`, 502);
+  }
+  // NOTE: this endpoint is GET-only per docs — POSTing makes the router treat
+  // "access_token" as an object ID ("Unsupported post request…").
+  const r2 = await fetch(
+    `${API}/access_token?${form({
+      grant_type: "th_exchange_token",
+      client_secret: secret,
+      access_token: String(j1.access_token),
+    })}`,
+  );
+  const j2 = await json(r2);
+  const token = str(j2.access_token);
+  if (!token) return bad("Threads would not issue a long-lived token.", 502);
+  const userId = str(j1.user_id);
+  let username: string | undefined;
+  let picture: string | undefined;
+  try {
+    const pr = await fetch(
+      `${API}/v1.0/me?${form({ fields: "id,username,threads_profile_picture_url", access_token: token })}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const pj = await json(pr);
+    if (!pj.error) {
+      if (pj.username) username = `@${pj.username}`;
+      if (pj.threads_profile_picture_url) picture = String(pj.threads_profile_picture_url);
+    }
+  } catch { /* best-effort */ }
+  if (!userId && !username) return bad("Threads hid the account — try again.", 502);
+  return ok({
+    access_token: token,
+    external_id: userId || username || "threads",
+    display_name: username,
+    metadata: picture ? { avatar: picture } : {},
+  });
+}
+
+function mastodonBase(instance: string): string {
+  return `https://${instance}`;
+}
+
+async function mastodon(b: ExchangeBody): Promise<Response> {
+  const instance = b.instance.trim().toLowerCase();
+  if (!instance || !b.client_id) return bad("Mastodon login was interrupted — try connecting again.", 400);
+  const base = mastodonBase(instance);
+  const r = await fetch(`${base}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form({
+      grant_type: "authorization_code",
+      code: b.code,
+      client_id: b.client_id,
+      client_secret: b.client_secret,
+      redirect_uri: b.redirect_uri,
+      scope: "read write",
+    }),
+  });
+  const j = await json(r);
+  const access = str(j.access_token);
+  if (!access) {
+    const desc = str(j.error_description ?? (typeof j.error === "string" ? j.error : ""));
+    // Burned/replayed codes surface as invalid_grant — almost always a double
+    // delivery of the same login, so say so instead of quoting server text.
+    if (/invalid_grant|authorization grant/i.test(desc)) {
+      return bad("That login link was already used — if Mastodon shows Connected below, you're all set.", 502);
+    }
+    return bad(`Mastodon refused the login. ${desc.slice(0, 140)}`, 502);
+  }
+  // Tokens from API-registered apps are long-lived; no refresh token is issued.
+  const pr = await fetch(`${base}/api/v1/accounts/verify_credentials`, {
+    headers: { Authorization: `Bearer ${access}` },
+  });
+  const pj = await json(pr);
+  const uid = str(pj.id);
+  if (!uid) return bad("Could not read your Mastodon profile.", 502);
+  const acct = str(pj.acct);
+  return ok({
+    access_token: access,
+    external_id: uid,
+    display_name: acct ? `@${acct}` : undefined,
+    instance_url: base,
+    metadata: str(pj.avatar) ? { avatar: str(pj.avatar) } : {},
+  });
+}
+
+async function pinterest(b: ExchangeBody): Promise<Response> {
+  const id = Deno.env.get("PIN_CLIENT_ID") ?? "";
+  const secret = Deno.env.get("PIN_CLIENT_SECRET") ?? "";
+  if (!id || !secret) return bad("Pinterest is not configured yet.", 402);
+  const r = await fetch("https://api.pinterest.com/v5/oauth/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      // HTTP Basic (base64 app_id:secret), NOT body creds.
+      Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+    },
+    body: form({ grant_type: "authorization_code", code: b.code, redirect_uri: b.redirect_uri }),
+  });
+  const j = await json(r);
+  const access = str(j.access_token);
+  if (!access) {
+    return bad(`Pinterest refused the login. ${str(j.error_description ?? j.message).slice(0, 140)}`, 502);
+  }
+  const refresh = str(j.refresh_token);
+  const expiresAt = Date.now() + (Number(j.expires_in) || 2592000) * 1000;
+  const pr = await fetch("https://api.pinterest.com/v5/user_account", {
+    headers: { Authorization: `Bearer ${access}` },
+  });
+  const pj = await json(pr);
+  const username = str(pj.username);
+  if (!pr.ok || !username) return bad("Could not read your Pinterest profile.", 502);
+  // Mobile parity: the @-prefixed username IS the external id.
+  const img = pj.profile_image as { medium_https?: string; small_https?: string; large_https?: string } | undefined;
+  const avatar = img?.medium_https ?? img?.small_https ?? img?.large_https;
+  return ok({
+    access_token: access,
+    refresh_token: refresh || undefined,
+    expires_at: iso(expiresAt),
+    external_id: `@${username}`,
+    display_name: `@${username}`,
+    metadata: avatar ? { avatar: String(avatar) } : {},
+  });
+}
+
 /* --------------------------------- server --------------------------------- */
 
 serve(async (req: Request): Promise<Response> => {
@@ -472,6 +619,9 @@ serve(async (req: Request): Promise<Response> => {
     redirect_uri: str(body["redirect_uri"]),
     handle: str(body["handle"]),
     app_password: str(body["app_password"]),
+    instance: str(body["instance"]),
+    client_id: str(body["client_id"]),
+    client_secret: str(body["client_secret"]),
   };
 
   try {
@@ -494,6 +644,17 @@ serve(async (req: Request): Promise<Response> => {
       case "linkedin":
         if (!b.code || !b.redirect_uri) return bad("code and redirect_uri required.", 400);
         return await linkedin(b);
+      case "threads":
+        if (!b.code || !b.redirect_uri) return bad("code and redirect_uri required.", 400);
+        return await threads(b);
+      case "mastodon":
+        if (!b.code || !b.redirect_uri || !b.instance || !b.client_id) {
+          return bad("Mastodon login was interrupted — try connecting again.", 400);
+        }
+        return await mastodon(b);
+      case "pinterest":
+        if (!b.code || !b.redirect_uri) return bad("code and redirect_uri required.", 400);
+        return await pinterest(b);
       case "bluesky":
         return await bluesky(b);
       default:

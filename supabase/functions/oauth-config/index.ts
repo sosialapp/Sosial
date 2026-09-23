@@ -7,8 +7,9 @@
 // Secrets (the private halves) are NEVER returned here.
 //
 // GET → 200 { tiktok: { client_key }, instagram: { app_id },
-//             facebook: { app_id }, x: { client_id }, youtube: { client_id },
-//             linkedin: { client_id } } (unconfigured providers are omitted)
+//             facebook: { app_id }, threads: { app_id }, x: { client_id },
+//             youtube: { client_id }, linkedin: { client_id },
+//             pinterest: { client_id } } (unconfigured providers are omitted)
 //   · 401 unauthenticated
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -53,8 +54,10 @@ serve(async (req: Request): Promise<Response> => {
   put("tiktok", "client_key", get("TT_CLIENT_KEY"));
   put("instagram", "app_id", get("IG_APP_ID"));
   put("facebook", "app_id", get("META_APP_ID"));
+  put("threads", "app_id", get("THREADS_APP_ID"));
   put("x", "client_id", get("X_CLIENT_ID"));
   put("youtube", "client_id", get("YT_CLIENT_ID"));
   put("linkedin", "client_id", get("LI_CLIENT_ID"));
+  put("pinterest", "client_id", get("PIN_CLIENT_ID"));
   return Response.json(out, { headers: CORS });
 });

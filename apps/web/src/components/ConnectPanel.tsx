@@ -18,6 +18,8 @@ type ProviderId = OAuthProvider | 'bluesky';
 
 const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky'];
 
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true };
+
 function accountName(c: ConnectedChannel): string {
   return c.display_name ?? (c.handle ? `@${c.handle}` : c.handle) ?? c.external_id;
 }
@@ -49,16 +51,19 @@ export default function ConnectPanel({
   /** Facebook Pages waiting for a pick (from ?connect=facebook). */
   fbPick: FbPickPage[] | null;
   /** Result banners (from ?connected= / ?error=). */
-  status: { connected?: string; error?: string };
+  status: { connected?: string; already?: string; error?: string };
   /** Owner/admin — only they see Remove. */
   canManage: boolean;
 }) {
   const [open, setOpen] = useState<ProviderId | null>(fbPick ? 'facebook' : null);
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
+  const [mastodonInstance, setMastodonInstance] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
+  /** A connect navigation is already in flight — swallow extra taps. */
+  const [leaving, setLeaving] = useState<ProviderId | null>(null);
 
   const byProvider = (p: string): ConnectedChannel[] => channels.filter((c) => c.provider === p);
   const ordered: ProviderId[] = [...ORDER].sort(
@@ -85,12 +90,39 @@ export default function ConnectPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspace_id: workspaceId, handle: bskyHandle.trim(), app_password: bskyPass }),
       });
-      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; already?: boolean; error?: string };
+      if (j.already) {
+        window.location.href = '/channels?already=bluesky';
+        return;
+      }
       if (!j.ok) throw new Error(j.error ?? 'Bluesky login failed.');
       window.location.href = '/channels?connected=bluesky';
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Bluesky login failed.');
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connectMastodon() {
+    setErr(null);
+    if (!mastodonInstance.trim()) {
+      setErr('Type your username, or a server like fosstodon.org.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/mastodon-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspaceId, instance: mastodonInstance.trim() }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!j.url) throw new Error(j.error ?? 'Could not register on that server.');
+      setLeaving('mastodon');
+      window.location.href = j.url;
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not register on that server.');
       setBusy(false);
     }
   }
@@ -104,7 +136,11 @@ export default function ConnectPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ page_id: id }),
       });
-      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; already?: boolean; error?: string };
+      if (j.already) {
+        window.location.href = '/channels?already=facebook';
+        return;
+      }
       if (!j.ok) throw new Error(j.error ?? 'Could not connect that Page.');
       window.location.href = '/channels?connected=facebook';
     } catch (e) {
@@ -115,16 +151,28 @@ export default function ConnectPanel({
   }
 
   const subtitle = (p: ProviderId, list: ConnectedChannel[]): string => {
-    if (list.length === 0) return p === 'bluesky' ? 'Handle + app password' : 'Tap to connect';
+    if (list.length === 0) {
+      if (p === 'bluesky') return 'Handle + app password';
+      if (p === 'mastodon') return 'Username + login';
+      return 'Tap to connect';
+    }
     if (list.length === 1) return accountName(list[0]);
     return `${list.length} accounts`;
   };
+
+  const alreadyLabel = status.already === 'bluesky' ? 'Bluesky' : status.already ? oauthLabel(status.already) : '';
+  const connectedLabel = status.connected === 'bluesky' ? 'Bluesky' : status.connected ? oauthLabel(status.connected) : '';
 
   return (
     <div className="space-y-3">
       {status.connected ? (
         <p className="rounded-xl bg-[#EDF3EC] px-3.5 py-2.5 text-xs font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">
-          {oauthLabel(status.connected)} connected ✓
+          {connectedLabel} connected ✓
+        </p>
+      ) : null}
+      {status.already ? (
+        <p className="rounded-xl bg-accent-soft px-3.5 py-2.5 text-xs font-bold text-accent-ink">
+          {alreadyLabel} is already connected — nothing new added.
         </p>
       ) : null}
       {status.error ? (
@@ -143,12 +191,14 @@ export default function ConnectPanel({
           const list = byProvider(p);
           const hasAny = list.length > 0;
           const expanded = open === p;
-          const manual = p === 'bluesky';
+          const manual = MANUAL[p] === true;
           const label = p === 'bluesky' ? 'Bluesky' : oauthLabel(p);
 
           const onRow = () => {
             // No accounts yet on an OAuth provider: go straight to consent.
             if (!manual && !hasAny) {
+              if (leaving) return;
+              setLeaving(p);
               window.location.href = startHref(p as OAuthProvider);
               return;
             }
@@ -179,7 +229,7 @@ export default function ConnectPanel({
 
               {expanded ? (
                 <div className="space-y-2 px-4 pb-4">
-                  {manual ? (
+                  {p === 'bluesky' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
                         No OAuth needed — mint an app password at bsky.app → Settings → App passwords.
@@ -203,6 +253,24 @@ export default function ConnectPanel({
                       />
                       <button type="button" onClick={connectBsky} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
                         {busy ? 'Connecting…' : hasAny ? 'Add this account' : 'Connect Bluesky'}
+                      </button>
+                    </div>
+                  ) : null}
+                  {p === 'mastodon' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        Your server registers Sosial itself — no app keys needed.
+                      </p>
+                      <input
+                        value={mastodonInstance}
+                        onChange={(e) => setMastodonInstance(e.target.value)}
+                        placeholder="Username or server (fosstodon.org)"
+                        autoComplete="username"
+                        aria-label="Mastodon username or server"
+                        className="field !text-xs"
+                      />
+                      <button type="button" onClick={connectMastodon} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                        {busy ? 'Registering…' : hasAny ? 'Add this account' : 'Connect Mastodon'}
                       </button>
                     </div>
                   ) : null}
@@ -264,9 +332,14 @@ export default function ConnectPanel({
                     <div className="rounded-xl bg-paper px-3 py-2.5">
                       <a
                         href={startHref(p as OAuthProvider)}
-                        className="block text-center text-[13px] font-bold text-accent-ink"
+                        onClick={(e) => {
+                          if (leaving) e.preventDefault();
+                          else setLeaving(p);
+                        }}
+                        aria-disabled={leaving !== null}
+                        className={`block text-center text-[13px] font-bold text-accent-ink ${leaving ? 'pointer-events-none opacity-50' : ''}`}
                       >
-                        {hasAny ? `+ Add another ${label} account` : `Connect ${label}`}
+                        {leaving === p ? 'Opening…' : hasAny ? `+ Add another ${label} account` : `Connect ${label}`}
                       </a>
                       {hasAny ? (
                         <p className="mt-1 text-center text-[11px] leading-relaxed text-faint">
@@ -283,10 +356,6 @@ export default function ConnectPanel({
           );
         })}
       </section>
-
-      <p className="px-1 text-[11px] leading-relaxed text-faint">
-        Threads, Mastodon and Pinterest still connect from the mobile app.
-      </p>
     </div>
   );
 }

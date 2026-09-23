@@ -14,6 +14,10 @@ export interface FlowState {
   workspace_id: string;
   nonce: string;
   verifier?: string;
+  /** Mastodon only: instance + per-instance app credentials. */
+  instance?: string;
+  clientId?: string;
+  clientSecret?: string;
 }
 
 export interface PickState {
