@@ -78,27 +78,6 @@ export default function SiteFooter() {
           </ul>
         </nav>
 
-        <nav aria-label="Who it's for">
-          <p className="eyebrow">Who it&rsquo;s for</p>
-          <ul className="mt-4 space-y-2.5 text-sm font-semibold text-soft">
-            <li>
-              <Link href="/audiences/creators" className="hover:text-ink">
-                Creators
-              </Link>
-            </li>
-            <li>
-              <Link href="/audiences/small-business" className="hover:text-ink">
-                Small business
-              </Link>
-            </li>
-            <li>
-              <Link href="/audiences/agencies" className="hover:text-ink">
-                Agencies
-              </Link>
-            </li>
-          </ul>
-        </nav>
-
         <nav aria-label="Channels">
           <p className="eyebrow">Channels</p>
           <ul className="mt-4 space-y-2.5 text-sm font-semibold text-soft">

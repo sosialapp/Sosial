@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
-import { resourceHref } from '@/content/types';
 import { dashboardUrl } from '@/lib/site';
 import { createClient, hasSupabaseEnv } from '@/lib/supabase/client';
 import AuthModal from './AuthModal';
@@ -23,25 +22,9 @@ const FEATURES: MenuLink[] = [
   { href: '/#teams', title: 'Teams & approvals', desc: 'Draft, review and approve in one tap' },
 ];
 
-const AUDIENCES: MenuLink[] = [
-  { href: '/audiences/creators', title: 'Creators', desc: 'Post everywhere without living everywhere' },
-  { href: '/audiences/small-business', title: 'Small business', desc: 'Look open every day, minus the marketing team' },
-  { href: '/audiences/agencies', title: 'Agencies', desc: 'Client content without the screenshot ping-pong' },
-];
-
 const RESOURCES: MenuLink[] = [
   { href: '/blog', title: 'Blog', desc: 'Strategy, scheduling systems and AI writing' },
   { href: '/resources', title: 'Resource library', desc: 'Templates, playbooks and cheat sheets' },
-  {
-    href: resourceHref('content-calendar-template'),
-    title: 'Content calendar template',
-    desc: 'The weekly planning sheet, ready to copy',
-  },
-  {
-    href: resourceHref('caption-formulas-cheat-sheet'),
-    title: 'Caption formulas',
-    desc: 'Hooks and structures that survive the fold',
-  },
 ];
 
 /** Soft rounded chevron — no sharp triangles. */
@@ -218,14 +201,6 @@ export default function SiteNav() {
             </div>
           </DesktopDropdown>
 
-          <DesktopDropdown label="Audiences">
-            <div className="card w-80 p-2 shadow-[0_24px_60px_-24px_rgba(28,25,23,0.35)]">
-              {AUDIENCES.map((l) => (
-                <MenuCard key={l.href} link={l} />
-              ))}
-            </div>
-          </DesktopDropdown>
-
           <DesktopDropdown label="Resources">
             <div className="card w-80 p-2 shadow-[0_24px_60px_-24px_rgba(28,25,23,0.35)]">
               {RESOURCES.map((l) => (
@@ -298,7 +273,6 @@ export default function SiteNav() {
               ]}
               onGo={close}
             />
-            <MobileSection label="Audiences" links={AUDIENCES} onGo={close} />
             <MobileSection label="Resources" links={RESOURCES} onGo={close} />
             <Link
               href="/#pricing"
