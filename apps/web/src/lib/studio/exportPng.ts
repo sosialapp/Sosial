@@ -12,6 +12,36 @@ const FONT_CSS_URL =
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@400;700&family=Playfair+Display:wght@400;700;900&family=Crimson+Pro:wght@400;700&family=Poppins:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Anton&display=swap';
 
 let fontCssCache: string | null = null;
+let pageCssCache: string | null = null;
+
+/**
+ * The canvas is styled with Tailwind utility classes (`absolute inset-0`,
+ * `object-cover`, flex centring, percentage icon sizes…). Those selectors do
+ * not exist inside the export document, so the layout collapses. Re-read the
+ * live stylesheet and embed it, scrubbed of anything remote:
+ * - an `@font-face` still pointing at a URL stops the SVG image loading;
+ * - a remote `url()` both taints the canvas and blocks the render.
+ */
+function collectPageCss(): string {
+  if (pageCssCache !== null) return pageCssCache;
+  const chunks: string[] = [];
+  for (const sheet of Array.from(document.styleSheets)) {
+    let rules: CSSRuleList | null = null;
+    try {
+      rules = sheet.cssRules; // throws for cross-origin sheets
+    } catch {
+      continue;
+    }
+    if (!rules) continue;
+    for (const rule of Array.from(rules)) chunks.push(rule.cssText);
+  }
+  let css = chunks.join('\n');
+  css = css.replace(/@import[^;]*;/g, '');
+  css = css.replace(/@font-face\s*{[^}]*}/g, '');
+  css = css.replace(/url\((?!["']?data:)[^)]*\)/g, 'none');
+  pageCssCache = css;
+  return css;
+}
 
 async function embeddedFontCss(): Promise<string> {
   if (fontCssCache !== null) return fontCssCache;
@@ -124,9 +154,10 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
   const W = fullWidth;
   const H = Math.round(rect.height * (fullWidth / rect.width));
 
-  const rasterise = async (fontCss: string): Promise<Blob> => {
+  const rasterise = async (styleCss: string): Promise<Blob> => {
     const clone = node.cloneNode(true) as HTMLElement;
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    if (document.documentElement.classList.contains('dark')) clone.classList.add('dark');
     clone.style.width = `${rect.width}px`;
     clone.style.height = `${rect.height}px`;
     clone.style.margin = '0';
@@ -138,7 +169,7 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
     try {
       svg =
         `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${rect.width} ${rect.height}">` +
-        `<style>${fontCss}</style>` +
+        `<style>${styleCss}</style>` +
         `<foreignObject x="0" y="0" width="${rect.width}" height="${rect.height}">` +
         new XMLSerializer().serializeToString(clone) +
         `</foreignObject></svg>`;
@@ -195,10 +226,11 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
 
   // First attempt embeds the real webfonts; if the SVG refuses to load
   // (a poisoned font face or a serializer hiccup), retry with system fonts.
+  const pageCss = collectPageCss();
   try {
-    return await rasterise(await embeddedFontCss());
+    return await rasterise(`${pageCss}\n${await embeddedFontCss()}`);
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith('[raster]')) return rasterise('');
+    if (e instanceof Error && e.message.startsWith('[raster]')) return rasterise(pageCss);
     throw e;
   }
 }

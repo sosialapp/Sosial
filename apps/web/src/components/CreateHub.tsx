@@ -705,7 +705,13 @@ export default function CreateHub({
           <p className="eyebrow pt-1">Starter templates</p>
           <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
             {starterProjects().map((s) => (
-              <StarterTile key={s.id} project={s} busy={renderingKey === s.id} onUse={(node) => useStudioPage(s, 0, node, s.id)} />
+              <StarterTile
+                key={s.id}
+                project={s}
+                busy={renderingKey === s.id}
+                onOpen={() => setEditing(structuredClone(s))}
+                onUse={(node) => useStudioPage(s, 0, node, s.id)}
+              />
             ))}
           </div>
 
@@ -869,15 +875,25 @@ export default function CreateHub({
   );
 }
 
-/** Starter rail tile — fixed width, live miniature, tap to render & attach. */
-function StarterTile({ project, busy, onUse }: { project: StudioProject; busy: boolean; onUse: (node: HTMLElement | null) => void }) {
+/** Starter rail tile — fixed width, live miniature. Tap to open it in the canvas editor. */
+function StarterTile({
+  project,
+  busy,
+  onOpen,
+  onUse,
+}: {
+  project: StudioProject;
+  busy: boolean;
+  onOpen: () => void;
+  onUse: (node: HTMLElement | null) => void;
+}) {
   const { ref, width } = useBoxWidth(190);
   const nodeRef = useRef<HTMLDivElement>(null);
   const page = project.pages[0];
   if (!page) return null;
   return (
     <article className="w-[190px] shrink-0 snap-start">
-      <button type="button" onClick={() => onUse(nodeRef.current)} disabled={busy} className="block w-full text-left" aria-label={`Use ${project.name}`}>
+      <button type="button" onClick={onOpen} className="block w-full text-left" aria-label={`Edit ${project.name}`}>
         <div ref={nodeRef} className="relative">
           <div ref={ref}>
             <StudioCanvas page={page} ratio={ratioOf(project)} width={width} frame={false} />
@@ -892,9 +908,20 @@ function StarterTile({ project, busy, onUse }: { project: StudioProject; busy: b
           ) : null}
         </div>
       </button>
-      <div className="mt-2 px-0.5">
-        <p className="truncate text-sm font-bold">{project.name}</p>
-        <p className="truncate text-xs text-muted">Template · {project.pages.length} page{project.pages.length === 1 ? '' : 's'}</p>
+      <div className="mt-2 flex items-start gap-2 px-0.5">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold">{project.name}</p>
+          <p className="truncate text-xs text-muted">Template · {project.pages.length} page{project.pages.length === 1 ? '' : 's'}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onUse(nodeRef.current)}
+          disabled={busy}
+          className="btn btn-primary shrink-0 !px-3 !py-1.5 !text-xs"
+          aria-label={`Use ${project.name} in a post`}
+        >
+          {busy ? '…' : 'Use'}
+        </button>
       </div>
     </article>
   );
