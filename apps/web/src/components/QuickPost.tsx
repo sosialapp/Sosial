@@ -121,6 +121,21 @@ export default function QuickPost({
         </div>
       </div>
 
+      {/* Schedule row — top */}
+      {mode === 'schedule' && ready.length > 0 ? (
+        <div className="mt-3">
+          <DateTimePicker
+            value={when}
+            timezone={tz}
+            onChange={(iso) => {
+              setWhen(iso);
+              setDone(null);
+            }}
+            onTimezoneChange={setTz}
+          />
+        </div>
+      ) : null}
+
       {ready.length === 0 ? (
         <p className="mt-4 text-sm text-muted">
           Nothing connected yet.{' '}
@@ -180,21 +195,6 @@ export default function QuickPost({
               {busy ? 'Sending…' : mode === 'now' ? 'Post now' : 'Schedule post'}
             </button>
           </div>
-
-          {/* Date, time and timezone — schedule mode only. */}
-          {mode === 'schedule' ? (
-            <div className="mt-2.5">
-              <DateTimePicker
-                value={when}
-                timezone={tz}
-                onChange={(iso) => {
-                  setWhen(iso);
-                  setDone(null);
-                }}
-                onTimezoneChange={setTz}
-              />
-            </div>
-          ) : null}
         </form>
       )}
     </section>

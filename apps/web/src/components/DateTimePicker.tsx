@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 /**
- * Date + time + timezone picker — calendar grid, scrollable time list,
- * timezone select. Emits the correct UTC instant for the chosen wall time
- * in the chosen zone (browser offset math, no extra deps).
+ * Schedule controls in one row: date (calendar popover) · time (inline
+ * text edit) · timezone (searchable dropdown, defaults to the user's zone).
+ * Emits the correct UTC instant for the chosen wall time in the chosen
+ * zone — browser offset math, no extra deps.
  */
 
 type Wall = { y: number; m: number; d: number; minutes: number };
@@ -92,13 +93,18 @@ function utcToWall(iso: string, tz: string): Wall {
   return { y: get('year'), m: get('month'), d: get('day'), minutes: get('hour') * 60 + get('minute') };
 }
 
+const offCache = new Map<string, string>();
 function offsetLabel(tz: string): string {
+  const hit = offCache.get(tz);
+  if (hit) return hit;
   const off = tzOffsetMs(Date.now(), tz);
   const sign = off < 0 ? '-' : '+';
   const abs = Math.abs(off);
   const h = Math.floor(abs / 3_600_000);
   const mm = Math.round((abs % 3_600_000) / 60_000);
-  return `GMT${sign}${h}${mm ? `:${String(mm).padStart(2, '0')}` : ''}`;
+  const label = `GMT${sign}${h}${mm ? `:${String(mm).padStart(2, '0')}` : ''}`;
+  offCache.set(tz, label);
+  return label;
 }
 
 function zoneLabel(tz: string): string {
@@ -106,18 +112,13 @@ function zoneLabel(tz: string): string {
   return city.replace(/_/g, ' ');
 }
 
-const fmtClock = (minutes: number): string => {
-  const h24 = Math.floor(minutes / 60);
-  const mm = minutes % 60;
-  const ap = h24 >= 12 ? 'PM' : 'AM';
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  return `${h12}:${String(mm).padStart(2, '0')} ${ap}`;
-};
-
 const fmtDay = (w: Wall): string => {
   const d = new Date(w.y, w.m - 1, w.d);
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 };
+
+const hhmm = (minutes: number): string =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
 export default function DateTimePicker({
   value,
@@ -130,30 +131,36 @@ export default function DateTimePicker({
   onChange: (iso: string | null) => void;
   onTimezoneChange: (tz: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const timeRef = useRef<HTMLDivElement>(null);
   const zones = useMemo(supportedZones, []);
+  const [calOpen, setCalOpen] = useState(false);
+  const [tzOpen, setTzOpen] = useState(false);
+  const [tzQuery, setTzQuery] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const wall: Wall = useMemo(() => {
     if (value) return utcToWall(value, timezone);
-    const now = utcToWall(new Date().toISOString(), timezone);
-    return { ...now, minutes: Math.min(1439, Math.ceil(now.minutes / 30) * 30) };
-  }, [value, timezone, open]); // eslint-disable-line react-hooks/exhaustive-deps
+    return utcToWall(new Date().toISOString(), timezone);
+  }, [value, timezone]);
 
   const [view, setView] = useState<{ y: number; m: number }>(() => ({ y: wall.y, m: wall.m }));
   useEffect(() => {
-    if (open) setView({ y: wall.y, m: wall.m });
+    if (calOpen) setView({ y: wall.y, m: wall.m });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [calOpen]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!calOpen && !tzOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setCalOpen(false);
+        setTzOpen(false);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setCalOpen(false);
+        setTzOpen(false);
+      }
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -161,14 +168,7 @@ export default function DateTimePicker({
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
-
-  // Keep the selected time visible when the popover opens.
-  useEffect(() => {
-    if (!open) return;
-    const el = timeRef.current?.querySelector<HTMLElement>('[data-selected="true"]');
-    el?.scrollIntoView({ block: 'center' });
-  }, [open]);
+  }, [calOpen, tzOpen]);
 
   const emit = (next: Wall) => {
     onChange(zonedToUtc(next.y, next.m, next.d, next.minutes, timezone).toISOString());
@@ -186,160 +186,185 @@ export default function DateTimePicker({
   }, [view]);
 
   const todayKey = new Date().toDateString();
+  const q = tzQuery.trim().toLowerCase();
+  const tzMatches = useMemo(() => {
+    const list = q
+      ? zones.filter((z) => z.toLowerCase().includes(q) || zoneLabel(z).toLowerCase().includes(q))
+      : zones;
+    return list.slice(0, 80);
+  }, [q, zones]);
 
   return (
-    <div ref={rootRef} className="relative">
-      <div className="flex gap-2">
+    <div ref={rootRef} className="flex flex-wrap items-center gap-2">
+      {/* Date — calendar only */}
+      <div className="relative min-w-0 flex-1 sm:flex-none">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            setCalOpen((v) => !v);
+            setTzOpen(false);
+          }}
           aria-haspopup="dialog"
-          aria-expanded={open}
+          aria-expanded={calOpen}
           aria-label="Pick date"
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
+          className="flex w-full min-w-[9.5rem] items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
         >
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
             <path d="M3 8.5h14M7 2.8v3M13 2.8v3" />
           </svg>
-          <span className="truncate">
-            {new Date(wall.y, wall.m - 1, wall.d).toLocaleDateString('en-GB')}
-          </span>
+          <span className="truncate">{fmtDay(wall)}</span>
         </button>
+        {calOpen ? (
+          <div
+            role="dialog"
+            aria-label="Pick date"
+            className="absolute left-0 top-full z-40 mt-2 w-[17rem] rounded-2xl border border-line bg-card p-3 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
+          >
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                aria-label="Previous month"
+                onClick={() => setView(({ y, m }) => (m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 }))}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
+              >
+                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m12.5 4.5-6 5.5 6 5.5" />
+                </svg>
+              </button>
+              <p className="text-sm font-extrabold">{MONTHS[view.m - 1]} {view.y}</p>
+              <button
+                type="button"
+                aria-label="Next month"
+                onClick={() => setView(({ y, m }) => (m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 }))}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
+              >
+                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m7.5 4.5 6 5.5-6 5.5" />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-2 grid grid-cols-7 gap-0.5 text-center">
+              {WEEKDAYS.map((d) => (
+                <span key={d} className="text-[10px] font-bold text-faint">{d}</span>
+              ))}
+              {monthMatrix.map((d) => {
+                const selected = d.getFullYear() === wall.y && d.getMonth() + 1 === wall.m && d.getDate() === wall.d;
+                const outside = d.getMonth() + 1 !== view.m;
+                const isToday = d.toDateString() === todayKey;
+                return (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    onClick={() => {
+                      emit({ ...wall, y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
+                      setCalOpen(false);
+                    }}
+                    className={`flex h-8 items-center justify-center rounded-lg text-xs font-bold transition ${
+                      selected
+                        ? 'bg-ink text-paper'
+                        : outside
+                          ? 'text-faint hover:bg-paper-dim'
+                          : isToday
+                            ? 'text-accent-ink hover:bg-accent-soft'
+                            : 'text-soft hover:bg-paper-dim'
+                    }`}
+                  >
+                    {d.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Time — inline text edit */}
+      <input
+        type="time"
+        value={hhmm(wall.minutes)}
+        onChange={(e) => {
+          const [h, m] = e.target.value.split(':').map(Number);
+          if (Number.isFinite(h) && Number.isFinite(m)) {
+            emit({ ...wall, minutes: Math.max(0, Math.min(1439, h * 60 + m)) });
+          }
+        }}
+        aria-label="Time"
+        className="field !w-auto min-w-0 flex-1 !py-2 text-xs font-bold sm:flex-none sm:w-[7.5rem]"
+      />
+
+      {/* Timezone — searchable dropdown, defaults to the user's zone */}
+      <div className="relative min-w-0 flex-[1.5] sm:flex-none">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-label="Pick time"
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
+          onClick={() => {
+            setTzOpen((v) => !v);
+            setCalOpen(false);
+          }}
+          aria-haspopup="listbox"
+          aria-expanded={tzOpen}
+          aria-label="Pick timezone"
+          className="flex w-full min-w-[10.5rem] items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40"
         >
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
             <circle cx="10" cy="10" r="6.5" />
-            <path d="M10 6.5V10l2.5 1.5" />
+            <path d="M3.5 10h13M10 3.5c-1.8 1.8-2.7 4-2.7 6.5s.9 4.7 2.7 6.5c1.8-1.8 2.7-4 2.7-6.5S11.8 5.3 10 3.5Z" />
           </svg>
-          <span className="truncate">{fmtClock(wall.minutes)}</span>
+          <span className="truncate">{zoneLabel(timezone)}</span>
           <span className="ml-auto shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
             {offsetLabel(timezone)}
           </span>
         </button>
-      </div>
-
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Pick date, time and timezone"
-          className="absolute left-0 top-full z-40 mt-2 w-[19.5rem] rounded-2xl border border-line bg-card p-3 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
-        >
-          {/* Calendar */}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => setView(({ y, m }) => (m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 }))}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
-            >
-              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m12.5 4.5-6 5.5 6 5.5" />
-              </svg>
-            </button>
-            <p className="text-sm font-extrabold">{MONTHS[view.m - 1]} {view.y}</p>
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => setView(({ y, m }) => (m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 }))}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
-            >
-              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m7.5 4.5 6 5.5-6 5.5" />
-              </svg>
-            </button>
-          </div>
-          <div className="mt-2 grid grid-cols-7 gap-0.5 text-center">
-            {WEEKDAYS.map((d) => (
-              <span key={d} className="text-[10px] font-bold text-faint">{d}</span>
-            ))}
-            {monthMatrix.map((d) => {
-              const selected = d.getFullYear() === wall.y && d.getMonth() + 1 === wall.m && d.getDate() === wall.d;
-              const outside = d.getMonth() + 1 !== view.m;
-              const isToday = d.toDateString() === todayKey;
-              return (
-                <button
-                  key={d.toISOString()}
-                  type="button"
-                  onClick={() => emit({ ...wall, y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() })}
-                  className={`flex h-8 items-center justify-center rounded-lg text-xs font-bold transition ${
-                    selected
-                      ? 'bg-ink text-paper'
-                      : outside
-                        ? 'text-faint hover:bg-paper-dim'
-                        : isToday
-                          ? 'text-accent-ink hover:bg-accent-soft'
-                          : 'text-soft hover:bg-paper-dim'
-                  }`}
-                >
-                  {d.getDate()}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Time: type an exact one or tap a slot */}
-          <p className="mt-3 text-[10px] font-extrabold uppercase tracking-wide text-faint">Time</p>
-          <div className="mt-1 flex items-center gap-2">
+        {tzOpen ? (
+          <div
+            role="listbox"
+            aria-label="Timezone"
+            className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-line bg-card p-2 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
+          >
             <input
-              type="time"
-              value={`${String(Math.floor(wall.minutes / 60)).padStart(2, '0')}:${String(wall.minutes % 60).padStart(2, '0')}`}
-              onChange={(e) => {
-                const [hh, mm] = e.target.value.split(':').map(Number);
-                if (Number.isFinite(hh) && Number.isFinite(mm)) {
-                  emit({ ...wall, minutes: Math.max(0, Math.min(1439, hh * 60 + mm)) });
-                }
-              }}
-              aria-label="Custom time"
+              value={tzQuery}
+              onChange={(e) => setTzQuery(e.target.value)}
+              placeholder="Search your city or timezone…"
+              aria-label="Search timezones"
+              autoFocus
               className="field !py-1.5 text-xs"
             />
-            <span className="text-[10px] text-faint">Type any time, or tap below</span>
-          </div>
-          <div ref={timeRef} className="mt-2 h-28 overflow-y-auto rounded-xl border border-line bg-paper p-1">
-            <div className="grid grid-cols-2 gap-1">
-              {Array.from({ length: 48 }, (_, i) => i * 30).map((m) => (
+            <div className="mt-1 max-h-56 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  const tz = deviceZone();
+                  // Re-anchor the same wall time to the user's own zone.
+                  onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, tz).toISOString());
+                  onTimezoneChange(tz);
+                  setTzOpen(false);
+                }}
+                className={`flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === deviceZone() ? 'bg-accent-soft text-accent-ink' : ''}`}
+              >
+                My timezone ({zoneLabel(deviceZone())})
+              </button>
+              {tzMatches.map((z) => (
                 <button
-                  key={m}
+                  key={z}
                   type="button"
-                  data-selected={m === wall.minutes}
-                  onClick={() => emit({ ...wall, minutes: m })}
-                  className={`rounded-lg px-2 py-1.5 text-left text-xs font-bold transition ${
-                    m === wall.minutes ? 'bg-ink text-paper' : 'text-soft hover:bg-paper-dim'
-                  }`}
+                  role="option"
+                  aria-selected={timezone === z}
+                  onClick={() => {
+                    // Same wall time, re-anchored to the new zone.
+                    onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, z).toISOString());
+                    onTimezoneChange(z);
+                    setTzOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === z ? 'bg-accent-soft text-accent-ink' : ''}`}
                 >
-                  {fmtClock(m)}
+                  <span className="flex-1 truncate">{zoneLabel(z)}</span>
+                  <span className="text-[10px] font-medium text-faint">{offsetLabel(z)}</span>
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Timezone */}
-          <p className="mt-3 text-[10px] font-extrabold uppercase tracking-wide text-faint">Timezone</p>
-          <select
-            value={timezone}
-            onChange={(e) => {
-              const tz = e.target.value;
-              onTimezoneChange(tz);
-              // Same wall time, re-anchored to the new zone.
-              onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, tz).toISOString());
-            }}
-            aria-label="Timezone"
-            className="field mt-1 !py-1.5 text-xs"
-          >
-            {zones.map((z) => (
-              <option key={z} value={z}>
-                {zoneLabel(z)} ({offsetLabel(z)})
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -126,7 +126,7 @@ function PostBox({
     <div className="rounded-xl border border-line bg-paper focus-within:border-ink/40">
       {/* Media strip — above the text, hold + drag to rearrange */}
       {seg.media.length > 0 ? (
-        <div className="flex gap-1.5 overflow-x-auto p-2 pb-0">
+        <div className="flex gap-2 overflow-x-auto p-2 pb-0">
           {seg.media.map((f, i) => (
             <span
               key={`${f.file.name}-${i}`}
@@ -145,7 +145,7 @@ function PostBox({
               onDragEnd={() => {
                 dragFrom.current = null;
               }}
-              className="relative block h-14 w-14 shrink-0 cursor-grab overflow-hidden rounded-lg bg-paper-dim active:cursor-grabbing"
+              className="relative block h-20 w-20 shrink-0 cursor-grab overflow-hidden rounded-xl bg-paper-dim active:cursor-grabbing"
               title="Drag to rearrange"
             >
               {f.kind === 'image' ? (
@@ -158,12 +158,12 @@ function PostBox({
                 type="button"
                 onClick={() => onRemoveMedia(i)}
                 aria-label="Remove media"
-                className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] leading-none text-white"
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] leading-none text-white"
               >
                 ×
               </button>
               {seg.media.length > 1 ? (
-                <span className="absolute bottom-0.5 left-0.5 rounded bg-black/55 px-1 text-[9px] font-bold text-white" aria-hidden="true">
+                <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 text-[9px] font-bold text-white" aria-hidden="true">
                   {i + 1}
                 </span>
               ) : null}
@@ -544,6 +544,18 @@ export default function CreatePost({
               </div>
             </div>
 
+            {/* Schedule row — top, next to the title */}
+            {mode === 'schedule' ? (
+              <div className="mt-3">
+                <DateTimePicker
+                  value={whenIso}
+                  timezone={tz}
+                  onChange={setWhenIso}
+                  onTimezoneChange={setTz}
+                />
+              </div>
+            ) : null}
+
             {/* Channel pills — dashboard style; thread narrows the cast */}
             <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Channels">
               {ready.length === 0 ? (
@@ -656,8 +668,10 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* Post as thread — mobile style */}
-            <div className="mt-3">
+            {err ? <p className="mt-3 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
+
+            {/* One row: thread link · save draft · post — aligned */}
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => setThreadMode(!thread)}
@@ -667,12 +681,6 @@ export default function CreatePost({
                 <BranchIcon />
                 {thread ? 'Turn off thread' : 'Post as thread'}
               </button>
-            </div>
-
-            {err ? <p className="mt-3 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
-
-            {/* Action row */}
-            <div className="mt-3 flex items-center gap-2">
               <span className="flex-1" />
               <button
                 type="button"
@@ -686,16 +694,6 @@ export default function CreatePost({
                 {busy ? 'Sending…' : mode === 'now' ? 'Post now' : 'Schedule post'}
               </button>
             </div>
-            {mode === 'schedule' ? (
-              <div className="mt-2.5">
-                <DateTimePicker
-                  value={whenIso}
-                  timezone={tz}
-                  onChange={setWhenIso}
-                  onTimezoneChange={setTz}
-                />
-              </div>
-            ) : null}
           </section>
         </div>
 
