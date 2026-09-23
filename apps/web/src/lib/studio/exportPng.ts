@@ -167,9 +167,12 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
 
     let svg: string;
     try {
+      // CSS may contain &, < or > (media queries, content strings). Inside an
+      // XML document those are illegal raw and the SVG image fails to parse.
+      const safeCss = styleCss.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       svg =
         `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${rect.width} ${rect.height}">` +
-        `<style>${styleCss}</style>` +
+        `<style>${safeCss}</style>` +
         `<foreignObject x="0" y="0" width="${rect.width}" height="${rect.height}">` +
         new XMLSerializer().serializeToString(clone) +
         `</foreignObject></svg>`;
