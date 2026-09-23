@@ -66,6 +66,7 @@ export default function StudioEditor({
   const [pageIndex, setPageIndex] = useState(0);
   const [step, setStep] = useState<Step>('background');
   const [exporting, setExporting] = useState<Exporting>(null);
+  const [exportErr, setExportErr] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [past, setPast] = useState<StudioProject[]>([]);
@@ -77,7 +78,6 @@ export default function StudioEditor({
   const page = project.pages[Math.min(pageIndex, project.pages.length - 1)];
   const ratio =
     ({ square: 1, portrait: 1.25, story: 16 / 9, landscape: 9 / 16, a4: 1.414 } as const)[project.sizeId] ?? 1.25;
-  const manyPages = project.pages.length > 2;
 
   /* ------------------------------ history ------------------------------- */
 
@@ -224,9 +224,13 @@ export default function StudioEditor({
 
   const doDownloadPage = async () => {
     setExporting('page');
+    setExportErr(null);
     try {
       const blob = await exportPagePng(pageIndex);
       if (blob) downloadBlob(blob, fileName(pageIndex));
+      else setExportErr('Could not render that page. Try again.');
+    } catch {
+      setExportErr('Export failed. Try again.');
     } finally {
       setExporting(null);
     }
@@ -234,12 +238,20 @@ export default function StudioEditor({
 
   const doDownloadAll = async () => {
     setExporting('all');
+    setExportErr(null);
     try {
+      let ok = 0;
       for (let i = 0; i < project.pages.length; i++) {
         const blob = await exportPagePng(i);
-        if (blob) downloadBlob(blob, fileName(i));
+        if (blob) {
+          downloadBlob(blob, fileName(i));
+          ok++;
+        }
         await new Promise((r) => setTimeout(r, 350));
       }
+      if (ok === 0) setExportErr('Could not render the pages. Try again.');
+    } catch {
+      setExportErr('Export failed. Try again.');
     } finally {
       setExporting(null);
     }
@@ -248,6 +260,7 @@ export default function StudioEditor({
   /** Render EVERY page, then hand all PNGs to the composer. */
   const doUse = async () => {
     setExporting('use');
+    setExportErr(null);
     try {
       const blobs: Blob[] = [];
       for (let i = 0; i < project.pages.length; i++) {
@@ -256,7 +269,11 @@ export default function StudioEditor({
       }
       if (blobs.length) {
         onUsePng(blobs, page.title.text || project.name, page.caption ?? '');
+      } else {
+        setExportErr('Could not render the pages. Try again.');
       }
+    } catch {
+      setExportErr('Export failed. Try again.');
     } finally {
       setExporting(null);
     }
@@ -375,22 +392,33 @@ export default function StudioEditor({
       <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
         {/* stage */}
         <div className="flex flex-col items-center gap-2 border-b border-line bg-bone px-4 py-4 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
-          {/* Page actions — top */}
+          {/* Page actions — top, icon only */}
           <div className="flex w-full max-w-[420px] flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={duplicatePage}
-              className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold transition hover:bg-bone dark:hover:bg-white/5"
+              aria-label="Duplicate page"
+              title="Duplicate page"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-card text-soft transition hover:text-ink"
             >
-              Duplicate page
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="7" y="7" width="9.5" height="9.5" rx="2" />
+                <path d="M13 4.5H5.5a2 2 0 0 0-2 2V14" />
+              </svg>
             </button>
             {project.pages.length > 1 ? (
               <button
                 type="button"
                 onClick={deletePage}
-                className="rounded-xl border border-[#F0D9DA] bg-card px-3 py-1.5 text-xs font-bold text-[#9F2F2D] transition hover:bg-[#FDEBEC] dark:border-[#5b2a2a] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]"
+                aria-label="Delete page"
+                title="Delete page"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#F0D9DA] bg-card text-[#9F2F2D] transition hover:bg-[#FDEBEC] dark:border-[#5b2a2a] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]"
               >
-                Delete
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3.5 5.5h13M8 5.5V3.8a.8.8 0 0 1 .8-.8h2.4a.8.8 0 0 1 .8.8v1.7" />
+                  <path d="M5.5 5.5 6.3 16a1.4 1.4 0 0 0 1.4 1.3h4.6a1.4 1.4 0 0 0 1.4-1.3l.8-10.5" />
+                  <path d="M8.4 8.7v4.6M11.6 8.7v4.6" />
+                </svg>
               </button>
             ) : null}
             <span className="flex-1" />
@@ -399,8 +427,8 @@ export default function StudioEditor({
             </span>
           </div>
 
-          {/* Filmstrip rides on top once there are 3+ pages */}
-          {manyPages ? filmstrip : null}
+          {/* Filmstrip — always on top */}
+          {project.pages.length > 1 ? filmstrip : null}
 
           {/* Canvas — pagination lives at the bottom, ‹ › on the sides */}
           <div className="w-full max-w-[420px]">
@@ -410,9 +438,6 @@ export default function StudioEditor({
               </div>
             </div>
           </div>
-
-          {/* Filmstrip below for small decks */}
-          {!manyPages && project.pages.length > 1 ? filmstrip : null}
 
           {/* Bottom pagination — ‹ on the left, › on the right */}
           {project.pages.length > 1 ? (
@@ -454,26 +479,21 @@ export default function StudioEditor({
             </div>
           ) : null}
 
-          {/* Per-page downloads — bottom */}
-          <div className="flex items-center gap-1.5">
+          {/* Bottom downloads — single page */}
+          <div className="flex flex-col items-center gap-1">
             <button
               type="button"
               onClick={doDownloadPage}
               disabled={busy}
-              className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold transition hover:bg-bone disabled:opacity-50 dark:hover:bg-white/5"
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-1.5 text-xs font-bold transition hover:bg-bone disabled:opacity-50 dark:hover:bg-white/5"
             >
+              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10 3v8.5m0 0 3.5-3.5M10 11.5 6.5 8" />
+                <path d="M3.5 14.5v1A1.5 1.5 0 0 0 5 17h10a1.5 1.5 0 0 0 1.5-1.5v-1" />
+              </svg>
               {exporting === 'page' ? busyLabel : 'Download page'}
             </button>
-            {project.pages.length > 1 ? (
-              <button
-                type="button"
-                onClick={doDownloadAll}
-                disabled={busy}
-                className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold transition hover:bg-bone disabled:opacity-50 dark:hover:bg-white/5"
-              >
-                {exporting === 'all' ? busyLabel : 'Download all pages'}
-              </button>
-            ) : null}
+            {exportErr ? <p className="text-[11px] font-bold text-[#9F2F2D]">{exportErr}</p> : null}
           </div>
         </div>
 

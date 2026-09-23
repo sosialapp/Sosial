@@ -32,6 +32,10 @@ async function embeddedFontCss(): Promise<string> {
         }
       }),
     );
+    // An @font-face that still points at a remote URL makes the whole SVG
+    // image refuse to load — drop those faces entirely and fall back to the
+    // local stacks instead.
+    out = out.replace(/@font-face\s*{[^}]*url\((?:https?:)?\/\/[^}]*}/g, '');
     fontCssCache = out;
   } catch {
     fontCssCache = '';
@@ -76,50 +80,65 @@ async function inlineImages(root: HTMLElement): Promise<void> {
 /** Render the canvas node at full post width (1080) → PNG blob. */
 export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Promise<Blob> {
   const rect = node.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) {
+    throw new Error('Canvas is not rendered yet — try again.');
+  }
   const scale = fullWidth / rect.width;
   const W = fullWidth;
   const H = Math.round(rect.height * scale);
 
-  const clone = node.cloneNode(true) as HTMLElement;
-  clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-  // Render at full width inside the clone so text wraps identically.
-  clone.style.width = `${W}px`;
-  clone.style.height = `${H}px`;
-  clone.style.transform = `scale(${scale})`;
-  clone.style.transformOrigin = 'top left';
+  const rasterise = async (fontCss: string): Promise<Blob> => {
+    const clone = node.cloneNode(true) as HTMLElement;
+    clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    // Render at full width inside the clone so text wraps identically.
+    clone.style.width = `${W}px`;
+    clone.style.height = `${H}px`;
+    clone.style.transform = `scale(${scale})`;
+    clone.style.transformOrigin = 'top left';
+    clone.style.margin = '0';
 
-  await inlineImages(clone);
-  const fontCss = await embeddedFontCss();
+    await inlineImages(clone);
 
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
-    `<style>${fontCss}</style>` +
-    `<foreignObject x="0" y="0" width="${W}" height="${H}">` +
-    new XMLSerializer().serializeToString(clone) +
-    `</foreignObject></svg>`;
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+      `<style>${fontCss}</style>` +
+      `<foreignObject x="0" y="0" width="${W}" height="${H}">` +
+      new XMLSerializer().serializeToString(clone) +
+      `</foreignObject></svg>`;
 
-  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    try {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('SVG_RENDER_FAILED'));
+        img.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unavailable.');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(img, 0, 0, W, H);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Export failed. Try again.');
+      return blob;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  // First attempt embeds the real webfonts; if the SVG refuses to load
+  // (a poisoned font face or a serializer hiccup), retry with system fonts.
   try {
-    const img = new Image();
-    img.decoding = 'sync';
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Render failed. Try again.'));
-      img.src = url;
-    });
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas unavailable.');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(img, 0, 0, W, H);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('Export failed. Try again.');
-    return blob;
-  } finally {
-    URL.revokeObjectURL(url);
+    return await rasterise(await embeddedFontCss());
+  } catch (e) {
+    if (e instanceof Error && e.message !== 'SVG_RENDER_FAILED') throw e;
+    return rasterise('');
   }
 }

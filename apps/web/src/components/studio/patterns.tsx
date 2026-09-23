@@ -82,19 +82,23 @@ export function PatternLayer({
     return <>{els}</>;
   }
   if (type === 'zigzag') {
-    const amp = s * 0.45;
-    const step = s * 0.5;
-    const { rows, first } = rowY(height, s);
-    let d = '';
+    // Independent zigzag rows spanning past both edges — full coverage, clean peaks.
+    const amp = s * 0.35;
+    const half = s * 0.5;
+    const rowH = s * 0.8;
+    const rows = Math.ceil(height / rowH) + 2;
+    const sw = Math.max(1.5, 2 * scale);
+    const els = [];
     for (let r = 0; r < rows; r++) {
-      const y = first + r * s;
-      d += `M0 ${y} `;
-      for (let x = 0; x <= width; x += step) {
-        const peakY = Math.floor(x / step) % 2 === 0 ? y - amp : y + amp;
-        d += `L${x} ${peakY} `;
+      const y = r * rowH;
+      let d = `M${-half} ${y + amp} `;
+      let k = 0;
+      for (let x = -half; x <= width + half; x += half, k++) {
+        d += `L${x + half} ${y + (k % 2 === 0 ? -amp : amp) + amp} `;
       }
+      els.push(<path key={r} d={d} stroke={color} strokeWidth={sw} fill="none" opacity={opacity} strokeLinejoin="miter" strokeLinecap="square" />);
     }
-    return <path d={d} stroke={color} strokeWidth={Math.max(1.5, 2 * scale)} fill="none" opacity={opacity} />;
+    return <>{els}</>;
   }
   if (type === 'waves') {
     const amp = s * 0.28;
