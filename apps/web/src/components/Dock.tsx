@@ -58,7 +58,8 @@ const ITEMS: DockItem[] = [
     tint: '#4CAF7D',
     icon: (
       <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
-        <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
+        <path d="M17.5 2.5 3.5 10.3l6.2 2.2 2.2 6.2 5.6-16.2Z" />
+        <path d="M9.7 12.5l7.8-10" />
       </svg>
     ),
   },
@@ -106,7 +107,8 @@ const PLUS_OPTIONS = [
     desc: 'Write and schedule',
     icon: (
       <svg viewBox="0 0 20 20" className="h-4 w-4" {...STROKE} aria-hidden="true">
-        <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
+        <path d="M17.5 2.5 3.5 10.3l6.2 2.2 2.2 6.2 5.6-16.2Z" />
+        <path d="M9.7 12.5l7.8-10" />
       </svg>
     ),
   },
