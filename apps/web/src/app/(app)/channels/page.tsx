@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import AvatarSync from '@/components/AvatarSync';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
-import ConnectGuide from '@/components/ConnectGuide';
+import ConnectPanel, { type FbPickPage } from '@/components/ConnectPanel';
 import DisconnectChannel from '@/components/DisconnectChannel';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
@@ -29,11 +30,31 @@ function accountLabel(c: ConnectedChannel): string {
 }
 
 /** One card per social network — its accounts stack inside, never split out. */
-export default async function ChannelsPage() {
+export default async function ChannelsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connected?: string; error?: string; connect?: string }>;
+}) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const channels = await fetchChannels(sb, ctx.workspace.id);
+  const params = await searchParams;
+
+  // Facebook Page pick pending from the OAuth callback (httpOnly cookie).
+  let fbPick: FbPickPage[] | null = null;
+  if (params.connect === 'facebook') {
+    try {
+      const jar = await cookies();
+      const raw = jar.get('sosial_fb_pick')?.value;
+      const pick = raw ? (JSON.parse(Buffer.from(raw, 'base64url').toString()) as { workspace_id?: string; pages?: FbPickPage[] }) : null;
+      if (pick?.workspace_id === ctx.workspace.id && Array.isArray(pick.pages)) fbPick = pick.pages;
+    } catch {
+      fbPick = null;
+    }
+  }
+
+  const liveProviders = [...new Set(channels.filter((c) => c.status === 'connected').map((c) => c.provider))];
 
   const byProvider = new Map<string, ConnectedChannel[]>();
   for (const c of channels) {
@@ -54,13 +75,21 @@ export default async function ChannelsPage() {
           <p className="eyebrow">Channels</p>
           <h1 className="font-display text-xl font-extrabold tracking-tight">Connected accounts</h1>
         </div>
-        <ConnectGuide />
       </header>
+
+      <div className="px-4 pt-4 sm:px-6 sm:pt-6">
+        <ConnectPanel
+          workspaceId={ctx.workspace.id}
+          connected={liveProviders}
+          fbPick={fbPick}
+          status={{ connected: params.connected, error: params.error }}
+        />
+      </div>
 
       <div className="grid flex-1 content-start gap-2.5 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
         {providers.length === 0 && (
           <p className="text-sm text-muted">
-            No channels connected. Connect accounts in the mobile app; they appear here immediately.
+            No channels connected yet — pick a network above.
           </p>
         )}
         {providers.map((p) => {
@@ -109,8 +138,7 @@ export default async function ChannelsPage() {
       </div>
 
       <p className="px-6 pb-6 text-xs text-faint">
-        Owners and admins can disconnect an account here. Reconnecting stays in the mobile app
-        until web OAuth ships.
+        Owners and admins can disconnect an account here — its tokens are deleted from the vault.
       </p>
     </div>
   );
