@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
-import { ImageSlot } from '@/components/ui';
+import QuickPost from '@/components/QuickPost';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey, WEEKDAYS } from '@/lib/format';
@@ -143,8 +143,6 @@ export default async function DashboardPage() {
     return { d, k, posts: dayPosts, isToday: k === dayKey(today) };
   });
 
-  const composeChannels = live.slice(0, 5);
-
   return (
     <div className="w-full pt-6">
       <div>
@@ -207,85 +205,13 @@ export default async function DashboardPage() {
       {/* Main + right rail */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
-          {/* Compose + AI */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <section className="card p-5" aria-label="Create new post">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-display text-base font-extrabold tracking-tight">Create new post</p>
-                  <p className="mt-0.5 text-xs text-muted">Write something, add media, choose channels.</p>
-                </div>
-                <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"
-                  aria-hidden="true"
-                >
-                  <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13.5 3.5 16.5 6.5 7 16l-4 1 1-4L13.5 3.5Z" />
-                  </svg>
-                </span>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {composeChannels.map((c) => (
-                  <BrandIcon
-                    key={c.id}
-                    provider={c.provider as ProviderKey}
-                    className="h-9 w-9"
-                    title={c.display_name ?? providerMeta(c.provider).label}
-                  />
-                ))}
-                <Link
-                  href="/channels"
-                  aria-label="Add channel"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-line text-muted transition hover:border-ink hover:text-ink"
-                >
-                  +
-                </Link>
-              </div>
-              <div className="mt-3 min-h-[72px] rounded-xl border border-line bg-paper px-3 py-2.5 text-sm text-faint">
-                What&apos;s on your mind?
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {['Photo', 'Video', 'Thread', 'AI Generate'].map((t) => (
-                  <Link
-                    key={t}
-                    href={t === 'AI Generate' ? '/new?tab=post' : '/new'}
-                    className="rounded-lg border border-line bg-paper px-2.5 py-1.5 text-xs font-bold text-soft transition hover:border-ink hover:text-ink"
-                  >
-                    {t}
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <Link href="/new" className="btn btn-ghost !py-1.5 !text-xs">
-                  Schedule
-                </Link>
-                <Link href="/new" className="btn btn-primary !py-1.5 !text-xs">
-                  Post
-                </Link>
-              </div>
-            </section>
-
-            <section className="card flex flex-col justify-between p-5" aria-label="AI generation">
-              <div>
-                <span className="pill w-fit bg-accent-soft text-accent-ink">AI</span>
-                <p className="mt-3 font-display text-lg font-extrabold leading-snug tracking-tight">
-                  Turn ideas into engaging posts.
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  Draft with research-backed copy, find inspiration, and adapt one idea across every channel.
-                </p>
-              </div>
-              {/* Picture area: filled in later. */}
-              <div className="mt-4 grid grid-cols-3 gap-2" aria-hidden="true">
-                <ThumbSlot className="aspect-square" />
-                <ThumbSlot className="aspect-square" />
-                <ThumbSlot className="aspect-square" />
-              </div>
-              <Link href="/new?tab=post" className="btn btn-bolt mt-4 w-full !text-xs">
-                Try AI Generation
-              </Link>
-            </section>
-          </div>
+          {/* Quick post */}
+          <QuickPost
+            channels={channels}
+            workspaceId={ctx.workspace.id}
+            userId={ctx.user.id}
+            role={ctx.workspace.role}
+          />
 
           {/* Week calendar */}
           <section className="card p-5" aria-label="Content calendar">

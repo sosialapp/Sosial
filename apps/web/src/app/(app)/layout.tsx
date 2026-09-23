@@ -2,54 +2,50 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { BrandIcon } from '@/components/BrandIcon';
+import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import Dock from '@/components/Dock';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
 import { providerMeta } from '@/lib/providers';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext, hasSupabaseEnv } from '@/lib/supabase/server';
+import type { ConnectedChannel } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Header Connect pill: stacked brand discs + "Connect".
- * Connected channels when present; facebook/instagram/threads when empty
- * (same visual as the design reference).
+ * Masthead Connect pill, same as the mobile app: card pill with a stacked
+ * row of channel avatars (avatar tile + brand badge, max 4 then +n) and
+ * "Connect". Stack shows only when channels are connected.
  */
-function ConnectHeader({ channels }: { channels: { id: string; provider: string }[] }) {
-  const defaults = [
-    { id: 'fb', provider: 'facebook' },
-    { id: 'ig', provider: 'instagram' },
-    { id: 'th', provider: 'threads' },
-  ];
-  const source = channels.length > 0 ? channels : defaults;
-  const shown = source.slice(0, 3);
-  const extra = channels.length > 3 ? channels.length - 3 : 0;
+function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {
+  const MAX_LOGOS = 4;
+  const shown = channels.slice(0, MAX_LOGOS);
+  const extra = channels.length - shown.length;
   return (
     <Link
       href="/channels"
       aria-label={channels.length ? `${channels.length} channels, manage` : 'Connect channels'}
-      className="flex shrink-0 items-center gap-2 rounded-full border border-[#E5DDD0] bg-[#F6F1E8] py-1 pl-1 pr-3.5 shadow-[0_1px_2px_rgba(28,26,20,0.06)] transition hover:shadow-[0_2px_8px_rgba(28,26,20,0.12)] sm:pr-4"
+      className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-card py-1.5 pl-2.5 pr-3.5 transition hover:shadow-[0_2px_8px_rgba(28,26,20,0.12)]"
     >
-      <span className="flex -space-x-2">
-        {shown.map((c, i) => (
-          <span
-            key={c.id}
-            className="rounded-full ring-2 ring-[#F6F1E8]"
-            style={{ zIndex: shown.length - i }}
-            title={providerMeta(c.provider).label}
-          >
-            <BrandIcon provider={c.provider as never} className="h-7 w-7" />
-          </span>
-        ))}
-      </span>
-      {extra > 0 ? (
-        <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-extrabold text-[#5C3317]">
-          +{extra}
+      {shown.length > 0 ? (
+        <span className="flex items-center">
+          {shown.map((c, i) => (
+            <span
+              key={c.id}
+              className="ring-2 ring-card"
+              style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i, borderRadius: 10 }}
+              title={providerMeta(c.provider).label}
+            >
+              <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
+            </span>
+          ))}
+          {extra > 0 ? (
+            <span className="ml-1 text-xs font-bold text-muted">+{extra}</span>
+          ) : null}
         </span>
       ) : null}
-      <span className="text-sm font-extrabold tracking-tight text-[#5C3317]">Connect</span>
+      <span className="text-[13px] font-extrabold tracking-tight text-accent-ink">Connect</span>
     </Link>
   );
 }
