@@ -3,28 +3,69 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sosial — returning to app…</title>
+<title>Sosial — connecting…</title>
 <style>
-  body { font-family: -apple-system, system-ui, sans-serif; background: #F2EDE2; color: #1C1917;
-         display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-  .card { background: #fff; border-radius: 16px; padding: 28px 32px; text-align: center; max-width: 320px;
-          box-shadow: 0 4px 24px rgba(28,25,23,.08); }
-  a { display: inline-block; margin-top: 14px; background: #C8500F; color: #fff; text-decoration: none;
-      font-weight: 700; padding: 12px 28px; border-radius: 999px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #14120C;
+    color: #F5F1E8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .wrap { text-align: center; padding: 24px; }
+  .logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
+    display: block;
+    filter: drop-shadow(0 4px 24px rgba(255, 198, 46, 0.35));
+  }
+  .logo img { width: 100%; height: 100%; display: block; object-fit: contain; }
+  h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 20px 0 0; }
+  p { font-size: 13px; color: rgba(245, 241, 232, 0.62); margin: 8px 0 0; }
+  .ring {
+    width: 28px;
+    height: 28px;
+    margin: 22px auto 0;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 198, 46, 0.25);
+    border-top-color: #FFC62E;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #back {
+    display: inline-block;
+    margin-top: 22px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #14120C;
+    background: #FFC62E;
+    text-decoration: none;
+    padding: 12px 28px;
+    border-radius: 999px;
+  }
+  @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
 </style>
 </head>
 <body>
-<div class="card">
-  <img src="bolt.png" alt="Sosial" width="72" style="display:block;margin:0 auto">
-  <h2>Login complete</h2>
-  <p>Returning to Sosial…</p>
-  <a id="back" href="#">Open Sosial</a>
+<div class="wrap">
+  <span class="logo"><img src="bolt.png" alt="Sosial"></span>
+  <h1 id="title">Connecting…</h1>
+  <p id="sub">Finishing up — you can close this tab.</p>
+  <div class="ring" aria-hidden="true"></div>
+  <a id="back" href="#">Continue</a>
 </div>
 <script>
   // Providers append ?code=… (or ?error=…) plus our `state`.
   // MOBILE flow: `state` carries the address the app asked to be sent back
   // to (exp://… in Expo Go, sosial://redirect in standalone builds) — forward
-  // everything there so expo-web-browser captures it and closes the session.
+  // everything there so the OS captures it and closes the session.
   // WEB flow: `state` is an opaque nonce (no ://) — hand the whole query to
   // the site's OAuth callback route on the same origin instead.
   var params = null;
@@ -32,15 +73,15 @@
   var state = params ? params.get('state') : null;
   var q = location.search || '';
   var h = location.hash || '';
-  var deep;
-  if (state && state.indexOf('://') >= 0) {
-    deep = state + q + h;
-  } else {
-    deep = '/api/oauth/callback' + q + h;
+  var mobile = !!(state && state.indexOf('://') >= 0);
+  var deep = mobile ? state + q + h : '/api/oauth/callback' + q + h;
+  if (mobile) {
+    document.getElementById('title').textContent = 'Login complete';
+    document.getElementById('sub').textContent = 'Returning to Sosial…';
   }
   document.getElementById('back').href = deep;
   // auto-redirect; the manual button is the fallback if the browser blocks it
-  setTimeout(function () { location.replace(deep); }, 300);
+  setTimeout(function () { location.replace(deep); }, 600);
 </script>
 </body>
 </html>

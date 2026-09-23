@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
 import ChannelAvatar, { channelAvatar } from './ChannelAvatar';
 import DisconnectChannel from './DisconnectChannel';
@@ -64,6 +65,22 @@ export default function ConnectPanel({
   const [picking, setPicking] = useState<string | null>(null);
   /** A connect navigation is already in flight — swallow extra taps. */
   const [leaving, setLeaving] = useState<ProviderId | null>(null);
+  const router = useRouter();
+
+  // Consent happens in a new tab; this tab goes stale while the user is
+  // away, so refresh the list whenever they come back to it.
+  useEffect(() => {
+    const refresh = () => router.refresh();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [router]);
 
   const byProvider = (p: string): ConnectedChannel[] => channels.filter((c) => c.provider === p);
   const ordered: ProviderId[] = [...ORDER].sort(
@@ -111,6 +128,9 @@ export default function ConnectPanel({
       return;
     }
     setBusy(true);
+    // Open the tab synchronously in the tap handler — awaiting the
+    // registration first would trip popup blockers.
+    const tab = window.open('about:blank', '_blank');
     try {
       const r = await fetch('/api/oauth/mastodon-start', {
         method: 'POST',
@@ -119,9 +139,14 @@ export default function ConnectPanel({
       });
       const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
       if (!j.url) throw new Error(j.error ?? 'Could not register on that server.');
-      setLeaving('mastodon');
-      window.location.href = j.url;
+      if (tab) tab.location.href = j.url;
+      else window.location.href = j.url;
     } catch (e) {
+      try {
+        tab?.close();
+      } catch {
+        /* already gone */
+      }
       setErr(e instanceof Error ? e.message : 'Could not register on that server.');
       setBusy(false);
     }
@@ -195,11 +220,12 @@ export default function ConnectPanel({
           const label = p === 'bluesky' ? 'Bluesky' : oauthLabel(p);
 
           const onRow = () => {
-            // No accounts yet on an OAuth provider: go straight to consent.
+            // No accounts yet on an OAuth provider: consent opens in a new
+            // tab so this page keeps its place.
             if (!manual && !hasAny) {
               if (leaving) return;
               setLeaving(p);
-              window.location.href = startHref(p as OAuthProvider);
+              window.open(startHref(p as OAuthProvider), '_blank', 'noopener');
               return;
             }
             setOpen(expanded ? null : p);
@@ -332,6 +358,8 @@ export default function ConnectPanel({
                     <div className="rounded-xl bg-paper px-3 py-2.5">
                       <a
                         href={startHref(p as OAuthProvider)}
+                        target="_blank"
+                        rel="noopener"
                         onClick={(e) => {
                           if (leaving) e.preventDefault();
                           else setLeaving(p);
