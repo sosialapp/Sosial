@@ -147,31 +147,51 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
       throw new Error('[serialize] Could not read the canvas. Try again.');
     }
 
-    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
+    // Chrome taints canvases when the SVG image is loaded from a blob: URL.
+    // html-to-image loads it from a data: URL instead — that path never taints.
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('[raster] The picture would not draw. Try again.'));
+      img.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('[encode] Canvas unavailable.');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, H);
+    // Taint probe: name the offender if the browser still flags the canvas.
     try {
-      const img = new Image();
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('[raster] The picture would not draw. Try again.'));
-        img.src = url;
-      });
-      const canvas = document.createElement('canvas');
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('[encode] Canvas unavailable.');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, W, H);
-      ctx.drawImage(img, 0, 0, W, H);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) throw new Error('[encode] Export failed. Try again.');
-      return blob;
-    } finally {
-      URL.revokeObjectURL(url);
+      ctx.getImageData(0, 0, 1, 1);
+    } catch {
+      const offenders: string[] = [];
+      for (const el of Array.from(clone.querySelectorAll('img'))) {
+        const s = el.getAttribute('src') ?? '';
+        if (!s.startsWith('data:')) offenders.push(`img ${s.slice(0, 140)}`);
+      }
+      for (const el of Array.from(clone.querySelectorAll('image, use'))) {
+        const s = el.getAttribute('href') ?? el.getAttribute('xlink:href') ?? '';
+        if (s && !s.startsWith('#') && !s.startsWith('data:')) offenders.push(`${el.tagName} ${s.slice(0, 140)}`);
+      }
+      for (const el of Array.from(clone.querySelectorAll<HTMLElement>('[style]'))) {
+        const st = el.getAttribute('style') ?? '';
+        if (st.includes('url(http')) offenders.push(`style ${st.slice(0, 140)}`);
+      }
+      throw new Error(
+        offenders.length
+          ? `[taint] External content kept: ${offenders.join(' | ')}`
+          : '[taint] Canvas flagged dirty without a visible external reference.',
+      );
     }
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('[encode] Export failed. Try again.');
+    return blob;
   };
 
   // First attempt embeds the real webfonts; if the SVG refuses to load
