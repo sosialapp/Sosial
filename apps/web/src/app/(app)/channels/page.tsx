@@ -86,7 +86,7 @@ export default async function ChannelsPage() {
               <ul className="mt-2.5 space-y-1.5 border-t border-line-soft pt-2.5">
                 {list.map((c) => (
                   <li key={c.id} className="flex items-center gap-2">
-                    <ChannelAvatar provider={p} avatar={channelAvatar(c.metadata)} size={22} />
+                    <ChannelAvatar provider={p} avatar={channelAvatar(c.metadata)} size={22} badge={false} />
                     <span className="min-w-0 flex-1 truncate text-xs font-semibold">{accountLabel(c)}</span>
                     {(ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin') && (
                       <DisconnectChannel

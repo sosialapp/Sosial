@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
-import { EmojiTextarea } from '@/components/Emoji';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 
 type EmojiMode = 'auto' | 'on' | 'off';
@@ -131,21 +129,12 @@ export default function AiCard({
             <p className="text-[11px] text-muted">Turn your ideas into engaging posts with AI.</p>
           </div>
         </div>
-        <Link
-          href="/ai-assistant"
-          aria-label="About the AI assistant"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-white hover:text-ink dark:hover:bg-white/10"
-        >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m7.5 4.5 6 5.5-6 5.5" />
-          </svg>
-        </Link>
       </div>
 
       {/* Idea */}
-      <EmojiTextarea
+      <textarea
         value={topic}
-        onChange={setTopic}
+        onChange={(e) => setTopic(e.target.value)}
         placeholder="e.g. Create a catchy Instagram caption about building better habits for a healthier life…"
         rows={3}
         aria-label="Your idea"
@@ -373,9 +362,9 @@ export default function AiCard({
           </div>
           <div>
             <p className="text-xs font-bold">Custom instructions <span className="font-medium text-faint">· optional</span></p>
-            <EmojiTextarea
+            <textarea
               value={instructions}
-              onChange={setInstructions}
+              onChange={(e) => setInstructions(e.target.value)}
               placeholder="e.g. mention our launch on Friday, keep it under 3 lines…"
               rows={2}
               aria-label="Custom instructions"

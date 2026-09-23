@@ -480,7 +480,7 @@ export default async function DashboardPage() {
                   ))}
                   {sick.slice(0, 3).map((c) => (
                     <li key={c.id} className="flex items-center gap-2">
-                      <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={22} />
+                      <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={22} badge={false} />
                       <span className="truncate font-bold">{providerMeta(c.provider).label}</span>
                       <span className="text-xs text-muted">{c.status}</span>
                     </li>

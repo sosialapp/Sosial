@@ -7,7 +7,6 @@
  * the whole page list (keeping the template's design) on Apply.
  */
 import { useState } from 'react';
-import { EmojiTextarea } from '@/components/Emoji';
 import { Field, Stepper } from './controls';
 import {
   AI_LANGUAGES,
@@ -85,9 +84,9 @@ export default function AiStudioPanel({
       </div>
 
       <Field label="Your idea">
-        <EmojiTextarea
+        <textarea
           value={brief.prompt}
-          onChange={(v) => patch({ prompt: v })}
+          onChange={(e) => patch({ prompt: e.target.value })}
           placeholder="e.g. Why small habits beat big goals — 3 cards"
           rows={3}
           aria-label="Your idea"

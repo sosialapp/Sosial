@@ -11,19 +11,24 @@ export function channelAvatar(metadata: Record<string, unknown> | null | undefin
  * Channel avatar, same as the mobile app: the account's profile picture
  * leads as a circular tile; the social logo rides as a larger circular disc
  * stacked in the corner. Brand disc alone when there's no avatar.
- * Plain <img> — avatar hosts are arbitrary, so next/image can't preallow them.
+ * Small account rows pass badge={false} (mobile parity) so the mini logo
+ * never swallows the photo. Plain <img> — avatar hosts are arbitrary, so
+ * next/image can't preallow them.
  */
 export default function ChannelAvatar({
   provider,
   avatar,
   size = 40,
+  badge = true,
 }: {
   provider: string;
   avatar?: string;
   size?: number;
+  /** Corner brand disc over a photo. Off in dense rows — the disc alone shows. */
+  badge?: boolean;
 }) {
   const meta = providerMeta(provider);
-  const badgeSize = Math.max(16, Math.round(size * 0.56));
+  const badgeSize = Math.max(14, Math.round(size * 0.54));
   if (!avatar) {
     return (
       <span
@@ -47,19 +52,21 @@ export default function ChannelAvatar({
         className="block h-full w-full rounded-full object-cover"
         style={{ background: meta.color }}
       />
-      <span
-        className="absolute flex items-center justify-center rounded-full border-2 border-card"
-        style={{
-          right: -2,
-          bottom: -2,
-          width: badgeSize,
-          height: badgeSize,
-          background: meta.color,
-        }}
-        aria-hidden="true"
-      >
-        <BrandIcon provider={provider as BrandProvider} mono className="text-white" style={{ width: '62%', height: '62%' }} />
-      </span>
+      {badge ? (
+        <span
+          className="absolute flex items-center justify-center rounded-full border-2 border-card"
+          style={{
+            right: -2,
+            bottom: -2,
+            width: badgeSize,
+            height: badgeSize,
+            background: meta.color,
+          }}
+          aria-hidden="true"
+        >
+          <BrandIcon provider={provider as BrandProvider} mono className="text-white" style={{ width: '62%', height: '62%' }} />
+        </span>
+      ) : null}
     </span>
   );
 }
