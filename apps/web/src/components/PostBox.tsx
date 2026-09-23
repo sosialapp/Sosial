@@ -48,6 +48,7 @@ export default function PostBox({
   label: string;
 }) {
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragFrom = useRef<number | null>(null);
   const over = seg.body.length > limit;
@@ -82,8 +83,9 @@ export default function PostBox({
               onDragEnd={() => {
                 dragFrom.current = null;
               }}
-              className="relative block h-20 w-20 shrink-0 cursor-grab overflow-hidden rounded-xl bg-paper-dim active:cursor-grabbing"
-              title="Drag to rearrange"
+              className="relative block h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-xl bg-paper-dim"
+              title="Click to enlarge · drag to rearrange"
+              onClick={() => setLightbox(f)}
             >
               {f.kind === 'image' ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -93,7 +95,10 @@ export default function PostBox({
               )}
               <button
                 type="button"
-                onClick={() => onRemoveMedia(i)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveMedia(i);
+                }}
                 aria-label="Remove media"
                 className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] leading-none text-white"
               >
@@ -189,6 +194,34 @@ export default function PostBox({
           e.target.value = '';
         }}
       />
+
+      {/* Large / original preview */}
+      {lightbox ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Media preview"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            type="button"
+            aria-label="Close preview"
+            onClick={() => setLightbox(null)}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl text-white transition hover:bg-white/25"
+          >
+            ×
+          </button>
+          <div className="max-h-[90vh] max-w-full" onClick={(e) => e.stopPropagation()}>
+            {lightbox.kind === 'image' ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={lightbox.url} alt="Media preview" className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain" />
+            ) : (
+              <video src={lightbox.url} controls autoPlay className="max-h-[90vh] max-w-[90vw] rounded-2xl" />
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

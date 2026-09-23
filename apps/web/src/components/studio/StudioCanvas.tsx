@@ -73,6 +73,8 @@ function chromeCtx(page: PostPage): ChromeCtx {
     name: uni || firstHandle.replace(/^@/, ''),
     firstHandle,
     showCheck: page.verified ?? true,
+    // The watermark switch lives on the page — every chrome style honours it.
+    watermark: page.showWatermark ?? true,
   };
 }
 
@@ -183,7 +185,17 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
     return (
       <div style={shell(6)}>
         <div style={{ ...headerRow, padding: `${10 * k}px ${12 * k}px 0` }}>
-          <AvatarMark page={page} size={20} k={k} />
+          {/* Story ring — gradient, like the real app. */}
+          <span
+            style={{
+              padding: 2 * k, borderRadius: 999, display: 'inline-flex',
+              background: 'linear-gradient(45deg,#F09433,#E6683C,#DC2743,#CC2366,#BC1888)',
+            }}
+          >
+            <span style={{ padding: 1.5 * k, borderRadius: 999, backgroundColor: c.cardBg, display: 'inline-flex' }}>
+              <AvatarMark page={page} size={19} k={k} />
+            </span>
+          </span>
           <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name} </span>
           <Check c={c} size={9} k={k} />
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
@@ -668,8 +680,11 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
                     width: iconSize * k, height: iconSize * k, borderRadius: (iconSize * k) / 2,
                     backgroundColor: iconOutline ? 'transparent' : inverted ? '#FFFFFF' : brand,
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    borderWidth: iconOutline ? Math.max(1, k) : 0, borderStyle: 'solid',
-                    borderColor: iconOutline ? (clash ? ringColor : brand) : 'transparent',
+                    borderWidth: iconOutline ? Math.max(1, k) : (!badgeBg && surfaceDark ? Math.max(1, k) : 0),
+                    borderStyle: 'solid',
+                    borderColor: iconOutline
+                      ? (clash ? ringColor : brand)
+                      : (!badgeBg && surfaceDark ? '#FFFFFF45' : 'transparent'),
                     color: glyphColor,
                   }}
                 >

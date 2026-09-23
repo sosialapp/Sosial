@@ -388,17 +388,16 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
       <div className="space-y-3" style={{ opacity: p.hidden ? 0.45 : 1 }}>
         <Section no="02" title="Badges" hint="Centered next to your photo on the export." />
         <div className="card divide-y divide-line-soft overflow-hidden">
-          {ALL_SOCIALS.map((pl) => {
+          {ALL_SOCIALS.filter((pl) => pl !== 'whatsapp').map((pl) => {
             const found = page.socials.find((s) => s.platform === pl);
             const on = !!found?.visible;
             return (
               <div key={pl} className={`flex items-center gap-3 px-3.5 py-2.5 ${on ? '' : 'opacity-55'}`}>
-                <span className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ backgroundColor: providerMeta(pl).color }}>
-                  {pl === 'whatsapp' ? (
-                    <span className="text-[11px] font-extrabold text-white">WA</span>
-                  ) : (
-                    <BrandIcon provider={pl} mono className="h-4 w-4 text-white" />
-                  )}
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-[10px] ring-1 ring-black/10 dark:ring-white/25"
+                  style={{ backgroundColor: providerMeta(pl).color }}
+                >
+                  <BrandIcon provider={pl} mono className="h-4 w-4 text-white" />
                 </span>
                 <span className="flex-1 text-sm font-bold">{providerMeta(pl).label}</span>
                 <Toggle on={on} onPress={() => toggle(pl)} label={`${providerMeta(pl).label} badge`} />

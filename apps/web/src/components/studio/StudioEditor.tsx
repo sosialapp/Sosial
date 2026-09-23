@@ -2,8 +2,10 @@
 
 /**
  * StudioEditor — web port of mobile EditorScreen: top bar (back / name /
- * Save / Use in post), live canvas stage with dots, numbered step tabs
+ * undo / redo / Download all / Save / Use in post), live canvas stage with a
+ * vertical page pager beside it, numbered step tabs
  * (01 Background · 02 Title · 03 Photo & socials · 04 Content · 05 Pages).
+ * Every page renders offscreen so exports and "Use in post" capture all pages.
  */
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -31,7 +33,9 @@ const STEPS: { id: Step; label: string }[] = [
   { id: 'pages', label: 'Pages' },
 ];
 
-function useStageWidth(max = 440): { ref: React.RefObject<HTMLDivElement | null>; width: number } {
+type Exporting = null | 'use' | 'all' | 'page';
+
+function useStageWidth(max = 420): { ref: React.RefObject<HTMLDivElement | null>; width: number } {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(max);
   useEffect(() => {
@@ -54,21 +58,70 @@ export default function StudioEditor({
 }: {
   initial: StudioProject;
   onSave: (p: StudioProject) => void;
-  onUsePng: (blob: Blob, title: string, caption: string) => void;
+  /** Fired by "Use in post" with every page rendered at export size. */
+  onUsePng: (blobs: Blob[], title: string, caption: string) => void;
   onClose: () => void;
 }) {
   const [project, setProject] = useState<StudioProject>(initial);
   const [pageIndex, setPageIndex] = useState(0);
   const [step, setStep] = useState<Step>('background');
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<Exporting>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [past, setPast] = useState<StudioProject[]>([]);
+  const [future, setFuture] = useState<StudioProject[]>([]);
   const canvasHostRef = useRef<HTMLDivElement>(null);
-  const { ref: stageRef, width: stageW } = useStageWidth(440);
+  const exportHostRef = useRef<HTMLDivElement>(null);
+  const { ref: stageRef, width: stageW } = useStageWidth(420);
 
   const page = project.pages[Math.min(pageIndex, project.pages.length - 1)];
   const ratio =
     ({ square: 1, portrait: 1.25, story: 16 / 9, landscape: 9 / 16, a4: 1.414 } as const)[project.sizeId] ?? 1.25;
+  const manyPages = project.pages.length > 2;
+
+  /* ------------------------------ history ------------------------------- */
+
+  const commit = (updater: (p: StudioProject) => StudioProject) => {
+    setPast((ps) => [...ps.slice(-59), project]);
+    setFuture([]);
+    setProject(updater(project));
+  };
+
+  const undo = () => {
+    if (!past.length) return;
+    const prev = past[past.length - 1];
+    setPast((ps) => ps.slice(0, -1));
+    setFuture((f) => [project, ...f]);
+    setProject(prev);
+  };
+
+  const redo = () => {
+    if (!future.length) return;
+    const next = future[0];
+    setFuture((f) => f.slice(1));
+    setPast((ps) => [...ps, project]);
+    setProject(next);
+  };
+
+  // Ctrl/Cmd+Z undo · Ctrl+Shift+Z / Ctrl+Y redo (never while typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [past, future, project]);
 
   // Arrow keys flip pages (never while typing).
   useEffect(() => {
@@ -82,8 +135,10 @@ export default function StudioEditor({
     return () => document.removeEventListener('keydown', onKey);
   }, [project.pages.length]);
 
+  /* ------------------------------ mutations ----------------------------- */
+
   const patchPage = (patch: Partial<PostPage>) =>
-    setProject((p) => ({ ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? { ...pg, ...patch } : pg)) }));
+    commit((p) => ({ ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? { ...pg, ...patch } : pg)) }));
   const patchBackground = (patch: Partial<BackgroundStyle>) =>
     patchPage({ background: { ...page.background, ...patch } });
   const patchTitle = (patch: Partial<PostTitle>) =>
@@ -93,13 +148,13 @@ export default function StudioEditor({
 
   const selectPage = (i: number) => setPageIndex(Math.max(0, Math.min(project.pages.length - 1, i)));
   const addPage = () => {
-    setProject((p) => ({ ...p, pages: [...p.pages, blankPage()] }));
+    commit((p) => ({ ...p, pages: [...p.pages, blankPage()] }));
     setPageIndex(project.pages.length);
   };
   const duplicatePage = () => {
     const copy: PostPage = JSON.parse(JSON.stringify(page));
     copy.id = uid('page');
-    setProject((p) => {
+    commit((p) => {
       const next = [...p.pages];
       next.splice(pageIndex + 1, 0, copy);
       return { ...p, pages: next };
@@ -109,13 +164,13 @@ export default function StudioEditor({
   const deletePage = () => {
     if (project.pages.length <= 1) return;
     const id = page.id;
-    setProject((p) => ({ ...p, pages: p.pages.filter((pg) => pg.id !== id) }));
+    commit((p) => ({ ...p, pages: p.pages.filter((pg) => pg.id !== id) }));
     setPageIndex(Math.max(0, pageIndex - 1));
   };
   const movePage = (dir: -1 | 1) => {
     const j = pageIndex + dir;
     if (j < 0 || j >= project.pages.length) return;
-    setProject((p) => {
+    commit((p) => {
       const next = [...p.pages];
       [next[pageIndex], next[j]] = [next[j], next[pageIndex]];
       return { ...p, pages: next };
@@ -133,9 +188,33 @@ export default function StudioEditor({
     const next = [...project.pages];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    setProject((p) => ({ ...p, pages: next }));
+    commit((p) => ({ ...p, pages: next }));
     setPageIndex(next.findIndex((pg) => pg.id === curId));
   };
+
+  /* ------------------------------ exports ------------------------------- */
+
+  /** Every page renders offscreen; pick one node and rasterise at 1080. */
+  const exportPagePng = async (i: number): Promise<Blob | null> => {
+    const host = exportHostRef.current;
+    if (!host) return null;
+    const node = host.querySelector<HTMLElement>(`[data-export-page="${i}"] [data-studio-canvas]`);
+    if (!node) return null;
+    return exportCanvasPng(node, 1080);
+  };
+
+  const downloadBlob = (blob: Blob, name: string) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  };
+
+  const baseName = () => project.name.trim() || 'design';
+  const fileName = (i: number) => `${baseName()}-p${i + 1}.png`;
 
   const doSave = () => {
     onSave(project);
@@ -143,24 +222,100 @@ export default function StudioEditor({
     window.setTimeout(() => setSavedFlash(false), 1600);
   };
 
-  const doUse = async () => {
-    const node = canvasHostRef.current?.querySelector('[data-studio-canvas]') as HTMLElement | null;
-    if (!node) return;
-    setExporting(true);
+  const doDownloadPage = async () => {
+    setExporting('page');
     try {
-      const blob = await exportCanvasPng(node, 1080);
-      onUsePng(blob, page.title.text || project.name, page.caption ?? '');
+      const blob = await exportPagePng(pageIndex);
+      if (blob) downloadBlob(blob, fileName(pageIndex));
     } finally {
-      setExporting(false);
+      setExporting(null);
+    }
+  };
+
+  const doDownloadAll = async () => {
+    setExporting('all');
+    try {
+      for (let i = 0; i < project.pages.length; i++) {
+        const blob = await exportPagePng(i);
+        if (blob) downloadBlob(blob, fileName(i));
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  /** Render EVERY page, then hand all PNGs to the composer. */
+  const doUse = async () => {
+    setExporting('use');
+    try {
+      const blobs: Blob[] = [];
+      for (let i = 0; i < project.pages.length; i++) {
+        const blob = await exportPagePng(i);
+        if (blob) blobs.push(blob);
+      }
+      if (blobs.length) {
+        onUsePng(blobs, page.title.text || project.name, page.caption ?? '');
+      }
+    } finally {
+      setExporting(null);
     }
   };
 
   if (!page) return null;
 
+  const filmstrip = (
+    <div className="flex max-w-full gap-2 overflow-x-auto px-1 py-1">
+      {project.pages.map((pg, i) => (
+        <button
+          key={pg.id}
+          type="button"
+          draggable
+          onClick={() => selectPage(i)}
+          onDragStart={(e) => {
+            setDragId(pg.id);
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            dropPageAt(pg.id);
+          }}
+          onDragEnd={() => setDragId(null)}
+          aria-label={`Page ${i + 1}${i === pageIndex ? ', current' : ''}`}
+          className={`shrink-0 cursor-grab overflow-hidden rounded-lg transition active:cursor-grabbing ${
+            i === pageIndex ? 'ring-2 ring-accent' : 'opacity-60 hover:opacity-100'
+          } ${dragId === pg.id ? 'opacity-30' : ''}`}
+          style={{ width: 64 }}
+        >
+          <StudioCanvas page={pg} ratio={ratio} width={64} watermark={false} frame={false} />
+        </button>
+      ))}
+    </div>
+  );
+
+  const busy = exporting !== null;
+  const busyLabel =
+    exporting === 'use' ? 'Rendering…' : exporting === 'all' ? 'Exporting…' : 'Saving PNG…';
+
   return (
     <div className="card overflow-hidden">
+      {/* offscreen render host — every page, for exports */}
+      <div
+        aria-hidden="true"
+        style={{ position: 'fixed', left: -99999, top: 0, width: 440, opacity: 0, pointerEvents: 'none' }}
+      >
+        <div ref={exportHostRef}>
+          {project.pages.map((pg, i) => (
+            <div key={pg.id} data-export-page={i}>
+              <StudioCanvas page={pg} ratio={ratio} width={440} frame={false} />
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* top bar */}
-      <div className="flex items-center gap-2 border-b border-line px-3 py-2.5 sm:px-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5 sm:px-4">
         <button
           type="button"
           onClick={onClose}
@@ -171,105 +326,145 @@ export default function StudioEditor({
         </button>
         <input
           value={project.name}
-          onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
+          onChange={(e) => commit((p) => ({ ...p, name: e.target.value }))}
           aria-label="Design name"
           className="min-w-0 flex-1 bg-transparent font-display text-sm font-extrabold outline-none"
         />
+        <button
+          type="button"
+          onClick={undo}
+          disabled={!past.length}
+          aria-label="Undo"
+          title="Undo (Ctrl+Z)"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink disabled:opacity-30"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M7.5 4.5 4 8l3.5 3.5" />
+            <path d="M4 8h8a4 4 0 0 1 0 8h-3" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={redo}
+          disabled={!future.length}
+          aria-label="Redo"
+          title="Redo (Ctrl+Shift+Z)"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink disabled:opacity-30"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m12.5 4.5 3.5 3.5-3.5 3.5" />
+            <path d="M16 8H8a4 4 0 0 0 0 8h3" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={doDownloadAll}
+          disabled={busy}
+          className="btn btn-ghost shrink-0 !px-3.5 !py-2 !text-xs"
+        >
+          {exporting === 'all' ? 'Exporting…' : 'Download all'}
+        </button>
         <button type="button" onClick={doSave} className="btn btn-ghost shrink-0 !px-3.5 !py-2 !text-xs">
           {savedFlash ? 'Saved ✓' : 'Save'}
         </button>
-        <button type="button" onClick={doUse} disabled={exporting} className="btn btn-primary shrink-0 !px-3.5 !py-2 !text-xs">
-          {exporting ? 'Rendering…' : 'Use in post'}
+        <button type="button" onClick={doUse} disabled={busy} className="btn btn-primary shrink-0 !px-3.5 !py-2 !text-xs">
+          {exporting === 'use' ? 'Rendering…' : 'Use in post'}
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
         {/* stage */}
-        <div className="flex flex-col items-center gap-2 border-b border-line bg-bone px-4 py-5 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
-          <div ref={stageRef} className="w-full max-w-[440px]">
-            <div ref={canvasHostRef}>
-              <StudioCanvas page={page} ratio={ratio} width={stageW} watermark />
-            </div>
-          </div>
-          {/* filmstrip — small previews, hold and drag to rearrange */}
-          {project.pages.length > 1 ? (
-            <div className="flex max-w-full gap-2 overflow-x-auto px-1 py-1">
-              {project.pages.map((pg, i) => (
-                <button
-                  key={pg.id}
-                  type="button"
-                  draggable
-                  onClick={() => selectPage(i)}
-                  onDragStart={(e) => {
-                    setDragId(pg.id);
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    dropPageAt(pg.id);
-                  }}
-                  onDragEnd={() => setDragId(null)}
-                  aria-label={`Page ${i + 1}${i === pageIndex ? ', current' : ''}`}
-                  className={`shrink-0 cursor-grab overflow-hidden rounded-lg transition active:cursor-grabbing ${
-                    i === pageIndex ? 'ring-2 ring-accent' : 'opacity-60 hover:opacity-100'
-                  } ${dragId === pg.id ? 'opacity-30' : ''}`}
-                  style={{ width: 64 }}
-                >
-                  <StudioCanvas page={pg} ratio={ratio} width={64} watermark={false} frame={false} />
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col items-center gap-2 border-b border-line bg-bone px-4 py-4 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
+          {/* Page actions — top */}
+          <div className="flex w-full max-w-[420px] flex-wrap items-center gap-1.5">
             <button
               type="button"
-              onClick={() => selectPage(pageIndex - 1)}
-              disabled={pageIndex === 0 || project.pages.length < 2}
-              aria-label="Previous page"
-              className="text-lg font-bold text-muted transition hover:text-ink disabled:opacity-30"
+              onClick={duplicatePage}
+              className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold transition hover:bg-bone dark:hover:bg-white/5"
             >
-              ‹
-            </button>
-            <div className="flex items-center gap-2.5">
-              <div className="flex gap-1.5">
-                {project.pages.map((pg, i) => (
-                  <button
-                    key={pg.id}
-                    type="button"
-                    onClick={() => selectPage(i)}
-                    aria-label={`Page ${i + 1}`}
-                    className={`h-1.5 rounded-full transition-all ${i === pageIndex ? 'w-5 bg-accent' : 'w-1.5 bg-line'}`}
-                  />
-                ))}
-              </div>
-              {project.pages.length > 1 ? (
-                <span className="text-xs font-bold text-muted">
-                  {pageIndex + 1} / {project.pages.length}
-                </span>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => selectPage(pageIndex + 1)}
-              disabled={pageIndex >= project.pages.length - 1 || project.pages.length < 2}
-              aria-label="Next page"
-              className="text-lg font-bold text-muted transition hover:text-ink disabled:opacity-30"
-            >
-              ›
-            </button>
-          </div>
-          <div className="flex flex-wrap justify-center gap-1.5">
-            <button type="button" onClick={duplicatePage} className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold">
               Duplicate page
             </button>
             {project.pages.length > 1 ? (
               <button
                 type="button"
                 onClick={deletePage}
-                className="rounded-xl border border-[#F0D9DA] bg-card px-3 py-1.5 text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]"
+                className="rounded-xl border border-[#F0D9DA] bg-card px-3 py-1.5 text-xs font-bold text-[#9F2F2D] transition hover:bg-[#FDEBEC] dark:border-[#5b2a2a] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]"
               >
                 Delete
+              </button>
+            ) : null}
+            <span className="flex-1" />
+            <span className="text-[11px] font-bold text-faint">
+              Page {pageIndex + 1} / {project.pages.length}
+            </span>
+          </div>
+
+          {/* Filmstrip rides on top once there are 3+ pages */}
+          {manyPages ? filmstrip : null}
+
+          {/* Canvas + vertical pager on the side */}
+          <div className="flex w-full max-w-[420px] items-center gap-2">
+            <div ref={stageRef} className="min-w-0 flex-1">
+              <div ref={canvasHostRef}>
+                <StudioCanvas page={page} ratio={ratio} width={stageW} />
+              </div>
+            </div>
+            {project.pages.length > 1 ? (
+              <div className="flex shrink-0 flex-col items-center gap-1.5 self-center">
+                <button
+                  type="button"
+                  onClick={() => selectPage(pageIndex - 1)}
+                  disabled={pageIndex === 0}
+                  aria-label="Previous page"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-lg font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
+                >
+                  ‹
+                </button>
+                <div className="flex flex-col items-center gap-1.5">
+                  {project.pages.map((pg, i) => (
+                    <button
+                      key={pg.id}
+                      type="button"
+                      onClick={() => selectPage(i)}
+                      aria-label={`Page ${i + 1}`}
+                      className={`rounded-full transition-all ${i === pageIndex ? 'h-5 w-1.5 bg-accent' : 'h-1.5 w-1.5 bg-line hover:bg-muted'}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectPage(pageIndex + 1)}
+                  disabled={pageIndex >= project.pages.length - 1}
+                  aria-label="Next page"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-lg font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
+                >
+                  ›
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Filmstrip below for small decks */}
+          {!manyPages && project.pages.length > 1 ? filmstrip : null}
+
+          {/* Per-page downloads — bottom */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={doDownloadPage}
+              disabled={busy}
+              className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold transition hover:bg-bone disabled:opacity-50 dark:hover:bg-white/5"
+            >
+              {exporting === 'page' ? busyLabel : 'Download page'}
+            </button>
+            {project.pages.length > 1 ? (
+              <button
+                type="button"
+                onClick={doDownloadAll}
+                disabled={busy}
+                className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-bold transition hover:bg-bone disabled:opacity-50 dark:hover:bg-white/5"
+              >
+                {exporting === 'all' ? busyLabel : 'Download all pages'}
               </button>
             ) : null}
           </div>
@@ -317,7 +512,7 @@ export default function StudioEditor({
                 onDuplicate={duplicatePage}
                 onDelete={deletePage}
                 onMove={movePage}
-                onSize={(s) => setProject((p) => ({ ...p, sizeId: s }))}
+                onSize={(s) => commit((p) => ({ ...p, sizeId: s }))}
               />
             ) : null}
           </div>

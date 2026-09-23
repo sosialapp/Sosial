@@ -126,7 +126,7 @@ export type SocialPlatform =
 
 export const ALL_SOCIALS: SocialPlatform[] = [
   'instagram', 'tiktok', 'threads', 'facebook', 'youtube',
-  'whatsapp', 'x', 'bluesky', 'mastodon', 'pinterest',
+  'x', 'bluesky', 'mastodon', 'pinterest',
 ];
 
 export interface SocialLink {

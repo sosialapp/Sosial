@@ -418,7 +418,6 @@ export default function CreateHub({
       setRenderingKey(null);
     }
   };
-
   const saveEditing = (p: StudioProject) => {
     persistProjects(
       projects.some((x) => x.id === p.id)
@@ -676,9 +675,11 @@ export default function CreateHub({
               saveEditing(p);
               setEditing(p);
             }}
-            onUsePng={(blob, t, caption) => {
-              const file = new File([blob], `${editing.name || 'design'}.png`, { type: 'image/png' });
-              setPendingFiles([file]);
+            onUsePng={(blobs, t, caption) => {
+              const files = blobs.map(
+                (b, i) => new File([b], `${editing.name || 'design'}-p${i + 1}.png`, { type: 'image/png' }),
+              );
+              setPendingFiles(files);
               setPrefill({ title: t, body: caption, key: Date.now() });
               persistRecent(
                 [{ project: editing, pageIndex: 0, at: Date.now() }, ...recent.filter((r) => r.project.id !== editing.id)].slice(0, 12),
