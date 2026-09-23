@@ -1,23 +1,16 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import AiCard from '@/components/AiCard';
 import DateTimePicker from '@/components/DateTimePicker';
 import { providerMeta } from '@/lib/providers';
 import { createChain, createPost, type ComposeMode } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
-import { generateCaptions, withHashtags } from '@/lib/ai';
-import {
-  STUDIO_STYLES,
-  STUDIO_TONES,
-  WRITER_LANGUAGES,
-  styleSampleFor,
-} from '@/lib/aiStudio';
-import type { ConnectedChannel, ProviderKey, WorkspaceInfo } from '@/lib/types';
+import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
 /** The only UI library besides gsap — full emoji menu with search. */
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
@@ -28,37 +21,12 @@ const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
 /** Native reply-chains exist on these four channels only — same as the app. */
 const THREAD_PROVIDERS = ['x', 'threads', 'mastodon', 'bluesky'];
 
-type EmojiMode = 'auto' | 'on' | 'off';
-const EMOJI_OPTS: { id: EmojiMode; label: string }[] = [
-  { id: 'auto', label: 'Auto' },
-  { id: 'on', label: 'Some' },
-  { id: 'off', label: 'None' },
-];
-
 function deviceZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   } catch {
     return 'UTC';
   }
-}
-
-/** iOS-style toggle — yellow when on. */
-function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onToggle}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-line'}`}
-    >
-      <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[1.375rem]' : 'left-0.5'}`}
-      />
-    </button>
-  );
 }
 
 /** Branch mark, same glyph family as the mobile app's thread icon. */
@@ -259,7 +227,7 @@ function PostBox({
 /**
  * Create hub post tab: composer card (channel pills, inbox media with drag
  * reorder, thread link, dashboard-style mode row) + AI studio card bound to
- * the same channels, thread and destination state.
+ * the same channels and thread state.
  */
 export default function CreatePost({
   channels,
@@ -294,39 +262,13 @@ export default function CreatePost({
   ]);
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
   const [thread, setThread] = useState(false);
+  const [parts, setParts] = useState(3);
   const [mode, setMode] = useState<'now' | 'schedule'>('schedule');
   const [whenIso, setWhenIso] = useState<string | null>(null);
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  /* -------------------------------- AI -------------------------------- */
-  const [aiTopic, setAiTopic] = useState('');
-  const [language, setLanguage] = useState('auto');
-  const [langOpen, setLangOpen] = useState(false);
-  const [langQuery, setLangQuery] = useState('');
-  const [tone, setTone] = useState('auto');
-  const [style, setStyle] = useState('auto');
-  const [styleOpen, setStyleOpen] = useState(false);
-  const [parts, setParts] = useState(3);
-  const [hashtags, setHashtags] = useState(true);
-  const [emoji, setEmoji] = useState<EmojiMode>('auto');
-  const [cta, setCta] = useState(true);
-  const [instructions, setInstructions] = useState('');
-  const [advanced, setAdvanced] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiErr, setAiErr] = useState<string | null>(null);
-  const [appliedAt, setAppliedAt] = useState<number | null>(null);
-
-  const pickedProviders = useMemo(
-    () => new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider)),
-    [ready, picked],
-  );
-  // Thread mode narrows the cast to chain-capable channels, same as the app.
-  const selectable = useMemo(
-    () => (thread ? ready.filter((c) => THREAD_PROVIDERS.includes(c.provider)) : ready),
-    [ready, thread],
-  );
   const chosenProviders = useMemo(
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
     [ready, picked],
@@ -335,15 +277,6 @@ export default function CreatePost({
     const ls = ready.filter((c) => picked.includes(c.id)).map((c) => providerMeta(c.provider).limit);
     return ls.length ? Math.min(...ls) : 2200;
   }, [ready, picked]);
-
-  const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
-  const langMatches = useMemo(() => {
-    const q = langQuery.trim().toLowerCase();
-    const list = q
-      ? WRITER_LANGUAGES.filter((l) => l.id.toLowerCase().includes(q) || l.label.toLowerCase().includes(q))
-      : WRITER_LANGUAGES;
-    return list.slice(0, 60);
-  }, [langQuery]);
 
   function toggle(id: string) {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -412,49 +345,6 @@ export default function CreatePost({
         return { ...s, media };
       }),
     );
-  }
-
-  /* -------------------------------- AI -------------------------------- */
-
-  async function runAi() {
-    setAiErr(null);
-    setAppliedAt(null);
-    const t = aiTopic.trim();
-    if (!t) {
-      setAiErr('Describe the topic first.');
-      return;
-    }
-    if (!chosenProviders.length) {
-      setAiErr('Pick at least one channel below — the AI sizes copy to the strictest one.');
-      return;
-    }
-    const count = thread ? parts : 1;
-    setAiBusy(true);
-    try {
-      const sb = createClient();
-      const segsOut = await generateCaptions(sb, {
-        topic: t,
-        providers: chosenProviders,
-        count,
-        tone,
-        language,
-        style,
-        instructions: instructions.trim() || undefined,
-        emoji,
-        cta,
-      });
-      const bodies = segsOut.map((s) => (hashtags ? withHashtags(s.caption, s.hashtags) : s.caption));
-      setSegs((prev) => {
-        const next = bodies.map((b) => ({ body: b, media: [] as MediaItem[] }));
-        if (next[0]) next[0].media = prev[0]?.media ?? [];
-        return next;
-      });
-      setAppliedAt(Date.now());
-    } catch (e2) {
-      setAiErr(e2 instanceof Error ? e2.message : 'AI generation failed.');
-    } finally {
-      setAiBusy(false);
-    }
   }
 
   /* ------------------------------- submit ------------------------------- */
@@ -699,334 +589,21 @@ export default function CreatePost({
 
         {/* Right rail: AI studio */}
         <div className="min-w-0 xl:col-span-2">
-          <section
-            aria-label="AI Generate"
-            className="rounded-3xl border border-[#D9CCFA] bg-[#F5F0FF] p-5 dark:border-[#5B3DF0]/40 dark:bg-[#17122B]"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <svg viewBox="0 0 20 20" className="h-5 w-5 text-[#5B3DF0] dark:text-[#B9A6F7]" fill="currentColor" aria-hidden="true">
-                  <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
-                </svg>
-                <div>
-                  <p className="font-display text-base font-extrabold tracking-tight">AI Generate</p>
-                  <p className="text-[11px] text-muted">Turn your ideas into engaging posts with AI.</p>
-                </div>
-              </div>
-              <Link
-                href="/ai-assistant"
-                aria-label="About the AI assistant"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-white hover:text-ink dark:hover:bg-white/10"
-              >
-                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m7.5 4.5 6 5.5-6 5.5" />
-                </svg>
-              </Link>
-            </div>
-
-            {/* Idea */}
-            <textarea
-              value={aiTopic}
-              onChange={(e) => setAiTopic(e.target.value)}
-              placeholder="e.g. Create a catchy Instagram caption about building better habits for a healthier life…"
-              rows={3}
-              aria-label="Your idea"
-              className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
-            />
-            <p className="mt-1 text-[11px] text-faint">Rough thoughts are enough — a phrase works.</p>
-
-            {/* Language */}
-            <p className="mt-4 text-xs font-bold text-soft">Language</p>
-            <div className="relative mt-1.5">
-              <button
-                type="button"
-                onClick={() => setLangOpen((v) => !v)}
-                aria-expanded={langOpen}
-                className="flex w-full items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 text-xs font-bold text-ink dark:border-white/10 dark:bg-white/5 dark:text-paper"
-              >
-                <span className="flex-1 truncate text-left">
-                  {language === 'auto' ? 'Auto — match my idea' : langName(language)}
-                </span>
-                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d={langOpen ? 'm4.5 12.5 5.5-6 5.5 6' : 'm7.5 4.5 6 5.5-6 5.5'} transform={langOpen ? undefined : 'rotate(90 10 10)'} />
-                </svg>
-              </button>
-              {langOpen ? (
-                <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-xl border border-line bg-card p-2 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]">
-                  <input
-                    value={langQuery}
-                    onChange={(e) => setLangQuery(e.target.value)}
-                    placeholder={`Search ${WRITER_LANGUAGES.length} languages…`}
-                    aria-label="Search languages"
-                    className="field !py-1.5 text-xs"
-                  />
-                  <div className="mt-1 max-h-48 overflow-y-auto">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLanguage('auto');
-                        setLangOpen(false);
-                        setLangQuery('');
-                      }}
-                      className={`mt-1 flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${language === 'auto' ? 'bg-accent-soft text-accent-ink' : ''}`}
-                    >
-                      Auto — match my idea
-                    </button>
-                    {langMatches.map((l) => (
-                      <button
-                        key={l.id}
-                        type="button"
-                        onClick={() => {
-                          setLanguage(l.id);
-                          setLangOpen(false);
-                          setLangQuery('');
-                        }}
-                        className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${language === l.id ? 'bg-accent-soft text-accent-ink' : ''}`}
-                      >
-                        <span className="flex-1 truncate">{l.label}</span>
-                        {l.label !== l.id ? <span className="text-[11px] font-medium text-faint">{l.id}</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Tone */}
-            <p className="mt-4 text-xs font-bold text-soft">How should it sound?</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Tone">
-              {STUDIO_TONES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTone(t.id)}
-                  aria-pressed={tone === t.id}
-                  className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-                    tone === t.id
-                      ? 'border-ink bg-ink text-paper'
-                      : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Style */}
-            <button
-              type="button"
-              onClick={() => setStyleOpen((v) => !v)}
-              aria-expanded={styleOpen}
-              className="mt-4 flex w-full items-center gap-2 text-xs font-bold text-soft"
-            >
-              Style
-              <span className="flex-1" />
-              <span className="text-muted">
-                {STUDIO_STYLES.find((s) => s.id === style)?.label ?? 'Auto'}
-              </span>
-              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d={styleOpen ? 'm4.5 12.5 5.5-6 5.5 6' : 'm7.5 4.5 6 5.5-6 5.5'} transform={styleOpen ? undefined : 'rotate(90 10 10)'} />
-              </svg>
-            </button>
-            {styleOpen ? (
-              <div className="mt-1.5 space-y-1.5">
-                {STUDIO_STYLES.map((s) => {
-                  const on = style === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setStyle(s.id)}
-                      aria-pressed={on}
-                      className={`block w-full rounded-xl border p-2.5 text-left transition ${
-                        on
-                          ? 'border-[#5B3DF0] bg-white dark:bg-white/10'
-                          : 'border-[#E3D9FA] bg-white/60 hover:border-[#5B3DF0]/50 dark:border-white/10 dark:bg-white/5'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${on ? 'border-[#5B3DF0]' : 'border-line'}`} aria-hidden="true">
-                          {on ? <span className="h-2 w-2 rounded-full bg-[#5B3DF0]" /> : null}
-                        </span>
-                        <span className="text-xs font-bold">{s.label}</span>
-                        <span className="flex-1" />
-                        <span className="text-[11px] text-faint">{s.hint}</span>
-                      </span>
-                      <span className="mt-1 block text-[11px] leading-relaxed text-muted">
-                        e.g. “{styleSampleFor(s, language)}”
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            {/* Format */}
-            <p className="mt-4 text-xs font-bold text-soft">Format</p>
-            <div className="mt-1.5 flex rounded-full border border-[#E3D9FA] bg-white/60 p-1 dark:border-white/10 dark:bg-white/5" role="group" aria-label="Format">
-              {(['post', 'thread'] as const).map((f) => {
-                const on = thread === (f === 'thread');
-                return (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setThreadMode(f === 'thread')}
-                    aria-pressed={on}
-                    className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-bold capitalize transition ${
-                      on ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
-                    }`}
-                  >
-                    {f}
-                  </button>
-                );
-              })}
-            </div>
-            {thread ? (
-              <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#E3D9FA] bg-white/60 px-3 py-2 dark:border-white/10 dark:bg-white/5">
-                <span className="text-xs font-bold text-soft">Posts</span>
-                <span className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setPartsCount(parts - 1)}
-                    aria-label="Fewer posts"
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-7 text-center text-xs font-extrabold">{parts}</span>
-                  <button
-                    type="button"
-                    onClick={() => setPartsCount(parts + 1)}
-                    aria-label="More posts"
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
-                  >
-                    +
-                  </button>
-                </span>
-              </div>
-            ) : null}
-
-            {/* Destination — same channels as the composer */}
-            <p className="mt-4 text-xs font-bold text-soft">Post to</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Destination channels">
-              {selectable.length === 0 ? (
-                <Link href="/channels" className="text-xs font-bold text-[#2f7cf6] hover:underline">
-                  Connect a channel first
-                </Link>
-              ) : (
-                selectable.map((c) => {
-                  const on = picked.includes(c.id);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => toggle(c.id)}
-                      aria-pressed={on}
-                      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition ${
-                        on
-                          ? 'border-[#5B3DF0] bg-white text-[#5B3DF0] dark:bg-white/10'
-                          : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
-                      }`}
-                    >
-                      <BrandIcon provider={c.provider as ProviderKey} className="h-4 w-4" />
-                      {providerMeta(c.provider).label}
-                      {on ? <span aria-hidden="true">✓</span> : null}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-            {thread ? (
-              <p className="mt-1 text-[11px] text-faint">Thread channels only — same rule as the app.</p>
-            ) : null}
-
-            {/* Advanced */}
-            <button
-              type="button"
-              onClick={() => setAdvanced((v) => !v)}
-              aria-expanded={advanced}
-              className="mt-4 flex w-full items-center gap-2 text-xs font-bold text-soft"
-            >
-              Advanced options
-              <span className="flex-1" />
-              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d={advanced ? 'm4.5 12.5 5.5-6 5.5 6' : 'm7.5 4.5 6 5.5-6 5.5'} transform={advanced ? undefined : 'rotate(90 10 10)'} />
-              </svg>
-            </button>
-            {advanced ? (
-              <div className="mt-1.5 space-y-3 rounded-xl border border-[#E3D9FA] bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
-                <div className="flex items-center gap-2">
-                  <span className="flex-1">
-                    <span className="block text-xs font-bold">Add hashtags</span>
-                    <span className="block text-[11px] text-faint">Kept separate from the copy</span>
-                  </span>
-                  <Switch on={hashtags} onToggle={() => setHashtags((v) => !v)} label="Add hashtags" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold">Emoji</p>
-                  <div className="mt-1 flex gap-1" role="group" aria-label="Emoji">
-                    {EMOJI_OPTS.map((o) => (
-                      <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => setEmoji(o.id)}
-                        aria-pressed={emoji === o.id}
-                        className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold transition ${
-                          emoji === o.id ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
-                        }`}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="flex-1">
-                    <span className="block text-xs font-bold">Soft call-to-action</span>
-                    <span className="block text-[11px] text-faint">Closes with an invitation, not a demand</span>
-                  </span>
-                  <Switch on={cta} onToggle={() => setCta((v) => !v)} label="Soft call-to-action" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold">Custom instructions <span className="font-medium text-faint">· optional</span></p>
-                  <textarea
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
-                    placeholder="e.g. mention our launch on Friday, keep it under 3 lines…"
-                    rows={2}
-                    aria-label="Custom instructions"
-                    className="field mt-1 min-h-[52px] resize-y !text-xs"
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            {aiErr ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{aiErr}</p> : null}
-            {appliedAt ? (
-              <p className="mt-2 text-xs font-bold text-[#346538]">
-                Applied to the composer — edit freely, then post.
-              </p>
-            ) : null}
-            <button
-              type="button"
-              onClick={runAi}
-              disabled={aiBusy}
-              className="btn btn-primary mt-3 w-full"
-            >
-              {aiBusy ? (
-                'Writing…'
-              ) : appliedAt ? (
-                'Regenerate'
-              ) : (
-                <>
-                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                    <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
-                  </svg>
-                  Generate
-                </>
-              )}
-            </button>
-          </section>
+          <AiCard
+            providers={chosenProviders}
+            thread={thread}
+            onThreadChange={setThreadMode}
+            parts={parts}
+            onPartsChange={setPartsCount}
+            onResult={(bodies) => {
+              setSegs((prev) => {
+                const next = bodies.map((b) => ({ body: b, media: [] as MediaItem[] }));
+                if (next[0]) next[0].media = prev[0]?.media ?? [];
+                return next;
+              });
+            }}
+            appliedNote="Applied to the composer — edit freely, then post."
+          />
         </div>
       </div>
     </form>

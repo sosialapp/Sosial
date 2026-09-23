@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import AiCard from '@/components/AiCard';
 import CreatePost from '@/components/CreatePost';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
@@ -202,6 +203,8 @@ export default function CreateHub({
   const [renderingKey, setRenderingKey] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  const [ideaThread, setIdeaThread] = useState(false);
+  const [ideaParts, setIdeaParts] = useState(3);
 
   useEffect(() => {
     setIdeas(readList<Idea>(ideasKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt));
@@ -370,58 +373,85 @@ export default function CreateHub({
           />
         </div>
       ) : tab === 'ideas' ? (
-        <div className="mt-4 space-y-3">
-          <div className="card space-y-3 p-4 sm:p-5">
-            <p className="eyebrow">Jot it down</p>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Idea title…"
-              className="field font-display font-bold"
-              aria-label="Idea title"
-            />
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Describe the idea…"
-              rows={3}
-              className="field min-h-[84px] resize-y"
-              aria-label="Idea body"
-            />
-            <button type="button" onClick={saveIdea} className="btn btn-primary w-full sm:w-auto">
-              Save idea
-            </button>
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <div className="flex min-w-0 flex-col gap-4 xl:col-span-3">
+            <div className="card space-y-3 p-4 sm:p-5">
+              <p className="eyebrow">Jot it down</p>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Idea title…"
+                className="field font-display font-bold"
+                aria-label="Idea title"
+              />
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Describe the idea…"
+                rows={4}
+                className="field min-h-[110px] resize-y"
+                aria-label="Idea body"
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('ai-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                  className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
+                >
+                  <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+                    <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
+                  </svg>
+                  AI writer
+                </button>
+                <span className="flex-1" />
+                <button type="button" onClick={saveIdea} className="btn btn-primary !py-1.5 !text-xs">
+                  Save idea
+                </button>
+              </div>
+            </div>
+
+            {ideas.length === 0 ? (
+              <div className="card p-8 text-center">
+                <p className="font-display text-base font-extrabold">No ideas yet</p>
+                <p className="mx-auto mt-1 max-w-xs text-sm text-muted">
+                  Jot one above. Posting it later takes one tap.
+                </p>
+              </div>
+            ) : (
+              ideas.map((idea) => (
+                <article key={idea.id} className="card p-4 sm:p-5">
+                  <p className="truncate font-display font-extrabold">{idea.title}</p>
+                  {idea.body ? <p className="mt-1 line-clamp-2 text-sm text-soft">{idea.body}</p> : null}
+                  <p className="mt-1 text-xs text-faint">{fmtDate(idea.createdAt)}</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button type="button" onClick={() => postIdea(idea)} className="btn btn-primary">
+                      Post this idea
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => persistIdeas(ideas.filter((x) => x.id !== idea.id))}
+                      className="btn btn-ghost"
+                      aria-label={`Delete ${idea.title}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
 
-          {ideas.length === 0 ? (
-            <div className="card p-8 text-center">
-              <p className="font-display text-base font-extrabold">No ideas yet</p>
-              <p className="mx-auto mt-1 max-w-xs text-sm text-muted">
-                Jot one above. Posting it later takes one tap.
-              </p>
-            </div>
-          ) : (
-            ideas.map((idea) => (
-              <article key={idea.id} className="card p-4 sm:p-5">
-                <p className="truncate font-display font-extrabold">{idea.title}</p>
-                {idea.body ? <p className="mt-1 line-clamp-2 text-sm text-soft">{idea.body}</p> : null}
-                <p className="mt-1 text-xs text-faint">{fmtDate(idea.createdAt)}</p>
-                <div className="mt-3 flex items-center gap-2">
-                  <button type="button" onClick={() => postIdea(idea)} className="btn btn-primary">
-                    Post this idea
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => persistIdeas(ideas.filter((x) => x.id !== idea.id))}
-                    className="btn btn-ghost"
-                    aria-label={`Delete ${idea.title}`}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </article>
-            ))
-          )}
+          <div className="min-w-0 xl:col-span-2" id="ai-card">
+            <AiCard
+              providers={channels.filter((c) => c.status === 'connected').map((c) => c.provider)}
+              thread={ideaThread}
+              onThreadChange={setIdeaThread}
+              parts={ideaParts}
+              onPartsChange={setIdeaParts}
+              onResult={(bodies) => setBody(bodies.join('\n\n'))}
+              appliedNote="Applied to your idea — edit freely, then save."
+            />
+          </div>
         </div>
       ) : editing ? (
         <div className="mt-4">
