@@ -9,11 +9,19 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Browser preflight must pass before supabase-js can POST at all.
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+};
+
 function bad(msg: string, status = 400): Response {
-  return Response.json({ error: msg }, { status });
+  return Response.json({ error: msg }, { status, headers: CORS });
 }
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return bad("POST only", 405);
 
   const supaUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("SB_URL") ?? "";
@@ -68,5 +76,5 @@ serve(async (req: Request): Promise<Response> => {
   );
   if (qErr) return bad(`Could not queue the broadcast (${qErr.message}).`, 500);
 
-  return Response.json({ queued: true, audience: count ?? 0 });
+  return Response.json({ queued: true, audience: count ?? 0 }, { headers: CORS });
 });

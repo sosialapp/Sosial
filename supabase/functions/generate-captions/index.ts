@@ -27,8 +27,18 @@ const LIMITS: Record<string, number> = {
 const TONES = ["auto", "story", "punchy", "friendly", "professional", "bold", "funny"] as const;
 const EMOJIS = ["auto", "on", "off"] as const;
 
+// Browser preflight must pass before supabase-js can POST at all — without
+// these headers fetch throws and the client sees "Failed to send a request
+// to the Edge Function" (native apps don't preflight, which is why mobile
+// never noticed).
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+};
+
 function bad(msg: string, status = 400): Response {
-  return Response.json({ error: msg }, { status });
+  return Response.json({ error: msg }, { status, headers: CORS });
 }
 
 function clamp(s: string, limit: number): string {
@@ -40,6 +50,7 @@ function clamp(s: string, limit: number): string {
 }
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return bad("POST only", 405);
 
   const supaUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -159,5 +170,5 @@ serve(async (req: Request): Promise<Response> => {
     return bad("AI returned an unusable reply — try again.", 502);
   }
 
-  return Response.json({ segments });
+  return Response.json({ segments }, { headers: CORS });
 });

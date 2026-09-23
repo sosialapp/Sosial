@@ -170,7 +170,7 @@ function Stepper({
           onBlur={onBlur}
           inputMode="numeric"
           aria-label={label}
-          className="min-w-0 flex-1 bg-transparent text-center text-lg font-extrabold tabular-nums text-ink outline-none"
+          className="min-w-0 flex-1 bg-transparent text-center text-sm font-extrabold tabular-nums text-ink outline-none"
         />
         <button
           type="button"
@@ -477,7 +477,7 @@ export default function DateTimePicker({
               autoFocus
               className="field !py-1.5 text-xs"
             />
-            <div className="mt-1 max-h-56 overflow-y-auto">
+            <div className="no-scrollbar mt-1 max-h-56 overflow-y-auto">
               <button
                 type="button"
                 onClick={() => {

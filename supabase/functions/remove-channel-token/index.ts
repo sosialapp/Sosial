@@ -18,11 +18,19 @@ const PROVIDERS = new Set([
   "bluesky", "linkedin", "mastodon", "pinterest", "youtube",
 ]);
 
+// Browser preflight must pass before supabase-js can POST at all.
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+};
+
 function bad(msg: string, status = 400): Response {
-  return Response.json({ error: msg }, { status });
+  return Response.json({ error: msg }, { status, headers: CORS });
 }
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return bad("POST only", 405);
 
   // Env fallbacks: newer projects inject SB_* instead of SUPABASE_*.
@@ -74,7 +82,7 @@ serve(async (req: Request): Promise<Response> => {
     .eq("provider", provider);
   if (external_id) query = query.eq("external_id", external_id);
   const { data: rows } = await query;
-  if (!rows || rows.length === 0) return Response.json({ removed: false });
+  if (!rows || rows.length === 0) return Response.json({ removed: false }, { headers: CORS });
 
   // Collect secret ids BEFORE the cascade deletes the token rows.
   const ids = rows.map((r: { id: string }) => r.id);
@@ -93,5 +101,5 @@ serve(async (req: Request): Promise<Response> => {
     await admin.rpc("vault_delete_secret", { secret_id: sid });
   }
 
-  return Response.json({ removed: true });
+  return Response.json({ removed: true }, { headers: CORS });
 });

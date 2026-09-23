@@ -366,6 +366,14 @@ body {
   background: rgba(245, 241, 228, 0.38);
 }
 
+/* Scrollable but chrome-less — for compact popover lists (timezone picker). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ------------------------- dashboard dark mode ------------------------ */
 /* Near-black brand marks (TikTok, X, Threads) vanish on night surfaces —
    flip them white. CSS fill beats the svg presentation attribute, so light

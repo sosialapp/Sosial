@@ -14,8 +14,18 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 const TYPES = ["free", "bullets", "numbered", "table", "bar", "vbar", "pie"] as const;
 
+// Browser preflight must pass before supabase-js can POST at all — without
+// these headers fetch throws and the client sees "Failed to send a request
+// to the Edge Function" (native apps don't preflight, which is why mobile
+// never noticed).
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+};
+
 function bad(msg: string, status = 400): Response {
-  return Response.json({ error: msg }, { status });
+  return Response.json({ error: msg }, { status, headers: CORS });
 }
 
 /** Output-language directive: Auto mirrors the user's prompt language. */
@@ -51,6 +61,7 @@ function buildPrompt(brief: {
 }
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return bad("POST only", 405);
 
   const supaUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -142,5 +153,5 @@ serve(async (req: Request): Promise<Response> => {
     return bad("AI returned an unusable reply — try again.", 502);
   }
 
-  return Response.json({ pages: out });
+  return Response.json({ pages: out }, { headers: CORS });
 });
