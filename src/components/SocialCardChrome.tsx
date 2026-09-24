@@ -295,15 +295,19 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         {/* reply · repost · like · save · share · more — like the app */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: pad(14), paddingBottom: pad(10), gap: pad(4) }}>
           {[
-            { icon: 'chatbox-outline', count: '12', color: gray },
-            { icon: 'repeat-outline', count: '48', color: '#2E9E53' },
-            { icon: 'heart-outline', count: '312', color: '#EC245E' },
-            { icon: 'bookmark-outline', count: '', color: gray },
-            { icon: 'arrow-redo-outline', count: '', color: gray },
+            { custom: 'bsky-comment' as const, count: '12', color: gray },
+            { custom: 'bsky-repost' as const, count: '48', color: '#2E9E53' },
+            { custom: 'bsky-heart' as const, count: '312', color: '#EC245E' },
+            { custom: 'bsky-bookmark' as const, count: '', color: gray },
+            { custom: 'bsky-share' as const, count: '', color: gray },
             { icon: 'ellipsis-horizontal', count: '', color: gray },
           ].map((a, i) => (
             <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Ionicons name={a.icon as any} size={pad(11)} color={a.color} />
+              {'custom' in a && a.custom ? (
+                <ActionIcon name={a.custom} size={pad(11)} color={a.color} />
+              ) : (
+                <Ionicons name={(a as { icon: string }).icon as any} size={pad(11)} color={a.color} />
+              )}
               {a.count ? <Text style={{ ...F(font), fontSize: pad(8), color: gray }}>{a.count}</Text> : null}
             </View>
           ))}

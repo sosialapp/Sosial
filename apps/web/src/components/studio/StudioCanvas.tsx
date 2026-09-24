@@ -274,11 +274,11 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={bodyStyle}>{children}</div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${14 * k}px ${10 * k}px`, gap: 4 * k }}>
           {[
-            { icon: 'comment', count: '12', color: c.gray },
-            { icon: 'repeat', count: '48', color: '#2E9E53' },
-            { icon: 'heart-fill', count: '312', color: '#EC245E' },
-            { icon: 'bookmark', count: '', color: c.gray },
-            { icon: 'send', count: '', color: c.gray },
+            { icon: 'bsky-comment', count: '12', color: c.gray },
+            { icon: 'bsky-repost', count: '48', color: '#2E9E53' },
+            { icon: 'bsky-heart', count: '312', color: '#EC245E' },
+            { icon: 'bsky-bookmark', count: '', color: c.gray },
+            { icon: 'bsky-share', count: '', color: c.gray },
             { icon: 'dots', count: '', color: c.gray },
           ].map((a, i) => (
             <span key={i} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 3 * k }}>

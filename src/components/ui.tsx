@@ -371,6 +371,7 @@ export type ActionIconName =
   | 'ig-heart' | 'ig-comment' | 'ig-plane' | 'ig-bookmark' | 'ig-repost'
   | 'th-repost' | 'th-send'
   | 'x-comment' | 'x-retweet' | 'x-views' | 'x-bookmark' | 'x-share'
+  | 'bsky-comment' | 'bsky-repost' | 'bsky-heart' | 'bsky-bookmark' | 'bsky-share'
   | 'repost';
 
 export function ActionIcon({ name, size, color }: { name: ActionIconName; size: number; color: string }) {
@@ -459,6 +460,44 @@ export function ActionIcon({ name, size, color }: { name: ActionIconName; size: 
             fill={color}
             stroke="none"
             fillRule="evenodd"
+          />
+        </G>
+      ) : name === 'bsky-comment' ? (
+        <G transform="translate(-1.401 -2.77) scale(0.042)">
+          <Path
+            d="m267.7 576.9-37.8 26.7c-7.3 5.2-16.9 5.8-24.9 1.7S192 593 192 584v-72h-32c-53 0-96-43-96-96V192c0-53 43-96 96-96h320c53 0 96 43 96 96v224c0 53-43 96-96 96H359.6zM332 472.8c8.1-5.7 17.8-8.8 27.7-8.8H480c26.5 0 48-21.5 48-48V192c0-26.5-21.5-48-48-48H160c-26.5 0-48 21.5-48 48v224c0 26.5 21.5 48 48 48h56c10.4 0 19.3 6.6 22.6 15.9c.9 2.5 1.4 5.2 1.4 8.1v49.7c32.7-23.1 63.3-44.7 91.9-64.9z"
+            fill={color}
+            stroke="none"
+          />
+        </G>
+      ) : name === 'bsky-repost' ? (
+        <G transform="translate(-0.542 -0.542) scale(1.194)">
+          <Path d="m13.5 13.5 3 3 3-3" />
+          <Path d="M9.5 4.5h3a4 4 0 0 1 4 4v8m-9-9-3-3-3 3" />
+          <Path d="M11.5 16.5h-3a4 4 0 0 1-4-4v-8" />
+        </G>
+      ) : name === 'bsky-heart' ? (
+        <G transform="translate(-2.252 -2.278) scale(0.056)">
+          <Path
+            d="M352.92 80C288 80 256 144 256 144s-32-64-96.92-64c-52.76 0-94.54 44.14-95.08 96.81c-1.1 109.33 86.73 187.08 183 252.42a16 16 0 0 0 18 0c96.26-65.34 184.09-143.09 183-252.42c-.54-52.67-42.32-96.81-95.08-96.81"
+            fill={color}
+            stroke="none"
+          />
+        </G>
+      ) : name === 'bsky-bookmark' ? (
+        <G transform="translate(-1.714 -2.178) scale(1.143)">
+          <Path
+            d="M5 6.09A3.09 3.09 0 0 1 8.09 3h7.82A3.09 3.09 0 0 1 19 6.09v13.697c0 1.336-1.597 2.024-2.568 1.107L12 16.71l-4.432 4.185c-.97.918-2.568.229-2.568-1.107V6.091ZM8.09 5A1.09 1.09 0 0 0 7 6.09v12.59l3.954-3.735a1.523 1.523 0 0 1 2.091 0L17 18.68V6.09A1.09 1.09 0 0 0 15.91 5z"
+            fill={color}
+            stroke="none"
+          />
+        </G>
+      ) : name === 'bsky-share' ? (
+        <G transform="translate(1.25 1.25) scale(0.018)">
+          <Path
+            d="M754.553 35.03v294.208C487.317 329.246 0 332.178 0 1164.97c55.25-556.9 309.061-560.402 754.553-560.408v321.292L1200 480.407z"
+            fill={color}
+            stroke="none"
           />
         </G>
       ) : (
