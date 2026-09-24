@@ -11,6 +11,7 @@ import {
   Home,
   LayoutGrid,
   Lightbulb,
+  LogOut,
   Plus,
 } from 'lucide-react';
 import SendIcon from '@/components/SendIcon';
@@ -250,7 +251,94 @@ export default function Dock() {
             </Link>
           );
         })}
+        <SignOutItem onOpen={closePlus} />
       </div>
     </nav>
+  );
+}
+
+/** Sign-out tile pinned under Profile — asks first, then POSTs to /auth/signout. */
+function SignOutItem({ onOpen }: { onOpen: () => void }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!confirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setConfirmOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [confirmOpen]);
+
+  function signOut() {
+    if (busy) return;
+    setBusy(true);
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/auth/signout';
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  return (
+    <div data-dock-item className="group relative">
+      {confirmOpen ? (
+        <button
+          type="button"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => setConfirmOpen(false)}
+          className="pointer-events-auto fixed inset-0 z-20 cursor-default"
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={() => {
+          if (!confirmOpen) onOpen();
+          setConfirmOpen((v) => !v);
+        }}
+        aria-label="Sign out"
+        aria-expanded={confirmOpen}
+        className="group relative z-30 block"
+      >
+        <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#191512] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          Sign out
+        </span>
+        <span
+          data-dock-icon
+          className="flex h-11 w-11 items-center justify-center rounded-2xl opacity-100 transition-colors duration-150 group-hover:bg-paper-dim"
+          style={{ color: '#E0655F' }}
+        >
+          <LogOut className="h-6 w-6" aria-hidden="true" />
+        </span>
+      </button>
+      {confirmOpen ? (
+        <div
+          role="alertdialog"
+          aria-label="Confirm sign out"
+          aria-describedby="dock-signout-desc"
+          className="absolute left-full top-0 z-30 ml-4 w-60 rounded-2xl border border-line bg-card p-4 text-left shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
+        >
+          <p className="text-sm font-bold">Sign out of Sosial?</p>
+          <p id="dock-signout-desc" className="mt-1 text-xs leading-relaxed text-muted">
+            You will need to sign back in to post or schedule.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => setConfirmOpen(false)} className="btn btn-ghost flex-1 !py-2 !text-xs">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={signOut}
+              disabled={busy}
+              className="btn btn-primary flex-1 !py-2 !text-xs"
+            >
+              {busy ? 'Signing out…' : 'Sign out'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
