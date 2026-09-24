@@ -174,7 +174,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={bodyStyle}>{children}</div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${14 * k}px ${10 * k}px`, gap: 4 * k }}>
           {[
-            { icon: 'comment', count: '12', color: c.gray },
+            { icon: 'x-comment', count: '12', color: c.gray },
             { icon: 'repeat', count: '48', color: '#22C55E' },
             { icon: 'heart', count: '312', color: '#EC4899' },
             { icon: 'chart', count: '2.1K', color: c.gray },
@@ -228,10 +228,12 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
-          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {c.firstHandle}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3 * k, minWidth: 0, flexShrink: 1 }}>
+            <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {c.firstHandle}
+            </span>
+            <Check c={c} size={8} k={k} />
           </span>
-          <Check c={c} size={8} k={k} />
           <span style={{ ...ff(c.font), fontSize: 9 * k, color: c.faint, flexShrink: 0 }}>· 2h</span>
           {c.watermark ? <Watermark font={c.font} size={8} color={c.faint} k={k} /> : null}
           <span style={{ flex: 1 }} />

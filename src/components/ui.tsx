@@ -370,6 +370,7 @@ export type ActionIconName =
   | 'fb-like' | 'fb-comment' | 'fb-share'
   | 'ig-heart' | 'ig-comment' | 'ig-plane' | 'ig-bookmark' | 'ig-repost'
   | 'th-repost' | 'th-send'
+  | 'x-comment'
   | 'repost';
 
 export function ActionIcon({ name, size, color }: { name: ActionIconName; size: number; color: string }) {
@@ -427,6 +428,8 @@ export function ActionIcon({ name, size, color }: { name: ActionIconName; size: 
           <Path d="M22 12L3 20l3.563-8L3 4z" />
           <Path d="M6.5 12H22" />
         </>
+      ) : name === 'x-comment' ? (
+        <Path d="M11.9 22.4 10.47 16.69A8.8 7.6 0 1 1 13.53 16.69L11.9 22.4Z" />
       ) : (
         <>
           <Path d="m2 9 3-3 3 3" />

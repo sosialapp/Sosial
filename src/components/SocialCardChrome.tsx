@@ -196,13 +196,17 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: pad(14), paddingBottom: pad(10), gap: pad(4) }}>
           {[
-            { icon: 'chatbubble-outline', count: '12', color: gray },
+            { icon: 'chatbubble-outline', custom: 'x-comment' as const, count: '12', color: gray },
             { icon: 'repeat-outline', count: '48', color: '#22C55E' },
             { icon: 'heart-outline', count: '312', color: '#EC4899' },
             { icon: 'bar-chart-outline', count: '2.1K', color: gray },
           ].map((a, i) => (
             <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Ionicons name={a.icon as any} size={pad(11)} color={a.color} />
+              {'custom' in a && a.custom ? (
+                <ActionIcon name={a.custom} size={pad(11)} color={a.color} />
+              ) : (
+                <Ionicons name={a.icon as any} size={pad(11)} color={a.color} />
+              )}
               <Text style={{ ...F(font), fontSize: pad(8), color: gray }}>{a.count}</Text>
             </View>
           ))}
@@ -250,10 +254,12 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(14), borderWidth: pad(1), borderColor: hairline, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(13), paddingTop: pad(11) }}>
           <Avatar page={page} pad={pad} size={20} />
-          <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>
-            {firstHandle}
-          </Text>
-          {check(8)}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(3), flexShrink: 1, minWidth: 0 }}>
+            <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>
+              {firstHandle}
+            </Text>
+            {check(8)}
+          </View>
           <Text style={{ ...F(font), fontSize: pad(8), color: faint }}>· 2h</Text>
           {watermark ? <Watermark font={font} pad={pad} size={8} color={faint} /> : null}
           <View style={{ flex: 1 }} />
