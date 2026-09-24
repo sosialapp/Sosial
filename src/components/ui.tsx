@@ -370,7 +370,7 @@ export type ActionIconName =
   | 'fb-like' | 'fb-comment' | 'fb-share'
   | 'ig-heart' | 'ig-comment' | 'ig-plane' | 'ig-bookmark' | 'ig-repost'
   | 'th-repost' | 'th-send'
-  | 'x-comment'
+  | 'x-comment' | 'x-retweet' | 'x-views' | 'x-bookmark' | 'x-share'
   | 'repost';
 
 export function ActionIcon({ name, size, color }: { name: ActionIconName; size: number; color: string }) {
@@ -430,6 +430,37 @@ export function ActionIcon({ name, size, color }: { name: ActionIconName; size: 
         </>
       ) : name === 'x-comment' ? (
         <Path d="M11.9 22.4 10.47 16.69A8.8 7.6 0 1 1 13.53 16.69L11.9 22.4Z" />
+      ) : name === 'x-retweet' ? (
+        <G transform="scale(1.1429)">
+          <Path d="m13.5 13.5 3 3 3-3" />
+          <Path d="M9.5 4.5h3a4 4 0 0 1 4 4v8m-9-9-3-3-3 3" />
+          <Path d="M11.5 16.5h-3a4 4 0 0 1-4-4v-8" />
+        </G>
+      ) : name === 'x-views' ? (
+        <Path d="M4 9v11M8 4v16m4-9v9m4-13v13m4-6v6" />
+      ) : name === 'x-bookmark' ? (
+        <G transform="translate(1.5 1.5) scale(0.041)">
+          <Path
+            d="M352 48H160a48 48 0 0 0-48 48v368l144-128 144 128V96a48 48 0 0 0-48-48"
+            fill={color}
+            stroke="none"
+          />
+        </G>
+      ) : name === 'x-share' ? (
+        <G transform="translate(1 4.2) scale(0.8)">
+          <Path
+            d="M22 18.5a3.5 3.5 0 1 1-7 0a3.5 3.5 0 0 1 7 0M18.5 20a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3M9 11.5a3.5 3.5 0 1 1-7 0a3.5 3.5 0 0 1 7 0M5.5 13a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3M22 5.5a3.5 3.5 0 1 0-7 0a3.5 3.5 0 0 0 7 0M18.5 4a1.5 1.5 0 1 1 0 3a1.5 1.5 0 0 1 0-3"
+            fill={color}
+            stroke="none"
+            fillRule="evenodd"
+          />
+          <Path
+            d="M16.617 18.065a1 1 0 0 0-.388-1.36l-8.243-4.58a1 1 0 0 0-.972 1.75l8.244 4.579a1 1 0 0 0 1.36-.389Zm.115-12.168a1 1 0 0 1-.508 1.32l-8.318 3.697a1 1 0 0 1-.812-1.828l8.318-3.697a1 1 0 0 1 1.32.508"
+            fill={color}
+            stroke="none"
+            fillRule="evenodd"
+          />
+        </G>
       ) : (
         <>
           <Path d="m2 9 3-3 3 3" />

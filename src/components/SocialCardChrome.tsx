@@ -196,21 +196,19 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: pad(14), paddingBottom: pad(10), gap: pad(4) }}>
           {[
-            { icon: 'chatbubble-outline', custom: 'x-comment' as const, count: '12', color: gray },
-            { icon: 'repeat-outline', count: '48', color: '#22C55E' },
-            { icon: 'heart-outline', count: '312', color: '#EC4899' },
-            { icon: 'bar-chart-outline', count: '2.1K', color: gray },
+            { custom: 'x-comment' as const, count: '12', color: gray },
+            { custom: 'x-retweet' as const, count: '48', color: '#22C55E' },
+            { custom: 'ig-heart' as const, count: '312', color: '#EC4899' },
+            { custom: 'x-views' as const, count: '2.1K', color: gray },
           ].map((a, i) => (
             <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              {'custom' in a && a.custom ? (
-                <ActionIcon name={a.custom} size={pad(11)} color={a.color} />
-              ) : (
-                <Ionicons name={a.icon as any} size={pad(11)} color={a.color} />
-              )}
+              <ActionIcon name={a.custom} size={pad(11)} color={a.color} />
               <Text style={{ ...F(font), fontSize: pad(8), color: gray }}>{a.count}</Text>
             </View>
           ))}
-          <Ionicons name="bookmark-outline" size={pad(11)} color={gray} />
+          <ActionIcon name="x-bookmark" size={pad(11)} color={gray} />
+          <View style={{ width: pad(6) }} />
+          <ActionIcon name="x-share" size={pad(11)} color={gray} />
         </View>
       </View>
     );

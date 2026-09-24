@@ -175,16 +175,18 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${14 * k}px ${10 * k}px`, gap: 4 * k }}>
           {[
             { icon: 'x-comment', count: '12', color: c.gray },
-            { icon: 'repeat', count: '48', color: '#22C55E' },
-            { icon: 'heart', count: '312', color: '#EC4899' },
-            { icon: 'chart', count: '2.1K', color: c.gray },
+            { icon: 'x-retweet', count: '48', color: '#22C55E' },
+            { icon: 'ig-heart', count: '312', color: '#EC4899' },
+            { icon: 'x-views', count: '2.1K', color: c.gray },
           ].map((a, i) => (
             <span key={i} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 3 * k }}>
               <ChromeIcon name={a.icon} size={11 * k} color={a.color} />
               <span style={{ ...ff(c.font), fontSize: 8 * k, color: c.gray }}>{a.count}</span>
             </span>
           ))}
-          <ChromeIcon name="bookmark" size={11 * k} color={c.gray} />
+          <ChromeIcon name="x-bookmark" size={11 * k} color={c.gray} />
+          <span style={{ width: 6 * k }} />
+          <ChromeIcon name="x-share" size={11 * k} color={c.gray} />
         </div>
       </div>
     );
