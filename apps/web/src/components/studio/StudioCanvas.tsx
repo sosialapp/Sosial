@@ -246,10 +246,10 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
-            <ChromeIcon name="ig-heart" size={13 * k} color={c.ink} />
-            <ChromeIcon name="ig-comment" size={13 * k} color={c.ink} />
-            <ChromeIcon name="th-repost" size={13 * k} color={c.ink} />
-            <ChromeIcon name="th-send" size={13 * k} color={c.ink} />
+            <ChromeIcon name="ig-heart" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-comment" size={14 * k} color={c.ink} />
+            <ChromeIcon name="th-repost" size={14 * k} color={c.ink} />
+            <ChromeIcon name="th-send" size={14 * k} color={c.ink} />
           </div>
           <p style={{ ...ff(c.font), fontSize: 8 * k, color: c.faint, margin: 0 }}>12 replies</p>
         </div>
@@ -282,7 +282,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             { icon: 'dots', count: '', color: c.gray },
           ].map((a, i) => (
             <span key={i} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 3 * k }}>
-              <ChromeIcon name={a.icon} size={11 * k} color={a.color} />
+              <ChromeIcon name={a.icon} size={14 * k} color={a.color} />
               {a.count ? <span style={{ ...ff(c.font), fontSize: 8 * k, color: c.gray }}>{a.count}</span> : null}
             </span>
           ))}

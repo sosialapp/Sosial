@@ -266,10 +266,10 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(13), paddingBottom: pad(11), gap: pad(6) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(11) }}>
-            <ActionIcon name="ig-heart" size={pad(13)} color={ink} />
-            <ActionIcon name="ig-comment" size={pad(13)} color={ink} />
-            <ActionIcon name="th-repost" size={pad(13)} color={ink} />
-            <ActionIcon name="th-send" size={pad(13)} color={ink} />
+            <ActionIcon name="ig-heart" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-comment" size={pad(14)} color={ink} />
+            <ActionIcon name="th-repost" size={pad(14)} color={ink} />
+            <ActionIcon name="th-send" size={pad(14)} color={ink} />
           </View>
           <Text style={{ ...F(font), fontSize: pad(8), color: faint }}>12 replies</Text>
         </View>
@@ -304,9 +304,9 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           ].map((a, i) => (
             <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               {'custom' in a && a.custom ? (
-                <ActionIcon name={a.custom} size={pad(11)} color={a.color} />
+                <ActionIcon name={a.custom} size={pad(14)} color={a.color} />
               ) : (
-                <Ionicons name={(a as { icon: string }).icon as any} size={pad(11)} color={a.color} />
+                <Ionicons name={(a as { icon: string }).icon as any} size={pad(14)} color={a.color} />
               )}
               {a.count ? <Text style={{ ...F(font), fontSize: pad(8), color: gray }}>{a.count}</Text> : null}
             </View>
