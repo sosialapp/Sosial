@@ -200,7 +200,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 * k }}>
             <ChromeIcon name="ig-heart" size={14 * k} color={c.ink} />
             <ChromeIcon name="ig-comment" size={14 * k} color={c.ink} />
-            <ChromeIcon name="repost" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-repost" size={14 * k} color={c.ink} />
             <ChromeIcon name="ig-plane" size={14 * k} color={c.ink} />
             <span style={{ flex: 1 }} />
             <ChromeIcon name="ig-bookmark" size={14 * k} color={c.ink} />

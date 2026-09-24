@@ -361,7 +361,7 @@ export function PillToggle({ on, onPress }: { on: boolean; onPress: () => void }
  */
 export type ActionIconName =
   | 'fb-like' | 'fb-comment' | 'fb-share'
-  | 'ig-heart' | 'ig-comment' | 'ig-plane' | 'ig-bookmark'
+  | 'ig-heart' | 'ig-comment' | 'ig-plane' | 'ig-bookmark' | 'ig-repost'
   | 'repost';
 
 export function ActionIcon({ name, size, color }: { name: ActionIconName; size: number; color: string }) {
@@ -384,6 +384,12 @@ export function ActionIcon({ name, size, color }: { name: ActionIconName; size: 
         </>
       ) : name === 'ig-bookmark' ? (
         <Path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z" />
+      ) : name === 'ig-repost' ? (
+        <>
+          <Path d="M8 18.5H12.5C15.7875 18.5 17.4312 18.5 18.5376 17.592C18.7401 17.4258 18.9258 17.2401 19.092 17.0376C20 15.9312 20 14.2875 20 11M16 5.5H11.5C8.21252 5.5 6.56878 5.5 5.46243 6.40796C5.25989 6.57418 5.07418 6.75989 4.90796 6.96243C4 8.06878 4 9.71252 4 13" />
+          <Path d="M13.5 2C13.5 2 17 4.57771 17 5.50003C17 6.42234 13.5 9 13.5 9" />
+          <Path d="M10.5 15C10.5 15 7.00001 17.5777 7 18.5C6.99999 19.4223 10.5 22 10.5 22" />
+        </>
       ) : name === 'ig-comment' ? (
         <G transform="translate(24 0) scale(-1 1)">
           <Path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
