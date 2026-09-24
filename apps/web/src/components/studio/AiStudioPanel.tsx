@@ -7,6 +7,7 @@
  * the whole page list (keeping the template's design) on Apply.
  */
 import { useState } from 'react';
+import { ChevronLeft, Sparkles } from 'lucide-react';
 import { Field, Stepper } from './controls';
 import {
   AI_LANGUAGES,
@@ -65,9 +66,7 @@ export default function AiStudioPanel({
     <div className="space-y-4">
       <div className="flex items-start gap-2">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink" aria-hidden="true">
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
-            <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
-          </svg>
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm font-extrabold tracking-tight">AI generate</p>
@@ -77,9 +76,9 @@ export default function AiStudioPanel({
           type="button"
           onClick={onClose}
           aria-label="Back to steps"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-sm font-bold"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink"
         >
-          ‹
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 

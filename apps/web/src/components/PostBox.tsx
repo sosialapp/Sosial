@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { Image, Video } from 'lucide-react';
 import { EmojiButton } from '@/components/Emoji';
 
 export interface MediaItem {
@@ -124,11 +125,7 @@ export default function PostBox({
           title="Add photo"
           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
         >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="2.5" y="2.5" width="15" height="15" rx="2.5" />
-            <circle cx="7" cy="7" r="1.4" />
-            <path d="m4.5 15.5 4-4 2.5 2.5 2-2 2.5 2.5" />
-          </svg>
+          <Image className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -137,10 +134,7 @@ export default function PostBox({
           title="Add video"
           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
         >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="2" y="4" width="12.5" height="12" rx="2.5" />
-            <path d="m14.5 10 3.5-2.5v5L14.5 10Z" />
-          </svg>
+          <Video className="h-4 w-4" aria-hidden="true" />
         </button>
         <span className="mx-1 h-4 w-px bg-line-soft" aria-hidden="true" />
         <EmojiButton align="top" onPick={(emoji) => onChange(seg.body + emoji)} />

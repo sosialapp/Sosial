@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { THEME_CLASS, THEME_KEY } from './ThemeScope';
 
 function scopeRoot(anchor: HTMLElement | null): HTMLElement | null {
@@ -53,16 +54,7 @@ export default function ThemeToggle() {
       aria-pressed={dark}
       className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-bone"
     >
-      {dark ? (
-        <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
-          <circle cx="10" cy="10" r="4" />
-          <path d="M10 1.5v2.2M10 16.3v2.2M1.5 10h2.2M16.3 10h2.2M4 4l1.6 1.6M14.4 14.4 16 16M16 4l-1.6 1.6M5.6 14.4 4 16" />
-        </svg>
-      ) : (
-        <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M16.5 13.5A7.5 7.5 0 0 1 6.5 3.5a7.5 7.5 0 1 0 10 10Z" />
-        </svg>
-      )}
+      {dark ? <Sun className="h-5 w-5" aria-hidden="true" /> : <Moon className="h-5 w-5" aria-hidden="true" />}
     </button>
   );
 }

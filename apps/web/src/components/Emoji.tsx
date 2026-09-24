@@ -11,6 +11,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { Smile, X } from 'lucide-react';
 import { useDismiss } from '@/lib/useDismiss';
 
 /** The only picker UI library — full emoji menu with search, loaded on demand. */
@@ -113,10 +114,7 @@ export function EmojiButton({
           'flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink'
         }
       >
-        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden="true">
-          <circle cx="10" cy="10" r="6.5" />
-          <path d="M7.5 8.2h.01M12.5 8.2h.01M7.5 12c.7.8 1.6 1.2 2.5 1.2s1.8-.4 2.5-1.2" />
-        </svg>
+        <Smile className="h-4 w-4" aria-hidden="true" />
       </button>
       {open && typeof document !== 'undefined'
         ? createPortal(
@@ -135,9 +133,7 @@ export function EmojiButton({
                   aria-label="Close emoji picker"
                   className="flex h-6 w-6 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
                 >
-                  <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
-                    <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
-                  </svg>
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </div>
               <EmojiPicker

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { ChevronDown, Sparkles } from 'lucide-react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
 import { aiImageUrl, findImages, randomSeed, type FoundImage } from '@/lib/pictures';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
@@ -177,9 +178,7 @@ export default function AiCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <svg viewBox="0 0 20 20" className="h-5 w-5 text-[#5B3DF0] dark:text-[#B9A6F7]" fill="currentColor" aria-hidden="true">
-            <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
-          </svg>
+          <Sparkles className="h-5 w-5 text-[#5B3DF0] dark:text-[#B9A6F7]" aria-hidden="true" />
           <div>
             <p className="font-display text-base font-extrabold tracking-tight">AI Generate</p>
             <p className="text-[11px] text-muted">Turn your ideas into engaging posts with AI.</p>
@@ -210,9 +209,7 @@ export default function AiCard({
           <span className="flex-1 truncate text-left">
             {language === 'auto' ? 'Auto — match my idea' : langName(language)}
           </span>
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d={langOpen ? 'm4.5 12.5 5.5-6 5.5 6' : 'm7.5 4.5 6 5.5-6 5.5'} transform={langOpen ? undefined : 'rotate(90 10 10)'} />
-          </svg>
+          <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${langOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
         {langOpen ? (
           <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-xl border border-line bg-card p-2 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]">
@@ -287,9 +284,7 @@ export default function AiCard({
         <span className="text-muted">
           {STUDIO_STYLES.find((s) => s.id === style)?.label ?? 'Auto'}
         </span>
-        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d={styleOpen ? 'm4.5 12.5 5.5-6 5.5 6' : 'm7.5 4.5 6 5.5-6 5.5'} transform={styleOpen ? undefined : 'rotate(90 10 10)'} />
-        </svg>
+        <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${styleOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {styleOpen ? (
         <div className="mt-1.5 space-y-1.5">
@@ -463,9 +458,7 @@ export default function AiCard({
       >
         Advanced options
         <span className="flex-1" />
-        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d={advanced ? 'm4.5 12.5 5.5-6 5.5 6' : 'm7.5 4.5 6 5.5-6 5.5'} transform={advanced ? undefined : 'rotate(90 10 10)'} />
-        </svg>
+        <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${advanced ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {advanced ? (
         <div className="mt-1.5 space-y-3 rounded-xl border border-[#E3D9FA] bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
@@ -524,9 +517,7 @@ export default function AiCard({
           'Regenerate'
         ) : (
           <>
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-              <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
-            </svg>
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
             Generate
           </>
         )}

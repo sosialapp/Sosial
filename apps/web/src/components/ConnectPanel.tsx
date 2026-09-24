@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
 import ChannelAvatar, { channelAvatar } from './ChannelAvatar';
 import DisconnectChannel from './DisconnectChannel';
@@ -245,9 +246,10 @@ export default function ConnectPanel({
                   <span className="block truncate text-xs text-muted">{subtitle(p, list)}</span>
                 </span>
                 {hasAny || manual ? (
-                  <svg viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 text-faint transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="m4.5 7.5 5.5 6 5.5-6" />
-                  </svg>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={`h-4 w-4 shrink-0 text-faint transition-transform ${expanded ? 'rotate-180' : ''}`}
+                  />
                 ) : (
                   <span className="shrink-0 text-[13px] font-bold text-accent-ink">Connect</span>
                 )}

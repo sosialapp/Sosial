@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { GitBranch } from 'lucide-react';
 import AiCard from '@/components/AiCard';
 import CreatePost from '@/components/CreatePost';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
@@ -576,13 +577,8 @@ export default function CreateHub({
                   aria-pressed={ideaThread}
                   className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
                 >
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <line x1="6" y1="3" x2="6" y2="15" />
-                    <circle cx="18" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
-                  {ideaThread ? 'Turn off thread' : 'Post as thread'}
+                  <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
+                {ideaThread ? 'Turn off thread' : 'Post as thread'}
                 </button>
                 <span className="flex-1" />
                 <button type="button" onClick={() => void saveIdea()} className="btn btn-primary !py-1.5 !text-xs">

@@ -4,6 +4,7 @@
  */
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { ImagePlus } from 'lucide-react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import type { ProviderKey } from '@/lib/types';
@@ -97,26 +98,13 @@ export function ImageSlot({
   label?: string;
 }) {
   const iconSize = size === 'lg' ? 'h-8 w-8' : size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
-  const iconStroke = size === 'lg' ? 1.4 : 1.6;
   return (
     <div
       className={`image-slot ${className}`}
       role="img"
       aria-label={label ?? 'Image placeholder. Upload to fill'}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className={iconSize}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={iconStroke}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 8.5v7M8.5 12h7" />
-      </svg>
+      <ImagePlus className={iconSize} strokeWidth={size === 'lg' ? 1.4 : 1.6} aria-hidden="true" />
     </div>
   );
 }

@@ -4,6 +4,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
+import {
+  CalendarDays,
+  ChartColumn,
+  CircleUserRound,
+  Home,
+  LayoutGrid,
+  Lightbulb,
+  Plus,
+} from 'lucide-react';
 import SendIcon from '@/components/SendIcon';
 
 type DockItem = {
@@ -17,40 +26,20 @@ type DockItem = {
   popup?: boolean;
 };
 
-const STROKE = {
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.8,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-} as const;
-
 const ITEMS: DockItem[] = [
   {
     href: '/dashboard',
     label: 'Home',
     match: (p) => p === '/dashboard' || p === '/queue' || p.startsWith('/dashboard/'),
     tint: '#6C9BF5',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
-        <path d="M3.5 9.2 10 3.5l6.5 5.7" />
-        <path d="M5.2 8.5V16a.8.8 0 0 0 .8.8h8a.8.8 0 0 0 .8-.8V8.5" />
-        <path d="M8.2 16.8v-4.2h3.6v4.2" />
-      </svg>
-    ),
+    icon: <Home className="h-6 w-6" aria-hidden="true" />,
   },
   {
     href: '/calendar',
     label: 'Calendar',
     match: (p) => p === '/calendar' || p.startsWith('/calendar/'),
     tint: '#F0924E',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
-        <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
-        <path d="M3 8.5h14" />
-        <path d="M7 2.8v3M13 2.8v3" />
-      </svg>
-    ),
+    icon: <CalendarDays className="h-6 w-6" aria-hidden="true" />,
   },
   {
     href: '/post',
@@ -64,35 +53,21 @@ const ITEMS: DockItem[] = [
     match: () => false,
     hero: true,
     popup: true,
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
-        <path d="M10 3.5v13M3.5 10h13" />
-      </svg>
-    ),
+    icon: <Plus className="h-6 w-6" strokeWidth={2.2} aria-hidden="true" />,
   },
   {
     href: '/analytics',
     label: 'Analytics',
     match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
     tint: '#9B7EDE',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
-        <path d="M3 16.5h14" />
-        <path d="M5.5 13.5v-4M10 13.5V6.5M14.5 13.5V9" />
-      </svg>
-    ),
+    icon: <ChartColumn className="h-6 w-6" aria-hidden="true" />,
   },
   {
     href: '/profile',
     label: 'Profile',
     match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
     tint: '#E87EA1',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-6 w-6" {...STROKE} aria-hidden="true">
-        <circle cx="10" cy="7" r="3.2" />
-        <path d="M3.8 16.5c.8-3 3.2-4.5 6.2-4.5s5.4 1.5 6.2 4.5" />
-      </svg>
-    ),
+    icon: <CircleUserRound className="h-6 w-6" aria-hidden="true" />,
   },
 ];
 
@@ -107,25 +82,13 @@ const PLUS_OPTIONS = [
     href: '/post?tab=ideas',
     label: 'Ideas',
     desc: 'Capture it first',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-4 w-4" {...STROKE} aria-hidden="true">
-        <path d="M10 2.5a5 5 0 0 0-3 9c.7.6 1 1.4 1 2.2h4c0-.8.3-1.6 1-2.2a5 5 0 0 0-3-9Z" />
-        <path d="M8.5 16.5h3" />
-      </svg>
-    ),
+    icon: <Lightbulb className="h-4 w-4" aria-hidden="true" />,
   },
   {
     href: '/post?tab=templates',
     label: 'From template',
     desc: 'Start from a starter',
-    icon: (
-      <svg viewBox="0 0 20 20" className="h-4 w-4" {...STROKE} aria-hidden="true">
-        <rect x="3" y="3" width="6" height="6" rx="1.5" />
-        <rect x="11" y="3" width="6" height="6" rx="1.5" />
-        <rect x="3" y="11" width="6" height="6" rx="1.5" />
-        <rect x="11" y="11" width="6" height="6" rx="1.5" />
-      </svg>
-    ),
+    icon: <LayoutGrid className="h-4 w-4" aria-hidden="true" />,
   },
 ];
 

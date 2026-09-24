@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { ChartColumn, ChevronLeft, ChevronRight, Clock, Link2 } from 'lucide-react';
 import { BrandIcon } from '@/components/BrandIcon';
+import SendIcon from '@/components/SendIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
 import QuickPost from '@/components/QuickPost';
@@ -180,46 +182,28 @@ export default async function DashboardPage() {
           value={String(posts.length)}
           sub={delta !== null ? `${delta >= 0 ? '+' : ''}${delta}% vs. last 7 days` : 'vs. last 7 days'}
           tint="#1d7fe0"
-          icon={
-            <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 16V8.5M10 16V4M16 16v-5" />
-            </svg>
-          }
+          icon={<ChartColumn className="h-4.5 w-4.5" aria-hidden="true" />}
         />
         <StatTile
           label="Sent this week"
           value={String(sentWeek.length)}
           sub="vs. last 7 days"
           tint="#12914a"
-          icon={
-            <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3.5 10 17 3.5 13.5 16.5 9 11.5 3.5 10Z" />
-            </svg>
-          }
+          icon={<SendIcon className="h-4.5 w-4.5" aria-hidden="true" />}
         />
         <StatTile
           label="Scheduled"
           value={String(queued.length)}
           sub="In the queue now"
           tint="#7c5cf0"
-          icon={
-            <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="10" cy="10" r="6.5" />
-              <path d="M10 6.5V10l2.5 1.5" />
-            </svg>
-          }
+          icon={<Clock className="h-4.5 w-4.5" aria-hidden="true" />}
         />
         <StatTile
           label="Channels live"
           value={`${live.length}/${channels.length}`}
           sub="Connected accounts"
           tint="#E1306C"
-          icon={
-            <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8.2 11.8a3.2 3.2 0 0 0 4.5 0l2.3-2.3a3.2 3.2 0 0 0-4.5-4.5l-1 1" />
-              <path d="M11.8 8.2a3.2 3.2 0 0 0-4.5 0L5 10.5a3.2 3.2 0 0 0 4.5 4.5l1-1" />
-            </svg>
-          }
+          icon={<Link2 className="h-4.5 w-4.5" aria-hidden="true" />}
         />
       </div>
 
@@ -245,18 +229,14 @@ export default async function DashboardPage() {
                 aria-label="Previous week"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
               >
-                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m12.5 4.5-6 5.5 6 5.5" />
-                </svg>
+                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
               <Link
                 href="/calendar"
                 aria-label="Next week"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
               >
-                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m7.5 4.5 6 5.5-6 5.5" />
-                </svg>
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </div>
 

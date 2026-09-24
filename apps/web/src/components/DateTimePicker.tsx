@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, ChevronLeft, ChevronRight, Clock, Globe, Minus, Plus } from 'lucide-react';
 import { useDismiss } from '@/lib/useDismiss';
 
 /**
@@ -160,9 +161,7 @@ function Stepper({
           disabled={min === max}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-ink/30 hover:text-ink disabled:opacity-40"
         >
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
-            <path d="M5 10h10" />
-          </svg>
+          <Minus className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
         <input
           value={display}
@@ -178,9 +177,7 @@ function Stepper({
           onClick={() => onDelta(1)}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-ink/30 hover:text-ink"
         >
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
-            <path d="M10 5v10M5 10h10" />
-          </svg>
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -338,10 +335,7 @@ export default function DateTimePicker({
           aria-label="Pick date"
           className={`${TRIGGER} min-w-[9.5rem]`}
         >
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
-            <path d="M3 8.5h14M7 2.8v3M13 2.8v3" />
-          </svg>
+          <Calendar className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
           <span className="truncate">{fmtDay(wall)}</span>
         </button>
         {open === 'cal' ? (
@@ -357,9 +351,7 @@ export default function DateTimePicker({
                 onClick={() => setView(({ y, m }) => (m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 }))}
                 className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
               >
-                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m12.5 4.5-6 5.5 6 5.5" />
-                </svg>
+                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
               <p className="text-sm font-extrabold">{MONTHS[view.m - 1]} {view.y}</p>
               <button
@@ -368,9 +360,7 @@ export default function DateTimePicker({
                 onClick={() => setView(({ y, m }) => (m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 }))}
                 className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
               >
-                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m7.5 4.5 6 5.5-6 5.5" />
-                </svg>
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
             <div className="mt-2 grid grid-cols-7 gap-0.5 text-center">
@@ -418,10 +408,7 @@ export default function DateTimePicker({
           aria-label="Pick time"
           className={`${TRIGGER} min-w-[6.5rem] sm:w-[7.5rem]`}
         >
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="10" cy="10" r="7" />
-            <path d="M10 6.2V10l2.6 1.6" />
-          </svg>
+          <Clock className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
           <span className="truncate tabular-nums">{fmtTime(wall.minutes)}</span>
         </button>
         {open === 'time' ? (
@@ -454,10 +441,7 @@ export default function DateTimePicker({
           aria-label="Pick timezone"
           className={`${TRIGGER} min-w-[10.5rem]`}
         >
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
-            <circle cx="10" cy="10" r="6.5" />
-            <path d="M3.5 10h13M10 3.5c-1.8 1.8-2.7 4-2.7 6.5s.9 4.7 2.7 6.5c1.8-1.8 2.7-4 2.7-6.5S11.8 5.3 10 3.5Z" />
-          </svg>
+          <Globe className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
           <span className="truncate">{zoneLabel(timezone)}</span>
           <span className="ml-auto shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
             {offsetLabel(timezone)}

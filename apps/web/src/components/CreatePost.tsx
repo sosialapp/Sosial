@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
+import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
@@ -27,14 +28,7 @@ function deviceZone(): string {
 
 /** Branch mark, same glyph family as the mobile app's thread icon. */
 function BranchIcon({ className = 'h-3.5 w-3.5' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="6" y1="3" x2="6" y2="15" />
-      <circle cx="18" cy="6" r="3" />
-      <circle cx="6" cy="18" r="3" />
-      <path d="M18 9a9 9 0 0 1-9 9" />
-    </svg>
-  );
+  return <GitBranch className={className} aria-hidden="true" />;
 }
 
 function toMediaItems(files: File[]): MediaItem[] {

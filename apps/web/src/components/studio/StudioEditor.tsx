@@ -8,6 +8,7 @@
  * Every page renders offscreen so exports and "Use in post" capture all pages.
  */
 import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Copy, Download, Redo2, Sparkles, Trash2, Undo2 } from 'lucide-react';
 import {
   blankPage,
   uid,
@@ -359,9 +360,9 @@ export default function StudioEditor({
           type="button"
           onClick={onClose}
           aria-label="Back to templates"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-lg"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink"
         >
-          ‹
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
         <input
           value={project.name}
@@ -377,10 +378,7 @@ export default function StudioEditor({
           title="Undo (Ctrl+Z)"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink disabled:opacity-30"
         >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M7.5 4.5 4 8l3.5 3.5" />
-            <path d="M4 8h8a4 4 0 0 1 0 8h-3" />
-          </svg>
+          <Undo2 className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -390,10 +388,7 @@ export default function StudioEditor({
           title="Redo (Ctrl+Shift+Z)"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink disabled:opacity-30"
         >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m12.5 4.5 3.5 3.5-3.5 3.5" />
-            <path d="M16 8H8a4 4 0 0 0 0 8h3" />
-          </svg>
+          <Redo2 className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -403,9 +398,7 @@ export default function StudioEditor({
             aiOpen ? 'btn-primary' : 'btn-ghost'
           }`}
         >
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-            <path d="M10 1.5 11.8 8.2 18.5 10 11.8 11.8 10 18.5 8.2 11.8 1.5 10 8.2 8.2 10 1.5Z" />
-          </svg>
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           AI
         </button>
         <button
@@ -436,10 +429,7 @@ export default function StudioEditor({
               title="Duplicate page"
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-card text-soft transition hover:text-ink"
             >
-              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="7" y="7" width="9.5" height="9.5" rx="2" />
-                <path d="M13 4.5H5.5a2 2 0 0 0-2 2V14" />
-              </svg>
+              <Copy className="h-4 w-4" aria-hidden="true" />
             </button>
             {project.pages.length > 1 ? (
               <button
@@ -449,11 +439,7 @@ export default function StudioEditor({
                 title="Delete page"
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#F0D9DA] bg-card text-[#9F2F2D] transition hover:bg-[#FDEBEC] dark:border-[#5b2a2a] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]"
               >
-                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3.5 5.5h13M8 5.5V3.8a.8.8 0 0 1 .8-.8h2.4a.8.8 0 0 1 .8.8v1.7" />
-                  <path d="M5.5 5.5 6.3 16a1.4 1.4 0 0 0 1.4 1.3h4.6a1.4 1.4 0 0 0 1.4-1.3l.8-10.5" />
-                  <path d="M8.4 8.7v4.6M11.6 8.7v4.6" />
-                </svg>
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
               </button>
             ) : null}
             <span className="flex-1" />
@@ -465,7 +451,7 @@ export default function StudioEditor({
           {/* Filmstrip — always on top */}
           {project.pages.length > 1 ? filmstrip : null}
 
-          {/* Canvas — pagination lives at the bottom, ‹ › on the sides */}
+          {/* Canvas — pagination lives at the bottom, chevrons on the sides */}
           <div className="w-full max-w-[420px]">
             <div ref={stageRef} className="mx-auto">
               <div ref={canvasHostRef}>
@@ -474,7 +460,7 @@ export default function StudioEditor({
             </div>
           </div>
 
-          {/* Bottom pagination — ‹ on the left, › on the right */}
+          {/* Bottom pagination — chevron on the left, chevron on the right */}
           {project.pages.length > 1 ? (
             <div className="flex w-full max-w-[420px] items-center justify-between">
               <button
@@ -482,9 +468,9 @@ export default function StudioEditor({
                 onClick={() => selectPage(pageIndex - 1)}
                 disabled={pageIndex === 0}
                 aria-label="Previous page"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
               >
-                ‹
+                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
               </button>
               <div className="flex items-center gap-2.5">
                 <div className="flex gap-1.5">
@@ -507,9 +493,9 @@ export default function StudioEditor({
                 onClick={() => selectPage(pageIndex + 1)}
                 disabled={pageIndex >= project.pages.length - 1}
                 aria-label="Next page"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink disabled:opacity-30"
               >
-                ›
+                <ChevronRight className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
           ) : null}
@@ -522,10 +508,7 @@ export default function StudioEditor({
               disabled={busy}
               className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-1.5 text-xs font-bold transition hover:bg-bone disabled:opacity-50 dark:hover:bg-white/5"
             >
-              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M10 3v8.5m0 0 3.5-3.5M10 11.5 6.5 8" />
-                <path d="M3.5 14.5v1A1.5 1.5 0 0 0 5 17h10a1.5 1.5 0 0 0 1.5-1.5v-1" />
-              </svg>
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
               {exporting === 'page' ? busyLabel : 'Download page'}
             </button>
             {exportErr ? <p className="text-[11px] font-bold text-[#9F2F2D]">{exportErr}</p> : null}

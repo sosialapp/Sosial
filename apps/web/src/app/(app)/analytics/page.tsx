@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { CalendarClock, Clock, Link2, Send } from 'lucide-react';
+import WeeklyChartLoader from '@/components/analytics/WeeklyChartLoader';
 import { BrandIcon } from '@/components/BrandIcon';
-import { StatCard } from '@/components/ui';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import type { ProviderKey } from '@/lib/types';
@@ -92,148 +95,154 @@ export default async function AnalyticsPage() {
       </h1>
 
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Posts sent" value={sent.length} href="/queue" />
         {[
-          { label: 'Sent this week', value: sentWeek, href: '/queue' },
-          { label: 'Scheduled', value: queued, href: '/calendar' },
-          { label: 'Channels live', value: `${liveChannels}/${channels.length}`, href: '/channels' },
+          { label: 'Posts sent', value: sent.length, href: '/queue', icon: Send },
+          { label: 'Sent this week', value: sentWeek, href: '/queue', icon: CalendarClock },
+          { label: 'Scheduled', value: queued, href: '/calendar', icon: Clock },
+          { label: 'Channels live', value: `${liveChannels}/${channels.length}`, href: '/channels', icon: Link2 },
         ].map((s) => (
-          <Link key={s.label} href={s.href} className="card group p-4 transition hover:border-ink sm:p-5">
-            <p className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{s.value}</p>
-            <p className="mt-1 text-xs text-muted">
-              {s.label}
-            </p>
+          <Link key={s.label} href={s.href}>
+            <Card className="group p-4 transition hover:border-ink sm:p-5">
+              <s.icon className="h-5 w-5 text-muted transition group-hover:text-ink" aria-hidden="true" />
+              <p className="mt-2 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{s.value}</p>
+              <p className="mt-1 text-xs text-muted">{s.label}</p>
+            </Card>
           </Link>
         ))}
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
         {/* Pipeline */}
-        <section className="card p-5" aria-label="Pipeline">
-          <p className="eyebrow">Pipeline</p>
-          <ul className="mt-3 space-y-3">
-            {funnel.map((f) => (
-              <li key={f.label}>
-                <div className="flex items-baseline justify-between text-sm">
-                  <Link href={f.href} className="font-bold hover:text-ink">
-                    {f.label}
-                  </Link>
-                  <span className="font-display font-extrabold">{f.value}</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface">
-                  <div className={`h-full rounded-full ${f.bar}`} style={{ width: `${Math.round((f.value / funnelMax) * 100)}%` }} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Pipeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {funnel.map((f) => (
+                <li key={f.label}>
+                  <div className="flex items-baseline justify-between text-sm">
+                    <Link href={f.href} className="font-bold hover:text-ink">
+                      {f.label}
+                    </Link>
+                    <span className="font-display font-extrabold">{f.value}</span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface">
+                    <div className={`h-full rounded-full ${f.bar}`} style={{ width: `${Math.round((f.value / funnelMax) * 100)}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
 
         {/* Weekly rhythm */}
-        <section className="card p-5 lg:col-span-2" aria-label="Weekly rhythm">
-          <div className="flex items-center justify-between">
-            <p className="eyebrow">Sends per week · last 8 weeks</p>
-            <p className="text-xs font-bold text-muted">best: {weekMax}/wk</p>
-          </div>
-          <div className="mt-4 flex h-36 items-end gap-2">
-            {weeks.map((w) => (
-              <div key={w.label} className="flex min-w-0 flex-1 flex-col items-center gap-1.5" title={`${w.count} sent`}>
-                <span className="text-xs font-bold">{w.count > 0 ? w.count : ''}</span>
-                <div
-                  className={`w-full max-w-10 rounded-t-lg ${w.count > 0 ? 'bg-bolt' : 'bg-surface'}`}
-                  style={{ height: `${Math.max(w.count > 0 ? 8 : 4, Math.round((w.count / weekMax) * 100))}%` }}
-                />
-                <span className="text-[10px] text-faint">{w.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Sends per week · last 8 weeks</CardTitle>
+              <CardDescription>best: {weekMax}/wk</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <WeeklyChartLoader weeks={weeks} weekMax={weekMax} />
+          </CardContent>
+        </Card>
 
         {/* Per-channel delivery */}
-        <section className="card p-5 lg:col-span-2" aria-label="Per-channel delivery">
-          <div className="flex items-center justify-between">
-            <p className="eyebrow">Delivery by channel</p>
-            <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
-              Manage
-            </Link>
-          </div>
-          {channelRows.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">
-              Nothing published yet. Your per-channel numbers land here after the first send.
-            </p>
-          ) : (
-            <ul className="mt-3 divide-y divide-line-soft">
-              {channelRows.map((r) => {
-                const meta = providerMeta(r.provider);
-                const ok = Math.round((r.sent / Math.max(1, r.total)) * 100);
-                return (
-                  <li key={r.provider} className="flex items-center gap-3 py-2.5">
-                    <BrandIcon provider={r.provider} className="h-8 w-8 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="truncate text-sm font-bold">{meta.label}</p>
-                        <p className="shrink-0 text-xs text-muted">
-                          {r.sent} sent · {r.active} active · {r.failed} failed
-                        </p>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Delivery by channel</CardTitle>
+              <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
+                Manage
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {channelRows.length === 0 ? (
+              <p className="text-sm text-muted">
+                Nothing published yet. Your per-channel numbers land here after the first send.
+              </p>
+            ) : (
+              <ul className="divide-y divide-line-soft">
+                {channelRows.map((r) => {
+                  const meta = providerMeta(r.provider);
+                  const ok = Math.round((r.sent / Math.max(1, r.total)) * 100);
+                  return (
+                    <li key={r.provider} className="flex items-center gap-3 py-2.5">
+                      <BrandIcon provider={r.provider} className="h-8 w-8 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="truncate text-sm font-bold">{meta.label}</p>
+                          <p className="shrink-0 text-xs text-muted">
+                            {r.sent} sent · {r.active} active · {r.failed} failed
+                          </p>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
+                          <div className="h-full rounded-full bg-[#2f8f5b]" style={{ width: `${ok}%` }} />
+                        </div>
                       </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
-                        <div className="h-full rounded-full bg-[#2f8f5b]" style={{ width: `${ok}%` }} />
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Recently sent */}
-        <section className="card p-5" aria-label="Recently sent">
-          <div className="flex items-center justify-between">
-            <p className="eyebrow">Recently sent</p>
-            <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
-              Queue
-            </Link>
-          </div>
-          {recent.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">No sends yet.</p>
-          ) : (
-            <ul className="mt-3 space-y-3">
-              {recent.map((p) => {
-                const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
-                const st = POST_STATUS_META[p.status];
-                return (
-                  <li key={p.id} className="flex items-center gap-2.5">
-                    <div className="flex shrink-0 items-center" aria-hidden="true">
-                      {providers.slice(0, 3).map((pv, i) => (
-                        <span
-                          key={pv}
-                          className="rounded-full ring-2 ring-card"
-                          style={{ marginLeft: i === 0 ? 0 : -7, zIndex: providers.length - i }}
-                          title={providerMeta(pv).label}
-                        >
-                          <BrandIcon provider={pv} className="h-6 w-6" />
-                        </span>
-                      ))}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold">{p.title || 'Untitled post'}</p>
-                      <p className="text-xs text-muted">{fmtDate(p.sent_at)}</p>
-                    </div>
-                    <span className={`pill shrink-0 ${st.className}`}>{st.label}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Recently sent</CardTitle>
+              <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
+                Queue
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recent.length === 0 ? (
+              <p className="text-sm text-muted">No sends yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {recent.map((p) => {
+                  const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
+                  const st = POST_STATUS_META[p.status];
+                  return (
+                    <li key={p.id} className="flex items-center gap-2.5">
+                      <div className="flex shrink-0 items-center" aria-hidden="true">
+                        {providers.slice(0, 3).map((pv, i) => (
+                          <span
+                            key={pv}
+                            className="rounded-full ring-2 ring-card"
+                            style={{ marginLeft: i === 0 ? 0 : -7, zIndex: providers.length - i }}
+                            title={providerMeta(pv).label}
+                          >
+                            <BrandIcon provider={pv} className="h-6 w-6" />
+                          </span>
+                        ))}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold">{p.title || 'Untitled post'}</p>
+                        <p className="text-xs text-muted">{fmtDate(p.sent_at)}</p>
+                      </div>
+                      <Badge className={st.className}>{st.label}</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="card mt-3 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="mt-3 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">Likes, comments and reach per post arrive with the stats pipeline.</p>
         <Link href="/post" className="btn btn-bolt shrink-0">
           Create a post
         </Link>
-      </div>
+      </Card>
     </div>
   );
 }

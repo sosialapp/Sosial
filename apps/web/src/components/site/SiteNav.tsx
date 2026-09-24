@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { dashboardUrl } from '@/lib/site';
@@ -28,20 +29,7 @@ const RESOURCES: MenuLink[] = [
 
 /** Soft rounded chevron — no sharp triangles. */
 function Chevron({ className = '' }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 12 12"
-      className={`h-3 w-3 ${className}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m2.5 4.5 3.5 3.5 3.5-3.5" />
-    </svg>
-  );
+  return <ChevronDown aria-hidden="true" className={`h-3 w-3 ${className}`} />;
 }
 
 function DesktopDropdown({ label, children }: { label: string; children: React.ReactNode }) {
