@@ -361,12 +361,12 @@ export function PillToggle({ on, onPress }: { on: boolean; onPress: () => void }
  */
 export type ActionIconName =
   | 'fb-like' | 'fb-comment' | 'fb-share'
-  | 'ig-heart' | 'ig-comment' | 'ig-plane'
+  | 'ig-heart' | 'ig-comment' | 'ig-plane' | 'ig-bookmark'
   | 'repost';
 
 export function ActionIcon({ name, size, color }: { name: ActionIconName; size: number; color: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       {name === 'fb-like' ? (
         <Path d="M7 10v12m8-16.12L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88" />
       ) : name === 'fb-comment' || name === 'ig-comment' ? (
@@ -391,6 +391,8 @@ export function ActionIcon({ name, size, color }: { name: ActionIconName; size: 
             stroke="none"
           />
         </G>
+      ) : name === 'ig-bookmark' ? (
+        <Path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
       ) : (
         <>
           <Path d="m17 1 4 4-4 4" />

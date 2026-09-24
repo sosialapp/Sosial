@@ -66,6 +66,7 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
   'ig-comment': <g transform="translate(24 0) scale(-1 1)"><path d="m3 20 1.3-3.9A9 8 0 1 1 7.7 19z" /></g>,
   'ig-plane': <g transform="scale(0.75)"><path d="M2.078 3.965c-.407-1.265.91-2.395 2.099-1.801l24.994 12.495c1.106.553 1.106 2.13 0 2.684L4.177 29.838c-1.188.594-2.506-.536-2.099-1.801L5.95 16.001zm5.65 13.036L4.347 27.517l23.037-11.516L4.346 4.485L7.73 15H19a1 1 0 1 1 0 2z" fill="currentColor" stroke="none" /></g>,
   repost: <><path d="m17 1 4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>,
+  'ig-bookmark': <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />,
   chat: <path d="M4 6.5A3.5 3.5 0 0 1 7.5 3h9A3.5 3.5 0 0 1 20 6.5v6a3.5 3.5 0 0 1-3.5 3.5H9l-5 4V6.5Z" />,
   undo: <path d="M8 5 4 9l4 4M4 9h9a7 7 0 0 1 0 14h-2" />,
   redo: <path d="m16 5 4 4-4 4M20 9h-9a7 7 0 0 0 0 14h2" />,
@@ -77,7 +78,7 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
 
 export function ChromeIcon({ name, size, color }: { name: string; size: number; color: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {ICON_PATHS[name] ?? null}
     </svg>
   );

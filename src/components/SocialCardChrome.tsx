@@ -216,9 +216,10 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(10) }}>
             <ActionIcon name="ig-heart" size={pad(14)} color={ink} />
             <ActionIcon name="ig-comment" size={pad(14)} color={ink} />
+            <ActionIcon name="repost" size={pad(14)} color={ink} />
             <ActionIcon name="ig-plane" size={pad(14)} color={ink} />
             <View style={{ flex: 1 }} />
-            <Ionicons name="bookmark-outline" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-bookmark" size={pad(14)} color={ink} />
           </View>
           <Text style={{ ...F(font), fontSize: pad(8.5), color: ink }}>
             <Text style={{ ...F(font, true) }}>Liked by you</Text> and 1,234 others
