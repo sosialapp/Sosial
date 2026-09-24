@@ -197,7 +197,7 @@ function TimeEditor({
 
 export default function CalendarBoard({ posts, channels }: { posts: PostWithTargets[]; channels: number }) {
   const router = useRouter();
-  const [view, setView] = useState<'month' | 'line'>('line');
+  const [view, setView] = useState<'month' | 'week' | 'line'>('line');
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -223,6 +223,12 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
 
   const undated = useMemo(() => posts.filter((p) => !p.scheduled_at), [posts]);
   const weeks = useMemo(() => monthMatrix(anchor), [anchor]);
+  /** Monday-first 7-day window containing the anchor (Week view). */
+  const weekDays = useMemo(() => {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, [anchor]);
   const dayPosts = byDay.get(selectedKey) ?? [];
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? null;
   const today = new Date();
@@ -240,6 +246,8 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   }, [anchor, byDay]);
 
   const agendaEnd = addDays(new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()), 13);
+  const weekStart = weekDays[0];
+  const weekEnd = weekDays[6];
 
   async function persist(id: string, iso: string) {
     setErr(null);
@@ -303,14 +311,18 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const title =
     view === 'month'
       ? `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
-      : `${anchor.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${agendaEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      : view === 'week'
+        ? `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : `${anchor.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${agendaEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
   const stepPrev = () => {
     if (view === 'month') setAnchor(addMonths(anchor, -1));
+    else if (view === 'week') setAnchor(addDays(anchor, -7));
     else setAnchor(addDays(anchor, -14));
   };
   const stepNext = () => {
     if (view === 'month') setAnchor(addMonths(anchor, 1));
+    else if (view === 'week') setAnchor(addDays(anchor, 7));
     else setAnchor(addDays(anchor, 14));
   };
   const stepToday = () => {
@@ -330,7 +342,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
           <Tabs
             value={view}
             onValueChange={(v) => {
-              const next = v as 'month' | 'line';
+              const next = v as 'month' | 'week' | 'line';
               // Keep the agenda glued to the selected day when switching to it.
               if (next === 'line') setAnchor(new Date(`${selectedKey}T00:00:00`));
               setView(next);
@@ -338,16 +350,17 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
           >
             <TabsList aria-label="Calendar view">
               <TabsTrigger value="month">Month</TabsTrigger>
+              <TabsTrigger value="week">Week</TabsTrigger>
               <TabsTrigger value="line">Line</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button variant="ghost" size="icon" onClick={stepPrev} aria-label={view === 'month' ? 'Previous month' : 'Previous 14 days'}>
+          <Button variant="ghost" size="icon" onClick={stepPrev} aria-label={view === 'month' ? 'Previous month' : view === 'week' ? 'Previous week' : 'Previous 14 days'}>
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </Button>
           <Button variant="ghost" size="sm" onClick={stepToday}>
             Today
           </Button>
-          <Button variant="ghost" size="icon" onClick={stepNext} aria-label={view === 'month' ? 'Next month' : 'Next 14 days'}>
+          <Button variant="ghost" size="icon" onClick={stepNext} aria-label={view === 'month' ? 'Next month' : view === 'week' ? 'Next week' : 'Next 14 days'}>
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
@@ -441,6 +454,87 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
               </div>
               <p className="mt-3 text-xs text-faint">
                 Drag a post onto another day to reschedule it. Times stay the same. Click a post to retime it.
+              </p>
+            </>
+          ) : view === 'week' ? (
+            <>
+              <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-line bg-line">
+                {WEEKDAYS.map((d) => (
+                  <div key={d} className="bg-card px-2 py-2 text-center text-xs font-bold text-muted">
+                    {d}
+                  </div>
+                ))}
+                {weekDays.map((day) => {
+                  const k = dayKey(day);
+                  const items = byDay.get(k) ?? [];
+                  const isDayToday = isSameDay(day, today);
+                  const isOver = overKey === k;
+                  return (
+                    <div
+                      key={k}
+                      onClick={() => {
+                        setSelectedKey(k);
+                        setSelectedPostId(null);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (overKey !== k) setOverKey(k);
+                      }}
+                      onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        void dropOn(day);
+                      }}
+                      className={`flex min-h-[320px] cursor-pointer flex-col bg-card p-2 transition xl:min-h-[420px] ${
+                        selectedKey === k ? 'bg-paper' : ''
+                      } ${isOver ? 'ring-2 ring-inset ring-accent' : ''}`}
+                    >
+                      <div className="mb-2 flex items-center justify-between px-0.5">
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                            isDayToday ? 'bg-accent text-white' : 'text-muted'
+                          }`}
+                        >
+                          {day.getDate()}
+                        </span>
+                        <span className="text-[10px] font-bold text-faint">
+                          {day.toLocaleDateString(undefined, { month: 'short' })}
+                        </span>
+                      </div>
+                      <div className="flex-1 space-y-1.5">
+                        {items.map((p) => (
+                          <div
+                            key={p.id}
+                            draggable
+                            onDragStart={() => setDragId(p.id)}
+                            onDragEnd={() => {
+                              setDragId(null);
+                              setOverKey(null);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedKey(k);
+                              setSelectedPostId(p.id);
+                            }}
+                            title={snippet(p)}
+                            className={`cursor-grab rounded-lg border border-line bg-paper px-2 py-1.5 text-[11px] leading-tight transition hover:border-ink/30 ${
+                              dragId === p.id ? 'opacity-50' : ''
+                            } ${selectedPostId === p.id ? 'ring-1 ring-accent' : ''}`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-bold text-ink">{formatTime(p.scheduled_at)}</span>
+                              <ChannelDots post={p} />
+                            </div>
+                            <div className="mt-0.5 line-clamp-2 text-soft">{snippet(p)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs text-faint">
+                The week at a glance — drag a post onto another day to reschedule it, click one to retime it.
               </p>
             </>
           ) : (

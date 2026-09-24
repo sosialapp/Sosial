@@ -5,6 +5,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AiCard from '@/components/AiCard';
+import PictureCard from '@/components/PictureCard';
 import SendIcon from '@/components/SendIcon';
 import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
@@ -451,7 +452,7 @@ export default function CreatePost({
           </section>
         </div>
 
-        {/* Right rail: AI studio */}
+        {/* Right rail: AI writer + Picture AI, separate cards */}
         <div className="min-w-0 xl:col-span-2">
           <AiCard
             providers={chosenProviders}
@@ -467,8 +468,8 @@ export default function CreatePost({
               });
             }}
             appliedNote="Applied to the composer — edit freely, then post."
-            onPicture={(urls) => void addPictureUrls(urls)}
           />
+          <PictureCard onPicture={(urls) => void addPictureUrls(urls)} />
         </div>
       </div>
     </form>

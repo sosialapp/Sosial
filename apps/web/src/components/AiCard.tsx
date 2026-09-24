@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Sparkles } from 'lucide-react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
-import { generateImage, PICTURE_RATIOS, type PictureRatio } from '@/lib/pictures';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 
 type EmojiMode = 'auto' | 'on' | 'off';
@@ -35,7 +34,7 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
  * AI Generate studio card — the mobile writer's sections on web: idea,
  * language, tone, style, format (post/thread + parts) and advanced options.
  * Generates through the same edge function and hands the result back to the
- * host surface (composer, ideas).
+ * host surface (composer, ideas). Picture AI lives in its own PictureCard.
  */
 export default function AiCard({
   providers,
@@ -45,7 +44,7 @@ export default function AiCard({
   onPartsChange,
   onResult,
   appliedNote = 'Applied — edit freely.',
-  onPicture,
+  seedTopic = '',
 }: {
   /** Provider keys the copy should be sized for (strictest wins). */
   providers: string[];
@@ -55,8 +54,8 @@ export default function AiCard({
   onPartsChange: (n: number) => void;
   onResult: (bodies: string[]) => void;
   appliedNote?: string;
-  /** When provided, a Picture section appears and hands picked image URLs back. */
-  onPicture?: (urls: string[]) => void;
+  /** Idea text from the host — used by the placeholder to nudge reuse. */
+  seedTopic?: string;
 }) {
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('auto');
@@ -73,40 +72,6 @@ export default function AiCard({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [appliedAt, setAppliedAt] = useState<number | null>(null);
-
-  /* ------------------------------- picture -------------------------------- */
-  const [picPrompt, setPicPrompt] = useState('');
-  const [picRatio, setPicRatio] = useState<PictureRatio>('4:5');
-  const [picUrl, setPicUrl] = useState<string | null>(null);
-  const [picBusy, setPicBusy] = useState(false);
-  const [picErr, setPicErr] = useState<string | null>(null);
-  const [picAttachedAt, setPicAttachedAt] = useState<number | null>(null);
-
-  async function makePromptPicture() {
-    const q = (picPrompt.trim() || topic.trim()).slice(0, 200);
-    if (!q) {
-      setPicErr('Describe the picture first — or write the idea above and reuse it.');
-      return;
-    }
-    setPicErr(null);
-    setPicAttachedAt(null);
-    setPicBusy(true);
-    try {
-      const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      setPicUrl(await generateImage(sb, q, picRatio));
-    } catch (e) {
-      setPicErr(e instanceof Error ? e.message : 'AI generation failed.');
-    } finally {
-      setPicBusy(false);
-    }
-  }
-
-  function usePicture() {
-    if (!picUrl || !onPicture) return;
-    onPicture([picUrl]);
-    setPicAttachedAt(Date.now());
-  }
 
   const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
   const langMatches = useMemo(() => {
@@ -344,57 +309,6 @@ export default function AiCard({
             </button>
           </span>
         </div>
-      ) : null}
-
-      {/* Picture AI — describe it, pick a shape, attach to the composer */}
-      {onPicture ? (
-        <>
-          <p className="mt-4 text-xs font-bold text-soft">Picture</p>
-          <p className="mt-1 text-[11px] text-muted">
-            Picture AI renders whatever you describe — pick a shape, generate, attach.
-          </p>
-          <textarea
-            value={picPrompt}
-            onChange={(e) => setPicPrompt(e.target.value)}
-            placeholder={topic.trim() ? `e.g. ${topic.trim().slice(0, 60)}…` : 'e.g. A photo of Kyiv at dusk, cinematic…'}
-            rows={2}
-            aria-label="Picture description"
-            className="mt-1.5 min-h-[52px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5"
-          />
-          <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Picture ratio">
-            {PICTURE_RATIOS.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => setPicRatio(r.id)}
-                aria-pressed={picRatio === r.id}
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-                  picRatio === r.id
-                    ? 'border-ink bg-ink text-paper'
-                    : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
-                }`}
-              >
-                {r.label} <span className="font-medium text-muted">{r.id}</span>
-              </button>
-            ))}
-          </div>
-          {picUrl ? (
-            <div className="mt-1.5 overflow-hidden rounded-xl border border-[#E3D9FA] dark:border-white/10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={picUrl} alt="AI picture preview" className="max-h-56 w-full object-contain" />
-            </div>
-          ) : null}
-          {picErr ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{picErr}</p> : null}
-          {picAttachedAt ? <p className="mt-1.5 text-xs font-bold text-[#346538] dark:text-[#9BD49B]">Attached to the composer ✓</p> : null}
-          <div className="mt-1.5 flex gap-1.5">
-            <button type="button" onClick={makePromptPicture} disabled={picBusy} className="btn btn-ghost flex-1 !py-2 !text-xs">
-              {picBusy ? 'Rendering…' : picUrl ? 'Regenerate' : 'Generate'}
-            </button>
-            <button type="button" onClick={usePicture} disabled={!picUrl} className="btn btn-primary flex-1 !py-2 !text-xs">
-              Use picture
-            </button>
-          </div>
-        </>
       ) : null}
 
       {/* Advanced */}
