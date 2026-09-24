@@ -136,7 +136,8 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           <Avatar page={page} pad={pad} size={24} />
           <View style={{ flex: 1, gap: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(4) }}>
-              <Text style={{ ...F(font, true), fontSize: pad(9.5), color: ink, flexShrink: 1 }} numberOfLines={1}>{name} {check(9)}</Text>
+              <Text style={{ ...F(font, true), fontSize: pad(9.5), color: ink, flexShrink: 1 }} numberOfLines={1}>{name}</Text>
+              {check(9)}
               {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -216,8 +217,11 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(6), borderWidth: pad(1), borderColor: '#11111112', overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(12), paddingTop: pad(10) }}>
           <Avatar page={page} pad={pad} size={20} />
-          <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>{name} {check(9)}</Text>
-          {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(4), flex: 1 }}>
+            <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>{name}</Text>
+            {check(9)}
+            {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
+          </View>
           <View style={{ flex: 1 }} />
           <SocialGlyph platform="instagram" size={pad(11)} color="#E1306C" />
           <Ionicons name="ellipsis-horizontal" size={pad(12)} color={ink} />
@@ -247,8 +251,10 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(13), paddingTop: pad(11) }}>
           <Avatar page={page} pad={pad} size={20} />
           <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>
-            {name} {check(8)} <Text style={{ ...F(font), color: faint }}>· 2h</Text>
+            {firstHandle}
           </Text>
+          {check(8)}
+          <Text style={{ ...F(font), fontSize: pad(8), color: faint }}>· 2h</Text>
           {watermark ? <Watermark font={font} pad={pad} size={8} color={faint} /> : null}
           <View style={{ flex: 1 }} />
           <SocialGlyph platform="threads" size={pad(12)} color={ink} />
@@ -256,10 +262,10 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(13), paddingBottom: pad(11), gap: pad(6) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(11) }}>
-            <Ionicons name="heart-outline" size={pad(13)} color={ink} />
-            <Ionicons name="chatbubble-outline" size={pad(13)} color={ink} />
-            <ActionIcon name="repost" size={pad(13)} color={ink} />
-            <Ionicons name="paper-plane-outline" size={pad(13)} color={ink} />
+            <ActionIcon name="ig-heart" size={pad(13)} color={ink} />
+            <ActionIcon name="ig-comment" size={pad(13)} color={ink} />
+            <ActionIcon name="th-repost" size={pad(13)} color={ink} />
+            <ActionIcon name="th-send" size={pad(13)} color={ink} />
           </View>
           <Text style={{ ...F(font), fontSize: pad(8), color: faint }}>12 replies</Text>
         </View>

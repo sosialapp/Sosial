@@ -199,7 +199,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <Check c={c} size={9} k={k} />
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
           <span style={{ flex: 1 }} />
-          <span style={{ width: 16 * k, height: 16 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ width: 16 * k, height: 16 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
             <BrandIcon provider="instagram" badge={false} className="h-[68%] w-[68%]" />
           </span>
           <ChromeIcon name="dots" size={12 * k} color={c.ink} />
@@ -228,22 +228,24 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
-          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>
-            {c.name} <Check c={c} size={8} k={k} /> <span style={{ ...ff(c.font), color: c.faint }}>· 2h</span>
+          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {c.firstHandle}
           </span>
+          <Check c={c} size={8} k={k} />
+          <span style={{ ...ff(c.font), fontSize: 9 * k, color: c.faint, flexShrink: 0 }}>· 2h</span>
           {c.watermark ? <Watermark font={c.font} size={8} color={c.faint} k={k} /> : null}
           <span style={{ flex: 1 }} />
-          <span style={{ width: 12 * k, height: 12 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: c.ink }}>
+          <span style={{ width: 12 * k, height: 12 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible', color: c.ink }}>
             <BrandIcon provider="threads" mono className="h-[72%] w-[72%]" />
           </span>
         </div>
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
-            <ChromeIcon name="heart" size={13 * k} color={c.ink} />
-            <ChromeIcon name="comment" size={13 * k} color={c.ink} />
-            <ChromeIcon name="repost" size={13 * k} color={c.ink} />
-            <ChromeIcon name="send" size={13 * k} color={c.ink} />
+            <ChromeIcon name="ig-heart" size={13 * k} color={c.ink} />
+            <ChromeIcon name="ig-comment" size={13 * k} color={c.ink} />
+            <ChromeIcon name="th-repost" size={13 * k} color={c.ink} />
+            <ChromeIcon name="th-send" size={13 * k} color={c.ink} />
           </div>
           <p style={{ ...ff(c.font), fontSize: 8 * k, color: c.faint, margin: 0 }}>12 replies</p>
         </div>
