@@ -6,21 +6,28 @@
  * the generate-studio edge function, clamps with the shared rules, then swaps
  * the whole page list (keeping the template's design) on Apply.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, Sparkles } from 'lucide-react';
 import { Field, Stepper } from './controls';
 import {
-  AI_LANGUAGES,
   DEFAULT_BRIEF,
   RULES,
   applyGenResult,
   generateStudio,
   rulesSummary,
-  type AiLanguage,
   type ContentBrief,
   type GenResult,
 } from '@/lib/studio/ai';
-import type { PostPage } from '@/lib/studio/model';
+import { WRITER_LANGUAGES } from '@/lib/aiStudio';
+import { newBlock, type BlockType, type PostPage } from '@/lib/studio/model';
+
+/** Extra starter blocks the user can append to every generated card. */
+const EXTRAS: { id: BlockType; label: string; hint: string }[] = [
+  { id: 'image', label: 'Image', hint: 'Photo slot' },
+  { id: 'table', label: 'Table', hint: 'Comparison' },
+  { id: 'bar', label: 'Chart', hint: 'Bars' },
+  { id: 'vbar', label: 'Columns', hint: 'Columns' },
+];
 
 export default function AiStudioPanel({
   template,
@@ -36,8 +43,23 @@ export default function AiStudioPanel({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<GenResult | null>(null);
+  const [langOpen, setLangOpen] = useState(false);
+  const [langQuery, setLangQuery] = useState('');
+  const [extras, setExtras] = useState<BlockType[]>([]);
 
   const patch = (p: Partial<ContentBrief>) => setBrief((b) => ({ ...b, ...p }));
+
+  const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
+  const langMatches = useMemo(() => {
+    const q = langQuery.trim().toLowerCase();
+    const list = q
+      ? WRITER_LANGUAGES.filter((l) => l.id.toLowerCase().includes(q) || l.label.toLowerCase().includes(q))
+      : WRITER_LANGUAGES;
+    return list.slice(0, 60);
+  }, [langQuery]);
+
+  const toggleExtra = (t: BlockType) =>
+    setExtras((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   async function run() {
     setErr(null);
@@ -94,22 +116,57 @@ export default function AiStudioPanel({
       </Field>
 
       <Field label="Language">
-        <div className="flex flex-wrap gap-1.5">
-          {AI_LANGUAGES.map((l) => (
-            <button
-              key={l.id}
-              type="button"
-              onClick={() => patch({ language: l.id as AiLanguage })}
-              aria-pressed={brief.language === l.id}
-              className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
-                brief.language === l.id
-                  ? 'border-ink bg-ink text-white dark:border-white dark:bg-white dark:text-black'
-                  : 'border-line bg-card text-muted hover:bg-paper'
-              }`}
-            >
-              {l.label}
-            </button>
-          ))}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setLangOpen((v) => !v)}
+            aria-expanded={langOpen}
+            className="flex w-full items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-xs font-bold"
+          >
+            <span className="flex-1 truncate text-left">
+              {brief.language === 'auto' ? 'Auto — match my idea' : langName(brief.language)}
+            </span>
+            <span className="text-[11px] text-faint">{WRITER_LANGUAGES.length} languages</span>
+          </button>
+          {langOpen ? (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-xl border border-line bg-card p-2 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]">
+              <input
+                value={langQuery}
+                onChange={(e) => setLangQuery(e.target.value)}
+                placeholder="Search languages…"
+                aria-label="Search languages"
+                className="field !py-1.5 text-xs"
+              />
+              <div className="mt-1 max-h-48 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    patch({ language: 'auto' });
+                    setLangOpen(false);
+                    setLangQuery('');
+                  }}
+                  className={`mt-1 flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${brief.language === 'auto' ? 'bg-accent-soft text-accent-ink' : ''}`}
+                >
+                  Auto — match my idea
+                </button>
+                {langMatches.map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => {
+                      patch({ language: l.id });
+                      setLangOpen(false);
+                      setLangQuery('');
+                    }}
+                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${brief.language === l.id ? 'bg-accent-soft text-accent-ink' : ''}`}
+                  >
+                    <span className="flex-1 truncate">{l.label}</span>
+                    {l.label !== l.id ? <span className="text-[11px] font-medium text-faint">{l.id}</span> : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </Field>
 
@@ -119,7 +176,7 @@ export default function AiStudioPanel({
 
       <div className="flex flex-wrap gap-x-6 gap-y-3">
         <Field label="Words / card">
-          <Stepper value={brief.maxWordsPerPage} onChange={(v) => patch({ maxWordsPerPage: v })} step={10} min={20} max={200} />
+          <Stepper value={brief.maxWordsPerPage} onChange={(v) => patch({ maxWordsPerPage: v })} step={10} min={20} max={300} />
         </Field>
         <Field label="Blocks / card">
           <Stepper value={brief.maxBlocksPerPage} onChange={(v) => patch({ maxBlocksPerPage: v })} min={1} max={RULES.maxBlocksPerPage} />
@@ -152,6 +209,33 @@ export default function AiStudioPanel({
                 );
               })}
             </ul>
+            <div className="border-t border-line pt-2">
+              <p className="text-xs font-bold">Boost each card with <span className="font-medium text-faint">· optional</span></p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {EXTRAS.map((x) => {
+                  const on = extras.includes(x.id);
+                  return (
+                    <button
+                      key={x.id}
+                      type="button"
+                      onClick={() => toggleExtra(x.id)}
+                      aria-pressed={on}
+                      title={x.hint}
+                      className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                        on
+                          ? 'border-ink bg-ink text-white dark:border-white dark:bg-white dark:text-black'
+                          : 'border-line bg-paper text-muted hover:text-ink'
+                      }`}
+                    >
+                      + {x.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {extras.length ? (
+                <p className="mt-1 text-[11px] text-faint">Added after the AI copy — fill them in the Content step.</p>
+              ) : null}
+            </div>
             {result.warnings.length ? (
               <ul className="space-y-0.5 border-t border-line pt-2 text-[11px] text-muted">
                 {result.warnings.map((w, i) => (
@@ -169,7 +253,11 @@ export default function AiStudioPanel({
         <button
           type="button"
           onClick={() => {
-            onApply(applyGenResult(result, template));
+            const pages = applyGenResult(result, template);
+            for (const pg of pages) {
+              for (const t of extras) pg.blocks.push(newBlock(t));
+            }
+            onApply(pages);
             onClose();
           }}
           className="btn btn-primary w-full"

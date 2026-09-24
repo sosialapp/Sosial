@@ -93,7 +93,7 @@ serve(async (req: Request): Promise<Response> => {
   const wordsRaw = typeof body["maxWordsPerPage"] === "number" ? Math.floor(body["maxWordsPerPage"]) : 60;
   const blocksRaw = typeof body["maxBlocksPerPage"] === "number" ? Math.floor(body["maxBlocksPerPage"]) : 2;
   const pages = Math.min(10, Math.max(1, pagesRaw));
-  const maxWordsPerPage = Math.min(200, Math.max(10, wordsRaw));
+  const maxWordsPerPage = Math.min(300, Math.max(10, wordsRaw));
   const maxBlocksPerPage = Math.min(3, Math.max(1, blocksRaw));
 
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
@@ -115,7 +115,7 @@ serve(async (req: Request): Promise<Response> => {
         model: "gpt-4o-mini",
         response_format: { type: "json_object" },
         temperature: 0.9,
-        max_tokens: 500 + pages * 400,
+        max_tokens: 800 + pages * 600,
         messages: [
           { role: "system", content: "You output strict JSON only. No markdown fences, no commentary. " + system },
           { role: "user", content: `Idea: ${prompt}\nCards: ${pages}` },

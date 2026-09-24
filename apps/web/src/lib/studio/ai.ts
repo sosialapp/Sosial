@@ -35,7 +35,8 @@ export const AI_LANGUAGES: { id: AiLanguage; label: string }[] = [
 
 export interface ContentBrief {
   prompt: string;
-  language: AiLanguage;
+  /** 'auto' mirrors the prompt; otherwise a WRITER_LANGUAGES id */
+  language: string;
   pages: number;
   maxWordsPerPage: number;
   maxBlocksPerPage: number;
@@ -51,7 +52,7 @@ export const DEFAULT_BRIEF: ContentBrief = {
   prompt: '',
   language: 'auto',
   pages: 3,
-  maxWordsPerPage: 60,
+  maxWordsPerPage: 150,
   maxBlocksPerPage: 2,
 };
 
@@ -59,7 +60,7 @@ export const DEFAULT_BRIEF: ContentBrief = {
 
 export const RULES = {
   maxBlocksPerPage: 2,
-  maxWordsPerPage: 60,
+  maxWordsPerPage: 150,
   maxWordsPerHeading: 6,
   maxBulletItems: 5,
   maxWordsPerItem: 12,
