@@ -11,6 +11,7 @@
 // Key lives server-side: supabase secrets set OPENAI_API_KEY=sk-...
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { CONTENT_RULES } from "../_shared/content_rules.ts";
 
 const TYPES = ["free", "bullets", "numbered", "table", "bar", "vbar", "pie"] as const;
 
@@ -57,6 +58,7 @@ function buildPrompt(brief: {
     `Hard limits: heading at most 6 words, text lines at most 12 words, at most ${brief.maxWordsPerPage} words per card.`,
     "Do not emit image blocks — photos are added by the user in the editor.",
     'Return ONLY JSON: {"pages":[{"blocks":[{"type":"free","heading":"...","lines":["..."]}]}]}.',
+    CONTENT_RULES,
   ].join("\n");
 }
 

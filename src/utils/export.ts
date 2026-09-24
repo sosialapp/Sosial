@@ -20,12 +20,22 @@ type MLHandle = { kind: 'next' | 'legacy'; mod: any };
 let mlHandle: MLHandle | null | undefined;
 let mlGranted = false;
 
+/** The JS package loads even when the native side isn't in the binary
+ *  (Expo Go versions, dev builds made before the package was added) — the
+ *  failure then surfaces as a native-module error at call time. */
+function isNativeMissing(e: any): boolean {
+  return /cannot find native module|ExpoMediaLibrary|requireNativeModule/i.test(
+    String(e?.message ?? e ?? ''),
+  );
+}
+
 async function probeMediaLibrary(): Promise<MLHandle | null> {
   try {
     const mod = await import('expo-media-library');
     if (!mod.Asset || !mod.requestPermissionsAsync) throw new Error('no next api');
     return { kind: 'next', mod };
-  } catch {
+  } catch (e) {
+    if (isNativeMissing(e)) return null; // no legacy entry can help — same native piece is missing
     // fall through to legacy
   }
   try {
@@ -42,24 +52,30 @@ async function getMediaLibrary(): Promise<MLHandle | null> {
   return mlHandle;
 }
 
-async function requestPermission(ML: MLHandle | null): Promise<boolean> {
-  if (!ML) return false;
-  if (mlGranted) return true;
+/** 'granted' | 'denied' | 'unavailable' — unavailable means the native module
+ *  itself is missing and the caller should use its fallbacks. */
+async function requestPermission(ML: MLHandle | null): Promise<'granted' | 'denied' | 'unavailable'> {
+  if (!ML) return 'unavailable';
+  if (mlGranted) return 'granted';
   try {
     const { status } = await ML.mod.requestPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Allow photo library access to save your posts.');
-      return false;
+      return 'denied';
     }
     mlGranted = true;
-    return true;
-  } catch {
-    return false;
+    return 'granted';
+  } catch (e) {
+    if (isNativeMissing(e)) {
+      mlHandle = null;
+      return 'unavailable';
+    }
+    return 'denied';
   }
 }
 
 export async function ensureMediaPermission(): Promise<boolean> {
-  return requestPermission(await getMediaLibrary());
+  return (await requestPermission(await getMediaLibrary())) === 'granted';
 }
 
 /** Rejects if `p` hasn't settled in `ms` — native capture/save calls have
@@ -151,56 +167,92 @@ export async function saveAllImages(refs: any[], post: QuickPost, _sizeRatio: nu
 }
 
 /** Save URIs to the photo library, falling back to folder-save on Android
- * when the gallery write fails (Expo Go can't write to the media library). */
+ *  and the share sheet elsewhere when the gallery write fails (Expo Go can't
+ *  write to the media library, and dev builds without the native module
+ *  surface the same failure at call time). */
 export async function saveUrisToGallery(uris: string[], opts?: { silent?: boolean }) {
   const ML = await getMediaLibrary();
-  if (!ML) {
-    // Gallery native module missing (old Expo Go) — fall back gracefully
-    if (Platform.OS === 'android') {
-      const saved = await saveViaSAF(uris);
-      if (saved > 0) return saved;
-    }
-    Alert.alert(
-      'Gallery unavailable',
-      'This Expo Go version cannot save to the gallery. Update Expo Go to the latest version, or try a production build.',
-    );
-    return 0;
-  }
-  const ok = await requestPermission(ML);
-  if (!ok) return 0;
-  let saved = 0;
-  const failed: string[] = [];
-  for (const u of uris) {
-    try {
-      await saveOne(ML, u);
-      saved++;
-    } catch (e) {
-      console.warn('save failed', e);
-      failed.push(u);
-    }
-  }
-  if (saved === uris.length) {
-    // per-page saves show an inline tick, so skip the modal that slowed them down
-    if (!opts?.silent) Alert.alert('Saved', `Saved ${saved}/${uris.length} image(s) to your gallery.`);
-    return saved;
-  }
-  // Gallery write failed (typical on Android Expo Go) — save the rest to a folder
-  if (Platform.OS === 'android' && failed.length > 0) {
-    const viaFolder = await saveViaSAF(failed);
-    if (viaFolder > 0) {
-      if (saved > 0) {
-        Alert.alert('Saved', `${saved} image(s) went to your gallery, ${viaFolder} to the folder you picked.`);
+  if (ML) {
+    const perm = await requestPermission(ML);
+    if (perm === 'denied') return 0;
+    let saved = 0;
+    let nativeMissing = perm === 'unavailable';
+    const failed: string[] = [];
+    for (const u of uris) {
+      try {
+        await saveOne(ML, u);
+        saved++;
+      } catch (e) {
+        console.warn('save failed', e);
+        if (isNativeMissing(e)) {
+          // The probe passed but the native side is gone — stop trusting it
+          // and fall back for everything that hasn't saved yet.
+          nativeMissing = true;
+          mlHandle = null;
+          break;
+        }
+        failed.push(u);
       }
-      return saved + viaFolder;
     }
+    if (!nativeMissing) {
+      if (saved === uris.length) {
+        // per-page saves show an inline tick, so skip the modal that slowed them down
+        if (!opts?.silent) Alert.alert('Saved', `Saved ${saved}/${uris.length} image(s) to your gallery.`);
+        return saved;
+      }
+      // Gallery write failed (typical on Android Expo Go) — save the rest to a folder
+      if (Platform.OS === 'android' && failed.length > 0) {
+        const viaFolder = await saveViaSAF(failed);
+        if (viaFolder > 0) {
+          if (saved > 0) {
+            Alert.alert('Saved', `${saved} image(s) went to your gallery, ${viaFolder} to the folder you picked.`);
+          }
+          return saved + viaFolder;
+        }
+      }
+      Alert.alert(
+        'Could not save',
+        saved > 0
+          ? `Only ${saved}/${uris.length} image(s) saved. Please try again.`
+          : 'The gallery refused the images. Please try again.',
+      );
+      return saved;
+    }
+    // nativeMissing → retry everything unsaved through the fallbacks below.
+    const remaining = uris.slice(saved);
+    if (Platform.OS === 'android') {
+      const viaFolder = await saveViaSAF(remaining);
+      if (viaFolder > 0) {
+        if (saved > 0) {
+          Alert.alert('Saved', `${saved} image(s) went to your gallery, ${viaFolder} to the folder you picked.`);
+        }
+        return saved + viaFolder;
+      }
+    }
+    uris = remaining;
+  } else if (Platform.OS === 'android') {
+    // Gallery native module missing — let the user pick a folder via SAF.
+    const saved = await saveViaSAF(uris);
+    if (saved > 0) return saved;
+  }
+  // Last resort on any platform: the share sheet (iOS "Save Image", Android
+  // share targets) still gets the picture out of the app.
+  try {
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uris[0], { dialogTitle: 'Save or share', mimeType: 'image/png', UTI: 'public.png' });
+      if (uris.length > 1) {
+        Alert.alert('Shared', 'The rest are still in the app — share them one by one, or update Expo Go / rebuild the app for direct gallery saves.');
+      }
+      return uris.length;
+    }
+  } catch {
+    /* fall through to the final alert */
   }
   Alert.alert(
-    'Could not save',
-    saved > 0
-      ? `Only ${saved}/${uris.length} image(s) saved. Please try again.`
-      : 'The gallery refused the images. Please try again.',
+    'Gallery unavailable',
+    'This Expo Go version cannot save to the gallery. Update Expo Go to the latest version, or rebuild the app so the gallery module is included.',
   );
-  return saved;
+  return 0;
 }
 
 /** Share a single file */

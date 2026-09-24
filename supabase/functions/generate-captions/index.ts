@@ -15,6 +15,7 @@
 // JSON; we clamp server-side on a word boundary as a second guard.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { CONTENT_RULES } from "../_shared/content_rules.ts";
 
 /** Caption limits for channels that aren't chain-capable (joined text). */
 const TEXT_CAPS: Record<string, number> = {
@@ -205,7 +206,8 @@ serve(async (req: Request): Promise<Response> => {
       languageRule +
       ` Edit instruction: ${ask} ` +
       `Keep every post under ${limit} characters. Keep the same number of parts unless the instruction says otherwise.` +
-      " No numbering, no bullet prefixes.";
+      " No numbering, no bullet prefixes.\n" +
+      CONTENT_RULES;
     try {
       const raw = await chat(
         apiKey,
@@ -283,7 +285,9 @@ serve(async (req: Request): Promise<Response> => {
         `\n${lines.join("\n")}\n` +
         `Character caps per platform (including spaces): ${platforms.map((p, i) => `${p} ≤ ${per[i]}`).join(", ")}. ` +
         (chain ? "Every variant uses the same number of parts." : "Every variant is a single post.") +
-        shared;
+        shared +
+        "\n" +
+        CONTENT_RULES;
       const raw = await chat(
         apiKey,
         system,
@@ -318,7 +322,9 @@ serve(async (req: Request): Promise<Response> => {
       'shape {"posts":["..."],"hashtags":["..."]}. ' +
       chainShape +
       ` Each post ≤ ${cap} characters including spaces. ` +
-      shared;
+      shared +
+      "\n" +
+      CONTENT_RULES;
     const raw = await chat(
       apiKey,
       system,

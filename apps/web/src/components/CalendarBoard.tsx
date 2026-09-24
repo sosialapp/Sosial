@@ -197,7 +197,7 @@ function TimeEditor({
 
 export default function CalendarBoard({ posts, channels }: { posts: PostWithTargets[]; channels: number }) {
   const router = useRouter();
-  const [view, setView] = useState<'month' | 'week' | 'line'>('line');
+  const [view, setView] = useState<'month' | 'week' | 'line'>('week');
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
