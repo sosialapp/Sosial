@@ -20,20 +20,30 @@ node apps/worker/dist/index.js
 
 ## Contract (frozen by the P2/P3 migrations)
 
-- `claim_job(worker_id)` → oldest due `queued` job as `running`, else null.
-- `complete_job(job_id, ok, err)` → `done`, or requeue with exponential
+- `claim_job(worker_id)` — oldest due `queued` job as `running`, else null.
+- `complete_job(job_id, ok, err)` — `done`, or requeue with exponential
   backoff (`dead` when attempts run out).
 - `enqueue_due_posts()` (pg_cron, every minute) feeds `publish_target` jobs
   with `idempotency_key = 'publish_target:<target_id>'`.
+- `enqueue_expiring_tokens()` (pg_cron, every 15 min) feeds `refresh_token`
+  jobs for channels expiring within the hour (P18).
+- `enqueue_daily_snapshots()` (pg_cron, daily 05:20 UTC) feeds
+  `snapshot_analytics` jobs — one per connected channel per day (P19).
 - `unique(post_targets.post_id, channel_id)` is the double-post guard.
 
-## Next slice (not this scaffold)
+## Implemented job kinds
 
-Port the publisher adapters (`metaPublish`, `tiktokPublish`, `xPublish`,
-`bskyPublish`, `mastodonPublish`, `liPublish`, `ytPublish`, `pinPublish`) and
-the `getValid*` refresh logic server-side, then implement each `dispatch`
-handler. Stubs throw by design — a job must never complete without doing
-its work.
+- `publish_target` — all ten providers (Facebook, Instagram, Threads, X,
+  Bluesky, Mastodon, LinkedIn, YouTube, TikTok, Pinterest), text + photo +
+  video, threads as reply chains where the platform supports them.
+- `refresh_token` — proactive rotation for tiktok/x/linkedin/pinterest/
+  youtube/bluesky; auth-dead channels are marked `expired` for reconnect.
+- `snapshot_analytics` — per-post engagement (likes/comments/shares/views)
+  pulled by remote id into `post_stats` for every provider that exposes a
+  read API (TikTok has none and is skipped as a no-op).
+- `sync_avatars`, `send_push`, `send_invite`.
+
+Only `cleanup_media` remains a stub.
 
 ## Deploy (Railway, when ready)
 

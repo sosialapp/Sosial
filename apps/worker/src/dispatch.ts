@@ -18,6 +18,7 @@ import { publishPinterestTarget } from './pinterest';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
+import { snapshotChannel } from './stats';
 import { info } from './logger';
 
 function notPorted(kind: string): Error {
@@ -122,8 +123,12 @@ async function handleRefreshToken(job: Job): Promise<void> {
 }
 
 async function handleSnapshotAnalytics(job: Job): Promise<void> {
-  info(`snapshot_analytics channel ${job.payload?.channel_id} (job ${job.id})`);
-  throw notPorted('snapshot_analytics');
+  const channelId = String(job.payload?.channel_id ?? '');
+  if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
+  info(`snapshot_analytics channel ${channelId} (job ${job.id})`);
+  const { updated, failed, skipped } = await snapshotChannel(channelId);
+  if (skipped) info(`snapshot_analytics channel ${channelId}: skipped (${skipped})`);
+  else info(`snapshot_analytics channel ${channelId}: ${updated} updated, ${failed} failed`);
 }
 
 async function handleSyncAvatars(job: Job): Promise<void> {
