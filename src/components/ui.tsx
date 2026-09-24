@@ -253,11 +253,11 @@ export function PrimaryBtn({ label, onPress, icon, loading, loadingLabel }: { la
 }
 
 /** Quiet tonal button */
-export function GhostBtn({ label, onPress, danger, left }: { label: string; onPress: () => void; danger?: boolean; left?: React.ReactNode }) {
+export function GhostBtn({ label, onPress, danger, left, disabled }: { label: string; onPress: () => void; danger?: boolean; left?: React.ReactNode; disabled?: boolean }) {
   const { C } = useTheme();
   const s = makeS(C);
   return (
-    <TouchableOpacity onPress={onPress} style={[s.ghost, danger && s.ghostDanger]} activeOpacity={0.8}>
+    <TouchableOpacity onPress={onPress} style={[s.ghost, danger && s.ghostDanger, disabled && { opacity: 0.5 }]} activeOpacity={0.8} disabled={disabled}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
         {left}
         <Text style={[s.ghostT, danger && { color: C.redText }]}>{label}</Text>

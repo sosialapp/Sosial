@@ -138,7 +138,7 @@ export default function CreatePost({
 
   /* ------------------------- per-segment helpers ------------------------ */
 
-  function addFilesTo(i: number, list: FileList | null) {
+  function addFilesTo(i: number, list: FileList | File[] | null) {
     if (!list) return;
     const next = toMediaItems(Array.from(list));
     setSegs((prev) =>

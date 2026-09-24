@@ -34,7 +34,7 @@ export default function PostBox({
 }: {
   seg: Segment;
   onChange: (body: string) => void;
-  onAddFiles: (list: FileList | null) => void;
+  onAddFiles: (list: FileList | File[] | null) => void;
   onRemoveMedia: (i: number) => void;
   onReorderMedia: (from: number, to: number) => void;
   placeholder: string;
@@ -111,6 +111,15 @@ export default function PostBox({
       <textarea
         value={seg.body}
         onChange={(e) => onChange(e.target.value)}
+        onPaste={(e) => {
+          const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+            f.type.startsWith('image/') || f.type.startsWith('video/'),
+          );
+          if (files.length) {
+            e.preventDefault();
+            onAddFiles(files);
+          }
+        }}
         placeholder={placeholder}
         rows={rows}
         aria-label={label}

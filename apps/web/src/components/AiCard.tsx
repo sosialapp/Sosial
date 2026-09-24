@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Sparkles } from 'lucide-react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
-import { findImages, generateImage, remixImage, type FoundImage } from '@/lib/pictures';
+import { generateImage, PICTURE_RATIOS, type PictureRatio } from '@/lib/pictures';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 
 type EmojiMode = 'auto' | 'on' | 'off';
@@ -75,22 +75,12 @@ export default function AiCard({
   const [appliedAt, setAppliedAt] = useState<number | null>(null);
 
   /* ------------------------------- picture -------------------------------- */
-  type PicMode = 'prompt' | 'auto';
-  const [picMode, setPicMode] = useState<PicMode>('auto');
   const [picPrompt, setPicPrompt] = useState('');
+  const [picRatio, setPicRatio] = useState<PictureRatio>('4:5');
   const [picUrl, setPicUrl] = useState<string | null>(null);
-  const [picQuery, setPicQuery] = useState('');
-  const [picResults, setPicResults] = useState<FoundImage[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [remixPrompts, setRemixPrompts] = useState<Record<string, string>>({});
-  const [remixed, setRemixed] = useState<Record<string, string>>({});
-  const [remixing, setRemixing] = useState<string | null>(null);
   const [picBusy, setPicBusy] = useState(false);
   const [picErr, setPicErr] = useState<string | null>(null);
   const [picAttachedAt, setPicAttachedAt] = useState<number | null>(null);
-
-  const searchText = (picQuery.trim() || topic.trim()).slice(0, 200);
-  const finalUrl = (u: string): string => remixed[u] ?? u;
 
   async function makePromptPicture() {
     const q = (picPrompt.trim() || topic.trim()).slice(0, 200);
@@ -104,68 +94,12 @@ export default function AiCard({
     try {
       const { createClient } = await import('@/lib/supabase/client');
       const sb = createClient();
-      setPicUrl(await generateImage(sb, q));
+      setPicUrl(await generateImage(sb, q, picRatio));
     } catch (e) {
       setPicErr(e instanceof Error ? e.message : 'AI generation failed.');
     } finally {
       setPicBusy(false);
     }
-  }
-
-  async function searchPictures() {
-    setPicErr(null);
-    setPicAttachedAt(null);
-    if (!searchText) {
-      setPicErr('Write the idea above first — auto finds photos for its topic.');
-      return;
-    }
-    setPicBusy(true);
-    try {
-      const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      const images = await findImages(sb, searchText);
-      setPicResults(images);
-      setSelected([]);
-      setRemixed({});
-      setRemixPrompts({});
-    } catch (e) {
-      setPicErr(e instanceof Error ? e.message : 'Photo search failed.');
-    } finally {
-      setPicBusy(false);
-    }
-  }
-
-  function toggleSelect(url: string) {
-    setPicAttachedAt(null);
-    setSelected((prev) => (prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]));
-  }
-
-  /** AI-rework one selected photo from its own prompt. */
-  async function remixPhoto(url: string) {
-    const prompt = (remixPrompts[url] ?? '').trim();
-    if (!prompt) {
-      setPicErr('Write what to change first — one prompt per photo.');
-      return;
-    }
-    setPicErr(null);
-    setPicAttachedAt(null);
-    setRemixing(url);
-    try {
-      const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      const out = await remixImage(sb, url, prompt);
-      setRemixed((prev) => ({ ...prev, [url]: out }));
-    } catch (e) {
-      setPicErr(e instanceof Error ? e.message : 'AI rework failed.');
-    } finally {
-      setRemixing(null);
-    }
-  }
-
-  function attachSelected() {
-    if (!selected.length || !onPicture) return;
-    onPicture(selected.map(finalUrl));
-    setPicAttachedAt(Date.now());
   }
 
   function usePicture() {
@@ -241,7 +175,7 @@ export default function AiCard({
         placeholder="e.g. Create a catchy Instagram caption about building better habits for a healthier life…"
         rows={3}
         aria-label="Your idea"
-        className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
+        className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5"
       />
       <p className="mt-1 text-[11px] text-muted">Rough thoughts are enough — a phrase works.</p>
 
@@ -252,7 +186,7 @@ export default function AiCard({
           type="button"
           onClick={() => setLangOpen((v) => !v)}
           aria-expanded={langOpen}
-          className="flex w-full items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 text-xs font-bold text-ink dark:border-white/10 dark:bg-white/5 dark:text-paper"
+          className="flex w-full items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 text-xs font-bold text-ink dark:border-white/10 dark:bg-white/5"
         >
           <span className="flex-1 truncate text-left">
             {language === 'auto' ? 'Auto — match my idea' : langName(language)}
@@ -412,161 +346,53 @@ export default function AiCard({
         </div>
       ) : null}
 
-      {/* Picture — prompt-rendered or real topical photos, attached to the composer */}
+      {/* Picture AI — describe it, pick a shape, attach to the composer */}
       {onPicture ? (
         <>
           <p className="mt-4 text-xs font-bold text-soft">Picture</p>
-          <div className="mt-1.5 flex rounded-full border border-[#E3D9FA] bg-white/60 p-1 dark:border-white/10 dark:bg-white/5" role="group" aria-label="Picture mode">
-            {(['auto', 'prompt'] as const).map((m) => (
+          <p className="mt-1 text-[11px] text-muted">
+            Picture AI renders whatever you describe — pick a shape, generate, attach.
+          </p>
+          <textarea
+            value={picPrompt}
+            onChange={(e) => setPicPrompt(e.target.value)}
+            placeholder={topic.trim() ? `e.g. ${topic.trim().slice(0, 60)}…` : 'e.g. A photo of Kyiv at dusk, cinematic…'}
+            rows={2}
+            aria-label="Picture description"
+            className="mt-1.5 min-h-[52px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5"
+          />
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Picture ratio">
+            {PICTURE_RATIOS.map((r) => (
               <button
-                key={m}
+                key={r.id}
                 type="button"
-                onClick={() => {
-                  setPicMode(m);
-                  setPicErr(null);
-                  setPicAttachedAt(null);
-                }}
-                aria-pressed={picMode === m}
-                className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-bold capitalize transition ${
-                  picMode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
+                onClick={() => setPicRatio(r.id)}
+                aria-pressed={picRatio === r.id}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                  picRatio === r.id
+                    ? 'border-ink bg-ink text-paper'
+                    : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
                 }`}
               >
-                {m === 'auto' ? 'Auto' : 'Prompt'}
+                {r.label} <span className="font-medium text-muted">{r.id}</span>
               </button>
             ))}
           </div>
-          <p className="mt-1 text-[11px] text-muted">
-            {picMode === 'auto'
-              ? 'Search real photos, tap to select (more than one is fine), then attach.'
-              : 'AI renders whatever you describe.'}
-          </p>
-          {picMode === 'auto' ? (
-            <div className="mt-1.5 flex gap-1.5">
-              <input
-                value={picQuery}
-                onChange={(e) => setPicQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void searchPictures();
-                  }
-                }}
-                placeholder={topic.trim() ? `e.g. ${topic.trim().slice(0, 48)}…` : 'Search photos…'}
-                aria-label="Search photos"
-                className="min-w-0 flex-1 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 text-xs text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
-              />
-              <button type="button" onClick={searchPictures} disabled={picBusy} className="btn btn-ghost shrink-0 !px-3.5 !py-2 !text-xs">
-                {picBusy ? '…' : 'Search'}
-              </button>
-            </div>
-          ) : null}
-          {picMode === 'prompt' ? (
-            <textarea
-              value={picPrompt}
-              onChange={(e) => setPicPrompt(e.target.value)}
-              placeholder={topic.trim() ? `e.g. ${topic.trim().slice(0, 60)}…` : 'e.g. A photo of Kyiv at dusk, cinematic…'}
-              rows={2}
-              aria-label="Picture description"
-              className="mt-1.5 min-h-[52px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
-            />
-          ) : null}
           {picUrl ? (
             <div className="mt-1.5 overflow-hidden rounded-xl border border-[#E3D9FA] dark:border-white/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={picUrl} alt="AI picture preview" className="max-h-56 w-full object-cover" />
+              <img src={picUrl} alt="AI picture preview" className="max-h-56 w-full object-contain" />
             </div>
           ) : null}
-          {picMode === 'auto' && picResults.length > 0 ? (
-            <div className="mt-1.5 grid grid-cols-4 gap-1.5">
-              {picResults.map((img) => {
-                const idx = selected.indexOf(img.url);
-                const on = idx >= 0;
-                return (
-                  <button
-                    key={img.url}
-                    type="button"
-                    onClick={() => toggleSelect(img.url)}
-                    aria-pressed={on}
-                    aria-label={`${on ? 'Deselect' : 'Select'} photo: ${img.title}`}
-                    title={img.title}
-                    className={`relative overflow-hidden rounded-lg border transition ${
-                      on ? 'border-[#5B3DF0] ring-2 ring-[#5B3DF0]/40' : 'border-line opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={img.thumb} alt="" className="h-14 w-full object-cover" loading="lazy" />
-                    {on ? (
-                      <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#5B3DF0] text-[10px] font-extrabold text-white">
-                        {idx + 1}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-          {picMode === 'auto' && selected.length > 0 ? (
-            <div className="mt-1.5 space-y-1.5 rounded-xl border border-line bg-card p-2">
-              <p className="px-1 text-[11px] font-bold text-soft">
-                Selected ({selected.length}) — describe a change to rework one with AI, or attach as-is.
-              </p>
-              {selected.map((u) => {
-                const done = remixed[u];
-                return (
-                  <div key={u} className="flex items-center gap-2 rounded-lg bg-paper p-1.5">
-                    <span className="relative shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={done ?? u} alt="" className="h-11 w-11 rounded-lg object-cover" loading="lazy" />
-                      {done ? (
-                        <span className="absolute -right-1 -top-1 rounded-full bg-ink px-1 text-[8px] font-extrabold text-paper">
-                          AI
-                        </span>
-                      ) : null}
-                    </span>
-                    <input
-                      value={remixPrompts[u] ?? ''}
-                      onChange={(e) => setRemixPrompts((prev) => ({ ...prev, [u]: e.target.value }))}
-                      placeholder="e.g. make it sunset…"
-                      aria-label="AI rework instructions"
-                      className="field min-w-0 flex-1 !py-1.5 !text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void remixPhoto(u)}
-                      disabled={remixing !== null}
-                      className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-[11px]"
-                    >
-                      {remixing === u ? '…' : done ? 'Again' : 'Rework'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-          {picErr ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D]">{picErr}</p> : null}
-          {picAttachedAt ? <p className="mt-1.5 text-xs font-bold text-[#346538]">Attached to the composer ✓</p> : null}
+          {picErr ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{picErr}</p> : null}
+          {picAttachedAt ? <p className="mt-1.5 text-xs font-bold text-[#346538] dark:text-[#9BD49B]">Attached to the composer ✓</p> : null}
           <div className="mt-1.5 flex gap-1.5">
-            {picMode === 'prompt' ? (
-              <>
-                <button type="button" onClick={makePromptPicture} disabled={picBusy} className="btn btn-ghost flex-1 !py-2 !text-xs">
-                  {picBusy ? 'Rendering…' : picUrl ? 'Regenerate' : 'Generate'}
-                </button>
-                <button type="button" onClick={usePicture} disabled={!picUrl} className="btn btn-primary flex-1 !py-2 !text-xs">
-                  Use picture
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={attachSelected}
-                disabled={!selected.length}
-                className="btn btn-primary w-full !py-2 !text-xs"
-              >
-                {selected.length
-                  ? `Attach ${selected.length} photo${selected.length === 1 ? '' : 's'}`
-                  : 'Select photos above to attach'}
-              </button>
-            )}
+            <button type="button" onClick={makePromptPicture} disabled={picBusy} className="btn btn-ghost flex-1 !py-2 !text-xs">
+              {picBusy ? 'Rendering…' : picUrl ? 'Regenerate' : 'Generate'}
+            </button>
+            <button type="button" onClick={usePicture} disabled={!picUrl} className="btn btn-primary flex-1 !py-2 !text-xs">
+              Use picture
+            </button>
           </div>
         </>
       ) : null}
@@ -630,8 +456,8 @@ export default function AiCard({
         </div>
       ) : null}
 
-      {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
-      {appliedAt ? <p className="mt-2 text-xs font-bold text-[#346538]">{appliedNote}</p> : null}
+      {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{err}</p> : null}
+      {appliedAt ? <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#9BD49B]">{appliedNote}</p> : null}
       <button type="button" onClick={run} disabled={busy} className="btn btn-primary mt-3 w-full">
         {busy ? (
           'Writing…'

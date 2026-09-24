@@ -1,11 +1,13 @@
 // generate-image · AI picture from a text prompt (from-scratch generation)
 //
-// POST { prompt } → 200 { image: "data:image/png;base64,..." }
+// POST { prompt, ratio? } → 200 { image: "data:image/png;base64,..." }
+//   ratio: "1:1" | "4:5" | "9:16" | "3:2" | "16:9" (default "4:5")
 //   · 401 unauthenticated · 402 AI not configured · 502 upstream failure
 //
 // Uses the server-side OPENAI_API_KEY (gpt-image-1) — the browser never sees
-// the key. The caller downloads the data URL straight into the composer;
-// nothing is stored server-side.
+// the key. gpt-image-1 renders three sizes; the ratio maps to the nearest
+// (portrait ratios → 1024x1536, landscape → 1536x1024) and the client crops
+// to the exact shape. Nothing is stored server-side.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
@@ -48,6 +50,16 @@ serve(async (req: Request): Promise<Response> => {
   if (!prompt) return bad("Describe the picture first.");
   if (prompt.length > 1000) return bad("prompt ≤ 1000 chars.");
 
+  const RATIOS: Record<string, string> = {
+    "1:1": "1024x1024",
+    "4:5": "1024x1536",
+    "9:16": "1024x1536",
+    "3:2": "1536x1024",
+    "16:9": "1536x1024",
+  };
+  const ratio = typeof body["ratio"] === "string" && RATIOS[body["ratio"]] ? body["ratio"] : "4:5";
+  const size = RATIOS[ratio];
+
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   if (!apiKey) {
     return bad(
@@ -64,7 +76,7 @@ serve(async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         model: "gpt-image-1",
         prompt,
-        size: "1024x1536",
+        size,
       }),
     });
     const oj = (await or.json().catch(() => ({}))) as {
@@ -79,5 +91,5 @@ serve(async (req: Request): Promise<Response> => {
     return bad(`AI provider unreachable (${String(e).slice(0, 120)}).`, 502);
   }
 
-  return Response.json({ image: `data:image/png;base64,${b64}` }, { headers: CORS });
+  return Response.json({ image: `data:image/png;base64,${b64}`, ratio }, { headers: CORS });
 });

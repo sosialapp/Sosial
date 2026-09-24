@@ -7,18 +7,23 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Palette } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Seg, Field } from './ui';
-import { coverImageUrl } from '../utils/ai/social';
-import { findImages, type FoundImage } from '../utils/supabase';
+import { findImages, generateImage, type FoundImage, type PictureRatio } from '../utils/supabase';
 
 type PicMode = 'auto' | 'prompt';
 
-const rndSeed = () => Math.floor(Math.random() * 1000000);
+const RATIOS: { id: PictureRatio; label: string }[] = [
+  { id: '1:1', label: 'Square' },
+  { id: '4:5', label: 'Portrait' },
+  { id: '9:16', label: 'Story' },
+  { id: '3:2', label: 'Landscape' },
+  { id: '16:9', label: 'Wide' },
+];
 
 /**
  * AI picture picker — two ways to a photo, matching the web composer:
  * - Auto: real topical photos from the web for the post's topic.
- * - Prompt: the AI renders whatever description is typed.
- * onPick hands the remote URL back; the caller downloads it on Apply.
+ * - Prompt: Picture AI renders whatever description is typed, in a chosen ratio.
+ * onPick hands the URL/data-URI back; the caller downloads it on Apply.
  */
 export default function AIPictureSheet({ visible, initialPrompt = '', initialTopic = '', onPick, onClose }: {
   visible: boolean;
@@ -33,6 +38,7 @@ export default function AIPictureSheet({ visible, initialPrompt = '', initialTop
   const [mode, setMode] = useState<PicMode>('auto');
   const [prompt, setPrompt] = useState('');
   const [topic, setTopic] = useState('');
+  const [ratio, setRatio] = useState<PictureRatio>('4:5');
   const [picUrl, setPicUrl] = useState<string | null>(null);
   const [results, setResults] = useState<FoundImage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -51,14 +57,21 @@ export default function AIPictureSheet({ visible, initialPrompt = '', initialTop
 
   const query = (prompt.trim() || topic.trim()).slice(0, 200);
 
-  const makePromptPicture = () => {
+  const makePromptPicture = async () => {
     if (!query) {
       setErr('Describe the picture first.');
       return;
     }
     setErr('');
     setResults([]);
-    setPicUrl(coverImageUrl(query, rndSeed()));
+    setBusy(true);
+    try {
+      setPicUrl(await generateImage(query, ratio));
+    } catch (e: any) {
+      setErr(e?.message ?? 'AI generation failed.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const searchPictures = async () => {
@@ -102,9 +115,28 @@ export default function AIPictureSheet({ visible, initialPrompt = '', initialTop
           </Text>
 
           {mode === 'prompt' ? (
-            <Field label="Description">
-              <Txt value={prompt} onChangeText={setPrompt} placeholder="A photo of Kyiv at dusk, cinematic…" multiline />
-            </Field>
+            <>
+              <Field label="Description">
+                <Txt value={prompt} onChangeText={setPrompt} placeholder="A photo of Kyiv at dusk, cinematic…" multiline />
+              </Field>
+              <View style={s.ratioRow}>
+                {RATIOS.map((r) => {
+                  const on = ratio === r.id;
+                  return (
+                    <TouchableOpacity
+                      key={r.id}
+                      onPress={() => setRatio(r.id)}
+                      style={[s.ratioPill, on && s.ratioPillOn]}
+                      activeOpacity={0.8}
+                      accessibilityLabel={`Ratio ${r.label} ${r.id}`}
+                      accessibilityState={{ selected: on }}
+                    >
+                      <Text style={[s.ratioT, on && s.ratioTOn]}>{r.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
           ) : (
             <Field label="Topic">
               <Txt value={topic} onChangeText={setTopic} placeholder="What should the photo show?" multiline />
@@ -134,7 +166,7 @@ export default function AIPictureSheet({ visible, initialPrompt = '', initialTop
           {err ? <Text style={s.err}>{err}</Text> : null}
 
           {mode === 'prompt' ? (
-            <GhostBtn label={picUrl && !results.length ? 'Regenerate' : 'Generate'} onPress={makePromptPicture} />
+            <GhostBtn label={busy ? 'Rendering…' : picUrl ? 'Regenerate' : 'Generate'} onPress={() => void makePromptPicture()} disabled={busy} />
           ) : (
             <GhostBtn label={busy ? 'Searching…' : results.length ? 'Search again' : 'Find photos'} onPress={() => void searchPictures()} />
           )}
@@ -156,6 +188,11 @@ const makeS = (C: Palette) => StyleSheet.create({
   body: { paddingHorizontal: 18, paddingBottom: 28, gap: 12 },
   hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
   preview: { width: '100%', aspectRatio: 4 / 5, borderRadius: 14, backgroundColor: C.surface },
+  ratioRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  ratioPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
+  ratioPillOn: { backgroundColor: C.ink, borderColor: C.ink },
+  ratioT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: C.muted },
+  ratioTOn: { color: C.onInk },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: { width: '23%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', borderWidth: 1.5, borderColor: 'transparent', opacity: 0.75 },
   cellOn: { borderColor: C.accent, opacity: 1 },

@@ -300,7 +300,7 @@ export default function CreateHub({
     });
   }
 
-  function addFilesToIdea(i: number, list: FileList | null) {
+  function addFilesToIdea(i: number, list: FileList | File[] | null) {
     if (!list) return;
     const next: MediaItem[] = Array.from(list).map((file) => ({
       file,

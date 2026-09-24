@@ -345,7 +345,7 @@ export interface FoundImage {
   height: number;
 }
 
-/** Real topical photos for an idea (Wikimedia Commons, no key). */
+/** Real topical photos for an idea (Openverse, then Wikimedia Commons). */
 export async function findImages(topic: string): Promise<{ images: FoundImage[]; keywords: string[] }> {
   const json = await callChannelFunction('find-images', { topic });
   if (json?.error) throw new Error(String(json.error));
@@ -353,4 +353,18 @@ export async function findImages(topic: string): Promise<{ images: FoundImage[];
     throw new Error('No photos found for that topic — try different words.');
   }
   return { images: json.images as FoundImage[], keywords: Array.isArray(json.keywords) ? json.keywords : [] };
+}
+
+/* ---------------- AI picture generation (Edge Function) ---------------- */
+
+export type PictureRatio = '1:1' | '4:5' | '9:16' | '3:2' | '16:9';
+
+/** AI-rendered picture from a text prompt (gpt-image-1, server-side key). */
+export async function generateImage(prompt: string, ratio: PictureRatio = '4:5'): Promise<string> {
+  const json = await callChannelFunction('generate-image', { prompt, ratio });
+  if (json?.error) throw new Error(String(json.error));
+  if (typeof json?.image !== 'string' || !json.image) {
+    throw new Error('The AI returned nothing — try a different description.');
+  }
+  return json.image as string;
 }
