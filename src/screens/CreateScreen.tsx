@@ -313,14 +313,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
     const tags = r.hashtags.length ? '\n\n' + r.hashtags.join(' ') : '';
     const asThread = r.thread.length > 1;
     const head = (asThread ? r.thread[0] : r.caption).split('\n')[0].slice(0, 70);
-    // AI cover graphic → local file so the composer owns it like a picked photo.
-    // Never clobbers media the user already attached.
-    let cover: MediaAttachment | null = null;
-    if (r.imageUrl) {
-      const local = await fetchCoverImage(r.imageUrl, r.imageSeed);
-      if (local) cover = { uri: local, kind: 'image' };
-    }
-    // Per-post attachments from the AI sheet: remote AI images download to
+    // Per-post attachments from the AI sheet: remote photos download to
     // cache first (publishers need local files); device uploads pass through.
     const segMed = r.segmentMedia ?? [];
     const localise = async (m: { uri: string; kind: 'image' | 'video' }, seed: number): Promise<MediaAttachment | null> => {
@@ -338,17 +331,15 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
           const l = await localise(item, Date.now() + i * 10 + k);
           if (l) media.push(l);
         }
-        if (i === 0 && cover && !media.length) media.push(cover);
         out.push({ text: t[i], media });
       }
       return out;
     };
-    // Single caption: the sheet's first-post attachment wins, cover is fallback.
+    // Single caption: the sheet's first-post attachment wins.
     let singleMedia: MediaAttachment | null = null;
     if (!asThread) {
       const first = (segMed[0] ?? [])[0] as { uri: string; kind: 'image' | 'video' } | undefined;
       if (first) singleMedia = await localise(first, Date.now());
-      if (!singleMedia) singleMedia = cover;
     }
     if (target === 'idea') {
       if (asThread) { setCThread(await toSegs(r.thread)); setCBody(joinThread(r.thread)); }

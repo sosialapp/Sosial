@@ -646,7 +646,7 @@ export default function CreateHub({
               onThreadChange={setIdeaThreadMode}
               parts={ideaParts}
               onPartsChange={(n) => {
-                const clamped = Math.max(2, Math.min(8, n));
+                const clamped = Math.max(3, Math.min(12, n));
                 setIdeaParts(clamped);
                 setIdeaSegs((prev) => {
                   const next = [...prev];

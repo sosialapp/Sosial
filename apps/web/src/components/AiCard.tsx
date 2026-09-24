@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ChevronDown, Sparkles } from 'lucide-react';
-import { generateCaptions, withHashtags } from '@/lib/ai';
+import { ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
+import { generateSocial, rewritePosts, withHashtags, SOCIAL_PLATFORMS, THREAD_PLATFORM_IDS, THREAD_POST_MIN, capFor, platformLabel, type AiVariant, type RewriteOp } from '@/lib/ai';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
+import { providerMeta } from '@/lib/providers';
 
 type EmojiMode = 'auto' | 'on' | 'off';
 const EMOJI_OPTS: { id: EmojiMode; label: string }[] = [
@@ -11,6 +12,21 @@ const EMOJI_OPTS: { id: EmojiMode; label: string }[] = [
   { id: 'on', label: 'Some' },
   { id: 'off', label: 'None' },
 ];
+
+const REFINEMENTS: [RewriteOp, string][] = [
+  ['shorter', 'Shorter'],
+  ['punchier', 'Punchier'],
+  ['natural', 'More natural'],
+  ['context', 'Add context'],
+  ['tone', 'Change tone'],
+  ['style', 'Change style'],
+];
+
+/** Destination pill — brand dot when the platform is a known provider. */
+function PlatformGlyph({ id }: { id: string }) {
+  const meta = providerMeta(id);
+  return <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: meta.color }} aria-hidden="true" />;
+}
 
 /** iOS-style toggle — yellow when on. */
 function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
@@ -31,10 +47,10 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
 }
 
 /**
- * AI Generate studio card — the mobile writer's sections on web: idea,
- * language, tone, style, format (post/thread + parts) and advanced options.
- * Generates through the same edge function and hands the result back to the
- * host surface (composer, ideas). Picture AI lives in its own PictureCard.
+ * Write with AI — the mobile studio's behavior on web. The idea owns the
+ * card; destinations are picked in the card; the result comes back as
+ * editable per-channel drafts with counters and refine transforms, and only
+ * "Use this caption/thread" hands anything to the composer.
  */
 export default function AiCard({
   providers,
@@ -44,9 +60,8 @@ export default function AiCard({
   onPartsChange,
   onResult,
   appliedNote = 'Applied — edit freely.',
-  seedTopic = '',
 }: {
-  /** Provider keys the copy should be sized for (strictest wins). */
+  /** Provider keys of the connected channels — preselects the destinations. */
   providers: string[];
   thread: boolean;
   onThreadChange: (v: boolean) => void;
@@ -54,8 +69,6 @@ export default function AiCard({
   onPartsChange: (n: number) => void;
   onResult: (bodies: string[]) => void;
   appliedNote?: string;
-  /** Idea text from the host — used by the placeholder to nudge reuse. */
-  seedTopic?: string;
 }) {
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('auto');
@@ -69,9 +82,126 @@ export default function AiCard({
   const [cta, setCta] = useState(true);
   const [instructions, setInstructions] = useState('');
   const [advanced, setAdvanced] = useState(false);
+
+  /* --------------------------- destinations --------------------------- */
+  const known = useMemo(
+    () => providers.filter((p) => SOCIAL_PLATFORMS.some((s) => s.id === p)),
+    [providers],
+  );
+  const [platforms, setPlatforms] = useState<string[]>(() => (known.length ? known : ['any']));
+
+  // Threads only publish as chains on four channels — narrow like mobile.
+  useMemo(() => {
+    if (!thread) return;
+    setPlatforms((prev) => {
+      const kept = prev.filter((p) => THREAD_PLATFORM_IDS.includes(p));
+      return kept.length ? kept : ['x'];
+    });
+  }, [thread]);
+
+  const togglePlatform = (p: string) => {
+    if (p === 'any') return setPlatforms(['any']);
+    setPlatforms((prev) => {
+      const next = prev.filter((x) => x !== 'any');
+      const out = next.includes(p) ? next.filter((x) => x !== p) : [...next, p];
+      return out.length ? out : thread ? ['x'] : ['any'];
+    });
+  };
+
+  /* ---------------------------- generation ---------------------------- */
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [appliedAt, setAppliedAt] = useState<number | null>(null);
+  const [draft, setDraft] = useState<AiVariant[]>([]);
+  const [tab, setTab] = useState(0);
+  const [dirty, setDirty] = useState(false);
+
+  const active = draft[tab];
+  const isThreadView = thread && (active?.posts.length ?? 0) > 1;
+  const limit = capFor(active?.platform ?? platforms[0], thread);
+  const hasCopy = draft.some((v) => v.posts.some((p) => p.trim()));
+
+  async function run() {
+    setErr(null);
+    setAppliedAt(null);
+    const t = topic.trim();
+    if (!t) {
+      setErr('Give the AI a rough thought to work with.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      const variants = await generateSocial(sb, {
+        topic: t,
+        platforms,
+        thread,
+        parts: thread ? parts : 1,
+        tone,
+        language,
+        style,
+        instructions: instructions.trim() || undefined,
+        emoji,
+        cta,
+        hashtags,
+      });
+      setDraft(variants);
+      setTab(0);
+      setDirty(false);
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'AI generation failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function regenerate() {
+    if (dirty && !window.confirm('Start over? You will lose your manual edits.')) return;
+    void run();
+  }
+
+  function setPost(pi: number, text: string) {
+    if (!active) return;
+    setDraft((d) => d.map((v, i) => (i === tab ? { ...v, posts: v.posts.map((p, j) => (j === pi ? text : p)) } : v)));
+    setDirty(true);
+  }
+
+  async function applyTransform(op: RewriteOp) {
+    if (!active) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      const posts = await rewritePosts(sb, {
+        posts: active.posts,
+        platform: active.platform,
+        thread,
+        language,
+        op,
+      });
+      setDraft((d) => d.map((v, i) => (i === tab ? { ...v, posts } : v)));
+      setDirty(true);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not rewrite — kept your original.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function transform(op: RewriteOp) {
+    if (dirty && !window.confirm('Rewrite this draft? The AI will replace your manual edits.')) return;
+    void applyTransform(op);
+  }
+
+  function apply() {
+    if (!active) return;
+    onResult(active.posts.map((p) => (hashtags ? withHashtags(p, active.hashtags) : p)));
+    setAppliedAt(Date.now());
+  }
+
+  /* ------------------------------ inputs ------------------------------ */
 
   const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
   const langMatches = useMemo(() => {
@@ -82,41 +212,10 @@ export default function AiCard({
     return list.slice(0, 60);
   }, [langQuery]);
 
-  async function run() {
-    setErr(null);
-    setAppliedAt(null);
-    const t = topic.trim();
-    if (!t) {
-      setErr('Describe the topic first.');
-      return;
-    }
-    if (!providers.length) {
-      setErr('Pick at least one channel — the AI sizes copy to the strictest one.');
-      return;
-    }
-    setBusy(true);
-    try {
-      const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      const segs = await generateCaptions(sb, {
-        topic: t,
-        providers,
-        count: thread ? parts : 1,
-        tone,
-        language,
-        style,
-        instructions: instructions.trim() || undefined,
-        emoji,
-        cta,
-      });
-      onResult(segs.map((s) => (hashtags ? withHashtags(s.caption, s.hashtags) : s.caption)));
-      setAppliedAt(Date.now());
-    } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'AI generation failed.');
-    } finally {
-      setBusy(false);
-    }
-  }
+  const destChoices = thread
+    ? SOCIAL_PLATFORMS.filter((p) => THREAD_PLATFORM_IDS.includes(p.id))
+    : SOCIAL_PLATFORMS;
+  const destCount = platforms.includes('any') ? 1 : platforms.length;
 
   return (
     <section
@@ -137,7 +236,7 @@ export default function AiCard({
       <textarea
         value={topic}
         onChange={(e) => setTopic(e.target.value)}
-        placeholder="e.g. Create a catchy Instagram caption about building better habits for a healthier life…"
+        placeholder="e.g. why I stopped chasing viral hacks and started posting one honest update a day…"
         rows={3}
         aria-label="Your idea"
         className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5"
@@ -292,7 +391,7 @@ export default function AiCard({
           <span className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => onPartsChange(Math.max(2, parts - 1))}
+              onClick={() => onPartsChange(Math.max(3, parts - 1))}
               aria-label="Fewer posts"
               className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
             >
@@ -301,7 +400,7 @@ export default function AiCard({
             <span className="min-w-7 text-center text-xs font-extrabold">{parts}</span>
             <button
               type="button"
-              onClick={() => onPartsChange(Math.min(8, parts + 1))}
+              onClick={() => onPartsChange(Math.min(12, parts + 1))}
               aria-label="More posts"
               className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
             >
@@ -309,6 +408,33 @@ export default function AiCard({
             </button>
           </span>
         </div>
+      ) : null}
+
+      {/* Destination */}
+      <p className="mt-4 text-xs font-bold text-soft">Post to{thread ? ' (thread channels)' : ''}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Destinations">
+        {destChoices.map((p) => {
+          const on = platforms.includes(p.id);
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => togglePlatform(p.id)}
+              aria-pressed={on}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                on
+                  ? 'border-ink bg-ink text-paper'
+                  : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
+              }`}
+            >
+              {p.id === 'any' ? null : <PlatformGlyph id={p.id} />}
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      {destCount > 1 ? (
+        <p className="mt-1 text-[11px] text-muted">Same facts everywhere — the wording adapts to each channel.</p>
       ) : null}
 
       {/* Advanced */}
@@ -370,20 +496,122 @@ export default function AiCard({
         </div>
       ) : null}
 
+      {/* Result — editable drafts, like the mobile sheet */}
       {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{err}</p> : null}
+
+      {draft.length > 0 && !busy ? (
+        <div className="mt-3 rounded-2xl border border-[#E3D9FA] bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
+          <div className="flex items-center gap-2">
+            <Sparkles className={`h-4 w-4 ${hasCopy ? 'text-[#346538] dark:text-[#9BD49B]' : 'text-[#9F2F2D] dark:text-[#F2A8A8]'}`} aria-hidden="true" />
+            <p className="text-sm font-extrabold">
+              {isThreadView ? `${active?.posts.length ?? 0}-post thread` : 'Caption'}
+            </p>
+          </div>
+
+          {draft.length > 1 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Channel drafts">
+              {draft.map((v, i) => (
+                <button
+                  key={v.platform}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === tab}
+                  onClick={() => setTab(i)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                    i === tab
+                      ? 'border-ink bg-ink text-paper'
+                      : 'border-line bg-paper text-muted hover:text-ink'
+                  }`}
+                >
+                  {v.platform === 'any' ? null : <PlatformGlyph id={v.platform} />}
+                  {platformLabel(v.platform)}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-2 space-y-2">
+            {active?.posts.map((seg, i) => {
+              const over = seg.length > limit;
+              const tooShort = isThreadView && seg.length < THREAD_POST_MIN;
+              return (
+                <div key={i} className="rounded-xl border border-line bg-paper p-2">
+                  <div className="flex items-center justify-between px-0.5">
+                    <span className="text-[11px] font-extrabold tracking-wide text-[#5B3DF0] dark:text-[#B9A6F7]">
+                      {active.posts.length > 1 ? `Post ${i + 1}` : 'Caption'}
+                    </span>
+                    <span className={`text-[11px] font-bold tabular-nums ${over ? 'text-[#9F2F2D] dark:text-[#F2A8A8]' : tooShort ? 'text-[#B98A1C] dark:text-[#E8C162]' : 'text-faint'}`}>
+                      {seg.length}/{limit}{tooShort ? ` · min ${THREAD_POST_MIN}` : ''}
+                    </span>
+                  </div>
+                  <textarea
+                    value={seg}
+                    onChange={(e) => setPost(i, e.target.value)}
+                    rows={3}
+                    aria-label={`Edit ${active.posts.length > 1 ? `post ${i + 1}` : 'caption'}`}
+                    className="mt-1 min-h-[56px] w-full resize-y rounded-lg border border-line-soft bg-white/80 px-2.5 py-2 text-xs leading-relaxed text-ink focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:bg-white/5"
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {active && active.hashtags.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {active.hashtags.map((h) => (
+                <span key={h} className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">
+                  #{h}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Refine */}
+          <p className="mt-3 text-xs font-bold text-soft">Refine</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {REFINEMENTS.map(([op, label]) => (
+              <button
+                key={op}
+                type="button"
+                onClick={() => transform(op)}
+                disabled={busy}
+                className="rounded-full border border-line bg-paper px-3 py-1.5 text-[11px] font-bold text-muted transition hover:text-ink disabled:opacity-50"
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={regenerate}
+              disabled={busy}
+              className="flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1.5 text-[11px] font-bold text-muted transition hover:text-ink disabled:opacity-50"
+            >
+              <RefreshCw className="h-3 w-3" aria-hidden="true" />
+              Regenerate
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {busy ? <p className="mt-2 text-xs font-bold text-muted">Writing…</p> : null}
+
       {appliedAt ? <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#9BD49B]">{appliedNote}</p> : null}
-      <button type="button" onClick={run} disabled={busy} className="btn btn-primary mt-3 w-full">
-        {busy ? (
-          'Writing…'
-        ) : appliedAt ? (
-          'Regenerate'
-        ) : (
-          <>
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            Generate
-          </>
-        )}
-      </button>
+
+      {/* Sticky CTA */}
+      {draft.length > 0 && hasCopy && !busy ? (
+        <button type="button" onClick={apply} className="btn btn-primary mt-3 w-full">
+          {isThreadView ? `Use this thread (${active?.posts.length ?? 0})` : 'Use this caption'}
+        </button>
+      ) : (
+        <button type="button" onClick={run} disabled={busy} className="btn btn-primary mt-3 w-full">
+          {busy ? 'Writing…' : (
+            <>
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              Generate
+            </>
+          )}
+        </button>
+      )}
     </section>
   );
 }

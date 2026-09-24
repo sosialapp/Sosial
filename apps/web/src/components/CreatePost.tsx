@@ -5,13 +5,11 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AiCard from '@/components/AiCard';
-import PictureCard from '@/components/PictureCard';
 import SendIcon from '@/components/SendIcon';
 import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
-import { pictureToFile } from '@/lib/pictures';
 import { createChain, createPost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
@@ -119,7 +117,7 @@ export default function CreatePost({
         return c ? THREAD_PROVIDERS.includes(c.provider) : false;
       }));
       setSegs((prev) => {
-        const need = Math.max(2, parts);
+        const need = Math.max(3, parts);
         const next = [...prev];
         while (next.length < need) next.push({ body: '', media: [] });
         return next.slice(0, need);
@@ -128,7 +126,7 @@ export default function CreatePost({
   }
 
   function setPartsCount(n: number) {
-    const clamped = Math.max(2, Math.min(8, n));
+    const clamped = Math.max(3, Math.min(12, n));
     setParts(clamped);
     setSegs((prev) => {
       const next = [...prev];
@@ -145,23 +143,6 @@ export default function CreatePost({
     setSegs((prev) =>
       prev.map((s, j) => (j === i ? { ...s, media: [...s.media, ...next].slice(0, 10) } : s)),
     );
-  }
-
-  /** Attach AI picture URLs to part 1: download each into a File so the
-   *  normal upload path carries them. Tolerates single failures. */
-  async function addPictureUrls(urls: string[]) {
-    const settled = await Promise.allSettled(urls.map((u) => pictureToFile(u)));
-    const items = settled
-      .filter((r): r is PromiseFulfilledResult<File> => r.status === 'fulfilled')
-      .map((r) => ({ file: r.value, kind: 'image' as const, url: URL.createObjectURL(r.value) }));
-    if (!items.length) {
-      setErr('Could not fetch those pictures — try others.');
-      return;
-    }
-    setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, media: [...s.media, ...items].slice(0, 10) } : s)));
-    if (items.length < urls.length) {
-      setErr('Some pictures could not be fetched — the rest were attached.');
-    }
   }
 
   function removeMediaFrom(i: number, mi: number) {
@@ -469,7 +450,6 @@ export default function CreatePost({
             }}
             appliedNote="Applied to the composer — edit freely, then post."
           />
-          <PictureCard onPicture={(urls) => void addPictureUrls(urls)} />
         </div>
       </div>
     </form>

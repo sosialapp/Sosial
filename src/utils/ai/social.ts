@@ -180,8 +180,6 @@ export interface SocialBrief {
   hashtags: boolean;
   /** one or more destinations; the model adapts the presentation for each */
   platforms: SocialPlatform[];
-  /** also produce a topic-matched AI cover image */
-  coverImage: boolean;
   /** live web research for time-sensitive topics */
   research: Toggle;
   /** attach source links when research ran */
@@ -227,12 +225,6 @@ export interface SocialResult {
   hashtags: string[];
   provider: string;
   warnings: string[];
-  /** cover-image visual description from the model */
-  imagePrompt: string | null;
-  /** seed the cover URL was built with — bump it for a fresh variant */
-  imageSeed: number;
-  /** ready-to-preview Pollinations URL */
-  imageUrl: string | null;
   /** what the model actually decided in Auto mode */
   generation: SocialGeneration;
   /** per-platform adapted output (always ≥ 1 entry) */
@@ -254,7 +246,6 @@ export const DEFAULT_SOCIAL_BRIEF: SocialBrief = {
   parts: 5,
   hashtags: false,
   platforms: ['any'],
-  coverImage: false,
   research: 'auto',
   sources: 'auto',
   emoji: 'auto',
@@ -293,15 +284,7 @@ function stripNumbering(s: string): string {
   return s.replace(/^\s*\(?\d{1,2}\s*[\/.)\]:-]\s*/, '').replace(/^\s*[-•]\s*/, '').trim();
 }
 
-/**
- * Free topic-matched cover graphic (Pollinations Flux, no key, hotlinkable).
- * Portrait 4:5 suits feed + story crops; seed picks the variant.
- */
-export function coverImageUrl(desc: string, seed: number): string {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=1080&height=1350&seed=${seed}&model=flux&nologo=true`;
-}
-
-/** Download a cover URL into the app cache so the composer owns a local file. Null on any failure. */
+/** Download a remote picture into the app cache so the composer owns a local file. Null on any failure. */
 export async function fetchCoverImage(url: string, seed: number): Promise<string | null> {
   try {
     const base = FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '';
@@ -318,12 +301,6 @@ export async function fetchCoverImage(url: string, seed: number): Promise<string
   } catch {
     return null;
   }
-}
-
-/** Fallback visual brief when the user asks for graphics after the fact. */
-export function imagePromptFromIdea(idea: string): string {
-  const t = clean(idea).replace(/[.!?]+$/, '').slice(0, 140) || 'the topic';
-  return `Editorial cover photo about ${t}, natural light, real-world detail, generous negative space, no text, no logos, no watermarks`;
 }
 
 /* ---------------- platform set helpers ---------------- */
@@ -529,22 +506,12 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
 
   if (!caption && !thread.length && !hashtags.length) warnings.push('Nothing usable came back — try rephrasing the idea.');
 
-  // Cover-art brief comes from the FINAL copy — never the rough idea — so the
-  // picture actually matches the post that ships with it.
-  const coverText = (isThread ? thread[0] : caption) || brief.prompt;
-  const imagePrompt = brief.coverImage ? imagePromptFromIdea(coverText) : null;
-  const imageSeed = Math.floor(Math.random() * 1000000);
-  const imageUrl = imagePrompt ? coverImageUrl(imagePrompt, imageSeed) : null;
-
   return {
     caption,
     thread,
     hashtags,
     provider,
     warnings,
-    imagePrompt,
-    imageSeed,
-    imageUrl,
     generation: resolveGeneration(raw, brief, isThread),
     variants,
     sources,
@@ -709,15 +676,11 @@ function buildPrompt(brief: SocialBrief, opts: { platforms: SocialPlatform[]; li
 
   if (brief.instructions.trim()) lines.push(`EXTRA DIRECTION from the user (follow it): ${brief.instructions.trim()}`);
 
-  if (brief.coverImage) {
-    lines.push('Also describe ONE cover image: vivid and specific to the idea, portrait composition, absolutely no text, words, letters, watermarks or logos in the image.');
-  }
-
   if (!brief.hashtags) lines.push('Return an empty hashtags array.');
   else lines.push('Hashtags: 3-5 relevant tags kept separate from the copy (no camel-case stuffing).');
 
   lines.push(
-    `Return ONLY JSON with this shape: {"content_type":"post|thread","style_used":"...","voice_used":"...","language":"...","posts":["..."],"variants":[{"platform":"...","posts":["..."]}],"hashtags":["..."],"sources":[{"title":"...","url":"...","publisher":"...","published_at":"..."}],"uncertainties":["..."],"image":"..."}.`,
+    `Return ONLY JSON with this shape: {"content_type":"post|thread","style_used":"...","voice_used":"...","language":"...","posts":["..."],"variants":[{"platform":"...","posts":["..."]}],"hashtags":["..."],"sources":[{"title":"...","url":"...","publisher":"...","published_at":"..."}],"uncertainties":["..."]}.`,
   );
   return lines.join('\n');
 }
@@ -753,7 +716,6 @@ const SCHEMA = {
       },
     },
     uncertainties: { type: 'array', items: { type: 'string' } },
-    image: { type: 'string' },
   },
   required: ['posts'],
 };
@@ -829,7 +791,6 @@ export function mockSocial(brief: SocialBrief): any {
     `So pick the smallest version, attach it to something you already do, and let it be boring for a while.`,
     `If ${t} has been on your mind, save this and start today.`,
   ];
-  const image = imagePromptFromIdea(topic);
   const platforms = activePlatforms(brief);
   const n = brief.thread ? Math.max(2, Math.min(beats.length, brief.parts)) : 1;
   const posts = brief.thread ? beats.slice(0, n) : [beats[0], beats[2], beats[4]].join('\n\n').split('\n\n');
@@ -843,7 +804,6 @@ export function mockSocial(brief: SocialBrief): any {
     hashtags: deriveHashtags(topic),
     sources: [],
     uncertainties: [],
-    image,
     __researched: false,
   };
 }
@@ -905,7 +865,6 @@ export async function generateSocial(brief: SocialBrief, onPhase?: PhaseHandler)
     return {
       caption: '', thread: [], hashtags: [], provider: label,
       warnings: [e?.message ?? 'Something went wrong while writing your post.'],
-      imagePrompt: null, imageSeed: 0, imageUrl: null,
       generation: { contentType: brief.thread ? 'thread' : 'post', styleUsed: brief.style, voiceUsed: brief.tone, language: brief.language },
       variants: [], sources: [], researchUsed: false, uncertainties: [],
     };

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/posts';
-import { generateCaptions, withHashtags } from '@/lib/ai';
+import { generateSocial, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
 import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
@@ -162,20 +162,23 @@ export default function Composer({
       setAiErr('Pick at least one channel. The AI sizes copy to the strictest one.');
       return;
     }
-    const count = kind === 'chain' ? segments.length : 1;
+    const chain = kind === 'chain';
     setAiBusy(true);
     try {
       const sb = createClient();
-      const segs = await generateCaptions(sb, {
+      const variants = await generateSocial(sb, {
         topic: t,
-        providers: chosenProviders,
-        count,
+        platforms: chosenProviders,
+        thread: chain,
+        parts: chain ? segments.length : 1,
         tone,
+        hashtags: true,
       });
-      if (kind === 'chain') {
-        setSegments(segs.map((s) => ({ key: segKey.current++, body: withHashtags(s.caption, s.hashtags) })));
+      const v = variants[0];
+      if (chain) {
+        setSegments(v.posts.map((p) => ({ key: segKey.current++, body: withHashtags(p, v.hashtags) })));
       } else {
-        setBody(withHashtags(segs[0].caption, segs[0].hashtags));
+        setBody(withHashtags(v.posts[0] ?? '', v.hashtags));
       }
     } catch (e) {
       setAiErr(e instanceof Error ? e.message : 'AI generation failed.');

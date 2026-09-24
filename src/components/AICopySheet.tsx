@@ -14,7 +14,6 @@ import {
   DEFAULT_SOCIAL_BRIEF, SOCIAL_TONES, SOCIAL_PLATFORMS, SOCIAL_STYLES, SocialStyleMeta,
   THREAD_PLATFORM_IDS, THREAD_POST_MIN, styleSampleFor,
   generateSocial, rewritePosts, capFor, activePlatforms, researchNeeded,
-  coverImageUrl, imagePromptFromIdea,
 } from '../utils/ai/social';
 import { WRITER_LANGUAGES } from '../utils/ai/languages';
 import AIPictureSheet from './AIPictureSheet';
@@ -55,7 +54,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [parts, setParts] = useState(DEFAULT_SOCIAL_BRIEF.parts);
   const [hashtags, setHashtags] = useState(DEFAULT_SOCIAL_BRIEF.hashtags);
   const [platforms, setPlatforms] = useState<SocialPlatform[]>(DEFAULT_SOCIAL_BRIEF.platforms);
-  const [cover, setCover] = useState(DEFAULT_SOCIAL_BRIEF.coverImage);
   const [research, setResearch] = useState<Toggle>(DEFAULT_SOCIAL_BRIEF.research);
   const [sources, setSources] = useState<Toggle>(DEFAULT_SOCIAL_BRIEF.sources);
   const [emoji, setEmoji] = useState<'auto' | 'on' | 'off'>(DEFAULT_SOCIAL_BRIEF.emoji);
@@ -110,7 +108,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
 
   const brief: SocialBrief = {
     prompt, language, tone, style, thread, parts, hashtags, platforms,
-    coverImage: cover, research, sources, emoji, cta, instructions,
+    research, sources, emoji, cta, instructions,
   };
 
   const willResearch = researchNeeded(brief);
@@ -153,17 +151,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
 
   const mediaKey = (vi: number, pi: number) => `${vi}:${pi}`;
 
-  /** Topic-matched AI image for one post (remote URL — downloaded on Apply). */
-  const aiImage = (vi: number, pi: number) => {
-    const text = draft[vi]?.posts[pi] ?? '';
-    if (!text.trim()) return;
-    const desc = imagePromptFromIdea(text);
-    const seed = Math.floor(Math.random() * 1000000);
-    const k = mediaKey(vi, pi);
-    setSegMedia((m) => ({ ...m, [k]: [...(m[k] ?? []).slice(0, 3), { uri: coverImageUrl(desc, seed), kind: 'image' }] }));
-  };
-
-  /** Picture picker target (variant + post) — prompt-rendered or real photo. */
+  /** Picture picker target (variant + post) — real topical photos. */
   const [picTarget, setPicTarget] = useState<{ vi: number; pi: number } | null>(null);
 
   const attachPicture = (uri: string) => {
@@ -230,13 +218,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
       return;
     }
     run();
-  };
-
-  const createGraphic = () => {
-    if (!result) return;
-    const desc = result.imagePrompt ?? imagePromptFromIdea(brief.prompt);
-    const seed = Math.floor(Math.random() * 1000000);
-    setResult({ ...result, imagePrompt: desc, imageSeed: seed, imageUrl: coverImageUrl(desc, seed) });
   };
 
   /* ---------------- apply / close ---------------- */
@@ -552,14 +533,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                       <PillToggle on={cta} onPress={() => setCta((v) => !v)} />
                     </View>
 
-                    <View style={st.toggleRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={st.toggleT}>AI cover image</Text>
-                        <Text style={st.toggleS}>Topic-matched graphic, made fresh each run</Text>
-                      </View>
-                      <PillToggle on={cover} onPress={() => setCover((v) => !v)} />
-                    </View>
-
                     <Field label="Custom instructions" hint="Optional">
                       <Txt
                         value={instructions}
@@ -689,11 +662,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                           ))}
                           {attachments.length < 4 ? (
                             <>
-                              <TouchableOpacity onPress={() => aiImage(tab, i)} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Generate AI image for this post">
-                                <Ionicons name="sparkles" size={13} color={C.accentInk} />
-                                <Text style={st.attBtnT}>AI image</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity onPress={() => setPicTarget({ vi: tab, pi: i })} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Pick a picture: prompt or real photo">
+                              <TouchableOpacity onPress={() => setPicTarget({ vi: tab, pi: i })} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Pick a picture: real topical photos">
                                 <Ionicons name="image" size={13} color={C.accentInk} />
                                 <Text style={st.attBtnT}>Picture</Text>
                               </TouchableOpacity>
@@ -733,13 +702,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                     </View>
                   ) : null}
 
-                  {result.imageUrl ? (
-                    <View style={{ gap: 8 }}>
-                      <Image source={{ uri: result.imageUrl }} style={st.cover} resizeMode="cover" />
-                      <GhostBtn label="New image" onPress={createGraphic} />
-                    </View>
-                  ) : null}
-
                   {/* transforms */}
                   <View style={{ gap: 9 }}>
                     <Text style={st.label}>Refine</Text>
@@ -756,14 +718,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                           <Text style={st.chipT}>{l}</Text>
                         </TouchableOpacity>
                       ))}
-                      {!result.imageUrl ? (
-                        <TouchableOpacity onPress={createGraphic} style={st.chip} activeOpacity={0.75}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons name="image-outline" size={13} color={C.muted} />
-                            <Text style={st.chipT}>Create graphics</Text>
-                          </View>
-                        </TouchableOpacity>
-                      ) : null}
                       <TouchableOpacity onPress={regenerate} style={st.chip} activeOpacity={0.75} disabled={busy}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Ionicons name="refresh" size={13} color={C.muted} />
@@ -808,7 +762,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
       {picTarget ? (
         <AIPictureSheet
           visible
-          initialPrompt={imagePromptFromIdea(draft[picTarget.vi]?.posts[picTarget.pi] ?? '')}
           initialTopic={draft[picTarget.vi]?.posts[picTarget.pi] ?? ''}
           onPick={attachPicture}
           onClose={() => setPicTarget(null)}
@@ -873,7 +826,6 @@ const makeSt = (C: Palette, bottomInset: number) => StyleSheet.create({
   source: { flexDirection: 'row', gap: 9, alignItems: 'flex-start', backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 10 },
   sourceT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, lineHeight: 17, color: C.ink },
   sourceS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted, marginTop: 2 },
-  cover: { width: '100%', aspectRatio: 4 / 5, borderRadius: R.lg, backgroundColor: C.card },
   footer: { paddingTop: 12, paddingBottom: Math.max(14, bottomInset), paddingHorizontal: 20, marginHorizontal: -20, backgroundColor: C.paper, borderTopWidth: 1, borderTopColor: C.lineSoft },
   lockBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 },
   lockT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
