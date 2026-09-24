@@ -409,3 +409,22 @@ body {
   --color-accent-soft: #2A2620;
   --color-accent-ink: #F0B98A;
 }
+
+/* Document sheet — a Google-Docs-style white page that stays light in both
+ * themes, so editor chrome, fields and the Prose preview all render exactly
+ * as the published (light) article will. */
+.doc-sheet {
+  --color-paper: #FFFFFF;
+  --color-paper-dim: #F4F4F4;
+  --color-bone: #FFFFFF;
+  --color-card: #FFFFFF;
+  --color-surface: #F4F4F4;
+  --color-line: #E6E6E6;
+  --color-line-soft: #F0F0F0;
+  --color-ink: #1C1A14;
+  --color-soft: #33302A;
+  --color-muted: #6B675F;
+  --color-faint: #9A958B;
+  --color-accent-soft: #FDF3D7;
+  --color-accent-ink: #1C1A14;
+}
