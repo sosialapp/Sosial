@@ -145,7 +145,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <span style={{ flex: 1 }} />
           <span style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.gray }}>48 comments · 12 shares</span>
         </div>
-        <ActionRow c={c} k={k} items={[{ icon: 'like', label: 'Like' }, { icon: 'comment', label: 'Comment' }, { icon: 'send', label: 'Share' }]} />
+        <ActionRow c={c} k={k} items={[{ icon: 'fb-like', label: 'Like' }, { icon: 'fb-comment', label: 'Comment' }, { icon: 'fb-share', label: 'Share' }]} />
       </div>
     );
   }
@@ -208,9 +208,9 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${12 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 * k }}>
-            <ChromeIcon name="heart" size={14 * k} color={c.ink} />
-            <ChromeIcon name="comment" size={14 * k} color={c.ink} />
-            <ChromeIcon name="send" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-heart" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-comment" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-plane" size={14 * k} color={c.ink} />
             <span style={{ flex: 1 }} />
             <ChromeIcon name="bookmark" size={14 * k} color={c.ink} />
           </div>
@@ -242,7 +242,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
             <ChromeIcon name="heart" size={13 * k} color={c.ink} />
             <ChromeIcon name="comment" size={13 * k} color={c.ink} />
-            <ChromeIcon name="repeat" size={13 * k} color={c.ink} />
+            <ChromeIcon name="repost" size={13 * k} color={c.ink} />
             <ChromeIcon name="send" size={13 * k} color={c.ink} />
           </div>
           <p style={{ ...ff(c.font), fontSize: 8 * k, color: c.faint, margin: 0 }}>12 replies</p>

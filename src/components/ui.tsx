@@ -3,7 +3,7 @@ import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, TextInputPr
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import FontAwesome6 from '@expo/vector-icons/build/FontAwesome6';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { Svg, Path } from 'react-native-svg';
+import { Svg, Path, G } from 'react-native-svg';
 import { useTheme, Palette, R } from '../theme';
 import { SOCIAL_META } from '../constants';
 
@@ -339,8 +339,7 @@ export function GoogleGlyph({ size = 16 }: { size?: number }) {
 }
 
 /** Tonal inset text input */
-export function Txt(props: TextInputProps) {
-  const { C } = useTheme();
+export function Txt(props: TextInputProps) {  const { C } = useTheme();
   const s = makeS(C);
   return <TextInput {...props} placeholderTextColor={C.faint} style={[s.input, props.multiline && { minHeight: 60, textAlignVertical: 'top' }, props.style as any]} />;
 }
@@ -353,6 +352,53 @@ export function PillToggle({ on, onPress }: { on: boolean; onPress: () => void }
     <TouchableOpacity onPress={onPress} style={[s.toggle, on && s.toggleOn]} activeOpacity={0.8}>
       <View style={[s.knob, on && s.knobOn]} />
     </TouchableOpacity>
+  );
+}
+
+/**
+ * Custom card action icons — uniform 24 box; odd-grid glyphs scale inside so
+ * every icon renders at the passed size. Mirrors the web ICON_PATHS set.
+ */
+export type ActionIconName =
+  | 'fb-like' | 'fb-comment' | 'fb-share'
+  | 'ig-heart' | 'ig-comment' | 'ig-plane'
+  | 'repost';
+
+export function ActionIcon({ name, size, color }: { name: ActionIconName; size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      {name === 'fb-like' ? (
+        <Path d="M7 10v12m8-16.12L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88" />
+      ) : name === 'fb-comment' || name === 'ig-comment' ? (
+        <G transform="translate(24 0) scale(-1 1)">
+          <Path d="m3 20 1.3-3.9A9 8 0 1 1 7.7 19z" />
+        </G>
+      ) : name === 'fb-share' ? (
+        <Path d="M13 4v4C6.425 9.028 3.98 14.788 3 20c-.037.206 5.384-5.962 10-6v4l8-7z" />
+      ) : name === 'ig-heart' ? (
+        <G transform="scale(0.8571)">
+          <Path
+            d="M14.604 6.193a6.519 6.519 0 1 1 9.509 8.913l-9.58 9.672a.75.75 0 0 1-1.066 0l-9.58-9.672a6.52 6.52 0 0 1-.263-8.892c2.588-2.943 7.17-2.953 9.772-.021l.604.68zm8.646 1.011a5.02 5.02 0 0 0-7.524-.016L14.56 8.501a.75.75 0 0 1-1.122 0l-1.165-1.313a5.02 5.02 0 1 0-7.321 6.863L14 23.185l9.047-9.134a5.02 5.02 0 0 0 .203-6.847"
+            fill={color}
+            stroke="none"
+          />
+        </G>
+      ) : name === 'ig-plane' ? (
+        <G transform="scale(0.75)">
+          <Path
+            d="M2.078 3.965c-.407-1.265.91-2.395 2.099-1.801l24.994 12.495c1.106.553 1.106 2.13 0 2.684L4.177 29.838c-1.188.594-2.506-.536-2.099-1.801L5.95 16.001zm5.65 13.036L4.347 27.517l23.037-11.516L4.346 4.485L7.73 15H19a1 1 0 1 1 0 2z"
+            fill={color}
+            stroke="none"
+          />
+        </G>
+      ) : (
+        <>
+          <Path d="m17 1 4 4-4 4" />
+          <Path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4" />
+          <Path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </>
+      )}
+    </Svg>
   );
 }
 

@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import FontAwesome from '@expo/vector-icons/build/FontAwesome';
 import { PostPage } from '../types';
 import { F, FontId } from '../utils/fonts';
-import { SocialGlyph } from './ui';
+import { SocialGlyph, ActionIcon } from './ui';
 
 interface ChromeProps {
   page: PostPage;
@@ -148,15 +148,15 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         {/* actions */}
         <View style={{ borderTopWidth: pad(1), borderTopColor: hairline, flexDirection: 'row', paddingVertical: pad(7) }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-            <FontAwesome name="thumbs-o-up" size={pad(12)} color={gray} />
+            <ActionIcon name="fb-like" size={pad(12)} color={gray} />
             <Text style={{ ...F(font), fontSize: pad(9), color: gray }}>Like</Text>
           </View>
           {[
-            { icon: 'chatbubble-outline', label: 'Comment' },
-            { icon: 'share-social-outline', label: 'Share' },
+            { icon: 'fb-comment', label: 'Comment' },
+            { icon: 'fb-share', label: 'Share' },
           ].map((a) => (
             <View key={a.label} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-              <Ionicons name={a.icon as any} size={pad(12)} color={gray} />
+              <ActionIcon name={a.icon as 'fb-comment' | 'fb-share'} size={pad(12)} color={gray} />
               <Text style={{ ...F(font), fontSize: pad(9), color: gray }}>{a.label}</Text>
             </View>
           ))}
@@ -214,9 +214,9 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(12), paddingBottom: pad(11), gap: pad(6) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(10) }}>
-            <Ionicons name="heart-outline" size={pad(14)} color={ink} />
-            <Ionicons name="chatbubble-outline" size={pad(14)} color={ink} />
-            <Ionicons name="paper-plane-outline" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-heart" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-comment" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-plane" size={pad(14)} color={ink} />
             <View style={{ flex: 1 }} />
             <Ionicons name="bookmark-outline" size={pad(14)} color={ink} />
           </View>
@@ -246,7 +246,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(11) }}>
             <Ionicons name="heart-outline" size={pad(13)} color={ink} />
             <Ionicons name="chatbubble-outline" size={pad(13)} color={ink} />
-            <Ionicons name="repeat" size={pad(13)} color={ink} />
+            <ActionIcon name="repost" size={pad(13)} color={ink} />
             <Ionicons name="paper-plane-outline" size={pad(13)} color={ink} />
           </View>
           <Text style={{ ...F(font), fontSize: pad(8), color: faint }}>12 replies</Text>
