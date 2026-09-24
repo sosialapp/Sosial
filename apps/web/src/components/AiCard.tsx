@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Sparkles } from 'lucide-react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
-import { aiImageUrl, findImages, randomSeed, remixImage, type FoundImage } from '@/lib/pictures';
+import { findImages, generateImage, remixImage, type FoundImage } from '@/lib/pictures';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 
 type EmojiMode = 'auto' | 'on' | 'off';
@@ -92,15 +92,24 @@ export default function AiCard({
   const searchText = (picQuery.trim() || topic.trim()).slice(0, 200);
   const finalUrl = (u: string): string => remixed[u] ?? u;
 
-  function makePromptPicture() {
-    setPicErr(null);
-    setPicAttachedAt(null);
+  async function makePromptPicture() {
     const q = (picPrompt.trim() || topic.trim()).slice(0, 200);
     if (!q) {
       setPicErr('Describe the picture first — or write the idea above and reuse it.');
       return;
     }
-    setPicUrl(aiImageUrl(q, randomSeed()));
+    setPicErr(null);
+    setPicAttachedAt(null);
+    setPicBusy(true);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      setPicUrl(await generateImage(sb, q));
+    } catch (e) {
+      setPicErr(e instanceof Error ? e.message : 'AI generation failed.');
+    } finally {
+      setPicBusy(false);
+    }
   }
 
   async function searchPictures() {
@@ -539,8 +548,8 @@ export default function AiCard({
           <div className="mt-1.5 flex gap-1.5">
             {picMode === 'prompt' ? (
               <>
-                <button type="button" onClick={makePromptPicture} className="btn btn-ghost flex-1 !py-2 !text-xs">
-                  {picUrl ? 'Regenerate' : 'Generate'}
+                <button type="button" onClick={makePromptPicture} disabled={picBusy} className="btn btn-ghost flex-1 !py-2 !text-xs">
+                  {picBusy ? 'Rendering…' : picUrl ? 'Regenerate' : 'Generate'}
                 </button>
                 <button type="button" onClick={usePicture} disabled={!picUrl} className="btn btn-primary flex-1 !py-2 !text-xs">
                   Use picture

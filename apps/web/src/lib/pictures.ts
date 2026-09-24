@@ -1,19 +1,20 @@
 /**
- * AI picture helpers — shared by the composer picture panel. Two modes:
- * - prompt: Pollinations Flux renders the description (free, no key, same
- *   engine the mobile cover graphics use).
- * - auto: the find-images edge function returns real topical photos from
- *   Wikimedia Commons for the idea's keywords.
+ * AI picture helpers — shared by the composer picture panel. Generation and
+ * rework both run on the server-side OpenAI key (gpt-image-1); real-photo
+ * search runs through the find-images edge function (Google when a RapidAPI
+ * key is configured, else Openverse, else Commons).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-/** AI-rendered cover graphic (Pollinations Flux, no key, hotlinkable). */
-export function aiImageUrl(prompt: string, seed: number): string {
-  const desc = prompt.trim().replace(/\s+/g, ' ').slice(0, 200) || 'abstract shapes';
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=1080&height=1350&seed=${seed}&model=flux&nologo=true`;
+/** AI-rendered picture from a text prompt. Returns a data: URL. */
+export async function generateImage(sb: SupabaseClient, prompt: string): Promise<string> {
+  const { data, error } = await sb.functions.invoke('generate-image', { body: { prompt } });
+  if (error) throw new Error(error.message);
+  const payload = data as { image?: string; error?: string } | null;
+  if (payload?.error) throw new Error(payload.error);
+  if (!payload?.image) throw new Error('The AI returned nothing — try a different description.');
+  return payload.image;
 }
-
-export const randomSeed = (): number => Math.floor(Math.random() * 1000000);
 
 export interface FoundImage {
   title: string;

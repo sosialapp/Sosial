@@ -8,6 +8,7 @@ import { PostProvider, usePost } from './src/store/PostContext';
 import { ComposerProvider, useComposer } from './src/store/ComposerContext';
 import { loadProjects } from './src/screens/HomeScreen';
 import CreateScreen from './src/screens/CreateScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
 import WelcomeScreen, { WelcomeProfile } from './src/screens/WelcomeScreen';
 import LandingScreen from './src/screens/LandingScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
@@ -35,7 +36,7 @@ type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'a
 // Android's extra font padding, which shifts every line box vs iOS.
 (Text as any).defaultProps = { ...((Text as any).defaultProps ?? {}), allowFontScaling: false, includeFontPadding: false };
 
-const TABS: MainTab[] = ['create', 'analytics'];
+const TABS: MainTab[] = ['create', 'calendar', 'analytics'];
 
 // First-run gate: fresh installs land on the landing screen unless a cloud
 // session already exists. Skipping persists as local-only mode (dashboard on
@@ -335,6 +336,7 @@ function Shell() {
               onConnect={() => goConnect('analytics')}
             />
           ) : null}
+          {route === 'calendar' ? <CalendarScreen /> : null}
           {route === 'size' ? <SizeScreen onDone={() => setRoute('editor')} onBack={() => setRoute('create')} /> : null}
           {route === 'editor' ? <EditorScreen onExport={() => setRoute('export')} onHome={() => setRoute('create')} onPosts={goCreatePost} /> : null}
           {route === 'export' ? <ExportScreen onBack={() => setRoute('editor')} plan={account.plan} /> : null}

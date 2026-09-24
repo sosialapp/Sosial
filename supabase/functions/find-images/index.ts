@@ -3,9 +3,9 @@
 // POST { topic } → 200 { images: [{ title, thumb, url, width, height }], source }
 //   · 401 unauthenticated · 502 nothing found
 //
-// Openverse first (aggregates Flickr + many collections — far wider than a
-// single source), Wikimedia Commons as the fallback. Both free, no key.
-// Secrets: none.
+// Google Images (Cognify/RapidAPI) first when RAPIDAPI_KEY is set, then
+// Openverse (many collections), then Wikimedia Commons. All but the Google
+// tier are keyless. Secrets: RAPIDAPI_KEY (optional).
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
@@ -53,6 +53,43 @@ interface FoundImage {
 
 function cleanTitle(t: string): string {
   return t.replace(/^File:/, "").replace(/\.[a-z]+$/i, "").replace(/_/g, " ").trim() || "Photo";
+}
+
+/**
+ * Google Images via Cognify (RapidAPI). Needs RAPIDAPI_KEY — without it this
+ * tier is skipped silently and the keyless sources serve instead.
+ */
+async function searchGoogle(query: string, rapidKey: string): Promise<FoundImage[]> {
+  const params = new URLSearchParams({ query, count: "8", imageInfo: "true" });
+  const r = await fetch(`https://google-images4.p.rapidapi.com/getGoogleImages?${params.toString()}`, {
+    headers: {
+      "X-RapidAPI-Key": rapidKey,
+      "X-RapidAPI-Host": "google-images4.p.rapidapi.com",
+    },
+  });
+  if (!r.ok) return [];
+  const j = (await r.json().catch(() => ({}))) as {
+    images?: { url?: string; width?: number; height?: number; mime?: string; type?: string }[];
+  };
+  const out: FoundImage[] = [];
+  for (const it of j.images ?? []) {
+    const url = typeof it.url === "string" ? it.url : "";
+    if (!/^https?:\/\//i.test(url)) continue;
+    const mime = String(it.mime ?? "");
+    if (/svg|tiff?/i.test(mime) || /\.(svg|tiff?)(\?|#|$)/i.test(url)) continue;
+    const width = Number(it.width) || 0;
+    const height = Number(it.height) || 0;
+    if (width < 400) continue;
+    out.push({
+      title: cleanTitle(url.split("/").pop()?.split("?")[0] ?? ""),
+      thumb: url,
+      url,
+      width,
+      height,
+    });
+    if (out.length >= 8) break;
+  }
+  return out;
 }
 
 /** Openverse: many collections at once, hotlinkable direct URLs. */
@@ -181,7 +218,19 @@ serve(async (req: Request): Promise<Response> => {
   const raw = topic.split(/\s+/).slice(0, 6).join(" ");
   if (raw && !attempts.includes(raw)) attempts.push(raw);
 
+  const rapidKey = Deno.env.get("RAPIDAPI_KEY") ?? "";
+
   for (const q of attempts) {
+    if (rapidKey) {
+      try {
+        const images = await searchGoogle(q, rapidKey);
+        if (images.length) {
+          return Response.json({ images, source: "google", keywords: kws }, { headers: CORS });
+        }
+      } catch {
+        /* fall through to the keyless sources */
+      }
+    }
     try {
       const images = await searchOpenverse(q);
       if (images.length) {
