@@ -202,13 +202,13 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
             { custom: 'x-views' as const, count: '2.1K', color: gray },
           ].map((a, i) => (
             <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <ActionIcon name={a.custom} size={pad(11)} color={a.color} />
+              <ActionIcon name={a.custom} size={pad(13)} color={a.color} />
               <Text style={{ ...F(font), fontSize: pad(8), color: gray }}>{a.count}</Text>
             </View>
           ))}
-          <ActionIcon name="x-bookmark" size={pad(11)} color={gray} />
+          <ActionIcon name="x-bookmark" size={pad(13)} color={gray} />
           <View style={{ width: pad(6) }} />
-          <ActionIcon name="x-share" size={pad(11)} color={gray} />
+          <ActionIcon name="x-share" size={pad(13)} color={gray} />
         </View>
       </View>
     );

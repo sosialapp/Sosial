@@ -180,13 +180,13 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             { icon: 'x-views', count: '2.1K', color: c.gray },
           ].map((a, i) => (
             <span key={i} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 3 * k }}>
-              <ChromeIcon name={a.icon} size={11 * k} color={a.color} />
+              <ChromeIcon name={a.icon} size={13 * k} color={a.color} />
               <span style={{ ...ff(c.font), fontSize: 8 * k, color: c.gray }}>{a.count}</span>
             </span>
           ))}
-          <ChromeIcon name="x-bookmark" size={11 * k} color={c.gray} />
+          <ChromeIcon name="x-bookmark" size={13 * k} color={c.gray} />
           <span style={{ width: 6 * k }} />
-          <ChromeIcon name="x-share" size={11 * k} color={c.gray} />
+          <ChromeIcon name="x-share" size={13 * k} color={c.gray} />
         </div>
       </div>
     );
