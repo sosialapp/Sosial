@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import CreateHub from '@/components/CreateHub';
-import { fetchLiveChannels } from '@/lib/posts';
+import { fetchLiveChannels, fetchPosts } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,10 @@ export default async function PostPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
-  const channels = await fetchLiveChannels(sb, ctx.workspace.id);
+  const [channels, posts] = await Promise.all([
+    fetchLiveChannels(sb, ctx.workspace.id),
+    fetchPosts(sb, ctx.workspace.id),
+  ]);
   return (
     <Suspense
       fallback={
@@ -26,6 +29,7 @@ export default async function PostPage() {
         workspaceId={ctx.workspace.id}
         userId={ctx.user.id}
         role={ctx.workspace.role}
+        initialPosts={posts}
       />
     </Suspense>
   );

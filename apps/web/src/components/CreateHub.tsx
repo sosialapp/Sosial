@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import AiCard from '@/components/AiCard';
 import CreatePost from '@/components/CreatePost';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
+import PostList from '@/components/PostList';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
@@ -17,7 +17,7 @@ import {
   uid,
   type StudioProject,
 } from '@/lib/studio/model';
-import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
+import type { ConnectedChannel, PostWithTargets, WorkspaceInfo } from '@/lib/types';
 
 interface IdeaMedia {
   url: string;
@@ -45,7 +45,7 @@ interface Template {
   builtIn?: boolean;
 }
 
-type Tab = 'post' | 'ideas' | 'templates';
+type Tab = 'post' | 'templates' | 'publish' | 'ideas';
 
 const ideasKey = (workspaceId: string) => `sosial-ideas-${workspaceId}`;
 const templatesKey = (workspaceId: string) => `sosial-templates-${workspaceId}`;
@@ -162,7 +162,8 @@ const fmtDate = (ts: number): string => {
   }
 };
 
-const TAB_LABEL: Record<Tab, string> = { post: 'Post', ideas: 'Ideas', templates: 'Templates' };
+const TAB_LABEL: Record<Tab, string> = { post: 'Post', templates: 'Templates', publish: 'Publish', ideas: 'Ideas' };
+const TAB_ORDER: Tab[] = ['post', 'templates', 'publish', 'ideas'];
 
 function useBoxWidth(fallback = 300): { ref: React.RefObject<HTMLDivElement | null>; width: number } {
   const ref = useRef<HTMLDivElement>(null);
@@ -192,11 +193,13 @@ export default function CreateHub({
   workspaceId,
   userId,
   role,
+  initialPosts,
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
   userId: string;
   role: WorkspaceInfo['role'];
+  initialPosts: PostWithTargets[];
 }) {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>('post');
@@ -237,7 +240,7 @@ export default function CreateHub({
 
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'post' || t === 'ideas' || t === 'templates') setTab(t);
+    if (t === 'post' || t === 'templates' || t === 'publish' || t === 'ideas') setTab(t);
   }, [searchParams]);
 
   const persistIdeas = (next: Idea[]) => {
@@ -468,7 +471,7 @@ export default function CreateHub({
       <p className="mt-1 text-sm text-muted">Catch the idea, design the visual, then post it everywhere.</p>
 
       <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Post sections">
-        {(['post', 'templates'] as Tab[]).map((t) => (
+        {TAB_ORDER.map((t) => (
           <button
             key={t}
             type="button"
@@ -480,26 +483,9 @@ export default function CreateHub({
             }`}
           >
             {TAB_LABEL[t]}
+            {t === 'ideas' && ideas.length ? ` · ${ideas.length}` : ''}
           </button>
         ))}
-        <Link
-          href="/queue"
-          className="rounded-full border border-line bg-card px-4 py-2 text-xs font-bold text-muted transition hover:bg-paper"
-        >
-          Publish
-        </Link>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'ideas'}
-          onClick={() => setTab('ideas')}
-          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-            tab === 'ideas' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
-          }`}
-        >
-          {TAB_LABEL.ideas}
-          {ideas.length ? ` · ${ideas.length}` : ''}
-        </button>
       </div>
 
       {tab === 'post' ? (
@@ -683,6 +669,10 @@ export default function CreateHub({
               appliedNote="Applied to your idea — edit freely, then save."
             />
           </div>
+        </div>
+      ) : tab === 'publish' ? (
+        <div className="mt-4">
+          <PostList posts={initialPosts} role={role} userId={userId} workspaceId={workspaceId} />
         </div>
       ) : editing ? (
         <div className="mt-4">
