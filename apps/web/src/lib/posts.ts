@@ -337,6 +337,31 @@ export async function reschedulePost(sb: SupabaseClient, postId: string, iso: st
     .in('status', ['queued', 'pending']);
 }
 
+/**
+ * Per-channel time management (mobile parity): one post can publish each of
+ * its channels at a different instant. The post keeps the earliest time; each
+ * still-queued target gets its own. Already-sent/failed targets are untouched.
+ */
+export async function rescheduleChannels(
+  sb: SupabaseClient,
+  postId: string,
+  times: { channelId: string; iso: string }[],
+): Promise<void> {
+  if (times.length === 0) return;
+  const earliest = times.map((t) => t.iso).sort()[0];
+  const { error } = await sb.from('posts').update({ scheduled_at: earliest }).eq('id', postId);
+  if (error) throw new Error(error.message);
+  for (const t of times) {
+    const { error: tErr } = await sb
+      .from('post_targets')
+      .update({ scheduled_at: t.iso })
+      .eq('post_id', postId)
+      .eq('channel_id', t.channelId)
+      .in('status', ['queued', 'pending']);
+    if (tErr) throw new Error(tErr.message);
+  }
+}
+
 /** Publish a draft right away: queue the post and its targets for this minute. */
 export async function publishPostNow(sb: SupabaseClient, postId: string): Promise<void> {
   const now = new Date().toISOString();

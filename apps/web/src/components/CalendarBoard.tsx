@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react';
 import type { PostWithTargets } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
-import { reschedulePost } from '@/lib/posts';
+import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
 import { MONTHS, WEEKDAYS, addDays, addMonths, dayKey, formatTime, isSameDay, monthMatrix, moveToDay } from '@/lib/format';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { Badge } from '@/components/ui/badge';
@@ -62,15 +62,41 @@ function TimeEditor({
   post,
   dayLabel,
   onSave,
+  onSaveChannels,
+  onPublish,
+  onDelete,
+  busy,
 }: {
   post: PostWithTargets;
   dayLabel: string;
   onSave: (iso: string) => void;
+  onSaveChannels: (times: { channelId: string; iso: string }[]) => void;
+  onPublish: () => void;
+  onDelete: () => void;
+  busy: boolean;
 }) {
   const init = partsOf(post.scheduled_at);
   const [hh, setHh] = useState(init.h);
   const [mm, setMm] = useState(init.m);
   const st = POST_STATUS_META[post.status];
+  const targets = post.post_targets.filter((t) => t.status === 'queued' || t.status === 'pending');
+  // Per-channel times — every channel can publish at its own instant.
+  const [times, setTimes] = useState<Record<string, { h: number; m: number }>>(() =>
+    Object.fromEntries(targets.map((t) => [t.channel_id, partsOf(t.scheduled_at)])),
+  );
+  const perChannel = targets.length > 1;
+
+  const applyAll = (h: number, m: number) => onSave(isoAt(dayLabel, h, m));
+
+  const savePerChannel = () => {
+    onSaveChannels(
+      targets.map((t) => {
+        const v = times[t.channel_id] ?? partsOf(t.scheduled_at);
+        return { channelId: t.channel_id, iso: isoAt(dayLabel, v.h, v.m) };
+      }),
+    );
+  };
+
   return (
     <div className="rounded-xl border border-line bg-paper p-3">
       <div className="flex items-center justify-between gap-2">
@@ -78,36 +104,98 @@ function TimeEditor({
         <Badge className={st.className}>{st.label}</Badge>
       </div>
       <p className="mt-1 text-sm text-ink">{snippet(post)}</p>
-      <p className="mt-2 text-xs font-bold text-muted">Move to</p>
-      <div className="mt-1 flex items-center gap-1.5">
-        <input
-          type="number"
-          min={0}
-          max={23}
-          value={hh}
-          onChange={(e) => setHh(Math.max(0, Math.min(23, Number(e.target.value) || 0)))}
-          aria-label="Hour (0-23)"
-          className="field !w-16 !py-1.5 text-center !text-xs tabular-nums"
-        />
-        <span className="font-bold text-muted">:</span>
-        <input
-          type="number"
-          min={0}
-          max={59}
-          value={mm}
-          onChange={(e) => setMm(Math.max(0, Math.min(59, Number(e.target.value) || 0)))}
-          aria-label="Minute"
-          className="field !w-16 !py-1.5 text-center !text-xs tabular-nums"
-        />
-        <span className="flex-1" />
-        <Button
-          size="sm"
-          onClick={() => {
-            const [y, mo, d] = dayLabel.split('-').map(Number);
-            onSave(new Date(y, mo - 1, d, hh, mm, 0, 0).toISOString());
-          }}
-        >
-          Set time
+
+      {perChannel ? (
+        <>
+          <p className="mt-2 text-xs font-bold text-muted">Time per channel</p>
+          <div className="mt-1 space-y-1.5">
+            {targets.map((t) => {
+              const meta = providerMeta(t.provider);
+              const v = times[t.channel_id] ?? partsOf(t.scheduled_at);
+              return (
+                <div key={t.channel_id} className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: meta.color }}
+                    title={meta.label}
+                  />
+                  <span className="w-16 shrink-0 truncate text-[11px] font-bold">{meta.label}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={v.h}
+                    onChange={(e) =>
+                      setTimes((prev) => ({
+                        ...prev,
+                        [t.channel_id]: { h: Math.max(0, Math.min(23, Number(e.target.value) || 0)), m: v.m },
+                      }))
+                    }
+                    aria-label={`${meta.label} hour`}
+                    className="field !w-14 !py-1 text-center !text-xs tabular-nums"
+                  />
+                  <span className="text-xs font-bold text-muted">:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={v.m}
+                    onChange={(e) =>
+                      setTimes((prev) => ({
+                        ...prev,
+                        [t.channel_id]: { h: v.h, m: Math.max(0, Math.min(59, Number(e.target.value) || 0)) },
+                      }))
+                    }
+                    aria-label={`${meta.label} minute`}
+                    className="field !w-14 !py-1 text-center !text-xs tabular-nums"
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <Button size="sm" className="mt-2 w-full" onClick={() => savePerChannel()} disabled={busy}>
+            Save per-channel times
+          </Button>
+        </>
+      ) : (
+        <>
+          <p className="mt-2 text-xs font-bold text-muted">Move to</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <input
+              type="number"
+              min={0}
+              max={23}
+              value={hh}
+              onChange={(e) => setHh(Math.max(0, Math.min(23, Number(e.target.value) || 0)))}
+              aria-label="Hour (0-23)"
+              className="field !w-16 !py-1.5 text-center !text-xs tabular-nums"
+            />
+            <span className="font-bold text-muted">:</span>
+            <input
+              type="number"
+              min={0}
+              max={59}
+              value={mm}
+              onChange={(e) => setMm(Math.max(0, Math.min(59, Number(e.target.value) || 0)))}
+              aria-label="Minute"
+              className="field !w-16 !py-1.5 text-center !text-xs tabular-nums"
+            />
+            <span className="flex-1" />
+            <Button size="sm" onClick={() => applyAll(hh, mm)} disabled={busy}>
+              Set time
+            </Button>
+          </div>
+        </>
+      )}
+
+      <div className="mt-2 flex gap-1.5">
+        {post.status !== 'sent' && post.status !== 'partial' ? (
+          <Button variant="ghost" size="sm" className="flex-1" onClick={onPublish} disabled={busy}>
+            Post now
+          </Button>
+        ) : null}
+        <Button variant="ghost" size="sm" className="flex-1 !text-[#9F2F2D]" onClick={onDelete} disabled={busy}>
+          Delete
         </Button>
       </div>
     </div>
@@ -127,6 +215,8 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const [pending, startTransition] = useTransition();
   const dayScrollRef = useRef<HTMLDivElement>(null);
   const weekScrollRef = useRef<HTMLDivElement>(null);
+  /** Pointer Y during a week-grid drag, for slot-accurate drops on the card. */
+  const colY = useRef(0);
 
   const byDay = useMemo(() => {
     const m = new Map<string, PostWithTargets[]>();
@@ -228,6 +318,43 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
     }
   }
 
+  async function persistChannels(times: { channelId: string; iso: string }[]) {
+    if (!selectedPostId) return;
+    setErr(null);
+    try {
+      const sb = createClient();
+      await rescheduleChannels(sb, selectedPostId, times);
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save those times.');
+    }
+  }
+
+  async function publishNow() {
+    if (!selectedPostId) return;
+    setErr(null);
+    try {
+      const sb = createClient();
+      await publishPostNow(sb, selectedPostId);
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not queue that post.');
+    }
+  }
+
+  async function remove() {
+    if (!selectedPostId) return;
+    setErr(null);
+    try {
+      const sb = createClient();
+      await deletePost(sb, selectedPostId);
+      setSelectedPostId(null);
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not delete that post.');
+    }
+  }
+
   async function dropOn(target: Date) {
     const id = dragId;
     setDragId(null);
@@ -239,17 +366,17 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
     setSelectedKey(dayKey(target));
   }
 
-  /** Drop onto an hour lane: same day, new hour, minutes kept. */
-  async function dropOnHour(h: number) {
+  /** Drop onto an hour lane: same day, snapped to the half hour. */
+  async function dropOnHour(h: number, dayKeyStr = selectedKey, minutes = null as number | null) {
     const id = dragId;
     setDragId(null);
     setOverHour(null);
     if (!id) return;
     const post = posts.find((p) => p.id === id);
     if (!post?.scheduled_at) return;
-    const t = new Date(post.scheduled_at);
-    const [y, mo, d] = selectedKey.split('-').map(Number);
-    await persist(id, new Date(y, mo - 1, d, h, t.getMinutes(), 0, 0).toISOString());
+    const m = minutes ?? (new Date(post.scheduled_at).getMinutes() < 30 ? 0 : 30);
+    const [y, mo, d] = dayKeyStr.split('-').map(Number);
+    await persist(id, new Date(y, mo - 1, d, h, m, 0, 0).toISOString());
   }
 
   const weekStart = weekDays[0];
@@ -443,7 +570,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                     );
                   })}
                 </div>
-                <div className="relative flex" style={{ height: 24 * WEEK_LANE_H }}>
+                <div className="relative flex" style={{ height: 24 * WEEK_LANE_H }} data-week-grid>
                   <div className="pointer-events-none absolute inset-0" aria-hidden="true">
                     {Array.from({ length: 25 }, (_, h) => (
                       <div
@@ -468,13 +595,17 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                     const isOver = overKey === k;
                     const showNow = k === dayKey(today);
                     const nowMinutes = today.getHours() * 60 + today.getMinutes();
+                    /** Day-level dragover: highlight and remember pointer Y for slot math. */
+                    const onColDragOver = (e: React.DragEvent) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (overKey !== k) setOverKey(k);
+                      colY.current = e.clientY;
+                    };
                     return (
                       <div
                         key={k}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          if (overKey !== k) setOverKey(k);
-                        }}
+                        onDragOver={onColDragOver}
                         onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
                         onDrop={(e) => {
                           e.preventDefault();
@@ -506,6 +637,24 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                             onDragEnd={() => {
                               setDragId(null);
                               setOverKey(null);
+                            }}
+                            onDrop={(e) => {
+                              // Card-level drop: retime to the pointer's half-hour slot.
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const grid = e.currentTarget.closest('[data-week-grid]') as HTMLElement | null;
+                              const col = e.currentTarget.parentElement as HTMLElement;
+                              if (grid && col) {
+                                const gy = grid.getBoundingClientRect().top;
+                                const minutes = Math.round(
+                                  (((colY.current - gy) / WEEK_LANE_H) * 2) / 2,
+                                ) * 30;
+                                const h = Math.max(0, Math.min(23, Math.floor(minutes / 60)));
+                                const m = minutes % 60;
+                                void dropOnHour(h, k, m);
+                                return;
+                              }
+                              void dropOn(d);
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -553,6 +702,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                         key={h}
                         onDragOver={(e) => {
                           e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
                           if (overHour !== h) setOverHour(h);
                         }}
                         onDragLeave={() => setOverHour((v) => (v === h ? null : v))}
@@ -643,6 +793,10 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                   post={selectedPost}
                   dayLabel={selectedKey}
                   onSave={(iso) => void persist(selectedPost.id, iso)}
+                  onSaveChannels={(times) => void persistChannels(times)}
+                  onPublish={() => void publishNow()}
+                  onDelete={() => void remove()}
+                  busy={pending}
                 />
               ) : dayPosts.length === 0 ? (
                 <p className="text-sm text-muted">Nothing scheduled.</p>
