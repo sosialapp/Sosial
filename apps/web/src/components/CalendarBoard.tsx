@@ -40,6 +40,8 @@ function ChannelDots({ post }: { post: PostWithTargets }) {
 
 /** 24h lane height in px — the now-line and auto-scroll both derive from it. */
 const LANE_H = 56;
+/** Denser lanes for the 7-column week grid. */
+const WEEK_LANE_H = 44;
 
 const hourLabel = (h: number): string => `${String(h).padStart(2, '0')}:00`;
 
@@ -114,7 +116,7 @@ function TimeEditor({
 
 export default function CalendarBoard({ posts, channels }: { posts: PostWithTargets[]; channels: number }) {
   const router = useRouter();
-  const [view, setView] = useState<'month' | 'day'>('month');
+  const [view, setView] = useState<'month' | 'week' | 'day'>('week');
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -124,6 +126,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const dayScrollRef = useRef<HTMLDivElement>(null);
+  const weekScrollRef = useRef<HTMLDivElement>(null);
 
   const byDay = useMemo(() => {
     const m = new Map<string, PostWithTargets[]>();
@@ -158,6 +161,43 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
 
   const nowTop = isToday ? ((today.getHours() * 60 + today.getMinutes()) / 60) * LANE_H : null;
 
+  // Monday-first week containing the anchor.
+  const weekDays = useMemo(() => {
+    const offset = (anchor.getDay() + 6) % 7;
+    const start = addDays(anchor, -offset);
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, [anchor]);
+
+  /** Greedy overlap lanes per day so concurrent posts sit side by side. */
+  const weekLayout = useMemo(() => {
+    const laid = new Map<string, { p: PostWithTargets; top: number; lane: number; lanes: number }[]>();
+    for (const day of weekDays) {
+      const list = [...(byDay.get(dayKey(day)) ?? [])].sort((a, b) =>
+        (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''),
+      );
+      const laneEnds: number[] = [];
+      const out: { p: PostWithTargets; top: number; lane: number; lanes: number }[] = [];
+      for (const p of list) {
+        if (!p.scheduled_at) continue;
+        const t = new Date(p.scheduled_at);
+        const mins = t.getHours() * 60 + t.getMinutes();
+        let lane = laneEnds.findIndex((end) => end <= mins);
+        if (lane < 0) {
+          lane = laneEnds.length;
+          laneEnds.push(0);
+        }
+        laneEnds[lane] = mins + 30;
+        out.push({ p, top: (mins / 60) * WEEK_LANE_H, lane, lanes: 0 });
+      }
+      const lanes = Math.max(1, laneEnds.length);
+      laid.set(
+        dayKey(day),
+        out.map((o) => ({ ...o, lanes })),
+      );
+    }
+    return laid;
+  }, [byDay, weekDays]);
+
   // Jump the day view to the action: now, else the first post, else morning.
   useEffect(() => {
     if (view !== 'day') return;
@@ -168,6 +208,14 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
     el.scrollTop = Math.max(0, target * LANE_H - 80);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, selectedKey]);
+
+  // Week view opens around morning.
+  useEffect(() => {
+    if (view !== 'week') return;
+    const el = weekScrollRef.current;
+    if (!el) return;
+    el.scrollTop = Math.max(0, 7 * WEEK_LANE_H - 80);
+  }, [view, anchor]);
 
   async function persist(id: string, iso: string) {
     setErr(null);
@@ -204,23 +252,29 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
     await persist(id, new Date(y, mo - 1, d, h, t.getMinutes(), 0, 0).toISOString());
   }
 
+  const weekStart = weekDays[0];
+  const weekEnd = weekDays[6];
   const title =
     view === 'month'
       ? `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
-      : new Date(`${selectedKey}T00:00:00`).toLocaleDateString(undefined, {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-        });
+      : view === 'week'
+        ? `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : new Date(`${selectedKey}T00:00:00`).toLocaleDateString(undefined, {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+          });
 
-  const stepPrev = () =>
-    view === 'month'
-      ? setAnchor(addMonths(anchor, -1))
-      : setSelectedKey(dayKey(addDays(new Date(`${selectedKey}T00:00:00`), -1)));
-  const stepNext = () =>
-    view === 'month'
-      ? setAnchor(addMonths(anchor, 1))
-      : setSelectedKey(dayKey(addDays(new Date(`${selectedKey}T00:00:00`), 1)));
+  const stepPrev = () => {
+    if (view === 'month') setAnchor(addMonths(anchor, -1));
+    else if (view === 'week') setAnchor(addDays(anchor, -7));
+    else setSelectedKey(dayKey(addDays(new Date(`${selectedKey}T00:00:00`), -1)));
+  };
+  const stepNext = () => {
+    if (view === 'month') setAnchor(addMonths(anchor, 1));
+    else if (view === 'week') setAnchor(addDays(anchor, 7));
+    else setSelectedKey(dayKey(addDays(new Date(`${selectedKey}T00:00:00`), 1)));
+  };
   const stepToday = () => {
     const now = new Date();
     setAnchor(now);
@@ -235,9 +289,18 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
           <h1 className="font-display text-xl font-extrabold tracking-tight">{title}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={view} onValueChange={(v) => setView(v as 'month' | 'day')}>
+          <Tabs
+            value={view}
+            onValueChange={(v) => {
+              const next = v as 'month' | 'week' | 'day';
+              // Keep the week glued to the selected day when switching to it.
+              if (next === 'week') setAnchor(new Date(`${selectedKey}T00:00:00`));
+              setView(next);
+            }}
+          >
             <TabsList aria-label="Calendar view">
               <TabsTrigger value="month">Month</TabsTrigger>
+              <TabsTrigger value="week">Week</TabsTrigger>
               <TabsTrigger value="day">Day</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -341,6 +404,138 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
               </div>
               <p className="mt-3 text-xs text-faint">
                 Drag a post onto another day to reschedule it. Times stay the same. Click a post to retime it.
+              </p>
+            </>
+          ) : view === 'week' ? (
+            <>
+              <div
+                ref={weekScrollRef}
+                className="max-h-[70vh] overflow-auto rounded-2xl border border-line bg-card"
+              >
+                <div className="sticky top-0 z-10 flex border-b border-line bg-card">
+                  <div className="w-14 shrink-0" />
+                  {weekDays.map((d) => {
+                    const k = dayKey(d);
+                    const isT = isSameDay(d, today);
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => {
+                          setSelectedKey(k);
+                          setSelectedPostId(null);
+                        }}
+                        className={`min-w-0 flex-1 px-1 py-2 text-center transition hover:bg-paper ${
+                          selectedKey === k ? 'bg-paper' : ''
+                        }`}
+                      >
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-faint">
+                          {d.toLocaleDateString(undefined, { weekday: 'short' })}
+                        </span>
+                        <span
+                          className={`mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                            isT ? 'bg-accent text-white' : 'text-ink'
+                          }`}
+                        >
+                          {d.getDate()}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="relative flex" style={{ height: 24 * WEEK_LANE_H }}>
+                  <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                    {Array.from({ length: 25 }, (_, h) => (
+                      <div
+                        key={h}
+                        className="absolute left-0 right-0 border-t border-line-soft"
+                        style={{ top: h * WEEK_LANE_H }}
+                      />
+                    ))}
+                  </div>
+                  <div className="w-14 shrink-0">
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <div key={h} className="flex justify-end px-2" style={{ height: WEEK_LANE_H }}>
+                        <span className="-mt-2 text-[10px] font-bold tabular-nums text-faint">
+                          {hourLabel(h)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {weekDays.map((d) => {
+                    const k = dayKey(d);
+                    const items = weekLayout.get(k) ?? [];
+                    const isOver = overKey === k;
+                    const showNow = k === dayKey(today);
+                    const nowMinutes = today.getHours() * 60 + today.getMinutes();
+                    return (
+                      <div
+                        key={k}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (overKey !== k) setOverKey(k);
+                        }}
+                        onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          void dropOn(d);
+                        }}
+                        onClick={() => {
+                          setSelectedKey(k);
+                          setSelectedPostId(null);
+                        }}
+                        className={`relative min-w-0 flex-1 border-l border-line-soft transition ${
+                          isOver ? 'bg-accent-soft' : ''
+                        } ${selectedKey === k ? 'bg-paper/60' : ''}`}
+                      >
+                        {showNow && (
+                          <div
+                            className="pointer-events-none absolute left-0 right-0 z-10 border-t-2 border-[#E60023]"
+                            style={{ top: (nowMinutes / 60) * WEEK_LANE_H }}
+                            aria-hidden="true"
+                          />
+                        )}
+                        {items.map(({ p, top, lane, lanes }) => (
+                          <div
+                            key={p.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              setDragId(p.id);
+                            }}
+                            onDragEnd={() => {
+                              setDragId(null);
+                              setOverKey(null);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedKey(k);
+                              setSelectedPostId(p.id);
+                            }}
+                            title={`${formatTime(p.scheduled_at)} · ${snippet(p)}`}
+                            className={`absolute cursor-grab overflow-hidden rounded-lg border border-line bg-paper px-1.5 py-1 text-[11px] leading-tight ${
+                              dragId === p.id ? 'opacity-50' : ''
+                            } ${selectedPostId === p.id ? 'ring-1 ring-accent' : ''}`}
+                            style={{
+                              top,
+                              height: 38,
+                              left: `calc(${(lane / lanes) * 100}% + 3px)`,
+                              width: `calc(${100 / lanes}% - 6px)`,
+                            }}
+                          >
+                            <p className="truncate font-bold tabular-nums text-ink">
+                              {formatTime(p.scheduled_at)}
+                            </p>
+                            <p className="truncate text-soft">{snippet(p)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-faint">
+                Drag a post onto another day to move it. Click a post to retime it exactly.
               </p>
             </>
           ) : (
