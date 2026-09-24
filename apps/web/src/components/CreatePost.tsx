@@ -146,15 +146,20 @@ export default function CreatePost({
     );
   }
 
-  /** Attach an AI picture URL to part 1: download it into a File so the
-   *  normal upload path carries it. */
-  async function addPictureUrl(url: string) {
-    try {
-      const file = await pictureToFile(url);
-      const item = { file, kind: 'image' as const, url: URL.createObjectURL(file) };
-      setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, media: [...s.media, item].slice(0, 10) } : s)));
-    } catch {
-      setErr('Could not fetch that picture — try another.');
+  /** Attach AI picture URLs to part 1: download each into a File so the
+   *  normal upload path carries them. Tolerates single failures. */
+  async function addPictureUrls(urls: string[]) {
+    const settled = await Promise.allSettled(urls.map((u) => pictureToFile(u)));
+    const items = settled
+      .filter((r): r is PromiseFulfilledResult<File> => r.status === 'fulfilled')
+      .map((r) => ({ file: r.value, kind: 'image' as const, url: URL.createObjectURL(r.value) }));
+    if (!items.length) {
+      setErr('Could not fetch those pictures — try others.');
+      return;
+    }
+    setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, media: [...s.media, ...items].slice(0, 10) } : s)));
+    if (items.length < urls.length) {
+      setErr('Some pictures could not be fetched — the rest were attached.');
     }
   }
 
@@ -462,7 +467,7 @@ export default function CreatePost({
               });
             }}
             appliedNote="Applied to the composer — edit freely, then post."
-            onPicture={(url) => void addPictureUrl(url)}
+            onPicture={(urls) => void addPictureUrls(urls)}
           />
         </div>
       </div>

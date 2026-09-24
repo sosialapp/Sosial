@@ -33,6 +33,21 @@ export async function findImages(sb: SupabaseClient, topic: string): Promise<Fou
   return payload.images;
 }
 
+/**
+ * AI-rework one photo from a prompt via the remix-image edge function.
+ * Returns a data: URL — attach it exactly like a picked photo.
+ */
+export async function remixImage(sb: SupabaseClient, imageUrl: string, prompt: string): Promise<string> {
+  const { data, error } = await sb.functions.invoke('remix-image', {
+    body: { image_url: imageUrl, prompt },
+  });
+  if (error) throw new Error(error.message);
+  const payload = data as { image?: string; error?: string } | null;
+  if (payload?.error) throw new Error(payload.error);
+  if (!payload?.image) throw new Error('The AI returned nothing — try a different change.');
+  return payload.image;
+}
+
 /** Download a remote picture into a File so the composer can upload it. */
 export async function pictureToFile(url: string, name = 'ai-picture.jpg'): Promise<File> {
   const blob = await (await fetch(url)).blob();

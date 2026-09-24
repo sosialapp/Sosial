@@ -1,13 +1,11 @@
 // find-images · real topical photos for the AI picture picker
 //
-// POST { topic } → 200 { images: [{ title, thumb, url, width, height }], keywords }
+// POST { topic } → 200 { images: [{ title, thumb, url, width, height }], source }
 //   · 401 unauthenticated · 502 nothing found
 //
-// Wikimedia Commons search: free, no key, hotlinkable upload.wikimedia.org
-// URLs — maps, presidents, places and news topics all live there. The server
-// derives latin keywords from the topic (mobile parity with the old stock
-// lookup) and falls back to the raw topic so non-latin ideas still match.
-// Both apps call this; secrets: none.
+// Openverse first (aggregates Flickr + many collections — far wider than a
+// single source), Wikimedia Commons as the fallback. Both free, no key.
+// Secrets: none.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
@@ -53,6 +51,54 @@ interface FoundImage {
   height: number;
 }
 
+function cleanTitle(t: string): string {
+  return t.replace(/^File:/, "").replace(/\.[a-z]+$/i, "").replace(/_/g, " ").trim() || "Photo";
+}
+
+/** Openverse: many collections at once, hotlinkable direct URLs. */
+async function searchOpenverse(query: string): Promise<FoundImage[]> {
+  const params = new URLSearchParams({
+    q: query,
+    page_size: "20",
+    filter_dead: "false",
+  });
+  const r = await fetch(`https://api.openverse.org/v1/images/?${params.toString()}`, {
+    headers: {
+      "User-Agent": "SosialApp/1.0 (picture picker)",
+      Accept: "application/json",
+    },
+  });
+  if (!r.ok) return [];
+  const j = (await r.json().catch(() => ({}))) as {
+    results?: {
+      title?: string;
+      url?: string;
+      thumbnail?: string;
+      width?: number;
+      height?: number;
+    }[];
+  };
+  const out: FoundImage[] = [];
+  for (const it of j.results ?? []) {
+    const url = typeof it.url === "string" ? it.url : "";
+    if (!/^https?:\/\//i.test(url)) continue;
+    if (/\.(svg|tiff?)(\?|#|$)/i.test(url)) continue;
+    const width = Number(it.width) || 0;
+    const height = Number(it.height) || 0;
+    if (width < 400) continue;
+    out.push({
+      title: cleanTitle(String(it.title ?? "")),
+      thumb: typeof it.thumbnail === "string" && it.thumbnail ? it.thumbnail : url,
+      url,
+      width,
+      height,
+    });
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
+/** Wikimedia Commons: maps, people, places and news topics. */
 async function searchCommons(query: string): Promise<FoundImage[]> {
   const params = new URLSearchParams({
     action: "query",
@@ -83,13 +129,12 @@ async function searchCommons(query: string): Promise<FoundImage[]> {
     const info = p.imageinfo?.[0];
     if (!info?.url) continue;
     const mime = info.mime ?? "";
-    // Photos only — no SVG diagrams, no TIFF scans.
     if (!mime.startsWith("image/") || mime === "image/svg+xml" || mime === "image/tiff") continue;
     const width = Number(info.width) || 0;
     const height = Number(info.height) || 0;
     if (width < 400) continue;
     out.push({
-      title: String(p.title ?? "").replace(/^File:/, "").replace(/\.[a-z]+$/i, "").replace(/_/g, " "),
+      title: cleanTitle(String(p.title ?? "")),
       thumb: String(info.thumburl ?? info.url),
       url: String(info.url),
       width,
@@ -130,8 +175,6 @@ serve(async (req: Request): Promise<Response> => {
   if (topic.length > 500) return bad("topic ≤ 500 chars.");
 
   const kws = keywords(topic, 3);
-  // Full keyword set first, then back off; raw topic last so non-latin
-  // ideas (no latin keywords) still search verbatim.
   const attempts: string[] = [];
   if (kws.length >= 2) attempts.push(kws.join(" "));
   if (kws.length >= 1) attempts.push(kws[0]);
@@ -140,9 +183,17 @@ serve(async (req: Request): Promise<Response> => {
 
   for (const q of attempts) {
     try {
+      const images = await searchOpenverse(q);
+      if (images.length) {
+        return Response.json({ images, source: "openverse", keywords: kws }, { headers: CORS });
+      }
+    } catch {
+      /* fall through to the next source */
+    }
+    try {
       const images = await searchCommons(q);
       if (images.length) {
-        return Response.json({ images, keywords: kws }, { headers: CORS });
+        return Response.json({ images, source: "commons", keywords: kws }, { headers: CORS });
       }
     } catch {
       /* try the next, narrower query */

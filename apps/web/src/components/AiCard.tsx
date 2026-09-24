@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Sparkles } from 'lucide-react';
 import { generateCaptions, withHashtags } from '@/lib/ai';
-import { aiImageUrl, findImages, randomSeed, type FoundImage } from '@/lib/pictures';
+import { aiImageUrl, findImages, randomSeed, remixImage, type FoundImage } from '@/lib/pictures';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 
 type EmojiMode = 'auto' | 'on' | 'off';
@@ -55,8 +55,8 @@ export default function AiCard({
   onPartsChange: (n: number) => void;
   onResult: (bodies: string[]) => void;
   appliedNote?: string;
-  /** When provided, a Picture section appears and hands the picked image URL back. */
-  onPicture?: (url: string) => void;
+  /** When provided, a Picture section appears and hands picked image URLs back. */
+  onPicture?: (urls: string[]) => void;
 }) {
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('auto');
@@ -79,30 +79,34 @@ export default function AiCard({
   const [picMode, setPicMode] = useState<PicMode>('auto');
   const [picPrompt, setPicPrompt] = useState('');
   const [picUrl, setPicUrl] = useState<string | null>(null);
+  const [picQuery, setPicQuery] = useState('');
   const [picResults, setPicResults] = useState<FoundImage[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [remixPrompts, setRemixPrompts] = useState<Record<string, string>>({});
+  const [remixed, setRemixed] = useState<Record<string, string>>({});
+  const [remixing, setRemixing] = useState<string | null>(null);
   const [picBusy, setPicBusy] = useState(false);
   const [picErr, setPicErr] = useState<string | null>(null);
   const [picAttachedAt, setPicAttachedAt] = useState<number | null>(null);
 
-  const picQuery = (picPrompt.trim() || topic.trim()).slice(0, 200);
+  const searchText = (picQuery.trim() || topic.trim()).slice(0, 200);
+  const finalUrl = (u: string): string => remixed[u] ?? u;
 
   function makePromptPicture() {
     setPicErr(null);
     setPicAttachedAt(null);
-    const q = picQuery;
+    const q = (picPrompt.trim() || topic.trim()).slice(0, 200);
     if (!q) {
       setPicErr('Describe the picture first — or write the idea above and reuse it.');
       return;
     }
-    setPicResults([]);
     setPicUrl(aiImageUrl(q, randomSeed()));
   }
 
   async function searchPictures() {
     setPicErr(null);
     setPicAttachedAt(null);
-    const q = picQuery;
-    if (!q) {
+    if (!searchText) {
       setPicErr('Write the idea above first — auto finds photos for its topic.');
       return;
     }
@@ -110,9 +114,11 @@ export default function AiCard({
     try {
       const { createClient } = await import('@/lib/supabase/client');
       const sb = createClient();
-      const images = await findImages(sb, q);
+      const images = await findImages(sb, searchText);
       setPicResults(images);
-      setPicUrl(images[0]?.url ?? null);
+      setSelected([]);
+      setRemixed({});
+      setRemixPrompts({});
     } catch (e) {
       setPicErr(e instanceof Error ? e.message : 'Photo search failed.');
     } finally {
@@ -120,9 +126,42 @@ export default function AiCard({
     }
   }
 
+  function toggleSelect(url: string) {
+    setPicAttachedAt(null);
+    setSelected((prev) => (prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]));
+  }
+
+  /** AI-rework one selected photo from its own prompt. */
+  async function remixPhoto(url: string) {
+    const prompt = (remixPrompts[url] ?? '').trim();
+    if (!prompt) {
+      setPicErr('Write what to change first — one prompt per photo.');
+      return;
+    }
+    setPicErr(null);
+    setPicAttachedAt(null);
+    setRemixing(url);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      const out = await remixImage(sb, url, prompt);
+      setRemixed((prev) => ({ ...prev, [url]: out }));
+    } catch (e) {
+      setPicErr(e instanceof Error ? e.message : 'AI rework failed.');
+    } finally {
+      setRemixing(null);
+    }
+  }
+
+  function attachSelected() {
+    if (!selected.length || !onPicture) return;
+    onPicture(selected.map(finalUrl));
+    setPicAttachedAt(Date.now());
+  }
+
   function usePicture() {
     if (!picUrl || !onPicture) return;
-    onPicture(picUrl);
+    onPicture([picUrl]);
     setPicAttachedAt(Date.now());
   }
 
@@ -389,9 +428,29 @@ export default function AiCard({
           </div>
           <p className="mt-1 text-[11px] text-muted">
             {picMode === 'auto'
-              ? 'Real photos matched to the idea — maps, people, places.'
+              ? 'Search real photos, tap to select (more than one is fine), then attach.'
               : 'AI renders whatever you describe.'}
           </p>
+          {picMode === 'auto' ? (
+            <div className="mt-1.5 flex gap-1.5">
+              <input
+                value={picQuery}
+                onChange={(e) => setPicQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void searchPictures();
+                  }
+                }}
+                placeholder={topic.trim() ? `e.g. ${topic.trim().slice(0, 48)}…` : 'Search photos…'}
+                aria-label="Search photos"
+                className="min-w-0 flex-1 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 text-xs text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5 dark:text-paper"
+              />
+              <button type="button" onClick={searchPictures} disabled={picBusy} className="btn btn-ghost shrink-0 !px-3.5 !py-2 !text-xs">
+                {picBusy ? '…' : 'Search'}
+              </button>
+            </div>
+          ) : null}
           {picMode === 'prompt' ? (
             <textarea
               value={picPrompt}
@@ -408,43 +467,97 @@ export default function AiCard({
               <img src={picUrl} alt="AI picture preview" className="max-h-56 w-full object-cover" />
             </div>
           ) : null}
-          {picMode === 'auto' && picResults.length > 1 ? (
+          {picMode === 'auto' && picResults.length > 0 ? (
             <div className="mt-1.5 grid grid-cols-4 gap-1.5">
-              {picResults.map((img) => (
-                <button
-                  key={img.url}
-                  type="button"
-                  onClick={() => {
-                    setPicUrl(img.url);
-                    setPicAttachedAt(null);
-                  }}
-                  aria-label={`Use photo: ${img.title}`}
-                  title={img.title}
-                  className={`overflow-hidden rounded-lg border transition ${
-                    picUrl === img.url ? 'border-[#5B3DF0] ring-2 ring-[#5B3DF0]/40' : 'border-line opacity-70 hover:opacity-100'
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.thumb} alt="" className="h-14 w-full object-cover" loading="lazy" />
-                </button>
-              ))}
+              {picResults.map((img) => {
+                const idx = selected.indexOf(img.url);
+                const on = idx >= 0;
+                return (
+                  <button
+                    key={img.url}
+                    type="button"
+                    onClick={() => toggleSelect(img.url)}
+                    aria-pressed={on}
+                    aria-label={`${on ? 'Deselect' : 'Select'} photo: ${img.title}`}
+                    title={img.title}
+                    className={`relative overflow-hidden rounded-lg border transition ${
+                      on ? 'border-[#5B3DF0] ring-2 ring-[#5B3DF0]/40' : 'border-line opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.thumb} alt="" className="h-14 w-full object-cover" loading="lazy" />
+                    {on ? (
+                      <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#5B3DF0] text-[10px] font-extrabold text-white">
+                        {idx + 1}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          {picMode === 'auto' && selected.length > 0 ? (
+            <div className="mt-1.5 space-y-1.5 rounded-xl border border-line bg-card p-2">
+              <p className="px-1 text-[11px] font-bold text-soft">
+                Selected ({selected.length}) — describe a change to rework one with AI, or attach as-is.
+              </p>
+              {selected.map((u) => {
+                const done = remixed[u];
+                return (
+                  <div key={u} className="flex items-center gap-2 rounded-lg bg-paper p-1.5">
+                    <span className="relative shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={done ?? u} alt="" className="h-11 w-11 rounded-lg object-cover" loading="lazy" />
+                      {done ? (
+                        <span className="absolute -right-1 -top-1 rounded-full bg-ink px-1 text-[8px] font-extrabold text-paper">
+                          AI
+                        </span>
+                      ) : null}
+                    </span>
+                    <input
+                      value={remixPrompts[u] ?? ''}
+                      onChange={(e) => setRemixPrompts((prev) => ({ ...prev, [u]: e.target.value }))}
+                      placeholder="e.g. make it sunset…"
+                      aria-label="AI rework instructions"
+                      className="field min-w-0 flex-1 !py-1.5 !text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void remixPhoto(u)}
+                      disabled={remixing !== null}
+                      className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-[11px]"
+                    >
+                      {remixing === u ? '…' : done ? 'Again' : 'Rework'}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           ) : null}
           {picErr ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D]">{picErr}</p> : null}
           {picAttachedAt ? <p className="mt-1.5 text-xs font-bold text-[#346538]">Attached to the composer ✓</p> : null}
           <div className="mt-1.5 flex gap-1.5">
             {picMode === 'prompt' ? (
-              <button type="button" onClick={makePromptPicture} className="btn btn-ghost flex-1 !py-2 !text-xs">
-                {picUrl && !picResults.length ? 'Regenerate' : 'Generate'}
-              </button>
+              <>
+                <button type="button" onClick={makePromptPicture} className="btn btn-ghost flex-1 !py-2 !text-xs">
+                  {picUrl ? 'Regenerate' : 'Generate'}
+                </button>
+                <button type="button" onClick={usePicture} disabled={!picUrl} className="btn btn-primary flex-1 !py-2 !text-xs">
+                  Use picture
+                </button>
+              </>
             ) : (
-              <button type="button" onClick={searchPictures} disabled={picBusy} className="btn btn-ghost flex-1 !py-2 !text-xs">
-                {picBusy ? 'Searching…' : picResults.length ? 'Search again' : 'Find photos'}
+              <button
+                type="button"
+                onClick={attachSelected}
+                disabled={!selected.length}
+                className="btn btn-primary w-full !py-2 !text-xs"
+              >
+                {selected.length
+                  ? `Attach ${selected.length} photo${selected.length === 1 ? '' : 's'}`
+                  : 'Select photos above to attach'}
               </button>
             )}
-            <button type="button" onClick={usePicture} disabled={!picUrl} className="btn btn-primary flex-1 !py-2 !text-xs">
-              Use picture
-            </button>
           </div>
         </>
       ) : null}
