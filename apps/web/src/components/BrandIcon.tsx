@@ -11,7 +11,7 @@
  * - `badge={false}`: bare coloured glyph on transparent (legacy / chrome mocks)
  */
 
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { PROVIDER_META } from '@/lib/providers';
 
 export type BrandProvider =
@@ -111,7 +111,9 @@ export function BrandIcon({
         data-brand={provider}
       >
         <title>{label}</title>
-        <path d={PATHS[provider]} />
+        <Pad>
+          <path d={PATHS[provider]} />
+        </Pad>
       </svg>
     );
   }
@@ -126,7 +128,9 @@ export function BrandIcon({
         style={{ background: brandColor(provider), ...style }}
       >
         <svg viewBox="0 0 24 24" className="h-[62%] w-[62%]" fill="#fff" aria-hidden="true">
-          <path d={PATHS[provider]} />
+          <Pad>
+            <path d={PATHS[provider]} />
+          </Pad>
         </svg>
       </span>
     );
@@ -156,7 +160,7 @@ export function BrandIcon({
             <stop offset="90%" stopColor="#285AEB" />
           </radialGradient>
         </defs>
-        <path d={PATHS.instagram} fill="url(#sosial-ig)" />
+        <path d={PATHS.instagram} fill="url(#sosial-ig)" transform="translate(2 2) scale(0.8333)" />
       </svg>
     );
   }
@@ -171,9 +175,20 @@ export function BrandIcon({
       data-brand={provider}
     >
       <title>{label}</title>
-      <path d={PATHS[provider]} fill={brandColor(provider)} />
+      <Pad>
+        <path d={PATHS[provider]} fill={brandColor(provider)} />
+      </Pad>
     </svg>
   );
+}
+
+/**
+ * Optical padding — edge-touching brand paths lose antialiased pixels at
+ * the svg viewport and read as "cut", worst at small sizes. A 2-unit inset
+ * stops the clip everywhere the mark renders.
+ */
+function Pad({ children }: { children: ReactNode }) {
+  return <g transform="translate(2 2) scale(0.8333)">{children}</g>;
 }
 
 /** Path data for places that need to compose a custom SVG (e.g. a gradient). */
