@@ -331,6 +331,354 @@ body {
   .prose-sosial li {
     margin-top: 0.4rem;
   }
+
+  /* ----------------------- blog: BlockNote + rich body ----------------------- */
+  /* The .doc-sheet keeps its paper look; BlockNote fills it seamlessly. */
+  .blog-doc .bn-container,
+  .blog-doc .bn-editor {
+    background: transparent;
+    font-family: var(--font-sans);
+  }
+  .blog-doc .bn-editor {
+    padding: 0;
+  }
+  .blog-doc .bn-block-outer {
+    padding-block: 2px;
+  }
+  .blog-doc .bn-block-content h1 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.6rem;
+    letter-spacing: -0.01em;
+  }
+  .blog-doc .bn-block-content h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.3rem;
+  }
+  .blog-doc .bn-block-content h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.12rem;
+  }
+  .blog-doc .bn-block-content[data-content-type='quote'] {
+    border-left: 4px solid var(--color-bolt);
+    padding-left: 1rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.05rem;
+  }
+
+  /* Serialized blog body (public page + preview). */
+  .blog-rich > :first-child {
+    margin-top: 0;
+  }
+  .blog-rich .rich-h2 {
+    margin-top: 2.2rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.3rem;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .blog-rich .rich-h3 {
+    margin-top: 1.8rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.12rem;
+    color: var(--color-ink);
+  }
+  .blog-rich .rich-h4 {
+    margin-top: 1.5rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1rem;
+    color: var(--color-ink);
+  }
+  .blog-rich blockquote {
+    margin-top: 1.25rem;
+    border-left: 4px solid var(--color-bolt);
+    padding-left: 1rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    color: var(--color-ink);
+  }
+  .blog-rich .rich-figure {
+    margin-top: 1.5rem;
+  }
+  .blog-rich .rich-figure img {
+    width: 100%;
+    border-radius: 1rem;
+    border: 1px solid var(--color-line);
+  }
+  .blog-rich figcaption {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .blog-rich .rich-table-wrap {
+    margin-top: 1.5rem;
+    overflow-x: auto;
+    border: 1px solid var(--color-line);
+    border-radius: 1rem;
+  }
+  .blog-rich table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .blog-rich th {
+    padding: 0.625rem 1rem;
+    text-align: left;
+    background: var(--color-paper-dim);
+    border-bottom: 1px solid var(--color-line);
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--color-ink);
+    white-space: nowrap;
+  }
+  .blog-rich td {
+    padding: 0.625rem 1rem;
+    vertical-align: top;
+    color: var(--color-soft);
+  }
+  .blog-rich tbody tr + tr {
+    border-top: 1px solid var(--color-line);
+  }
+  .blog-rich .embed-box {
+    margin-top: 1.5rem;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: 1rem;
+  }
+  .blog-rich .embed-box iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .blog-rich .embed-card {
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--color-line);
+    border-radius: 1rem;
+    padding: 0.875rem 1rem;
+    text-decoration: none;
+  }
+  .blog-rich .embed-card:hover {
+    border-color: var(--color-ink);
+  }
+  .blog-rich .embed-card-host {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--color-ink);
+  }
+  .blog-rich .embed-card-url {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
+  .blog-rich .sosial-chart {
+    margin-top: 1.5rem;
+    border: 1px solid var(--color-line);
+    border-radius: 1rem;
+    padding: 1rem 1rem 0.5rem;
+  }
+  .blog-rich .sosial-chart figcaption {
+    text-align: left;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--color-ink);
+    margin: 0 0 0.5rem;
+  }
+  .blog-rich ol {
+    margin-top: 1rem;
+    padding-left: 1.4rem;
+    list-style: decimal;
+    line-height: 1.75;
+    color: var(--color-soft);
+  }
+  .blog-rich hr {
+    margin-top: 2rem;
+    border-color: var(--color-line);
+  }
+
+  /* Editor-side chrome for the custom blocks (inside BlockNote). */
+  .blog-embed {
+    margin-block: 0.4rem;
+  }
+  .blog-embed-edit {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .blog-embed-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    background: var(--color-paper);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--color-ink);
+    outline: none;
+  }
+  .blog-embed-input:focus {
+    border-color: var(--color-ink);
+  }
+  .blog-embed-clear {
+    flex-shrink: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    cursor: pointer;
+  }
+  .blog-embed-clear:hover {
+    color: var(--color-ink);
+  }
+  .blog-embed-box {
+    margin-top: 0.5rem;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+  }
+  .blog-embed-box iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .blog-embed-card {
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+  .blog-embed-caption {
+    margin-top: 0.4rem;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    outline: none;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+  }
+  .blog-embed-caption::placeholder {
+    color: rgba(28, 26, 20, 0.35);
+  }
+  .blog-chart {
+    margin-block: 0.4rem;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    background: var(--color-paper);
+    padding: 0.875rem;
+  }
+  .blog-chart-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .blog-chart-title {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    outline: none;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--color-ink);
+  }
+  .blog-chart-title::placeholder {
+    color: rgba(28, 26, 20, 0.35);
+  }
+  .blog-chart-kind {
+    flex-shrink: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-paper);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+  .blog-chart-rows {
+    margin-top: 0.625rem;
+    display: grid;
+    gap: 0.375rem;
+  }
+  .blog-chart-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .blog-chart-cell {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-paper);
+    padding: 0.35rem 0.55rem;
+    font-size: 0.75rem;
+    color: var(--color-ink);
+    outline: none;
+  }
+  .blog-chart-cell:focus {
+    border-color: var(--color-ink);
+  }
+  .blog-chart-del {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    color: var(--color-muted);
+    cursor: pointer;
+  }
+  .blog-chart-del:hover {
+    color: #9f2f2d;
+  }
+  .blog-chart-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px dashed rgba(28, 26, 20, 0.25);
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    cursor: pointer;
+  }
+  .blog-chart-add:hover {
+    color: var(--color-ink);
+    border-color: var(--color-ink);
+  }
 }
 
 /* ------------------------------ scrollbars ---------------------------- */

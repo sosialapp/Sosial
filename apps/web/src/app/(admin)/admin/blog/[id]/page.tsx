@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import BlogEditor, { type BlogDraft } from '@/components/BlogEditor';
 import { createClient } from '@/lib/supabase/server';
-import type { Block, Category } from '@/content/types';
+import type { Category } from '@/content/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export default async function AdminBlogEdit({ params }: { params: Promise<{ id: 
     slug: data.slug as string,
     title: data.title as string,
     description: (data.description as string) ?? '',
-    body: Array.isArray(data.body) ? (data.body as Block[]) : [],
+    body: Array.isArray(data.body) ? (data.body as unknown[]) : [],
     tag: (data.tag as Category) ?? 'Publishing',
     minutes: (data.minutes as number) ?? 5,
     status: data.status === 'published' ? 'published' : 'draft',

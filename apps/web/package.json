@@ -11,6 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@blocknote/core": "^0.36.1",
+    "@blocknote/mantine": "^0.36.1",
+    "@blocknote/react": "^0.36.1",
     "@gsap/react": "^2.1.2",
     "@radix-ui/react-tabs": "^1.1.21",
     "@supabase/ssr": "^0.7.0",

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import Prose from '@/components/site/Prose';
+import PostBody from '@/components/site/PostBody';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
 import { blogTagClass, formatPostDate } from '@/content/types';
 
@@ -54,7 +54,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
         <hr className="my-8 border-line" />
 
-        <Prose blocks={post.body} />
+        <PostBody bodyHtml={post.bodyHtml} blocks={post.body} />
 
         <div className="reveal mt-12 rounded-3xl border border-line bg-card p-6 md:p-8">
           <p className="eyebrow">Put it to work</p>

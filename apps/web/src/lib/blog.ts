@@ -18,12 +18,13 @@ interface BlogRow {
   title: string;
   description: string | null;
   body: unknown;
+  body_html: string | null;
   tag: string | null;
   minutes: number | null;
   published_at: string | null;
 }
 
-const COLS = 'slug, title, description, body, tag, minutes, published_at';
+const COLS = 'slug, title, description, body, body_html, tag, minutes, published_at';
 
 function isBlock(b: unknown): b is Block {
   if (typeof b !== 'object' || b === null) return false;
@@ -54,6 +55,7 @@ function toArticle(r: BlogRow): Article {
     tag: (r.tag as Category) ?? 'Strategy',
     minutes: typeof r.minutes === 'number' && r.minutes > 0 ? r.minutes : 5,
     body: Array.isArray(r.body) ? (r.body as unknown[]).filter(isBlock) : [],
+    bodyHtml: typeof r.body_html === 'string' && r.body_html.trim() ? r.body_html : null,
   };
 }
 

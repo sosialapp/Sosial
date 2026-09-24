@@ -51,6 +51,8 @@ export interface Article {
   tag: Category;
   minutes: number;
   body: Block[];
+  /** Pre-serialized HTML from the BlockNote editor — null for legacy posts. */
+  bodyHtml: string | null;
 }
 
 export type ResourceKind = 'Guide' | 'Playbook' | 'Template' | 'Glossary' | 'Cheat sheet';
