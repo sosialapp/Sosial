@@ -185,17 +185,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
     return (
       <div style={shell(6)}>
         <div style={{ ...headerRow, padding: `${10 * k}px ${12 * k}px 0` }}>
-          {/* Story ring — gradient, like the real app. */}
-          <span
-            style={{
-              padding: 2 * k, borderRadius: 999, display: 'inline-flex',
-              background: 'linear-gradient(45deg,#F09433,#E6683C,#DC2743,#CC2366,#BC1888)',
-            }}
-          >
-            <span style={{ padding: 1.5 * k, borderRadius: 999, backgroundColor: c.cardBg, display: 'inline-flex' }}>
-              <AvatarMark page={page} size={19} k={k} />
-            </span>
-          </span>
+          <AvatarMark page={page} size={20} k={k} />
           <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name} </span>
           <Check c={c} size={9} k={k} />
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
