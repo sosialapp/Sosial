@@ -20,9 +20,6 @@ const CARDS: { id: CardStyle; label: string }[] = [
   { id: 'threads', label: 'Threads' },
   { id: 'x', label: 'X' },
   { id: 'bluesky', label: 'Bluesky' },
-  { id: 'mastodon', label: 'Mastodon' },
-  { id: 'linkedin', label: 'LinkedIn' },
-  { id: 'snapchat', label: 'Snapchat' },
 ];
 
 const TYPES: { id: BlockType; label: string }[] = [

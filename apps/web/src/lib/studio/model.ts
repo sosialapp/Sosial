@@ -158,7 +158,7 @@ export interface ContentBlock {
 
 export type CardStyle =
   | 'minimal' | 'facebook' | 'x' | 'instagram' | 'threads'
-  | 'bluesky' | 'mastodon' | 'linkedin' | 'snapchat';
+  | 'bluesky';
 
 export const CARD_STYLES: { id: CardStyle; label: string }[] = [
   { id: 'minimal', label: 'Minimal' },
@@ -167,9 +167,6 @@ export const CARD_STYLES: { id: CardStyle; label: string }[] = [
   { id: 'threads', label: 'Threads' },
   { id: 'x', label: 'X' },
   { id: 'bluesky', label: 'Bluesky' },
-  { id: 'mastodon', label: 'Mastodon' },
-  { id: 'linkedin', label: 'LinkedIn' },
-  { id: 'snapchat', label: 'Snapchat' },
 ];
 
 export interface PostPage {

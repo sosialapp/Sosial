@@ -119,7 +119,7 @@ export interface PostPage {
   scheduledPlatforms?: string[]; // channel keys, ['any'] = anywhere
 }
 
-export type CardStyle = 'minimal' | 'facebook' | 'x' | 'instagram' | 'threads' | 'bluesky' | 'mastodon' | 'linkedin' | 'snapchat';
+export type CardStyle = 'minimal' | 'facebook' | 'x' | 'instagram' | 'threads' | 'bluesky';
 
 export interface QuickPost {
   id: string;
