@@ -11,7 +11,7 @@ import {
   type PostPage,
 } from '@/lib/studio/model';
 import { PatternBackground } from './patterns';
-import { BlockView, ChromeIcon } from './blocks';
+import { BlockView, ChromeIcon, VERIFIED_SEAL } from './blocks';
 
 function ff(font: FontId | undefined, bold = false, italic = false): React.CSSProperties {
   return {
@@ -80,10 +80,19 @@ function chromeCtx(page: PostPage): ChromeCtx {
 
 function Check({ c, size, k }: { c: ChromeCtx; size: number; k: number }) {
   if (!c.showCheck) return null;
+  const sealed = c.page.cardStyle === 'facebook' || c.page.cardStyle === 'instagram' || c.page.cardStyle === 'threads';
+  if (!sealed) {
+    return (
+      <svg width={size * k} height={size * k} viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" fill="#1D9BF0" />
+        <path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
   return (
     <svg width={size * k} height={size * k} viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#1D9BF0" />
-      <path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={VERIFIED_SEAL} fill="#1D9BF0" />
+      <path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

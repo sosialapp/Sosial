@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, Image } from 'react-native';
+import { Svg, Path } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import FontAwesome from '@expo/vector-icons/build/FontAwesome';
 import { PostPage } from '../types';
 import { F, FontId } from '../utils/fonts';
-import { SocialGlyph, ActionIcon } from './ui';
+import { SocialGlyph, ActionIcon, VERIFIED_SEAL } from './ui';
 
 interface ChromeProps {
   page: PostPage;
@@ -103,7 +104,17 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
   const faint = dark ? '#A8A29E' : '#B0B3B8';
   const hairline = dark ? '#FFFFFF24' : '#11111114';
   const showCheck = page.verified ?? true;
-  const check = (size: number) => showCheck ? <Ionicons name="checkmark-circle" size={pad(size)} color="#1D9BF0" /> : null;
+  const sealed = page.cardStyle === 'facebook' || page.cardStyle === 'instagram' || page.cardStyle === 'threads';
+  const check = (size: number) => {
+    if (!showCheck) return null;
+    if (!sealed) return <Ionicons name="checkmark-circle" size={pad(size)} color="#1D9BF0" />;
+    return (
+      <Svg width={pad(size)} height={pad(size)} viewBox="0 0 24 24">
+        <Path d={VERIFIED_SEAL} fill="#1D9BF0" />
+        <Path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    );
+  };
   const rootFlex = fit
     ? { flexShrink: 1 as const, maxHeight: maxH, overflow: 'hidden' as const }
     : { flex: 1 as const, minHeight: 0 as const };
