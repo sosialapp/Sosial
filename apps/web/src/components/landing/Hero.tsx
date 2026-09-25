@@ -128,7 +128,9 @@ export default function Hero() {
           ease: 'back.out(1.5)',
           stagger: 0.06,
           delay: 0.2,
-          clearProps: 'all',
+          // Only clear what the entrance set — 'all' would also wipe the
+          // React-set brand background, leaving white tiles with white glyphs.
+          clearProps: 'transform,opacity,visibility',
         });
         movers.current = tiles.current.map((el) =>
           el

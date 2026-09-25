@@ -1,16 +1,29 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { BLOG_TAGS, blogTagClass, type Category } from '@/content/types';
 
 export const dynamic = 'force-dynamic';
 
-/** Owner post list: drafts and published, newest-touched first. */
-export default async function AdminBlogList() {
+function isTag(v: string | undefined): v is Category {
+  return !!v && (BLOG_TAGS as readonly string[]).includes(v);
+}
+
+/** Owner post list: drafts and published, newest-touched first, filterable by category. */
+export default async function AdminBlogList({
+  searchParams,
+}: {
+  searchParams: Promise<{ tag?: string }>;
+}) {
+  const { tag } = await searchParams;
+  const active = isTag(tag) ? tag : undefined;
   const sb = await createClient();
-  const { data } = await sb
+  let query = sb
     .from('blog_posts')
     .select('id, slug, title, tag, minutes, status, published_at, updated_at')
     .order('updated_at', { ascending: false })
     .limit(200);
+  if (active) query = query.eq('tag', active);
+  const { data } = await query;
   const rows = data ?? [];
 
   return (
@@ -19,7 +32,9 @@ export default async function AdminBlogList() {
         <div>
           <p className="eyebrow">Owner console</p>
           <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Blog</h1>
-          <p className="mt-1 text-sm text-muted">{rows.length} posts</p>
+          <p className="mt-1 text-sm text-muted">
+            {rows.length} posts{active ? ` in ${active}` : ''}
+          </p>
         </div>
         <Link
           href="/admin/blog/new"
@@ -28,6 +43,31 @@ export default async function AdminBlogList() {
           + New post
         </Link>
       </div>
+      <nav aria-label="Filter by category" className="mt-4 flex flex-wrap items-center gap-2">
+        <Link
+          href="/admin/blog"
+          className={`pill border px-3 py-1.5 text-xs ${
+            active
+              ? 'border-line bg-paper text-muted hover:border-faint'
+              : 'border-accent bg-accent-soft text-accent-ink'
+          }`}
+        >
+          All
+        </Link>
+        {BLOG_TAGS.map((t) => (
+          <Link
+            key={t}
+            href={`/admin/blog?tag=${t}`}
+            className={`pill border px-3 py-1.5 text-xs ${
+              active === t
+                ? 'border-accent bg-accent-soft text-accent-ink'
+                : 'border-line bg-paper text-muted hover:border-faint'
+            }`}
+          >
+            {t}
+          </Link>
+        ))}
+      </nav>
       <div className="mt-4 grid gap-2">
         {rows.map((r) => (
           <div
@@ -45,8 +85,13 @@ export default async function AdminBlogList() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold">{r.title}</p>
-              <p className="truncate text-xs text-muted">
-                /blog/{r.slug} · {r.tag} · {r.minutes} min
+              <p className="mt-1 flex flex-wrap items-center gap-1.5 truncate text-xs text-muted">
+                <span className={`pill w-fit ${blogTagClass((r.tag as Category) ?? 'Publishing')}`}>
+                  {r.tag}
+                </span>
+                <span>
+                  /blog/{r.slug} · {r.minutes} min
+                </span>
               </p>
             </div>
             {r.status === 'published' ? (
