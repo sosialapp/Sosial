@@ -78,7 +78,7 @@ function pricingBlocks(): B[] {
   return [
     ...hero(
       'Simple plans, published prices.',
-      'Start free and stay free if that is enough. Upgrade when you want all ten channels, the AI writer or approvals. No per-channel fees, no annual lock-in.',
+      'Start free and stay free if that is enough. Upgrade when you want all ten channels, the AI writer or approvals. Monthly or annual — annual gives you two months free.',
     ),
     { t: 'h', c: 'Free — $0 forever. Enough to replace posting by hand.' },
     {
@@ -91,29 +91,40 @@ function pricingBlocks(): B[] {
         'iOS, Android and web',
       ],
     },
-    { t: 'h', c: 'Pro — $12 per month. Publish everywhere, every day.' },
+    { t: 'h', c: 'Solo — $12/month or $120/year. Publish everywhere, every day.' },
     {
       t: 'ul',
       c: [
         'All 10 channels connected',
         'Unlimited scheduled posts',
-        'AI writer with live research',
-        'Templates and AI media',
+        'AI writer with live research (500 generations a month)',
+        'Templates and studio',
         'Analytics across every channel',
       ],
     },
-    { t: 'h', c: 'Team — $29 per month. Draft together, approve in one tap.' },
+    { t: 'h', c: 'Team — $29/month or $290/year. Draft together, approve in one tap.' },
     {
       t: 'ul',
       c: [
-        'Everything in Pro',
+        'Everything in Solo',
         'Approvals and review notes',
         'Member, admin and owner roles',
         'Shared calendar for the whole team',
-        'Priority support',
+        '1,000 AI generations a month · Priority support',
       ],
     },
-    { t: 'p', c: 'Prices in USD. Annual billing knocks two months off. Cancel any time, keep your data.' },
+    { t: 'h', c: 'Business — $79/month or $790/year. Scale the whole operation.' },
+    {
+      t: 'ul',
+      c: [
+        'Everything in Team',
+        '2,000 AI generations a month',
+        'Unlimited seats for the whole crew',
+        'Per-channel member roles',
+        'Premium support',
+      ],
+    },
+    { t: 'p', c: 'Prices in USD. Annual plans are billed once a year and give you two months free. Cancel any time, keep your data.' },
     ...faqBlocks([
       { q: 'What counts against the free plan limit?', a: 'Scheduled and sent posts. Drafts do not count, and neither do edits to a post before it ships.' },
       { q: 'Are there per-channel fees?', a: 'No. Connecting Instagram costs the same as connecting X. Every plan that includes a channel includes all of its features.' },

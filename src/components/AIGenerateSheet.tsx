@@ -138,7 +138,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
               <View style={st.lockBox}>
                 <Ionicons name="lock-closed" size={16} color={C.muted} />
                 <View style={{ flex: 1 }}>
-                  <Text style={st.lockT}>AI generation is a Pro & Team feature.</Text>
+                  <Text style={st.lockT}>AI generation is a Solo, Team & Business feature.</Text>
                   <Text style={st.lockS}>Upgrade in Profile → Account to generate content with AI.</Text>
                 </View>
               </View>

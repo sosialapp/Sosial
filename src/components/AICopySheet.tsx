@@ -736,7 +736,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 <View style={st.lockBox}>
                   <Ionicons name="lock-closed" size={16} color={C.muted} />
                   <View style={{ flex: 1 }}>
-                    <Text style={st.lockT}>AI writing is a Pro & Team feature.</Text>
+                    <Text style={st.lockT}>AI writing is a Solo, Team & Business feature.</Text>
                     <Text style={st.lockS}>Upgrade in Profile → Account to write with AI.</Text>
                   </View>
                 </View>
