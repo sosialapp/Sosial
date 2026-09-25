@@ -44,6 +44,55 @@ function partsOf(iso: string | null): { h: number; m: number } {
   return { h: d.getHours(), m: d.getMinutes() };
 }
 
+/* ------------------------- week time-grid geometry ------------------------- */
+
+const HOUR_PX = 48;
+const DAY_H = HOUR_PX * 24;
+
+function minutesOf(iso: string | null): number {
+  const { h, m } = partsOf(iso);
+  return h * 60 + m;
+}
+
+function hourLabel(h: number): string {
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12} ${ampm}`;
+}
+
+/** Interval-partition a day's posts into lanes so overlaps sit side by side
+ *  (30-minute collision window — posts are instants, not durations). */
+function layoutDay(items: PostWithTargets[]): {
+  p: PostWithTargets;
+  top: number;
+  lane: number;
+  lanes: number;
+}[] {
+  const sorted = [...items].sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''));
+  const starts = sorted.map((p) => minutesOf(p.scheduled_at));
+  const ends = starts.map((s) => s + 30);
+  const laneEnd: number[] = [];
+  const laneOf: number[] = sorted.map((_, i) => {
+    let lane = laneEnd.findIndex((e) => e <= starts[i]);
+    if (lane < 0) {
+      lane = laneEnd.length;
+      laneEnd.push(ends[i]);
+    } else {
+      laneEnd[lane] = ends[i];
+    }
+    return lane;
+  });
+  return sorted.map((p, i) => {
+    let lanes = laneOf[i] + 1;
+    sorted.forEach((_, j) => {
+      if (j !== i && starts[j] < ends[i] && starts[i] < ends[j]) {
+        lanes = Math.max(lanes, laneOf[j] + 1);
+      }
+    });
+    return { p, top: (starts[i] / 60) * HOUR_PX, lane: laneOf[i], lanes };
+  });
+}
+
 /** ISO instant for a day-key + wall time, in local time. */
 function isoAt(key: string, h: number, m: number): string {
   const [y, mo, d] = key.split('-').map(Number);
@@ -232,6 +281,13 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const dayPosts = byDay.get(selectedKey) ?? [];
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? null;
   const today = new Date();
+  const todayKey = dayKey(today);
+  /** Per-day time layouts for the week grid (posts at their exact time). */
+  const weekLayouts = useMemo(
+    () => weekDays.map((d) => layoutDay(byDay.get(dayKey(d)) ?? [])),
+    [weekDays, byDay],
+  );
+  const nowTop = ((today.getHours() * 60 + today.getMinutes()) / 60) * HOUR_PX;
 
   /** Agenda window: 14 days from the anchor, upcoming scheduled posts grouped by day. */
   const agenda = useMemo(() => {
@@ -458,83 +514,137 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
             </>
           ) : view === 'week' ? (
             <>
-              <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-line bg-line">
-                {WEEKDAYS.map((d) => (
-                  <div key={d} className="bg-card px-2 py-2 text-center text-xs font-bold text-muted">
-                    {d}
-                  </div>
-                ))}
-                {weekDays.map((day) => {
-                  const k = dayKey(day);
-                  const items = byDay.get(k) ?? [];
-                  const isDayToday = isSameDay(day, today);
-                  const isOver = overKey === k;
-                  return (
+              <div className="overflow-hidden rounded-2xl border border-line bg-card">
+                <div className="overflow-x-auto">
+                  <div className="min-w-[760px]">
+                    {/* day headers */}
                     <div
-                      key={k}
-                      onClick={() => {
-                        setSelectedKey(k);
-                        setSelectedPostId(null);
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (overKey !== k) setOverKey(k);
-                      }}
-                      onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        void dropOn(day);
-                      }}
-                      className={`flex min-h-[320px] cursor-pointer flex-col bg-card p-2 transition xl:min-h-[420px] ${
-                        selectedKey === k ? 'bg-paper' : ''
-                      } ${isOver ? 'ring-2 ring-inset ring-accent' : ''}`}
+                      className="grid border-b border-line"
+                      style={{ gridTemplateColumns: '3.5rem repeat(7, minmax(0, 1fr))' }}
                     >
-                      <div className="mb-2 flex items-center justify-between px-0.5">
-                        <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                            isDayToday ? 'bg-accent text-white' : 'text-muted'
-                          }`}
-                        >
-                          {day.getDate()}
-                        </span>
-                        <span className="text-[10px] font-bold text-faint">
-                          {day.toLocaleDateString(undefined, { month: 'short' })}
-                        </span>
-                      </div>
-                      <div className="flex-1 space-y-1.5">
-                        {items.map((p) => (
-                          <div
-                            key={p.id}
-                            draggable
-                            onDragStart={() => setDragId(p.id)}
-                            onDragEnd={() => {
-                              setDragId(null);
-                              setOverKey(null);
+                      <div />
+                      {weekDays.map((day) => {
+                        const hk = dayKey(day);
+                        const isDayToday = hk === todayKey;
+                        return (
+                          <button
+                            key={hk}
+                            type="button"
+                            onClick={() => {
+                              setSelectedKey(hk);
+                              setSelectedPostId(null);
                             }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedKey(k);
-                              setSelectedPostId(p.id);
-                            }}
-                            title={snippet(p)}
-                            className={`cursor-grab rounded-lg border border-line bg-paper px-2 py-1.5 text-[11px] leading-tight transition hover:border-ink/30 ${
-                              dragId === p.id ? 'opacity-50' : ''
-                            } ${selectedPostId === p.id ? 'ring-1 ring-accent' : ''}`}
+                            className="flex flex-col items-center gap-0.5 px-1 py-2 transition hover:bg-paper-dim"
                           >
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="font-bold text-ink">{formatTime(p.scheduled_at)}</span>
-                              <ChannelDots post={p} />
-                            </div>
-                            <div className="mt-0.5 line-clamp-2 text-soft">{snippet(p)}</div>
-                          </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-faint">
+                              {day.toLocaleDateString(undefined, { weekday: 'short' })}
+                            </span>
+                            <span
+                              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                                isDayToday ? 'bg-accent text-white' : 'text-ink'
+                              }`}
+                            >
+                              {day.getDate()}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* time grid */}
+                    <div
+                      className="grid"
+                      style={{ gridTemplateColumns: '3.5rem repeat(7, minmax(0, 1fr))' }}
+                    >
+                      <div className="relative" style={{ height: DAY_H }}>
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <span
+                            key={h}
+                            className="absolute right-1.5 text-[10px] font-bold tabular-nums text-faint"
+                            style={{ top: h * HOUR_PX - 7 }}
+                          >
+                            {hourLabel(h)}
+                          </span>
                         ))}
                       </div>
+                      {weekDays.map((day, di) => {
+                        const k = dayKey(day);
+                        const isOver = overKey === k;
+                        return (
+                          <div
+                            key={k}
+                            onClick={() => {
+                              setSelectedKey(k);
+                              setSelectedPostId(null);
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              if (overKey !== k) setOverKey(k);
+                            }}
+                            onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              void dropOn(day);
+                            }}
+                            className={`relative cursor-pointer border-l border-line transition ${
+                              selectedKey === k ? 'bg-paper-dim/40' : ''
+                            } ${isOver ? 'bg-accent-soft' : ''}`}
+                            style={{
+                              height: DAY_H,
+                              backgroundImage:
+                                'repeating-linear-gradient(to bottom, transparent 0, transparent 47px, rgba(128,128,128,0.22) 47px, rgba(128,128,128,0.22) 48px)',
+                            }}
+                          >
+                            {k === todayKey ? (
+                              <div
+                                className="absolute left-0 right-0 z-10 border-t-2 border-[#E5484D]"
+                                style={{ top: nowTop }}
+                              >
+                                <span className="absolute -top-[5px] left-0 h-2 w-2 rounded-full bg-[#E5484D]" />
+                              </div>
+                            ) : null}
+                            {weekLayouts[di].map(({ p, top, lane, lanes }) => (
+                              <div
+                                key={p.id}
+                                draggable
+                                onDragStart={() => setDragId(p.id)}
+                                onDragEnd={() => {
+                                  setDragId(null);
+                                  setOverKey(null);
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedKey(k);
+                                  setSelectedPostId(p.id);
+                                }}
+                                title={snippet(p)}
+                                className={`absolute max-h-[104px] cursor-grab overflow-hidden rounded-lg border border-line bg-paper px-2 py-1.5 text-[11px] leading-tight transition hover:border-ink/30 ${
+                                  dragId === p.id ? 'opacity-50' : ''
+                                } ${selectedPostId === p.id ? 'z-20 ring-1 ring-accent' : ''}`}
+                                style={{
+                                  top,
+                                  left: `calc(${(lane / lanes) * 100}% + 2px)`,
+                                  width: `calc(${100 / lanes}% - 4px)`,
+                                }}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold tabular-nums text-ink">
+                                    {formatTime(p.scheduled_at)}
+                                  </span>
+                                  <ChannelDots post={p} />
+                                </div>
+                                <div className="mt-0.5 line-clamp-2 text-soft">{snippet(p)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
               </div>
               <p className="mt-3 text-xs text-faint">
-                The week at a glance — drag a post onto another day to reschedule it, click one to retime it.
+                The week on a clock — posts sit at their exact time. Drag a post onto another day
+                to reschedule it (time stays the same). Click a post to retime it.
               </p>
             </>
           ) : (

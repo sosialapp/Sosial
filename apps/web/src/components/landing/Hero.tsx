@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { BrandIcon } from '@/components/BrandIcon';
+import { BrandIcon, brandColor } from '@/components/BrandIcon';
 import AuthModal from '@/components/site/AuthModal';
 import type { ProviderKey } from '@/lib/types';
 
@@ -37,16 +37,16 @@ const FLOATERS: {
   dur: string;
   depth: number;
 }[] = [
-  { pos: 'left-[14%] top-[14%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0s', dur: '5s', depth: 34 },
-  { pos: 'left-[28%] top-[7%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '0.8s', dur: '6s', depth: 20 },
-  { pos: 'left-[14%] top-[33%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.6s', dur: '5.4s', depth: 26 },
-  { pos: 'left-[19%] top-[56%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.2s', dur: '6.2s', depth: 14 },
-  { pos: 'left-[22%] top-[76%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.4s', dur: '5.6s', depth: 30 },
-  { pos: 'right-[14%] top-[9%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.1s', dur: '5.2s', depth: 34 },
-  { pos: 'right-[14%] top-[25%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '2.8s', dur: '6.4s', depth: 20 },
-  { pos: 'right-[23%] top-[45%]', show: 'hidden md:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '0.2s', dur: '5.8s', depth: 26 },
-  { pos: 'right-[16%] top-[62%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-9 w-9', delay: '1.9s', dur: '5s', depth: 30 },
-  { pos: 'right-[22%] top-[76%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-7 w-7', delay: '3.1s', dur: '6s', depth: 14 },
+  { pos: 'left-[14%] top-[14%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '0s', dur: '5s', depth: 34 },
+  { pos: 'left-[28%] top-[7%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '0.8s', dur: '6s', depth: 20 },
+  { pos: 'left-[14%] top-[33%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '1.6s', dur: '5.4s', depth: 26 },
+  { pos: 'left-[19%] top-[56%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '2.2s', dur: '6.2s', depth: 14 },
+  { pos: 'left-[22%] top-[76%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '0.4s', dur: '5.6s', depth: 30 },
+  { pos: 'right-[14%] top-[9%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '1.1s', dur: '5.2s', depth: 34 },
+  { pos: 'right-[14%] top-[25%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '2.8s', dur: '6.4s', depth: 20 },
+  { pos: 'right-[23%] top-[45%]', show: 'hidden md:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '0.2s', dur: '5.8s', depth: 26 },
+  { pos: 'right-[16%] top-[62%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '1.9s', dur: '5s', depth: 30 },
+  { pos: 'right-[22%] top-[76%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '3.1s', dur: '6s', depth: 14 },
 ];
 
 /** Seconds between one tile's flips (also the full-cycle length of its loop). */
@@ -101,10 +101,10 @@ function FlipTile({
       <span className="block [perspective:900px]">
         <span
           ref={face}
-          className={`hero-tile flex items-center justify-center rounded-3xl border border-line bg-paper shadow-[0_20px_50px_-20px_rgba(28,26,20,0.35)] ${box}`}
-          style={{ transformStyle: 'preserve-3d' }}
+          className={`hero-tile flex items-center justify-center overflow-hidden rounded-3xl text-white shadow-[0_20px_50px_-20px_rgba(28,26,20,0.35)] ${box}`}
+          style={{ transformStyle: 'preserve-3d', background: brandColor(providers[index]) }}
         >
-          <BrandIcon provider={providers[index]} className={icon} />
+          <BrandIcon provider={providers[index]} mono className={icon} />
         </span>
       </span>
     </span>
