@@ -140,6 +140,17 @@ export function blocksToProseHtml(blocks: DocBlock[]): string {
       case 'chart':
         parts.push(chartHtml(b));
         break;
+      case 'buttonLink': {
+        const label = String(b.props?.label ?? '').trim();
+        const href = String(b.props?.href ?? '').trim();
+        if (!label || !href) break;
+        const image = String(b.props?.image ?? '').trim();
+        const outline = b.props?.variant === 'outline';
+        parts.push(
+          `<p class="rich-btn-wrap"><a class="rich-btn${outline ? ' rich-btn-outline' : ''}" href="${esc(href)}"${href.startsWith('/') ? '' : ' target="_blank" rel="noopener noreferrer"'}>${image ? `<img class="rich-btn-img" src="${esc(image)}" alt="" />` : ''}<span>${esc(label)}</span></a></p>`,
+        );
+        break;
+      }
       case 'table': {
         const tc = b.content as
           | { rows?: { cells?: unknown[] }[]; headerRows?: number }

@@ -514,6 +514,98 @@ body {
     margin-top: 2rem;
     border-color: var(--color-line);
   }
+  .blog-rich .rich-btn-wrap {
+    margin-top: 1.5rem;
+  }
+  .blog-rich .rich-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    border-radius: 999px;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    padding: 0.6rem 1.25rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+  }
+  .blog-rich .rich-btn:hover {
+    opacity: 0.85;
+  }
+  .blog-rich .rich-btn-outline {
+    background: transparent;
+    color: var(--color-ink);
+    border: 1px solid var(--color-ink);
+  }
+  .blog-rich .rich-btn-img {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  /* Editor-side chrome for the button block. */
+  .blog-btn {
+    margin-block: 0.4rem;
+  }
+  .blog-btn-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .blog-btn-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px dashed rgba(28, 26, 20, 0.3);
+    border-radius: 10px;
+    color: rgba(28, 26, 20, 0.4);
+    cursor: pointer;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .blog-btn-preview:hover {
+    border-color: var(--color-ink);
+    color: var(--color-ink);
+  }
+  .blog-btn-label,
+  .blog-btn-href {
+    flex: 1;
+    min-width: 8rem;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    background: var(--color-paper);
+    padding: 0.45rem 0.65rem;
+    font-size: 0.78rem;
+    color: var(--color-ink);
+    outline: none;
+  }
+  .blog-btn-href {
+    flex: 1.2;
+  }
+  .blog-btn-label:focus,
+  .blog-btn-href:focus {
+    border-color: var(--color-ink);
+  }
+  .blog-btn-variant {
+    flex-shrink: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-paper);
+    padding: 0.3rem 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+  .blog-btn-live {
+    margin-top: 0.55rem;
+  }
 
   /* Editor-side chrome for the custom blocks (inside BlockNote). */
   .blog-embed {

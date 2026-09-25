@@ -9,6 +9,7 @@ import BlogDoc from '@/components/blog/BlogDoc';
 import ChartIslands from '@/components/site/ChartIslands';
 import { blocksToProseHtml } from '@/lib/blogHtml';
 import { wordsOfDoc, type DocBlock } from '@/lib/blogConvert';
+import { defaultDocForSlug } from '@/content/siteDefaults';
 import type { SitePageDef } from '@/content/sitePages';
 
 /**
@@ -25,8 +26,11 @@ export default function PageEditor({
   initial: unknown[] | null;
 }) {
   const router = useRouter();
-  const [doc, setDoc] = useState<unknown[]>(initial ?? []);
-  const [words, setWords] = useState(() => (initial ? wordsOfDoc(initial as DocBlock[]) : 0));
+  // Never-customized pages open with their current live copy pre-loaded, so
+  // editing means changing what visitors see today — not writing from zero.
+  const seeded = initial ?? defaultDocForSlug(def.slug) ?? [];
+  const [doc, setDoc] = useState<unknown[]>(seeded);
+  const [words, setWords] = useState(() => wordsOfDoc(seeded as DocBlock[]));
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -160,7 +164,11 @@ export default function PageEditor({
             </>
           ) : (
             <>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-faint">{def.hint}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-faint">
+                {initial
+                  ? def.hint
+                  : 'Pre-loaded with the page’s current copy — edit freely, then publish to replace the CMS section.'}
+              </p>
               <div className="mt-2">
                 <BlogDoc initial={doc} onChange={onDocChange} onError={setErr} />
               </div>

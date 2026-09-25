@@ -22,7 +22,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ChartColumn, Link2, Plus, Trash2 } from 'lucide-react';
+import { ChartColumn, ImagePlus, Link2, Plus, Trash2 } from 'lucide-react';
 import { resolveEmbed } from '@/lib/richtext';
 import {
   encodeChartData,
@@ -230,6 +230,115 @@ const ChartBlock = createReactBlockSpec(
   },
 );
 
+/* ------------------------------- button link ------------------------------- */
+
+/**
+ * Button block — a labelled call-to-action linking anywhere (external URL or
+ * an internal route like /compare). Optional image renders left of the label,
+ * turning the button into a card-style link (e.g. "Sosial vs Buffer" with the
+ * competitor's logo).
+ */
+const ButtonLink = createReactBlockSpec(
+  {
+    type: 'buttonLink',
+    propSchema: {
+      label: { default: '' },
+      href: { default: '' },
+      image: { default: '' },
+      variant: { default: 'solid', values: ['solid', 'outline'] as const },
+    },
+    content: 'none',
+  },
+  {
+    render: ({ block, editor }) => {
+      const label = String(block.props.label ?? '');
+      const href = String(block.props.href ?? '');
+      const image = String(block.props.image ?? '');
+      const set = (props: Record<string, string>) =>
+        editor.updateBlock(block, { props: { ...block.props, ...props } });
+
+      const upload = async (file: File | undefined) => {
+        if (!file) return;
+        try {
+          const uploader = (editor as unknown as { uploadFile?: (f: File) => Promise<string> }).uploadFile;
+          if (typeof uploader === 'function') {
+            set({ image: await uploader.call(editor, file) });
+          } else {
+            // No uploader on this surface — fall back to reading a data URL.
+            const reader = new FileReader();
+            reader.onload = () => set({ image: String(reader.result ?? '') });
+            reader.readAsDataURL(file);
+          }
+        } catch {
+          /* keep the previous image */
+        }
+      };
+
+      return (
+        <div contentEditable={false} className="blog-btn">
+          <div className="blog-btn-row">
+            <label className="blog-btn-preview" title="Button image (optional)">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  void upload(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+              {image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image} alt="" className="h-full w-full rounded-lg object-cover" />
+              ) : (
+                <ImagePlus className="h-4 w-4" aria-hidden="true" />
+              )}
+            </label>
+            <input
+              value={label}
+              onChange={(e) => set({ label: e.target.value })}
+              placeholder="Button label — e.g. Sosial vs Buffer"
+              aria-label="Button label"
+              className="blog-btn-label"
+            />
+            <input
+              value={href}
+              onChange={(e) => set({ href: e.target.value })}
+              placeholder="https://… or /compare"
+              aria-label="Button link"
+              className="blog-btn-href"
+            />
+            <select
+              value={String(block.props.variant ?? 'solid')}
+              onChange={(e) => set({ variant: e.target.value })}
+              aria-label="Button style"
+              className="blog-btn-variant"
+            >
+              <option value="solid">Solid</option>
+              <option value="outline">Outline</option>
+            </select>
+          </div>
+          {label || href ? (
+            <div className="blog-btn-live">
+              <a
+                className={`rich-btn ${block.props.variant === 'outline' ? 'rich-btn-outline' : ''}`}
+                href={href || '#'}
+                onClick={(e) => e.preventDefault()}
+              >
+                {image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={image} alt="" className="rich-btn-img" />
+                ) : null}
+                <span>{label || 'Button'}</span>
+              </a>
+            </div>
+          ) : null}
+        </div>
+      );
+    },
+  },
+);
+
 /* --------------------------------- schema --------------------------------- */
 
 export const blogSchema = BlockNoteSchema.create({
@@ -237,6 +346,7 @@ export const blogSchema = BlockNoteSchema.create({
     ...defaultBlockSpecs,
     socialEmbed: SocialEmbed,
     chart: ChartBlock,
+    buttonLink: ButtonLink,
   },
 });
 
