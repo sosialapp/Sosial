@@ -556,7 +556,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                       style={{ gridTemplateColumns: '3.5rem repeat(7, minmax(0, 1fr))' }}
                     >
                       <div className="relative" style={{ height: DAY_H }}>
-                        {Array.from({ length: 24 }, (_, h) => (
+                        {Array.from({ length: 23 }, (_, i) => i + 1).map((h) => (
                           <span
                             key={h}
                             className="absolute right-1.5 text-[10px] font-bold tabular-nums text-faint"
