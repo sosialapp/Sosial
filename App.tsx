@@ -72,8 +72,32 @@ function Shell() {
     // Cloud → device channel pull on open + foreground (throttled inside):
     // web-side connects/disconnects show up here without visiting Connect.
     void pullCloudChannels().catch(() => {});
+    // Content sync: web-created posts join the queue, ideas/templates saved
+    // on either side converge (best-effort, silent).
+    void (async () => {
+      const [{ syncIdeas }, { syncTemplates }, { pullCloudPosts }] = await Promise.all([
+        import('./src/utils/ideas'),
+        import('./src/utils/presets'),
+        import('./src/utils/cloudPosts'),
+      ]);
+      await syncIdeas().catch(() => null);
+      await syncTemplates().catch(() => null);
+      await pullCloudPosts().catch(() => null);
+    })();
     const subState = AppState.addEventListener('change', (s) => {
-      if (s === 'active') void pullCloudChannels().catch(() => {});
+      if (s === 'active') {
+        void pullCloudChannels().catch(() => {});
+        void (async () => {
+          const [{ syncIdeas }, { syncTemplates }, { pullCloudPosts }] = await Promise.all([
+            import('./src/utils/ideas'),
+            import('./src/utils/presets'),
+            import('./src/utils/cloudPosts'),
+          ]);
+          await syncIdeas().catch(() => null);
+          await syncTemplates().catch(() => null);
+          await pullCloudPosts().catch(() => null);
+        })();
+      }
     });
     return () => subState.remove();
   }, []);

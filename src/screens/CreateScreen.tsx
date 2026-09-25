@@ -11,7 +11,7 @@ import { usePost, defaultPage } from '../store/PostContext';
 import { CardStyle, QuickPost } from '../types';
 import { uid } from '../constants';
 import { saveProject, loadProjects, deleteProject, renameProject } from './HomeScreen';
-import { loadIdeas, saveIdea, deleteIdea, Idea, ThreadSeg } from '../utils/ideas';
+import { loadIdeas, saveIdea, deleteIdea, syncIdeas, Idea, ThreadSeg } from '../utils/ideas';
 import PostScreen from './PostScreen';
 import { ScheduleForm } from '../components/ScheduleSheet';
 import { SegMediaStrip } from '../components/SegMediaStrip';
@@ -21,7 +21,8 @@ import { MediaAttachment, ManagedPost, ThreadSegmentMedia, THREAD_MEDIA_MAX } fr
 import { joinThread } from '../utils/thread';
 import { SocialResult, fetchCoverImage } from '../utils/ai/social';
 import { deleteProjectPreset, instantiatePreset, renameProjectPreset,
-  saveProjectPreset, seedStarterTemplates, ProjectPreset } from '../utils/presets';
+saveProjectPreset, seedStarterTemplates, loadProjectPresets, loadForeignTemplates,
+deleteForeignTemplate, syncTemplates, ProjectPreset, ForeignTemplate } from '../utils/presets';
 import PostCanvas, { CANVAS_W } from '../components/PostCanvas';
 import { POST_SIZES } from '../constants';
 
@@ -245,6 +246,8 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [projects, setProjects] = useState<QuickPost[]>([]);
   const [presets, setPresets] = useState<ProjectPreset[]>([]);
+  /** Templates saved on the web — text cards (different design format). */
+  const [foreignTpls, setForeignTpls] = useState<ForeignTemplate[]>([]);
   const { post } = usePost();
 
   // idea composer
@@ -275,9 +278,19 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const [renameValue, setRenameValue] = useState('');
 
   const reload = () => {
-    loadIdeas().then(setIdeas);
+    syncIdeas().then(setIdeas).catch(() => loadIdeas().then(setIdeas));
     loadProjects().then(setProjects);
-    seedStarterTemplates().then(setPresets);
+    // Seed built-ins first (first run only), then converge with the cloud.
+    seedStarterTemplates()
+      .then(() => syncTemplates())
+      .then(({ native, foreign }) => {
+        setPresets(native);
+        setForeignTpls(foreign);
+      })
+      .catch(() => {
+        loadProjectPresets().then(setPresets);
+        loadForeignTemplates().then(setForeignTpls);
+      });
   };
 
   useEffect(() => {
@@ -477,8 +490,19 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
     onOpenProject(copy);
   };
 
-  const presetDelete = (tpl: ProjectPreset) => {
-    Alert.alert('Delete template', `Delete "${tpl.name}"?`, [
+  /** A web template's words become a local idea (designs don't cross formats). */
+  const useForeignText = async (f: ForeignTemplate) => {
+    if (!f.excerpt.trim()) {
+      Alert.alert('No text', 'This template has no words to carry over.');
+      return;
+    }
+    const lines = f.excerpt.split('\n').filter((l) => l.trim());
+    const list = await saveIdea({ title: lines[0]?.slice(0, 80) ?? f.name, body: f.excerpt });
+    setIdeas(list);
+    setTab('ideas');
+  };
+
+  const presetDelete = (tpl: ProjectPreset) => {    Alert.alert('Delete template', `Delete "${tpl.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteProjectPreset(tpl.id).then(setPresets) },
     ]);
@@ -677,6 +701,33 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
             ) : presets.length === 0 ? (
               <Text style={[s.hint, { marginTop: 12 }]}>No templates yet — tap ••• on any design and choose “Save as template”.</Text>
             ) : null}
+            {foreignTpls.length ? (
+              <>
+                <Text style={[s.secT, { marginTop: 26 }]}>From web</Text>
+                <Text style={[s.hint, { marginTop: 4 }]}>Templates saved on the web — different design format, text carries over.</Text>
+                <View style={{ gap: 10, marginTop: 12 }}>
+                  {foreignTpls.map((f) => (
+                    <View key={f.id} style={s.foreignCard}>
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                          <Text style={s.foreignT} numberOfLines={1}>{f.name}</Text>
+                          <View style={s.originPill}><Text style={s.originPillT}>web</Text></View>
+                        </View>
+                        {f.excerpt ? <Text style={s.foreignS} numberOfLines={3}>{f.excerpt}</Text> : null}
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <TouchableOpacity onPress={() => useForeignText(f)} activeOpacity={0.75} style={s.foreignBtn}>
+                          <Text style={s.foreignBtnT}>Use text</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => deleteForeignTemplate(f.id).then(setForeignTpls)} activeOpacity={0.75} style={s.foreignBtnGhost}>
+                          <Ionicons name="trash-outline" size={15} color={C.muted} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : null}
             <Text style={[s.secT, { marginTop: 26 }]}>Recent</Text>
             {projects.length === 0 ? (
               <Text style={s.hint}>Your recent designs land here.</Text>
@@ -874,6 +925,14 @@ const makeS = (C: Palette) => StyleSheet.create({
   tplSub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 1 },
   tplStarter: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   tplStarterT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 10, letterSpacing: 0.8, color: '#fff' },
+  foreignCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 13 },
+  foreignT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink, flex: 1 },
+  foreignS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18, color: C.muted },
+  originPill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  originPillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: C.accentInk },
+  foreignBtn: { borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.ink },
+  foreignBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.onInk },
+  foreignBtnGhost: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: C.surface, borderWidth: 1, borderColor: C.lineSoft },
   sheetBg: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
   sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 30, maxHeight: '92%' },
   sheetT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, letterSpacing: -0.3, color: C.ink, marginBottom: 6 },

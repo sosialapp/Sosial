@@ -19,6 +19,11 @@ import {
   type StudioProject,
 } from '@/lib/studio/model';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets, WorkspaceInfo } from '@/lib/types';
+import { createClient } from '@/lib/supabase/client';
+import {
+  pushLibraryItem, tombstoneLibraryItem, pullLibraryRows,
+  type LibraryKind, type LibraryRow,
+} from '@/lib/librarySync';
 
 interface IdeaMedia {
   url: string;
@@ -35,6 +40,8 @@ interface Idea {
   /** Media per part (index 0 = part 1), persisted as data URLs. */
   media?: IdeaMedia[][];
   createdAt: number;
+  /** Which app created it — renders a small badge when foreign. */
+  origin?: 'web' | 'mobile';
 }
 
 interface Template {
@@ -44,6 +51,8 @@ interface Template {
   body: string;
   createdAt: number;
   builtIn?: boolean;
+  /** Which app created it — renders a small badge when foreign. */
+  origin?: 'web' | 'mobile';
 }
 
 type Tab = 'post' | 'templates' | 'publish' | 'ideas';
@@ -166,6 +175,110 @@ const fmtDate = (ts: number): string => {
 const TAB_LABEL: Record<Tab, string> = { post: 'Post', templates: 'Templates', publish: 'Publish', ideas: 'Ideas' };
 const TAB_ORDER: Tab[] = ['post', 'templates', 'publish', 'ideas'];
 
+/* ---------------- cross-device library sync ---------------- */
+
+type SyncMarks = { idea: number; template: number; project: number };
+const syncMarksKey = (workspaceId: string) => `sosial-lib-sync-${workspaceId}`;
+
+function readMarks(workspaceId: string): SyncMarks {
+  try {
+    const raw = localStorage.getItem(syncMarksKey(workspaceId));
+    const m = raw ? (JSON.parse(raw) as Partial<SyncMarks>) : {};
+    return { idea: Number(m.idea) || 0, template: Number(m.template) || 0, project: Number(m.project) || 0 };
+  } catch {
+    return { idea: 0, template: 0, project: 0 };
+  }
+}
+
+const asText = (v: unknown): string => (typeof v === 'string' ? v : '');
+const asNum = (v: unknown, fb: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fb);
+
+/** Portable media only — blob: URLs die with the session that made them. */
+function portableMedia(url: unknown, kind: 'image' | 'video'): IdeaMedia | null {
+  if (typeof url !== 'string' || url.length === 0) return null;
+  if (/^(https?:|data:image\/|data:video\/)/.test(url)) return { url, kind };
+  return null;
+}
+
+/** Cloud row → web idea. Mobile and web ideas share title/body/thread text. */
+function adaptIdea(r: LibraryRow): Idea | null {
+  const d = (r.data ?? {}) as Record<string, unknown>;
+  const title = asText(d.title) || r.title || 'Untitled';
+  const body = asText(d.body);
+  let thread: string[] | undefined;
+  if (Array.isArray(d.thread)) {
+    const parts = (d.thread as unknown[])
+      .map((s) => (typeof s === 'string' ? s : asText((s as { text?: unknown })?.text)))
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) thread = parts;
+  }
+  const media: IdeaMedia[][] = [];
+  if (Array.isArray(d.media)) {
+    for (const part of d.media as unknown[]) {
+      if (!Array.isArray(part)) continue;
+      const items: IdeaMedia[] = [];
+      for (const m of part as unknown[]) {
+        const url = (m as { url?: unknown })?.url;
+        const kind = (m as { kind?: unknown })?.kind === 'video' ? 'video' : 'image';
+        const ok = portableMedia(url, kind as 'image' | 'video');
+        if (ok) items.push(ok);
+      }
+      if (items.length > 0) media.push(items);
+    }
+  }
+  for (const [u, k] of [
+    [d.imageUri, 'image'],
+    [d.videoUri, 'video'],
+  ] as const) {
+    const ok = portableMedia(u, k);
+    if (ok) media.push([ok]);
+  }
+  return {
+    id: r.client_id,
+    title,
+    body,
+    thread,
+    media: media.length > 0 ? media : undefined,
+    createdAt: asNum(d.createdAt, Date.now()),
+    origin: d._origin === 'mobile' ? 'mobile' : undefined,
+  };
+}
+
+/** Cloud row → web template. Mobile rows (a `post` design object) become a
+ *  text card with the design name — formats don't cross platforms. */
+function adaptTemplate(r: LibraryRow): Template | null {
+  const d = (r.data ?? {}) as Record<string, unknown>;
+  if (d && typeof d.post === 'object' && d.post !== null) {
+    const post = d.post as { name?: unknown };
+    const name = asText(d.name) || r.title || 'Template';
+    const title = asText(post.name) || name;
+    return {
+      id: r.client_id,
+      name,
+      title,
+      body: '',
+      createdAt: asNum(d.createdAt, Date.now()),
+      origin: 'mobile',
+    };
+  }
+  return {
+    id: r.client_id,
+    name: asText(d.name) || r.title || 'Template',
+    title: asText(d.title),
+    body: asText(d.body),
+    createdAt: asNum(d.createdAt, Date.now()),
+    origin: d._origin === 'mobile' ? 'mobile' : undefined,
+  };
+}
+
+/** Cloud row → web studio project (web-origin rows only; validated). */
+function adaptProject(r: LibraryRow): StudioProject | null {
+  const d = (r.data ?? {}) as Record<string, unknown>;
+  if (typeof d.id !== 'string' || !Array.isArray(d.pages)) return null;
+  return d as unknown as StudioProject;
+}
+
 function useBoxWidth(fallback = 300): { ref: React.RefObject<HTMLDivElement | null>; width: number } {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(fallback);
@@ -246,12 +359,107 @@ export default function CreateHub({
       readList<StudioProject>(projectsKey(workspaceId)).sort((a, b) => b.createdAt - a.createdAt),
     );
     setRecent(readList<{ project: StudioProject; pageIndex: number; at: number }>(recentKey(workspaceId)).slice(0, 12));
+    // Cross-device sync: adopt cloud rows newer than our watermark, drop
+    // tombstoned locals, and push locals the cloud has never seen. Skips
+    // nothing when offline — the local lists stand.
+    void (async () => {
+      try {
+        const sb = createClient();
+        const rows = await pullLibraryRows(sb, workspaceId);
+        if (!rows) return;
+        const marks = readMarks(workspaceId);
+        const nextMarks = { ...marks };
+        const byKind = (k: LibraryKind) => rows.filter((r) => r.kind === k);
+
+        const merge = <T extends { id: string }>(
+          kind: LibraryKind,
+          local: T[],
+          adapt: (r: LibraryRow) => T | null,
+        ): T[] => {
+          const merged = [...local];
+          const cloudIds = new Set(byKind(kind).map((r) => r.client_id));
+          for (const r of byKind(kind)) {
+            const ts = Date.parse(r.updated_at) || 0;
+            if (ts <= marks[kind]) continue;
+            const i = merged.findIndex((x) => x.id === r.client_id);
+            if (r.deleted_at) {
+              if (i >= 0) merged.splice(i, 1);
+            } else {
+              const adapted = adapt(r);
+              if (adapted) {
+                if (i >= 0) merged[i] = adapted;
+                else merged.push(adapted);
+              }
+            }
+            if (ts > nextMarks[kind]) nextMarks[kind] = ts;
+          }
+          for (const item of local) {
+            if (!cloudIds.has(item.id)) {
+              const label =
+                (item as { title?: unknown }).title ?? (item as { name?: unknown }).name;
+              void pushLibraryItem(
+                sb,
+                workspaceId,
+                kind,
+                item.id,
+                typeof label === 'string' ? label : '',
+                item as unknown as Record<string, unknown>,
+              );
+            }
+          }
+          return merged;
+        };
+
+        const mergedIdeas = merge('idea', readList<Idea>(ideasKey(workspaceId)), adaptIdea);
+        const mergedTemplates = merge('template', readList<Template>(templatesKey(workspaceId)), adaptTemplate);
+        const mergedProjects = merge('project', readList<StudioProject>(projectsKey(workspaceId)), adaptProject);
+        try {
+          localStorage.setItem(ideasKey(workspaceId), JSON.stringify(mergedIdeas));
+          localStorage.setItem(templatesKey(workspaceId), JSON.stringify(mergedTemplates));
+          localStorage.setItem(projectsKey(workspaceId), JSON.stringify(mergedProjects));
+          localStorage.setItem(syncMarksKey(workspaceId), JSON.stringify(nextMarks));
+        } catch {
+          /* private mode — merged lists just won't persist */
+        }
+        setIdeas(mergedIdeas.sort((a, b) => b.createdAt - a.createdAt));
+        setTemplates(mergedTemplates.sort((a, b) => b.createdAt - a.createdAt));
+        setProjects(mergedProjects.sort((a, b) => b.createdAt - a.createdAt));
+      } catch {
+        /* offline — local lists stand */
+      }
+    })();
   }, [workspaceId]);
 
   useEffect(() => {
     const t = searchParams.get('tab');
     if (t === 'post' || t === 'templates' || t === 'publish' || t === 'ideas') setTab(t);
   }, [searchParams]);
+
+  const pushAll = (kind: LibraryKind, items: { id: string; title?: string; name?: string }[]) => {
+    try {
+      const sb = createClient();
+      for (const item of items) {
+        void pushLibraryItem(
+          sb,
+          workspaceId,
+          kind,
+          item.id,
+          item.title ?? item.name ?? '',
+          item as unknown as Record<string, unknown>,
+        );
+      }
+    } catch {
+      /* offline — the next save or mount re-pushes */
+    }
+  };
+
+  const tombstone = (kind: LibraryKind, id: string) => {
+    try {
+      void tombstoneLibraryItem(createClient(), workspaceId, kind, id);
+    } catch {
+      /* offline */
+    }
+  };
 
   const persistIdeas = (next: Idea[]) => {
     setIdeas(next);
@@ -260,6 +468,7 @@ export default function CreateHub({
     } catch {
       /* private mode — ideas just won't persist */
     }
+    pushAll('idea', next);
   };
 
   const persistTemplates = (next: Template[]) => {
@@ -269,6 +478,7 @@ export default function CreateHub({
     } catch {
       /* private mode — templates just won't persist */
     }
+    pushAll('template', next);
   };
 
   const persistProjects = (next: StudioProject[]) => {
@@ -278,6 +488,7 @@ export default function CreateHub({
     } catch {
       /* private mode / quota — designs just won't persist */
     }
+    pushAll('project', next);
   };
 
   const persistRecent = (next: { project: StudioProject; pageIndex: number; at: number }[]) => {
@@ -369,6 +580,7 @@ export default function CreateHub({
     };
     const next = [idea, ...ideas];
     setIdeas(next);
+    let finalList = next;
     try {
       localStorage.setItem(ideasKey(workspaceId), JSON.stringify(next));
     } catch {
@@ -377,10 +589,12 @@ export default function CreateHub({
         const slim = next.map((i) => ({ ...i, media: undefined }));
         localStorage.setItem(ideasKey(workspaceId), JSON.stringify(slim));
         setIdeas(slim as Idea[]);
+        finalList = slim as Idea[];
       } catch {
         /* private mode — ideas just won't persist */
       }
     }
+    pushAll('idea', finalList);
     setTitle('');
     setIdeaSegs([{ body: '', media: [] }]);
     setIdeaThread(false);
@@ -674,7 +888,12 @@ export default function CreateHub({
                         </span>
                       ) : null}
                       <span className="min-w-0 flex-1">
-                        <p className="truncate font-display font-extrabold">{idea.title}</p>
+                        <p className="truncate font-display font-extrabold">
+                          {idea.title}
+                          {idea.origin === 'mobile' ? (
+                            <span className="pill ml-2 bg-surface text-soft">from mobile</span>
+                          ) : null}
+                        </p>
                         {idea.body ? <p className="mt-1 line-clamp-2 text-sm text-soft">{idea.body}</p> : null}
                         <p className="mt-1 text-xs text-faint">
                           {fmtDate(idea.createdAt)}
@@ -688,7 +907,10 @@ export default function CreateHub({
                       </button>
                       <button
                         type="button"
-                        onClick={() => persistIdeas(ideas.filter((x) => x.id !== idea.id))}
+                        onClick={() => {
+                          tombstone('idea', idea.id);
+                          persistIdeas(ideas.filter((x) => x.id !== idea.id));
+                        }}
                         className="btn btn-ghost"
                         aria-label={`Delete ${idea.title}`}
                       >
@@ -811,6 +1033,7 @@ export default function CreateHub({
                         setMenuFor(null);
                       }}
                       onDelete={() => {
+                        tombstone('project', d.id);
                         persistProjects(projects.filter((x) => x.id !== d.id));
                         setMenuFor(null);
                       }}
@@ -892,15 +1115,45 @@ export default function CreateHub({
                   {templates.map((t) => (
                     <div key={t.id} className="flex items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2.5">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold">{t.name}</p>
+                        <p className="truncate text-sm font-bold">
+                          {t.name}
+                          {t.origin === 'mobile' ? (
+                            <span className="pill ml-2 bg-surface text-soft">from mobile</span>
+                          ) : null}
+                        </p>
                         {t.body ? <p className="truncate text-xs text-muted">{t.body}</p> : null}
+                        {t.origin === 'mobile' && !t.body ? (
+                          <p className="truncate text-xs text-muted">Saved on mobile — designs stay in the app.</p>
+                        ) : null}
                       </div>
-                      <button type="button" onClick={() => useIntoComposer(t)} className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs">
-                        Use
-                      </button>
+                      {t.origin === 'mobile' && !t.body ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const idea: Idea = {
+                              id: `idea_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+                              title: t.title || t.name,
+                              body: t.title && t.title !== t.name ? `${t.title}` : '',
+                              createdAt: Date.now(),
+                            };
+                            persistIdeas([idea, ...ideas]);
+                            setTab('ideas');
+                          }}
+                          className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
+                        >
+                          Save as idea
+                        </button>
+                      ) : (
+                        <button type="button" onClick={() => useIntoComposer(t)} className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs">
+                          Use
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => persistTemplates(templates.filter((x) => x.id !== t.id))}
+                        onClick={() => {
+                          tombstone('template', t.id);
+                          persistTemplates(templates.filter((x) => x.id !== t.id));
+                        }}
                         className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
                         aria-label={`Delete ${t.name}`}
                       >

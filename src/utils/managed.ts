@@ -101,6 +101,8 @@ export interface ManagedPost {
   sourceUrl?: string;
   scheduledAt?: number;
   createdAt: number;
+  /** last-write-wins clock for cross-device sync (ms). */
+  updatedAt?: number;
   status?: PostStatus;
   sentAt?: number;
   /** per-channel remote ids returned at publish time (post/media/tweet/video id
@@ -295,7 +297,7 @@ export async function saveManagedPost(p: ManagedPost): Promise<ManagedPost[]> {
 async function writeManagedPost(p: ManagedPost): Promise<{ list: ManagedPost[]; rec: ManagedPost }> {
   const list = await loadManagedPosts();
   const i = list.findIndex((x) => x.id === p.id);
-  const rec = { ...p, id: p.id || uid('post') };
+  const rec = { ...p, id: p.id || uid('post'), updatedAt: Date.now() };
   if (i >= 0) list[i] = rec;
   else list.unshift(rec);
   try {

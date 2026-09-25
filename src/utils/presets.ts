@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BackgroundStyle, PostPage, QuickPost } from '../types';
 import { uid } from '../constants';
+import { pushLibraryItem, tombstoneLibraryItem, pullLibraryRows } from './librarySync';
 
 const KEY = 'quickpost_bg_presets_v1';
 
@@ -55,6 +56,30 @@ export interface ProjectPreset {
   createdAt: number;
   /** starter templates shipped with the app (deletable, never re-seeded) */
   builtIn?: boolean;
+  /** last-write-wins clock for cross-device sync (ms). */
+  updatedAt?: number;
+}
+
+/** A template saved on the web — different design format, shown as a text
+ *  card ("Use text" drops its words into a new draft). */
+export interface ForeignTemplate {
+  id: string;
+  name: string;
+  excerpt: string;
+  origin: string;
+  updatedAt: number;
+}
+
+const FOREIGN_KEY = 'quickpost_foreign_templates_v1';
+
+export async function loadForeignTemplates(): Promise<ForeignTemplate[]> {
+  try {
+    const raw = await AsyncStorage.getItem(FOREIGN_KEY);
+    const list: ForeignTemplate[] = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function loadProjectPresets(): Promise<ProjectPreset[]> {
@@ -75,10 +100,12 @@ export async function saveProjectPreset(post: QuickPost): Promise<ProjectPreset[
       name: post.name,
       post: JSON.parse(JSON.stringify(post)),
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
     list.unshift(preset);
     const next = list.slice(0, 30);
     await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(next));
+    void pushLibraryItem('template', preset.id, preset.name, preset as unknown as Record<string, unknown>);
     return next;
   } catch {
     return [];
@@ -90,7 +117,11 @@ export async function renameProjectPreset(id: string, name: string): Promise<Pro
     const raw = await AsyncStorage.getItem(PROJECT_KEY);
     const list: ProjectPreset[] = raw ? JSON.parse(raw) : [];
     const p = list.find((x) => x.id === id);
-    if (p) p.name = name;
+    if (p) {
+      p.name = name;
+      p.updatedAt = Date.now();
+      void pushLibraryItem('template', p.id, p.name, p as unknown as Record<string, unknown>);
+    }
     await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(list));
     return list;
   } catch {
@@ -104,10 +135,109 @@ export async function deleteProjectPreset(id: string): Promise<ProjectPreset[]> 
     const list: ProjectPreset[] = raw ? JSON.parse(raw) : [];
     const next = list.filter((x) => x.id !== id);
     await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(next));
+    void tombstoneLibraryItem('template', id);
     return next;
   } catch {
     return [];
   }
+}
+
+export async function deleteForeignTemplate(id: string): Promise<ForeignTemplate[]> {
+  const list = await loadForeignTemplates();
+  const next = list.filter((x) => x.id !== id);
+  try {
+    await AsyncStorage.setItem(FOREIGN_KEY, JSON.stringify(next));
+  } catch {}
+  void tombstoneLibraryItem('template', id);
+  return next;
+}
+
+function isNativeTemplateData(d: Record<string, unknown>): boolean {
+  return !!d && typeof d.post === 'object' && d.post !== null && !d.builtIn;
+}
+
+/**
+ * Two-way template sync. Native rows (mobile QuickPost designs) merge by
+ * last-write-wins; web rows (different design format) are kept as text
+ * cards, never rendered as designs. Built-ins never leave the device.
+ */
+export async function syncTemplates(): Promise<{ native: ProjectPreset[]; foreign: ForeignTemplate[] }> {
+  const rows = await pullLibraryRows().catch(() => null);
+  const native = await loadProjectPresets();
+  const foreign = await loadForeignTemplates();
+  if (!rows) return { native, foreign };
+
+  const byId = new Map(native.map((x) => [x.id, x]));
+  const foreignById = new Map(foreign.map((x) => [x.id, x]));
+  const cloudById = new Map<string, (typeof rows)[number]>();
+  let nativeDirty = false;
+  let foreignDirty = false;
+
+  for (const r of rows) {
+    if (r.kind !== 'template') continue;
+    cloudById.set(r.client_id, r);
+    const d = (r.data ?? {}) as Record<string, unknown>;
+    if (d.builtIn) continue;
+    const cloudTs = Date.parse(r.updated_at) || 0;
+    if (r.deleted_at) {
+      const delTs = Date.parse(r.deleted_at);
+      const local = byId.get(r.client_id);
+      if (local && (local.updatedAt ?? local.createdAt ?? 0) < delTs) {
+        byId.delete(r.client_id);
+        nativeDirty = true;
+      }
+      if (foreignById.has(r.client_id)) {
+        foreignById.delete(r.client_id);
+        foreignDirty = true;
+      }
+      continue;
+    }
+    if (isNativeTemplateData(d)) {
+      const local = byId.get(r.client_id);
+      const localTs = local ? (local.updatedAt ?? local.createdAt ?? 0) : -1;
+      if (!local || cloudTs > localTs) {
+        byId.set(r.client_id, {
+          id: r.client_id,
+          name: String(d.name ?? r.title ?? 'Template'),
+          post: d.post as QuickPost,
+          createdAt: Number(d.createdAt) || Date.now(),
+          updatedAt: cloudTs || Date.now(),
+        });
+        nativeDirty = true;
+      }
+    } else if (d._origin === 'web') {
+      const body = typeof d.body === 'string' ? d.body : '';
+      const title = typeof d.title === 'string' && d.title ? d.title : undefined;
+      const excerpt = title && body ? `${title}\n${body}` : title ?? body;
+      const cur = foreignById.get(r.client_id);
+      if (!cur || cloudTs > cur.updatedAt) {
+        foreignById.set(r.client_id, {
+          id: r.client_id,
+          name: String(d.name ?? r.title ?? 'Template'),
+          excerpt: excerpt.slice(0, 280),
+          origin: 'web',
+          updatedAt: cloudTs || Date.now(),
+        });
+        foreignDirty = true;
+      }
+    }
+  }
+  for (const local of byId.values()) {
+    if (local.builtIn) continue;
+    const cloud = cloudById.get(local.id);
+    const localTs = local.updatedAt ?? local.createdAt ?? 0;
+    if (!cloud || (cloud.deleted_at == null && (Date.parse(cloud.updated_at) || 0) < localTs)) {
+      void pushLibraryItem('template', local.id, local.name, local as unknown as Record<string, unknown>);
+    }
+  }
+
+  const nextNative = [...byId.values()];
+  const nextForeign = [...foreignById.values()];
+  try {
+    if (nativeDirty) await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(nextNative));
+    if (foreignDirty) await AsyncStorage.setItem(FOREIGN_KEY, JSON.stringify(nextForeign));
+  } catch {}
+  return { native: nextNative, foreign: nextForeign };
 }
 
 /* ---------------- Starter templates (prebuilt, offline-safe) ---------------- */

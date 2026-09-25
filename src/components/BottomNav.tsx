@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 
@@ -14,7 +13,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   onPost: () => void;
 }) {
   const [plus, setPlus] = useState(false);
-  const { C, mode } = useTheme();
+  const { C } = useTheme();
   const s = makeS(C);
 
   const item = (t: MainTab, icon: string, label: string) => {
@@ -42,14 +41,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   return (
     <>
       <View pointerEvents="box-none" style={s.float}>
-        <BlurView
-          intensity={mode === 'dark' ? 30 : 55}
-          tint={mode === 'dark' ? 'dark' : 'light'}
-          experimentalBlurMethod="dimezisBlurView"
-          style={s.pill}
-        >
-          {inner}
-        </BlurView>
+        <View style={s.pill}>{inner}</View>
       </View>
 
       <Modal visible={plus} transparent animationType="fade" onRequestClose={() => setPlus(false)}>
@@ -91,13 +83,14 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 const makeS = (C: Palette) => StyleSheet.create({
   // Absolutely-positioned dock: no outer background, content scrolls under the pill.
   float: { paddingHorizontal: 22, paddingBottom: 6, paddingTop: 6, backgroundColor: 'transparent' },
-  // Single iOS-style floating pill — translucent glass, hairline ring, soft lift.
+  // Single iOS-style floating pill — SOLID background (no see-through),
+  // hairline ring, soft lift.
   pill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    borderRadius: 34, overflow: 'hidden',
+    borderRadius: 34, overflow: 'hidden', backgroundColor: C.paper,
     borderWidth: StyleSheet.hairlineWidth, borderColor: C.line,
     paddingVertical: 9, paddingHorizontal: 10,
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18,
+    shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 }, elevation: 8,
   },
   item: { alignItems: 'center', gap: 3, minWidth: 72, paddingVertical: 2 },
