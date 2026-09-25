@@ -163,7 +163,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
   return (
     <div className="min-h-screen">
       {/* app bar: back · status · words · write/preview · save */}
-      <div className="sticky top-0 z-30 border-b border-line bg-card/95 backdrop-blur-sm">
+      <div className="sticky top-[60px] z-30 border-b border-line bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-2.5 sm:px-6">
           <Link
             href="/admin/blog"

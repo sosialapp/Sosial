@@ -22,10 +22,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <ThemeScope className="app-shell min-h-screen bg-bone text-ink">
-      <header className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-line bg-card px-4 py-3">
+      <header className="sticky top-0 z-40 flex h-[60px] items-center gap-2.5 overflow-hidden border-b border-line bg-card px-4">
         <p className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">Owner console</p>
-        <p className="hidden truncate text-xs text-muted sm:block">{user.email}</p>
-        <nav className="flex items-center gap-1.5">
+        <p className="hidden shrink-0 truncate text-xs text-muted sm:block">{user.email}</p>
+        <nav className="flex shrink-0 items-center gap-1.5 overflow-x-auto no-scrollbar">
           <Link
             href="/admin"
             className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone"

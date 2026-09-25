@@ -338,9 +338,9 @@ body {
     font-family: var(--font-sans);
   }
   .blog-doc .tiptap-bar {
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    /* Static on purpose: the sticky app bar above owns the top of the
+       viewport, and the floating bubble menu owns mid-document formatting.
+       A second sticky bar here would tuck underneath the app bar. */
     display: flex;
     flex-wrap: wrap;
     align-items: center;
