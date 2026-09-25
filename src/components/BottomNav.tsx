@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 
-export type MainTab = 'create' | 'calendar' | 'analytics';
+export type MainTab = 'create' | 'analytics';
 
-/** Buffer-style bottom bar: Create | Calendar | (+) | Analytics. + expands to Template / Post. */
+/** Buffer-style bottom bar: Create | (+) | Analytics. + expands to Template / Post. */
 export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   tab: MainTab;
   onTab: (t: MainTab) => void;
@@ -29,7 +29,6 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   const inner = (
     <>
       {item('create', 'bulb', 'Create')}
-      {item('calendar', 'calendar', 'Calendar')}
       <TouchableOpacity onPress={() => setPlus(true)} style={s.plusWrap} activeOpacity={0.8}>
         <View style={s.plus}>
           <Ionicons name="add" size={28} color={C.onInk} />
@@ -85,14 +84,12 @@ const makeS = (C: Palette) => StyleSheet.create({
   float: { paddingHorizontal: 22, paddingBottom: 12, paddingTop: 6, backgroundColor: 'transparent' },
   pill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    borderRadius: 32, overflow: 'hidden', backgroundColor: C.card,
-    // paper == bone in both themes, so a paper pill melts into the backdrop
-    // and the strip reads as one solid bar — card + a real border + shadow
-    // keep it floating as a pill on either background.
+    borderRadius: 32, overflow: 'hidden', backgroundColor: 'transparent',
+    // no outer background — the pill ring floats directly over the content.
     borderWidth: 1, borderColor: C.line,
     paddingVertical: 10, paddingHorizontal: 10,
-    shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 }, elevation: 8,
+    shadowColor: '#000', shadowOpacity: 0, shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 }, elevation: 0,
   },
   item: { alignItems: 'center', gap: 3, minWidth: 72, paddingVertical: 2 },
   itemT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: C.faint },
