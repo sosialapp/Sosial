@@ -23,7 +23,7 @@ export default function PageEditor({
   initial,
 }: {
   def: SitePageDef;
-  initial: unknown[] | null;
+  initial: unknown;
 }) {
   const router = useRouter();
   // Never-customized pages open with their current live copy pre-loaded, so
