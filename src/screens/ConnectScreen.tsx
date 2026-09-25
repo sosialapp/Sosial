@@ -62,7 +62,9 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     void (async () => {
       await backfillMissingAvatars().catch(() => null);
       await syncCloudChannels().catch(() => null);
-      await pullCloudChannels().catch(() => null);
+      // Force: this screen exists to reflect the cloud — never serve a stale
+      // throttled pull here.
+      await pullCloudChannels(true).catch(() => null);
       setAccounts(await loadAccounts().catch(() => []));
     })();
     loadTeam().then((m) => setTeamCount(m.length));

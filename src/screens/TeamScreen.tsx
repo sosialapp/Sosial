@@ -269,7 +269,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                 <Field label="Email">
                   <Txt value={mEmail} onChangeText={setMEmail} placeholder="teammate@studio.com" keyboardType="email-address" autoCapitalize="none" />
                 </Field>
-                <Field label="Channels they can post to" hint="Connected first — or leave it on All channels.">
+                <Field label="Channels they can post to">
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     <TouchableOpacity
                       onPress={() => toggleMChannel('all')}

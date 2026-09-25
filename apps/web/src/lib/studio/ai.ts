@@ -317,13 +317,25 @@ export function toContentBlock(b: GenBlock): ContentBlock {
  * whole list in atomically.
  */
 export function applyGenResult(gen: GenResult, template: PostPage): PostPage[] {
-  return gen.pages.map((p) => {
+  const total = gen.pages.length;
+  return gen.pages.map((p, i) => {
     const page: PostPage = JSON.parse(JSON.stringify(template));
     page.id = uid('page');
     page.blocks = p.blocks.map(toContentBlock);
     page.cardH = null;
     page.cardAuto = true;
     page.cardY = page.cardY ?? 'bottom';
+    // Carousel anatomy: card 1 keeps the full chrome (title top, avatar +
+    // socials bottom); middle cards go full-bleed content — no title, no
+    // socials; the last card keeps the photo + socials footer but loses the
+    // title so the content fills the card. Single-card results keep the
+    // template untouched.
+    if (total > 2 && i > 0 && i < total - 1) {
+      page.fullCard = true;
+      page.title.position = 'none';
+    } else if (total > 1 && i === total - 1) {
+      page.title.position = 'none';
+    }
     return page;
   });
 }

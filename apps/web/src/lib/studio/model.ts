@@ -118,6 +118,8 @@ export interface PfpStyle {
   align: 'left' | 'center' | 'right';
   borderW: number;
   username?: string;
+  /** Overrides the handle shown in the card header (FB/X/Bluesky/…). */
+  customHandle?: string;
 }
 
 export type SocialPlatform =

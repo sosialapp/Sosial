@@ -81,7 +81,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 }
 
 const makeS = (C: Palette) => StyleSheet.create({
-  float: { paddingHorizontal: 22, paddingBottom: 12, paddingTop: 6, backgroundColor: 'transparent' },
+  float: { paddingHorizontal: 22, paddingBottom: 2, paddingTop: 6, backgroundColor: 'transparent' },
   pill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
     borderRadius: 32, overflow: 'hidden', backgroundColor: 'transparent',

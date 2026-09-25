@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StatusBar, ActivityIndicator, View, Text, BackHandler, Platform, Alert } from 'react-native';
+import { StatusBar, ActivityIndicator, View, Text, BackHandler, Platform, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
@@ -26,6 +26,7 @@ import { loadAccount, saveAccount, Account } from './src/utils/account';
 import { pushProfileToCloud, currentSession, isSupabaseConfigured } from './src/utils/supabase';
 import { handleAuthUrl, getPendingAuth } from './src/utils/authFlow';
 import { backfillMissingAvatars } from './src/utils/avatarBackfill';
+import { pullCloudChannels } from './src/utils/cloudChannels';
 import { useTheme, ThemeProvider } from './src/theme';
 
 type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
@@ -66,8 +67,15 @@ function Shell() {
   React.useEffect(() => {
     loadAccount().then(setAccount);
     // One-shot picture backfill for pre-avatar accounts (throttled daily,
-    // silent) — pushes fresh pictures to the cloud for the web marks.
+    // silent) - pushes fresh pictures to the cloud for the web marks.
     backfillMissingAvatars().catch(() => {});
+    // Cloud → device channel pull on open + foreground (throttled inside):
+    // web-side connects/disconnects show up here without visiting Connect.
+    void pullCloudChannels().catch(() => {});
+    const subState = AppState.addEventListener('change', (s) => {
+      if (s === 'active') void pullCloudChannels().catch(() => {});
+    });
+    return () => subState.remove();
   }, []);
 
   React.useEffect(() => {

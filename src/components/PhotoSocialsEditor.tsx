@@ -8,7 +8,8 @@ import { FONTS } from '../utils/fonts';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PillToggle, Seg, Field, Stepper, PrimaryBtn, GhostBtn, SocialGlyph, Swatches, Section } from './ui';
 
-const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'tiktok', 'threads', 'facebook', 'youtube', 'whatsapp', 'x', 'bluesky', 'mastodon', 'pinterest'];
+const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'tiktok', 'threads', 'facebook', 'youtube', 'linkedin', 'x', 'bluesky', 'mastodon', 'pinterest'];
+
 
 export default function PhotoSocialsEditor() {
   const { C } = useTheme();
@@ -90,6 +91,9 @@ export default function PhotoSocialsEditor() {
         </Field>
         <Field label="Username" hint="Universal name under your photo.">
           <Txt value={p.username ?? ''} onChangeText={(v) => patchPfp({ username: v })} placeholder="Your name" />
+        </Field>
+        <Field label="Card handle" hint="Overrides the @handle in the card header. Empty = first badge handle.">
+          <Txt value={p.customHandle ?? ''} onChangeText={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" />
         </Field>
       </View>
 

@@ -60,7 +60,10 @@ interface ChromeCtx {
 function chromeCtx(page: PostPage): ChromeCtx {
   const cardBg = page.cardColor ?? '#FFFFFFF2';
   const dark = isDarkHex(cardBg);
-  const firstHandle = page.socials.find((s) => s.visible && s.handle)?.handle || '@yourhandle';
+  const firstHandle =
+    page.pfp.customHandle?.trim() ||
+    page.socials.find((s) => s.visible && s.handle)?.handle ||
+    '@yourhandle';
   const uni = page.pfp.username?.trim();
   return {
     page,
@@ -197,7 +200,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(6)}>
         <div style={{ ...headerRow, padding: `${10 * k}px ${12 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
-          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name} </span>
+          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, flexShrink: 0 }}>{c.name} </span>
           <Check c={c} size={9} k={k} />
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
           <span style={{ flex: 1 }} />
@@ -211,7 +214,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 * k }}>
             <ChromeIcon name="ig-heart" size={14 * k} color={c.ink} />
             <ChromeIcon name="ig-comment" size={14 * k} color={c.ink} />
-            <ChromeIcon name="ig-repost" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-repost" size={17 * k} color={c.ink} />
             <ChromeIcon name="ig-plane" size={14 * k} color={c.ink} />
             <span style={{ flex: 1 }} />
             <ChromeIcon name="ig-bookmark" size={14 * k} color={c.ink} />

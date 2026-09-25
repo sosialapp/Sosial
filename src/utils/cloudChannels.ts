@@ -249,7 +249,11 @@ export async function removeCloudChannelAccount(account: ConnectedAccount): Prom
 /* ---------------- Cloud → device pull ---------------- */
 
 const PULL_LAST_KEY = 'sosial_cloud_pull_last_v1';
-const PULL_MS = 3600 * 1000;
+const PULL_MS = 5 * 60 * 1000;
+/** Cloud rows seen on the last pull — the removal safety net only ever
+ *  deletes accounts it has previously seen as cloud rows, so purely-local
+ *  accounts (never synced) are untouchable. */
+const PULL_SEEN_KEY = 'sosial_cloud_seen_v2';
 
 /** Local MetaState key holding the provider's display name. */
 const NAME_FIELD: Record<string, string> = {
@@ -297,6 +301,8 @@ export interface PullResult {
   matched: string[];
   /** cloud rows adopted as metadata-only placeholders */
   created: string[];
+  /** local accounts removed because the web removed the cloud row */
+  removed: string[];
   /** cloud rows ignored (unknown provider — never happens today) */
   skipped: string[];
   /** failures for the log (never thrown) */
@@ -304,15 +310,17 @@ export interface PullResult {
 }
 
 /**
- * Cloud → device pull: adopt workspace channels imported from other devices.
- * Metadata-only (names, handles, avatars) — tokens never leave Vault, so
- * adopted rows are placeholders (fields.cloudOnly) until the user connects
- * the same account on this device, which upgrades the row in place.
- * Additive and idempotent: never writes credential fields, never deletes.
- * Throttled to once an hour; pass force to skip the throttle.
+ * Cloud → device pull: adopt workspace channels imported from other devices
+ * AND retract ones the web removed. Adopted rows are metadata-only
+ * placeholders (fields.cloudOnly) — tokens never leave Vault — until the
+ * user connects the same account on this device, which upgrades the row in
+ * place. Removal: a cloud row that vanished (web disconnect/delete) removes
+ * its local counterpart too, but only when a previous pull saw it as a cloud
+ * row — purely-local accounts are never touched. Idempotent; throttled to
+ * once per 5 minutes; pass force to skip the throttle.
  */
 export async function pullCloudChannels(force = false): Promise<PullResult> {
-  const out: PullResult = { matched: [], created: [], skipped: [], failed: [] };
+  const out: PullResult = { matched: [], created: [], removed: [], skipped: [], failed: [] };
   try {
     if (!force) {
       const last = await AsyncStorage.getItem(PULL_LAST_KEY).catch(() => null);
@@ -338,7 +346,11 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         typeof r.external_id === 'string' &&
         r.external_id.length > 0,
     );
-    if (rows.length === 0) return out;
+    const cloudIds = new Set(rows.map((r) => `${r.provider}:${r.external_id}`));
+    const seenRaw = await AsyncStorage.getItem(PULL_SEEN_KEY).catch(() => null);
+    const seen = new Set<string>(
+      seenRaw ? (JSON.parse(seenRaw) as string[]).filter((x) => typeof x === 'string') : [],
+    );
     const next = await loadAccounts();
     let dirty = false;
     const touch = (a: ConnectedAccount) => {
@@ -396,7 +408,28 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
       touch({ ...makeAccount(provider, fields) });
       if (!out.created.includes(provider)) out.created.push(provider);
     }
+    // ---- retraction: cloud row gone → remove the local counterpart ----
+    for (const a of [...next]) {
+      const provider = a.provider as CloudChannelKey;
+      if (!(PROVIDER_KEYS as readonly string[]).includes(provider)) continue;
+      const externalId = accountExternalId(a);
+      const id = externalId ? `${provider}:${externalId}` : `${provider}:`;
+      const wasSeen =
+        seen.has(id) || (!externalId && [...seen].some((s) => s.startsWith(`${provider}:`)));
+      if (!wasSeen) continue; // never a cloud row — purely local, leave it
+      if ([...cloudIds].some((c) => c === id || (!externalId && c.startsWith(`${provider}:`)))) {
+        continue; // still present in the cloud
+      }
+      const i = next.findIndex((x) => x.id === a.id);
+      if (i >= 0) {
+        next.splice(i, 1);
+        dirty = true;
+        if (!out.removed.includes(provider)) out.removed.push(provider);
+      }
+    }
     if (dirty) await saveAccounts(next);
+    // Remember the cloud rows we just saw (the removal allowlist).
+    await AsyncStorage.setItem(PULL_SEEN_KEY, JSON.stringify([...cloudIds])).catch(() => {});
     return out;
   } catch {
     return out;

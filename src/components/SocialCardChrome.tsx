@@ -20,7 +20,7 @@ interface ChromeProps {
 }
 
 function useChrome(page: PostPage) {
-  const firstHandle = page.socials.find((s) => s.visible && s.handle)?.handle || '@yourhandle';
+  const firstHandle = page.pfp.customHandle?.trim() || page.socials.find((s) => s.visible && s.handle)?.handle || '@yourhandle';
   const uni = page.pfp.username?.trim();
   const name = uni || firstHandle.replace(/^@/, '');
   return { firstHandle, name };
@@ -219,11 +219,9 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(6), borderWidth: pad(1), borderColor: '#11111112', overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(12), paddingTop: pad(10) }}>
           <Avatar page={page} pad={pad} size={20} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(4), flex: 1 }}>
-            <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>{name}</Text>
-            {check(9)}
-            {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
-          </View>
+          <Text style={{ ...F(font, true), fontSize: pad(9), color: ink }} numberOfLines={1}>{name}</Text>
+          {check(9)}
+          {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
           <View style={{ flex: 1 }} />
           <SocialGlyph platform="instagram" size={pad(11)} color="#E1306C" />
           <Ionicons name="ellipsis-horizontal" size={pad(12)} color={ink} />
@@ -233,7 +231,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(10) }}>
             <ActionIcon name="ig-heart" size={pad(14)} color={ink} />
             <ActionIcon name="ig-comment" size={pad(14)} color={ink} />
-            <ActionIcon name="ig-repost" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-repost" size={pad(17)} color={ink} />
             <ActionIcon name="ig-plane" size={pad(14)} color={ink} />
             <View style={{ flex: 1 }} />
             <ActionIcon name="ig-bookmark" size={pad(14)} color={ink} />

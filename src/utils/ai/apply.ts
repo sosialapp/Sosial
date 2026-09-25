@@ -37,13 +37,23 @@ export interface ApplyOptions {
  */
 export function applyGenResult(gen: GenResult, opts: ApplyOptions): PostPage[] {
   const { template } = opts;
-  return gen.pages.map((p) => {
+  const total = gen.pages.length;
+  return gen.pages.map((p, i) => {
     const page: PostPage = JSON.parse(JSON.stringify(template));
     page.id = uid('page');
     page.blocks = p.blocks.map(toContentBlock);
     page.cardH = null;
     page.cardAuto = true;
     page.cardY = page.cardY ?? 'bottom';
+    // Carousel anatomy (web parity): card 1 keeps full chrome; middle cards
+    // go full-bleed content — no title, no socials; last card keeps the
+    // photo + socials footer, title off so content fills the card.
+    if (total > 2 && i > 0 && i < total - 1) {
+      page.fullCard = true;
+      page.title.position = 'none';
+    } else if (total > 1 && i === total - 1) {
+      page.title.position = 'none';
+    }
     delete page.scheduledAt;
     delete page.scheduledPlatform;
     delete page.scheduledPlatforms;

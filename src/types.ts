@@ -62,6 +62,7 @@ export interface PfpStyle {
   align: 'left' | 'center' | 'right';
   borderW: number; // pfp border thickness 0-6
   username?: string; // universal display name under the photo
+  customHandle?: string; // overrides the @handle shown in the card header
 }
 
 export type SocialPlatform = 'instagram' | 'tiktok' | 'threads' | 'x' | 'facebook' | 'youtube' | 'whatsapp' | 'linkedin' | 'bluesky' | 'mastodon' | 'pinterest';

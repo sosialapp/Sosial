@@ -385,6 +385,9 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
         <Field label="Username" hint="Universal name under your photo.">
           <EmojiInput value={p.username ?? ''} onChange={(v) => patchPfp({ username: v })} placeholder="Your name" className="field" />
         </Field>
+        <Field label="Card handle" hint="Overrides the @handle shown in the card header (Facebook, X, Bluesky…). Leave empty to use your first badge's handle.">
+          <EmojiInput value={p.customHandle ?? ''} onChange={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" className="field" />
+        </Field>
       </div>
       <div className="space-y-3" style={{ opacity: p.hidden ? 0.45 : 1 }}>
         <Section no="02" title="Badges" hint="Centered next to your photo on the export." />
