@@ -29,7 +29,7 @@ export default function TransparencyPage() {
           {
             eyebrow: 'Pricing',
             title: 'The price is on the page.',
-            body: 'Free, Starter, Pro and Business are listed with what each includes, before you create an account. No per-channel upsells, no seat taxes, and annual billing that simply knocks two months off. Changes to prices reach existing subscribers before they take effect.',
+            body: 'Free, Solo, Team and Business are listed with what each includes, before you create an account. No per-channel upsells, no seat taxes, and annual billing that simply knocks two months off. Changes to prices reach existing subscribers before they take effect.',
             points: [
               'All plans and limits on one public page',
               'No charge without a plan change you make',

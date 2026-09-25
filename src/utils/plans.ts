@@ -8,7 +8,7 @@
  */
 
 export type BillingInterval = 'monthly' | 'annual';
-export type PlanKey = 'free' | 'starter' | 'pro' | 'business';
+export type PlanKey = 'free' | 'solo' | 'team' | 'business';
 
 export interface PlanDef {
   key: PlanKey;
@@ -25,12 +25,12 @@ export const PLANS: Record<PlanKey, PlanDef> = {
     key: 'free', label: 'Free', monthly: 0, annual: 0,
     channels: 3, scheduledPosts: 30, aiGenerations: 0,
   },
-  starter: {
-    key: 'starter', label: 'Starter', monthly: 12, annual: 120,
+  solo: {
+    key: 'solo', label: 'Solo', monthly: 12, annual: 120,
     channels: null, scheduledPosts: null, aiGenerations: 500,
   },
-  pro: {
-    key: 'pro', label: 'Pro', monthly: 29, annual: 290,
+  team: {
+    key: 'team', label: 'Team', monthly: 29, annual: 290,
     channels: null, scheduledPosts: null, aiGenerations: 1000,
   },
   business: {
@@ -52,19 +52,19 @@ export function annualSavingsPct(key: PlanKey): number {
 }
 
 /**
- * Mobile builds ship with three entitlement keys (free | pro | team) that
- * predate the canonical plan names. This maps canonical ↔ internal without
- * renaming every internal check: Starter → 'pro', Pro and Business → 'team'.
- * All paid gating only distinguishes free vs paid, so the mapping is safe.
+ * Mobile builds ship with three entitlement keys (free | pro | team) that map
+ * onto the canonical plans: Solo → 'pro', Team → 'team', Business → 'team'
+ * (same entitlements). All paid gating only distinguishes free vs paid, so
+ * the mapping is safe.
  */
 export function internalKeyFor(key: PlanKey): 'free' | 'pro' | 'team' {
   if (key === 'free') return 'free';
-  if (key === 'starter') return 'pro';
+  if (key === 'solo') return 'pro';
   return 'team';
 }
 
 export function labelForInternal(key: 'free' | 'pro' | 'team'): string {
   if (key === 'free') return 'Free';
-  if (key === 'pro') return 'Starter';
-  return 'Pro';
+  if (key === 'pro') return 'Solo';
+  return 'Team';
 }

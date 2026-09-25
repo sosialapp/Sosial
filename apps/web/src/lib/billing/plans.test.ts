@@ -8,19 +8,19 @@ import {
 describe('canonical pricing', () => {
   it('has the canonical monthly prices', () => {
     expect(PLANS.free.monthly.price).toBe(0);
-    expect(PLANS.starter.monthly.price).toBe(12);
-    expect(PLANS.pro.monthly.price).toBe(29);
+    expect(PLANS.solo.monthly.price).toBe(12);
+    expect(PLANS.team.monthly.price).toBe(29);
     expect(PLANS.business.monthly.price).toBe(79);
   });
 
   it('has the canonical annual prices (explicit, 2 months free)', () => {
     expect(PLANS.free.annual.price).toBe(0);
-    expect(PLANS.starter.annual.price).toBe(120);
-    expect(PLANS.pro.annual.price).toBe(290);
-    expect(PLANS.business.annual.price).toBe(290 + 500); // 790
+    expect(PLANS.solo.annual.price).toBe(120);
+    expect(PLANS.team.annual.price).toBe(290);
+    expect(PLANS.business.annual.price).toBe(790);
     // Annual is NEVER computed as monthly * 12 — it is 10 paid months.
-    expect(PLANS.starter.annual.price).not.toBe(PLANS.starter.monthly.price * 12);
-    expect(PLANS.pro.annual.price).not.toBe(PLANS.pro.monthly.price * 12);
+    expect(PLANS.solo.annual.price).not.toBe(PLANS.solo.monthly.price * 12);
+    expect(PLANS.team.annual.price).not.toBe(PLANS.team.monthly.price * 12);
     expect(PLANS.business.annual.price).not.toBe(PLANS.business.monthly.price * 12);
   });
 
@@ -31,23 +31,23 @@ describe('canonical pricing', () => {
     }
     expect(PLANS.free.limits.channels).toBe(3);
     expect(PLANS.free.limits.aiGenerations).toBe(0);
-    expect(PLANS.starter.limits.aiGenerations).toBe(500);
-    expect(PLANS.pro.limits.aiGenerations).toBe(1000);
+    expect(PLANS.solo.limits.aiGenerations).toBe(500);
+    expect(PLANS.team.limits.aiGenerations).toBe(1000);
     expect(PLANS.business.limits.aiGenerations).toBe(2000);
     // unlimited is null, never a huge number
-    expect(PLANS.starter.limits.channels).toBeNull();
-    expect(PLANS.starter.limits.scheduledPosts).toBeNull();
+    expect(PLANS.solo.limits.channels).toBeNull();
+    expect(PLANS.solo.limits.scheduledPosts).toBeNull();
   });
 
   it('computes monthly equivalents for annual display', () => {
-    expect(monthlyEquivalent('starter')).toBe(10);
-    expect(monthlyEquivalent('pro')).toBeCloseTo(24.17, 2);
+    expect(monthlyEquivalent('solo')).toBe(10);
+    expect(monthlyEquivalent('team')).toBeCloseTo(24.17, 2);
     expect(monthlyEquivalent('business')).toBeCloseTo(65.83, 2);
   });
 
   it('computes annual savings as 2 of 12 months', () => {
-    expect(annualSavingsPct('starter')).toBe(17); // 24/144
-    expect(annualSavingsPct('pro')).toBe(17); // 58/348
+    expect(annualSavingsPct('solo')).toBe(17); // 24/144
+    expect(annualSavingsPct('team')).toBe(17); // 58/348
     expect(annualSavingsPct('business')).toBe(17); // 158/948
     expect(annualSavingsPct('free')).toBe(0);
   });
@@ -64,18 +64,20 @@ describe('canonical pricing', () => {
   });
 
   it('strictly validates plan keys', () => {
-    expect(isPlanKey('starter')).toBe(true);
-    expect(isPlanKey('pro')).toBe(true);
-    expect(isPlanKey('pro_annual')).toBe(false);
-    expect(isPlanKey('starter_monthly')).toBe(false);
-    expect(isPlanKey('team')).toBe(false); // retired name
+    expect(isPlanKey('solo')).toBe(true);
+    expect(isPlanKey('team')).toBe(true);
+    expect(isPlanKey('business')).toBe(true);
+    expect(isPlanKey('team_annual')).toBe(false);
+    expect(isPlanKey('solo_monthly')).toBe(false);
+    expect(isPlanKey('starter')).toBe(false); // retired name
+    expect(isPlanKey('pro')).toBe(false); // retired name
     expect(isPlanKey(42)).toBe(false);
   });
 
   it('renders price labels for the real interval', () => {
-    expect(priceLabel('starter', 'monthly')).toBe('$12/mo');
-    expect(priceLabel('starter', 'annual')).toBe('$120/yr');
-    expect(priceLabel('pro', 'annual')).toBe('$290/yr');
+    expect(priceLabel('solo', 'monthly')).toBe('$12/mo');
+    expect(priceLabel('solo', 'annual')).toBe('$120/yr');
+    expect(priceLabel('team', 'annual')).toBe('$290/yr');
     expect(priceLabel('business', 'monthly')).toBe('$79/mo');
     expect(priceLabel('free', 'monthly')).toBe('Free');
     expect(formatUsd(120)).toBe('$120');
@@ -89,7 +91,7 @@ describe('canonical pricing', () => {
     for (const [key, interval] of pairs) {
       expect(typeof priceFor(key, interval)).toBe('number');
     }
-    // 8 pairs, all distinct display strings (free repeats 'Free' — fine)
+    // all paid display strings distinct
     const paid = pairs
       .filter(([k]) => k !== 'free')
       .map(([k, i]) => priceLabel(k, i));

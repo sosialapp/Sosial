@@ -9,7 +9,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'A free plan that stays free, Starter for unlimited publishing across all ten channels, Pro for approvals, Business for scale. Monthly or annual — annual gives you two months free. Cancel any time.',
+    'A free plan that stays free, Solo for unlimited publishing across all ten channels, Team for approvals, Business for scale. Monthly or annual — annual gives you two months free. Cancel any time.',
   alternates: { canonical: '/pricing' },
 };
 
@@ -47,11 +47,11 @@ export default function PricingPage() {
           },
           {
             q: 'Is the AI writer included?',
-            a: 'On Starter, Pro and Business — 500, 1,000 and 2,000 generations a month respectively. Free plans get the composer, previews and queue without AI generation.',
+            a: 'On Solo, Team and Business — 500, 1,000 and 2,000 generations a month respectively. Free plans get the composer, previews and queue without AI generation.',
           },
           {
-            q: 'Do you charge for team seats on Pro or Business?',
-            a: 'No. Pro and Business are flat prices for the whole workspace, whether it is two people or ten.',
+            q: 'Do you charge for team seats on Team or Business?',
+            a: 'No. Team and Business are flat prices for the whole workspace, whether it is two people or ten.',
           },
           {
             q: 'How does annual billing work?',

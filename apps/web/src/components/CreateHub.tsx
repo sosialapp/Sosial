@@ -91,7 +91,7 @@ function starterProjects(): StudioProject[] {
       background: { ...blankPage().background, type: 'stripes', color: '#7C2D12', patternColor: '#F97316', patternSize: 30, patternOpacity: 0.5, mixEnabled: false },
       title: { text: '20% off ends Sunday', position: 'top', color: '#FFFFFF', size: 38, align: 'left', font: 'jakarta', bold: true, italic: false, subtitle: '', subtitleSize: 15 },
       blocks: [
-        { id: uid('b'), type: 'table', heading: 'Plans', items: [], table: [['Plan', 'Monthly', 'Yearly'], ['Starter', '$9', '$90'], ['Pro', '$19', '$190']], textColor: '#111111' },
+        { id: uid('b'), type: 'table', heading: 'Plans', items: [], table: [['Plan', 'Monthly', 'Yearly'], ['Solo', '$12', '$120'], ['Team', '$29', '$290']], textColor: '#111111' },
       ],
       cardColor: '#FFFFFFF2',
       socials: [{ id: uid('s'), platform: 'tiktok', handle: '@yourhandle', visible: true, font: 'jakarta', bold: true, italic: false }],

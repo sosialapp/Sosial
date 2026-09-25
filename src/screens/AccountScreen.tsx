@@ -280,7 +280,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     ]);
   };
 
-  const planName = plan === 'pro' ? 'Sosial Starter' : plan === 'team' ? 'Sosial Pro' : 'Free plan';
+  const planName = plan === 'pro' ? 'Sosial Solo' : plan === 'team' ? 'Sosial Team' : 'Free plan';
 
   const initial = (email || team || 'Z')[0].toUpperCase();
   const title = view === 'main' ? 'Account' : (
@@ -366,8 +366,8 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   };
 
   /** Canonical price book (src/utils/plans.ts mirrors the web config). */
-  const starterTotal = yearly ? '$120/yr' : '$12/mo';
-  const proTotal = yearly ? '$290/yr' : '$29/mo';
+  const soloTotal = yearly ? '$120/yr' : '$12/mo';
+  const teamTotal = yearly ? '$290/yr' : '$29/mo';
   const businessTotal = yearly ? '$790/yr' : '$79/mo';
 
   /** Plan switching works today as a local flag; real Play Billing replaces the confirm. */
@@ -593,7 +593,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 <Text style={s.planName}>{planName}</Text>
                 <View style={s.pill}><Text style={s.pillT}>Current</Text></View>
               </View>
-              <Text style={s.planPrice}>{plan === 'free' ? 'Free forever' : plan === 'pro' ? starterTotal : proTotal}</Text>
+              <Text style={s.planPrice}>{plan === 'free' ? 'Free forever' : plan === 'pro' ? soloTotal : teamTotal}</Text>
               {plan !== 'free' ? (
                 <View style={{ marginTop: 8 }}>
                   <GhostBtn label="Manage subscription" onPress={() => Alert.alert('Manage subscription', 'Subscriptions are managed in the Play Store app under Payments & subscriptions.')} />
@@ -626,9 +626,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             />
 
             <PlanCard
-              name="Starter"
+              name="Solo"
               current={plan === 'pro'}
-              price={starterTotal}
+              price={soloTotal}
               sub={yearly ? '≈ $10.00/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Free, plus:"
               features={[
@@ -639,18 +639,18 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: '1-year analytics' },
               ]}
               action={plan === 'free'
-                ? { label: `Upgrade to Starter · ${starterTotal}`, onPress: () => choosePlan('pro', 'Starter') }
+                ? { label: `Upgrade to Solo · ${soloTotal}`, onPress: () => choosePlan('pro', 'Solo') }
                 : plan === 'team'
-                  ? { label: 'Switch to Starter', ghost: true, onPress: () => choosePlan('pro', 'Starter') }
+                  ? { label: 'Switch to Solo', ghost: true, onPress: () => choosePlan('pro', 'Solo') }
                   : undefined}
             />
 
             <PlanCard
-              name="Pro"
+              name="Team"
               current={plan === 'team'}
-              price={proTotal}
+              price={teamTotal}
               sub={yearly ? '≈ $24.17/mo equivalent — billed yearly' : 'Billed monthly'}
-              also="Everything in Starter, plus:"
+              also="Everything in Solo, plus:"
               features={[
                 { text: 'Approval workflow' },
                 { text: 'Member, admin and owner roles' },
@@ -658,9 +658,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: 'Priority support' },
               ]}
               action={plan === 'free'
-                ? { label: `Upgrade to Pro · ${proTotal}`, ghost: true, onPress: () => choosePlan('team', 'Pro') }
+                ? { label: `Upgrade to Team · ${teamTotal}`, ghost: true, onPress: () => choosePlan('team', 'Team') }
                 : plan === 'pro'
-                  ? { label: `Switch to Pro · ${proTotal}`, onPress: () => choosePlan('team', 'Pro') }
+                  ? { label: `Switch to Team · ${teamTotal}`, onPress: () => choosePlan('team', 'Team') }
                   : undefined}
             />
 
@@ -669,7 +669,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               current={false}
               price={businessTotal}
               sub={yearly ? '≈ $65.83/mo equivalent — billed yearly' : 'Billed monthly'}
-              also="Everything in Pro, plus:"
+              also="Everything in Team, plus:"
               features={[
                 { text: '2,000 AI generations / month' },
                 { text: 'Unlimited seats for the whole crew' },

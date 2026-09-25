@@ -3,8 +3,8 @@
  * prices, billing intervals and feature limits across the whole product.
  *
  * Rules encoded here (do not violate downstream):
- * - A plan and its billing interval are SEPARATE concepts (plan = "pro",
- *   billingInterval = "annual" — never "pro_annual").
+ * - A plan and its billing interval are SEPARATE concepts (plan = "team",
+ *   billingInterval = "annual" — never "team_annual").
  * - Annual prices are explicit values (10 paid months = 2 months free).
  *   NEVER compute annual = monthly * 12.
  * - Feature limits are identical between monthly and annual of the same
@@ -17,7 +17,7 @@
 
 export type BillingInterval = 'monthly' | 'annual';
 
-export type PlanKey = 'free' | 'starter' | 'pro' | 'business';
+export type PlanKey = 'free' | 'solo' | 'team' | 'business';
 
 export interface PlanLimits {
   /** connectable channels; null = unlimited */
@@ -61,9 +61,9 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'iOS, Android and web',
     ],
   },
-  starter: {
-    key: 'starter',
-    label: 'Starter',
+  solo: {
+    key: 'solo',
+    label: 'Solo',
     blurb: 'Publish everywhere, every day.',
     monthly: { price: 12 },
     annual: { price: 120 },
@@ -76,16 +76,16 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'Analytics across every channel',
     ],
   },
-  pro: {
-    key: 'pro',
-    label: 'Pro',
+  team: {
+    key: 'team',
+    label: 'Team',
     blurb: 'Draft together, approve in one tap.',
     featured: true,
     monthly: { price: 29 },
     annual: { price: 290 },
     limits: { channels: null, scheduledPosts: null, aiGenerations: 1000 },
     points: [
-      'Everything in Starter',
+      'Everything in Solo',
       'Approvals and review notes',
       'Member, admin and owner roles',
       'Shared calendar for the whole team',
@@ -100,7 +100,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
     annual: { price: 790 },
     limits: { channels: null, scheduledPosts: null, aiGenerations: 2000 },
     points: [
-      'Everything in Pro',
+      'Everything in Team',
       '1,000 extra AI generations a month',
       'Unlimited seats for the whole crew',
       'Per-channel member roles',
@@ -110,7 +110,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
 };
 
 /** Canonical display order, cheapest first. */
-export const PLAN_ORDER: PlanKey[] = ['free', 'starter', 'pro', 'business'];
+export const PLAN_ORDER: PlanKey[] = ['free', 'solo', 'team', 'business'];
 
 export const BILLING_INTERVALS: BillingInterval[] = ['monthly', 'annual'];
 

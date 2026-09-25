@@ -15,8 +15,8 @@ import { type BillingInterval, type PlanKey, isBillingInterval, isPlanKey } from
  * Required env:
  *   STRIPE_SECRET_KEY
  *   STRIPE_WEBHOOK_SECRET
- *   STRIPE_PRICE_STARTER_MONTHLY  STRIPE_PRICE_STARTER_ANNUAL
- *   STRIPE_PRICE_PRO_MONTHLY      STRIPE_PRICE_PRO_ANNUAL
+ *   STRIPE_PRICE_SOLO_MONTHLY     STRIPE_PRICE_SOLO_ANNUAL
+ *   STRIPE_PRICE_TEAM_MONTHLY     STRIPE_PRICE_TEAM_ANNUAL
  *   STRIPE_PRICE_BUSINESS_MONTHLY STRIPE_PRICE_BUSINESS_ANNUAL
  */
 
@@ -29,10 +29,10 @@ export function stripeConfigured(): boolean {
 export function pricesConfigured(): boolean {
   return (
     stripeConfigured() &&
-    !!priceIdFor('starter', 'monthly') &&
-    !!priceIdFor('starter', 'annual') &&
-    !!priceIdFor('pro', 'monthly') &&
-    !!priceIdFor('pro', 'annual') &&
+    !!priceIdFor('solo', 'monthly') &&
+    !!priceIdFor('solo', 'annual') &&
+    !!priceIdFor('team', 'monthly') &&
+    !!priceIdFor('team', 'annual') &&
     !!priceIdFor('business', 'monthly') &&
     !!priceIdFor('business', 'annual')
   );
@@ -60,7 +60,7 @@ export function resolveFromPriceId(
   priceId: string | null | undefined,
 ): { plan: Exclude<PlanKey, 'free'>; interval: BillingInterval } | null {
   if (!priceId) return null;
-  for (const plan of ['starter', 'pro', 'business'] as const) {
+  for (const plan of ['solo', 'team', 'business'] as const) {
     for (const interval of ['monthly', 'annual'] as const) {
       if (priceIdFor(plan, interval) === priceId) return { plan, interval };
     }
@@ -114,7 +114,7 @@ export function primaryPriceId(sub: Stripe.Subscription): string | null {
 
 /** True when the plan on this subscription is one we sell. */
 export function isKnownPlan(plan: string | null | undefined): plan is Exclude<PlanKey, 'free'> {
-  return plan === 'starter' || plan === 'pro' || plan === 'business';
+  return plan === 'solo' || plan === 'team' || plan === 'business';
 }
 
-export const PAID_PLANS = ['starter', 'pro', 'business'] as const;
+export const PAID_PLANS = ['solo', 'team', 'business'] as const;

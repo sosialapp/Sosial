@@ -308,7 +308,7 @@ export default function AccountSettings({
                 while you are away. To revoke a channel, disconnect it in Channels.
               </p>
             ) : null}
-            <Row icon={<CreditCard className="h-5 w-5" aria-hidden="true" />} label="Subscription plan" sub="Free, Starter, Pro and Business" onClick={() => setView('plan')} />
+            <Row icon={<CreditCard className="h-5 w-5" aria-hidden="true" />} label="Subscription plan" sub="Free, Solo, Team and Business" onClick={() => setView('plan')} />
             {role === 'owner' || role === 'admin' ? (
               <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label="Team" sub="Roles, channels & invites" href="/team" />
             ) : null}
@@ -427,24 +427,24 @@ export default function AccountSettings({
               features: ['3 connected channels · 30 scheduled posts a month', 'Unlimited studio, templates & ideas', '7-day analytics'],
             },
             {
-              name: 'Starter',
+              name: 'Solo',
               price: '$12/mo',
               sub: '$120/yr annual — ≈ $10/month, billed yearly',
               also: 'Everything in Free, plus:',
               features: ['Unlimited scheduled posts', '500 AI generations / month', 'All 10 channels connected', '1-year analytics'],
             },
             {
-              name: 'Pro',
+              name: 'Team',
               price: '$29/mo',
               sub: '$290/yr annual — ≈ $24.17/month, billed yearly',
-              also: 'Everything in Starter, plus:',
+              also: 'Everything in Solo, plus:',
               features: ['Approval workflow', '1,000 AI generations / month', 'Member, admin and owner roles', 'Priority support'],
             },
             {
               name: 'Business',
               price: '$79/mo',
               sub: '$790/yr annual — ≈ $65.83/month, billed yearly',
-              also: 'Everything in Pro, plus:',
+              also: 'Everything in Team, plus:',
               features: ['2,000 AI generations / month', 'Unlimited seats for the whole crew', 'Per-channel member roles', 'Premium support'],
             },
           ].map((p) => (

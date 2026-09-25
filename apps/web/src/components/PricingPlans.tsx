@@ -28,7 +28,7 @@ export default function PricingPlans() {
                 aria-pressed={interval === i}
                 className={`pill border ${interval === i ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
               >
-                {i === 'monthly' ? 'Monthly' : `Annual · save up to ${annualSavingsPct('pro')}%`}
+                {i === 'monthly' ? 'Monthly' : `Annual · save up to ${annualSavingsPct('team')}%`}
               </button>
             ))}
           </div>

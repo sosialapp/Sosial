@@ -7,8 +7,8 @@
 
 export const AI_LIMITS: Record<string, number | null> = {
   free: 0,
-  starter: 500,
-  pro: 1000,
+  solo: 500,
+  team: 1000,
   business: 2000,
 };
 
@@ -72,7 +72,7 @@ export async function gateAiGeneration(
   if (!wid) {
     return {
       ok: false,
-      message: "AI writing is on Starter and up — upgrade in Billing to unlock it.",
+      message: "AI writing is on Solo and up — upgrade in Billing to unlock it.",
       status: 402,
     };
   }
@@ -112,7 +112,7 @@ export async function gateAiGeneration(
       ok: false,
       message:
         limit === 0
-          ? "AI writing is on Starter and up — upgrade in Billing to unlock it."
+          ? "AI writing is on Solo and up — upgrade in Billing to unlock it."
           : `You've used all ${limit} AI generations for this month — they reset on the 1st, or upgrade for more.`,
       status: 402,
     };
