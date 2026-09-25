@@ -12,5 +12,5 @@ export default async function AdminPageEdit({ params }: { params: Promise<{ slug
   const def = isValidSiteSlug(full) ? sitePageDef(full) : undefined;
   if (!def) notFound();
   const initial = await sitePageDoc(full);
-  return <PageEditor def={def} initial={initial} />;
+  return <PageEditor def={def} initial={initial?.body ?? null} loadedAt={initial?.updatedAt ?? null} />;
 }

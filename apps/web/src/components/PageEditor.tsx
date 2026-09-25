@@ -21,9 +21,12 @@ import type { SitePageDef } from '@/content/sitePages';
 export default function PageEditor({
   def,
   initial,
+  loadedAt,
 }: {
   def: SitePageDef;
   initial: unknown;
+  /** updated_at the editor opened with — the save aborts if the row moved on. */
+  loadedAt: string | null;
 }) {
   const router = useRouter();
   // Never-customized pages open with their current live copy pre-loaded, so
@@ -51,6 +54,20 @@ export default function PageEditor({
     setErr(null);
     try {
       const sb = createClient();
+      // Stale guard: refuse to overwrite a row that moved since this editor
+      // opened (another tab, another save). The editor keeps your work.
+      const { data: fresh } = await sb
+        .from('site_pages')
+        .select('updated_at')
+        .eq('slug', def.slug)
+        .maybeSingle();
+      const freshAt =
+        (fresh as { updated_at?: unknown } | null)?.updated_at ?? null;
+      if (loadedAt !== (typeof freshAt === 'string' ? freshAt : null)) {
+        throw new Error(
+          'This page changed since you opened it — reload the editor to avoid overwriting. Your current edits stay in place.',
+        );
+      }
       const { error } = await sb.from('site_pages').upsert(
         {
           slug: def.slug,

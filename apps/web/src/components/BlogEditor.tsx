@@ -22,6 +22,8 @@ export interface BlogDraft {
   minutes: number;
   status: 'draft' | 'published';
   published_at: string | null;
+  /** updated_at the editor opened with — the save aborts if the row moved on. */
+  updatedAt?: string | null;
 }
 
 function slugify(s: string): string {
@@ -105,6 +107,19 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
       };
       const sb = createClient();
       if (initial?.id) {
+        // Stale guard: refuse to overwrite a post that moved since this
+        // editor opened. The editor keeps your work.
+        const { data: fresh } = await sb
+          .from('blog_posts')
+          .select('updated_at')
+          .eq('id', initial.id)
+          .maybeSingle();
+        const freshAt = (fresh as { updated_at?: unknown } | null)?.updated_at ?? null;
+        if ((initial.updatedAt ?? null) !== (typeof freshAt === 'string' ? freshAt : null)) {
+          throw new Error(
+            'This post changed since you opened it — reload the editor to avoid overwriting. Your current edits stay in place.',
+          );
+        }
         const { error } = await sb.from('blog_posts').update(payload).eq('id', initial.id);
         if (error) throw new Error(error.message);
       } else {

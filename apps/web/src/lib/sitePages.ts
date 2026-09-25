@@ -28,19 +28,18 @@ export async function sitePageHtml(slug: string): Promise<string | null> {
   }
 }
 
-/** Raw document JSON for the admin editor (null = never customized). Saved
- *  bodies are TipTap docs ({type:'doc',…}); normalizeInitialDoc accepts those
- *  as well as legacy arrays. */
-export async function sitePageDoc(slug: string): Promise<unknown | null> {
+/** Raw document JSON + its save stamp for the admin editor (null = never customized). */
+export async function sitePageDoc(slug: string): Promise<{ body: unknown; updatedAt: string | null } | null> {
   try {
     const sb = publicClient();
     const { data } = await sb
       .from('site_pages')
-      .select('body')
+      .select('body, updated_at')
       .eq('slug', slug)
       .maybeSingle();
-    const body = (data as { body?: unknown } | null)?.body;
-    return body ?? null;
+    const row = data as { body?: unknown; updated_at?: unknown } | null;
+    if (!row) return null;
+    return { body: row.body ?? null, updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null };
   } catch {
     return null;
   }
