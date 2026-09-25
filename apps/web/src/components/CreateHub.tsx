@@ -18,7 +18,7 @@ import {
   uid,
   type StudioProject,
 } from '@/lib/studio/model';
-import type { ConnectedChannel, PostWithTargets, WorkspaceInfo } from '@/lib/types';
+import type { ConnectedChannel, MediaAssetRow, PostWithTargets, WorkspaceInfo } from '@/lib/types';
 
 interface IdeaMedia {
   url: string;
@@ -224,6 +224,15 @@ export default function CreateHub({
     parts?: string[];
   } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  /** Draft edit: a draft (or whole chain) loaded back into the composer. */
+  const [draftEdit, setDraftEdit] = useState<{
+    key: number;
+    postIds: string[];
+    bodies: string[];
+    channelIds: string[];
+    whenIso: string | null;
+    mediaParts: { url: string; kind: 'image' | 'video' }[][];
+  } | null>(null);
   const [renderingKey, setRenderingKey] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
@@ -397,6 +406,51 @@ export default function CreateHub({
     setTab('post');
   };
 
+  /** Load a draft (or a whole chain, ordered) back into the composer for
+   *  editing. Saving replaces the original rows. */
+  const startEdit = (postId: string) => {
+    const head = initialPosts.find((p) => p.id === postId);
+    if (!head) return;
+    const parts = head.chain_id
+      ? initialPosts
+          .filter((p) => p.chain_id === head.chain_id)
+          .sort((a, b) => a.chain_position - b.chain_position)
+      : [head];
+    const bodies = parts.map((p) => p.body || '');
+    const mediaParts = parts.map((p) =>
+      [...(p.post_media ?? [])]
+        .sort((a, b) => a.position - b.position)
+        .map((m) => m.media_assets)
+        .filter((m): m is MediaAssetRow => Boolean(m?.signed_url))
+        .map((m) => ({ url: m.signed_url as string, kind: m.kind })),
+    );
+    const channelIds = Array.from(
+      new Set(parts.flatMap((p) => p.post_targets.map((t) => t.channel_id))),
+    );
+    setPrefill(null);
+    setPendingFiles(null);
+    setDraftEdit({
+      key: Date.now(),
+      postIds: parts.map((p) => p.id),
+      bodies,
+      channelIds,
+      whenIso: head.scheduled_at,
+      mediaParts,
+    });
+    setTab('post');
+  };
+
+  /** Deep link from the standalone queue page: /post?edit=<postId>. */
+  const editConsumed = useRef(false);
+  useEffect(() => {
+    if (editConsumed.current) return;
+    const id = searchParams.get('edit');
+    if (!id) return;
+    editConsumed.current = true;
+    startEdit(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, initialPosts]);
+
   /** Export a studio page PNG and attach it to the composer. */
   const useStudioPage = async (
     project: StudioProject,
@@ -492,16 +546,24 @@ export default function CreateHub({
       {tab === 'post' ? (
         <div className="mt-4">
           <CreatePost
-            key={`${prefill?.key ?? 'fresh'}-${pendingFiles ? pendingFiles.length : 0}`}
+            key={`${prefill?.key ?? 'fresh'}-${draftEdit?.key ?? 0}-${pendingFiles ? pendingFiles.length : 0}`}
             channels={channels}
             workspaceId={workspaceId}
             userId={userId}
             role={role}
             initialTitle={prefill?.title ?? ''}
-            initialBody={prefill?.body ?? ''}
+            initialBody={prefill?.body ?? draftEdit?.bodies[0] ?? ''}
             initialFiles={pendingFiles ?? undefined}
-            initialThread={prefill?.thread}
-            initialParts={prefill?.parts}
+            initialThread={prefill?.thread ?? (draftEdit ? draftEdit.bodies.length > 1 : undefined)}
+            initialParts={
+              prefill?.parts ??
+              (draftEdit && draftEdit.bodies.length > 1 ? draftEdit.bodies : undefined)
+            }
+            initialChannelIds={draftEdit?.channelIds}
+            initialWhenIso={draftEdit?.whenIso ?? null}
+            initialMediaParts={draftEdit?.mediaParts}
+            editingIds={draftEdit?.postIds}
+            onEdited={() => setDraftEdit(null)}
           />
         </div>
       ) : tab === 'ideas' ? (
@@ -668,7 +730,13 @@ export default function CreateHub({
         </div>
       ) : tab === 'publish' ? (
         <div className="mt-4">
-          <PostList posts={initialPosts} role={role} userId={userId} workspaceId={workspaceId} />
+          <PostList
+            posts={initialPosts}
+            role={role}
+            userId={userId}
+            workspaceId={workspaceId}
+            onEdit={startEdit}
+          />
         </div>
       ) : editing ? (
         <div className="mt-4">

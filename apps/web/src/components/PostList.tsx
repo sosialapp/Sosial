@@ -59,11 +59,14 @@ export default function PostList({
   role,
   userId,
   workspaceId,
+  onEdit,
 }: {
   posts: PostWithTargets[];
   role: WorkspaceInfo['role'];
   userId: string;
   workspaceId: string;
+  /** Optional: open the draft in the composer. Defaults to /post?edit=<id>. */
+  onEdit?: (postId: string) => void;
 }) {
   const router = useRouter();
   const canApprove = role === 'owner' || role === 'admin';
@@ -72,23 +75,56 @@ export default function PostList({
   const [err, setErr] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const rows = useMemo(
-    () =>
-      posts
-        .filter((p) => TAB_MATCH[tab](p.status))
-        .sort((a, b) => {
-          const at = a.scheduled_at ?? a.created_at;
-          const bt = b.scheduled_at ?? b.created_at;
-          return bt.localeCompare(at);
-        }),
-    [posts, tab],
-  );
+  /** Chain parts render as ONE card — a thread draft is a single post. */
+  const groups = useMemo(() => {
+    const filtered = posts
+      .filter((p) => TAB_MATCH[tab](p.status))
+      .sort((a, b) => {
+        const at = a.scheduled_at ?? a.created_at;
+        const bt = b.scheduled_at ?? b.created_at;
+        return bt.localeCompare(at);
+      });
+    const out: { key: string; parts: PostWithTargets[] }[] = [];
+    const seen = new Set<string>();
+    for (const p of filtered) {
+      if (p.chain_id) {
+        if (seen.has(p.chain_id)) continue;
+        seen.add(p.chain_id);
+        out.push({
+          key: `chain:${p.chain_id}`,
+          parts: filtered
+            .filter((q) => q.chain_id === p.chain_id)
+            .sort((a, b) => a.chain_position - b.chain_position),
+        });
+      } else {
+        out.push({ key: `post:${p.id}`, parts: [p] });
+      }
+    }
+    return out;
+  }, [posts, tab]);
 
   async function run(id: string, fn: (sb: SupabaseClient) => Promise<void>) {
     setBusyId(id);
     setErr(null);
     try {
       await fn(createClient());
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Action failed.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  /** Group actions (a chain's parts share one card): run per part, fail loud. */
+  async function runMany(key: string, ids: string[], fn: (sb: SupabaseClient, id: string) => Promise<void>) {
+    setBusyId(key);
+    setErr(null);
+    try {
+      const sb = createClient();
+      for (const id of ids) {
+        await fn(sb, id);
+      }
       startTransition(() => router.refresh());
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Action failed.');
@@ -135,17 +171,25 @@ export default function PostList({
       )}
 
       <div className="flex-1 space-y-2 p-6">
-        {rows.length === 0 && <p className="text-sm text-muted">Nothing here yet.</p>}
-        {rows.map((p) => {
-          const meta = POST_STATUS_META[p.status];
-          const providers = Array.from(new Set(p.post_targets.map((t) => t.provider)));
-          const media = mediaOf(p);
-          const comment = lastComment(p);
-          const draftish = p.status === 'draft' || p.status === 'failed';
-          const busy = busyId === p.id;
+        {groups.length === 0 && <p className="text-sm text-muted">Nothing here yet.</p>}
+        {groups.map((g) => {
+          const head = g.parts[0];
+          const isChain = g.parts.length > 1;
+          const meta = POST_STATUS_META[head.status];
+          const providers = Array.from(
+            new Set(g.parts.flatMap((p) => p.post_targets.map((t) => t.provider))),
+          );
+          const media = g.parts.flatMap((p) => mediaOf(p)).slice(0, 3);
+          const mediaTotal = g.parts.reduce((n, p) => n + mediaOf(p).length, 0);
+          const comment = lastComment(head);
+          const draftish = g.parts.every((p) => p.status === 'draft' || p.status === 'failed');
+          const inApproval = g.parts.every((p) => p.status === 'approval');
+          const busy = busyId === g.key;
+          const ids = g.parts.map((p) => p.id);
+          const targetErr = g.parts.flatMap((p) => p.post_targets).find((t) => t.last_error)?.last_error;
           return (
               <div
-                key={p.id}
+                key={g.key}
                 className="flex flex-wrap items-start gap-4 rounded-2xl border border-line bg-card p-4"
               >
               {media.length > 0 && (
@@ -175,8 +219,8 @@ export default function PostList({
                       </span>
                     ),
                   )}
-                  {media.length > 3 && (
-                    <span className="self-end text-xs text-faint">+{media.length - 3}</span>
+                  {mediaTotal > 3 && (
+                    <span className="self-end text-xs text-faint">+{mediaTotal - 3}</span>
                   )}
                 </div>
               )}
@@ -184,11 +228,15 @@ export default function PostList({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`pill ${meta.className}`}>{meta.label}</span>
-                  {p.chain_id && (
-                    <span className="pill bg-paper-dim text-ink" title="Part of a threaded chain">
-                      Chain · {p.chain_position + 1}
+                  {isChain ? (
+                    <span className="pill bg-paper-dim text-ink" title="One threaded chain">
+                      Chain · {g.parts.length} parts
                     </span>
-                  )}
+                  ) : head.chain_id ? (
+                    <span className="pill bg-paper-dim text-ink" title="Part of a threaded chain">
+                      Chain · {head.chain_position + 1}
+                    </span>
+                  ) : null}
                   <span className="flex items-center gap-1">
                     {providers.map((pr) => {
                       const pm = providerMeta(pr);
@@ -203,47 +251,63 @@ export default function PostList({
                     })}
                   </span>
                   <span className="text-xs text-faint">
-                    {p.sent_at ? `Sent ${formatDateTime(p.sent_at)}` : formatDateTime(p.scheduled_at)}
+                    {head.sent_at ? `Sent ${formatDateTime(head.sent_at)}` : formatDateTime(head.scheduled_at)}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-ink">{snippet(p)}</p>
+                <p className="mt-2 text-sm text-ink">{snippet(head)}</p>
+                {isChain && g.parts[1] ? (
+                  <p className="mt-1 text-xs text-muted">+ {g.parts.length - 1} more part{g.parts.length - 1 === 1 ? '' : 's'}: “{snippet(g.parts[1]).slice(0, 60)}…”</p>
+                ) : null}
                 {comment && (
                   <p className="mt-1 text-xs text-ink">Changes requested: “{comment}”</p>
                 )}
-                {p.post_targets.some((t) => t.last_error) && (
+                {targetErr && (
                   <p className="mt-1 text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">
-                    {p.post_targets.find((t) => t.last_error)?.last_error}
+                    {targetErr}
                   </p>
                 )}
               </div>
 
               <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {canApprove && p.status === 'approval' && (
+                {canApprove && inApproval && (
                   <>
                     <button
                       className="btn btn-bolt"
                       type="button"
                       disabled={busy}
-                      onClick={() => run(p.id, (sb) => approvePost(sb, { postId: p.id, userId }))}
+                      onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
                     >
-                      Approve
+                      Approve{isChain ? ` (${ids.length})` : ''}
                     </button>
                     <button
                       className="btn btn-ghost"
                       type="button"
                       disabled={busy}
-                      onClick={() => askChanges(p)}
+                      onClick={() => askChanges(head)}
                     >
                       Request changes
                     </button>
                   </>
+                )}
+                {draftish && (
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      if (onEdit) onEdit(head.id);
+                      else router.push(`/post?edit=${head.id}`);
+                    }}
+                  >
+                    Edit
+                  </button>
                 )}
                 {canApprove && draftish && (
                   <button
                     className="btn btn-ghost"
                     type="button"
                     disabled={busy}
-                    onClick={() => run(p.id, (sb) => publishPostNow(sb, p.id))}
+                    onClick={() => runMany(g.key, ids, (sb, id) => publishPostNow(sb, id))}
                   >
                     Publish now
                   </button>
@@ -254,7 +318,7 @@ export default function PostList({
                     type="button"
                     disabled={busy}
                     onClick={() =>
-                      run(p.id, (sb) => submitForApproval(sb, { postId: p.id, workspaceId, userId }))
+                      runMany(g.key, ids, (sb, id) => submitForApproval(sb, { postId: id, workspaceId, userId }))
                     }
                   >
                     Submit for approval
@@ -264,9 +328,9 @@ export default function PostList({
                   className="btn btn-ghost"
                   type="button"
                   disabled={busy}
-                  onClick={() => run(p.id, (sb) => deletePost(sb, p.id))}
+                  onClick={() => runMany(g.key, ids, (sb, id) => deletePost(sb, id))}
                 >
-                  Delete
+                  Delete{isChain ? ` (${ids.length})` : ''}
                 </button>
               </div>
             </div>

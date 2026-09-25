@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AiCard from '@/components/AiCard';
@@ -10,7 +10,7 @@ import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
-import { createChain, createPost, mediaBlock, type ComposeMode } from '@/lib/posts';
+import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
@@ -53,6 +53,11 @@ export default function CreatePost({
   initialFiles = [],
   initialThread = false,
   initialParts,
+  initialChannelIds,
+  initialWhenIso = null,
+  initialMediaParts,
+  editingIds,
+  onEdited,
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
@@ -65,6 +70,16 @@ export default function CreatePost({
   initialThread?: boolean;
   /** Idea prefill: one body per thread part (part 1 may carry initialFiles). */
   initialParts?: string[];
+  /** Draft edit: pre-select these channels (filtered to connected ones). */
+  initialChannelIds?: string[];
+  /** Draft edit: pre-fill the schedule time. */
+  initialWhenIso?: string | null;
+  /** Draft edit: remote media per part to reload into the composer. */
+  initialMediaParts?: { url: string; kind: 'image' | 'video' }[][];
+  /** Draft edit: previous post rows, deleted after the replacement saves. */
+  editingIds?: string[];
+  /** Draft edit: called after the replacement saves. */
+  onEdited?: () => void;
 }) {
   const router = useRouter();
   const ready = useMemo(() => channels.filter((c) => c.status === 'connected'), [channels]);
@@ -86,14 +101,80 @@ export default function CreatePost({
       },
     ];
   });
-  const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
+  const [picked, setPicked] = useState<string[]>(() => {
+    if (initialChannelIds?.length) {
+      const live = initialChannelIds.filter((id) => ready.some((c) => c.id === id));
+      if (live.length) {
+        // Editing a thread: drop channels that cannot carry a reply-chain.
+        if (initialThread || (initialParts && initialParts.length > 1)) {
+          const chainable = live.filter((id) => {
+            const c = ready.find((x) => x.id === id);
+            return c ? THREAD_PROVIDERS.includes(c.provider) : false;
+          });
+          if (chainable.length) return chainable;
+        }
+        return live;
+      }
+    }
+    return ready.map((c) => c.id);
+  });
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
   const [parts, setParts] = useState(() => Math.max(3, initParts?.length ?? 3));
   const [mode, setMode] = useState<'now' | 'schedule'>('schedule');
-  const [whenIso, setWhenIso] = useState<string | null>(null);
+  const [whenIso, setWhenIso] = useState<string | null>(initialWhenIso);
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+
+  /** Draft edit: reload the saved remote media into real Files so the normal
+   *  upload path carries them on save. Runs once per mount (the host remounts
+   *  per edit via key). Tolerates single failures. */
+  useEffect(() => {
+    if (!initialMediaParts?.some((items) => items.length)) return;
+    let alive = true;
+    setMediaLoading(true);
+    (async () => {
+      const loaded = await Promise.all(
+        initialMediaParts.map(async (items, i) =>
+          (
+            await Promise.all(
+              items.map(async (m, j) => {
+                try {
+                  const res = await fetch(m.url);
+                  if (!res.ok) return null;
+                  const blob = await res.blob();
+                  const ext = m.kind === 'video' ? 'mp4' : 'jpg';
+                  const file = new File(
+                    [blob],
+                    `draft-media-${i}-${j}.${ext}`,
+                    { type: blob.type || (m.kind === 'video' ? 'video/mp4' : 'image/jpeg') },
+                  );
+                  return { file, kind: m.kind as 'image' | 'video', url: URL.createObjectURL(file) };
+                } catch {
+                  return null;
+                }
+              }),
+            )
+          ).filter((x): x is { file: File; kind: 'image' | 'video'; url: string } => Boolean(x)),
+        ),
+      );
+      if (!alive) return;
+      const total = loaded.reduce((n, arr) => n + arr.length, 0);
+      if (total > 0) {
+        setSegs((prev) =>
+          prev.map((s, i) => ({ ...s, media: [...s.media, ...(loaded[i] ?? [])].slice(0, 10) })),
+        );
+      } else {
+        setErr('Draft media could not be reloaded — re-attach it before saving.');
+      }
+      setMediaLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const chosenProviders = useMemo(
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
@@ -238,6 +319,12 @@ export default function CreatePost({
           channels: chosen,
         });
       }
+      // Draft edit: the replacement saved — retire the original rows, then
+      // hand back to a fresh composer.
+      if (editingIds?.length) {
+        await Promise.allSettled(editingIds.map((id) => deletePost(sb, id)));
+        onEdited?.();
+      }
       router.push('/queue');
       router.refresh();
     } catch (e2) {
@@ -254,6 +341,11 @@ export default function CreatePost({
           <section className="card p-5" aria-label="Create your post">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-display text-base font-extrabold tracking-tight">Create your post</p>
+              {editingIds?.length ? (
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">
+                  Editing draft{mediaLoading ? ' · loading media…' : ''}
+                </span>
+              ) : null}
               <span className="flex-1" />
               {/* Mode pill — top, dashboard style */}
               <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Post mode">
