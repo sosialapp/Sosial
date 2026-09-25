@@ -5,7 +5,7 @@ import type { Block } from '@/content/types';
 /**
  * Public article body. New posts carry pre-serialized HTML (`body_html`) that
  * ships all text server-side for SEO; charts hydrate as islands. Posts never
- * re-saved since the BlockNote editor still use the legacy Block[] model and
+ * re-saved since the old editor still use the legacy Block[] model and
  * render through Prose.
  */
 export default function PostBody({

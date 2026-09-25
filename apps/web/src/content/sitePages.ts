@@ -1,7 +1,7 @@
 /**
  * CMS-editable marketing pages, grouped exactly like the footer. The admin
  * Pages section lists this registry; each entry renders a `site_pages` row
- * (BlockNote body) in a fixed slot on its route. Only registered slugs are
+ * (TipTap body) in a fixed slot on its route. Only registered slugs are
  * editable — no route sprawl.
  *
  * Modes:

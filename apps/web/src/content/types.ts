@@ -51,7 +51,7 @@ export interface Article {
   tag: Category;
   minutes: number;
   body: Block[];
-  /** Pre-serialized HTML from the BlockNote editor — null for legacy posts. */
+  /** Pre-serialized HTML from the editor — null for legacy posts. */
   bodyHtml: string | null;
 }
 
