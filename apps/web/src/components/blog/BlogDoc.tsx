@@ -1,9 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import {
+  AlignLeft,
   Bold,
+  BookOpen,
+  FileText,
   Heading1,
   Heading2,
   Heading3,
@@ -25,6 +28,7 @@ import {
   wordsOfTipTap,
   type TipTapDoc,
 } from '@/lib/blogConvert';
+import { EDITOR_THEMES, loadEditorTheme, saveEditorTheme, type EditorTheme } from '@/lib/editorTheme';
 
 export type BlogDocChange = (doc: TipTapDoc, words: number) => void;
 
@@ -84,6 +88,12 @@ export default function BlogDoc({
   onError: (msg: string) => void;
 }) {
   const [, force] = useReducer((x: number) => x + 1, 0);
+  const [theme, setTheme] = useState<EditorTheme>(() => loadEditorTheme());
+
+  const pickTheme = (t: EditorTheme) => {
+    setTheme(t);
+    saveEditorTheme(t);
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   const cellFileRef = useRef<HTMLInputElement>(null);
   const errRef = useRef(onError);
@@ -218,7 +228,7 @@ export default function BlogDoc({
     null;
 
   return (
-    <div className="tiptap-wrap">
+    <div className={`tiptap-wrap tiptap-theme-${theme}`}>
       {/* main toolbar */}
       <div className="tiptap-bar" role="toolbar" aria-label="Formatting">
         <TBtn onClick={() => editor.chain().focus().undo().run()} title="Undo">
@@ -286,6 +296,30 @@ export default function BlogDoc({
         <TBtn onClick={() => editor.chain().focus().insertContent({ type: 'buttonLink' }).run()} title="Button">
           <span className="text-[11px] font-extrabold">Button</span>
         </TBtn>
+        <span className="flex-1" />
+        <span className="tiptap-theme-switch" role="group" aria-label="Editor style">
+          {EDITOR_THEMES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pickTheme(t.id)}
+              title={`${t.label} style`}
+              aria-label={`${t.label} style`}
+              aria-pressed={theme === t.id}
+              className={`tiptap-theme-opt${theme === t.id ? ' tiptap-theme-on' : ''}`}
+            >
+              {t.id === 'document' ? (
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : t.id === 'notion' ? (
+                <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <AlignLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </span>
       </div>
 
       {/* table tools — only inside a table */}

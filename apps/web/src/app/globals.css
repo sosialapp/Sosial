@@ -517,6 +517,111 @@ body {
     color: rgba(28, 26, 20, 0.35);
   }
 
+  /* ---------------- editor visual themes (Notion / Document / Minimal) ---------------- */
+  /* The theme only restyles the editing surface — never the document or output. */
+  .tiptap-theme-switch {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    padding: 2px;
+    background: var(--color-paper);
+  }
+  .tiptap-theme-opt {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .tiptap-theme-opt:hover {
+    color: var(--color-ink);
+  }
+  .tiptap-theme-on {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+  .tiptap-theme-on:hover {
+    color: var(--color-paper);
+  }
+
+  /* Notion: flat sheet, narrower measure, quiet toolbar, sans headings. */
+  .blog-doc:has(.tiptap-theme-notion) {
+    background: transparent;
+    box-shadow: none;
+    padding-inline: 0.5rem;
+  }
+  .tiptap-theme-notion .tiptap-bar {
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--color-line);
+    border-radius: 0;
+    padding: 4px 0;
+  }
+  .tiptap-theme-notion .tiptap-bar-table {
+    border: 1px dashed var(--color-line);
+    border-radius: 10px;
+    background: transparent;
+    margin-top: 6px;
+  }
+  .tiptap-theme-notion .tiptap-doc {
+    max-width: 708px;
+    margin-inline: auto;
+    font-size: 15.5px;
+  }
+  .tiptap-theme-notion .tiptap-doc h1,
+  .tiptap-theme-notion .tiptap-doc h2,
+  .tiptap-theme-notion .tiptap-doc h3 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+  }
+  .tiptap-theme-notion .tiptap-doc blockquote {
+    border-left-color: var(--color-line);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1rem;
+  }
+
+  /* Minimal: no chrome at all, editorial serif headings, airy measure. */
+  .blog-doc:has(.tiptap-theme-minimal) {
+    background: transparent;
+    box-shadow: none;
+    padding-inline: 0.5rem;
+  }
+  .tiptap-theme-minimal .tiptap-bar {
+    background: transparent;
+    border: 0;
+    padding: 4px 0;
+  }
+  .tiptap-theme-minimal .tiptap-bar-table {
+    border: 1px dashed var(--color-line);
+    border-radius: 10px;
+    background: transparent;
+    margin-top: 6px;
+  }
+  .tiptap-theme-minimal .tiptap-doc {
+    max-width: 640px;
+    margin-inline: auto;
+    line-height: 1.9;
+  }
+  .tiptap-theme-minimal .tiptap-doc h1,
+  .tiptap-theme-minimal .tiptap-doc h2,
+  .tiptap-theme-minimal .tiptap-doc h3 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 500;
+  }
+  .tiptap-theme-minimal .tiptap-doc blockquote {
+    border-left-color: var(--color-line);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+  }
+
   /* Serialized blog body (public page + preview). */
   .blog-rich > :first-child {
     margin-top: 0;
