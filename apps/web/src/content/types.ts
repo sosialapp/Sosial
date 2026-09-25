@@ -53,6 +53,9 @@ export interface Article {
   body: Block[];
   /** Pre-serialized HTML from the editor — null for legacy posts. */
   bodyHtml: string | null;
+  /** Cover thumbnail (public blog-media URL) — null when unset. */
+  coverUrl: string | null;
+  coverAlt: string | null;
 }
 
 export type ResourceKind = 'Guide' | 'Playbook' | 'Template' | 'Glossary' | 'Cheat sheet';

@@ -24,7 +24,18 @@ export async function generateMetadata({
     title: post.title,
     description: post.description,
     alternates: { canonical: `/blog/${post.slug}` },
-    openGraph: { type: 'article', title: post.title, description: post.description },
+    openGraph: {
+      type: 'article',
+      title: post.title,
+      description: post.description,
+      ...(post.coverUrl ? { images: [{ url: post.coverUrl, alt: post.coverAlt ?? post.title }] } : {}),
+    },
+    twitter: {
+      card: post.coverUrl ? 'summary_large_image' : 'summary',
+      title: post.title,
+      description: post.description,
+      ...(post.coverUrl ? { images: [post.coverUrl] } : {}),
+    },
   };
 }
 
@@ -51,6 +62,15 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           {post.title}
         </h1>
         <p className="mt-4 text-lg leading-relaxed text-muted">{post.description}</p>
+
+        {post.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.coverUrl}
+            alt={post.coverAlt ?? post.title}
+            className="mt-8 aspect-[16/9] w-full rounded-2xl border border-line object-cover"
+          />
+        ) : null}
 
         <hr className="my-8 border-line" />
 
@@ -79,14 +99,25 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                 <Link
                   key={a.slug}
                   href={`/blog/${a.slug}`}
-                  className="card flex h-full flex-col p-5 transition hover:border-accent"
+                  className="card flex h-full flex-col overflow-hidden transition hover:border-accent"
                 >
-                  <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
-                  <h3 className="mt-3 font-display text-base font-extrabold leading-snug tracking-tight">
-                    {a.title}
-                  </h3>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{a.description}</p>
-                  <p className="mt-4 text-xs font-bold text-faint">{a.minutes} min read</p>
+                  {a.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={a.coverUrl}
+                      alt={a.coverAlt ?? a.title}
+                      loading="lazy"
+                      className="aspect-[16/9] w-full object-cover"
+                    />
+                  ) : null}
+                  <div className="flex flex-1 flex-col p-5">
+                    <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
+                    <h3 className="mt-3 font-display text-base font-extrabold leading-snug tracking-tight">
+                      {a.title}
+                    </h3>
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{a.description}</p>
+                    <p className="mt-4 text-xs font-bold text-faint">{a.minutes} min read</p>
+                  </div>
                 </Link>
               ))}
             </div>

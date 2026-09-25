@@ -19,12 +19,14 @@ interface BlogRow {
   description: string | null;
   body: unknown;
   body_html: string | null;
+  cover_url: string | null;
+  cover_alt: string | null;
   tag: string | null;
   minutes: number | null;
   published_at: string | null;
 }
 
-const COLS = 'slug, title, description, body, body_html, tag, minutes, published_at';
+const COLS = 'slug, title, description, body, body_html, cover_url, cover_alt, tag, minutes, published_at';
 
 function isBlock(b: unknown): b is Block {
   if (typeof b !== 'object' || b === null) return false;
@@ -56,6 +58,8 @@ function toArticle(r: BlogRow): Article {
     minutes: typeof r.minutes === 'number' && r.minutes > 0 ? r.minutes : 5,
     body: Array.isArray(r.body) ? (r.body as unknown[]).filter(isBlock) : [],
     bodyHtml: typeof r.body_html === 'string' && r.body_html.trim() ? r.body_html : null,
+    coverUrl: typeof r.cover_url === 'string' && r.cover_url.trim() ? r.cover_url : null,
+    coverAlt: typeof r.cover_alt === 'string' && r.cover_alt.trim() ? r.cover_alt : null,
   };
 }
 

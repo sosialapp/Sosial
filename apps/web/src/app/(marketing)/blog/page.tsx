@@ -78,16 +78,27 @@ export default async function BlogIndex({
             <Link
               key={a.slug}
               href={`/blog/${a.slug}`}
-              className="card flex h-full flex-col p-5 transition hover:border-accent"
+              className="card flex h-full flex-col overflow-hidden transition hover:border-accent"
             >
-              <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
-              <h2 className="mt-3 font-display text-lg font-extrabold leading-snug tracking-tight">
-                {a.title}
-              </h2>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{a.description}</p>
-              <p className="mt-4 text-xs font-bold text-faint">
-                {formatPostDate(a.date)} · {a.minutes} min read
-              </p>
+              {a.coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={a.coverUrl}
+                  alt={a.coverAlt || a.title}
+                  loading="lazy"
+                  className="aspect-[16/9] w-full object-cover"
+                />
+              ) : null}
+              <div className="flex flex-1 flex-col p-5">
+                <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
+                <h2 className="mt-3 font-display text-lg font-extrabold leading-snug tracking-tight">
+                  {a.title}
+                </h2>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{a.description}</p>
+                <p className="mt-4 text-xs font-bold text-faint">
+                  {formatPostDate(a.date)} · {a.minutes} min read
+                </p>
+              </div>
             </Link>
           ))}
         </div>

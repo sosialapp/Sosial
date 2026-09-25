@@ -24,6 +24,8 @@ export interface BlogDraft {
   published_at: string | null;
   /** updated_at the editor opened with — the save aborts if the row moved on. */
   updatedAt?: string | null;
+  coverUrl?: string | null;
+  coverAlt?: string | null;
 }
 
 function slugify(s: string): string {
@@ -47,6 +49,9 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
   const [slug, setSlug] = useState(initial?.slug ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [tag, setTag] = useState<Category>(initial?.tag ?? 'Publishing');
+  const [coverUrl, setCoverUrl] = useState(initial?.coverUrl ?? '');
+  const [coverAlt, setCoverAlt] = useState(initial?.coverAlt ?? '');
+  const [coverBusy, setCoverBusy] = useState(false);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -61,6 +66,37 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
   const onTitle = (v: string) => {
     setTitle(v);
     if (!slugTouched) setSlug(slugify(v));
+  };
+
+  /** Cover thumbnail upload → public blog-media URL (same bucket as body images). */
+  const onCoverFile = async (f: File | undefined) => {
+    if (!f) return;
+    if (!f.type.startsWith('image/')) {
+      setErr('Cover must be an image file.');
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setErr('Cover must be under 5 MB.');
+      return;
+    }
+    setCoverBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const ext =
+        (f.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const path = `covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await sb.storage
+        .from('blog-media')
+        .upload(path, f, { contentType: f.type });
+      if (error) throw new Error(error.message);
+      const { data } = sb.storage.from('blog-media').getPublicUrl(path);
+      setCoverUrl(data.publicUrl);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Cover upload failed.');
+    } finally {
+      setCoverBusy(false);
+    }
   };
 
   const onDocChange = useCallback((next: TipTapDoc, w: number) => {
@@ -99,6 +135,8 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
         body: content,
         body_html: bodyHtml,
         tag,
+        cover_url: coverUrl.trim() || null,
+        cover_alt: coverAlt.trim() || null,
         minutes: Math.max(1, Math.round(words / 200)),
         status,
         published_at:
@@ -244,6 +282,10 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
             <>
               <h2 className="font-display text-3xl font-extrabold tracking-tight">{title || 'Untitled'}</h2>
               {description ? <p className="mt-3 text-lg text-muted">{description}</p> : null}
+              {coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverUrl} alt={coverAlt || title || 'Cover'} className="mt-6 aspect-[16/9] w-full rounded-2xl border border-line object-cover" />
+              ) : null}
               <hr className="my-6 border-line" />
               <div className="prose-sosial blog-rich" dangerouslySetInnerHTML={{ __html: previewHtml }} />
               <ChartIslands />
@@ -273,6 +315,46 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
         {/* page setup */}
         <details className="doc-sheet mx-auto mt-4 max-w-[820px] rounded-md bg-white px-5 py-3 text-[#1C1A14] shadow-sm sm:px-8">
           <summary className="cursor-pointer text-xs font-bold text-muted">Page setup</summary>
+          <div className="mt-3 grid gap-3">
+            <div className="grid gap-1 text-xs font-bold text-muted">
+              Cover thumbnail
+              {coverUrl ? (
+                <span className="relative block overflow-hidden rounded-xl border border-line">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={coverUrl} alt={coverAlt || 'Cover preview'} className="aspect-[16/9] w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setCoverUrl('')}
+                    disabled={saving || coverBusy}
+                    className="absolute right-2 top-2 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-black/80 disabled:opacity-40"
+                  >
+                    Remove
+                  </button>
+                </span>
+              ) : (
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-paper px-3 py-6 text-xs font-bold text-muted transition hover:border-faint hover:text-ink">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={saving || coverBusy}
+                    onChange={(e) => {
+                      void onCoverFile(e.target.files?.[0]);
+                      e.target.value = '';
+                    }}
+                  />
+                  {coverBusy ? 'Uploading…' : 'Upload cover — 16:9 works best, under 5 MB'}
+                </label>
+              )}
+              <input
+                value={coverAlt}
+                onChange={(e) => setCoverAlt(e.target.value)}
+                placeholder="Alt text for the cover (accessibility + SEO)"
+                aria-label="Cover alt text"
+                className="field"
+              />
+            </div>
+          </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-bold text-muted">
               Slug
