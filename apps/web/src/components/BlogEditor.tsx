@@ -7,8 +7,8 @@ import { ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import BlogDoc from '@/components/blog/BlogDoc';
 import ChartIslands from '@/components/site/ChartIslands';
-import { legacyToBlocks, wordsOfDoc, type DocBlock } from '@/lib/blogConvert';
-import { blocksToProseHtml } from '@/lib/blogHtml';
+import { normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
+import { tiptapToProseHtml } from '@/lib/blogHtml';
 import { BLOG_TAGS, type Block, type Category } from '@/content/types';
 
 export interface BlogDraft {
@@ -16,8 +16,8 @@ export interface BlogDraft {
   slug: string;
   title: string;
   description: string;
-  /** BlockNote JSON for new posts, legacy Block[] for posts never re-saved. */
-  body: unknown[];
+  /** Stored body: legacy blocks, old BlockNote JSON or TipTap JSON — normalized on open. */
+  body: unknown;
   tag: Category;
   minutes: number;
   status: 'draft' | 'published';
@@ -34,7 +34,7 @@ function slugify(s: string): string {
 
 /**
  * Owner post editor. The .doc-sheet chrome, title and page setup stay custom;
- * the document itself is a Notion-style BlockNote editor with media, tables,
+ * the document itself is a TipTap editor with media, Docs-style tables,
  * social embeds and charts. Saving serializes the document to HTML too, so
  * the public page server-renders exactly what was written.
  */
@@ -49,29 +49,19 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Legacy Block[] bodies convert once, on open.
-  const isLegacy = useRef(
-    !!initial && initial.body.length > 0 && (initial.body as Block[])[0] !== undefined &&
-      't' in (initial.body as Block[])[0],
+  // Any stored body (legacy blocks, BlockNote JSON or TipTap JSON) normalizes
+  // to a TipTap doc once, on open.
+  const [doc, setDoc] = useState<TipTapDoc | null>(
+    () => normalizeInitialDoc(initial?.body) ?? null,
   );
-  const [doc, setDoc] = useState<unknown[]>(() => {
-    if (!initial || initial.body.length === 0) return [];
-    return isLegacy.current ? legacyToBlocks(initial.body as Block[]) : initial.body;
-  });
-  const [words, setWords] = useState(() =>
-    initial && initial.body.length > 0
-      ? wordsOfDoc(
-          isLegacy.current ? legacyToBlocks(initial.body as Block[]) : (initial.body as DocBlock[]),
-        )
-      : 0,
-  );
+  const [words, setWords] = useState(() => wordsOfTipTap(normalizeInitialDoc(initial?.body)));
 
   const onTitle = (v: string) => {
     setTitle(v);
     if (!slugTouched) setSlug(slugify(v));
   };
 
-  const onDocChange = useCallback((next: unknown[], w: number) => {
+  const onDocChange = useCallback((next: TipTapDoc, w: number) => {
     setDoc(next);
     setWords(w);
   }, []);
@@ -86,18 +76,23 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
       setErr('Slug is required.');
       return;
     }
-    const content = (doc as DocBlock[]).filter((b) => {
-      if (b.type === 'socialEmbed' || b.type === 'video' || b.type === 'image') {
-        return String(b.props?.url ?? '').trim().length > 0;
-      }
-      if (b.type === 'chart') return String(b.props?.data ?? '').length > 0;
-      return true;
-    });
-    if (content.length === 0) {
+    const content: TipTapDoc = {
+      type: 'doc',
+      content: (doc?.content ?? []).filter((b) => {
+        const url = String(b.attrs?.url ?? '').trim();
+        if (b.type === 'socialEmbed' || b.type === 'image') return url.length > 0;
+        if (b.type === 'chart') return String(b.attrs?.data ?? '').length > 0;
+        if (b.type === 'buttonLink') {
+          return String(b.attrs?.label ?? '').trim().length > 0 && url.length > 0;
+        }
+        return true;
+      }),
+    };
+    if (content.content.length === 0) {
       setErr('Add at least one block with content.');
       return;
     }
-    const bodyHtml = blocksToProseHtml(content);
+    const bodyHtml = tiptapToProseHtml(content);
     if (!bodyHtml.trim()) {
       setErr('The document is still empty — write something first.');
       return;
@@ -152,7 +147,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
     }
   };
 
-  const previewHtml = blocksToProseHtml(doc as DocBlock[]);
+  const previewHtml = tiptapToProseHtml(doc);
 
   return (
     <div className="min-h-screen">

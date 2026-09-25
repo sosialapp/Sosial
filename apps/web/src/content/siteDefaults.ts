@@ -2,7 +2,8 @@ import type { Block } from './types';
 import { RESOURCES } from './resources';
 import { PRIVACY, TERMS } from './legal';
 import { CHANNEL_GUIDES } from './channels';
-import { legacyToBlocks } from '@/lib/blogConvert';
+import { legacyToTipTap } from '@/lib/blogConvert';
+import type { TipTapDoc } from '@/lib/blogConvert';
 
 /**
  * The current hardcoded copy of every CMS-registered page, expressed as the
@@ -436,18 +437,18 @@ function legalBlocks(doc: typeof TERMS | typeof PRIVACY): B[] {
   ];
 }
 
-/** The current live copy of a registered page, as editor-ready JSON. */
-export function defaultDocForSlug(slug: string): unknown[] | null {
+/** The current live copy of a registered page, as editor-ready TipTap JSON. */
+export function defaultDocForSlug(slug: string): TipTapDoc | null {
   if (slug.startsWith('resources/')) {
     const r = RESOURCES.find((x) => `resources/${x.slug}` === slug);
-    return r ? legacyToBlocks(r.body) : null;
+    return r ? legacyToTipTap(r.body) : null;
   }
-  if (slug === 'terms') return legacyToBlocks(legalBlocks(TERMS));
-  if (slug === 'privacy') return legacyToBlocks(legalBlocks(PRIVACY));
+  if (slug === 'terms') return legacyToTipTap(legalBlocks(TERMS));
+  if (slug === 'privacy') return legacyToTipTap(legalBlocks(PRIVACY));
   if (slug.startsWith('integrations/')) {
     const b = channelBlocks(slug.split('/')[1]);
-    return b ? legacyToBlocks(b) : null;
+    return b ? legacyToTipTap(b) : null;
   }
   const b = STATIC_BLOCKS[slug];
-  return b ? legacyToBlocks(b) : null;
+  return b ? legacyToTipTap(b) : null;
 }

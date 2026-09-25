@@ -7,13 +7,13 @@ import { ChevronLeft, Eye, RotateCcw, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import BlogDoc from '@/components/blog/BlogDoc';
 import ChartIslands from '@/components/site/ChartIslands';
-import { blocksToProseHtml } from '@/lib/blogHtml';
-import { wordsOfDoc, type DocBlock } from '@/lib/blogConvert';
+import { tiptapToProseHtml } from '@/lib/blogHtml';
+import { normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
 import { defaultDocForSlug } from '@/content/siteDefaults';
 import type { SitePageDef } from '@/content/sitePages';
 
 /**
- * CMS page editor — the BlockNote document surface from the blog editor,
+ * CMS page editor — the TipTap document surface from the blog editor,
  * without title/slug/tag chrome (the registry owns identity). Save upserts
  * the site_pages row; "Restore default" deletes it so the page falls back
  * to its hardcoded design.
@@ -28,21 +28,32 @@ export default function PageEditor({
   const router = useRouter();
   // Never-customized pages open with their current live copy pre-loaded, so
   // editing means changing what visitors see today — not writing from zero.
-  const seeded = initial ?? defaultDocForSlug(def.slug) ?? [];
-  const [doc, setDoc] = useState<unknown[]>(seeded);
-  const [words, setWords] = useState(() => wordsOfDoc(seeded as DocBlock[]));
+  const seeded = normalizeInitialDoc(initial ?? defaultDocForSlug(def.slug)) ?? null;
+  const [doc, setDoc] = useState<TipTapDoc | null>(seeded);
+  const [words, setWords] = useState(() => wordsOfTipTap(seeded));
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const onDocChange = useCallback((next: unknown[], w: number) => {
+  const onDocChange = useCallback((next: TipTapDoc, w: number) => {
     setDoc(next);
     setWords(w);
   }, []);
 
   const save = async () => {
-    const content = doc as DocBlock[];
-    const bodyHtml = blocksToProseHtml(content);
+    const content: TipTapDoc = {
+      type: 'doc',
+      content: (doc?.content ?? []).filter((b) => {
+        const url = String(b.attrs?.url ?? '').trim();
+        if (b.type === 'socialEmbed' || b.type === 'image') return url.length > 0;
+        if (b.type === 'chart') return String(b.attrs?.data ?? '').length > 0;
+        if (b.type === 'buttonLink') {
+          return String(b.attrs?.label ?? '').trim().length > 0 && url.length > 0;
+        }
+        return true;
+      }),
+    };
+    const bodyHtml = tiptapToProseHtml(content);
     if (!bodyHtml.trim()) {
       setErr('The document is still empty — write something first.');
       return;
@@ -85,7 +96,7 @@ export default function PageEditor({
     }
   };
 
-  const previewHtml = blocksToProseHtml(doc as DocBlock[]);
+  const previewHtml = tiptapToProseHtml(doc);
 
   return (
     <div className="min-h-screen">

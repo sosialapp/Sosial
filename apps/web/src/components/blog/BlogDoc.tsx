@@ -1,404 +1,401 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { EditorContent, useEditor } from '@tiptap/react';
 import {
-  BlockNoteSchema,
-  defaultBlockSpecs,
-} from '@blocknote/core';
-import { createReactBlockSpec } from '@blocknote/react';
-import { BlockNoteView } from '@blocknote/mantine';
-import { useCreateBlockNote } from '@blocknote/react';
+  Bold,
+  Heading1,
+  Heading2,
+  Heading3,
+  Image as ImageIcon,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  PaintBucket,
+  Redo,
+  Table as TableIcon,
+  TextQuote,
+  Type,
+  Undo,
+} from 'lucide-react';
+import { createBlogExtensions } from '@/components/blog/tiptap';
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { ChartColumn, ImagePlus, Link2, Plus, Trash2 } from 'lucide-react';
-import { resolveEmbed } from '@/lib/richtext';
-import {
-  encodeChartData,
-  parseChartData,
-  wordsOfDoc,
-  type ChartPoint,
+  normalizeInitialDoc,
+  wordsOfTipTap,
+  type TipTapDoc,
 } from '@/lib/blogConvert';
-import '@blocknote/core/fonts/inter.css';
-import '@blocknote/mantine/style.css';
 
-/* ------------------------------ social embed ------------------------------ */
+export type BlogDocChange = (doc: TipTapDoc, words: number) => void;
 
-/** Social/video/music embed — paste any post URL, render the real thing. */
-const SocialEmbed = createReactBlockSpec(
-  {
-    type: 'socialEmbed',
-    propSchema: {
-      url: { default: '' },
-      caption: { default: '' },
-    },
-    content: 'none',
-  },
-  {
-    render: ({ block, editor }) => {
-      const url = String(block.props.url ?? '');
-      const embed = resolveEmbed(url);
-      const set = (props: Record<string, string>) =>
-        editor.updateBlock(block, { props: { ...block.props, ...props } });
+const SWATCHES = [
+  '#FDF3D7',
+  '#E4F2E5',
+  '#EDE7FB',
+  '#E3EDF9',
+  '#FCE9DC',
+  '#F9E4EC',
+  '#1C1A14',
+];
 
-      const uploadable = (
-        <div className="blog-embed-edit">
-          <input
-            value={url}
-            onChange={(e) => set({ url: e.target.value })}
-            placeholder="Paste a YouTube, X, Instagram, TikTok, Spotify… URL"
-            className="blog-embed-input"
-          />
-          {url ? (
-            <button type="button" onClick={() => set({ url: '' })} className="blog-embed-clear">
-              Clear
-            </button>
-          ) : null}
-        </div>
-      );
+const RADII = ['0px', '8px', '16px', '24px'];
 
-      return (
-        <div contentEditable={false} className="blog-embed">
-          {uploadable}
-          {embed ? (
-            <div
-              className={`blog-embed-box${embed.ratio === 'auto' ? ' blog-embed-auto' : ''}`}
-              style={embed.ratio === 'auto' ? { height: embed.height } : { aspectRatio: embed.ratio }}
-            >
-              <iframe
-                src={embed.src}
-                title="Embedded content"
-                loading="lazy"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            </div>
-          ) : url ? (
-            <a className="blog-embed-card" href={url} target="_blank" rel="noopener noreferrer">
-              <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate">{url}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wide opacity-70">
-                renders as a link card
-              </span>
-            </a>
-          ) : null}
-          <input
-            value={String(block.props.caption ?? '')}
-            onChange={(e) => set({ caption: e.target.value })}
-            placeholder="Caption (optional)"
-            className="blog-embed-caption"
-          />
-        </div>
-      );
-    },
-  },
-);
-
-/* --------------------------------- chart --------------------------------- */
-
-const CHART_COLORS = ['#1C1A14', '#F2A400', '#2F8F5B', '#1D7FE0', '#D6249F', '#E6A417', '#7C6FF0', '#C24E4C', '#4E9BB9', '#8A8F3A', '#B06FA8', '#5E5A50'];
-
-function ChartCanvas({ kind, points }: { kind: string; points: ChartPoint[] }) {
+function TBtn({
+  onClick,
+  active,
+  title,
+  children,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="h-56 w-full" aria-hidden="true">
-      <ResponsiveContainer width="100%" height="100%">
-        {kind === 'pie' ? (
-          <PieChart>
-            <Pie data={points} dataKey="value" nameKey="label" innerRadius="45%" outerRadius="80%" paddingAngle={2} isAnimationActive={false}>
-              {points.map((_, i) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        ) : kind === 'line' ? (
-          <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(28,26,20,0.12)" />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="rgba(28,26,20,0.4)" />
-            <YAxis tick={{ fontSize: 11 }} stroke="rgba(28,26,20,0.4)" />
-            <Tooltip />
-            <Line type="monotone" dataKey="value" stroke="#F2A400" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
-          </LineChart>
-        ) : (
-          <BarChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(28,26,20,0.12)" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="rgba(28,26,20,0.4)" />
-            <YAxis tick={{ fontSize: 11 }} stroke="rgba(28,26,20,0.4)" />
-            <Tooltip />
-            <Bar dataKey="value" radius={[6, 6, 0, 0]} isAnimationActive={false}>
-              {points.map((_, i) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        )}
-      </ResponsiveContainer>
-    </div>
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+      className={`flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg px-1.5 text-xs font-bold transition ${
+        active ? 'bg-ink text-paper' : 'text-soft hover:bg-paper-dim hover:text-ink'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
-/** Chart block — editable data rows in the editor, recharts everywhere. */
-const ChartBlock = createReactBlockSpec(
-  {
-    type: 'chart',
-    propSchema: {
-      kind: { default: 'bar', values: ['bar', 'line', 'pie'] as const },
-      title: { default: '' },
-      data: { default: '' },
-    },
-    content: 'none',
-  },
-  {
-    render: ({ block, editor }) => {
-      const points = parseChartData(block.props.data);
-      const set = (props: Record<string, string>) =>
-        editor.updateBlock(block, { props: { ...block.props, ...props } });
-      const setPoint = (i: number, patch: Partial<ChartPoint>) =>
-        set({ data: encodeChartData(points.map((p, j) => (j === i ? { ...p, ...patch } : p))) });
-      const addPoint = () => set({ data: encodeChartData([...points, { label: '', value: 0 }]) });
-      const delPoint = (i: number) => set({ data: encodeChartData(points.filter((_, j) => j !== i)) });
-
-      return (
-        <div contentEditable={false} className="blog-chart">
-          <div className="blog-chart-head">
-            <ChartColumn className="h-4 w-4 shrink-0 text-accent-ink" aria-hidden="true" />
-            <input
-              value={String(block.props.title ?? '')}
-              onChange={(e) => set({ title: e.target.value })}
-              placeholder="Chart title…"
-              className="blog-chart-title"
-            />
-            <select
-              value={String(block.props.kind ?? 'bar')}
-              onChange={(e) => set({ kind: e.target.value })}
-              aria-label="Chart type"
-              className="blog-chart-kind"
-            >
-              <option value="bar">Bar</option>
-              <option value="line">Line</option>
-              <option value="pie">Pie</option>
-            </select>
-          </div>
-          {points.length > 0 ? <ChartCanvas kind={String(block.props.kind ?? 'bar')} points={points} /> : null}
-          <div className="blog-chart-rows">
-            {points.map((p, i) => (
-              <div key={i} className="blog-chart-row">
-                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} aria-hidden="true" />
-                <input
-                  value={p.label}
-                  onChange={(e) => setPoint(i, { label: e.target.value })}
-                  placeholder="Label"
-                  className="blog-chart-cell"
-                  aria-label={`Point ${i + 1} label`}
-                />
-                <input
-                  value={String(p.value)}
-                  onChange={(e) => setPoint(i, { value: Number(e.target.value) || 0 })}
-                  inputMode="decimal"
-                  className="blog-chart-cell !w-20 text-right"
-                  aria-label={`Point ${i + 1} value`}
-                />
-                <button
-                  type="button"
-                  onClick={() => delPoint(i)}
-                  aria-label="Remove point"
-                  className="blog-chart-del"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-            <button type="button" onClick={addPoint} className="blog-chart-add">
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Add data point
-            </button>
-          </div>
-        </div>
-      );
-    },
-  },
-);
-
-/* ------------------------------- button link ------------------------------- */
-
 /**
- * Button block — a labelled call-to-action linking anywhere (external URL or
- * an internal route like /compare). Optional image renders left of the label,
- * turning the button into a card-style link (e.g. "Sosial vs Buffer" with the
- * competitor's logo).
- */
-const ButtonLink = createReactBlockSpec(
-  {
-    type: 'buttonLink',
-    propSchema: {
-      label: { default: '' },
-      href: { default: '' },
-      image: { default: '' },
-      variant: { default: 'solid', values: ['solid', 'outline'] as const },
-    },
-    content: 'none',
-  },
-  {
-    render: ({ block, editor }) => {
-      const label = String(block.props.label ?? '');
-      const href = String(block.props.href ?? '');
-      const image = String(block.props.image ?? '');
-      const set = (props: Record<string, string>) =>
-        editor.updateBlock(block, { props: { ...block.props, ...props } });
-
-      const upload = async (file: File | undefined) => {
-        if (!file) return;
-        try {
-          const uploader = (editor as unknown as { uploadFile?: (f: File) => Promise<string> }).uploadFile;
-          if (typeof uploader === 'function') {
-            set({ image: await uploader.call(editor, file) });
-          } else {
-            // No uploader on this surface — fall back to reading a data URL.
-            const reader = new FileReader();
-            reader.onload = () => set({ image: String(reader.result ?? '') });
-            reader.readAsDataURL(file);
-          }
-        } catch {
-          /* keep the previous image */
-        }
-      };
-
-      return (
-        <div contentEditable={false} className="blog-btn">
-          <div className="blog-btn-row">
-            <label className="blog-btn-preview" title="Button image (optional)">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  void upload(e.target.files?.[0]);
-                  e.target.value = '';
-                }}
-              />
-              {image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={image} alt="" className="h-full w-full rounded-lg object-cover" />
-              ) : (
-                <ImagePlus className="h-4 w-4" aria-hidden="true" />
-              )}
-            </label>
-            <input
-              value={label}
-              onChange={(e) => set({ label: e.target.value })}
-              placeholder="Button label — e.g. Sosial vs Buffer"
-              aria-label="Button label"
-              className="blog-btn-label"
-            />
-            <input
-              value={href}
-              onChange={(e) => set({ href: e.target.value })}
-              placeholder="https://… or /compare"
-              aria-label="Button link"
-              className="blog-btn-href"
-            />
-            <select
-              value={String(block.props.variant ?? 'solid')}
-              onChange={(e) => set({ variant: e.target.value })}
-              aria-label="Button style"
-              className="blog-btn-variant"
-            >
-              <option value="solid">Solid</option>
-              <option value="outline">Outline</option>
-            </select>
-          </div>
-          {label || href ? (
-            <div className="blog-btn-live">
-              <a
-                className={`rich-btn ${block.props.variant === 'outline' ? 'rich-btn-outline' : ''}`}
-                href={href || '#'}
-                onClick={(e) => e.preventDefault()}
-              >
-                {image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={image} alt="" className="rich-btn-img" />
-                ) : null}
-                <span>{label || 'Button'}</span>
-              </a>
-            </div>
-          ) : null}
-        </div>
-      );
-    },
-  },
-);
-
-/* --------------------------------- schema --------------------------------- */
-
-export const blogSchema = BlockNoteSchema.create({
-  blockSpecs: {
-    ...defaultBlockSpecs,
-    socialEmbed: SocialEmbed,
-    chart: ChartBlock,
-    buttonLink: ButtonLink,
-  },
-});
-
-export type BlogDocChange = (doc: unknown[], words: number) => void;
-
-/**
- * The BlockNote surface inside the .doc-sheet. Uploads go to Supabase
- * blog-media; every change hands the document JSON + word count upward.
+ * The TipTap surface inside the .doc-sheet. Same props as before: uploads go
+ * to Supabase blog-media; every change hands the document JSON + word count
+ * upward. Toolbar is Docs-style (static); a second row appears inside tables
+ * with cell colors, corner radius and row/column tools.
  */
 export default function BlogDoc({
   initial,
   onChange,
   onError,
 }: {
-  initial: unknown[];
+  initial: unknown;
   onChange: BlogDocChange;
   onError: (msg: string) => void;
 }) {
-  const uploadFile = useCallback(
-    async (file: File): Promise<string> => {
-      const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      const ext =
-        (file.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await sb.storage
-        .from('blog-media')
-        .upload(path, file, { contentType: file.type || 'application/octet-stream' });
-      if (error) throw new Error(error.message);
-      const { data } = sb.storage.from('blog-media').getPublicUrl(path);
-      return data.publicUrl;
+  const [, force] = useReducer((x: number) => x + 1, 0);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const cellFileRef = useRef<HTMLInputElement>(null);
+  const errRef = useRef(onError);
+  errRef.current = onError;
+
+  const uploadFile = useCallback(async (file: File): Promise<string> => {
+    const { createClient } = await import('@/lib/supabase/client');
+    const sb = createClient();
+    const ext =
+      (file.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await sb.storage
+      .from('blog-media')
+      .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+    if (error) throw new Error(error.message);
+    const { data } = sb.storage.from('blog-media').getPublicUrl(path);
+    return data.publicUrl;
+  }, []);
+
+  const editor = useEditor(
+    {
+      extensions: createBlogExtensions(uploadFile),
+      content: normalizeInitialDoc(initial) as never,
+      immediatelyRender: false,
+      editorProps: {
+        attributes: { class: 'tiptap-doc' },
+        handleDrop: (view, event) => {
+          const files = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
+            f.type.startsWith('image/'),
+          );
+          if (!files.length) return false;
+          event.preventDefault();
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          void (async () => {
+            try {
+              for (const file of files) {
+                const src = await uploadFile(file);
+                view.dispatch(
+                  view.state.tr.insert(
+                    coords?.pos ?? view.state.selection.from,
+                    view.state.schema.nodes.image.create({ src }),
+                  ),
+                );
+              }
+            } catch (e) {
+              errRef.current(e instanceof Error ? e.message : 'Image upload failed.');
+            }
+          })();
+          return true;
+        },
+        handlePaste: (view, event) => {
+          const files = Array.from(event.clipboardData?.files ?? []).filter((f) =>
+            f.type.startsWith('image/'),
+          );
+          if (!files.length) return false;
+          event.preventDefault();
+          void (async () => {
+            try {
+              for (const file of files) {
+                const src = await uploadFile(file);
+                view.dispatch(
+                  view.state.tr.insert(
+                    view.state.selection.from,
+                    view.state.schema.nodes.image.create({ src }),
+                  ),
+                );
+              }
+            } catch (e) {
+              errRef.current(e instanceof Error ? e.message : 'Image upload failed.');
+            }
+          })();
+          return true;
+        },
+      },
+      onUpdate: ({ editor: ed }) => {
+        const doc = ed.getJSON() as unknown as TipTapDoc;
+        onChange(doc, wordsOfTipTap(doc));
+        force();
+      },
+      onSelectionUpdate: () => force(),
     },
-    [],
+    [uploadFile],
   );
 
-  const editor = useCreateBlockNote({
-    schema: blogSchema,
-    initialContent: (initial.length ? initial : undefined) as never,
-    uploadFile,
-  });
+  // Re-seed when the host swaps documents (edit another post/page).
+  const initialKey = JSON.stringify(initial ?? null).slice(0, 64);
+  useEffect(() => {
+    if (!editor) return;
+    const doc = normalizeInitialDoc(initial);
+    editor.commands.setContent((doc ?? { type: 'doc', content: [{ type: 'paragraph' }] }) as never);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, initialKey]);
 
-  const emit = useCallback(() => {
-    const doc = editor.document as unknown[];
-    onChange(doc, wordsOfDoc(doc as never));
-  }, [editor, onChange]);
+  if (!editor) return null;
+
+  const pickImage = (intoCell: boolean) => {
+    (intoCell ? cellFileRef : fileRef).current?.click();
+  };
+
+  const onImageFile = async (file: File | undefined, intoCell: boolean) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const src = await uploadFile(file);
+      editor.chain().focus().setImage({ src }).run();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Image upload failed.');
+    }
+  };
+
+  const setLink = () => {
+    const prev = editor.getAttributes('link').href as string | undefined;
+    const href = window.prompt('Link URL (https://…)', prev ?? 'https://');
+    if (href === null) return;
+    if (!href.trim()) {
+      editor.chain().focus().unsetLink().run();
+      return;
+    }
+    editor.chain().focus().setLink({ href: href.trim() }).run();
+  };
+
+  const setColor = (color: string | null) => {
+    if (!color) {
+      editor.chain().focus().unsetColor().run();
+      return;
+    }
+    editor.chain().focus().setColor(color).run();
+  };
+
+  const inTable = editor.isActive('table');
+  const cellBg = (editor.getAttributes('tableCell').backgroundColor as string | undefined) ??
+    (editor.getAttributes('tableHeader').backgroundColor as string | undefined) ??
+    null;
 
   return (
-    <BlockNoteView
-      editor={editor}
-      theme="light"
-      editable
-      onChange={emit}
-    />
+    <div className="tiptap-wrap">
+      {/* main toolbar */}
+      <div className="tiptap-bar" role="toolbar" aria-label="Formatting">
+        <TBtn onClick={() => editor.chain().focus().undo().run()} title="Undo">
+          <Undo className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().redo().run()} title="Redo">
+          <Redo className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <span className="tiptap-sep" aria-hidden="true" />
+        <TBtn onClick={() => editor.chain().focus().setParagraph().run()} active={editor.isActive('paragraph')} title="Body text">
+          <Type className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} title="Heading 1">
+          <Heading1 className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2">
+          <Heading2 className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3">
+          <Heading3 className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <span className="tiptap-sep" aria-hidden="true" />
+        <TBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold">
+          <Bold className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic">
+          <Italic className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={setLink} active={editor.isActive('link')} title="Link">
+          <Link2 className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <label className="tiptap-color" title="Text color">
+          <span className="tiptap-color-dot" style={{ background: (editor.getAttributes('textStyle').color as string | undefined) ?? '#1C1A14' }} aria-hidden="true" />
+          <input
+            type="color"
+            className="hidden"
+            value={(editor.getAttributes('textStyle').color as string | undefined) ?? '#1C1A14'}
+            onChange={(e) => setColor(e.target.value)}
+            aria-label="Text color"
+          />
+        </label>
+        <span className="tiptap-sep" aria-hidden="true" />
+        <TBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Quote">
+          <TextQuote className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet list">
+          <List className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered list">
+          <ListOrdered className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <span className="tiptap-sep" aria-hidden="true" />
+        <TBtn onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert table">
+          <TableIcon className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => pickImage(false)} title="Insert image">
+          <ImageIcon className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().insertContent({ type: 'socialEmbed' }).run()} title="Social / video embed">
+          <span className="text-[11px] font-extrabold">Embed</span>
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().insertContent({ type: 'chart' }).run()} title="Chart">
+          <span className="text-[11px] font-extrabold">Chart</span>
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().insertContent({ type: 'buttonLink' }).run()} title="Button">
+          <span className="text-[11px] font-extrabold">Button</span>
+        </TBtn>
+      </div>
+
+      {/* table tools — only inside a table */}
+      {inTable ? (
+        <div className="tiptap-bar tiptap-bar-table" role="toolbar" aria-label="Table tools">
+          <span className="tiptap-group-label">Cell</span>
+          <span className="flex items-center gap-1" role="group" aria-label="Cell background">
+            <PaintBucket className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+            {SWATCHES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().setCellAttribute('backgroundColor', c).run()}
+                title={`Cell color ${c}`}
+                aria-label={`Cell color ${c}`}
+                aria-pressed={cellBg === c}
+                className={`h-5 w-5 rounded-full border transition ${cellBg === c ? 'border-ink ring-2 ring-ink/30' : 'border-line'}`}
+                style={{ background: c }}
+              />
+            ))}
+            <label title="Custom cell color" className="tiptap-color">
+              <span className="tiptap-color-dot tiptap-color-custom" aria-hidden="true">+</span>
+              <input
+                type="color"
+                className="hidden"
+                value={cellBg && /^#[0-9a-fA-F]{6}$/.test(cellBg) ? cellBg : '#FDF3D7'}
+                onChange={(e) => editor.chain().focus().setCellAttribute('backgroundColor', e.target.value).run()}
+                aria-label="Custom cell color"
+              />
+            </label>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().setCellAttribute('backgroundColor', null).run()}
+              title="Clear cell color"
+              className="rounded-md px-1.5 py-1 text-[11px] font-bold text-muted hover:text-ink"
+            >
+              Clear
+            </button>
+          </span>
+          <span className="tiptap-sep" aria-hidden="true" />
+          <span className="flex items-center gap-1" role="group" aria-label="Corner radius">
+            {RADII.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().updateAttributes('table', { radius: r === '0px' ? null : r }).run()}
+                title={`Corners ${r}`}
+                aria-label={`Table corners ${r}`}
+                className="rounded-md px-1.5 py-1 text-[11px] font-bold text-muted transition hover:text-ink"
+              >
+                {r.replace('px', '')}
+              </button>
+            ))}
+          </span>
+          <span className="tiptap-sep" aria-hidden="true" />
+          <TBtn onClick={() => pickImage(true)} title="Image in this cell">
+            <ImageIcon className="h-4 w-4" aria-hidden="true" />
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().addRowBefore().run()} title="Add row above">
+            <span className="text-[11px] font-extrabold">+R↑</span>
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().addRowAfter().run()} title="Add row below">
+            <span className="text-[11px] font-extrabold">+R↓</span>
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().addColumnBefore().run()} title="Add column left">
+            <span className="text-[11px] font-extrabold">+C←</span>
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().addColumnAfter().run()} title="Add column right">
+            <span className="text-[11px] font-extrabold">+C→</span>
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().deleteRow().run()} title="Delete row">
+            <span className="text-[11px] font-extrabold">−R</span>
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().deleteColumn().run()} title="Delete column">
+            <span className="text-[11px] font-extrabold">−C</span>
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().toggleHeaderRow().run()} title="Toggle header row">
+            <span className="text-[11px] font-extrabold">H</span>
+          </TBtn>
+          <TBtn onClick={() => editor.chain().focus().deleteTable().run()} title="Delete table">
+            <span className="text-[11px] font-extrabold">Del</span>
+          </TBtn>
+        </div>
+      ) : null}
+
+      <EditorContent editor={editor} />
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          void onImageFile(e.target.files?.[0], false);
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={cellFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          void onImageFile(e.target.files?.[0], true);
+          e.target.value = '';
+        }}
+      />
+    </div>
   );
 }

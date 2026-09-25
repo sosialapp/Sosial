@@ -22,7 +22,7 @@ export default async function AdminBlogEdit({ params }: { params: Promise<{ id: 
     slug: data.slug as string,
     title: data.title as string,
     description: (data.description as string) ?? '',
-    body: Array.isArray(data.body) ? (data.body as unknown[]) : [],
+    body: (data.body as unknown) ?? null,
     tag: (data.tag as Category) ?? 'Publishing',
     minutes: (data.minutes as number) ?? 5,
     status: data.status === 'published' ? 'published' : 'draft',

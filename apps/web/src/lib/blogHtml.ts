@@ -1,8 +1,9 @@
-import { inlineText, parseChartData, type DocBlock, type RichInline } from '@/lib/blogConvert';
-import { resolveEmbed } from '@/lib/richtext';
+import { parseChartData } from '@/lib/blogConvert';
+import { resolveEmbed } from '@/lib/embeds';
+import type { TMark, TNode, TipTapDoc } from '@/lib/blogConvert';
 
 /**
- * BlockNote JSON → published HTML. Pure and deterministic so the exact string
+ * TipTap JSON → published HTML. Pure and deterministic so the exact string
  * saved with the post is what the public page server-renders (full SEO, zero
  * client JS for readers). Charts emit an empty <figure class="sosial-chart">
  * carrying its data — the reader page hydrates those with recharts.
@@ -16,30 +17,47 @@ const esc = (s: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-function inlineHtml(nodes: unknown): string {
-  if (typeof nodes === 'string') return esc(nodes);
-  if (!Array.isArray(nodes)) return '';
-  let out = '';
-  for (const raw of nodes as Record<string, unknown>[]) {
-    if (raw.type === 'text') {
-      const text = esc(String(raw.text ?? ''));
-      const styles = (raw.styles ?? {}) as { bold?: boolean; italic?: boolean };
-      if (styles.bold && styles.italic) out += `<strong><em>${text}</em></strong>`;
-      else if (styles.bold) out += `<strong>${text}</strong>`;
-      else if (styles.italic) out += `<em>${text}</em>`;
-      else out += text;
-    } else if (raw.type === 'link') {
-      const href = esc(String(raw.href ?? '#'));
-      out += `<a href="${href}" target="_blank" rel="noopener noreferrer">${inlineHtml(raw.content)}</a>`;
-    }
+function marksHtml(text: string, marks: TMark[] | undefined): string {
+  let out = esc(text);
+  let link: string | null = null;
+  let color: string | null = null;
+  let bold = false;
+  let italic = false;
+  let strike = false;
+  for (const m of marks ?? []) {
+    if (m.type === 'link') link = String(m.attrs?.href ?? '#');
+    else if (m.type === 'textStyle' && typeof m.attrs?.color === 'string') color = m.attrs.color;
+    else if (m.type === 'bold') bold = true;
+    else if (m.type === 'italic') italic = true;
+    else if (m.type === 'strike') strike = true;
+  }
+  if (bold) out = `<strong>${out}</strong>`;
+  if (italic) out = `<em>${out}</em>`;
+  if (strike) out = `<s>${out}</s>`;
+  if (color) out = `<span style="color:${esc(color)}">${out}</span>`;
+  if (link) {
+    const internal = link.startsWith('/');
+    out = `<a href="${esc(link)}"${internal ? '' : ' target="_blank" rel="noopener noreferrer"'}>${out}</a>`;
   }
   return out;
 }
 
-function cellHtml(cell: unknown): string {
-  if (typeof cell === 'string') return esc(cell);
-  const c = cell as { content?: { content?: unknown }[] };
-  return (c.content ?? []).map((par) => inlineHtml(par?.content)).filter(Boolean).join('<br />');
+function inlineHtml(nodes: TNode[] | undefined): string {
+  let out = '';
+  for (const n of nodes ?? []) {
+    if (n.type === 'text') out += marksHtml(n.text ?? '', n.marks);
+    else if (n.type === 'hardBreak') out += '<br />';
+  }
+  return out;
+}
+
+/** Plain text of inline content (fallbacks, titles). */
+function inlineText(nodes: TNode[] | undefined): string {
+  let out = '';
+  for (const n of nodes ?? []) {
+    if (n.type === 'text') out += n.text ?? '';
+  }
+  return out;
 }
 
 const VIDEO_ALLOW =
@@ -53,7 +71,6 @@ function embedHtml(url: string): string {
     }
     return `<div class="embed-box" style="aspect-ratio:${e.ratio}"><iframe src="${esc(e.src)}" loading="lazy" allow="${VIDEO_ALLOW}" allowfullscreen></iframe></div>`;
   }
-  // No static iframe (X, LinkedIn, everything else) — a clean link card.
   let host = 'link';
   try {
     host = new URL(url).hostname.replace(/^www\./, '');
@@ -63,13 +80,20 @@ function embedHtml(url: string): string {
   return `<a class="embed-card" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span class="embed-card-host">${esc(host)}</span><span class="embed-card-url">${esc(url)}</span></a>`;
 }
 
-function chartHtml(block: DocBlock): string {
-  const points = parseChartData(block.props?.data);
-  const title = String(block.props?.title ?? '').trim();
-  const kind = String(block.props?.kind ?? 'bar');
+function chartHtml(kind: string, title: string, data: string): string {
+  const points = parseChartData(data);
   if (!points.length) return '';
   const payload = esc(JSON.stringify({ kind, title, points }));
   return `<figure class="sosial-chart" data-chart="${payload}">${title ? `<figcaption>${esc(title)}</figcaption>` : ''}</figure>`;
+}
+
+function cellStyle(cell: TNode): string {
+  const parts: string[] = [];
+  const bg = cell.attrs?.backgroundColor;
+  if (typeof bg === 'string' && bg) parts.push(`background-color:${esc(bg)}`);
+  const align = cell.attrs?.textAlign;
+  if (typeof align === 'string' && align && align !== 'left') parts.push(`text-align:${esc(align)}`);
+  return parts.length ? ` style="${parts.join(';')}"` : '';
 }
 
 function headingLevel(level: unknown): { tag: string; cls: string } {
@@ -79,115 +103,130 @@ function headingLevel(level: unknown): { tag: string; cls: string } {
   return { tag: 'h4', cls: 'rich-h4' };
 }
 
-/** Serialize a BlockNote document into prose-compatible HTML. */
-export function blocksToProseHtml(blocks: DocBlock[]): string {
+function listItemHtml(item: TNode): string {
+  const inner: string[] = [];
+  for (const c of item.content ?? []) {
+    if (c.type === 'paragraph') inner.push(inlineHtml(c.content));
+    else if (c.type === 'bulletList' || c.type === 'orderedList') inner.push(listHtml(c));
+  }
+  return `<li>${inner.join('')}</li>`;
+}
+
+function listHtml(node: TNode): string {
+  const tag = node.type === 'orderedList' ? 'ol' : 'ul';
+  const items = (node.content ?? []).filter((c) => c.type === 'listItem');
+  if (!items.length) return '';
+  return `<${tag}>${items.map(listItemHtml).join('')}</${tag}>`;
+}
+
+/** Serialize a TipTap document into prose-compatible HTML. */
+export function tiptapToProseHtml(doc: TipTapDoc | null | undefined): string {
+  if (!doc || !Array.isArray(doc.content)) return '';
   const parts: string[] = [];
-  let list: { tag: 'ul' | 'ol'; items: string[] } | null = null;
-
-  const flushList = () => {
-    if (!list) return;
-    parts.push(
-      `<${list.tag}>${list.items.map((i) => `<li>${i}</li>`).join('')}</${list.tag}>`,
-    );
-    list = null;
-  };
-
-  for (const b of blocks) {
-    const type = String(b.type ?? '');
-    if (type === 'bulletListItem' || type === 'numberedListItem') {
-      const tag = type === 'bulletListItem' ? 'ul' : 'ol';
-      if (!list || list.tag !== tag) {
-        flushList();
-        list = { tag, items: [] };
-      }
-      list.items.push(inlineHtml(b.content));
-      continue;
-    }
-    flushList();
-
-    switch (type) {
+  for (const b of doc.content) {
+    switch (b.type) {
       case 'heading': {
-        const { tag, cls } = headingLevel(b.props?.level);
-        parts.push(`<${tag} class="${cls}">${inlineHtml(b.content)}</${tag}>`);
+        const { tag, cls } = headingLevel(b.attrs?.level);
+        const html = inlineHtml(b.content);
+        if (html.trim()) parts.push(`<${tag} class="${cls}">${html}</${tag}>`);
         break;
       }
-      case 'quote':
-        parts.push(`<blockquote>${inlineHtml(b.content)}</blockquote>`);
+      case 'blockquote': {
+        const html = (b.content ?? [])
+          .filter((c) => c.type === 'paragraph')
+          .map((c) => inlineHtml(c.content))
+          .filter((s) => s.trim())
+          .join('<br />');
+        if (html) parts.push(`<blockquote>${html}</blockquote>`);
         break;
+      }
+      case 'bulletList':
+      case 'orderedList': {
+        const html = listHtml(b);
+        if (html) parts.push(html);
+        break;
+      }
       case 'image': {
-        const url = String(b.props?.url ?? '');
+        const url = String(b.attrs?.src ?? '');
         if (!url) break;
-        const caption = String(b.props?.caption ?? '').trim();
+        const caption = String(b.attrs?.title ?? '').trim();
         parts.push(
-          `<figure class="rich-figure"><img src="${esc(url)}" alt="${esc(String(b.props?.name ?? '') || 'Article image')}" loading="lazy" />${caption ? `<figcaption>${esc(caption)}</figcaption>` : ''}</figure>`,
+          `<figure class="rich-figure"><img src="${esc(url)}" alt="${esc(String(b.attrs?.alt ?? '') || 'Article image')}" loading="lazy" />${caption ? `<figcaption>${esc(caption)}</figcaption>` : ''}</figure>`,
         );
         break;
       }
-      case 'video': {
-        const url = String(b.props?.url ?? '');
-        if (url) parts.push(embedHtml(url));
-        break;
-      }
       case 'socialEmbed': {
-        const url = String(b.props?.url ?? '').trim();
+        const url = String(b.attrs?.url ?? '').trim();
         if (!url) break;
-        const caption = String(b.props?.caption ?? '').trim();
+        const caption = String(b.attrs?.caption ?? '').trim();
         parts.push(
           `<figure class="rich-figure">${embedHtml(url)}${caption ? `<figcaption>${esc(caption)}</figcaption>` : ''}</figure>`,
         );
         break;
       }
       case 'chart':
-        parts.push(chartHtml(b));
+        parts.push(
+          chartHtml(String(b.attrs?.kind ?? 'bar'), String(b.attrs?.title ?? '').trim(), String(b.attrs?.data ?? '')),
+        );
         break;
       case 'buttonLink': {
-        const label = String(b.props?.label ?? '').trim();
-        const href = String(b.props?.href ?? '').trim();
+        const label = String(b.attrs?.label ?? '').trim();
+        const href = String(b.attrs?.href ?? '').trim();
         if (!label || !href) break;
-        const image = String(b.props?.image ?? '').trim();
-        const outline = b.props?.variant === 'outline';
+        const image = String(b.attrs?.image ?? '').trim();
+        const outline = b.attrs?.variant === 'outline';
         parts.push(
           `<p class="rich-btn-wrap"><a class="rich-btn${outline ? ' rich-btn-outline' : ''}" href="${esc(href)}"${href.startsWith('/') ? '' : ' target="_blank" rel="noopener noreferrer"'}>${image ? `<img class="rich-btn-img" src="${esc(image)}" alt="" />` : ''}<span>${esc(label)}</span></a></p>`,
         );
         break;
       }
       case 'table': {
-        const tc = b.content as
-          | { rows?: { cells?: unknown[] }[]; headerRows?: number }
-          | undefined;
-        const rows = (tc?.rows ?? [])
-          .map((r) => (r.cells ?? []).map(cellHtml))
-          .filter((r) => r.some((c) => c.trim()));
-        if (!rows.length) break;
-        const cols = Math.max(...rows.map((r) => r.length));
-        const grid = rows.map((r) => [...r, ...Array(Math.max(0, cols - r.length)).fill('')]);
-        const headerRows = tc?.headerRows && tc.headerRows > 0 && grid.length > 1 ? 1 : 0;
-        const head = headerRows ? grid.slice(0, headerRows) : [];
+        const rows = (b.content ?? []).filter((r) => r.type === 'tableRow');
+        const grid = rows.map((r) =>
+          (r.content ?? []).filter((c) => c.type === 'tableCell' || c.type === 'tableHeader'),
+        );
+        if (!grid.length || !grid.some((r) => r.length)) break;
+        const headerRows =
+          grid.length > 1 && grid[0].length > 0 && grid[0].every((c) => c.type === 'tableHeader') ? 1 : 0;
+        const renderRow = (r: TNode[]) =>
+          `<tr>${r
+            .map((c) => {
+              const tag = c.type === 'tableHeader' ? 'th' : 'td';
+              const span: string[] = [];
+              const colspan = Number(c.attrs?.colspan) || 1;
+              const rowspan = Number(c.attrs?.rowspan) || 1;
+              if (colspan > 1) span.push(` colspan="${colspan}"`);
+              if (rowspan > 1) span.push(` rowspan="${rowspan}"`);
+              const inner = (c.content ?? [])
+                .filter((p) => p.type === 'paragraph')
+                .map((p) => inlineHtml(p.content))
+                .join('<br />');
+              return `<${tag}${span.join('')}${cellStyle(c)}>${inner || ''}</${tag}>`;
+            })
+            .join('')}</tr>`;
+        const head = grid.slice(0, headerRows);
         const body = grid.slice(headerRows);
+        const radius = typeof b.attrs?.radius === 'string' && b.attrs.radius ? ` style="border-radius:${esc(b.attrs.radius)};overflow:hidden"` : '';
         parts.push(
-          `<div class="rich-table-wrap"><table><thead>${head
-            .map((r) => `<tr>${r.map((c) => `<th>${c}</th>`).join('')}</tr>`)
-            .join('')}</thead><tbody>${body
-            .map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`)
-            .join('')}</tbody></table></div>`,
+          `<div class="rich-table-wrap"${radius}><table><thead>${head.map(renderRow).join('')}</thead><tbody>${body.map(renderRow).join('')}</tbody></table></div>`,
         );
         break;
       }
-      case 'divider':
+      case 'horizontalRule':
         parts.push('<hr />');
         break;
+      case 'codeBlock': {
+        const code = esc(inlineText(b.content));
+        if (code.trim()) parts.push(`<pre class="rich-pre">${code}</pre>`);
+        break;
+      }
       case 'paragraph':
       default: {
-        const html = inlineHtml(b.content);
+        const html = inlineHtml(b.type === 'paragraph' ? b.content : undefined);
         if (html.trim()) parts.push(`<p>${html}</p>`);
         break;
       }
     }
   }
-  flushList();
   return parts.join('\n');
 }
-
-/** Re-export for callers that need plain text of inline content. */
-export { inlineText as _inlineText } from '@/lib/blogConvert';
-export type { RichInline };
