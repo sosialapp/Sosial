@@ -68,7 +68,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           <img
             src={post.coverUrl}
             alt={post.coverAlt ?? post.title}
-            className="mt-8 aspect-[16/9] w-full rounded-2xl border border-line object-cover"
+            className="mt-8 h-auto w-full rounded-2xl border border-line"
           />
         ) : null}
 
@@ -107,7 +107,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                       src={a.coverUrl}
                       alt={a.coverAlt ?? a.title}
                       loading="lazy"
-                      className="aspect-[16/9] w-full object-cover"
+                      className="h-auto w-full"
                     />
                   ) : null}
                   <div className="flex flex-1 flex-col p-5">

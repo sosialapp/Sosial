@@ -84,9 +84,9 @@ export default async function BlogIndex({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={a.coverUrl}
-                  alt={a.coverAlt || a.title}
+                  alt={a.coverAlt ?? a.title}
                   loading="lazy"
-                  className="aspect-[16/9] w-full object-cover"
+                  className="h-auto w-full"
                 />
               ) : null}
               <div className="flex flex-1 flex-col p-5">

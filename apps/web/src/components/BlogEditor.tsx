@@ -284,7 +284,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
               {description ? <p className="mt-3 text-lg text-muted">{description}</p> : null}
               {coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverUrl} alt={coverAlt || title || 'Cover'} className="mt-6 aspect-[16/9] w-full rounded-2xl border border-line object-cover" />
+                <img src={coverUrl} alt={coverAlt || title || 'Cover'} className="mt-6 h-auto w-full rounded-2xl border border-line" />
               ) : null}
               <hr className="my-6 border-line" />
               <div className="prose-sosial blog-rich" dangerouslySetInnerHTML={{ __html: previewHtml }} />
