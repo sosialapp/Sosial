@@ -308,7 +308,7 @@ export default function AccountSettings({
                 while you are away. To revoke a channel, disconnect it in Channels.
               </p>
             ) : null}
-            <Row icon={<CreditCard className="h-5 w-5" aria-hidden="true" />} label="Subscription plan" sub="Free, Pro and Team" onClick={() => setView('plan')} />
+            <Row icon={<CreditCard className="h-5 w-5" aria-hidden="true" />} label="Subscription plan" sub="Free, Starter, Pro and Business" onClick={() => setView('plan')} />
             {role === 'owner' || role === 'admin' ? (
               <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label="Team" sub="Roles, channels & invites" href="/team" />
             ) : null}
@@ -424,21 +424,28 @@ export default function AccountSettings({
             {
               name: 'Free',
               price: 'Free',
-              features: ['2 connected channels · 10 scheduled posts each', 'Unlimited studio, templates & ideas', '7-day analytics'],
+              features: ['3 connected channels · 30 scheduled posts a month', 'Unlimited studio, templates & ideas', '7-day analytics'],
             },
             {
-              name: 'Sosial Pro',
-              price: '$5/mo',
-              sub: '$48/yr yearly · RM 22/mo',
+              name: 'Starter',
+              price: '$12/mo',
+              sub: '$120/yr annual — ≈ $10/month, billed yearly',
               also: 'Everything in Free, plus:',
-              features: ['Unlimited scheduled posts', 'Approval workflow', '500 AI generations / month', '1-year analytics + comments'],
+              features: ['Unlimited scheduled posts', '500 AI generations / month', 'All 10 channels connected', '1-year analytics'],
             },
             {
-              name: 'Sosial Team',
-              price: '$10/mo',
-              sub: '$96/yr yearly · RM 44/mo',
+              name: 'Pro',
+              price: '$29/mo',
+              sub: '$290/yr annual — ≈ $24.17/month, billed yearly',
+              also: 'Everything in Starter, plus:',
+              features: ['Approval workflow', '1,000 AI generations / month', 'Member, admin and owner roles', 'Priority support'],
+            },
+            {
+              name: 'Business',
+              price: '$79/mo',
+              sub: '$790/yr annual — ≈ $65.83/month, billed yearly',
               also: 'Everything in Pro, plus:',
-              features: ['Unlimited seats for the whole crew', 'Per-channel member roles', '1,000 AI generations / month', 'Priority support'],
+              features: ['2,000 AI generations / month', 'Unlimited seats for the whole crew', 'Per-channel member roles', 'Premium support'],
             },
           ].map((p) => (
             <Card key={p.name} className="p-5">
@@ -456,7 +463,10 @@ export default function AccountSettings({
               </ul>
             </Card>
           ))}
-          <Link href="/pricing" className="btn btn-bolt w-full">
+          <Link href="/billing" className="btn btn-bolt w-full">
+            Manage billing
+          </Link>
+          <Link href="/pricing" className="btn btn-ghost w-full">
             See full pricing
           </Link>
         </div>

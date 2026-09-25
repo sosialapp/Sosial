@@ -141,8 +141,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
         {plan !== 'team' ? (
           <View style={{ marginTop: 16, gap: 12 }}>
             <View style={s.empty}>
-              <Text style={s.emptyT}>Team needs Sosial Team</Text>
-              <Text style={s.emptyS}>The roster, roles and per-channel assignment unlock on the Team plan.</Text>
+              <Text style={s.emptyT}>Team tools need Sosial Pro</Text>
+              <Text style={s.emptyS}>The roster, roles and per-channel assignment unlock on the Pro plan.</Text>
               <TouchableOpacity onPress={onSeePlans} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
                 <Text style={s.saveT}>See plans</Text>
               </TouchableOpacity>

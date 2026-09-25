@@ -12,6 +12,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { CONTENT_RULES } from "../_shared/content_rules.ts";
+import { gateAiGeneration } from "../_shared/usage.ts";
 
 const TYPES = ["free", "bullets", "numbered", "table", "bar", "vbar", "pie"] as const;
 
@@ -86,6 +87,15 @@ serve(async (req: Request): Promise<Response> => {
   } catch {
     return bad("Body must be JSON.");
   }
+
+  // Monthly AI allowance (free = none). Calendar-month window even for
+  // annual subscribers — billing interval only changes billing.
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (serviceKey) {
+    const gate = await gateAiGeneration(supaUrl, serviceKey, authHeader, anonKey);
+    if (!gate.ok) return bad(gate.message ?? "AI allowance reached.", gate.status ?? 402);
+  }
+
   const prompt = typeof body["prompt"] === "string" ? body["prompt"].trim() : "";
   if (!prompt) return bad("prompt is required.");
   if (prompt.length > 2000) return bad("prompt ≤ 2000 chars.");

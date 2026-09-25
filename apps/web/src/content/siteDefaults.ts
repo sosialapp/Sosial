@@ -118,9 +118,10 @@ function pricingBlocks(): B[] {
       { q: 'What counts against the free plan limit?', a: 'Scheduled and sent posts. Drafts do not count, and neither do edits to a post before it ships.' },
       { q: 'Are there per-channel fees?', a: 'No. Connecting Instagram costs the same as connecting X. Every plan that includes a channel includes all of its features.' },
       { q: 'What happens if I hit the free limit mid-month?', a: 'New scheduling pauses; nothing already queued is lost. Upgrade and the queue picks up where it left off, or wait for the reset next month.' },
-      { q: 'Can I switch plans or cancel?', a: 'Any time, from billing settings. Upgrades apply immediately; downgrades and cancellations apply at the end of the current period.' },
-      { q: 'Is the AI writer included?', a: 'On Pro and Team. Free plans get the composer, previews and queue without AI generation.' },
-      { q: 'Do you charge for team seats on Team?', a: 'No. Team is a flat monthly price for the workspace, whether it is two people or ten.' },
+      { q: 'Can I switch plans or cancel?', a: 'Any time, from billing settings. Plan and billing-interval changes apply immediately and are prorated by Stripe; cancelling keeps your plan until the end of the current period.' },
+      { q: 'Is the AI writer included?', a: 'On Starter, Pro and Business — 500, 1,000 and 2,000 generations a month respectively. Free plans get the composer, previews and queue without AI generation.' },
+      { q: 'Do you charge for team seats on Pro or Business?', a: 'No. Pro and Business are flat prices for the whole workspace, whether it is two people or ten.' },
+      { q: 'How does annual billing work?', a: 'You pay once a year — annual costs the same as ten months, so you get two months free. Monthly allowances (AI generations, scheduled posts) still reset every month.' },
     ]),
   ];
 }
@@ -309,7 +310,7 @@ function transparencyBlocks(): B[] {
     { t: 'h', c: 'Pricing — the price is on the page.' },
     {
       t: 'p',
-      c: 'Free, Pro and Team are listed with what each includes, before you create an account. No per-channel upsells, no seat taxes on Team, and annual billing that simply knocks two months off. Changes to prices reach existing subscribers before they take effect.',
+      c: 'Free, Starter, Pro and Business are listed with what each includes, before you create an account. No per-channel upsells, no seat taxes, and annual billing that simply knocks two months off. Changes to prices reach existing subscribers before they take effect.',
     },
     {
       t: 'ul',

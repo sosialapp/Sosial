@@ -280,7 +280,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     ]);
   };
 
-  const planName = plan === 'pro' ? 'Sosial Pro' : plan === 'team' ? 'Sosial Team' : 'Free plan';
+  const planName = plan === 'pro' ? 'Sosial Starter' : plan === 'team' ? 'Sosial Pro' : 'Free plan';
 
   const initial = (email || team || 'Z')[0].toUpperCase();
   const title = view === 'main' ? 'Account' : (
@@ -365,9 +365,10 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     }
   };
 
-  /** Flat pricing — one price per plan, channels unlimited. */
-  const proTotal = yearly ? '$48/yr' : '$5/mo';
-  const teamTotal = yearly ? '$96/yr' : '$10/mo';
+  /** Canonical price book (src/utils/plans.ts mirrors the web config). */
+  const starterTotal = yearly ? '$120/yr' : '$12/mo';
+  const proTotal = yearly ? '$290/yr' : '$29/mo';
+  const businessTotal = yearly ? '$790/yr' : '$79/mo';
 
   /** Plan switching works today as a local flag; real Play Billing replaces the confirm. */
   const choosePlan = (target: 'free' | 'pro' | 'team', label: string) => {
@@ -592,7 +593,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 <Text style={s.planName}>{planName}</Text>
                 <View style={s.pill}><Text style={s.pillT}>Current</Text></View>
               </View>
-              <Text style={s.planPrice}>{plan === 'free' ? 'Free forever' : plan === 'pro' ? proTotal : teamTotal}</Text>
+              <Text style={s.planPrice}>{plan === 'free' ? 'Free forever' : plan === 'pro' ? starterTotal : proTotal}</Text>
               {plan !== 'free' ? (
                 <View style={{ marginTop: 8 }}>
                   <GhostBtn label="Manage subscription" onPress={() => Alert.alert('Manage subscription', 'Subscriptions are managed in the Play Store app under Payments & subscriptions.')} />
@@ -600,11 +601,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               ) : null}
             </View>
 
-            {/* billing rhythm for both paid plans */}
+            {/* billing rhythm — interval changes price + renewal only, never limits */}
             <View style={[s.plan, { gap: 12 }]}>
               <Field label="Billing">
                 <Seg
-                  options={[{ value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly · save 20%' }]}
+                  options={[{ value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly · 2 months free' }]}
                   value={yearly ? 'yearly' : 'monthly'}
                   onChange={(v) => setYearly(v === 'yearly')}
                 />
@@ -616,7 +617,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               current={plan === 'free'}
               price="Free"
               features={[
-                { text: '2 connected channels · 10 scheduled posts each' },
+                { text: '3 connected channels · 30 scheduled posts a month' },
                 { text: 'Unlimited studio, templates & ideas' },
                 { text: '7-day analytics' },
                 { text: 'AI generation', off: true },
@@ -625,42 +626,57 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             />
 
             <PlanCard
-              name="Sosial Pro"
+              name="Starter"
               current={plan === 'pro'}
-              price={proTotal}
-              sub={yearly ? '$4.00/mo, billed yearly · RM 210/yr' : 'Flat monthly billing · RM 22/mo'}
+              price={starterTotal}
+              sub={yearly ? '≈ $10.00/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Free, plus:"
               features={[
+                { text: 'All 10 channels connected' },
                 { text: 'Unlimited scheduled posts' },
-                { text: 'Approval workflow' },
                 { text: 'No export badge' },
                 { text: '500 AI generations / month' },
-                { text: '1-year analytics + comments' },
+                { text: '1-year analytics' },
               ]}
               action={plan === 'free'
-                ? { label: `Upgrade to Pro · ${proTotal}`, onPress: () => choosePlan('pro', `Sosial Pro (${proTotal})`) }
+                ? { label: `Upgrade to Starter · ${starterTotal}`, onPress: () => choosePlan('pro', 'Starter') }
                 : plan === 'team'
-                  ? { label: 'Switch to Pro', ghost: true, onPress: () => choosePlan('pro', 'Sosial Pro') }
+                  ? { label: 'Switch to Starter', ghost: true, onPress: () => choosePlan('pro', 'Starter') }
                   : undefined}
             />
 
             <PlanCard
-              name="Sosial Team"
+              name="Pro"
               current={plan === 'team'}
-              price={teamTotal}
-              sub={yearly ? '$8.00/mo, billed yearly · RM 420/yr' : 'Flat monthly billing · RM 44/mo'}
-              also="Everything in Pro, plus:"
+              price={proTotal}
+              sub={yearly ? '≈ $24.17/mo equivalent — billed yearly' : 'Billed monthly'}
+              also="Everything in Starter, plus:"
               features={[
-                { text: 'Unlimited seats for the whole crew' },
-                { text: 'Per-channel member roles' },
+                { text: 'Approval workflow' },
+                { text: 'Member, admin and owner roles' },
                 { text: '1,000 AI generations / month' },
                 { text: 'Priority support' },
               ]}
               action={plan === 'free'
-                ? { label: `Upgrade to Team · ${teamTotal}`, ghost: true, onPress: () => choosePlan('team', `Sosial Team (${teamTotal})`) }
+                ? { label: `Upgrade to Pro · ${proTotal}`, ghost: true, onPress: () => choosePlan('team', 'Pro') }
                 : plan === 'pro'
-                  ? { label: `Switch to Team · ${teamTotal}`, onPress: () => choosePlan('team', `Sosial Team (${teamTotal})`) }
+                  ? { label: `Switch to Pro · ${proTotal}`, onPress: () => choosePlan('team', 'Pro') }
                   : undefined}
+            />
+
+            <PlanCard
+              name="Business"
+              current={false}
+              price={businessTotal}
+              sub={yearly ? '≈ $65.83/mo equivalent — billed yearly' : 'Billed monthly'}
+              also="Everything in Pro, plus:"
+              features={[
+                { text: '2,000 AI generations / month' },
+                { text: 'Unlimited seats for the whole crew' },
+                { text: 'Per-channel member roles' },
+                { text: 'Premium support' },
+              ]}
+              action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch — the web app supports it today.') }}
             />
           </View>
         ) : null}

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import PricingPlans from '@/components/PricingPlans';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
@@ -9,57 +9,9 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'A free plan that stays free, Pro for unlimited publishing across all ten channels, and Team for approvals. No per-channel fees, cancel any time.',
+    'A free plan that stays free, Starter for unlimited publishing across all ten channels, Pro for approvals, Business for scale. Monthly or annual — annual gives you two months free. Cancel any time.',
   alternates: { canonical: '/pricing' },
 };
-
-const PLANS = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    blurb: 'Enough to replace posting by hand.',
-    cta: { href: '/login', label: 'Start free' },
-    featured: false,
-    points: [
-      '3 connected channels',
-      '30 scheduled posts a month',
-      'One calendar and queue',
-      'Per-channel previews and live limits',
-      'iOS, Android and web',
-    ],
-  },
-  {
-    name: 'Pro',
-    price: '$12',
-    period: 'per month',
-    blurb: 'Publish everywhere, every day.',
-    cta: { href: '/login', label: 'Start scheduling' },
-    featured: true,
-    points: [
-      'All 10 channels connected',
-      'Unlimited scheduled posts',
-      'AI writer with live research',
-      'Templates and AI media',
-      'Analytics across every channel',
-    ],
-  },
-  {
-    name: 'Team',
-    price: '$29',
-    period: 'per month',
-    blurb: 'Draft together, approve in one tap.',
-    cta: { href: '/login', label: 'Start as a team' },
-    featured: false,
-    points: [
-      'Everything in Pro',
-      'Approvals and review notes',
-      'Member, admin and owner roles',
-      'Shared calendar for the whole team',
-      'Priority support',
-    ],
-  },
-];
 
 export default function PricingPage() {
   return (
@@ -67,54 +19,13 @@ export default function PricingPage() {
       <PageHero
         eyebrow="Pricing"
         title="Simple plans, published prices."
-        lede="Start free and stay free if that is enough. Upgrade when you want all ten channels, the AI writer or approvals. No per-channel fees, no annual lock-in."
+        lede="Start free and stay free if that is enough. Upgrade when you want all ten channels, the AI writer or approvals. Monthly or annual — annual gives you two months free."
         secondary={{ href: '/compare', label: 'Compare with alternatives' }}
       />
 
       <PageCms slug="pricing" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
-      <section aria-label="Plans" className="border-b border-line">
-        <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {PLANS.map((p) => (
-              <div
-                key={p.name}
-                className={`card flex flex-col p-6 ${
-                  p.featured ? 'border-2 border-accent shadow-[0_24px_60px_-30px_rgba(28,26,20,0.45)]' : ''
-                }`}
-              >
-                <p className="eyebrow">{p.name}</p>
-                <p className="mt-3 font-display text-4xl font-extrabold tracking-tight">
-                  {p.price}
-                  <span className="ml-1.5 align-middle text-sm font-semibold text-faint">
-                    {p.period}
-                  </span>
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{p.blurb}</p>
-                <ul className="mt-5 flex-1 space-y-2.5">
-                  {p.points.map((pt) => (
-                    <li key={pt} className="flex items-start gap-2.5 text-sm leading-relaxed text-soft">
-                      <span className="mt-0.5 text-ink" aria-hidden="true">
-                        ✓
-                      </span>
-                      {pt}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={p.cta.href}
-                  className={`btn mt-6 w-full ${p.featured ? 'btn-bolt' : 'btn-ghost'}`}
-                >
-                  {p.cta.label}
-                </Link>
-              </div>
-            ))}
-          </div>
-          <p className="mt-6 text-center text-xs text-faint">
-            Prices in USD. Annual billing knocks two months off. Cancel any time, keep your data.
-          </p>
-        </div>
-      </section>
+      <PricingPlans />
 
       <FaqList
         items={[
@@ -132,15 +43,19 @@ export default function PricingPage() {
           },
           {
             q: 'Can I switch plans or cancel?',
-            a: 'Any time, from billing settings. Upgrades apply immediately; downgrades and cancellations apply at the end of the current period.',
+            a: 'Any time, from billing settings. Plan and billing-interval changes apply immediately and are prorated by Stripe; cancelling keeps your plan until the end of the current period.',
           },
           {
             q: 'Is the AI writer included?',
-            a: 'On Pro and Team. Free plans get the composer, previews and queue without AI generation.',
+            a: 'On Starter, Pro and Business — 500, 1,000 and 2,000 generations a month respectively. Free plans get the composer, previews and queue without AI generation.',
           },
           {
-            q: 'Do you charge for team seats on Team?',
-            a: 'No. Team is a flat monthly price for the workspace, whether it is two people or ten.',
+            q: 'Do you charge for team seats on Pro or Business?',
+            a: 'No. Pro and Business are flat prices for the whole workspace, whether it is two people or ten.',
+          },
+          {
+            q: 'How does annual billing work?',
+            a: 'You pay once a year — annual costs the same as ten months, so you get two months free. Monthly allowances (AI generations, scheduled posts) still reset every month.',
           },
         ]}
       />

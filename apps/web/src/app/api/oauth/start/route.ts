@@ -3,6 +3,8 @@ import { randomBytes, createHash } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
 import { authorizeUrl, isOAuthProvider, redirectUri, type OAuthConfig } from '@/lib/oauth';
 import { FLOW_COOKIE, b64e, cookieOpts, type FlowState } from '@/lib/oauthServer';
+import { getEntitlement } from '@/lib/billing/entitlement';
+import { PLANS } from '@/lib/billing/plans';
 
 /** X's verifier alphabet (43–128 chars) — plain base64url can contain `_`,
  *  which X rejects, so draw from the allowed set like the mobile app. */
@@ -44,6 +46,30 @@ export async function GET(req: Request) {
     .eq('status', 'active')
     .maybeSingle();
   if (!mem) return back('Not a member of this workspace.');
+
+  // Free-plan channel cap, enforced server-side (never trust the UI).
+  // Reconnecting an already-connected provider is always allowed.
+  const entitlement = await getEntitlement(workspaceId);
+  const cap = PLANS[entitlement.plan].limits.channels;
+  if (!entitlement.active && cap !== null) {
+    const { count } = await sb
+      .from('connected_channels')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'connected');
+    const already = await sb
+      .from('connected_channels')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('provider', provider)
+      .eq('status', 'connected')
+      .limit(1);
+    if ((count ?? 0) >= cap && !(already.data ?? []).length) {
+      return back(
+        `The Free plan connects up to ${cap} channels — you're at the cap. Upgrade in Billing for unlimited channels.`,
+      );
+    }
+  }
 
   const flow: FlowState = {
     provider,

@@ -16,6 +16,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { CONTENT_RULES } from "../_shared/content_rules.ts";
+import { gateAiGeneration } from "../_shared/usage.ts";
 
 /** Caption limits for channels that aren't chain-capable (joined text). */
 const TEXT_CAPS: Record<string, number> = {
@@ -171,6 +172,14 @@ serve(async (req: Request): Promise<Response> => {
     body = await req.json();
   } catch {
     return bad("Body must be JSON.");
+  }
+
+  // Monthly AI allowance (free = none). The usage month is a calendar month
+  // even for annual subscribers — the billing interval only changes billing.
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (serviceKey) {
+    const gate = await gateAiGeneration(supaUrl, serviceKey, authHeader, anonKey);
+    if (!gate.ok) return bad(gate.message ?? "AI allowance reached.", gate.status ?? 402);
   }
 
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
