@@ -517,6 +517,113 @@ body {
     color: rgba(28, 26, 20, 0.35);
   }
 
+  /* Floating format bar (tippy wrapper stays invisible — the pill is the UI). */
+  .tippy-box {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .tippy-arrow {
+    display: none !important;
+  }
+  .tiptap-bubble {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #1c1a14;
+    border-radius: 14px;
+    padding: 5px;
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.45);
+  }
+  .tbubble-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2rem;
+    min-width: 2rem;
+    border-radius: 9px;
+    padding-inline: 6px;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .tbubble-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+  .tbubble-on {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+  }
+  .tbubble-sep {
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.18);
+    margin-inline: 3px;
+    flex-shrink: 0;
+  }
+
+  /* Resizable image node: drag handle + size presets. */
+  .blog-doc .tiptap-imgview {
+    position: relative;
+    display: block;
+    max-width: 100%;
+  }
+  .blog-doc .tiptap-imgview img {
+    display: block;
+    height: auto;
+  }
+  .blog-doc .tiptap-imghandle {
+    position: absolute;
+    right: -9px;
+    bottom: -9px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--color-ink);
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    cursor: nwse-resize;
+    display: none;
+    touch-action: none;
+  }
+  .blog-doc .tiptap-imghandle::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    border-bottom-right-radius: 3px;
+  }
+  .blog-doc .tiptap-imgview:hover .tiptap-imghandle,
+  .blog-doc .tiptap-imgview.ProseMirror-selectednode .tiptap-imghandle {
+    display: block;
+  }
+  .blog-doc .tiptap-imgpresets {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .blog-doc .tiptap-imgpreset {
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-paper);
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    cursor: pointer;
+  }
+  .blog-doc .tiptap-imgpreset:hover {
+    color: var(--color-ink);
+    border-color: var(--color-ink);
+  }
+  .blog-doc .tiptap-imgpreset-on {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
   /* ---------------- editor visual themes (Notion / Document / Minimal) ---------------- */
   /* The theme only restyles the editing surface — never the document or output. */
   .tiptap-theme-switch {
@@ -665,6 +772,7 @@ body {
     width: 100%;
     border-radius: 1rem;
     border: 1px solid var(--color-line);
+    margin-inline: auto;
   }
   .blog-rich figcaption {
     margin-top: 0.5rem;

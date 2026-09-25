@@ -185,6 +185,32 @@ describe('wordsOfTipTap + tiptapToProseHtml', () => {
     expect(html).toContain('<figcaption>Cap</figcaption>');
   });
 
+  it('serializes text alignment on paragraphs and headings', () => {
+    const html = tiptapToProseHtml({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', attrs: { textAlign: 'center' }, content: [{ type: 'text', text: 'Mid' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Left' }] },
+        { type: 'heading', attrs: { level: 2, textAlign: 'right' }, content: [{ type: 'text', text: 'R' }] },
+      ],
+    });
+    expect(html).toContain('<p style="text-align:center">Mid</p>');
+    expect(html).toContain('<p>Left</p>');
+    expect(html).toContain('<h3 class="rich-h3" style="text-align:right">R</h3>');
+  });
+
+  it('serializes image width only when set below full', () => {
+    const html = tiptapToProseHtml({
+      type: 'doc',
+      content: [
+        { type: 'image', attrs: { src: 'https://x/a.jpg', width: 60 } },
+        { type: 'image', attrs: { src: 'https://x/b.jpg' } },
+      ],
+    });
+    expect(html).toContain('loading="lazy" style="width:60%"');
+    expect(html).toContain('src="https://x/b.jpg" alt="Article image" loading="lazy" />');
+  });
+
   it('cleanDocForPublish drops only unfinished custom blocks', () => {
     const cleaned = cleanDocForPublish({
       type: 'doc',

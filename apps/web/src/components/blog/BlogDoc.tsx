@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import {
+  AlignCenter,
+  AlignJustify,
   AlignLeft,
+  AlignRight,
   Bold,
   BookOpen,
   FileText,
@@ -281,6 +285,19 @@ export default function BlogDoc({
           <ListOrdered className="h-4 w-4" aria-hidden="true" />
         </TBtn>
         <span className="tiptap-sep" aria-hidden="true" />
+        <TBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align left">
+          <AlignLeft className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align center">
+          <AlignCenter className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align right">
+          <AlignRight className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <TBtn onClick={() => editor.chain().focus().setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} title="Justify">
+          <AlignJustify className="h-4 w-4" aria-hidden="true" />
+        </TBtn>
+        <span className="tiptap-sep" aria-hidden="true" />
         <TBtn onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert table">
           <TableIcon className="h-4 w-4" aria-hidden="true" />
         </TBtn>
@@ -409,6 +426,56 @@ export default function BlogDoc({
       ) : null}
 
       <EditorContent editor={editor} />
+
+      {/* Floating format bar — follows the text selection so formatting never
+          needs a scroll back to the top toolbar. */}
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ state }) => {
+          const { $from, $to } = state.selection;
+          if ($from.pos === $to.pos) return false;
+          const parent = $from.parent;
+          return parent.type.name === 'paragraph' || parent.type.name === 'heading';
+        }}
+      >
+        <div className="tiptap-bubble" role="toolbar" aria-label="Quick formatting">
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold" aria-label="Bold" className={`tbubble-btn${editor.isActive('bold') ? ' tbubble-on' : ''}`}>
+            <Bold className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic" aria-label="Italic" className={`tbubble-btn${editor.isActive('italic') ? ' tbubble-on' : ''}`}>
+            <Italic className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={setLink} title="Link" aria-label="Link" className={`tbubble-btn${editor.isActive('link') ? ' tbubble-on' : ''}`}>
+            <Link2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <label className="tbubble-btn" title="Text color" onMouseDown={(e) => e.preventDefault()}>
+            <span className="tiptap-color-dot" style={{ background: (editor.getAttributes('textStyle').color as string | undefined) ?? '#FFFFFF', borderColor: 'rgba(255,255,255,0.4)' }} aria-hidden="true" />
+            <input
+              type="color"
+              className="hidden"
+              value={(editor.getAttributes('textStyle').color as string | undefined) ?? '#ffffff'}
+              onChange={(e) => setColor(e.target.value)}
+              aria-label="Text color"
+            />
+          </label>
+          <span className="tbubble-sep" aria-hidden="true" />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1" aria-label="Heading 1" className={`tbubble-btn${editor.isActive('heading', { level: 1 }) ? ' tbubble-on' : ''}`}>
+            <Heading1 className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2" aria-label="Heading 2" className={`tbubble-btn${editor.isActive('heading', { level: 2 }) ? ' tbubble-on' : ''}`}>
+            <Heading2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Align left" aria-label="Align left" className="tbubble-btn">
+            <AlignLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Align center" aria-label="Align center" className="tbubble-btn">
+            <AlignCenter className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('right').run()} title="Align right" aria-label="Align right" className="tbubble-btn">
+            <AlignRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      </BubbleMenu>
 
       <input
         ref={fileRef}

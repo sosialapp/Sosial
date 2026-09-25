@@ -87,6 +87,14 @@ function chartHtml(kind: string, title: string, data: string): string {
   return `<figure class="sosial-chart" data-chart="${payload}">${title ? `<figcaption>${esc(title)}</figcaption>` : ''}</figure>`;
 }
 
+function alignStyle(attrs: Record<string, unknown> | undefined): string {
+  const align = attrs?.textAlign;
+  if (typeof align === 'string' && align && align !== 'left') {
+    return ` style="text-align:${esc(align)}"`;
+  }
+  return '';
+}
+
 function cellStyle(cell: TNode): string {
   const parts: string[] = [];
   const bg = cell.attrs?.backgroundColor;
@@ -106,8 +114,10 @@ function cellInnerHtml(cell: TNode): string {
     } else if (p.type === 'image') {
       const url = String(p.attrs?.src ?? '');
       if (url) {
+        const w = Number(p.attrs?.width) || 0;
+        const st = w > 0 && w < 100 ? ` style="width:${Math.round(w)}%"` : '';
         parts.push(
-          `<img class="rich-cell-img" src="${esc(url)}" alt="${esc(String(p.attrs?.alt ?? ''))}" loading="lazy" />`,
+          `<img class="rich-cell-img" src="${esc(url)}" alt="${esc(String(p.attrs?.alt ?? ''))}" loading="lazy"${st} />`,
         );
       }
     } else if (p.type === 'bulletList' || p.type === 'orderedList') {
@@ -150,7 +160,7 @@ export function tiptapToProseHtml(doc: TipTapDoc | null | undefined): string {
       case 'heading': {
         const { tag, cls } = headingLevel(b.attrs?.level);
         const html = inlineHtml(b.content);
-        if (html.trim()) parts.push(`<${tag} class="${cls}">${html}</${tag}>`);
+        if (html.trim()) parts.push(`<${tag} class="${cls}"${alignStyle(b.attrs)}>${html}</${tag}>`);
         break;
       }
       case 'blockquote': {
@@ -172,8 +182,10 @@ export function tiptapToProseHtml(doc: TipTapDoc | null | undefined): string {
         const url = String(b.attrs?.src ?? '');
         if (!url) break;
         const caption = String(b.attrs?.title ?? '').trim();
+        const width = Number(b.attrs?.width) || 0;
+        const style = width > 0 && width < 100 ? ` style="width:${Math.round(width)}%"` : '';
         parts.push(
-          `<figure class="rich-figure"><img src="${esc(url)}" alt="${esc(String(b.attrs?.alt ?? '') || 'Article image')}" loading="lazy" />${caption ? `<figcaption>${esc(caption)}</figcaption>` : ''}</figure>`,
+          `<figure class="rich-figure"><img src="${esc(url)}" alt="${esc(String(b.attrs?.alt ?? '') || 'Article image')}" loading="lazy"${style} />${caption ? `<figcaption>${esc(caption)}</figcaption>` : ''}</figure>`,
         );
         break;
       }
@@ -241,7 +253,7 @@ export function tiptapToProseHtml(doc: TipTapDoc | null | undefined): string {
       case 'paragraph':
       default: {
         const html = inlineHtml(b.type === 'paragraph' ? b.content : undefined);
-        if (html.trim()) parts.push(`<p>${html}</p>`);
+        if (html.trim()) parts.push(`<p${alignStyle(b.type === 'paragraph' ? b.attrs : undefined)}>${html}</p>`);
         break;
       }
     }

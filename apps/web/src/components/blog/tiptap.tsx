@@ -6,6 +6,7 @@ import Link from '@tiptap/extension-link';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import Image from '@tiptap/extension-image';
+import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Table } from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
@@ -26,6 +27,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import * as React from 'react';
 import { ChartColumn, ImagePlus, Link2, Plus, Trash2 } from 'lucide-react';
 import { resolveEmbed } from '@/lib/embeds';
 import {
@@ -102,6 +104,107 @@ const CustomTable = Table.extend({
         renderHTML: (attrs) => (attrs.radius ? { 'data-radius': attrs.radius } : {}),
       },
     };
+  },
+});
+
+/* ------------------------------- resizable image ------------------------------- */
+
+const IMG_PRESETS = [25, 50, 75, 100];
+
+function ResizableImageView({
+  node,
+  updateAttributes,
+  selected,
+  editor,
+}: {
+  node: { attrs: Record<string, unknown> };
+  updateAttributes: (attrs: Record<string, unknown>) => void;
+  selected: boolean;
+  editor: { view?: { dom?: { clientWidth?: number } } };
+}) {
+  const width = typeof node.attrs.width === 'number' ? node.attrs.width : 100;
+  const [dragW, setDragW] = React.useState<number | null>(null);
+  const dragRef = React.useRef<{ startX: number; start: number; domW: number } | null>(null);
+  const shown = dragW ?? width;
+
+  const startDrag = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const domW = editor?.view?.dom?.clientWidth || 600;
+    dragRef.current = { startX: e.clientX, start: shown, domW };
+    setDragW(shown);
+    const move = (ev: PointerEvent) => {
+      const s = dragRef.current;
+      if (!s) return;
+      setDragW(Math.min(100, Math.max(10, Math.round(s.start + ((ev.clientX - s.startX) / s.domW) * 100))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDragW((w) => {
+        if (w != null) updateAttributes({ width: w });
+        return null;
+      });
+      dragRef.current = null;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <NodeViewWrapper className="tiptap-imgview">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={String(node.attrs.src ?? '')}
+        alt={String(node.attrs.alt ?? '')}
+        title={String(node.attrs.title ?? '')}
+        style={{ width: `${shown}%` }}
+        draggable={false}
+      />
+      <span
+        className="tiptap-imghandle"
+        title="Drag to resize"
+        onPointerDown={startDrag}
+        contentEditable={false}
+      />
+      {selected ? (
+        <span className="tiptap-imgpresets" contentEditable={false}>
+          {IMG_PRESETS.map((v) => (
+            <button
+              key={v}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => updateAttributes({ width: v })}
+              className={`tiptap-imgpreset${width === v ? ' tiptap-imgpreset-on' : ''}`}
+            >
+              {v === 100 ? 'Full' : `${v}%`}
+            </button>
+          ))}
+        </span>
+      ) : null}
+    </NodeViewWrapper>
+  );
+}
+
+/** Image with a stored width (percent). Same node name, so saved docs keep working. */
+const ResizableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: (el) => {
+          const v = (el as HTMLElement).getAttribute('data-width');
+          const n = v ? Number(v) : NaN;
+          return Number.isFinite(n) && n > 0 ? Math.min(100, n) : null;
+        },
+        renderHTML: (attrs) =>
+          typeof attrs.width === 'number' ? { 'data-width': String(attrs.width) } : {},
+      },
+    };
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(ResizableImageView as never);
   },
 });
 
@@ -484,7 +587,8 @@ export function createBlogExtensions(uploader: Uploader) {
     Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
     TextStyle,
     Color,
-    Image.configure({ inline: false, allowBase64: false }),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    ResizableImage.configure({ inline: false, allowBase64: false }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
     CustomTable.configure({ resizable: true }),
     TableRow,
