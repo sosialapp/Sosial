@@ -7,7 +7,7 @@ import { ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import BlogDoc from '@/components/blog/BlogDoc';
 import ChartIslands from '@/components/site/ChartIslands';
-import { normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
+import { cleanDocForPublish, normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
 import { tiptapToProseHtml } from '@/lib/blogHtml';
 import { BLOG_TAGS, type Block, type Category } from '@/content/types';
 
@@ -76,18 +76,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
       setErr('Slug is required.');
       return;
     }
-    const content: TipTapDoc = {
-      type: 'doc',
-      content: (doc?.content ?? []).filter((b) => {
-        if (b.type === 'socialEmbed') return String(b.attrs?.url ?? '').trim().length > 0;
-        if (b.type === 'image') return String(b.attrs?.src ?? '').trim().length > 0;
-        if (b.type === 'chart') return String(b.attrs?.data ?? '').length > 0;
-        if (b.type === 'buttonLink') {
-          return String(b.attrs?.label ?? '').trim().length > 0 && String(b.attrs?.href ?? '').trim().length > 0;
-        }
-        return true;
-      }),
-    };
+    const content = cleanDocForPublish(doc);
     if (content.content.length === 0) {
       setErr('Add at least one block with content.');
       return;
@@ -122,6 +111,12 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
         const { error } = await sb.from('blog_posts').insert(payload);
         if (error) throw new Error(error.message);
       }
+      // Instant publish: purge the ISR cache so the post is live now.
+      await fetch('/api/admin/revalidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths: [`/blog/${cleanSlug}`, '/blog'] }),
+      }).catch(() => {});
       router.push('/admin/blog');
       router.refresh();
     } catch (e: unknown) {
@@ -147,7 +142,8 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
     }
   };
 
-  const previewHtml = tiptapToProseHtml(doc);
+  // Preview renders the exact publish pipeline — what you see is what ships.
+  const previewHtml = tiptapToProseHtml(cleanDocForPublish(doc));
 
   return (
     <div className="min-h-screen">

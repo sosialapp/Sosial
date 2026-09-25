@@ -377,3 +377,26 @@ export function wordsOfTipTap(doc: TipTapDoc | null | undefined): number {
   walk(doc.content);
   return words;
 }
+
+/**
+ * The single publish pipeline: drops empty custom blocks (unfinished embed /
+ * image / chart / button). Both the admin preview AND the save path MUST go
+ * through here — otherwise the preview shows blocks the published page drops.
+ */
+export function cleanDocForPublish(doc: TipTapDoc | null | undefined): TipTapDoc {
+  return {
+    type: 'doc',
+    content: (doc?.content ?? []).filter((b) => {
+      if (b.type === 'socialEmbed') return String(b.attrs?.url ?? '').trim().length > 0;
+      if (b.type === 'image') return String(b.attrs?.src ?? '').trim().length > 0;
+      if (b.type === 'chart') return String(b.attrs?.data ?? '').length > 0;
+      if (b.type === 'buttonLink') {
+        return (
+          String(b.attrs?.label ?? '').trim().length > 0 &&
+          String(b.attrs?.href ?? '').trim().length > 0
+        );
+      }
+      return true;
+    }),
+  };
+}

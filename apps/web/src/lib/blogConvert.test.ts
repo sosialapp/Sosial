@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bnToTipTap,
+  cleanDocForPublish,
   legacyToTipTap,
   normalizeInitialDoc,
   wordsOfTipTap,
@@ -182,5 +183,23 @@ describe('wordsOfTipTap + tiptapToProseHtml', () => {
     });
     expect(html).toContain('<img src="https://x/photo.jpg"');
     expect(html).toContain('<figcaption>Cap</figcaption>');
+  });
+
+  it('cleanDocForPublish drops only unfinished custom blocks', () => {
+    const cleaned = cleanDocForPublish({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Keep me' }] },
+        { type: 'image', attrs: { src: 'https://x/a.jpg' } },
+        { type: 'image', attrs: { src: '' } },
+        { type: 'socialEmbed', attrs: { url: '' } },
+        { type: 'chart', attrs: { kind: 'bar', title: '', data: '' } },
+        { type: 'buttonLink', attrs: { label: 'Go', href: '', image: '', variant: 'solid' } },
+        { type: 'buttonLink', attrs: { label: 'Go', href: '/x', image: '', variant: 'solid' } },
+      ],
+    });
+    expect(cleaned.content.map((b) => b.type)).toEqual(['paragraph', 'image', 'buttonLink']);
+    // Preview and publish now share this pipeline, so they can never diverge.
+    expect(tiptapToProseHtml(cleaned)).toContain('https://x/a.jpg');
   });
 });

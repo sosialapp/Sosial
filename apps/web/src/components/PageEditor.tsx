@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import BlogDoc from '@/components/blog/BlogDoc';
 import ChartIslands from '@/components/site/ChartIslands';
 import { tiptapToProseHtml } from '@/lib/blogHtml';
-import { normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
+import { cleanDocForPublish, normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
 import { defaultDocForSlug } from '@/content/siteDefaults';
 import type { SitePageDef } from '@/content/sitePages';
 
@@ -41,18 +41,7 @@ export default function PageEditor({
   }, []);
 
   const save = async () => {
-    const content: TipTapDoc = {
-      type: 'doc',
-      content: (doc?.content ?? []).filter((b) => {
-        if (b.type === 'socialEmbed') return String(b.attrs?.url ?? '').trim().length > 0;
-        if (b.type === 'image') return String(b.attrs?.src ?? '').trim().length > 0;
-        if (b.type === 'chart') return String(b.attrs?.data ?? '').length > 0;
-        if (b.type === 'buttonLink') {
-          return String(b.attrs?.label ?? '').trim().length > 0 && String(b.attrs?.href ?? '').trim().length > 0;
-        }
-        return true;
-      }),
-    };
+    const content = cleanDocForPublish(doc);
     const bodyHtml = tiptapToProseHtml(content);
     if (!bodyHtml.trim()) {
       setErr('The document is still empty — write something first.');
@@ -72,6 +61,12 @@ export default function PageEditor({
         { onConflict: 'slug' },
       );
       if (error) throw new Error(error.message);
+      // Instant publish: purge the ISR cache so the page is live now.
+      await fetch('/api/admin/revalidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths: [def.route] }),
+      }).catch(() => {});
       router.push('/admin/pages');
       router.refresh();
     } catch (e: unknown) {
@@ -88,6 +83,11 @@ export default function PageEditor({
       const sb = createClient();
       const { error } = await sb.from('site_pages').delete().eq('slug', def.slug);
       if (error) throw new Error(error.message);
+      await fetch('/api/admin/revalidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths: [def.route] }),
+      }).catch(() => {});
       router.push('/admin/pages');
       router.refresh();
     } catch (e: unknown) {
@@ -96,7 +96,8 @@ export default function PageEditor({
     }
   };
 
-  const previewHtml = tiptapToProseHtml(doc);
+  // Preview renders the exact publish pipeline — what you see is what ships.
+  const previewHtml = tiptapToProseHtml(cleanDocForPublish(doc));
 
   return (
     <div className="min-h-screen">
