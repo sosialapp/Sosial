@@ -25,8 +25,9 @@ import { loginPinterest, completePinLogin } from '../utils/pinAuth';
 import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { BUILD_TAG } from '../utils/build';
-import { loadTeam } from '../utils/team';
+import { loadCloudTeam } from '../utils/teamCloud';
 import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount } from '../utils/cloudChannels';
+import { currentSession } from '../utils/supabase';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
@@ -44,6 +45,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const meta = useMemo(() => metaFromAccounts(accounts), [accounts]);
   const [teamCount, setTeamCount] = useState<number | null>(null);
+  /** Workspace-wide removal is owner-only (enforced by remove-channel-token too). */
+  const [isOwner, setIsOwner] = useState(false);
   const [pages, setPages] = useState<FbPage[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [openProvider, setOpenProvider] = useState<ProviderKey | null>(null);
@@ -61,13 +64,22 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     // converges both directions before the list paints.
     void (async () => {
       await backfillMissingAvatars().catch(() => null);
-      await syncCloudChannels().catch(() => null);
       // Force: this screen exists to reflect the cloud — never serve a stale
-      // throttled pull here.
+      // throttled pull here. Pull BEFORE pushing so an account the owner
+      // disconnected elsewhere is retracted locally first and never re-imported.
       await pullCloudChannels(true).catch(() => null);
+      await syncCloudChannels().catch(() => null);
       setAccounts(await loadAccounts().catch(() => []));
     })();
-    loadTeam().then((m) => setTeamCount(m.length));
+    loadCloudTeam()
+      .then((t) => {
+        setTeamCount(t ? Math.max(0, t.members.length - 1) : 0);
+        setIsOwner(t ? t.myRole === 'owner' : false);
+      })
+      .catch(() => setTeamCount(0));
+    currentSession()
+      .then((sn) => setIsOwner(sn ? sn.workspace.role === 'owner' : false))
+      .catch(() => {});
   }, []);
 
   // Master-switch reconciler: any credential change auto-imports (master on)
@@ -805,9 +817,11 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                               <TouchableOpacity onPress={() => void connectCloudOnly(p, a)} activeOpacity={0.7}>
                                 <Text style={s.go}>Connect</Text>
                               </TouchableOpacity>
-                              <TouchableOpacity onPress={() => void removeCloudAccount(a)} activeOpacity={0.7}>
-                                <Text style={s.discT}>Remove</Text>
-                              </TouchableOpacity>
+                              {isOwner ? (
+                                <TouchableOpacity onPress={() => void removeCloudAccount(a)} activeOpacity={0.7}>
+                                  <Text style={s.discT}>Remove</Text>
+                                </TouchableOpacity>
+                              ) : null}
                             </View>
                           ) : (
                             <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7}>

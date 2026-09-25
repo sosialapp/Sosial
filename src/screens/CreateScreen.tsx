@@ -498,7 +498,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={!segScrollLock}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 116 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={!segScrollLock}>
         {/* masthead */}
         <View style={s.masthead}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

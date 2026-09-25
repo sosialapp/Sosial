@@ -1,9 +1,9 @@
 // remove-channel-token · cloud opt-out / disconnect cleanup
 //
-// Mirrors import-channel-token's auth model: caller JWT → active membership
-// check → delete the channel row (token row cascades) → delete the Vault
-// secrets so nothing orphaned survives. Idempotent: unknown channel → 200
-// { removed: false }.
+// Auth model: caller JWT → active membership check → OWNER check (only the
+// workspace owner may disconnect/remove a connected account) → delete the
+// channel row (token row cascades) → delete the Vault secrets so nothing
+// orphaned survives. Idempotent: unknown channel → 200 { removed: false }.
 //
 // POST { workspace_id, provider, external_id? }
 // Without external_id, removes ALL rows of that provider in the workspace
@@ -68,12 +68,16 @@ serve(async (req: Request): Promise<Response> => {
 
   const { data: mem } = await admin
     .from("workspace_members")
-    .select("id")
+    .select("id, role")
     .eq("workspace_id", workspace_id)
     .eq("user_id", user.id)
     .eq("status", "active")
     .maybeSingle();
   if (!mem) return bad("Not a member of this workspace.", 403);
+  // Rule: only the workspace owner can disconnect/remove a connected account.
+  if (mem.role !== "owner") {
+    return bad("Only the workspace owner can disconnect a connected account.", 403);
+  }
 
   let query = admin
     .from("connected_channels")

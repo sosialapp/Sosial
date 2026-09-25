@@ -483,6 +483,11 @@ export interface CloudSyncResult {
 export async function syncCloudChannels(): Promise<CloudSyncResult> {
   const out: CloudSyncResult = { wanted: [], imported: [], removed: [], failed: [] };
   try {
+    // Deterministic order: observe cloud removals BEFORE re-importing local
+    // credentials. Otherwise a channel the owner disconnected elsewhere gets
+    // silently resurrected by this device (the pull then sees it present and
+    // never retracts it). pull's seen-set guard still protects fresh connects.
+    await pullCloudChannels(true).catch(() => null);
     const master = await loadCloudMaster();
     const accounts = await loadAccounts();
     const connAccts = connectedAccounts(accounts);

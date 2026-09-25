@@ -9,7 +9,7 @@ export default async function TeamPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
-  const [membersRes, invitesRes] = await Promise.all([
+  const [membersRes, invitesRes, grantsRes, channelsRes] = await Promise.all([
     sb
       .from('workspace_members')
       .select('id, user_id, email, role, all_channels')
@@ -22,6 +22,12 @@ export default async function TeamPage() {
       .eq('workspace_id', ctx.workspace.id)
       .is('accepted_at', null)
       .order('created_at', { ascending: false }),
+    sb.from('member_channel_grants').select('member_id, provider'),
+    sb
+      .from('connected_channels')
+      .select('provider, external_id, display_name, handle, metadata')
+      .eq('workspace_id', ctx.workspace.id)
+      .eq('status', 'connected'),
   ]);
 
   return (
@@ -39,6 +45,14 @@ export default async function TeamPage() {
           myRole={ctx.workspace.role}
           members={membersRes.data ?? []}
           invites={invitesRes.data ?? []}
+          grants={(grantsRes.data ?? []) as { member_id: string; provider: string }[]}
+          channels={(channelsRes.data ?? []) as {
+            provider: string;
+            external_id: string;
+            display_name: string | null;
+            handle: string | null;
+            metadata: Record<string, unknown> | null;
+          }[]}
         />
       </div>
     </div>

@@ -54,7 +54,7 @@ export default function ConnectPanel({
   fbPick: FbPickPage[] | null;
   /** Result banners (from ?connected= / ?error=). */
   status: { connected?: string; already?: string; error?: string };
-  /** Owner/admin — only they see Remove. */
+  /** Workspace owner only — only they see Remove/disconnect. */
   canManage: boolean;
 }) {
   const [open, setOpen] = useState<ProviderId | null>(fbPick ? 'facebook' : null);

@@ -53,12 +53,13 @@ export default async function ChannelsPage({
           channels={channels}
           fbPick={fbPick}
           status={{ connected: params.connected, already: params.already, error: params.error }}
-          canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
+          canManage={ctx.workspace.role === 'owner'}
         />
       </div>
 
       <p className="mx-auto w-full max-w-2xl px-6 py-6 text-xs text-faint">
-        Owners and admins can remove an account here — its tokens are deleted from the vault.
+        Only the team owner can disconnect an account here — its tokens are deleted from the vault.
+        Members see the accounts they are assigned on the Team page.
       </p>
     </div>
   );

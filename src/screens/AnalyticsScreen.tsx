@@ -247,7 +247,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect }: {
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 116 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
       >

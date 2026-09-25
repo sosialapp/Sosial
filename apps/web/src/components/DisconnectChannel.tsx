@@ -34,10 +34,17 @@ export default function DisconnectChannel({
     setErr(null);
     try {
       const sb = createClient();
-      const { error } = await sb.functions.invoke('remove-channel-token', {
+      const { data, error } = await sb.functions.invoke('remove-channel-token', {
         body: { workspace_id: workspaceId, provider, external_id: externalId },
       });
       if (error) throw new Error(error.message);
+      // functions.invoke can resolve with the error in the body instead of
+      // throwing — never treat that as a success or the row silently stays.
+      const bodyError =
+        data && typeof data === 'object' && 'error' in data
+          ? String((data as { error?: unknown }).error ?? '')
+          : '';
+      if (bodyError) throw new Error(bodyError);
       router.refresh();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Remove failed.');

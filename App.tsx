@@ -375,12 +375,17 @@ function Shell() {
           ) : null}
         </View>
         {isTab ? (
-          <BottomNav
-            tab={route as MainTab}
-            onTab={setRoute}
-            onTemplate={newTemplate}
-            onPost={goCreatePost}
-          />
+          <View
+            pointerEvents="box-none"
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
+          >
+            <BottomNav
+              tab={route as MainTab}
+              onTab={setRoute}
+              onTemplate={newTemplate}
+              onPost={goCreatePost}
+            />
+          </View>
         ) : null}
         <ProfileMenu
           visible={profileOpen}

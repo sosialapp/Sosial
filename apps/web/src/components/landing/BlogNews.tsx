@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { allArticles } from '@/lib/blog';
 import { blogTagBorder, blogTagClass, formatPostDate } from '@/content/types';
-import { ImageSlot } from '@/components/ui';
 
 /** First image block in the article body, if the author added one. */
 function coverOf(body: unknown[]): string | null {
@@ -18,8 +17,8 @@ function coverOf(body: unknown[]): string | null {
 /**
  * News section: the 4 latest blog posts as cards with graphics. Prefers the
  * cover thumbnail set in the admin editor, then the article's own first
- * image, otherwise a finished empty image slot waiting for real art. Images
- * render at their natural ratio — never cropped.
+ * image; no image at all otherwise (no placeholder box). Images render at
+ * their natural ratio — never cropped.
  */
 export default async function BlogNews() {
   const posts = (await allArticles()).slice(0, 4);
@@ -55,12 +54,6 @@ export default async function BlogNews() {
                     alt={a.coverAlt ?? a.title}
                     loading="lazy"
                     className="h-auto w-full border-b border-line"
-                  />
-                ) : a.showCoverHome ? (
-                  <ImageSlot
-                    size="md"
-                    className="aspect-square w-full !rounded-none !border-x-0 !border-t-0"
-                    label={`${a.title} cover image placeholder`}
                   />
                 ) : null}
                 <div className="flex flex-1 flex-col p-5">
