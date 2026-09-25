@@ -1,9 +1,10 @@
 import Prose from '@/components/site/Prose';
+import ChartIslands from '@/components/site/ChartIslands';
 import type { LegalDoc } from '@/content/legal';
 import { formatPostDate } from '@/content/types';
 
-/** Shared renderer for /terms and /privacy. */
-export default function LegalView({ doc }: { doc: LegalDoc }) {
+/** Shared renderer for /terms and /privacy. A CMS body replaces the sections. */
+export default function LegalView({ doc, cmsHtml = null }: { doc: LegalDoc; cmsHtml?: string | null }) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
       <p className="eyebrow">Legal</p>
@@ -13,14 +14,21 @@ export default function LegalView({ doc }: { doc: LegalDoc }) {
 
       <hr className="my-10 border-line" />
 
-      <div className="space-y-10">
-        {doc.sections.map((s) => (
-          <section key={s.title}>
-            <h2 className="font-display text-xl font-extrabold tracking-tight">{s.title}</h2>
-            <Prose blocks={s.blocks} className="mt-3" />
-          </section>
-        ))}
-      </div>
+      {cmsHtml ? (
+        <>
+          <div className="prose-sosial blog-rich" dangerouslySetInnerHTML={{ __html: cmsHtml }} />
+          <ChartIslands />
+        </>
+      ) : (
+        <div className="space-y-10">
+          {doc.sections.map((s) => (
+            <section key={s.title}>
+              <h2 className="font-display text-xl font-extrabold tracking-tight">{s.title}</h2>
+              <Prose blocks={s.blocks} className="mt-3" />
+            </section>
+          ))}
+        </div>
+      )}
 
       <p className="mt-12 text-sm text-muted">
         This page is written to be readable, not to replace legal advice. If you need the full

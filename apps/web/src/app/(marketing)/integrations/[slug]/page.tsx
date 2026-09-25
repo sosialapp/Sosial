@@ -2,12 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
+import PageCms from '@/components/site/PageCms';
 import { CHANNEL_GUIDES, channelGuide, relatedChannels } from '@/content/channels';
 import { channelHref } from '@/content/types';
 
 export function generateStaticParams() {
   return CHANNEL_GUIDES.map((c) => ({ slug: c.key }));
 }
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,
@@ -57,6 +61,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
 
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="text-base leading-relaxed text-soft">{c.intro}</p>
+
+        <PageCms slug={`integrations/${slug}`} className="mt-8" />
 
         <dl className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {c.facts.map((f) => (

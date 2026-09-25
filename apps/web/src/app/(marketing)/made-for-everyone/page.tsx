@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import { CardTrio, CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import PageCms from '@/components/site/PageCms';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Made for everyone',
@@ -17,6 +21,8 @@ export default function MadeForEveryonePage() {
         lede="The tools behind daily posting got expensive, English-first and desktop-only. Sosial is the opposite: a free plan that stays free, a hundred languages, and the same app in your pocket as on your desk."
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
+
+      <PageCms slug="made-for-everyone" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
       <CardTrio
         eyebrow="Who it is for"

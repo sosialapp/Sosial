@@ -15,6 +15,9 @@ const SOCIALS: BrandProvider[] = [
   'linkedin',
 ];
 
+/** Near-black marks read as invisible on the dark footer — those brands ship white on dark. */
+const DARK_MARKS: BrandProvider[] = ['tiktok', 'x', 'threads'];
+
 export default function SiteFooter() {
   return (
     <footer className="bg-ink text-paper">
@@ -28,17 +31,20 @@ export default function SiteFooter() {
           <Link href="/login" className="btn btn-bolt mt-5">
             Start scheduling free
           </Link>
-          <div className="mt-5 flex flex-wrap gap-2" aria-label="Sosial on social media">
+          <div className="mt-5 flex flex-wrap items-center gap-3" aria-label="Sosial on social media">
             {SOCIALS.map((p) => (
               <Link
                 key={p}
                 href={`/integrations/${p}`}
                 aria-label={`Sosial on ${BRAND_NAMES[p]}`}
                 title={`Sosial on ${BRAND_NAMES[p]}`}
-                className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white transition hover:opacity-85"
-                style={{ background: brandColor(p) }}
+                className="text-white transition hover:opacity-75"
               >
-                <BrandIcon provider={p} mono className="h-4 w-4" />
+                {DARK_MARKS.includes(p) ? (
+                  <BrandIcon provider={p} mono className="h-6 w-6" />
+                ) : (
+                  <BrandIcon provider={p} badge={false} className="h-6 w-6" />
+                )}
               </Link>
             ))}
           </div>

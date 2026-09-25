@@ -54,6 +54,15 @@ export default async function AdminOverview() {
           </p>
         </Link>
         <Link
+          href="/admin/pages"
+          className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
+        >
+          <p className="text-sm font-bold">Pages</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Edit product, channel, resource and company pages. Same editor as the blog.
+          </p>
+        </Link>
+        <Link
           href="/admin/notifications"
           className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
         >

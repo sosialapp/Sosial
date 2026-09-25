@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import LegalView from '@/components/site/LegalView';
+import { sitePageHtml } from '@/lib/sitePages';
 import { TERMS } from '@/content/legal';
 
 export const metadata: Metadata = {
@@ -8,6 +9,10 @@ export const metadata: Metadata = {
   alternates: { canonical: '/terms' },
 };
 
-export default function TermsPage() {
-  return <LegalView doc={TERMS} />;
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
+
+export default async function TermsPage() {
+  const cmsHtml = await sitePageHtml('terms');
+  return <LegalView doc={TERMS} cmsHtml={cmsHtml} />;
 }

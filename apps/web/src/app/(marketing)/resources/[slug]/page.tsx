@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import Prose from '@/components/site/Prose';
+import PostBody from '@/components/site/PostBody';
+import { sitePageHtml } from '@/lib/sitePages';
 import { allResources, resource } from '@/content/resources';
 import { resourceHref } from '@/content/types';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return allResources().map((r) => ({ slug: r.slug }));
@@ -33,6 +37,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
   const more = allResources()
     .filter((r) => r.slug !== item.slug)
     .slice(0, 3);
+  const cmsHtml = await sitePageHtml(`resources/${slug}`);
 
   return (
     <>
@@ -51,7 +56,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
 
         <hr className="my-8 border-line" />
 
-        <Prose blocks={item.body} />
+        <PostBody bodyHtml={cmsHtml} blocks={item.body} />
 
         <div className="reveal mt-12 rounded-3xl border border-line bg-card p-6 md:p-8">
           <p className="eyebrow">Next step</p>

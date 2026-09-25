@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import { CardTrio, CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import PageCms from '@/components/site/PageCms';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'About',
@@ -17,6 +21,8 @@ export default function AboutPage() {
         lede="Sosial exists because publishing daily across every network had become a second job: ten tabs, five drafts, and an alarm for the 11pm post. We are a small team building the workspace we wanted ourselves."
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
+
+      <PageCms slug="about" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
       <FeatureBlocks
         items={[

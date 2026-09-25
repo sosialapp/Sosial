@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CalendarPreview } from '@/components/landing/Preview';
 import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import PageCms from '@/components/site/PageCms';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 import { ALL_PROVIDERS, PROVIDER_META } from '@/lib/providers';
 
 export const metadata: Metadata = {
@@ -72,6 +76,8 @@ export default function PublishPage() {
           </div>
         }
       />
+
+      <PageCms slug="publish" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
       <FeatureBlocks
         items={[

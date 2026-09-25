@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import { ComposerPreview } from '@/components/landing/Preview';
 import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import PageCms from '@/components/site/PageCms';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Create',
@@ -23,6 +27,8 @@ export default function CreatePage() {
           </div>
         }
       />
+
+      <PageCms slug="features/create" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
       <FeatureBlocks
         items={[

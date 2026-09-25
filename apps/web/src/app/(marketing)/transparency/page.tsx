@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import PageCms from '@/components/site/PageCms';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Transparency',
@@ -17,6 +21,8 @@ export default function TransparencyPage() {
         lede="Prices you can read before signing up, data practices in plain sentences, AI that never trains on your drafts, and publish results reported per channel. If it affects your work, you can see it."
         secondary={{ href: '/pricing', label: 'Published prices' }}
       />
+
+      <PageCms slug="transparency" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
       <FeatureBlocks
         items={[

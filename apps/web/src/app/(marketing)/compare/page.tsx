@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
+import PageCms from '@/components/site/PageCms';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Compare',
@@ -47,6 +51,8 @@ export default function ComparePage() {
         lede="Suites do a lot and charge for the lot. Single-network apps are light and stay in one lane. Posting by hand is free until it is 11pm. Here is the honest shape of each."
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
+
+      <PageCms slug="compare" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
       <section aria-label="Comparison" className="border-b border-line bg-card/60">
         <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">

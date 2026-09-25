@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
+import PageCms from '@/components/site/PageCms';
+
+/** CMS edits go live within minutes. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Pricing',
@@ -66,6 +70,8 @@ export default function PricingPage() {
         lede="Start free and stay free if that is enough. Upgrade when you want all ten channels, the AI writer or approvals. No per-channel fees, no annual lock-in."
         secondary={{ href: '/compare', label: 'Compare with alternatives' }}
       />
+
+      <PageCms slug="pricing" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
 
       <section aria-label="Plans" className="border-b border-line">
         <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
