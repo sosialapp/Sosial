@@ -21,12 +21,13 @@ interface BlogRow {
   body_html: string | null;
   cover_url: string | null;
   cover_alt: string | null;
+  show_cover_home: boolean | null;
   tag: string | null;
   minutes: number | null;
   published_at: string | null;
 }
 
-const COLS = 'slug, title, description, body, body_html, cover_url, cover_alt, tag, minutes, published_at';
+const COLS = 'slug, title, description, body, body_html, cover_url, cover_alt, show_cover_home, tag, minutes, published_at';
 
 function isBlock(b: unknown): b is Block {
   if (typeof b !== 'object' || b === null) return false;
@@ -60,6 +61,7 @@ function toArticle(r: BlogRow): Article {
     bodyHtml: typeof r.body_html === 'string' && r.body_html.trim() ? r.body_html : null,
     coverUrl: typeof r.cover_url === 'string' && r.cover_url.trim() ? r.cover_url : null,
     coverAlt: typeof r.cover_alt === 'string' && r.cover_alt.trim() ? r.cover_alt : null,
+    showCoverHome: r.show_cover_home !== false,
   };
 }
 

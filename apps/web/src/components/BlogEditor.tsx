@@ -26,6 +26,7 @@ export interface BlogDraft {
   updatedAt?: string | null;
   coverUrl?: string | null;
   coverAlt?: string | null;
+  showCoverHome?: boolean;
 }
 
 function slugify(s: string): string {
@@ -51,6 +52,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
   const [tag, setTag] = useState<Category>(initial?.tag ?? 'Publishing');
   const [coverUrl, setCoverUrl] = useState(initial?.coverUrl ?? '');
   const [coverAlt, setCoverAlt] = useState(initial?.coverAlt ?? '');
+  const [showCoverHome, setShowCoverHome] = useState(initial?.showCoverHome !== false);
   const [coverBusy, setCoverBusy] = useState(false);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -137,6 +139,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
         tag,
         cover_url: coverUrl.trim() || null,
         cover_alt: coverAlt.trim() || null,
+        show_cover_home: showCoverHome,
         minutes: Math.max(1, Math.round(words / 200)),
         status,
         published_at:
@@ -353,6 +356,15 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
                 aria-label="Cover alt text"
                 className="field"
               />
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-soft">
+                <input
+                  type="checkbox"
+                  checked={showCoverHome}
+                  onChange={(e) => setShowCoverHome(e.target.checked)}
+                  className="h-4 w-4 accent-[#1C1A14]"
+                />
+                Show cover on the homepage News cards
+              </label>
             </div>
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

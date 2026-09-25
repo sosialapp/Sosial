@@ -40,7 +40,7 @@ export default async function BlogNews() {
         </div>
         <div className="mt-9 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {posts.map((a) => {
-            const cover = a.coverUrl ?? coverOf(a.body);
+            const cover = a.showCoverHome ? (a.coverUrl ?? coverOf(a.body)) : null;
             return (
               <Link
                 key={a.slug}
@@ -56,13 +56,13 @@ export default async function BlogNews() {
                     loading="lazy"
                     className="h-auto w-full border-b border-line"
                   />
-                ) : (
+                ) : a.showCoverHome ? (
                   <ImageSlot
                     size="md"
                     className="aspect-square w-full !rounded-none !border-x-0 !border-t-0"
                     label={`${a.title} cover image placeholder`}
                   />
-                )}
+                ) : null}
                 <div className="flex flex-1 flex-col p-5">
                   <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
                   <h3 className="mt-3 font-display text-base font-extrabold leading-snug tracking-tight">

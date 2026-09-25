@@ -12,7 +12,7 @@ export default async function AdminBlogEdit({ params }: { params: Promise<{ id: 
   const sb = await createClient();
   const { data } = await sb
     .from('blog_posts')
-    .select('id, slug, title, description, body, cover_url, cover_alt, tag, minutes, status, published_at, updated_at')
+    .select('id, slug, title, description, body, cover_url, cover_alt, show_cover_home, tag, minutes, status, published_at, updated_at')
     .eq('id', id)
     .maybeSingle();
   if (!data) notFound();
@@ -25,6 +25,7 @@ export default async function AdminBlogEdit({ params }: { params: Promise<{ id: 
     body: (data.body as unknown) ?? null,
     coverUrl: (data.cover_url as string | null) ?? null,
     coverAlt: (data.cover_alt as string | null) ?? null,
+    showCoverHome: (data.show_cover_home as boolean | null) !== false,
     tag: (data.tag as Category) ?? 'Publishing',
     minutes: (data.minutes as number) ?? 5,
     status: data.status === 'published' ? 'published' : 'draft',

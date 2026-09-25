@@ -56,6 +56,8 @@ export interface Article {
   /** Cover thumbnail (public blog-media URL) — null when unset. */
   coverUrl: string | null;
   coverAlt: string | null;
+  /** Show the cover on the homepage News cards. Defaults true. */
+  showCoverHome: boolean;
 }
 
 export type ResourceKind = 'Guide' | 'Playbook' | 'Template' | 'Glossary' | 'Cheat sheet';
