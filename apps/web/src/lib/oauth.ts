@@ -124,10 +124,12 @@ export function authorizeUrl({ provider, config, redirectUri: redir, state, chal
   if (!id) throw new Error(`${oauthLabel(provider)} is not configured yet.`);
   switch (provider) {
     case 'tiktok':
-      // TikTok takes client_key, NOT client_id.
+      // TikTok takes client_key, NOT client_id. disable_auto_auth=1 always
+      // shows the consent page instead of silently auto-approving whoever is
+      // logged in — the user sees which account they are authorizing.
       return (
         'https://www.tiktok.com/v2/auth/authorize/' +
-        `?${q({ client_key: id, scope: TT_SCOPES.join(','), response_type: 'code', redirect_uri: redir, state })}`
+        `?${q({ client_key: id, scope: TT_SCOPES.join(','), response_type: 'code', redirect_uri: redir, state, disable_auto_auth: '1' })}`
       );
     case 'instagram':
       // enable_fb_login=false keeps the flow on instagram.com when a

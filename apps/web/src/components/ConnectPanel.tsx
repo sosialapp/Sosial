@@ -376,6 +376,7 @@ export default function ConnectPanel({
                           The browser sends whichever {label} account is signed in there — switch the login
                           on {label} first to add a different one. A login page instead of permissions just
                           means signing in there once; after that Connect goes straight through.
+                          {p === 'tiktok' ? ' TikTok always shows the consent page, so you can see exactly which account you are authorizing.' : null}
                         </p>
                       ) : null}
                     </div>

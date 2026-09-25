@@ -12,7 +12,7 @@ import {
   loginInstagram, exchangeInstagramCode, fetchInstagramProfile,
   loginThreads, exchangeThreadsCode, fetchThreadsProfile,
 } from '../utils/metaAuth';
-import { loginTikTok, completeTikTokLogin } from '../utils/tiktokAuth';
+import { loginTikTok, completeTikTokLogin, openTikTokSite } from '../utils/tiktokAuth';
 import { loginX, completeXLogin } from '../utils/xAuth';
 import { X_CLIENT_ID } from '../utils/xConfig';
 import { completeBskyLogin } from '../utils/bskyAuth';
@@ -832,6 +832,17 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                       );
                     })}
                     {!cfg.manual ? renderSubPanel(p) : null}
+                    {p === 'tiktok' && list.length > 0 ? (
+                      <View style={s.switchBox}>
+                        <Text style={s.switchT}>
+                          TikTok signs in with whoever is logged in — to add a different account, switch it on tiktok.com first, then add below.
+                        </Text>
+                        <TouchableOpacity onPress={() => void openTikTokSite()} activeOpacity={0.7} style={s.switchBtn}>
+                          <Ionicons name="open-outline" size={14} color={C.accentInk} />
+                          <Text style={s.switchBtnT}>Open tiktok.com to switch accounts</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
                     {!cfg.manual && cfg.configured ? (
                       <TouchableOpacity onPress={() => cfg.connect(makeAccount(p).id)} activeOpacity={0.7} style={s.addRow}>
                         <Ionicons name="add-circle-outline" size={16} color={C.accentInk} />
@@ -872,6 +883,10 @@ const makeS = (C: Palette) => StyleSheet.create({
   acctT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   addRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, marginTop: 2 },
   addRowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
+  switchBox: { backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.lineSoft, padding: 12, marginTop: 8, gap: 8 },
+  switchT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18, color: C.muted },
+  switchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10, backgroundColor: C.accentSoft },
+  switchBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   bskyField: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, paddingHorizontal: 13 },
   bskySuffix: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14.5, color: C.muted },
   helpCard: { backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, padding: 12, gap: 8 },

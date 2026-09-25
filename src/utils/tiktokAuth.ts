@@ -28,6 +28,10 @@ export async function loginTikTok(accountId?: string): Promise<boolean> {
     `&scope=${encodeURIComponent(TT_SCOPES.join(','))}` +
     `&response_type=code` +
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
+    // disable_auto_auth=1: always show the consent page instead of silently
+    // auto-approving whoever is logged in — the user sees WHICH account they
+    // are authorizing and can back out to switch first.
+    `&disable_auto_auth=1` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
   return openAuth(url, 'tiktok', accountId);
 }
