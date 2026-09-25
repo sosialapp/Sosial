@@ -119,11 +119,11 @@ export default function PageEditor({
   return (
     <div className="min-h-screen">
       <div className="sticky top-[60px] z-30 border-b border-line bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-2.5 sm:px-6">
+        <div className="mx-auto flex h-[60px] max-w-5xl flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar px-4 sm:px-6">
           <Link
             href="/admin/pages"
             aria-label="Back to pages"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
@@ -136,7 +136,7 @@ export default function PageEditor({
           <button
             type="button"
             onClick={() => setPreview(false)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
               !preview
                 ? 'border-accent bg-accent-soft text-accent-ink'
                 : 'border-line bg-paper text-muted hover:border-faint'
@@ -147,7 +147,7 @@ export default function PageEditor({
           <button
             type="button"
             onClick={() => setPreview(true)}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
               preview
                 ? 'border-accent bg-accent-soft text-accent-ink'
                 : 'border-line bg-paper text-muted hover:border-faint'
@@ -163,7 +163,7 @@ export default function PageEditor({
               disabled={saving}
               aria-label="Restore default"
               title="Restore default"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink disabled:opacity-40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink disabled:opacity-40"
             >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -172,7 +172,7 @@ export default function PageEditor({
             type="button"
             onClick={() => void save()}
             disabled={saving}
-            className="btn btn-primary !px-3.5 !py-1.5 !text-xs"
+            className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
           >
             {saving ? 'Saving…' : initial ? 'Update page' : 'Publish to page'}
           </button>

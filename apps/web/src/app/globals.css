@@ -337,22 +337,30 @@ body {
   .blog-doc .tiptap-wrap {
     font-family: var(--font-sans);
   }
+  .blog-doc .tiptap-bars {
+    position: sticky;
+    top: 128px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    padding: 6px;
+    margin-bottom: 10px;
+    box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.35);
+  }
   .blog-doc .tiptap-bar {
-    /* Static on purpose: the sticky app bar above owns the top of the
-       viewport, and the floating bubble menu owns mid-document formatting.
-       A second sticky bar here would tuck underneath the app bar. */
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 2px;
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    background: var(--color-paper);
-    padding: 6px;
-    margin-bottom: 10px;
   }
   .blog-doc .tiptap-bar-table {
     background: var(--color-paper-dim);
+    border-radius: 10px;
+    padding: 4px;
   }
   .blog-doc .tiptap-group-label {
     font-size: 0.68rem;
@@ -664,11 +672,12 @@ body {
     box-shadow: none;
     padding-inline: 0.5rem;
   }
-  .tiptap-theme-notion .tiptap-bar {
+  .tiptap-theme-notion .tiptap-bars {
     background: transparent;
     border: 0;
     border-bottom: 1px solid var(--color-line);
     border-radius: 0;
+    box-shadow: none;
     padding: 4px 0;
   }
   .tiptap-theme-notion .tiptap-bar-table {
@@ -701,9 +710,10 @@ body {
     box-shadow: none;
     padding-inline: 0.5rem;
   }
-  .tiptap-theme-minimal .tiptap-bar {
+  .tiptap-theme-minimal .tiptap-bars {
     background: transparent;
     border: 0;
+    box-shadow: none;
     padding: 4px 0;
   }
   .tiptap-theme-minimal .tiptap-bar-table {

@@ -164,25 +164,25 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
     <div className="min-h-screen">
       {/* app bar: back · status · words · write/preview · save */}
       <div className="sticky top-[60px] z-30 border-b border-line bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-2.5 sm:px-6">
+        <div className="mx-auto flex h-[60px] max-w-5xl flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar px-4 sm:px-6">
           <Link
             href="/admin/blog"
             aria-label="Back to posts"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
-          <span className="rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] font-bold text-soft">
+          <span className="shrink-0 rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] font-bold text-soft">
             {initial ? initial.status : 'new'}
           </span>
-          <span className="text-[11px] font-bold text-faint">
+          <span className="shrink-0 text-[11px] font-bold text-faint">
             {words} words{initial?.published_at ? ` · published ${new Date(initial.published_at).toLocaleDateString('en-GB')}` : ''}
           </span>
-          <span className="flex-1" />
+          <span className="min-w-0 flex-1" />
           <button
             type="button"
             onClick={() => setPreview(false)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
               !preview
                 ? 'border-accent bg-accent-soft text-accent-ink'
                 : 'border-line bg-paper text-muted hover:border-faint'
@@ -193,7 +193,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
           <button
             type="button"
             onClick={() => setPreview(true)}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
               preview
                 ? 'border-accent bg-accent-soft text-accent-ink'
                 : 'border-line bg-paper text-muted hover:border-faint'
@@ -206,7 +206,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
             type="button"
             onClick={() => void save('draft')}
             disabled={saving}
-            className="btn btn-ghost !px-3.5 !py-1.5 !text-xs"
+            className="btn btn-ghost shrink-0 !px-3.5 !py-1.5 !text-xs"
           >
             {saving ? 'Saving…' : 'Save draft'}
           </button>
@@ -214,7 +214,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
             type="button"
             onClick={() => void save('published')}
             disabled={saving}
-            className="btn btn-primary !px-3.5 !py-1.5 !text-xs"
+            className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
           >
             {saving ? 'Saving…' : initial?.status === 'published' ? 'Update live post' : 'Publish'}
           </button>
@@ -224,7 +224,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
               onClick={() => void remove()}
               disabled={saving}
               aria-label="Delete post"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-[#9F2F2D] transition hover:bg-[#FDEBEC] disabled:opacity-40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-[#9F2F2D] transition hover:bg-[#FDEBEC] disabled:opacity-40"
             >
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </button>

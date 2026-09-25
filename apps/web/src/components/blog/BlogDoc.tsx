@@ -233,6 +233,9 @@ export default function BlogDoc({
 
   return (
     <div className={`tiptap-wrap tiptap-theme-${theme}`}>
+      {/* Sticky toolbar cluster — one pill parked below the editor app bar,
+          so formatting follows while scrolling and never tucks underneath. */}
+      <div className="tiptap-bars">
       {/* main toolbar */}
       <div className="tiptap-bar" role="toolbar" aria-label="Formatting">
         <TBtn onClick={() => editor.chain().focus().undo().run()} title="Undo">
@@ -424,6 +427,7 @@ export default function BlogDoc({
           </TBtn>
         </div>
       ) : null}
+      </div>
 
       <EditorContent editor={editor} />
 
