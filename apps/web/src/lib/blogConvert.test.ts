@@ -148,4 +148,39 @@ describe('wordsOfTipTap + tiptapToProseHtml', () => {
     expect(html).toContain('<a class="rich-btn" href="/x"');
     expect(html).toContain('youtube-nocookie.com/embed/abc12345678');
   });
+
+  it('renders images inside table cells (not just paragraphs)', () => {
+    const html = tiptapToProseHtml({
+      type: 'doc',
+      content: [
+        {
+          type: 'table',
+          content: [
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  content: [
+                    { type: 'paragraph', content: [{ type: 'text', text: 'Logo' }] },
+                    { type: 'image', attrs: { src: 'https://x/logo.png', alt: '' } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(html).toContain('<td>Logo<br /><img class="rich-cell-img" src="https://x/logo.png"');
+  });
+
+  it('keeps top-level images (src attr, not url)', () => {
+    const html = tiptapToProseHtml({
+      type: 'doc',
+      content: [{ type: 'image', attrs: { src: 'https://x/photo.jpg', alt: '', title: 'Cap' } }],
+    });
+    expect(html).toContain('<img src="https://x/photo.jpg"');
+    expect(html).toContain('<figcaption>Cap</figcaption>');
+  });
 });

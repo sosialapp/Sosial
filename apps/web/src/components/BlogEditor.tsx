@@ -79,11 +79,11 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
     const content: TipTapDoc = {
       type: 'doc',
       content: (doc?.content ?? []).filter((b) => {
-        const url = String(b.attrs?.url ?? '').trim();
-        if (b.type === 'socialEmbed' || b.type === 'image') return url.length > 0;
+        if (b.type === 'socialEmbed') return String(b.attrs?.url ?? '').trim().length > 0;
+        if (b.type === 'image') return String(b.attrs?.src ?? '').trim().length > 0;
         if (b.type === 'chart') return String(b.attrs?.data ?? '').length > 0;
         if (b.type === 'buttonLink') {
-          return String(b.attrs?.label ?? '').trim().length > 0 && url.length > 0;
+          return String(b.attrs?.label ?? '').trim().length > 0 && String(b.attrs?.href ?? '').trim().length > 0;
         }
         return true;
       }),

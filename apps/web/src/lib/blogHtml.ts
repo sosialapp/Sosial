@@ -96,6 +96,28 @@ function cellStyle(cell: TNode): string {
   return parts.length ? ` style="${parts.join(';')}"` : '';
 }
 
+/** Cell content: paragraphs, images and nested lists (images in table cells). */
+function cellInnerHtml(cell: TNode): string {
+  const parts: string[] = [];
+  for (const p of cell.content ?? []) {
+    if (p.type === 'paragraph') {
+      const html = inlineHtml(p.content);
+      if (html.trim()) parts.push(html);
+    } else if (p.type === 'image') {
+      const url = String(p.attrs?.src ?? '');
+      if (url) {
+        parts.push(
+          `<img class="rich-cell-img" src="${esc(url)}" alt="${esc(String(p.attrs?.alt ?? ''))}" loading="lazy" />`,
+        );
+      }
+    } else if (p.type === 'bulletList' || p.type === 'orderedList') {
+      const html = listHtml(p);
+      if (html) parts.push(html);
+    }
+  }
+  return parts.join('<br />');
+}
+
 function headingLevel(level: unknown): { tag: string; cls: string } {
   const n = Number(level) || 1;
   if (n <= 1) return { tag: 'h2', cls: 'rich-h2' };
@@ -197,11 +219,7 @@ export function tiptapToProseHtml(doc: TipTapDoc | null | undefined): string {
               const rowspan = Number(c.attrs?.rowspan) || 1;
               if (colspan > 1) span.push(` colspan="${colspan}"`);
               if (rowspan > 1) span.push(` rowspan="${rowspan}"`);
-              const inner = (c.content ?? [])
-                .filter((p) => p.type === 'paragraph')
-                .map((p) => inlineHtml(p.content))
-                .join('<br />');
-              return `<${tag}${span.join('')}${cellStyle(c)}>${inner || ''}</${tag}>`;
+              return `<${tag}${span.join('')}${cellStyle(c)}>${cellInnerHtml(c) || ''}</${tag}>`;
             })
             .join('')}</tr>`;
         const head = grid.slice(0, headerRows);
