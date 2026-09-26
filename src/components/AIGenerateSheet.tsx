@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
@@ -7,12 +7,10 @@ import PostCanvas from './PostCanvas';
 import { RULES } from '../utils/ai/rules';
 import { ContentBrief, DEFAULT_BRIEF, GenResult } from '../utils/ai/types';
 import { generate } from '../utils/ai/provider';
-import { getAiKey, getOpenAiKey, hasBuiltInKey, hasBuiltInOpenAiKey } from '../utils/ai/key';
 import { applyGenResult } from '../utils/ai/apply';
 import { PostPage } from '../types';
-import { loadAccount } from '../utils/account';
 
-/** Prompt → generate → visual preview → apply. Real model (OpenAI preferred, Gemini fallback) when a key is saved, offline draft engine otherwise. */
+/** Prompt → generate → visual preview → apply. AI runs on the server (metered); the offline draft engine covers signed-out devices. */
 export default function AIGenerateSheet({ visible, template, ratio, onClose, onApply }: {
   visible: boolean;
   template: PostPage;
@@ -27,21 +25,9 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const [maxWords, setMaxWords] = useState(DEFAULT_BRIEF.maxWordsPerPage);
   const [maxBlocks, setMaxBlocks] = useState(DEFAULT_BRIEF.maxBlocksPerPage);
   const [grounding, setGrounding] = useState(false);
-  const [hasKey, setHasKey] = useState(false);
-  // built-in build key means zero setup; a legacy saved key still counts (either engine)
-  const keyReady = hasKey || hasBuiltInKey() || hasBuiltInOpenAiKey();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState<GenResult | null>(null);
-  const [plan, setPlan] = useState<'free' | 'pro' | 'team'>('free');
-  const aiLocked = plan === 'free';
-
-  useEffect(() => {
-    if (visible) {
-      Promise.all([getAiKey(), getOpenAiKey()]).then(([g, o]) => setHasKey(!!g || !!o));
-      loadAccount().then((a) => setPlan(a.plan));
-    }
-  }, [visible]);
 
   const brief: ContentBrief = {
     // language is always auto — the copy mirrors whatever language the prompt is in
@@ -56,7 +42,6 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   );
 
   const run = async () => {
-    if (aiLocked) return;
     if (!prompt.trim()) {
       setErr('Type what you want the AI to write about.');
       return;
@@ -65,7 +50,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
     setResult(null);
     setBusy(true);
     try {
-      setResult(await generate(brief, { grounding: grounding && keyReady }));
+      setResult(await generate(brief, { grounding }));
     } finally {
       setBusy(false);
     }
@@ -126,28 +111,18 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
             <Field label="Words / card" hint={`${maxWords}`}>
               <Stepper value={maxWords} onChange={setMaxWords} step={5} min={15} max={120} format={(v) => `${v}`} />
             </Field>
-            <View style={[st.toggleRow, !keyReady && { opacity: 0.5 }]}>
+            <View style={st.toggleRow}>
               <View style={{ flex: 1 }}>
                 <Text style={st.toggleT}>Latest info</Text>
-                <Text style={st.toggleS}>Google Search grounding for current facts</Text>
+                <Text style={st.toggleS}>Live web search grounding for current facts</Text>
               </View>
-              <PillToggle on={grounding && keyReady} onPress={() => keyReady && setGrounding((v) => !v)} />
+              <PillToggle on={grounding} onPress={() => setGrounding((v) => !v)} />
             </View>
 
-            {aiLocked ? (
-              <View style={st.lockBox}>
-                <Ionicons name="lock-closed" size={16} color={C.muted} />
-                <View style={{ flex: 1 }}>
-                  <Text style={st.lockT}>AI generation is a Solo, Team & Business feature.</Text>
-                  <Text style={st.lockS}>Upgrade in Profile → Account to generate content with AI.</Text>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={run} disabled={busy} style={[st.genBtn, busy && { opacity: 0.6 }]} activeOpacity={0.85}>
-                <Ionicons name="sparkles" size={15} color={C.onInk} />
-                <Text style={st.genT}>{busy ? 'Generating…' : 'Generate'}</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity onPress={run} disabled={busy} style={[st.genBtn, busy && { opacity: 0.6 }]} activeOpacity={0.85}>
+              <Ionicons name="sparkles" size={15} color={C.onInk} />
+              <Text style={st.genT}>{busy ? 'Generating…' : 'Generate'}</Text>
+            </TouchableOpacity>
             {err ? <Text style={st.err}>{err}</Text> : null}
 
             {result ? (

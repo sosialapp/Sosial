@@ -335,6 +335,41 @@ export async function removeChannelToken(body: {
   await callChannelFunction('remove-channel-token', body);
 }
 
+/* ---------------- Generic Edge Function bridge ---------------- */
+
+/**
+ * Signed-in Edge Function call. Surfaces the server's `error` message verbatim
+ * — the AI gates depend on it ("You're out of AI credits for this month.").
+ * `name` must be a first-party function; nothing here trusts the caller.
+ */
+export async function callEdgeFunction(name: string, body: Record<string, unknown>): Promise<any> {
+  const sb = supabase();
+  const { data } = await sb.auth.getSession();
+  const jwt = data.session?.access_token;
+  if (!jwt) throw new Error('Sign in to Sosial Cloud first (Account tab).');
+  let res: Response;
+  try {
+    res = await fetch(`${URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: ANON,
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Could not reach the cloud backend — check your connection.');
+  }
+  const json: any = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const m = String(json?.error ?? '');
+    if (res.status === 401) throw new Error('Your cloud session expired — sign in again (Account tab).');
+    throw new Error(m || 'Cloud request failed — try again.');
+  }
+  return json;
+}
+
 /* ---------------- AI picture search (Edge Function) ---------------- */
 
 export interface FoundImage {

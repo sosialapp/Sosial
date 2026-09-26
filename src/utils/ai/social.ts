@@ -1,7 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { THREAD_CAPS } from '../thread';
-import { getAiKey, getOpenAiKey } from './key';
-import { openaiSocialRaw, openaiChatJson, OPENAI_PROVIDER } from './openai';
+import { serverGenerate, serverLabel, cloudSessionReady, type ServerAiAction } from './server';
 import { AiLanguage } from './types';
 
 /**
@@ -17,10 +16,6 @@ import { AiLanguage } from './types';
  * The legacy `caption` / `thread` / `hashtags` fields stay on SocialResult so the
  * composer keeps working untouched.
  */
-
-const MODEL = 'gemini-3.8-flash';
-const endpoint = (key: string) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
 export type SocialPlatform =
   | 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon'
@@ -702,63 +697,6 @@ function buildPrompt(brief: SocialBrief, opts: { platforms: SocialPlatform[]; li
   return lines.join('\n');
 }
 
-const SCHEMA = {
-  type: 'object',
-  properties: {
-    content_type: { type: 'string' },
-    style_used: { type: 'string' },
-    voice_used: { type: 'string' },
-    language: { type: 'string' },
-    posts: { type: 'array', items: { type: 'string' } },
-    variants: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { platform: { type: 'string' }, posts: { type: 'array', items: { type: 'string' } } },
-        required: ['platform', 'posts'],
-      },
-    },
-    hashtags: { type: 'array', items: { type: 'string' } },
-    sources: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          title: { type: 'string' },
-          url: { type: 'string' },
-          publisher: { type: 'string' },
-          published_at: { type: 'string' },
-        },
-        required: ['title', 'url'],
-      },
-    },
-    uncertainties: { type: 'array', items: { type: 'string' } },
-  },
-  required: ['posts'],
-};
-
-async function callModel(key: string, prompt: string, schema: unknown | null, grounding: boolean): Promise<any> {
-  const body: any = {
-    systemInstruction: { parts: [{ text: 'You output strict JSON only. No markdown fences, no commentary.' }] },
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    // NOTE: Gemini 3.6+ dropped the sampling knobs (temperature/top_p/top_k) —
-    // sending them returns 400, so only schema + token budget go out.
-    generationConfig:
-      schema && !grounding
-        ? { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 4096 }
-        : { responseMimeType: 'text/plain', maxOutputTokens: 4096 },
-  };
-  if (grounding) body.tools = [{ google_search: {} }];
-
-  const r = await fetch(endpoint(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const j: any = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(humanErr(j));
-  const text = (j.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? '').join('');
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('The model returned unusable JSON — try again.');
-  return JSON.parse(m[0]);
-}
-
 /** Prompt + research flag both engines share — one computation, no drift. */
 function socialPromptArgs(brief: SocialBrief): { prompt: string; research: boolean } {
   const platforms = activePlatforms(brief);
@@ -768,22 +706,6 @@ function socialPromptArgs(brief: SocialBrief): { prompt: string; research: boole
     prompt: buildPrompt(brief, { platforms, limit, research, sources: sourcesNeeded(brief, research) }),
     research,
   };
-}
-
-export async function geminiSocial(brief: SocialBrief, key: string): Promise<any> {
-  const { prompt, research } = socialPromptArgs(brief);
-  const raw = await callModel(key, prompt, SCHEMA, research);
-  return { ...raw, __researched: research };
-}
-
-function humanErr(j: any): string {
-  const msg = String(j?.error?.message ?? '');
-  if (/API key/i.test(msg)) return 'That API key was rejected — check it and try again.';
-  if (/quota|rate|429|RESOURCE_EXHAUSTED/i.test(msg)) return 'Rate limit hit — wait a minute and retry.';
-  if (/UNAVAILABLE|overload|503|high demand/i.test(msg)) return 'The model is busy right now — try again in a moment.';
-  if (/SAFETY|blocked/i.test(msg)) return 'The model declined this one — rephrase the idea and try again.';
-  if (/fetch|network|Failed to fetch|timeout/i.test(msg)) return 'Couldn\'t reach the AI. Check your connection and try again.';
-  return msg || 'Something went wrong while writing your post.';
 }
 
 /* ---------------- offline path ---------------- */
@@ -831,30 +753,23 @@ export type SocialPhase = 'research' | 'write' | 'adapt' | 'finalize';
 export type PhaseHandler = (phase: SocialPhase) => void;
 
 export async function generateSocial(brief: SocialBrief, onPhase?: PhaseHandler): Promise<SocialResult> {
-  // OpenAI first when its key exists, Gemini next, offline draft engine last.
-  const oKey = await getOpenAiKey();
-  const gKey = oKey ? null : await getAiKey();
-  const engine: 'openai' | 'gemini' | null = oKey ? 'openai' : gKey ? 'gemini' : null;
-  if (!engine) {
+  const research = researchNeeded(brief);
+  const platforms = activePlatforms(brief);
+  const action: ServerAiAction = brief.thread ? 'thread' : platforms.length > 1 ? 'adapt' : 'post';
+
+  // Server-side, metered AI. No session → offline draft engine (never a bundled key).
+  if (!(await cloudSessionReady())) {
     onPhase?.('write');
     await new Promise((r) => setTimeout(r, 450));
     return normalizeSocial(mockSocial(brief), brief, 'Draft engine (offline)');
   }
-  const key = (engine === 'openai' ? oKey : gKey) as string;
-  const label = engine === 'openai' ? OPENAI_PROVIDER : 'Gemini 3.8 Flash';
 
   const runOnce = async (b: SocialBrief) => {
-    if (engine === 'openai') {
-      const { prompt, research } = socialPromptArgs(b);
-      const raw = { ...(await openaiSocialRaw(prompt, research, key)), __researched: research };
-      return { raw, research };
-    }
-    const raw = await geminiSocial(b, key);
-    return { raw, research: researchNeeded(b) };
+    const { prompt, research: r } = socialPromptArgs(b);
+    const raw = { ...(await serverGenerate({ prompt, grounding: r, action })), __researched: r };
+    return { raw, research: r };
   };
 
-  const research = researchNeeded(brief);
-  const platforms = activePlatforms(brief);
   try {
     if (research) onPhase?.('research');
     onPhase?.('write');
@@ -866,21 +781,21 @@ export async function generateSocial(brief: SocialBrief, onPhase?: PhaseHandler)
     if (research && !(Array.isArray(raw.sources) && raw.sources.length) && !raw.uncertainties?.length) {
       raw = { ...raw, uncertainties: ['Live research returned no sources — verify the facts before publishing.'] };
     }
-    return normalizeSocial(raw, brief, research ? `${label} + Search` : label);
+    return normalizeSocial(raw, brief, serverLabel(research));
   } catch (e: any) {
     // If the grounded pass failed, retry straight generation so the user still gets copy —
     // with an honest warning that research did not run.
     if (research) {
       try {
         const { raw } = await runOnce({ ...brief, research: 'off' });
-        const result = normalizeSocial(raw, brief, label);
+        const result = normalizeSocial(raw, brief, serverLabel(false));
         return { ...result, researchUsed: false, warnings: ['Live research is temporarily unavailable — this was written without it.', ...result.warnings] };
       } catch {
         /* fall through to the shared error result */
       }
     }
     return {
-      caption: '', thread: [], hashtags: [], provider: label,
+      caption: '', thread: [], hashtags: [], provider: serverLabel(research),
       warnings: [e?.message ?? 'Something went wrong while writing your post.'],
       generation: { contentType: brief.thread ? 'thread' : 'post', styleUsed: brief.style, voiceUsed: brief.tone, language: brief.language },
       variants: [], sources: [], researchUsed: false, uncertainties: [],
@@ -907,9 +822,9 @@ export async function rewritePosts(
   brief: SocialBrief,
   op: RewriteOp,
 ): Promise<{ posts: string[]; warning?: string }> {
-  const oKey = await getOpenAiKey();
-  const gKey = oKey ? null : await getAiKey();
-  if (!oKey && !gKey) return { posts, warning: 'Editing needs a live model — reconnect and try again.' };
+  if (!(await cloudSessionReady())) {
+    return { posts, warning: 'Editing needs a live model — sign in to Sosial Cloud and try again.' };
+  }
   const limit = Math.min(...activePlatforms(brief).map((p) => capFor(p, brief.thread)));
   const prompt = [
     'You are editing an existing social post. Preserve ALL facts, names, numbers and meaning.',
@@ -921,13 +836,7 @@ export async function rewritePosts(
     'Return ONLY JSON: {"posts":["..."]}.',
   ].join('\n');
   try {
-    const raw = oKey
-      ? await openaiChatJson(oKey, 'You output strict JSON only. No markdown fences, no commentary.', prompt)
-      : await callModel(gKey as string, prompt, {
-        type: 'object',
-        properties: { posts: { type: 'array', items: { type: 'string' } } },
-        required: ['posts'],
-      }, false);
+    const raw = await serverGenerate({ prompt, action: 'rewrite' });
     const out = rawPosts(raw);
     if (!out.length) return { posts, warning: 'The rewrite came back empty — kept your original.' };
     return { posts: clampVariant(out, activePlatforms(brief)[0], brief.thread).posts };

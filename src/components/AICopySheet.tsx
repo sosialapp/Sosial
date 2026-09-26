@@ -17,7 +17,6 @@ import {
 } from '../utils/ai/social';
 import { WRITER_LANGUAGES } from '../utils/ai/languages';
 import AIPictureSheet from './AIPictureSheet';
-import { loadAccount } from '../utils/account';
 
 /**
  * Write with AI — the studio.
@@ -76,8 +75,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   const [dirty, setDirty] = useState(false);
   /** per-post attachments, keyed `${variantIndex}:${postIndex}` */
   const [segMedia, setSegMedia] = useState<Record<string, SocialSegmentMedia[]>>({});
-  const [plan, setPlan] = useState<'free' | 'pro' | 'team'>('free');
-  const aiLocked = plan === 'free';
 
   useEffect(() => {
     if (!visible) { setMounted(false); return; }
@@ -93,7 +90,6 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setAdvanced(false);
     setLangOpen(false);
     setLangQuery('');
-    loadAccount().then((a) => setPlan(a.plan));
     return () => clearTimeout(t);
   }, [visible, initialPrompt]);
 
@@ -117,7 +113,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
   /* ---------------- generation ---------------- */
 
   const run = async () => {
-    if (aiLocked || busy) return;
+    if (busy) return;
     if (!prompt.trim()) {
       setErr('Give the AI a rough thought to work with.');
       return;
@@ -732,15 +728,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
 
             {/* sticky CTA */}
             <View style={st.footer}>
-              {aiLocked ? (
-                <View style={st.lockBox}>
-                  <Ionicons name="lock-closed" size={16} color={C.muted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.lockT}>AI writing is a Solo, Team & Business feature.</Text>
-                    <Text style={st.lockS}>Upgrade in Profile → Account to write with AI.</Text>
-                  </View>
-                </View>
-              ) : result && hasCopy ? (
+              {result && hasCopy ? (
                 <PrimaryBtn
                   label={result.thread.length > 1 ? `Use this thread (${draft[tab]?.posts.length ?? 0})` : 'Use this caption'}
                   onPress={apply}
