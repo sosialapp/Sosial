@@ -8,6 +8,7 @@ import type { ConnectedChannel, PostWithTargets } from '@/lib/types';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
+import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
 import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
 import { MONTHS, WEEKDAYS, addDays, addMonths, dayKey, formatTime, isSameDay, monthMatrix, moveToDay } from '@/lib/format';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
@@ -18,14 +19,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 function snippet(p: PostWithTargets): string {
   const text = (p.title || p.body || 'Untitled').replace(/\s+/g, ' ').trim();
   return text.length > 68 ? `${text.slice(0, 68)}…` : text;
-}
-
-/** Threads/chains read as ONE post: head = lowest chain_position. */
-function chainHead(parts: PostWithTargets[]): PostWithTargets {
-  return [...parts].sort(
-    (a, b) =>
-      a.chain_position - b.chain_position || (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''),
-  )[0];
 }
 
 /** Real account avatars with platform logo badges (brand disc fallback). */
@@ -271,37 +264,16 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const avatarOf = (channelId: string): string | undefined => avatarByChannel.get(channelId);
 
   /** Chain parts grouped by chain_id — only the head renders anywhere. */
-  const chainParts = useMemo(() => {
-    const m = new Map<string, PostWithTargets[]>();
-    for (const p of posts) {
-      if (!p.chain_id) continue;
-      const arr = m.get(p.chain_id) ?? [];
-      arr.push(p);
-      m.set(p.chain_id, arr);
-    }
-    return m;
-  }, [posts]);
-  /** Chain size: sibling rows, or the worker thread length when a chain
-   *  collapsed to its head (later parts carry no targets of their own). */
-  const partCount = (p: PostWithTargets): number => {
-    let n = p.chain_id ? (chainParts.get(p.chain_id)?.length ?? 1) : 1;
-    for (const t of p.post_targets ?? []) {
-      const th = t.options?.thread;
-      if (Array.isArray(th)) {
-        const c = th.filter((s) => typeof s === 'string' && s.trim()).length;
-        if (c > n) n = c;
-      }
-    }
-    return n;
-  };
-  const isChainHead = (p: PostWithTargets): boolean =>
-    !p.chain_id || chainHead(chainParts.get(p.chain_id) ?? [p]).id === p.id;
+  const chainParts = useMemo(() => chainPartsByChain(posts), [posts]);
+  /** Chain size: sibling rows, or the worker thread length for collapsed chains. */
+  const partCount = (p: PostWithTargets): number => threadCount(p, chainParts);
+  const isHead = (p: PostWithTargets): boolean => isChainHead(p, chainParts);
 
   const byDay = useMemo(() => {
     const m = new Map<string, PostWithTargets[]>();
     for (const p of posts) {
       if (!p.scheduled_at) continue;
-      if (!isChainHead(p)) continue;
+      if (!isHead(p)) continue;
       const k = dayKey(new Date(p.scheduled_at));
       const arr = m.get(k) ?? [];
       arr.push(p);
@@ -315,7 +287,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   }, [posts, chainParts]);
 
   const undated = useMemo(
-    () => posts.filter((p) => !p.scheduled_at && isChainHead(p)),
+    () => posts.filter((p) => !p.scheduled_at && isHead(p)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [posts, chainParts],
   );

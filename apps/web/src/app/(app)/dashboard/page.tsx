@@ -1,15 +1,14 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ChartColumn, ChevronLeft, ChevronRight, Clock, Link2 } from 'lucide-react';
-import { BrandIcon } from '@/components/BrandIcon';
 import SendIcon from '@/components/SendIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
 import QuickPost from '@/components/QuickPost';
 import { providerMeta } from '@/lib/providers';
+import { chainPartsByChain, isChainHead } from '@/lib/chains';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey, WEEKDAYS } from '@/lib/format';
-import type { ProviderKey } from '@/lib/types';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -107,8 +106,13 @@ export default async function DashboardPage() {
 
   const now = Date.now();
   const dayMs = 24 * 3600_000;
+  // Chains read as one post everywhere: group by chain_id, keep the head.
+  const parts = chainPartsByChain(posts);
+  const avatarByChannel = new Map(channels.map((c) => [c.id, channelAvatar(c.metadata)]));
+  const avatarOf = (channelId: string): string | undefined => avatarByChannel.get(channelId);
   const queued = posts.filter((p) => p.status === 'queued' || p.status === 'publishing');
-  const upcoming = queued
+  const queuedHeads = queued.filter((p) => isChainHead(p, parts));
+  const upcoming = queuedHeads
     .filter((p) => p.scheduled_at && new Date(p.scheduled_at).getTime() >= now - 60_000)
     .sort((a, b) => +new Date(a.scheduled_at!) - +new Date(b.scheduled_at!))
     .slice(0, 5);
@@ -143,7 +147,7 @@ export default async function DashboardPage() {
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(monday, i);
     const k = dayKey(d);
-    const dayPosts = queued
+    const dayPosts = queuedHeads
       .filter((p) => p.scheduled_at && dayKey(new Date(p.scheduled_at)) === k)
       .sort((a, b) => +new Date(a.scheduled_at!) - +new Date(b.scheduled_at!));
     return { d, k, posts: dayPosts, isToday: k === dayKey(today) };
@@ -193,7 +197,7 @@ export default async function DashboardPage() {
         />
         <StatTile
           label="Scheduled"
-          value={String(queued.length)}
+          value={String(queuedHeads.length)}
           sub="In the queue now"
           tint="#7c5cf0"
           icon={<Clock className="h-4.5 w-4.5" aria-hidden="true" />}
@@ -253,7 +257,7 @@ export default async function DashboardPage() {
                       </span>
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full font-display text-xs font-extrabold ${
-                          isToday ? 'bg-[#2f7cf6] text-white' : 'text-ink'
+                          isToday ? 'bg-accent text-white' : 'text-ink'
                         }`}
                       >
                         {d.getDate()}
@@ -278,27 +282,26 @@ export default async function DashboardPage() {
                         <div
                           key={k}
                           className={`h-14 border-t border-line-soft p-1 [&:not(:first-child)]:border-l ${
-                            isToday ? 'bg-[#2f7cf6]/[0.04]' : ''
+                            isToday ? 'bg-accent/[0.06]' : ''
                           } ${ri === HOURS.length - 1 ? 'border-b' : ''}`}
                         >
                           {cell.slice(0, 2).map((p) => {
-                            const pv = p.post_targets?.[0]?.provider;
-                            const meta = pv ? providerMeta(pv) : null;
+                            const t0 = p.post_targets?.[0];
                             return (
                               <Link
                                 key={p.id}
                                 href="/calendar"
-                                className="mb-0.5 block rounded-md px-1.5 py-0.5 transition hover:opacity-85"
-                                style={meta ? { background: `${meta.color}1A` } : undefined}
+                                className="mb-0.5 block rounded-md bg-paper-dim px-1.5 py-0.5 transition hover:opacity-85"
                               >
                                 <span className="flex items-center gap-1">
-                                  {pv ? (
-                                    <BrandIcon provider={pv as ProviderKey} className="h-2.5 w-2.5 shrink-0" />
+                                  {t0 ? (
+                                    <ChannelAvatar
+                                      provider={t0.provider}
+                                      avatar={avatarOf(t0.channel_id)}
+                                      size={14}
+                                    />
                                   ) : null}
-                                  <span
-                                    className="truncate text-[9px] font-extrabold"
-                                    style={meta ? { color: meta.color } : undefined}
-                                  >
+                                  <span className="truncate text-[9px] font-extrabold tabular-nums text-ink">
                                     {fmtTime(p.scheduled_at)}
                                   </span>
                                 </span>
@@ -336,18 +339,19 @@ export default async function DashboardPage() {
             ) : (
               <ul className="mt-3 divide-y divide-line-soft">
                 {upcoming.map((p) => {
-                  const pv = (p.post_targets?.[0]?.provider ?? 'instagram') as ProviderKey;
+                  const t0 = p.post_targets?.[0];
+                  const pv = t0?.provider ?? 'instagram';
                   const meta = providerMeta(pv);
                   return (
                     <li key={p.id} className="flex items-center gap-3 py-2.5">
-                      {/* Picture area: filled in later. */}
-                      <ThumbSlot className="h-10 w-10 !rounded-lg" />
+                      <ChannelAvatar
+                        provider={pv}
+                        avatar={t0 ? avatarOf(t0.channel_id) : undefined}
+                        size={40}
+                      />
                       <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5">
-                          <BrandIcon provider={pv} className="h-4 w-4 shrink-0" />
-                          <span className="truncate text-[11px] font-bold" style={{ color: meta.color }}>
-                            {meta.label}
-                          </span>
+                        <span className="block truncate text-[11px] font-bold text-ink">
+                          {meta.label}
                         </span>
                         <span className="mt-0.5 block truncate text-xs font-bold">{p.title || 'Untitled post'}</span>
                         <span className="block text-[11px] text-faint">
@@ -408,12 +412,17 @@ export default async function DashboardPage() {
             ) : (
               <ul className="mt-4 space-y-4">
                 {recent.map((p) => {
-                  const pv = (p.post_targets?.[0]?.provider ?? 'instagram') as ProviderKey;
+                  const t0 = p.post_targets?.[0];
+                  const pv = t0?.provider ?? 'instagram';
                   const meta = providerMeta(pv);
                   const failed = p.status === 'failed';
                   return (
                     <li key={p.id} className="flex items-center gap-3">
-                      <BrandIcon provider={pv} className="h-10 w-10 shrink-0" />
+                      <ChannelAvatar
+                        provider={pv}
+                        avatar={t0 ? avatarOf(t0.channel_id) : undefined}
+                        size={40}
+                      />
                       <span className="min-w-0">
                         <span className="block truncate text-xs font-bold">
                           {failed ? 'Failed on ' : 'Posted on '}
