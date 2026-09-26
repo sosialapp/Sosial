@@ -657,7 +657,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: 'Unlimited scheduled posts' },
                 { text: '1,500 AI credits a month' },
                 { text: '5 team members and 5 workspaces' },
-                { text: 'Approvals, roles and bulk scheduling' },
+                { text: 'Approval workflows and roles' },
               ]}
               action={plan === 'free'
                 ? { label: `Upgrade to Team · ${teamTotal}`, ghost: true, onPress: () => choosePlan('team', 'Team') }
@@ -677,7 +677,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: 'Unlimited scheduled posts' },
                 { text: '5,000 AI credits a month' },
                 { text: 'Unlimited team members and workspaces' },
-                { text: 'Advanced analytics and brand voice' },
               ]}
               action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch — the web app supports it today.') }}
             />

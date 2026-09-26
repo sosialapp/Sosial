@@ -38,10 +38,13 @@ describe('FEATURE_MATRIX', () => {
     expect(PLANS.free.limits.watermarkRequired).toBe(true);
   });
 
-  it('gates bulk scheduling and brand voice to the right plans', () => {
-    expect(row('Bulk scheduling').value('free')).toBe(false);
-    expect(row('Bulk scheduling').value('solo')).toBe(true);
-    expect(row('Brand voice training').value('team')).toBe(false);
-    expect(row('Brand voice training').value('business')).toBe(true);
+  it('gates qualitative capabilities to the right plans', () => {
+    expect(row('Platform-specific adaptation').value('free')).toBe(false);
+    expect(row('Platform-specific adaptation').value('solo')).toBe(true);
+    expect(row('Approval workflow').value('solo')).toBe(false);
+    expect(row('Approval workflow').value('team')).toBe(true);
+    expect(row('Approval workflow').value('business')).toBe(true);
+    expect(row('Client / agency workflows').value('team')).toBe(false);
+    expect(row('Client / agency workflows').value('business')).toBe(true);
   });
 });

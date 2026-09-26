@@ -38,7 +38,6 @@ export const FEATURE_MATRIX: FeatureCategory[] = [
       },
       { label: 'Calendar, queue & auto-publishing', value: () => true },
       { label: 'Content library', value: () => true },
-      { label: 'Bulk scheduling', value: paid },
     ],
   },
   {
@@ -48,7 +47,6 @@ export const FEATURE_MATRIX: FeatureCategory[] = [
       { label: 'Captions, rewrites & hashtags', value: () => true },
       { label: 'Platform-specific adaptation', value: paid },
       { label: 'Threads & long-form generation', value: paid },
-      { label: 'Brand voice training', value: (p) => p === 'business' },
     ],
   },
   {
@@ -66,7 +64,6 @@ export const FEATURE_MATRIX: FeatureCategory[] = [
     rows: [
       { label: 'Basic analytics', value: () => true },
       { label: 'Reach, engagement & top posts', value: paid },
-      { label: 'Advanced analytics & custom reports', value: (p) => p === 'business' },
     ],
   },
   {

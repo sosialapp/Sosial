@@ -79,7 +79,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'Unlimited scheduled posts',
       '1,500 AI credits a month',
       '5 team members and 5 workspaces',
-      'Approvals, roles and bulk scheduling',
+      'Approval workflows and roles',
     ],
   },
   business: {
@@ -95,7 +95,6 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'Unlimited scheduled posts',
       '5,000 AI credits a month',
       'Unlimited team members and workspaces',
-      'Advanced analytics, custom reports and brand voice',
     ],
   },
 };
