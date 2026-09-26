@@ -460,13 +460,26 @@ function AvatarMark({ page, size, k }: { page: PostPage; size: number; k: number
   );
 }
 
-function Watermark({ font, size, color, k }: { font: FontId; size: number; color: string; k: number }) {
+function Watermark(props: { font: FontId; size: number; color: string; k: number }) {
+  // Mirrors the server-side export mark: the Sosial bolt in a translucent
+  // rounded badge, so the preview matches the watermarked PNG exactly.
+  const d = Math.round(18 * props.k);
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 2 * k, flexShrink: 0 }}>
-      <span style={{ ...ff(font), fontSize: size * k, color }}>made with</span>
+    <span
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: d,
+        height: d,
+        borderRadius: Math.round(d * 0.3),
+        background: 'rgba(0,0,0,0.42)',
+        border: '1px solid rgba(255,255,255,0.22)',
+        flexShrink: 0,
+      }}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/bolt.png" alt="" data-embed width={Math.round((size + 1) * k)} height={Math.round((size + 1) * k)} style={{ borderRadius: 2 * k }} />
-      <span style={{ ...ff(font, true), fontSize: size * k, color }}>Sosial</span>
+      <img src="/bolt.png" alt="" data-embed width={Math.round(d * 0.62)} height={Math.round(d * 0.62)} />
     </span>
   );
 }

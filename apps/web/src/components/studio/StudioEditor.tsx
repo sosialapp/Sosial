@@ -20,6 +20,7 @@ import {
   type StudioProject,
 } from '@/lib/studio/model';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
+import { watermarkBlob } from '@/lib/studio/watermarkClient';
 import StudioCanvas from './StudioCanvas';
 import AiStudioPanel from './AiStudioPanel';
 import { BackgroundStep, PhotoSocialsStep, TitleStep } from './steps1';
@@ -220,7 +221,7 @@ export default function StudioEditor({
     if (!host) return null;
     const node = host.querySelector<HTMLElement>(`[data-export-page="${i}"] [data-studio-canvas]`);
     if (!node) return null;
-    return exportCanvasPng(node, 1080);
+    return watermarkBlob(await exportCanvasPng(node, 1080));
   };
 
   const downloadBlob = (blob: Blob, name: string) => {
@@ -249,7 +250,9 @@ export default function StudioEditor({
       // Capture the canvas the user actually sees.
       const node =
         canvasHostRef.current?.querySelector<HTMLElement>('[data-studio-canvas]') ?? null;
-      const blob = node ? await exportCanvasPng(node, 1080) : await exportPagePng(pageIndex);
+      const blob = node
+        ? await watermarkBlob(await exportCanvasPng(node, 1080))
+        : await exportPagePng(pageIndex);
       if (blob) downloadBlob(blob, fileName(pageIndex));
       else setExportErr('Could not render that page. Try again.');
     } catch (e) {

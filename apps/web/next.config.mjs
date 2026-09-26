@@ -7,6 +7,9 @@ const root = dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: root,
+  // Native module — keep it out of the server bundle so the platform picks the
+  // right prebuilt binary (used by the server-side watermark compositor).
+  serverExternalPackages: ['sharp'],
   async rewrites() {
     return [
       // Legacy GitHub Pages URLs — old links, app stores and SEO keep working.
