@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
+import { CtaBand, FaqList } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import PricingPlans from '@/components/PricingPlans';
 import PlanComparison from '@/components/PlanComparison';
@@ -24,17 +24,13 @@ export default async function PricingPage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
-      <PageHero
-        eyebrow="Pricing"
+      <PricingPlans
         title={meta?.title ?? 'Simple plans, published prices.'}
         lede="Start free and stay free if that is enough. Upgrade for more channels, more AI credits and team approvals. Monthly or annual — annual gives you two months free."
-        meta={date ? `Updated ${date}` : undefined}
-        secondary={{ href: '/compare', label: 'Compare with alternatives' }}
+        updated={date ?? undefined}
       />
 
       <PageCms slug="pricing" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
-
-      <PricingPlans />
 
       <PlanComparison />
 

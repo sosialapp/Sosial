@@ -8,92 +8,159 @@ import {
 } from '@/lib/billing/plans';
 
 /**
- * Pricing grid with a monthly/annual toggle. The toggle swaps displayed
- * price, interval, savings and CTA — annual always shows the equivalent
- * monthly cost AND makes clear the customer is billed once a year.
+ * Pricing band: dark cards with a monthly/annual pill toggle. Card content
+ * (prices, limits, points, CTAs) comes straight from the canonical PLANS
+ * config, so the numbers here are exactly what billing enforces.
  */
-export default function PricingPlans() {
+function CheckIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      className="mb-auto mt-[0.5px] shrink-0"
+    >
+      <rect x="1" y="1" width="18" height="18" rx="5" fill="#fff" fillOpacity="0.12" />
+      <path
+        d="M6.5 10.2 9 12.7 13.7 7.5"
+        stroke="#fff"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h11M11 6.5 14.5 10 11 13.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export default function PricingPlans({
+  title,
+  lede,
+  updated,
+}: {
+  title: string;
+  lede: string;
+  updated?: string;
+}) {
   const [interval, setInterval] = useState<BillingInterval>('monthly');
 
   return (
-    <section aria-label="Plans" className="border-b border-line">
+    <section aria-label="Plans" className="bg-black text-white">
       <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
-        <div className="flex justify-center">
-          <div className="flex items-center gap-2" role="group" aria-label="Billing interval">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="font-display text-sm font-medium text-white/50">Pricing</p>
+          <h1 className="mt-3 font-display text-4xl font-bold tracking-tight md:text-5xl">
+            {title}
+          </h1>
+          <p className="mt-4 text-base leading-relaxed text-[#D1D1D1] md:text-lg">{lede}</p>
+          {updated ? <p className="mt-3 text-xs text-white/40">Updated {updated}</p> : null}
+        </div>
+
+        <div className="mt-10 flex justify-center">
+          <div
+            className="grid w-full grid-cols-2 gap-1 rounded-xl border border-white/10 p-1.5 sm:w-[280px]"
+            role="group"
+            aria-label="Billing interval"
+          >
             {(['monthly', 'annual'] as const).map((i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => setInterval(i)}
                 aria-pressed={interval === i}
-                className={`pill border ${interval === i ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
+                className={`rounded-lg px-3 py-2.5 text-sm font-medium sm:text-base ${
+                  interval === i ? 'bg-white text-black' : 'bg-transparent text-[#D1D1D1]'
+                }`}
               >
-                {i === 'monthly' ? 'Monthly' : `Annual · save up to ${annualSavingsPct('team')}%`}
+                {i === 'monthly' ? 'Monthly' : `Yearly · −${annualSavingsPct('team')}%`}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="mt-9 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {PLAN_ORDER.map((key) => {
             const p = PLANS[key];
+            const ctaHref = key === 'free' ? '/login' : '/billing';
+            const ctaLabel = key === 'free' ? 'Start free' : `Choose ${p.label}`;
             return (
               <div
                 key={key}
-                className={`card flex flex-col p-6 ${
-                  p.featured ? 'border-2 border-accent shadow-[0_24px_60px_-30px_rgba(28,26,20,0.45)]' : ''
-                }`}
+                className="relative flex w-full flex-1 flex-col rounded-[20px] border border-white/10 bg-[#1A1919] px-5 py-8 lg:p-6"
               >
-                <div className="flex items-center justify-between">
-                  <p className="eyebrow">{p.label}</p>
-                  {p.featured ? (
-                    <span className="rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-bold text-white">
-                      Most popular
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-2 text-xs font-semibold text-faint">{p.badge}</p>
-                <p className="mt-3 font-display text-4xl font-extrabold tracking-tight">
+                {p.featured ? (
+                  <div className="absolute top-4 right-4">
+                    <div className="w-fit rounded-full bg-white/20 px-4 py-2">
+                      <p className="text-sm leading-none">Popular</p>
+                    </div>
+                  </div>
+                ) : null}
+                <p className="font-display text-xl font-medium">{p.label}</p>
+                <div className="min-h-[20px]" />
+                <p className="font-display text-5xl font-semibold tracking-tight">
                   {key === 'free' ? 'Free' : formatUsd(priceFor(key, interval))}
                   {key !== 'free' ? (
-                    <span className="ml-1.5 align-middle text-sm font-semibold text-faint">
+                    <span className="ml-2 font-display text-xl font-medium">
                       /{interval === 'monthly' ? 'mo' : 'yr'}
                     </span>
                   ) : null}
                 </p>
+                <div className="min-h-[8px]" />
                 {key !== 'free' && interval === 'annual' ? (
-                  <p className="mt-1 text-xs text-muted">
-                    ≈ {formatUsd(monthlyEquivalent(key))}/month — billed annually
+                  <p className="text-sm text-[#D1D1D1]">
+                    ≈ {formatUsd(monthlyEquivalent(key))}/mo — billed annually
                   </p>
                 ) : null}
                 {key !== 'free' && interval === 'monthly' ? (
-                  <p className="mt-1 text-xs text-muted">
+                  <p className="text-sm text-[#D1D1D1]">
                     or {priceLabel(key, 'annual')} ({annualSavingsPct(key)}% off)
                   </p>
                 ) : null}
-                <p className="mt-2 text-sm leading-relaxed text-muted">{p.blurb}</p>
-                <ul className="mt-5 flex-1 space-y-2.5">
+                <p className="mt-3 text-base leading-relaxed text-[#D1D1D1]">{p.blurb}</p>
+                <ul className="mt-6 flex-1 space-y-3">
                   {p.points.map((pt) => (
-                    <li key={pt} className="flex items-start gap-2.5 text-sm leading-relaxed text-soft">
-                      <span className="mt-0.5 text-ink" aria-hidden="true">
-                        ✓
-                      </span>
-                      {pt}
+                    <li key={pt} className="flex gap-2 text-sm leading-relaxed">
+                      <CheckIcon />
+                      <span>{pt}</span>
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href={key === 'free' ? '/login' : '/billing'}
-                  className={`btn mt-6 w-full ${p.featured ? 'btn-bolt' : 'btn-ghost'}`}
-                >
-                  {key === 'free' ? 'Start free' : `Choose ${p.label}`}
-                </Link>
+                <div className="min-h-[44px]" />
+                <div className="flex justify-center">
+                  <Link
+                    href={ctaHref}
+                    className={`flex w-fit items-center justify-center gap-1.5 rounded-full px-8 py-4 text-base font-medium whitespace-nowrap transition-all ${
+                      p.featured
+                        ? 'bg-white text-black hover:opacity-85'
+                        : 'border border-white text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {ctaLabel}
+                    <ArrowIcon />
+                  </Link>
+                </div>
               </div>
             );
           })}
         </div>
-        <p className="mt-6 text-center text-xs text-faint">
-          Prices in USD. Annual plans are billed once a year and give you two months free. Cancel any time, keep your data.
+        <p className="mt-6 text-center text-xs text-white/40">
+          Prices in USD. Annual plans are billed once a year and give you two months free.
+          Cancel any time, keep your data.
         </p>
       </div>
     </section>
