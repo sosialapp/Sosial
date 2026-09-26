@@ -72,9 +72,9 @@ export default function PricingPlans({
           {updated ? <p className="mt-3 text-xs text-faint">Updated {updated}</p> : null}
         </div>
 
-        <div className="mt-10 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <div
-            className="grid w-full grid-cols-2 gap-1 rounded-xl border border-line p-1.5 sm:w-[280px]"
+            className="grid w-full grid-cols-2 gap-1 rounded-xl border border-line p-1 sm:w-[220px]"
             role="group"
             aria-label="Billing interval"
           >
@@ -84,11 +84,11 @@ export default function PricingPlans({
                 type="button"
                 onClick={() => setInterval(i)}
                 aria-pressed={interval === i}
-                className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors sm:text-base ${
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   interval === i ? 'bg-[#191512] text-white' : 'bg-transparent text-soft'
                 }`}
               >
-                {i === 'monthly' ? 'Monthly' : `Yearly · −${annualSavingsPct('team')}%`}
+                {i === 'monthly' ? 'Monthly' : 'Yearly'}
               </button>
             ))}
           </div>

@@ -1,10 +1,18 @@
-import { PLANS, formatUsd, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
+'use client';
+
+import Link from 'next/link';
+import { useState } from 'react';
+import {
+  PLANS, formatUsd, monthlyEquivalent, priceFor,
+  type BillingInterval, type PlanKey,
+} from '@/lib/billing/plans';
 import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
 
 /**
- * Full plan comparison. Rows are generated from the canonical PLANS config
- * via FEATURE_MATRIX, so limits shown here are exactly what the server
- * enforces. Qualitative capabilities are marked per plan.
+ * Full plan comparison. Limit values are generated from the canonical PLANS
+ * config via FEATURE_MATRIX, so the table can never drift from what the
+ * server enforces. The header shows one mini-card per plan (price + CTA)
+ * with its own monthly/yearly toggle, which flips the displayed prices.
  */
 function Cell({ value }: { value: string | boolean }) {
   if (value === true) {
@@ -24,7 +32,21 @@ function Cell({ value }: { value: string | boolean }) {
   return <span className="text-soft">{value}</span>;
 }
 
+function headerPrice(key: PlanKey, interval: BillingInterval): string {
+  if (key === 'free') return 'Free';
+  return interval === 'monthly'
+    ? `${formatUsd(priceFor(key, 'monthly'))}/mo`
+    : `${formatUsd(Math.round(monthlyEquivalent(key)))}/mo`;
+}
+
+function headerSub(key: PlanKey, interval: BillingInterval): string {
+  if (key === 'free') return 'forever';
+  return interval === 'monthly' ? 'per month' : `per month · billed ${formatUsd(priceFor(key, 'annual'))} yearly`;
+}
+
 export default function PlanComparison() {
+  const [interval, setInterval] = useState<BillingInterval>('annual');
+
   return (
     <section aria-label="Plan comparison" className="border-b border-line">
       <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
@@ -40,28 +62,66 @@ export default function PlanComparison() {
         </div>
 
         <div className="mt-10 overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left">
+          <table className="w-full min-w-[880px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-line">
-                <th scope="col" className="w-2/5 pb-4 pr-4" />
+              <tr>
+                <th scope="col" className="w-[190px] min-w-[190px] p-1.5 align-bottom">
+                  <p className="font-display text-lg font-bold text-ink">Plans</p>
+                  <p className="mt-1 text-sm text-muted">Save with yearly billing!</p>
+                  <div
+                    className="mt-3 grid grid-cols-2 gap-1 rounded-lg border border-line p-1"
+                    role="group"
+                    aria-label="Billing interval"
+                  >
+                    {(['monthly', 'annual'] as const).map((i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setInterval(i)}
+                        aria-pressed={interval === i}
+                        className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                          interval === i ? 'bg-[#191512] text-white' : 'bg-transparent text-soft'
+                        }`}
+                      >
+                        {i === 'monthly' ? 'Monthly' : 'Yearly'}
+                      </button>
+                    ))}
+                  </div>
+                </th>
                 {FEATURE_PLAN_ORDER.map((key) => {
                   const p = PLANS[key];
                   return (
-                    <th key={key} scope="col" className="pb-4 pl-4 align-bottom">
-                      <span className="eyebrow block">{p.label}</span>
-                      <span className="mt-1 block text-sm font-semibold text-ink">
-                        {p.key === 'free' ? 'Free' : priceLabel(p.key, 'monthly')}
-                      </span>
-                      <span className="block text-xs font-normal text-faint">
-                        {p.key === 'free'
-                          ? 'forever'
-                          : `${formatUsd(Math.round(monthlyEquivalent(p.key)))}/mo billed yearly`}
-                      </span>
-                      {p.featured ? (
-                        <span className="mt-1 inline-block rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-white">
-                          Most popular
-                        </span>
-                      ) : null}
+                    <th key={key} scope="col" className="min-w-[160px] p-1.5 align-bottom">
+                      <div
+                        className={`relative rounded-2xl p-4 text-center ${
+                          p.featured
+                            ? 'border-2 border-accent bg-white'
+                            : 'border border-line bg-white'
+                        }`}
+                      >
+                        {p.featured ? (
+                          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-0.5 text-[11px] font-bold whitespace-nowrap text-accent-ink">
+                            Most popular
+                          </span>
+                        ) : null}
+                        <p className="eyebrow">{p.label}</p>
+                        <p className="mt-2 font-display text-2xl font-bold text-ink">
+                          {headerPrice(key, interval)}
+                        </p>
+                        <p className="mt-1 min-h-8 text-[11px] leading-snug text-faint">
+                          {headerSub(key, interval)}
+                        </p>
+                        <Link
+                          href={key === 'free' ? '/login' : '/billing'}
+                          className={`mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-medium whitespace-nowrap transition-all ${
+                            p.featured
+                              ? 'bg-[#191512] text-white hover:bg-[#2a261d]'
+                              : 'border border-line text-soft hover:border-ink hover:bg-paper-dim'
+                          }`}
+                        >
+                          {key === 'free' ? 'Start free' : `Choose ${p.label}`}
+                        </Link>
+                      </div>
                     </th>
                   );
                 })}
@@ -82,11 +142,11 @@ export default function PlanComparison() {
                 </tr>
                 {cat.rows.map((row) => (
                   <tr key={row.label} className="border-b border-line/70">
-                    <th scope="row" className="py-3 pr-4 text-sm font-medium text-soft">
+                    <th scope="row" className="py-3 pr-4 text-left text-sm font-medium text-soft">
                       {row.label}
                     </th>
                     {FEATURE_PLAN_ORDER.map((key) => (
-                      <td key={key} className="py-3 pl-4 text-sm">
+                      <td key={key} className="py-3 text-center text-sm">
                         <Cell value={row.value(key)} />
                       </td>
                     ))}
