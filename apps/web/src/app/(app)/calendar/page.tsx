@@ -11,5 +11,5 @@ export default async function CalendarPage() {
     fetchPosts(sb, ctx.workspace.id),
     fetchChannels(sb, ctx.workspace.id),
   ]);
-  return <CalendarBoard posts={posts} channels={channels.length} />;
+  return <CalendarBoard posts={posts} channels={channels} />;
 }

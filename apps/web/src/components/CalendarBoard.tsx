@@ -4,7 +4,8 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import type { PostWithTargets } from '@/lib/types';
+import type { ConnectedChannel, PostWithTargets } from '@/lib/types';
+import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
 import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
@@ -27,21 +28,22 @@ function chainHead(parts: PostWithTargets[]): PostWithTargets {
   )[0];
 }
 
-function ChannelDots({ post }: { post: PostWithTargets }) {
-  const providers = Array.from(new Set(post.post_targets.map((t) => t.provider)));
+/** Real account avatars with platform logo badges (brand disc fallback). */
+function ChannelAvatars({
+  post,
+  avatarOf,
+}: {
+  post: PostWithTargets;
+  avatarOf: (channelId: string) => string | undefined;
+}) {
+  const targets = post.post_targets.slice(0, 4);
   return (
-    <span className="flex items-center gap-1">
-      {providers.slice(0, 4).map((p) => {
-        const meta = providerMeta(p);
-        return (
-          <span
-            key={p}
-            title={meta.label}
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ background: meta.color }}
-          />
-        );
-      })}
+    <span className="flex shrink-0 items-center" aria-hidden="true">
+      {targets.map((t, i) => (
+        <span key={t.channel_id} style={{ marginLeft: i === 0 ? 0 : -6, zIndex: targets.length - i }}>
+          <ChannelAvatar provider={t.provider} avatar={avatarOf(t.channel_id)} size={18} />
+        </span>
+      ))}
     </span>
   );
 }
@@ -111,6 +113,7 @@ function isoAt(key: string, h: number, m: number): string {
 function TimeEditor({
   post,
   dayLabel,
+  avatarOf,
   onSave,
   onSaveChannels,
   onPublish,
@@ -119,6 +122,7 @@ function TimeEditor({
 }: {
   post: PostWithTargets;
   dayLabel: string;
+  avatarOf: (channelId: string) => string | undefined;
   onSave: (iso: string) => void;
   onSaveChannels: (times: { channelId: string; iso: string }[]) => void;
   onPublish: () => void;
@@ -164,11 +168,7 @@ function TimeEditor({
               const v = times[t.channel_id] ?? partsOf(t.scheduled_at);
               return (
                 <div key={t.channel_id} className="flex items-center gap-2">
-                  <span
-                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ background: meta.color }}
-                    title={meta.label}
-                  />
+                  <ChannelAvatar provider={t.provider} avatar={avatarOf(t.channel_id)} size={22} />
                   <span className="w-16 shrink-0 truncate text-[11px] font-bold">{meta.label}</span>
                   <input
                     type="number"
@@ -252,7 +252,7 @@ function TimeEditor({
   );
 }
 
-export default function CalendarBoard({ posts, channels }: { posts: PostWithTargets[]; channels: number }) {
+export default function CalendarBoard({ posts, channels }: { posts: PostWithTargets[]; channels: ConnectedChannel[] }) {
   const router = useRouter();
   const [view, setView] = useState<'month' | 'week' | 'line'>('week');
   const [anchor, setAnchor] = useState(() => new Date());
@@ -262,6 +262,13 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const [overKey, setOverKey] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  /** Avatar per channel for the identity tiles (brand disc fallback). */
+  const avatarByChannel = useMemo(
+    () => new Map(channels.map((c) => [c.id, channelAvatar(c.metadata)])),
+    [channels],
+  );
+  const avatarOf = (channelId: string): string | undefined => avatarByChannel.get(channelId);
 
   /** Chain parts grouped by chain_id — only the head renders anywhere. */
   const chainParts = useMemo(() => {
@@ -584,7 +591,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                           >
                             <div className="flex items-center justify-between gap-1">
                               <span className="font-bold text-ink">{formatTime(p.scheduled_at)}</span>
-                              <ChannelDots post={p} />
+                              <ChannelAvatars post={p} avatarOf={avatarOf} />
                             </div>
                             {partCount(p) > 1 ? (
                               <div className="text-[10px] font-bold text-faint">
@@ -721,7 +728,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                                   <span className="font-bold tabular-nums text-ink">
                                     {formatTime(p.scheduled_at)}
                                   </span>
-                                  <ChannelDots post={p} />
+                                  <ChannelAvatars post={p} avatarOf={avatarOf} />
                                 </div>
                                 {partCount(p) > 1 ? (
                                   <div className="mt-0.5 text-[10px] font-bold text-faint">
@@ -825,7 +832,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                                 <span className="min-w-0 flex-1 truncate text-sm text-soft">
                                   {snippet(p)}
                                 </span>
-                                <ChannelDots post={p} />
+                                <ChannelAvatars post={p} avatarOf={avatarOf} />
                                 {partCount(p) > 1 ? (
                                   <span className="shrink-0 text-[11px] font-bold text-faint">
                                     Thread · {partCount(p)}
@@ -876,6 +883,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                 key={selectedPost.id}
                 post={selectedPost}
                 dayLabel={selectedKey}
+                avatarOf={avatarOf}
                 onSave={(iso) => void retime(selectedPost.id, iso)}
                 onSaveChannels={(times) => void persistChannels(times)}
                 onPublish={() => void publishNow()}
@@ -905,7 +913,7 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
               New post
             </Link>
             {pending && <p className="text-center text-xs text-muted">Saving…</p>}
-            {channels === 0 && (
+            {channels.length === 0 && (
               <p className="text-center text-xs text-muted">
                 No channels connected yet. Connect one in the app.
               </p>
