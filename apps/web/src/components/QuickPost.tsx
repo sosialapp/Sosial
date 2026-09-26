@@ -8,7 +8,7 @@ import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
 import { createPost } from '@/lib/posts';
-import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
+import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
@@ -40,7 +40,7 @@ export default function QuickPost({
   const [body, setBody] = useState('');
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
   const [mode, setMode] = useState<'now' | 'schedule'>('now');
-  const [when, setWhen] = useState<string | null>(null);
+  const [when, setWhen] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -113,6 +113,9 @@ export default function QuickPost({
               key={m}
               type="button"
               onClick={() => {
+                if (m === 'schedule' && (!when || queueTooSoon(when))) {
+                  setWhen(new Date(minQueueTime()).toISOString());
+                }
                 setMode(m);
                 setDone(null);
               }}

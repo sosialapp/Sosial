@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/posts';
-import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
+import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { generateSocial, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
 import DateTimePicker from '@/components/DateTimePicker';
@@ -61,7 +61,7 @@ export default function Composer({
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
   const [mode, setMode] = useState<ComposeMode>('schedule');
-  const [whenIso, setWhenIso] = useState<string | null>(null);
+  const [whenIso, setWhenIso] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
   const [files, setFiles] = useState<{ file: File; kind: 'image' | 'video'; url: string }[]>(() =>
@@ -567,7 +567,14 @@ export default function Composer({
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setMode(m.id)}
+                  onClick={() => {
+                    // Flipping to schedule always lands on a valid time —
+                    // fresh default when empty, refreshed when gone stale.
+                    if (m.id === 'schedule' && (!whenIso || queueTooSoon(whenIso))) {
+                      setWhenIso(new Date(minQueueTime()).toISOString());
+                    }
+                    setMode(m.id);
+                  }}
                   className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
                     mode === m.id ? 'bg-accent text-white' : 'bg-surface text-soft hover:bg-line'
                   }`}

@@ -11,7 +11,7 @@ import DateTimePicker from '@/components/DateTimePicker';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
-import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
+import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
@@ -122,7 +122,9 @@ export default function CreatePost({
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
   const [parts, setParts] = useState(() => Math.max(3, initParts?.length ?? 3));
   const [mode, setMode] = useState<'now' | 'schedule'>('schedule');
-  const [whenIso, setWhenIso] = useState<string | null>(initialWhenIso);
+  const [whenIso, setWhenIso] = useState<string | null>(
+    initialWhenIso ?? new Date(minQueueTime()).toISOString(),
+  );
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -358,7 +360,12 @@ export default function CreatePost({
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setMode(m)}
+                    onClick={() => {
+                      if (m === 'schedule' && (!whenIso || queueTooSoon(whenIso))) {
+                        setWhenIso(new Date(minQueueTime()).toISOString());
+                      }
+                      setMode(m);
+                    }}
                     aria-pressed={mode === m}
                     className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
                       mode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
