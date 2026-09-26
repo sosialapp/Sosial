@@ -11,6 +11,7 @@ import {
   CARD_STYLES,
   DATA,
   FONT_OPTIONS,
+  FONT_STACKS,
   PALETTE,
   POST_SIZES,
   newBlock,
@@ -416,18 +417,18 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
             <div className="flex gap-3">
               <div className="flex-1 space-y-1.5">
                 <p className="text-[10.5px] font-bold text-muted">Font</p>
-                <div className="flex flex-wrap gap-1">
+                <select
+                  value={s.font}
+                  onChange={(e) => setSocials(page.socials.map((x) => (x.platform === s.platform ? { ...x, font: e.target.value as FontId } : x)))}
+                  className="field"
+                  aria-label={`${providerMeta(s.platform).label} handle font`}
+                >
                   {FONT_OPTIONS.map((f) => (
-                    <button
-                      key={f.value}
-                      type="button"
-                      onClick={() => setSocials(page.socials.map((x) => (x.platform === s.platform ? { ...x, font: f.value } : x)))}
-                      className={`rounded-lg px-2 py-1.5 text-[11px] transition ${s.font === f.value ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
-                    >
-                      {f.label.slice(0, 4)}
-                    </button>
+                    <option key={f.value} value={f.value} style={{ fontFamily: FONT_STACKS[f.value] }}>
+                      {f.label}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
               <div className="space-y-1.5">
                 <p className="text-[10.5px] font-bold text-muted">Style</p>
