@@ -1,24 +1,32 @@
 import type { Metadata } from 'next';
 import { CardTrio, CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'About',
-  description:
-    'Sosial is a small team building one calendar for ten social networks: compose once, approve as a team, and let a cloud queue ship every channel on time.',
-  alternates: { canonical: '/about' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('about');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'About',
+    description:
+      meta?.metaDescription ??
+      'Sosial is a small team building one calendar for ten social networks: compose once, approve as a team, and let a cloud queue ship every channel on time.',
+    alternates: { canonical: '/about' },
+  };
+}
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const meta = await sitePageMeta('about');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="About"
-        title="One calendar for ten networks."
+        title={meta?.title ?? 'One calendar for ten networks.'}
         lede="Sosial exists because publishing daily across every network had become a second job: ten tabs, five drafts, and an alarm for the 11pm post. We are a small team building the workspace we wanted ourselves."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
 

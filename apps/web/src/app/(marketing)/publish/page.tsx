@@ -3,17 +3,22 @@ import { BrandIcon } from '@/components/BrandIcon';
 import { CalendarPreview } from '@/components/landing/Preview';
 import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 import { ALL_PROVIDERS, PROVIDER_META } from '@/lib/providers';
 
-export const metadata: Metadata = {
-  title: 'Publish',
-  description:
-    'Schedule across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest from one calendar and queue. Published by a worker, on time.',
-  alternates: { canonical: '/publish' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('publish');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'Publish',
+    description:
+      meta?.metaDescription ??
+      'Schedule across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest from one calendar and queue. Published by a worker, on time.',
+    alternates: { canonical: '/publish' },
+  };
+}
 
 function QueueVisual() {
   const rows = [
@@ -62,13 +67,16 @@ function LimitsVisual() {
   );
 }
 
-export default function PublishPage() {
+export default async function PublishPage() {
+  const meta = await sitePageMeta('publish');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="Publish"
-        title="Every post, on time, everywhere."
+        title={meta?.title ?? 'Every post, on time, everywhere.'}
         lede="Write once, drop it on the calendar, and let the queue ship all ten channels. No retyping per network, no 11pm manual posting."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/integrations', label: 'See every channel' }}
         visual={
           <div className="card p-3 md:p-4">

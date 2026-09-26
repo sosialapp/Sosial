@@ -56,6 +56,50 @@ export interface SiteCustomPage {
   updatedAt: string | null;
 }
 
+export interface SitePageMeta {
+  title: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  publishedAt: string | null;
+}
+
+/**
+ * Editable metadata for any live row (registry or custom) — what Page
+ * settings writes. Null when never customized; drafts and scheduled-future
+ * rows are already filtered by RLS, so this is always safe to render.
+ */
+export async function sitePageMeta(slug: string): Promise<SitePageMeta | null> {
+  try {
+    const sb = publicClient();
+    const { data } = await sb
+      .from('site_pages')
+      .select('title, meta_title, meta_description, published_at')
+      .eq('slug', slug)
+      .maybeSingle();
+    const row = data as {
+      title?: unknown; meta_title?: unknown; meta_description?: unknown; published_at?: unknown;
+    } | null;
+    if (!row) return null;
+    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
+    return {
+      title: str(row.title),
+      metaTitle: str(row.meta_title),
+      metaDescription: str(row.meta_description),
+      publishedAt: str(row.published_at),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Long-form date for a full ISO timestamp: "26 September 2026", or null. */
+export function formatPageDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
 /** A live custom page by slug, or null (missing, draft or scheduled-future). */
 export async function siteCustomPage(slug: string): Promise<SiteCustomPage | null> {
   try {

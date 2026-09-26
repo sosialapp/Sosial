@@ -2,24 +2,32 @@ import type { Metadata } from 'next';
 import { ComposerPreview } from '@/components/landing/Preview';
 import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'Create',
-  description:
-    'One composer for ten channels. Per-channel previews, live character counters, templates, and media that fits every network.',
-  alternates: { canonical: '/features/create' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('features/create');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'Create',
+    description:
+      meta?.metaDescription ??
+      'One composer for ten channels. Per-channel previews, live character counters, templates, and media that fits every network.',
+    alternates: { canonical: '/features/create' },
+  };
+}
 
-export default function CreatePage() {
+export default async function CreatePage() {
+  const meta = await sitePageMeta('features/create');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="Create"
-        title="Start from a blank page less."
+        title={meta?.title ?? 'Start from a blank page less.'}
         lede="One composer writes for ten networks at once, with live previews, honest character counts, reusable templates and media that fits everywhere."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/ai-assistant', label: 'Meet the AI writer' }}
         visual={
           <div className="card p-3 md:p-4">

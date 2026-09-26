@@ -10,6 +10,7 @@ export function PageHero({
   eyebrow,
   title,
   lede,
+  meta,
   primary = { href: '/login', label: 'Start scheduling free' },
   secondary,
   visual,
@@ -17,6 +18,8 @@ export function PageHero({
   eyebrow: string;
   title: string;
   lede: string;
+  /** small faint line under the lede — the CMS "Updated …" date. */
+  meta?: string;
   primary?: { href: string; label: string };
   secondary?: { href: string; label: string };
   visual?: ReactNode;
@@ -36,6 +39,9 @@ export function PageHero({
           <p className={`mt-4 text-lg leading-relaxed text-muted ${visual ? '' : 'mx-auto max-w-xl'}`}>
             {lede}
           </p>
+          {meta ? (
+            <p className={`mt-3 text-xs font-bold text-faint ${visual ? '' : 'mx-auto'}`}>{meta}</p>
+          ) : null}
           <div className={`mt-7 flex flex-wrap gap-2.5 ${visual ? '' : 'justify-center'}`}>
             <Link href={primary.href} className="btn btn-primary btn-lg">
               {primary.label}

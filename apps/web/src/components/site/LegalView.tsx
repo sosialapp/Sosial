@@ -3,14 +3,29 @@ import ChartIslands from '@/components/site/ChartIslands';
 import type { LegalDoc } from '@/content/legal';
 import { formatPostDate } from '@/content/types';
 
-/** Shared renderer for /terms and /privacy. A CMS body replaces the sections. */
-export default function LegalView({ doc, cmsHtml = null }: { doc: LegalDoc; cmsHtml?: string | null }) {
+/**
+ * Shared renderer for /terms and /privacy. A CMS body replaces the sections;
+ * CMS title/date/summary override the hardcoded header when set.
+ */
+export default function LegalView({
+  doc,
+  cmsHtml = null,
+  title = null,
+  updated = null,
+  summary = null,
+}: {
+  doc: LegalDoc;
+  cmsHtml?: string | null;
+  title?: string | null;
+  updated?: string | null;
+  summary?: string | null;
+}) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
       <p className="eyebrow">Legal</p>
-      <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight">{doc.title}</h1>
-      <p className="mt-3 text-sm font-bold text-faint">Last updated {formatPostDate(doc.updated)}</p>
-      <p className="mt-5 text-lg leading-relaxed text-muted">{doc.summary}</p>
+      <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight">{title ?? doc.title}</h1>
+      <p className="mt-3 text-sm font-bold text-faint">Last updated {updated ?? formatPostDate(doc.updated)}</p>
+      <p className="mt-5 text-lg leading-relaxed text-muted">{summary ?? doc.summary}</p>
 
       <hr className="my-10 border-line" />
 

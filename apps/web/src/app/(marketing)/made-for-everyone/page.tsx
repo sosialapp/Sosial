@@ -1,24 +1,32 @@
 import type { Metadata } from 'next';
 import { CardTrio, CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'Made for everyone',
-  description:
-    'Sosial is built for solo creators, small teams and agencies alike: a free plan that stays free, 100+ languages, real accessibility, and apps on iOS, Android and web.',
-  alternates: { canonical: '/made-for-everyone' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('made-for-everyone');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'Made for everyone',
+    description:
+      meta?.metaDescription ??
+      'Sosial is built for solo creators, small teams and agencies alike: a free plan that stays free, 100+ languages, real accessibility, and apps on iOS, Android and web.',
+    alternates: { canonical: '/made-for-everyone' },
+  };
+}
 
-export default function MadeForEveryonePage() {
+export default async function MadeForEveryonePage() {
+  const meta = await sitePageMeta('made-for-everyone');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="Made for everyone"
-        title="Publishing should not be a privilege."
+        title={meta?.title ?? 'Publishing should not be a privilege.'}
         lede="The tools behind daily posting got expensive, English-first and desktop-only. Sosial is the opposite: a free plan that stays free, a hundred languages, and the same app in your pocket as on your desk."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
 

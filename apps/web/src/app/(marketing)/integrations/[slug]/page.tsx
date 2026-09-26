@@ -5,6 +5,7 @@ import { BrandIcon } from '@/components/BrandIcon';
 import PageCms from '@/components/site/PageCms';
 import { CHANNEL_GUIDES, channelGuide, relatedChannels } from '@/content/channels';
 import { channelHref } from '@/content/types';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 export function generateStaticParams() {
   return CHANNEL_GUIDES.map((c) => ({ slug: c.key }));
@@ -21,11 +22,14 @@ export async function generateMetadata({
   const { slug } = await params;
   const c = channelGuide(slug);
   if (!c) return { title: 'Integration not found' };
+  const meta = await sitePageMeta(`integrations/${slug}`);
+  const title = meta?.metaTitle ?? meta?.title ?? `Sosial × ${c.name}`;
+  const description = meta?.metaDescription ?? c.tagline;
   return {
-    title: `Sosial × ${c.name}`,
-    description: c.tagline,
+    title,
+    description,
     alternates: { canonical: channelHref(c.key) },
-    openGraph: { title: `Sosial × ${c.name}`, description: c.tagline },
+    openGraph: { title, description },
   };
 }
 
@@ -34,6 +38,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
   const c = channelGuide(slug);
   if (!c) notFound();
 
+  const meta = await sitePageMeta(`integrations/${slug}`);
+  const date = formatPageDate(meta?.publishedAt ?? null);
   const related = relatedChannels(slug);
 
   return (
@@ -48,11 +54,12 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
             <div>
               <p className="eyebrow">Integration</p>
               <h1 className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-                Sosial × {c.name}
+                {meta?.title ?? `Sosial × ${c.name}`}
               </h1>
             </div>
           </div>
-          <p className="mt-5 text-lg leading-relaxed text-muted">{c.tagline}</p>
+          <p className="mt-5 text-lg leading-relaxed text-muted">{meta?.metaDescription ?? c.tagline}</p>
+          {date ? <p className="mt-3 text-xs font-bold text-faint">Updated {date}</p> : null}
           <Link href="/login" className="btn btn-primary mt-6">
             Connect {c.name}
           </Link>

@@ -1,16 +1,21 @@
 import type { Metadata } from 'next';
 import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'Compare',
-  description:
-    'How Sosial compares with all-in-one social suites, single-network scheduling apps, and posting by hand. A fair look at where each approach wins.',
-  alternates: { canonical: '/compare' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('compare');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'Compare',
+    description:
+      meta?.metaDescription ??
+      'How Sosial compares with all-in-one social suites, single-network scheduling apps, and posting by hand. A fair look at where each approach wins.',
+    alternates: { canonical: '/compare' },
+  };
+}
 
 type Cell = string | boolean;
 
@@ -42,13 +47,16 @@ function mark(cell: Cell) {
   );
 }
 
-export default function ComparePage() {
+export default async function ComparePage() {
+  const meta = await sitePageMeta('compare');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="Compare"
-        title="Where Sosial fits."
+        title={meta?.title ?? 'Where Sosial fits.'}
         lede="Suites do a lot and charge for the lot. Single-network apps are light and stay in one lane. Posting by hand is free until it is 11pm. Here is the honest shape of each."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
 

@@ -1,24 +1,32 @@
 import type { Metadata } from 'next';
 import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'Transparency',
-  description:
-    'Published prices, plain data practices, AI that does not train on your work, real platform limits, and per-channel publish results. How Sosial stays open with the people who use it.',
-  alternates: { canonical: '/transparency' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('transparency');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'Transparency',
+    description:
+      meta?.metaDescription ??
+      'Published prices, plain data practices, AI that does not train on your work, real platform limits, and per-channel publish results. How Sosial stays open with the people who use it.',
+    alternates: { canonical: '/transparency' },
+  };
+}
 
-export default function TransparencyPage() {
+export default async function TransparencyPage() {
+  const meta = await sitePageMeta('transparency');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="Transparency"
-        title="Nothing important stays in the fine print."
+        title={meta?.title ?? 'Nothing important stays in the fine print.'}
         lede="Prices you can read before signing up, data practices in plain sentences, AI that never trains on your drafts, and publish results reported per channel. If it affects your work, you can see it."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/pricing', label: 'Published prices' }}
       />
 

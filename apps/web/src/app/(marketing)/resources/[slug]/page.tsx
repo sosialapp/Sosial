@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
-import { sitePageHtml } from '@/lib/sitePages';
+import { formatPageDate, sitePageHtml, sitePageMeta } from '@/lib/sitePages';
 import { allResources, resource } from '@/content/resources';
 import { resourceHref } from '@/content/types';
 
@@ -21,11 +21,14 @@ export async function generateMetadata({
   const { slug } = await params;
   const item = resource(slug);
   if (!item) return { title: 'Resource not found' };
+  const meta = await sitePageMeta(`resources/${slug}`);
+  const title = meta?.metaTitle ?? meta?.title ?? item.title;
+  const description = meta?.metaDescription ?? item.description;
   return {
-    title: item.title,
-    description: item.description,
+    title,
+    description,
     alternates: { canonical: resourceHref(item.slug) },
-    openGraph: { title: item.title, description: item.description },
+    openGraph: { title, description },
   };
 }
 
@@ -37,6 +40,8 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
   const more = allResources()
     .filter((r) => r.slug !== item.slug)
     .slice(0, 3);
+  const meta = await sitePageMeta(`resources/${slug}`);
+  const date = formatPageDate(meta?.publishedAt ?? null);
   const cmsHtml = await sitePageHtml(`resources/${slug}`);
 
   return (
@@ -48,11 +53,12 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
         <div className="mt-6 flex items-center gap-2">
           <span className="pill bg-paper text-soft ring-1 ring-line">{item.kind}</span>
           <span className="text-xs font-bold text-faint">{item.minutes} min read</span>
+          {date ? <span className="text-xs font-bold text-faint">· Published {date}</span> : null}
         </div>
         <h1 className="mt-4 font-display text-3xl font-extrabold leading-[1.1] tracking-tight md:text-4xl">
-          {item.title}
+          {meta?.title ?? item.title}
         </h1>
-        <p className="mt-4 text-lg leading-relaxed text-muted">{item.description}</p>
+        <p className="mt-4 text-lg leading-relaxed text-muted">{meta?.metaDescription ?? item.description}</p>
 
         <hr className="my-8 border-line" />
 

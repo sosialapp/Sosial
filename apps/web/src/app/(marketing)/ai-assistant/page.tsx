@@ -2,24 +2,32 @@ import type { Metadata } from 'next';
 import { WriterPreview } from '@/components/landing/Preview';
 import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'AI Assistant',
-  description:
-    'Research-backed social copy in 100+ languages. Live sources, styles with samples, substantial threads, rewrites and per-channel adaptation. You approve everything.',
-  alternates: { canonical: '/ai-assistant' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('ai-assistant');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'AI Assistant',
+    description:
+      meta?.metaDescription ??
+      'Research-backed social copy in 100+ languages. Live sources, styles with samples, substantial threads, rewrites and per-channel adaptation. You approve everything.',
+    alternates: { canonical: '/ai-assistant' },
+  };
+}
 
-export default function AiAssistantPage() {
+export default async function AiAssistantPage() {
+  const meta = await sitePageMeta('ai-assistant');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="AI Assistant"
-        title="A writer that checks its facts."
+        title={meta?.title ?? 'A writer that checks its facts.'}
         lede="Rough thought in, post-ready caption out. Grounded by live research with linked sources, written in your style, in 100+ languages. Nothing publishes without you."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/features/create', label: 'See the composer' }}
         visual={
           <div className="card p-3 md:p-4">

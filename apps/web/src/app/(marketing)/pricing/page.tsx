@@ -3,24 +3,32 @@ import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import PricingPlans from '@/components/PricingPlans';
 import PlanComparison from '@/components/PlanComparison';
+import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'Pricing',
-  description:
-    'A free plan that stays free, Solo for creators, Team for approvals, Business for scale — with 3, 6, 25 and 100 channels. Monthly or annual, and annual gives you two months free. Cancel any time.',
-  alternates: { canonical: '/pricing' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await sitePageMeta('pricing');
+  return {
+    title: meta?.metaTitle ?? meta?.title ?? 'Pricing',
+    description:
+      meta?.metaDescription ??
+      'A free plan that stays free, Solo for creators, Team for approvals, Business for scale — with 3, 6, 25 and 100 channels. Monthly or annual, and annual gives you two months free. Cancel any time.',
+    alternates: { canonical: '/pricing' },
+  };
+}
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const meta = await sitePageMeta('pricing');
+  const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
       <PageHero
         eyebrow="Pricing"
-        title="Simple plans, published prices."
+        title={meta?.title ?? 'Simple plans, published prices.'}
         lede="Start free and stay free if that is enough. Upgrade for more channels, more AI credits and team approvals. Monthly or annual — annual gives you two months free."
+        meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/compare', label: 'Compare with alternatives' }}
       />
 
@@ -54,11 +62,11 @@ export default function PricingPage() {
           },
           {
             q: 'Do you charge for team seats on Team or Business?',
-            a: 'No. Team and Business are flat prices for the whole workspace, including 3 and 10 members and workspaces respectively.',
+            a: 'No. Team and Business are flat prices for the whole workspace — up to 5 members and 5 workspaces on Team, unlimited on Business.',
           },
           {
             q: 'How does annual billing work?',
-            a: 'You pay once a year — annual costs the same as ten months, so you get two months free. AI credits and scheduled-post slots still reset every month.',
+            a: 'You pay once a year — annual costs the same as ten months, so you get two months free. AI credits still reset on the 1st of every month.',
           },
         ]}
       />
