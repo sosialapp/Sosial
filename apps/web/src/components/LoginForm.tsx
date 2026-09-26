@@ -147,7 +147,7 @@ export default function LoginForm({
             type="email"
             required
             autoComplete="email"
-            placeholder="you@company.com"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
