@@ -83,17 +83,6 @@ function StatTile({
   );
 }
 
-function ThumbSlot({ className = '' }: { className?: string }) {
-  return (
-    <div
-      className={`flex shrink-0 items-center justify-center rounded-xl border border-dashed border-line bg-paper-dim text-faint ${className}`}
-      aria-hidden="true"
-    >
-      <span className="text-lg leading-none">+</span>
-    </div>
-  );
-}
-
 /** Home: greeting, stats, compose, calendar week, activity, right rail. */
 export default async function DashboardPage() {
   const ctx = await getWorkspaceContext();
@@ -129,10 +118,17 @@ export default async function DashboardPage() {
     return age >= 7 * dayMs && age < 14 * dayMs;
   });
   const live = channels.filter((c) => c.status === 'connected');
-  const recent = posts
-    .filter((p) => p.sent_at || p.status === 'failed')
-    .sort((a, b) => (b.sent_at ?? '').localeCompare(a.sent_at ?? ''))
-    .slice(0, 4);
+  /** Recent activity: latest publishes, failures and queue additions, newest first. */
+  const recentFeed = [
+    ...posts
+      .filter((p) => p.sent_at || p.status === 'failed')
+      .map((p) => ({ p, t: p.sent_at ?? p.created_at ?? '' })),
+    ...queuedHeads
+      .filter((p) => !p.sent_at && p.status !== 'failed')
+      .map((p) => ({ p, t: p.created_at ?? '' })),
+  ]
+    .sort((a, b) => b.t.localeCompare(a.t))
+    .slice(0, 6);
 
   const delta =
     sentPrevWeek.length > 0
@@ -375,30 +371,6 @@ export default async function DashboardPage() {
               .map((p) => p.sent_at as string)}
           />
 
-          {/* Content library */}
-          <section className="card p-5" aria-label="Content library">
-            <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Content Library</p>
-              <Link href="/post?tab=templates" className="text-xs font-bold text-ink hover:underline">
-                View all
-              </Link>
-            </div>
-            {/* Picture area: filled in later. */}
-            <div className="mt-4 grid grid-cols-4 gap-2" aria-hidden="true">
-              <ThumbSlot className="aspect-square" />
-              <ThumbSlot className="aspect-square" />
-              <ThumbSlot className="aspect-square" />
-              <ThumbSlot className="aspect-square" />
-            </div>
-            <Link
-              href="/post?tab=templates"
-              aria-label="Add to library"
-              className="mt-3 flex h-9 w-9 items-center justify-center rounded-xl border border-dashed border-line text-muted transition hover:border-ink hover:text-ink"
-            >
-              +
-            </Link>
-          </section>
-
           {/* Recent activity */}
           <section className="card p-5" aria-label="Recent activity">
             <div className="flex items-center justify-between">
@@ -407,15 +379,16 @@ export default async function DashboardPage() {
                 View all
               </Link>
             </div>
-            {recent.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">Nothing sent yet. Queue a post and it lands here.</p>
+            {recentFeed.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">Nothing here yet. Publish or queue a post and it lands here.</p>
             ) : (
               <ul className="mt-4 space-y-4">
-                {recent.map((p) => {
+                {recentFeed.map(({ p }) => {
                   const t0 = p.post_targets?.[0];
                   const pv = t0?.provider ?? 'instagram';
                   const meta = providerMeta(pv);
                   const failed = p.status === 'failed';
+                  const isQueued = p.status === 'queued' || p.status === 'publishing';
                   return (
                     <li key={p.id} className="flex items-center gap-3">
                       <ChannelAvatar
@@ -425,13 +398,19 @@ export default async function DashboardPage() {
                       />
                       <span className="min-w-0">
                         <span className="block truncate text-xs font-bold">
-                          {failed ? 'Failed on ' : 'Posted on '}
+                          {failed ? 'Failed on ' : isQueued ? 'Queued on ' : 'Posted on '}
                           {meta.label}
                         </span>
                         <span className="block truncate text-xs text-soft">
                           {p.title || 'Untitled post'}
                         </span>
-                        <span className="block text-[11px] text-faint">{timeAgo(p.sent_at)}</span>
+                        <span className="block text-[11px] text-faint">
+                          {failed
+                            ? 'Failed to send. Retry from the queue.'
+                            : isQueued
+                              ? `Goes out ${fmtDay(p.scheduled_at)}, ${fmtTime(p.scheduled_at)}`
+                              : timeAgo(p.sent_at)}
+                        </span>
                       </span>
                     </li>
                   );
