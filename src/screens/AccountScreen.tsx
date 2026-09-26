@@ -617,10 +617,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               current={plan === 'free'}
               price="Free"
               features={[
-                { text: '3 connected channels · 30 scheduled posts a month' },
-                { text: 'Unlimited studio, templates & ideas' },
-                { text: '7-day analytics' },
-                { text: 'AI generation', off: true },
+                { text: '3 connected channels' },
+                { text: '10 scheduled posts per channel' },
+                { text: '20 AI credits a month' },
+                { text: 'Calendar, queue and auto-publishing' },
+                { text: 'Sosial watermark (required)', off: true },
               ]}
               action={plan !== 'free' ? { label: 'Switch to Free', ghost: true, onPress: () => choosePlan('free', 'Free') } : undefined}
             />
@@ -632,11 +633,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               sub={yearly ? '≈ $10.00/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Free, plus:"
               features={[
-                { text: 'All 10 channels connected' },
-                { text: 'Unlimited scheduled posts' },
-                { text: 'No export badge' },
-                { text: '500 AI generations / month' },
-                { text: '1-year analytics' },
+                { text: '6 connected channels' },
+                { text: '50 scheduled posts per channel' },
+                { text: '500 AI credits a month' },
+                { text: 'Media library and content organization' },
+                { text: 'Watermark you control — turn it off' },
               ]}
               action={plan === 'free'
                 ? { label: `Upgrade to Solo · ${soloTotal}`, onPress: () => choosePlan('pro', 'Solo') }
@@ -652,10 +653,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               sub={yearly ? '≈ $24.17/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Solo, plus:"
               features={[
-                { text: 'Approval workflow' },
-                { text: 'Member, admin and owner roles' },
-                { text: '1,000 AI generations / month' },
-                { text: 'Priority support' },
+                { text: '25 connected channels' },
+                { text: '100 scheduled posts per channel' },
+                { text: '1,500 AI credits a month' },
+                { text: '3 team members and 3 workspaces' },
+                { text: 'Approvals, roles and bulk scheduling' },
               ]}
               action={plan === 'free'
                 ? { label: `Upgrade to Team · ${teamTotal}`, ghost: true, onPress: () => choosePlan('team', 'Team') }
@@ -671,10 +673,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               sub={yearly ? '≈ $65.83/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Team, plus:"
               features={[
-                { text: '2,000 AI generations / month' },
-                { text: 'Unlimited seats for the whole crew' },
-                { text: 'Per-channel member roles' },
-                { text: 'Premium support' },
+                { text: '100 connected channels' },
+                { text: '250 scheduled posts per channel' },
+                { text: '5,000 AI credits a month' },
+                { text: '10 team members and 10 workspaces' },
+                { text: 'Advanced analytics and brand voice' },
               ]}
               action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch — the web app supports it today.') }}
             />
