@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import {
-  PLANS, PLAN_ORDER, priceFor, priceLabel, formatUsd, monthlyEquivalent, annualSavingsPct,
+  PLANS, PLAN_ORDER, priceFor, formatUsd, monthlyEquivalent, annualSavingsPct,
   type BillingInterval,
 } from '@/lib/billing/plans';
 
@@ -58,7 +58,7 @@ export default function PricingPlans({
   lede: string;
   updated?: string;
 }) {
-  const [interval, setInterval] = useState<BillingInterval>('monthly');
+  const [interval, setInterval] = useState<BillingInterval>('annual');
 
   return (
     <section aria-label="Plans" className="border-b border-line">
@@ -120,22 +120,26 @@ export default function PricingPlans({
                 <p className="font-display text-xl font-medium text-ink">{p.label}</p>
                 <div className="min-h-[20px]" />
                 <p className="font-display text-5xl font-semibold tracking-tight text-ink">
-                  {key === 'free' ? 'Free' : formatUsd(priceFor(key, interval))}
+                  {key === 'free'
+                    ? 'Free'
+                    : formatUsd(
+                        interval === 'monthly'
+                          ? priceFor(key, interval)
+                          : Math.round(monthlyEquivalent(key)),
+                      )}
                   {key !== 'free' ? (
-                    <span className="ml-2 font-display text-xl font-medium text-faint">
-                      /{interval === 'monthly' ? 'mo' : 'yr'}
-                    </span>
+                    <span className="ml-2 font-display text-xl font-medium text-faint">/mo</span>
                   ) : null}
                 </p>
                 <div className="min-h-[8px]" />
                 {key !== 'free' && interval === 'annual' ? (
                   <p className="text-sm text-muted">
-                    ≈ {formatUsd(monthlyEquivalent(key))}/mo — billed annually
+                    billed {formatUsd(priceFor(key, 'annual'))} yearly
                   </p>
                 ) : null}
                 {key !== 'free' && interval === 'monthly' ? (
                   <p className="text-sm text-muted">
-                    or {priceLabel(key, 'annual')} ({annualSavingsPct(key)}% off)
+                    or {formatUsd(Math.round(monthlyEquivalent(key)))}/mo billed yearly ({annualSavingsPct(key)}% off)
                   </p>
                 ) : null}
                 <p className="mt-3 text-base leading-relaxed text-muted">{p.blurb}</p>

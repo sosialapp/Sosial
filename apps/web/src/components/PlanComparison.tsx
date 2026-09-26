@@ -1,4 +1,4 @@
-import { PLANS, priceLabel } from '@/lib/billing/plans';
+import { PLANS, formatUsd, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
 
 /**
@@ -53,7 +53,9 @@ export default function PlanComparison() {
                         {p.key === 'free' ? 'Free' : priceLabel(p.key, 'monthly')}
                       </span>
                       <span className="block text-xs font-normal text-faint">
-                        {p.key === 'free' ? 'forever' : priceLabel(p.key, 'annual')}
+                        {p.key === 'free'
+                          ? 'forever'
+                          : `${formatUsd(Math.round(monthlyEquivalent(p.key)))}/mo billed yearly`}
                       </span>
                       {p.featured ? (
                         <span className="mt-1 inline-block rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-white">
