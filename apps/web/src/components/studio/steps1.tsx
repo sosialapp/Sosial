@@ -396,88 +396,72 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
           {ALL_SOCIALS.filter((pl) => pl !== 'whatsapp').map((pl) => {
             const found = page.socials.find((s) => s.platform === pl);
             const on = !!found?.visible;
+            const set = (patch: Partial<NonNullable<typeof found>>) => {
+              if (found) setSocials(page.socials.map((x) => (x.platform === pl ? { ...x, ...patch } : x)));
+            };
             return (
-              <div key={pl} className={`flex items-center gap-3 px-3.5 py-2.5 ${on ? '' : 'opacity-55'}`}>
-                <span
-                  className="flex h-8 w-8 items-center justify-center rounded-[10px] ring-1 ring-black/10 dark:ring-white/25"
-                  style={{ backgroundColor: providerMeta(pl).color }}
-                >
-                  <BrandIcon provider={pl} mono className="h-4 w-4 text-white" />
-                </span>
-                <span className="flex-1 text-sm font-bold">{providerMeta(pl).label}</span>
-                <Toggle on={on} onPress={() => toggle(pl)} label={`${providerMeta(pl).label} badge`} />
+              <div key={pl} className={`px-3.5 py-2.5 ${on ? '' : 'opacity-55'}`}>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-[10px] ring-1 ring-black/10 dark:ring-white/25"
+                    style={{ backgroundColor: providerMeta(pl).color }}
+                  >
+                    <BrandIcon provider={pl} mono className="h-4 w-4 text-white" />
+                  </span>
+                  <span className="flex-1 text-sm font-bold">{providerMeta(pl).label}</span>
+                  <Toggle on={on} onPress={() => toggle(pl)} label={`${providerMeta(pl).label} badge`} />
+                </div>
+                {on ? (
+                  <div className="mt-2.5 space-y-2.5 border-t border-line-soft pt-2.5">
+                    <input
+                      value={found?.handle ?? '@yourhandle'}
+                      onChange={(e) => set({ handle: e.target.value })}
+                      placeholder="@yourhandle"
+                      className="field"
+                      aria-label={`${providerMeta(pl).label} handle`}
+                    />
+                    <div className="flex gap-3">
+                      <div className="flex-1 space-y-1.5">
+                        <p className="text-[10.5px] font-bold text-muted">Font</p>
+                        <select
+                          value={found?.font ?? 'jakarta'}
+                          onChange={(e) => set({ font: e.target.value as FontId })}
+                          className="field"
+                          aria-label={`${providerMeta(pl).label} handle font`}
+                        >
+                          {FONT_OPTIONS.map((f) => (
+                            <option key={f.value} value={f.value} style={{ fontFamily: FONT_STACKS[f.value] }}>
+                              {f.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-[10.5px] font-bold text-muted">Style</p>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => set({ bold: !(found?.bold ?? true) })}
+                            className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm font-bold transition ${(found?.bold ?? true) ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
+                          >
+                            B
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => set({ italic: !(found?.italic ?? false) })}
+                            className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm italic transition ${(found?.italic ?? false) ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
+                          >
+                            I
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             );
           })}
         </div>
-        {ALL_SOCIALS.filter((pl) => pl !== 'whatsapp').map((pl) => {
-          const found = page.socials.find((s) => s.platform === pl);
-          const on = !!found?.visible;
-          const set = (patch: Partial<NonNullable<typeof found>>) => {
-            if (found) setSocials(page.socials.map((x) => (x.platform === pl ? { ...x, ...patch } : x)));
-          };
-          return (
-            <div key={pl} className={`card space-y-2.5 p-3.5 ${on ? '' : 'opacity-55'}`}>
-              <div className="flex items-center gap-2.5">
-                <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ring-1 ring-black/10 dark:ring-white/25"
-                  style={{ backgroundColor: providerMeta(pl).color }}
-                >
-                  <BrandIcon provider={pl} mono className="h-4 w-4 text-white" />
-                </span>
-                <p className="flex-1 text-xs font-bold text-soft">{providerMeta(pl).label} handle</p>
-                <Toggle on={on} onPress={() => toggle(pl)} label={`${providerMeta(pl).label} badge`} />
-              </div>
-              <input
-                value={found?.handle ?? '@yourhandle'}
-                onChange={(e) => set({ handle: e.target.value })}
-                placeholder="@yourhandle"
-                className="field"
-                disabled={!on}
-                aria-label={`${providerMeta(pl).label} handle`}
-              />
-              <div className="flex gap-3">
-                <div className="flex-1 space-y-1.5">
-                  <p className="text-[10.5px] font-bold text-muted">Font</p>
-                  <select
-                    value={found?.font ?? 'jakarta'}
-                    onChange={(e) => set({ font: e.target.value as FontId })}
-                    className="field"
-                    disabled={!on}
-                    aria-label={`${providerMeta(pl).label} handle font`}
-                  >
-                    {FONT_OPTIONS.map((f) => (
-                      <option key={f.value} value={f.value} style={{ fontFamily: FONT_STACKS[f.value] }}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <p className="text-[10.5px] font-bold text-muted">Style</p>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => set({ bold: !(found?.bold ?? true) })}
-                      disabled={!on}
-                      className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm font-bold transition disabled:cursor-not-allowed ${(found?.bold ?? true) ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
-                    >
-                      B
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => set({ italic: !(found?.italic ?? false) })}
-                      disabled={!on}
-                      className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm italic transition disabled:cursor-not-allowed ${(found?.italic ?? false) ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
-                    >
-                      I
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
         {visibleSocials.length > 0 ? (
           <div className="space-y-3">
             <Field label="Placement">
