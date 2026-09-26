@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { usePost } from '../store/PostContext';
 import { SocialPlatform, FontId } from '../types';
 import { SOCIAL_META, uid, PALETTE } from '../constants';
@@ -9,6 +10,8 @@ import { useTheme, Palette, R } from '../theme';
 import { Txt, PillToggle, Seg, Field, Stepper, PrimaryBtn, GhostBtn, SocialGlyph, Swatches, Section } from './ui';
 
 const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'tiktok', 'threads', 'facebook', 'youtube', 'linkedin', 'x', 'bluesky', 'mastodon', 'pinterest'];
+
+const FONT_IDS: FontId[] = ['jakarta', 'inter', 'space-grotesk', 'playfair', 'crimson', 'poppins', 'mono', 'anton', 'system'];
 
 
 export default function PhotoSocialsEditor() {
@@ -41,6 +44,8 @@ export default function PhotoSocialsEditor() {
   };
 
   const visibleSocials = page.socials.filter((s) => s.visible);
+  /** Which platform's font dropdown is open (modal picker). */
+  const [fontFor, setFontFor] = useState<SocialPlatform | null>(null);
 
   return (
     <View style={{ gap: 18 }}>
@@ -104,46 +109,75 @@ export default function PhotoSocialsEditor() {
             const found = page.socials.find((s) => s.platform === pl);
             const on = !!found?.visible;
             return (
-              <View key={pl} style={[st.row, i > 0 && st.rowDiv, !on && { opacity: 0.55 }]}>
-                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: SOCIAL_META[pl].bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <SocialGlyph platform={pl} size={16} color="#fff" />
+              <View key={pl} style={[i > 0 && st.rowDiv, !on && { opacity: 0.55 }]}>
+                <View style={st.row}>
+                  <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: SOCIAL_META[pl].bg, alignItems: 'center', justifyContent: 'center' }}>
+                    <SocialGlyph platform={pl} size={16} color="#fff" />
+                  </View>
+                  <Text style={st.rowT}>{SOCIAL_META[pl].label}</Text>
+                  <PillToggle on={on} onPress={() => toggle(pl)} />
                 </View>
-                <Text style={st.rowT}>{SOCIAL_META[pl].label}</Text>
-                <PillToggle on={on} onPress={() => toggle(pl)} />
+                {on && found ? (
+                  <View style={st.detail}>
+                    <Text style={st.hLabel}>{SOCIAL_META[pl].label} handle</Text>
+                    <Txt value={found.handle} onChangeText={(v) => setHandle(pl, v)} placeholder="@yourhandle" />
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                      <View style={{ flex: 1, gap: 6 }}>
+                        <Text style={st.miniLabel}>Font</Text>
+                        <TouchableOpacity onPress={() => setFontFor(pl)} style={st.dropBtn} activeOpacity={0.7}>
+                          <Text
+                            style={[st.dropBtnT, FONTS[found.font]?.regular ? { fontFamily: FONTS[found.font].regular as string } : null]}
+                            numberOfLines={1}
+                          >
+                            {FONTS[found.font]?.label ?? 'Jakarta'}
+                          </Text>
+                          <Ionicons name="chevron-down" size={15} color={C.muted} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{ gap: 6 }}>
+                        <Text style={st.miniLabel}>Style</Text>
+                        <View style={{ flexDirection: 'row', gap: 5 }}>
+                          <TouchableOpacity onPress={() => patchSocial(pl, { bold: !found.bold })} style={[st.miniToggle, found.bold && st.miniBtnOn]} activeOpacity={0.7}>
+                            <Text style={[st.miniBtnT, found.bold && st.miniBtnTOn, { fontFamily: 'PlusJakartaSans_700Bold' }]}>B</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => patchSocial(pl, { italic: !found.italic })} style={[st.miniToggle, found.italic && st.miniBtnOn]} activeOpacity={0.7}>
+                            <Text style={[st.miniBtnT, found.italic && st.miniBtnTOn, { fontStyle: 'italic' }]}>I</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
               </View>
             );
           })}
         </View>
 
-        {visibleSocials.map((s) => (
-          <View key={s.id} style={st.handleCard}>
-            <Text style={st.hLabel}>{SOCIAL_META[s.platform].label} handle</Text>
-            <Txt value={s.handle} onChangeText={(v) => setHandle(s.platform, v)} placeholder="@yourhandle" />
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              <View style={{ flex: 1, gap: 6 }}>
-                <Text style={st.miniLabel}>Font</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-                    {(['jakarta', 'inter', 'space-grotesk', 'playfair', 'crimson', 'poppins', 'mono', 'anton', 'system'] as FontId[]).map((f) => (
-                    <TouchableOpacity key={f} onPress={() => patchSocial(s.platform, { font: f })} style={[st.miniBtn, s.font === f && st.miniBtnOn]} activeOpacity={0.7}>
-                      <Text style={[st.miniBtnT, s.font === f && st.miniBtnTOn]}>{FONTS[f].label.slice(0, 4)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <View style={{ gap: 6 }}>
-                <Text style={st.miniLabel}>Style</Text>
-                <View style={{ flexDirection: 'row', gap: 5 }}>
-                  <TouchableOpacity onPress={() => patchSocial(s.platform, { bold: !s.bold })} style={[st.miniToggle, s.bold && st.miniBtnOn]} activeOpacity={0.7}>
-                    <Text style={[st.miniBtnT, s.bold && st.miniBtnTOn, { fontFamily: 'PlusJakartaSans_700Bold' }]}>B</Text>
+        <Modal visible={fontFor !== null} transparent animationType="fade" onRequestClose={() => setFontFor(null)}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setFontFor(null)} style={st.sheetBg}>
+            <TouchableOpacity activeOpacity={1} onPress={() => {}} style={st.sheet}>
+              {FONT_IDS.map((f) => {
+                const cur = fontFor ? page.socials.find((s) => s.platform === fontFor)?.font : undefined;
+                return (
+                  <TouchableOpacity
+                    key={f}
+                    onPress={() => {
+                      if (fontFor) patchSocial(fontFor, { font: f });
+                      setFontFor(null);
+                    }}
+                    style={st.opt}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[st.optT, FONTS[f]?.regular ? { fontFamily: FONTS[f].regular as string } : null, cur === f && { color: C.accent }]}>
+                      {FONTS[f].label}
+                    </Text>
+                    {cur === f ? <Ionicons name="checkmark" size={16} color={C.accent} /> : null}
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => patchSocial(s.platform, { italic: !s.italic })} style={[st.miniToggle, s.italic && st.miniBtnOn]} activeOpacity={0.7}>
-                    <Text style={[st.miniBtnT, s.italic && st.miniBtnTOn, { fontStyle: 'italic' }]}>I</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        ))}
+                );
+              })}
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
 
         {visibleSocials.length > 0 ? (
           <View style={{ gap: 14 }}>
@@ -202,7 +236,13 @@ const makeSt = (C: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 },
   rowDiv: { borderTopWidth: 1, borderTopColor: C.lineSoft },
   rowT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink },
-  handleCard: { backgroundColor: C.card, borderRadius: R.lg, padding: 14 },
+  detail: { paddingHorizontal: 14, paddingBottom: 13, marginTop: 2 },
+  dropBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, backgroundColor: C.paper, borderRadius: R.sm, paddingHorizontal: 11, paddingVertical: 9 },
+  dropBtnT: { flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.ink },
+  sheetBg: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 34 },
+  opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.lineSoft },
+  optT: { fontSize: 16, color: C.ink },
   hLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.soft, marginBottom: 8 },
   miniLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.muted },
   miniBtn: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: R.sm, backgroundColor: C.paper },
