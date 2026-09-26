@@ -1,43 +1,115 @@
 /**
  * Canonical pricing — mobile mirror of apps/web/src/lib/billing/plans.ts.
- * Keep both files identical in values: one price book across the product.
+ * Keep both files numerically identical: one price book across the product.
  *
  * Rules: annual prices are explicit (2 months free, never monthly * 12);
  * feature limits are identical between monthly and annual of the same plan;
- * unlimited is null, never a giant number.
+ * scheduled posts are limited PER CHANNEL; unlimited is null, never a giant
+ * number; the Free watermark is forced ON and locked.
  */
 
 export type BillingInterval = 'monthly' | 'annual';
 export type PlanKey = 'free' | 'solo' | 'team' | 'business';
 
+export interface PlanLimits {
+  channels: number | null;
+  scheduledPostsPerChannel: number | null;
+  aiCredits: number | null;
+  users: number | null;
+  workspaces: number | null;
+  watermarkRequired: boolean;
+}
+
 export interface PlanDef {
   key: PlanKey;
   label: string;
+  blurb: string;
+  badge: string;
+  featured?: boolean;
   monthly: number;
   annual: number;
-  channels: number | null;
-  scheduledPosts: number | null;
-  aiGenerations: number | null;
+  limits: PlanLimits;
+  points: string[];
 }
 
 export const PLANS: Record<PlanKey, PlanDef> = {
   free: {
-    key: 'free', label: 'Free', monthly: 0, annual: 0,
-    channels: 3, scheduledPosts: 30, aiGenerations: 0,
+    key: 'free',
+    label: 'Free',
+    blurb: 'Plan, create and publish your first posts.',
+    badge: 'For getting started',
+    monthly: 0,
+    annual: 0,
+    limits: { channels: 3, scheduledPostsPerChannel: 10, aiCredits: 20, users: 1, workspaces: 1, watermarkRequired: true },
+    points: [
+      '3 connected channels',
+      '10 scheduled posts per channel',
+      '20 AI credits a month',
+      'Calendar, queue and auto-publishing',
+      'Basic analytics',
+    ],
   },
   solo: {
-    key: 'solo', label: 'Solo', monthly: 12, annual: 120,
-    channels: null, scheduledPosts: null, aiGenerations: 500,
+    key: 'solo',
+    label: 'Solo',
+    blurb: 'For creators and individuals.',
+    badge: 'For creators & individuals',
+    monthly: 12,
+    annual: 120,
+    limits: { channels: 6, scheduledPostsPerChannel: 50, aiCredits: 500, users: 1, workspaces: 1, watermarkRequired: false },
+    points: [
+      '6 connected channels',
+      '50 scheduled posts per channel',
+      '500 AI credits a month',
+      'Media library and content organization',
+      'Analytics with reach, engagement and top posts',
+    ],
   },
   team: {
-    key: 'team', label: 'Team', monthly: 29, annual: 290,
-    channels: null, scheduledPosts: null, aiGenerations: 1000,
+    key: 'team',
+    label: 'Team',
+    blurb: 'For growing teams.',
+    badge: 'For growing teams',
+    featured: true,
+    monthly: 29,
+    annual: 290,
+    limits: { channels: 25, scheduledPostsPerChannel: 100, aiCredits: 1500, users: 3, workspaces: 3, watermarkRequired: false },
+    points: [
+      '25 connected channels',
+      '100 scheduled posts per channel',
+      '1,500 AI credits a month',
+      '3 team members and 3 workspaces',
+      'Approvals, roles and bulk scheduling',
+    ],
   },
   business: {
-    key: 'business', label: 'Business', monthly: 79, annual: 790,
-    channels: null, scheduledPosts: null, aiGenerations: 2000,
+    key: 'business',
+    label: 'Business',
+    blurb: 'For agencies and businesses.',
+    badge: 'For agencies & businesses',
+    monthly: 79,
+    annual: 790,
+    limits: { channels: 100, scheduledPostsPerChannel: 250, aiCredits: 5000, users: 10, workspaces: 10, watermarkRequired: false },
+    points: [
+      '100 connected channels',
+      '250 scheduled posts per channel',
+      '5,000 AI credits a month',
+      '10 team members and 10 workspaces',
+      'Advanced analytics, custom reports and brand voice',
+    ],
   },
 };
+
+export const PLAN_ORDER: PlanKey[] = ['free', 'solo', 'team', 'business'];
+export const BILLING_INTERVALS: BillingInterval[] = ['monthly', 'annual'];
+
+export function isPlanKey(v: unknown): v is PlanKey {
+  return typeof v === 'string' && v in PLANS;
+}
+
+export function priceFor(key: PlanKey, interval: BillingInterval): number {
+  return interval === 'monthly' ? PLANS[key].monthly : PLANS[key].annual;
+}
 
 /** What the annual price works out to per month (display only — billed yearly). */
 export function monthlyEquivalent(key: PlanKey): string {
@@ -49,6 +121,10 @@ export function annualSavingsPct(key: PlanKey): number {
   const full = PLANS[key].monthly * 12;
   if (full === 0) return 0;
   return Math.round(((full - PLANS[key].annual) / full) * 100);
+}
+
+export function limitsFor(key: PlanKey): PlanLimits {
+  return PLANS[key].limits;
 }
 
 /**
@@ -68,3 +144,13 @@ export function labelForInternal(key: 'free' | 'pro' | 'team'): string {
   if (key === 'pro') return 'Solo';
   return 'Team';
 }
+
+/** AI credits consumed per action — mirror of web's aiCredits.ts. */
+export const AI_CREDIT_COSTS: Record<string, number> = {
+  rewrite: 1, shorten: 1, expand: 1, tone: 1, hashtags: 1, idea: 1,
+  caption: 2, post: 2, adapt: 2,
+  thread: 3, repurpose: 3, variations: 3,
+  longform: 5,
+};
+
+export const AI_MODEL_LABEL = 'GPT-5.6 Luna';

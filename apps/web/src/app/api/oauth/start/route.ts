@@ -47,11 +47,11 @@ export async function GET(req: Request) {
     .maybeSingle();
   if (!mem) return back('Not a member of this workspace.');
 
-  // Free-plan channel cap, enforced server-side (never trust the UI).
+  // Channel cap, enforced server-side for every plan (never trust the UI).
   // Reconnecting an already-connected provider is always allowed.
   const entitlement = await getEntitlement(workspaceId);
   const cap = PLANS[entitlement.plan].limits.channels;
-  if (!entitlement.active && cap !== null) {
+  if (cap !== null) {
     const { count } = await sb
       .from('connected_channels')
       .select('id', { count: 'exact', head: true })
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
       .limit(1);
     if ((count ?? 0) >= cap && !(already.data ?? []).length) {
       return back(
-        `The Free plan connects up to ${cap} channels — you're at the cap. Upgrade in Billing for unlimited channels.`,
+        `Your plan connects up to ${cap} channels — you're at the cap. Disconnect one or upgrade in Billing.`,
       );
     }
   }

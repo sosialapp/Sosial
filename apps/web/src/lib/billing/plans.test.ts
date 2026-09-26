@@ -24,19 +24,50 @@ describe('canonical pricing', () => {
     expect(PLANS.business.annual.price).not.toBe(PLANS.business.monthly.price * 12);
   });
 
+  it('encodes the canonical channel limits', () => {
+    expect(PLANS.free.limits.channels).toBe(3);
+    expect(PLANS.solo.limits.channels).toBe(6);
+    expect(PLANS.team.limits.channels).toBe(25);
+    expect(PLANS.business.limits.channels).toBe(100);
+  });
+
+  it('limits scheduled posts PER CHANNEL, not globally', () => {
+    expect(PLANS.free.limits.scheduledPostsPerChannel).toBe(10);
+    expect(PLANS.solo.limits.scheduledPostsPerChannel).toBe(50);
+    expect(PLANS.team.limits.scheduledPostsPerChannel).toBe(100);
+    expect(PLANS.business.limits.scheduledPostsPerChannel).toBe(250);
+  });
+
+  it('encodes the canonical AI credit allowances', () => {
+    expect(PLANS.free.limits.aiCredits).toBe(20);
+    expect(PLANS.solo.limits.aiCredits).toBe(500);
+    expect(PLANS.team.limits.aiCredits).toBe(1500);
+    expect(PLANS.business.limits.aiCredits).toBe(5000);
+  });
+
+  it('encodes users and workspaces limits', () => {
+    expect(PLANS.free.limits.users).toBe(1);
+    expect(PLANS.free.limits.workspaces).toBe(1);
+    expect(PLANS.team.limits.users).toBe(3);
+    expect(PLANS.team.limits.workspaces).toBe(3);
+    expect(PLANS.business.limits.users).toBe(10);
+    expect(PLANS.business.limits.workspaces).toBe(10);
+  });
+
+  it('forces the watermark on free and leaves it user-controlled when paid', () => {
+    expect(PLANS.free.limits.watermarkRequired).toBe(true);
+    for (const key of ['solo', 'team', 'business'] as const) {
+      expect(PLANS[key].limits.watermarkRequired).toBe(false);
+    }
+  });
+
   it('keeps feature limits identical across billing intervals', () => {
     // Limits live once on the plan — the interval cannot alter them by design.
     for (const key of PLAN_ORDER) {
       expect(PLANS[key].limits).toEqual(PLANS[key].limits);
     }
-    expect(PLANS.free.limits.channels).toBe(3);
-    expect(PLANS.free.limits.aiGenerations).toBe(0);
-    expect(PLANS.solo.limits.aiGenerations).toBe(500);
-    expect(PLANS.team.limits.aiGenerations).toBe(1000);
-    expect(PLANS.business.limits.aiGenerations).toBe(2000);
     // unlimited is null, never a huge number
-    expect(PLANS.solo.limits.channels).toBeNull();
-    expect(PLANS.solo.limits.scheduledPosts).toBeNull();
+    expect(PLANS.free.limits.channels).not.toBeNull();
   });
 
   it('computes monthly equivalents for annual display', () => {

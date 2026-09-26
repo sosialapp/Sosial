@@ -12,7 +12,10 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { CONTENT_RULES } from "../_shared/content_rules.ts";
-import { gateAiGeneration } from "../_shared/usage.ts";
+import {
+  gateAiCredits, refundAiCredits, newRequestId,
+  type AiGateContext,
+} from "../_shared/usage.ts";
 
 const TYPES = ["free", "bullets", "numbered", "table", "bar", "vbar", "pie"] as const;
 
@@ -88,24 +91,9 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Body must be JSON.");
   }
 
-  // Monthly AI allowance (free = none). Calendar-month window even for
-  // annual subscribers — billing interval only changes billing.
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (serviceKey) {
-    const gate = await gateAiGeneration(supaUrl, serviceKey, authHeader, anonKey);
-    if (!gate.ok) return bad(gate.message ?? "AI allowance reached.", gate.status ?? 402);
-  }
-
   const prompt = typeof body["prompt"] === "string" ? body["prompt"].trim() : "";
   if (!prompt) return bad("prompt is required.");
   if (prompt.length > 2000) return bad("prompt ≤ 2000 chars.");
-  const language = typeof body["language"] === "string" ? body["language"].trim().slice(0, 40) : "auto";
-  const pagesRaw = typeof body["pages"] === "number" ? Math.floor(body["pages"]) : 3;
-  const wordsRaw = typeof body["maxWordsPerPage"] === "number" ? Math.floor(body["maxWordsPerPage"]) : 60;
-  const blocksRaw = typeof body["maxBlocksPerPage"] === "number" ? Math.floor(body["maxBlocksPerPage"]) : 2;
-  const pages = Math.min(10, Math.max(1, pagesRaw));
-  const maxWordsPerPage = Math.min(300, Math.max(10, wordsRaw));
-  const maxBlocksPerPage = Math.min(3, Math.max(1, blocksRaw));
 
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   if (!apiKey) {
@@ -114,6 +102,33 @@ serve(async (req: Request): Promise<Response> => {
       402,
     );
   }
+
+  // Charge the credit cost up front; refunded if generation fails before
+  // producing output. Credits reset monthly (calendar month) even for annual
+  // subscribers — the billing interval only changes billing. A multi-card
+  // carousel is a long-form generation.
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const requestId =
+    typeof body["request_id"] === "string" && body["request_id"]
+      ? body["request_id"]
+      : newRequestId();
+  const ctx: AiGateContext = { supaUrl, serviceKey, authHeader, anonKey };
+  if (serviceKey) {
+    const gate = await gateAiCredits(ctx, "longform", requestId);
+    if (!gate.ok) return bad(gate.message ?? "AI credits reached.", gate.status ?? 402);
+  }
+  const fail = async (msg: string): Promise<Response> => {
+    if (serviceKey) await refundAiCredits(ctx, requestId);
+    return bad(msg, 502);
+  };
+
+  const language = typeof body["language"] === "string" ? body["language"].trim().slice(0, 40) : "auto";
+  const pagesRaw = typeof body["pages"] === "number" ? Math.floor(body["pages"]) : 3;
+  const wordsRaw = typeof body["maxWordsPerPage"] === "number" ? Math.floor(body["maxWordsPerPage"]) : 60;
+  const blocksRaw = typeof body["maxBlocksPerPage"] === "number" ? Math.floor(body["maxBlocksPerPage"]) : 2;
+  const pages = Math.min(10, Math.max(1, pagesRaw));
+  const maxWordsPerPage = Math.min(300, Math.max(10, wordsRaw));
+  const maxBlocksPerPage = Math.min(3, Math.max(1, blocksRaw));
 
   const system = buildPrompt({ prompt, language, pages, maxWordsPerPage, maxBlocksPerPage });
 
@@ -135,12 +150,12 @@ serve(async (req: Request): Promise<Response> => {
     });
     if (!res.ok) {
       const t = await res.text().catch(() => "");
-      return bad(`AI provider refused the request (${res.status}). ${t.slice(0, 120)}`, 502);
+      return fail(`AI provider refused the request (${res.status}). ${t.slice(0, 120)}`);
     }
     const json = await res.json();
     raw = String(json?.choices?.[0]?.message?.content ?? "");
   } catch (e) {
-    return bad(`AI provider unreachable (${String(e).slice(0, 120)}).`, 502);
+    return fail(`AI provider unreachable (${String(e).slice(0, 120)}).`);
   }
 
   let out: { blocks: unknown[] }[];
@@ -161,7 +176,7 @@ serve(async (req: Request): Promise<Response> => {
       .filter((p) => p.blocks.length > 0);
     if (!out.length) throw new Error("empty");
   } catch {
-    return bad("AI returned an unusable reply — try again.", 502);
+    return fail("AI returned an unusable reply — try again.");
   }
 
   return Response.json({ pages: out }, { headers: CORS });

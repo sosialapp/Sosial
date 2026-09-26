@@ -23,11 +23,6 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function limitText(limit: number | null, used: number, unit: string): string {
-  if (limit === null) return `${used.toLocaleString()} · unlimited`;
-  return `${used.toLocaleString()} / ${limit.toLocaleString()} ${unit}`;
-}
-
 /**
  * Billing panel. Shows the REAL price for the REAL interval (an annual
  * subscriber sees "$290/year · ≈ $24.17/month", never "$29/month"), the
@@ -192,12 +187,45 @@ export default function BillingPanel({
       <section className="card p-5" aria-label="Usage this month">
         <p className="eyebrow">Usage · {usage.month}</p>
         <p className="mt-1 text-xs text-muted">
-          Allowances reset monthly — even on annual billing, which only changes how you are charged.
+          AI credits reset every calendar month — even on annual billing, which only changes how you are charged.
+          Scheduled-post slots count per channel and free up as posts publish.
         </p>
-        <ul className="mt-3 space-y-1.5 text-sm">
-          <li>AI generations: {limitText(usage.aiLimit, usage.aiGenerations, 'generations')}</li>
-          <li>Scheduled posts: {limitText(usage.postLimit, usage.posts, 'posts')}</li>
-        </ul>
+        <div className="mt-3 space-y-3 text-sm">
+          <div>
+            <div className="flex items-baseline justify-between">
+              <span className="font-bold">AI credits</span>
+              <span className="text-muted">
+                {usage.aiCreditsLimit === null
+                  ? `${usage.aiCreditsUsed.toLocaleString()} used · unlimited`
+                  : `${usage.aiCreditsUsed.toLocaleString()} / ${usage.aiCreditsLimit.toLocaleString()} used · ${usage.aiCreditsRemaining!.toLocaleString()} left`}
+              </span>
+            </div>
+            {usage.aiCreditsLimit !== null ? (
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line">
+                <div
+                  className="h-full rounded-full bg-ink"
+                  style={{ width: `${Math.min(100, Math.round((usage.aiCreditsUsed / usage.aiCreditsLimit) * 100))}%` }}
+                />
+              </div>
+            ) : null}
+          </div>
+          <div>
+            <div className="flex items-baseline justify-between">
+              <span className="font-bold">Scheduled posts</span>
+              <span className="text-muted">
+                {usage.scheduledPerChannelLimit === null
+                  ? `${usage.scheduledTotal.toLocaleString()} scheduled · unlimited per channel`
+                  : `${usage.scheduledTotal.toLocaleString()} scheduled · ${usage.scheduledPerChannelLimit.toLocaleString()} per channel`}
+              </span>
+            </div>
+          </div>
+        </div>
+        {usage.aiCreditsLimit !== null && usage.aiCreditsUsed >= usage.aiCreditsLimit ? (
+          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+            You've used every AI credit this month. They reset on the 1st — or{' '}
+            <a className="font-bold underline" href="#change-plan">upgrade for more</a>.
+          </p>
+        ) : null}
       </section>
 
       {/* ---- change plan ---- */}

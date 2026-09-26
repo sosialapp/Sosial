@@ -16,7 +16,11 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { CONTENT_RULES } from "../_shared/content_rules.ts";
-import { gateAiGeneration } from "../_shared/usage.ts";
+import {
+  gateAiCredits, refundAiCredits, newRequestId,
+  type AiGateContext,
+} from "../_shared/usage.ts";
+import type { AiAction } from "../_shared/aiCredits.ts";
 
 /** Caption limits for channels that aren't chain-capable (joined text). */
 const TEXT_CAPS: Record<string, number> = {
@@ -174,12 +178,20 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Body must be JSON.");
   }
 
-  // Monthly AI allowance (free = none). The usage month is a calendar month
-  // even for annual subscribers — the billing interval only changes billing.
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (serviceKey) {
-    const gate = await gateAiGeneration(supaUrl, serviceKey, authHeader, anonKey);
-    if (!gate.ok) return bad(gate.message ?? "AI allowance reached.", gate.status ?? 402);
+  // Validate the request shape BEFORE charging so a malformed call is free.
+  const isRewriteMode = Array.isArray(body["posts"]);
+  if (isRewriteMode) {
+    const postsIn = (body["posts"] as unknown[])
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (!postsIn.length) return bad("posts is required for rewrites.");
+    const opIn = typeof body["op"] === "string" ? body["op"] : "";
+    if (!REWRITE_ASKS[opIn]) return bad("Unknown rewrite op.");
+  } else {
+    const topicIn = typeof body["topic"] === "string" ? body["topic"].trim() : "";
+    if (!topicIn) return bad("topic is required.");
+    if (topicIn.length > 500) return bad("topic ≤ 500 chars.");
   }
 
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
@@ -189,6 +201,32 @@ serve(async (req: Request): Promise<Response> => {
       402,
     );
   }
+
+  // Charge the action's credit cost up front; it is refunded if generation
+  // fails before producing output. Credits reset monthly (calendar month)
+  // even for annual subscribers — the billing interval only changes billing.
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const requestId =
+    typeof body["request_id"] === "string" && body["request_id"]
+      ? body["request_id"]
+      : newRequestId();
+  const ctx: AiGateContext = { supaUrl, serviceKey, authHeader, anonKey };
+  const threadFlag = body["thread"] === true;
+  let aiAction: AiAction = "post";
+  if (isRewriteMode) aiAction = "rewrite";
+  else if (threadFlag) aiAction = "thread";
+  else {
+    const plats = activePlatforms(body["platforms"] ?? body["providers"]);
+    aiAction = plats.length > 1 ? "adapt" : "post";
+  }
+  if (serviceKey) {
+    const gate = await gateAiCredits(ctx, aiAction, requestId);
+    if (!gate.ok) return bad(gate.message ?? "AI credits reached.", gate.status ?? 402);
+  }
+  const fail = async (msg: string): Promise<Response> => {
+    if (serviceKey) await refundAiCredits(ctx, requestId);
+    return bad(msg, 502);
+  };
 
   const language = typeof body["language"] === "string" ? body["language"].trim().slice(0, 40) : "auto";
   const languageRule = language && language !== "auto" ? ` Write in ${language}.` : " Match the idea's language.";
@@ -229,11 +267,11 @@ serve(async (req: Request): Promise<Response> => {
         .filter((p): p is string => typeof p === "string")
         .map((p) => clamp(p, limit));
       if (!out.length || !out.some((p) => p.trim())) {
-        return bad("The rewrite came back empty.", 502);
+        return fail("The rewrite came back empty.");
       }
       return Response.json({ posts: out }, { headers: CORS });
     } catch (e) {
-      return bad(`${String(e instanceof Error ? e.message : e).slice(0, 160)}`, 502);
+      return fail(`${String(e instanceof Error ? e.message : e).slice(0, 160)}`);
     }
   }
 
@@ -320,7 +358,7 @@ serve(async (req: Request): Promise<Response> => {
           };
         })
         .filter((v) => (PLATFORM_IDS as readonly string[]).includes(v.platform) && v.posts.some((s) => s.trim()));
-      if (!variants.length) return bad("AI returned an unusable reply — try again.", 502);
+      if (!variants.length) return fail("AI returned an unusable reply — try again.");
       return Response.json({ variants }, { headers: CORS });
     }
 
@@ -345,12 +383,12 @@ serve(async (req: Request): Promise<Response> => {
       .filter((s): s is string => typeof s === "string")
       .map((s) => clamp(s, cap))
       .slice(0, chain ? parts : 1);
-    if (!posts.some((s) => s.trim())) return bad("AI returned an unusable reply — try again.", 502);
+    if (!posts.some((s) => s.trim())) return fail("AI returned an unusable reply — try again.");
     return Response.json(
       { variants: [{ platform: platforms[0], posts, hashtags: normHashtags(parsed.hashtags) }] },
       { headers: CORS },
     );
   } catch (e) {
-    return bad(`${String(e instanceof Error ? e.message : e).slice(0, 160)}`, 502);
+    return fail(`${String(e instanceof Error ? e.message : e).slice(0, 160)}`);
   }
 });

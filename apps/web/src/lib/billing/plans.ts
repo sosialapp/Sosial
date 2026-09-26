@@ -10,9 +10,10 @@
  * - Feature limits are identical between monthly and annual of the same
  *   plan. The interval changes price + renewal period only.
  * - Unlimited is `null`, never 999999.
+ * - Scheduled posts are limited PER CONNECTED CHANNEL, not globally.
  * - The billing period (Stripe renewal) is distinct from the usage period
- *   (calendar month). Usage-based allowances (AI generations, scheduled
- *   posts) reset every calendar month even for annual subscribers.
+ *   (calendar month). AI credits reset every calendar month even for annual
+ *   subscribers; scheduled-post slots free up when a post is published.
  */
 
 export type BillingInterval = 'monthly' | 'annual';
@@ -20,12 +21,18 @@ export type BillingInterval = 'monthly' | 'annual';
 export type PlanKey = 'free' | 'solo' | 'team' | 'business';
 
 export interface PlanLimits {
-  /** connectable channels; null = unlimited */
+  /** connectable channels (one per connected social account); null = unlimited */
   channels: number | null;
-  /** scheduled posts per usage month; null = unlimited */
-  scheduledPosts: number | null;
-  /** AI generations per usage month; null = unlimited */
-  aiGenerations: number | null;
+  /** scheduled (not yet published) posts allowed PER connected channel; null = unlimited */
+  scheduledPostsPerChannel: number | null;
+  /** AI credits granted per calendar month; null = unlimited */
+  aiCredits: number | null;
+  /** team seats including the owner; null = unlimited */
+  users: number | null;
+  /** workspaces (brands) the user may own; null = unlimited */
+  workspaces: number | null;
+  /** true ⇒ the Sosial watermark is forced ON and cannot be disabled */
+  watermarkRequired: boolean;
 }
 
 export interface PlanPrice {
@@ -36,7 +43,10 @@ export interface PlanPrice {
 export interface PlanDef {
   key: PlanKey;
   label: string;
+  /** short positioning line used on cards */
   blurb: string;
+  /** who it is for, used as the card badge */
+  badge: string;
   featured?: boolean;
   monthly: PlanPrice;
   annual: PlanPrice;
@@ -49,62 +59,94 @@ export const PLANS: Record<PlanKey, PlanDef> = {
   free: {
     key: 'free',
     label: 'Free',
-    blurb: 'Enough to replace posting by hand.',
+    blurb: 'Plan, create and publish your first posts.',
+    badge: 'For getting started',
     monthly: { price: 0 },
     annual: { price: 0 },
-    limits: { channels: 3, scheduledPosts: 30, aiGenerations: 0 },
+    limits: {
+      channels: 3,
+      scheduledPostsPerChannel: 10,
+      aiCredits: 20,
+      users: 1,
+      workspaces: 1,
+      watermarkRequired: true,
+    },
     points: [
       '3 connected channels',
-      '30 scheduled posts a month',
-      'One calendar and queue',
-      'Per-channel previews and live limits',
-      'iOS, Android and web',
+      '10 scheduled posts per channel',
+      '20 AI credits a month',
+      'Calendar, queue and auto-publishing',
+      'Basic analytics',
     ],
   },
   solo: {
     key: 'solo',
     label: 'Solo',
-    blurb: 'Publish everywhere, every day.',
+    blurb: 'For creators and individuals.',
+    badge: 'For creators & individuals',
     monthly: { price: 12 },
     annual: { price: 120 },
-    limits: { channels: null, scheduledPosts: null, aiGenerations: 500 },
+    limits: {
+      channels: 6,
+      scheduledPostsPerChannel: 50,
+      aiCredits: 500,
+      users: 1,
+      workspaces: 1,
+      watermarkRequired: false,
+    },
     points: [
-      'All 10 channels connected',
-      'Unlimited scheduled posts',
-      'AI writer with live research',
-      'Templates and studio',
-      'Analytics across every channel',
+      '6 connected channels',
+      '50 scheduled posts per channel',
+      '500 AI credits a month',
+      'Media library and content organization',
+      'Analytics with reach, engagement and top posts',
     ],
   },
   team: {
     key: 'team',
     label: 'Team',
-    blurb: 'Draft together, approve in one tap.',
+    blurb: 'For growing teams.',
+    badge: 'For growing teams',
     featured: true,
     monthly: { price: 29 },
     annual: { price: 290 },
-    limits: { channels: null, scheduledPosts: null, aiGenerations: 1000 },
+    limits: {
+      channels: 25,
+      scheduledPostsPerChannel: 100,
+      aiCredits: 1500,
+      users: 3,
+      workspaces: 3,
+      watermarkRequired: false,
+    },
     points: [
-      'Everything in Solo',
-      'Approvals and review notes',
-      'Member, admin and owner roles',
-      'Shared calendar for the whole team',
-      'Priority support',
+      '25 connected channels',
+      '100 scheduled posts per channel',
+      '1,500 AI credits a month',
+      '3 team members and 3 workspaces',
+      'Approvals, roles and bulk scheduling',
     ],
   },
   business: {
     key: 'business',
     label: 'Business',
-    blurb: 'Scale the whole operation.',
+    blurb: 'For agencies and businesses.',
+    badge: 'For agencies & businesses',
     monthly: { price: 79 },
     annual: { price: 790 },
-    limits: { channels: null, scheduledPosts: null, aiGenerations: 2000 },
+    limits: {
+      channels: 100,
+      scheduledPostsPerChannel: 250,
+      aiCredits: 5000,
+      users: 10,
+      workspaces: 10,
+      watermarkRequired: false,
+    },
     points: [
-      'Everything in Team',
-      '1,000 extra AI generations a month',
-      'Unlimited seats for the whole crew',
-      'Per-channel member roles',
-      'Premium support',
+      '100 connected channels',
+      '250 scheduled posts per channel',
+      '5,000 AI credits a month',
+      '10 team members and 10 workspaces',
+      'Advanced analytics, custom reports and brand voice',
     ],
   },
 };
@@ -153,4 +195,16 @@ export function priceLabel(plan: PlanKey, interval: BillingInterval): string {
   const p = PLANS[plan][interval].price;
   if (plan === 'free') return 'Free';
   return `${formatUsd(p)}/${interval === 'monthly' ? 'mo' : 'yr'}`;
+}
+
+/** The plan the user would move up to next (for upgrade CTAs), or null. */
+export function nextPlan(plan: PlanKey): Exclude<PlanKey, 'free'> | null {
+  const i = PLAN_ORDER.indexOf(plan);
+  const next = PLAN_ORDER[i + 1];
+  return next && next !== 'free' ? (next as Exclude<PlanKey, 'free'>) : null;
+}
+
+/** Limits for a plan (interval-independent). */
+export function limitsFor(plan: PlanKey): PlanLimits {
+  return PLANS[plan].limits;
 }

@@ -1,24 +1,33 @@
-// _shared/usage.ts · monthly AI allowance gate for the AI edge functions.
+// _shared/usage.ts · AI credit gate for the AI edge functions.
 //
-// USAGE PERIOD ≠ BILLING PERIOD: allowances reset every calendar month
+// USAGE PERIOD ≠ BILLING PERIOD: credits reset every calendar month
 // ('YYYY-MM', UTC) even for annual subscribers — the billing interval only
-// changes price and renewal. Limits come from the canonical plan book
-// (identical for monthly and annual of the same plan); null = unlimited.
+// changes price and renewal. The allowance and the atomic, idempotent charge
+// both live in the database (plan_limits + ai_consume_credits), so the edge
+// function never has to trust the client or race another invocation.
+//
+// Uses only fetch/PostgREST — no supabase-js dependency in the bundle.
 
-export const AI_LIMITS: Record<string, number | null> = {
-  free: 0,
-  solo: 500,
-  team: 1000,
-  business: 2000,
-};
+import { type AiAction, AI_MODEL_ID, costOf } from "./aiCredits.ts";
+
+export interface AiGateContext {
+  supaUrl: string;
+  serviceKey: string;
+  authHeader: string;
+  anonKey: string;
+}
 
 export interface AiGateResult {
   ok: boolean;
   message?: string;
   status?: number;
+  /** credits left this month after this charge; null = unlimited */
+  remaining?: number | null;
+  /** echo of the idempotency key used for the charge (pass to refund) */
+  requestId?: string;
 }
 
-function rest(url: string, key: string, extra: Record<string, string> = {}): Record<string, string> {
+function rest(key: string, extra: Record<string, string> = {}): Record<string, string> {
   return { apikey: key, Authorization: `Bearer ${key}`, ...extra };
 }
 
@@ -30,104 +39,106 @@ async function json(res: Response): Promise<unknown> {
   }
 }
 
-/**
- * Check + consume one AI generation for the caller. Returns { ok: true } and
- * records usage, or { ok: false, message } with an upgrade-friendly error.
- * Uses only fetch/PostgREST — no supabase-js dependency in the bundle.
- */
-export async function gateAiGeneration(
-  supaUrl: string,
-  serviceKey: string,
-  authHeader: string,
-  anonKey: string,
-): Promise<AiGateResult> {
-  // 1. Caller identity
-  let uid = "";
+/** Verify the caller's JWT and return their user id, or "" when unauthenticated. */
+export async function callerId(ctx: AiGateContext): Promise<string> {
   try {
-    const me = await fetch(`${supaUrl}/auth/v1/user`, {
-      headers: { Authorization: authHeader, apikey: anonKey },
+    const me = await fetch(`${ctx.supaUrl}/auth/v1/user`, {
+      headers: { Authorization: ctx.authHeader, apikey: ctx.anonKey },
     });
-    if (!me.ok) return { ok: false, message: "Sign in first.", status: 401 };
+    if (!me.ok) return "";
     const body = (await json(me)) as { id?: string } | null;
-    uid = body?.id ?? "";
+    return body?.id ?? "";
   } catch {
-    return { ok: false, message: "Sign in first.", status: 401 };
+    return "";
   }
-  if (!uid) return { ok: false, message: "Sign in first.", status: 401 };
+}
 
-  const headers = rest(supaUrl, serviceKey);
-
-  // 2. The caller's workspace (matches the app's single-workspace model)
-  let wid = "";
+async function workspaceFor(supaUrl: string, serviceKey: string, uid: string): Promise<string> {
   try {
     const r = await fetch(
       `${supaUrl}/rest/v1/workspace_members?user_id=eq.${uid}&status=eq.active&select=workspace_id&limit=1`,
-      { headers },
+      { headers: rest(serviceKey) },
     );
     const rows = (await json(r)) as { workspace_id: string }[] | null;
-    wid = rows?.[0]?.workspace_id ?? "";
+    return rows?.[0]?.workspace_id ?? "";
   } catch {
-    // fall through — treated as no workspace
+    return "";
   }
+}
+
+/**
+ * Charge `action`'s credit cost for the caller. Atomic + idempotent by
+ * `requestId` (pass a stable id to make retries free). Returns ok:false with
+ * an upgrade-friendly message when the plan has no credits left.
+ */
+export async function gateAiCredits(
+  ctx: AiGateContext,
+  action: AiAction,
+  requestId: string,
+): Promise<AiGateResult> {
+  const uid = await callerId(ctx);
+  if (!uid) return { ok: false, message: "Sign in first.", status: 401 };
+
+  const wid = await workspaceFor(ctx.supaUrl, ctx.serviceKey, uid);
   if (!wid) {
-    return {
-      ok: false,
-      message: "AI writing is on Solo and up — upgrade in Billing to unlock it.",
-      status: 402,
-    };
+    return { ok: false, message: "Set up your workspace to use AI.", status: 402 };
   }
 
-  // 3. Plan → allowance
-  let plan = "free";
+  const credits = costOf(action);
+  let payload: {
+    ok?: boolean;
+    message?: string;
+    status?: number;
+    remaining?: number | null;
+  } | null = null;
   try {
-    const r = await fetch(
-      `${supaUrl}/rest/v1/subscriptions?workspace_id=eq.${wid}&select=plan&limit=1`,
-      { headers },
-    );
-    const rows = (await json(r)) as { plan: string }[] | null;
-    plan = rows?.[0]?.plan ?? "free";
-  } catch {
-    plan = "free";
-  }
-  const limit = AI_LIMITS[plan] ?? 0;
-  if (limit === null) return { ok: true }; // unlimited
-
-  const month = new Date().toISOString().slice(0, 7);
-
-  // 4. Current usage this month
-  let used = 0;
-  try {
-    const r = await fetch(
-      `${supaUrl}/rest/v1/usage_counters?workspace_id=eq.${wid}&month=eq.${month}&select=ai_generations&limit=1`,
-      { headers },
-    );
-    const rows = (await json(r)) as { ai_generations: number }[] | null;
-    used = rows?.[0]?.ai_generations ?? 0;
-  } catch {
-    used = 0;
-  }
-
-  if (used >= limit) {
-    return {
-      ok: false,
-      message:
-        limit === 0
-          ? "AI writing is on Solo and up — upgrade in Billing to unlock it."
-          : `You've used all ${limit} AI generations for this month — they reset on the 1st, or upgrade for more.`,
-      status: 402,
-    };
-  }
-
-  // 5. Consume one generation (atomic upsert)
-  try {
-    await fetch(`${supaUrl}/rest/v1/rpc/billing_add_ai_generation`, {
+    const res = await fetch(`${ctx.supaUrl}/rest/v1/rpc/ai_consume_credits`, {
       method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_workspace_id: wid }),
+      headers: { ...rest(ctx.serviceKey), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_workspace_id: wid,
+        p_user_id: uid,
+        p_action: action,
+        p_credits: credits,
+        p_request_id: requestId,
+        p_model: AI_MODEL_ID,
+      }),
+    });
+    payload = (await json(res)) as typeof payload;
+  } catch {
+    // A gate failure must not silently give away paid AI — fail closed.
+    return { ok: false, message: "Could not check your AI credits. Try again.", status: 503 };
+  }
+
+  if (!payload || payload.ok !== true) {
+    return {
+      ok: false,
+      message: payload?.message ?? "You're out of AI credits for this month.",
+      status: payload?.status ?? 402,
+      remaining: payload?.remaining ?? null,
+      requestId,
+    };
+  }
+  return { ok: true, remaining: payload.remaining ?? null, requestId };
+}
+
+/** Refund a charge when generation fails before producing output. Best-effort. */
+export async function refundAiCredits(ctx: AiGateContext, requestId: string): Promise<void> {
+  try {
+    await fetch(`${ctx.supaUrl}/rest/v1/rpc/ai_refund_credits`, {
+      method: "POST",
+      headers: { ...rest(ctx.serviceKey), "Content-Type": "application/json" },
+      body: JSON.stringify({ p_request_id: requestId }),
     });
   } catch {
-    // usage write failing must never block a paying customer's generation
+    // best-effort; a failed refund is recoverable from ai_usage_events
   }
+}
 
-  return { ok: true };
+export function newRequestId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
 }
