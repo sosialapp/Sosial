@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extFor, mimeFor, newClientId } from './posts';
+import { extFor, friendlyLimit, mimeFor, newClientId } from './posts';
 
 describe('extFor', () => {
   it('lowers the extension and strips query strings', () => {
@@ -33,5 +33,20 @@ describe('newClientId', () => {
     const b = newClientId();
     expect(a.startsWith('web_')).toBe(true);
     expect(a).not.toBe(b);
+  });
+});
+
+describe('friendlyLimit', () => {
+  it('strips the machine tag from plan-limit errors', () => {
+    expect(
+      friendlyLimit('Could not target instagram: POST_LIMIT: This channel already has 10 scheduled posts — your plan\'s limit. Publish or remove one, or upgrade.'),
+    ).toBe("This channel already has 10 scheduled posts — your plan's limit. Publish or remove one, or upgrade.");
+    expect(friendlyLimit('CHANNEL_LIMIT: Your plan allows 3 connected channels. Upgrade for more.')).toBe(
+      'Your plan allows 3 connected channels. Upgrade for more.',
+    );
+  });
+
+  it('passes unrelated messages through unchanged', () => {
+    expect(friendlyLimit('Could not save the post: network error')).toBe('Could not save the post: network error');
   });
 });

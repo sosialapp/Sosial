@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import PricingPlans from '@/components/PricingPlans';
+import PlanComparison from '@/components/PlanComparison';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
@@ -9,7 +10,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'A free plan that stays free, Solo for unlimited publishing across all ten channels, Team for approvals, Business for scale. Monthly or annual — annual gives you two months free. Cancel any time.',
+    'A free plan that stays free, Solo for creators, Team for approvals, Business for scale — with 3, 6, 25 and 100 channels. Monthly or annual, and annual gives you two months free. Cancel any time.',
   alternates: { canonical: '/pricing' },
 };
 
@@ -19,7 +20,7 @@ export default function PricingPage() {
       <PageHero
         eyebrow="Pricing"
         title="Simple plans, published prices."
-        lede="Start free and stay free if that is enough. Upgrade when you want all ten channels, the AI writer or approvals. Monthly or annual — annual gives you two months free."
+        lede="Start free and stay free if that is enough. Upgrade for more channels, more AI credits and team approvals. Monthly or annual — annual gives you two months free."
         secondary={{ href: '/compare', label: 'Compare with alternatives' }}
       />
 
@@ -27,35 +28,37 @@ export default function PricingPage() {
 
       <PricingPlans />
 
+      <PlanComparison />
+
       <FaqList
         items={[
           {
-            q: 'What counts against the free plan limit?',
-            a: 'Scheduled and sent posts. Drafts do not count, and neither do edits to a post before it ships.',
+            q: 'What counts against the scheduled-post limit?',
+            a: 'Posts that are scheduled or waiting on a channel and not yet published. The limit is per connected channel, so each channel gets its own allowance, and a slot frees up the moment a post publishes. Drafts never count.',
           },
           {
-            q: 'Are there per-channel fees?',
-            a: 'No. Connecting Instagram costs the same as connecting X. Every plan that includes a channel includes all of its features.',
+            q: 'How many channels can I connect?',
+            a: 'Free connects 3, Solo 6, Team 25 and Business 100. Connecting Instagram costs the same as connecting X — there are no per-channel fees.',
           },
           {
-            q: 'What happens if I hit the free limit mid-month?',
-            a: 'New scheduling pauses; nothing already queued is lost. Upgrade and the queue picks up where it left off, or wait for the reset next month.',
+            q: 'How do AI credits work?',
+            a: 'Every plan gets AI credits that reset on the 1st of each month: 20 on Free, then 500, 1,500 and 5,000 on Solo, Team and Business. A short rewrite costs 1 credit, a caption or platform adaptation 2, a thread or repurpose 3, and a long-form draft 5.',
           },
           {
             q: 'Can I switch plans or cancel?',
             a: 'Any time, from billing settings. Plan and billing-interval changes apply immediately and are prorated by Stripe; cancelling keeps your plan until the end of the current period.',
           },
           {
-            q: 'Is the AI writer included?',
-            a: 'On Solo, Team and Business — 500, 1,000 and 2,000 generations a month respectively. Free plans get the composer, previews and queue without AI generation.',
+            q: 'What is the Sosial watermark?',
+            a: 'Free posts carry a small “made with Sosial” badge. On Solo, Team and Business you control it and can turn it off in the studio — it never applies to content you bring in yourself.',
           },
           {
             q: 'Do you charge for team seats on Team or Business?',
-            a: 'No. Team and Business are flat prices for the whole workspace, whether it is two people or ten.',
+            a: 'No. Team and Business are flat prices for the whole workspace, including 3 and 10 members and workspaces respectively.',
           },
           {
             q: 'How does annual billing work?',
-            a: 'You pay once a year — annual costs the same as ten months, so you get two months free. Monthly allowances (AI generations, scheduled posts) still reset every month.',
+            a: 'You pay once a year — annual costs the same as ten months, so you get two months free. AI credits and scheduled-post slots still reset every month.',
           },
         ]}
       />

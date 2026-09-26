@@ -44,7 +44,15 @@ export default function PricingPlans() {
                   p.featured ? 'border-2 border-accent shadow-[0_24px_60px_-30px_rgba(28,26,20,0.45)]' : ''
                 }`}
               >
-                <p className="eyebrow">{p.label}</p>
+                <div className="flex items-center justify-between">
+                  <p className="eyebrow">{p.label}</p>
+                  {p.featured ? (
+                    <span className="rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-bold text-white">
+                      Most popular
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-xs font-semibold text-faint">{p.badge}</p>
                 <p className="mt-3 font-display text-4xl font-extrabold tracking-tight">
                   {priceLabel(key, interval)}
                   {key !== 'free' ? (

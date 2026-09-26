@@ -159,6 +159,15 @@ function deviceTimezone(): string | undefined {
 }
 
 /**
+ * Plan-limit triggers raise messages like `POST_LIMIT: <friendly text>`.
+ * Strip the machine tag so the user sees the upgrade-friendly sentence.
+ */
+export function friendlyLimit(message: string): string {
+  const m = message.match(/(?:POST_LIMIT|CHANNEL_LIMIT|SEAT_LIMIT|WORKSPACE_LIMIT):\s*([\s\S]+)/);
+  return m ? m[1].trim() : message;
+}
+
+/**
  * Create a post and its per-channel targets. Mirrors the mobile write path
  * (cloudPosts.pushPostToCloud) including its ordering rule: media + links
  * BEFORE targets, so the worker can never see a queued target whose media is
@@ -248,7 +257,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
       },
       { onConflict: 'post_id,channel_id' },
     );
-    if (tErr) throw new Error(`Could not target ${ch.provider}: ${tErr.message}`);
+    if (tErr) throw new Error(friendlyLimit(`Could not target ${ch.provider}: ${tErr.message}`));
   }
 
   if (needsApproval) {

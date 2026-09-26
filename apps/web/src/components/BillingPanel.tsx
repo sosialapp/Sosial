@@ -33,16 +33,43 @@ export default function BillingPanel({
   entitlement,
   usage,
   stripeReady,
+  showWatermark,
+  watermarkRequired,
 }: {
   entitlement: EntitlementView;
   usage: UsageSnapshot;
   stripeReady: boolean;
+  showWatermark: boolean;
+  watermarkRequired: boolean;
 }) {
   const router = useRouter();
   const [interval, setInterval] = useState<BillingInterval>(entitlement.billingInterval ?? 'monthly');
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [wm, setWm] = useState(showWatermark);
+  const [wmBusy, setWmBusy] = useState(false);
+
+  const toggleWatermark = async () => {
+    const next = !wm;
+    setWmBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch('/api/workspace/watermark', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ show: next }),
+      });
+      const data = (await res.json()) as { showWatermark?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not save the setting.');
+      setWm(data.showWatermark ?? next);
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save the setting.');
+    } finally {
+      setWmBusy(false);
+    }
+  };
 
   const select = async (plan: Exclude<PlanKey, 'free'>) => {
     setBusy(plan);
@@ -226,6 +253,40 @@ export default function BillingPanel({
             <a className="font-bold underline" href="#change-plan">upgrade for more</a>.
           </p>
         ) : null}
+      </section>
+
+      {/* ---- watermark (brand) ---- */}
+      <section className="card p-5" aria-label="Sosial watermark">
+        <p className="eyebrow">Brand</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold">Sosial watermark</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted">
+              {watermarkRequired
+                ? 'Required on the Free plan — a small “made with Sosial” badge is added to studio exports and published posts. Upgrade to control it.'
+                : 'A small “made with Sosial” badge added to studio exports and published posts. Turn it off any time — it never applies to media you bring in yourself.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={watermarkRequired ? true : wm}
+            disabled={wmBusy || watermarkRequired}
+            onClick={toggleWatermark}
+            className={`pill border shrink-0 ${
+              watermarkRequired
+                ? 'cursor-not-allowed border-line bg-surface text-muted'
+                : wm
+                  ? 'border-ink bg-[#191512] text-white dark:bg-[#191512]'
+                  : 'border-line bg-card text-soft'
+            }`}
+          >
+            {watermarkRequired ? 'Required' : wmBusy ? 'Saving…' : wm ? 'On' : 'Off'}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          {watermarkRequired ? 'Show Sosial watermark: Required' : `Custom Sosial watermark: ${wm ? 'ON' : 'OFF'}`}
+        </p>
       </section>
 
       {/* ---- change plan ---- */}

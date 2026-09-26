@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation';
 import BillingPanel from '@/components/BillingPanel';
 import { getWorkspaceContext } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { getUsage } from '@/lib/billing/usage';
 import { pricesConfigured } from '@/lib/billing/stripe';
+import { PLANS } from '@/lib/billing/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +16,19 @@ export default async function BillingPage() {
 
   const entitlement = await getEntitlement(ctx.workspace.id);
   const usage = await getUsage(ctx.workspace.id, entitlement.plan);
+
+  let showWatermark = true;
+  try {
+    const { data } = await supabaseAdmin()
+      .from('workspaces')
+      .select('show_watermark')
+      .eq('id', ctx.workspace.id)
+      .maybeSingle();
+    showWatermark = data?.show_watermark ?? true;
+  } catch {
+    showWatermark = true;
+  }
+  const watermarkRequired = PLANS[entitlement.plan].limits.watermarkRequired;
 
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
@@ -35,6 +50,8 @@ export default async function BillingPage() {
           }}
           usage={usage}
           stripeReady={pricesConfigured()}
+          showWatermark={showWatermark}
+          watermarkRequired={watermarkRequired}
         />
       </div>
     </div>
