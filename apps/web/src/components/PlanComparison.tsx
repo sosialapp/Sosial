@@ -53,7 +53,7 @@ export default function PlanComparison() {
                         {p.key === 'free' ? 'Free' : priceLabel(p.key, 'monthly')}
                       </span>
                       <span className="block text-xs font-normal text-faint">
-                        {p.key === 'free' ? 'forever' : `${priceLabel(p.key, 'annual')} a year`}
+                        {p.key === 'free' ? 'forever' : priceLabel(p.key, 'annual')}
                       </span>
                       {p.featured ? (
                         <span className="mt-1 inline-block rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-white">
