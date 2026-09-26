@@ -29,8 +29,8 @@ EAS secrets (`eas secret:create --name …`).
 
 - `App.tsx`, `src/` — the Expo app (manual routing, no nav library)
 - `assets/` — icon, splash, watermark, header logo
-- `packages/core/` — shared channel ids + freemium entitlement matrix
-  (dependency-free; server enforces, clients mirror)
+- `packages/core/` — shared canonical channel ids (dependency-free; plan limits
+  live in `apps/web/src/lib/billing/plans.ts`)
 - `supabase/` — backend migrations + setup (`supabase/README.md`)
 - `scripts/scan-secrets.js` — local + CI secret hygiene
 
