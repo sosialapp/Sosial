@@ -274,8 +274,19 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
     }
     return m;
   }, [posts]);
-  const partCount = (p: PostWithTargets): number =>
-    p.chain_id ? (chainParts.get(p.chain_id)?.length ?? 1) : 1;
+  /** Chain size: sibling rows, or the worker thread length when a chain
+   *  collapsed to its head (later parts carry no targets of their own). */
+  const partCount = (p: PostWithTargets): number => {
+    let n = p.chain_id ? (chainParts.get(p.chain_id)?.length ?? 1) : 1;
+    for (const t of p.post_targets ?? []) {
+      const th = t.options?.thread;
+      if (Array.isArray(th)) {
+        const c = th.filter((s) => typeof s === 'string' && s.trim()).length;
+        if (c > n) n = c;
+      }
+    }
+    return n;
+  };
   const isChainHead = (p: PostWithTargets): boolean =>
     !p.chain_id || chainHead(chainParts.get(p.chain_id) ?? [p]).id === p.id;
 

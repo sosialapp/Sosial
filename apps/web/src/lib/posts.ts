@@ -116,6 +116,18 @@ export function mediaBlock(
 
 export type ComposeMode = 'draft' | 'schedule' | 'now';
 
+/**
+ * Providers that publish a chain as ONE connected thread (replies), not as
+ * separate scheduled posts — mirrors mobile THREAD_CAPS. Everything else
+ * publishes each part on its own schedule.
+ */
+export const CHAIN_PROVIDERS = ['x', 'threads', 'mastodon', 'bluesky'];
+
+/** Non-empty segment bodies — the worker replays these as one connected thread. */
+export function threadSegments(bodies: string[]): string[] {
+  return bodies.map((s) => (s ?? '').trim()).filter(Boolean);
+}
+
 export interface ComposeArgs {
   workspaceId: string;
   userId: string;
@@ -124,6 +136,12 @@ export interface ComposeArgs {
   body: string;
   mode: ComposeMode;
   scheduleIso: string | null;
+  /**
+   * Per-provider target options merged into each target. Chain creation sets
+   * `{ thread: [...] }` for chain-capable providers on the head part so the
+   * worker publishes one connected thread instead of separate posts.
+   */
+  targetOptions?: Record<string, Record<string, unknown>>;
   /**
    * Queue lead-time check for schedule mode (mobile parity: >= 5 min).
    * createChain sets this false for 'now' chains, whose parts queue from
@@ -258,7 +276,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
         channel_id: ch.id,
         provider: ch.provider,
         caption: body.trim(),
-        options: {},
+        options: { ...(args.targetOptions?.[ch.provider] ?? {}) },
         status: targetStatus,
         scheduled_at: scheduledIso,
         idempotency_key: `cloud:${clientId}:${ch.id}`,
@@ -306,6 +324,12 @@ export interface ChainArgs {
  * schedules staggered by gapMinutes so the minutely cron + worker publish
  * the parts in order with no worker changes. 'now' maps to a schedule
  * staggered from this instant. Returns the new post ids in order.
+ *
+ * Chain-capable providers (x/threads/mastodon/bluesky) publish the whole
+ * chain as ONE connected thread: only the head part gets their targets, with
+ * `options.thread` carrying every segment — exactly what the mobile app
+ * writes. Later parts keep targets for the remaining providers only, and a
+ * part with no providers left is skipped (no ghost rows).
  */
 export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<string[]> {
   const gapMs = Math.max(0, Math.min(1440, args.gapMinutes || 0)) * 60_000;
@@ -319,10 +343,23 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
     throw new Error('Choose a valid start date and time.');
   }
   if (args.mode === 'schedule') assertQueueLeadTime(args.startIso);
+  const thread = threadSegments(args.segments.map((s) => s.body));
+  const soloChs = args.channels.filter((c) => !CHAIN_PROVIDERS.includes(c.provider));
   const chainId = crypto.randomUUID();
   const ids: string[] = [];
   for (let i = 0; i < args.segments.length; i++) {
     const seg = args.segments[i];
+    // Head carries every channel; later parts keep non-chain providers only.
+    const partChannels = i === 0 ? args.channels : soloChs;
+    if (partChannels.length === 0) continue;
+    const targetOptions =
+      i === 0 && thread.length > 1
+        ? Object.fromEntries(
+            args.channels
+              .filter((c) => CHAIN_PROVIDERS.includes(c.provider))
+              .map((c) => [c.provider, { thread }]),
+          )
+        : undefined;
     const iso =
       args.mode === 'draft' || base === null ? null : new Date(base + i * gapMs).toISOString();
     const id = await createPost(sb, {
@@ -335,7 +372,8 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
       scheduleIso: iso,
       // 'now' chains queue from this instant by design — no lead check.
       leadCheck: args.mode !== 'now',
-      channels: args.channels,
+      targetOptions,
+      channels: partChannels,
       files: seg.files,
       chainId,
       chainPosition: i,
