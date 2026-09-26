@@ -60,10 +60,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <ThemeScope className="app-shell min-h-screen bg-bone text-ink">
-      {/* Floating pill masthead: detached from the viewport edge, aligned to
-          the content column. Left clearance keeps it clear of the fixed rail. */}
-      <div className="sticky top-0 z-30 pr-4 pl-[76px] sm:pr-6 sm:pl-24">
-        <header className="mx-auto mt-3 flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
+      {/* Floating pill masthead: detached look, aligned to the content
+          column. The sticky zone itself is opaque theme background (the
+          document body is hardwired white, which would bleed through a
+          transparent zone) and uses padding, not margin, so no gap can
+          show through. Left clearance keeps it clear of the fixed rail. */}
+      <div className="sticky top-0 z-30 bg-bone pt-3 pr-4 pb-2 pl-[76px] sm:pr-6 sm:pl-24">
+        <header className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
           <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
           <p className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">{ctx.workspace.name}</p>
           <ConnectHeader channels={channels} />
