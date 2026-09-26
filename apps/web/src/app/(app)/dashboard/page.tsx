@@ -5,8 +5,9 @@ import SendIcon from '@/components/SendIcon';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
 import QuickPost from '@/components/QuickPost';
+import PostPeek from '@/components/PostPeek';
 import { providerMeta } from '@/lib/providers';
-import { chainPartsByChain, isChainHead } from '@/lib/chains';
+import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey, WEEKDAYS } from '@/lib/format';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
@@ -99,6 +100,10 @@ export default async function DashboardPage() {
   const parts = chainPartsByChain(posts);
   const avatarByChannel = new Map(channels.map((c) => [c.id, channelAvatar(c.metadata)]));
   const avatarOf = (channelId: string): string | undefined => avatarByChannel.get(channelId);
+  const avatarRecord: Record<string, string> = {};
+  for (const [id, v] of avatarByChannel) {
+    if (typeof v === 'string') avatarRecord[id] = v;
+  }
   const queued = posts.filter((p) => p.status === 'queued' || p.status === 'publishing');
   const queuedHeads = queued.filter((p) => isChainHead(p, parts));
   const upcoming = queuedHeads
@@ -277,36 +282,30 @@ export default async function DashboardPage() {
                       return (
                         <div
                           key={k}
-                          className={`h-14 border-t border-line-soft p-1 [&:not(:first-child)]:border-l ${
+                          className={`border-t border-line-soft p-1 text-[10px] [&:not(:first-child)]:border-l ${
                             isToday ? 'bg-accent/[0.06]' : ''
                           } ${ri === HOURS.length - 1 ? 'border-b' : ''}`}
+                          style={{ height: '4.5rem' }}
                         >
-                          {cell.slice(0, 2).map((p) => {
-                            const t0 = p.post_targets?.[0];
-                            return (
-                              <Link
-                                key={p.id}
-                                href="/calendar"
-                                className="mb-0.5 block rounded-md bg-paper-dim px-1.5 py-0.5 transition hover:opacity-85"
-                              >
-                                <span className="flex items-center gap-1">
-                                  {t0 ? (
-                                    <ChannelAvatar
-                                      provider={t0.provider}
-                                      avatar={avatarOf(t0.channel_id)}
-                                      size={14}
-                                    />
-                                  ) : null}
-                                  <span className="truncate text-[9px] font-extrabold tabular-nums text-ink">
-                                    {fmtTime(p.scheduled_at)}
-                                  </span>
-                                </span>
-                                <span className="block truncate text-[9px] font-medium text-soft">
-                                  {p.title || 'Untitled post'}
-                                </span>
-                              </Link>
-                            );
-                          })}
+                          {cell.slice(0, 2).map((p) => (
+                            <PostPeek
+                              key={p.id}
+                              post={{
+                                id: p.id,
+                                title: p.title,
+                                body: p.body,
+                                scheduled_at: p.scheduled_at,
+                                status: p.status,
+                                targets: (p.post_targets ?? []).map((t) => ({
+                                  provider: t.provider,
+                                  channel_id: t.channel_id,
+                                })),
+                              }}
+                              when={`${fmtDay(p.scheduled_at)}, ${fmtTime(p.scheduled_at)}`}
+                              avatars={avatarRecord}
+                              threadParts={threadCount(p, parts)}
+                            />
+                          ))}
                           {cell.length > 2 ? (
                             <span className="block px-1 text-[9px] font-bold text-muted">+{cell.length - 2} more</span>
                           ) : null}
@@ -322,45 +321,6 @@ export default async function DashboardPage() {
 
         {/* Right rail */}
         <div className="flex flex-col gap-4">
-          {/* Upcoming */}
-          <section className="card p-5" aria-label="Upcoming posts">
-            <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Upcoming Posts</p>
-              <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
-                View all
-              </Link>
-            </div>
-            {upcoming.length === 0 ? (
-              <p className="mt-4 text-sm text-muted">Nothing scheduled right now.</p>
-            ) : (
-              <ul className="mt-3 divide-y divide-line-soft">
-                {upcoming.map((p) => {
-                  const t0 = p.post_targets?.[0];
-                  const pv = t0?.provider ?? 'instagram';
-                  const meta = providerMeta(pv);
-                  return (
-                    <li key={p.id} className="flex items-center gap-3 py-2.5">
-                      <ChannelAvatar
-                        provider={pv}
-                        avatar={t0 ? avatarOf(t0.channel_id) : undefined}
-                        size={40}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[11px] font-bold text-ink">
-                          {meta.label}
-                        </span>
-                        <span className="mt-0.5 block truncate text-xs font-bold">{p.title || 'Untitled post'}</span>
-                        <span className="block text-[11px] text-faint">
-                          {fmtDay(p.scheduled_at)}, {fmtTime(p.scheduled_at)}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
           {/* Analytics snapshot */}
           <AnalyticsCard
             sentAt={posts
@@ -410,6 +370,45 @@ export default async function DashboardPage() {
                             : isQueued
                               ? `Goes out ${fmtDay(p.scheduled_at)}, ${fmtTime(p.scheduled_at)}`
                               : timeAgo(p.sent_at)}
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* Upcoming */}
+          <section className="card p-5" aria-label="Upcoming posts">
+            <div className="flex items-center justify-between">
+              <p className="font-display text-base font-extrabold tracking-tight">Upcoming Posts</p>
+              <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
+                View all
+              </Link>
+            </div>
+            {upcoming.length === 0 ? (
+              <p className="mt-4 text-sm text-muted">Nothing scheduled right now.</p>
+            ) : (
+              <ul className="mt-3 divide-y divide-line-soft">
+                {upcoming.map((p) => {
+                  const t0 = p.post_targets?.[0];
+                  const pv = t0?.provider ?? 'instagram';
+                  const meta = providerMeta(pv);
+                  return (
+                    <li key={p.id} className="flex items-center gap-3 py-2.5">
+                      <ChannelAvatar
+                        provider={pv}
+                        avatar={t0 ? avatarOf(t0.channel_id) : undefined}
+                        size={40}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] font-bold text-ink">
+                          {meta.label}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs font-bold">{p.title || 'Untitled post'}</span>
+                        <span className="block text-[11px] text-faint">
+                          {fmtDay(p.scheduled_at)}, {fmtTime(p.scheduled_at)}
                         </span>
                       </span>
                     </li>
