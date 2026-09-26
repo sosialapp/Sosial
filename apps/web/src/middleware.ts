@@ -1,33 +1,40 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-/** Refreshes the Supabase session cookie and gates the app behind sign-in.
- *  No-ops (rather than crashing) when env is missing so the login page can
- *  explain the setup state. */
-const PUBLIC_PREFIXES = [
-  '/',
-  '/blog',
-  '/resources',
-  '/integrations',
-  '/publish',
-  '/post',
-  '/create',
-  '/ai-assistant',
-  '/audiences',
-  '/terms',
-  '/privacy',
-  '/sitemap',
-  '/robots',
-  '/invite',
-  '/auth',
+/** App UI that requires a session. Everything else is public: marketing pages
+ *  (including the custom CMS pages at the root), auth flows and API routes.
+ *  API routes authenticate themselves (401 or Stripe signature), so this gate
+ *  is a UX layer only — every page and RLS policy still re-verifies with
+ *  getUser() server-side. */
+const GATED_PREFIXES = [
+  '/admin',
+  '/analytics',
+  '/billing',
+  '/calendar',
+  '/channels',
+  '/composer',
+  '/dashboard',
+  '/new',
+  '/profile',
+  '/queue',
+  '/reports',
+  '/team',
 ];
 
+function isGated(path: string): boolean {
+  return GATED_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
+/** Refreshes the Supabase session cookie for gated app routes and gates them
+ *  behind sign-in. No-ops (rather than crashing) when env is missing so the
+ *  login page can explain the setup state. */
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  // Marketing + auth-callback pages need nothing from Supabase here — skip
-  // the client and the getUser round-trip entirely (this runs on EVERY
+
+  // Marketing + public pages need nothing from Supabase here — skip the
+  // client and the getSession round-trip entirely (this runs on EVERY
   // navigation). /login stays on the slow path (signed-in redirect).
-  if (path !== '/login' && PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) {
+  if (path !== '/login' && !isGated(path)) {
     return NextResponse.next({ request });
   }
 
@@ -56,25 +63,8 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
   const user = session?.user ?? null;
-  const isPublic =
-    path === '/' ||
-    path.startsWith('/login') ||
-    path.startsWith('/auth') ||
-    path.startsWith('/invite') ||
-    path.startsWith('/blog') ||
-    path.startsWith('/resources') ||
-    path.startsWith('/integrations') ||
-    path.startsWith('/publish') ||
-    path.startsWith('/post') ||
-    path.startsWith('/create') ||
-    path.startsWith('/ai-assistant') ||
-    path.startsWith('/audiences') ||
-    path.startsWith('/terms') ||
-    path.startsWith('/privacy') ||
-    path.startsWith('/sitemap') ||
-    path.startsWith('/robots');
 
-  if (!user && !isPublic) {
+  if (!user && path !== '/login') {
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/login';
     return NextResponse.redirect(redirect);

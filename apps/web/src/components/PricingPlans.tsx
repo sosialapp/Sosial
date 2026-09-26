@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import {
-  PLANS, PLAN_ORDER, priceLabel, formatUsd, monthlyEquivalent, annualSavingsPct,
+  PLANS, PLAN_ORDER, priceFor, priceLabel, formatUsd, monthlyEquivalent, annualSavingsPct,
   type BillingInterval,
 } from '@/lib/billing/plans';
 
@@ -54,10 +54,10 @@ export default function PricingPlans() {
                 </div>
                 <p className="mt-2 text-xs font-semibold text-faint">{p.badge}</p>
                 <p className="mt-3 font-display text-4xl font-extrabold tracking-tight">
-                  {priceLabel(key, interval)}
+                  {key === 'free' ? 'Free' : formatUsd(priceFor(key, interval))}
                   {key !== 'free' ? (
                     <span className="ml-1.5 align-middle text-sm font-semibold text-faint">
-                      /{interval === 'monthly' ? 'month' : 'year'}
+                      /{interval === 'monthly' ? 'mo' : 'yr'}
                     </span>
                   ) : null}
                 </p>
@@ -68,7 +68,7 @@ export default function PricingPlans() {
                 ) : null}
                 {key !== 'free' && interval === 'monthly' ? (
                   <p className="mt-1 text-xs text-muted">
-                    or {priceLabel(key, 'annual')}/year ({annualSavingsPct(key)}% off)
+                    or {priceLabel(key, 'annual')} ({annualSavingsPct(key)}% off)
                   </p>
                 ) : null}
                 <p className="mt-2 text-sm leading-relaxed text-muted">{p.blurb}</p>
