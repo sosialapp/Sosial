@@ -60,19 +60,22 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <ThemeScope className="app-shell min-h-screen bg-bone text-ink">
-      <header className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-line bg-card/95 py-3 pr-4 pl-[76px] backdrop-blur-sm sm:pl-24">
-        <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
-        <p className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">{ctx.workspace.name}</p>
-        <p className="hidden truncate text-xs text-muted md:block">{ctx.user.email}</p>
-        <ConnectHeader channels={channels} />
-        <Link
-          href="/team"
-          className="hidden h-9 items-center rounded-full border border-line bg-paper px-3 text-sm font-bold text-soft transition hover:bg-bone sm:inline-flex"
-        >
-          Team
-        </Link>
-        <ThemeToggle />
-      </header>
+      {/* Floating pill masthead: detached from the viewport edge, aligned to
+          the content column. Left clearance keeps it clear of the fixed rail. */}
+      <div className="sticky top-0 z-30 pr-4 pl-[76px] sm:pr-6 sm:pl-24">
+        <header className="mx-auto mt-3 flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
+          <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
+          <p className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">{ctx.workspace.name}</p>
+          <ConnectHeader channels={channels} />
+          <Link
+            href="/team"
+            className="hidden h-9 items-center rounded-full border border-line bg-paper px-3 text-sm font-bold text-soft transition hover:bg-bone sm:inline-flex"
+          >
+            Team
+          </Link>
+          <ThemeToggle />
+        </header>
+      </div>
       {/* Left clearance for the fixed rail on every breakpoint; no bottom dock anymore. */}
       <main className="mx-auto min-w-0 w-full max-w-7xl flex-1 pr-4 pb-14 pl-[76px] sm:pl-24 sm:pr-6">{children}</main>
       <Dock />
