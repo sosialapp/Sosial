@@ -410,48 +410,74 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
             );
           })}
         </div>
-        {visibleSocials.map((s) => (
-          <div key={s.id} className="card space-y-2.5 p-3.5">
-            <p className="text-xs font-bold text-soft">{providerMeta(s.platform).label} handle</p>
-            <input value={s.handle} onChange={(e) => setSocials(page.socials.map((x) => (x.platform === s.platform ? { ...x, handle: e.target.value } : x)))} placeholder="@yourhandle" className="field" />
-            <div className="flex gap-3">
-              <div className="flex-1 space-y-1.5">
-                <p className="text-[10.5px] font-bold text-muted">Font</p>
-                <select
-                  value={s.font}
-                  onChange={(e) => setSocials(page.socials.map((x) => (x.platform === s.platform ? { ...x, font: e.target.value as FontId } : x)))}
-                  className="field"
-                  aria-label={`${providerMeta(s.platform).label} handle font`}
+        {ALL_SOCIALS.filter((pl) => pl !== 'whatsapp').map((pl) => {
+          const found = page.socials.find((s) => s.platform === pl);
+          const on = !!found?.visible;
+          const set = (patch: Partial<NonNullable<typeof found>>) => {
+            if (found) setSocials(page.socials.map((x) => (x.platform === pl ? { ...x, ...patch } : x)));
+          };
+          return (
+            <div key={pl} className={`card space-y-2.5 p-3.5 ${on ? '' : 'opacity-55'}`}>
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ring-1 ring-black/10 dark:ring-white/25"
+                  style={{ backgroundColor: providerMeta(pl).color }}
                 >
-                  {FONT_OPTIONS.map((f) => (
-                    <option key={f.value} value={f.value} style={{ fontFamily: FONT_STACKS[f.value] }}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
+                  <BrandIcon provider={pl} mono className="h-4 w-4 text-white" />
+                </span>
+                <p className="flex-1 text-xs font-bold text-soft">{providerMeta(pl).label} handle</p>
+                <Toggle on={on} onPress={() => toggle(pl)} label={`${providerMeta(pl).label} badge`} />
               </div>
-              <div className="space-y-1.5">
-                <p className="text-[10.5px] font-bold text-muted">Style</p>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setSocials(page.socials.map((x) => (x.platform === s.platform ? { ...x, bold: !x.bold } : x)))}
-                    className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm font-bold transition ${s.bold ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
+              <input
+                value={found?.handle ?? '@yourhandle'}
+                onChange={(e) => set({ handle: e.target.value })}
+                placeholder="@yourhandle"
+                className="field"
+                disabled={!on}
+                aria-label={`${providerMeta(pl).label} handle`}
+              />
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1.5">
+                  <p className="text-[10.5px] font-bold text-muted">Font</p>
+                  <select
+                    value={found?.font ?? 'jakarta'}
+                    onChange={(e) => set({ font: e.target.value as FontId })}
+                    className="field"
+                    disabled={!on}
+                    aria-label={`${providerMeta(pl).label} handle font`}
                   >
-                    B
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSocials(page.socials.map((x) => (x.platform === s.platform ? { ...x, italic: !x.italic } : x)))}
-                    className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm italic transition ${s.italic ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
-                  >
-                    I
-                  </button>
+                    {FONT_OPTIONS.map((f) => (
+                      <option key={f.value} value={f.value} style={{ fontFamily: FONT_STACKS[f.value] }}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-[10.5px] font-bold text-muted">Style</p>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => set({ bold: !(found?.bold ?? true) })}
+                      disabled={!on}
+                      className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm font-bold transition disabled:cursor-not-allowed ${(found?.bold ?? true) ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
+                    >
+                      B
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set({ italic: !(found?.italic ?? false) })}
+                      disabled={!on}
+                      className={`flex h-8 w-9 items-center justify-center rounded-lg text-sm italic transition disabled:cursor-not-allowed ${(found?.italic ?? false) ? 'bg-ink text-white dark:bg-white dark:text-black' : 'bg-paper text-muted'}`}
+                    >
+                      I
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {visibleSocials.length > 0 ? (
           <div className="space-y-3">
             <Field label="Placement">
