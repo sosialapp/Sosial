@@ -165,8 +165,13 @@ export default async function SiteFooter() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-[1440px] flex-col gap-2 px-4 py-5 text-xs text-paper/40 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Sosial. All rights reserved.</p>
-          <p>Made for people who publish everywhere.</p>
+          <p>© {new Date().getFullYear()} EGATE WORLDWIDE · Sosial. All rights reserved.</p>
+          <p>
+            Made for people who publish everywhere. ·{' '}
+            <a href="mailto:support@sosial.app" className="underline hover:text-paper">
+              support@sosial.app
+            </a>
+          </p>
         </div>
       </div>
     </footer>

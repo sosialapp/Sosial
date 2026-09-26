@@ -32,7 +32,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Sosial is a social media scheduling and publishing service. You connect social accounts, compose content, schedule it, and Sosial publishes it to those accounts on your behalf using each platform\'s official API.',
+          c: 'Sosial is a social media scheduling and publishing service operated by EGATE WORLDWIDE. You connect social accounts, compose content, schedule it, and Sosial publishes it to those accounts on your behalf using each platform\'s official API.',
         },
         {
           t: 'p',
@@ -115,7 +115,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Questions about these terms? Reach us through the contact link in your workspace.',
+          c: 'Questions about these terms? Email support@sosial.app or reach us through the contact link in your workspace. EGATE WORLDWIDE operates Sosial and is fully remote — there is no physical office.',
         },
       ],
     },
@@ -252,7 +252,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'If this policy changes materially we will tell you in the product before the change takes effect. Questions? Use the contact link in your workspace.',
+          c: 'If this policy changes materially we will tell you in the product before the change takes effect. Questions? Email support@sosial.app or use the contact link in your workspace. The data controller is EGATE WORLDWIDE, the operator of Sosial.',
         },
       ],
     },

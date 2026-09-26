@@ -59,6 +59,11 @@ export default async function AboutPage() {
             title: 'Deeper where it counts.',
             body: 'More channels when the networks earn them, smarter drafting that stays under your approval, and analytics that answer what to write next instead of flooding you with charts. The calendar and queue stay the centre of gravity.',
           },
+          {
+            eyebrow: 'Company',
+            title: 'Operated by EGATE WORLDWIDE.',
+            body: 'Sosial is built and run by EGATE WORLDWIDE. We are fully remote — no office yet — so email is the fastest way to reach a human: support@sosial.app.',
+          },
         ]}
       />
 
@@ -103,7 +108,7 @@ export default async function AboutPage() {
           },
           {
             q: 'How do I get in touch?',
-            a: 'Support inside the app or on the login page reaches the team directly. Security and privacy matters are documented under Transparency and Privacy.',
+            a: 'Email support@sosial.app — help, billing, feedback, anything. Support inside the app reaches the same team. Security and privacy matters are documented under Transparency and Privacy.',
           },
         ]}
       />
