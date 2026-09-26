@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CtaBand, FaqList } from '@/components/site/PageBlocks';
+import { FaqList } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import PricingPlans from '@/components/PricingPlans';
 import PlanComparison from '@/components/PlanComparison';
@@ -65,12 +65,6 @@ export default async function PricingPage() {
             a: 'You pay once a year — annual costs the same as ten months, so you get two months free. AI credits still reset on the 1st of every month.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Start on free. Upgrade when it earns it."
-        body="No credit card for the free plan, and the prices above are the prices you pay."
-        secondary={{ href: '/compare', label: 'See the comparison' }}
       />
     </>
   );

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CalendarPreview } from '@/components/landing/Preview';
-import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -147,12 +147,6 @@ export default async function PublishPage() {
             a: 'The worker ships every channel inside about a minute of the scheduled time, and each result lands back in the queue.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Fill next week in one sitting."
-        body="One caption, ten channels, zero late-night posting."
-        secondary={{ href: '/features/create', label: 'See the composer' }}
       />
     </>
   );

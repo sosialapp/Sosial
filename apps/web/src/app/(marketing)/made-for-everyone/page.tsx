@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CardTrio, CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { CardTrio, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -134,12 +134,6 @@ export default async function MadeForEveryonePage() {
             a: 'Flows are keyboard-operable, contrast is checked in both themes, and alt text is part of the compose flow because several networks treat it as required.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Everyone gets the same ten channels."
-        body="Start on free. The upgrades are speed, not survival."
-        secondary={{ href: '/about', label: 'About Sosial' }}
       />
     </>
   );

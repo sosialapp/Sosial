@@ -130,39 +130,6 @@ export function FaqList({ items, title = 'Questions, answered' }: { items: { q: 
   );
 }
 
-export function CtaBand({
-  title,
-  body,
-  primary = { href: '/login', label: 'Start scheduling free' },
-  secondary,
-}: {
-  title: string;
-  body: string;
-  primary?: { href: string; label: string };
-  secondary?: { href: string; label: string };
-}) {
-  return (
-    <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
-      <div className="rounded-3xl bg-accent px-6 py-14 text-center md:py-16">
-        <h2 className="mx-auto max-w-xl font-display text-3xl font-extrabold tracking-tight text-white md:text-4xl">
-          {title}
-        </h2>
-        <p className="mx-auto mt-3 max-w-md text-base text-white/85">{body}</p>
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5">
-          <Link href={primary.href} className="btn bg-white font-bold text-accent hover:bg-bone">
-            {primary.label}
-          </Link>
-          {secondary ? (
-            <Link href={secondary.href} className="btn border-white/40 text-white hover:bg-white/10">
-              {secondary.label}
-            </Link>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /** Simple three-up card row for pains, picks and proof points. */
 export function CardTrio({
   eyebrow,

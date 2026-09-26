@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ComposerPreview } from '@/components/landing/Preview';
-import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -112,12 +112,6 @@ export default async function CreatePage() {
             a: 'Starters for launches, roundups, founder stories and more, plus your own saved templates from posts that performed.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Write it once. Ship it ten times."
-        body="The composer does the reformatting. You do the thinking."
-        secondary={{ href: '/publish', label: 'See publishing' }}
       />
     </>
   );

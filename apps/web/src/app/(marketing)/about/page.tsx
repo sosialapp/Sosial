@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CardTrio, CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { CardTrio, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -111,12 +111,6 @@ export default async function AboutPage() {
             a: 'Email support@sosial.app — help, billing, feedback, anything. Support inside the app reaches the same team. Security and privacy matters are documented under Transparency and Privacy.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Come build a calmer publishing week."
-        body="Free to start, priced in the open, ten channels from day one."
-        secondary={{ href: '/compare', label: 'See the comparison' }}
       />
     </>
   );

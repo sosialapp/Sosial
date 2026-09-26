@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { WriterPreview } from '@/components/landing/Preview';
-import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -96,12 +96,6 @@ export default async function AiAssistantPage() {
             a: 'Yes. Generate once, then adapt per channel with each network\u2019s limits and conventions respected.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Bring a rough thought."
-        body="Leave with a week of post-ready copy."
-        secondary={{ href: '/publish', label: 'See publishing' }}
       />
     </>
   );

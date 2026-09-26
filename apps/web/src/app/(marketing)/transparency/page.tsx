@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CtaBand, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -116,12 +116,6 @@ export default async function TransparencyPage() {
             a: 'Existing subscribers get notice before a price change takes effect. The public pricing page always reflects what new customers pay today.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Read the prices. Read the practices."
-        body="Both are written to be understood, not survived."
-        secondary={{ href: '/privacy', label: 'Privacy policy' }}
       />
     </>
   );

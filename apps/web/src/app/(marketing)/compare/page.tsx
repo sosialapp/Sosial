@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CtaBand, FaqList, PageHero } from '@/components/site/PageBlocks';
+import { FaqList, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -133,12 +133,6 @@ export default async function ComparePage() {
             a: 'Social listening, ad buying and inbox replacement. Those live in the suites. Sosial does compose, preview, schedule, approve and publish across ten networks, with an AI writer and analytics.',
           },
         ]}
-      />
-
-      <CtaBand
-        title="Pick the lane that matches the work."
-        body="Ten channels, one calendar, priced in the open."
-        secondary={{ href: '/pricing', label: 'See pricing' }}
       />
     </>
   );

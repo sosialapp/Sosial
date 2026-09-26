@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
-import { CtaBand, PageHero } from '@/components/site/PageBlocks';
+import { PageHero } from '@/components/site/PageBlocks';
 import ChartIslands from '@/components/site/ChartIslands';
 import { siteCustomPage, siteRedirectFor } from '@/lib/sitePages';
 import { RESERVED_SLUGS, sitePageDef } from '@/content/sitePages';
@@ -59,11 +59,6 @@ export default async function CustomSitePage({ params }: { params: Promise<{ slu
         <div className="prose-sosial blog-rich" dangerouslySetInnerHTML={{ __html: page.bodyHtml ?? '' }} />
         <ChartIslands />
       </div>
-      <CtaBand
-        title="Publish everywhere, every day."
-        body="Start free — stay free if that is enough."
-        secondary={{ href: '/pricing', label: 'Published prices' }}
-      />
     </>
   );
 }
