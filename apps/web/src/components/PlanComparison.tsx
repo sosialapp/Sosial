@@ -1,4 +1,4 @@
-import { PLANS } from '@/lib/billing/plans';
+import { PLANS, priceLabel } from '@/lib/billing/plans';
 import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
 
 /**
@@ -49,6 +49,12 @@ export default function PlanComparison() {
                   return (
                     <th key={key} scope="col" className="pb-4 pl-4 align-bottom">
                       <span className="eyebrow block">{p.label}</span>
+                      <span className="mt-1 block text-sm font-semibold text-ink">
+                        {p.key === 'free' ? 'Free' : priceLabel(p.key, 'monthly')}
+                      </span>
+                      <span className="block text-xs font-normal text-faint">
+                        {p.key === 'free' ? 'forever' : `${priceLabel(p.key, 'annual')} a year`}
+                      </span>
                       {p.featured ? (
                         <span className="mt-1 inline-block rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-white">
                           Most popular
