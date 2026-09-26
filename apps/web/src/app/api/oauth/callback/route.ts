@@ -26,6 +26,28 @@ interface ExchangePayload {
 }
 
 /**
+ * supabase-js throws FunctionsHttpError("Edge Function returned a non-2xx
+ * status code") with the server's JSON body on `context` — dig out our
+ * `error` message so the user sees the real reason, not the generic text.
+ */
+async function edgeDetail(err: unknown): Promise<string | null> {
+  try {
+    const ctx = (err as { context?: unknown }).context;
+    const res = ctx as Response | null;
+    const body =
+      res && typeof res.json === 'function'
+        ? await (typeof res.clone === 'function' ? res.clone() : res)
+            .json()
+            .catch(() => null)
+        : (ctx as { error?: unknown } | null);
+    const msg = (body as { error?: unknown } | null)?.error;
+    return typeof msg === 'string' && msg ? msg : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * GET /api/oauth/callback?code=…&state=…
  * Provider landing: verify the flow cookie, exchange the code server-side,
  * import the channel, and bounce back to /channels with the result.
@@ -70,7 +92,7 @@ export async function GET(req: Request) {
     },
   });
   const payload = (data ?? {}) as ExchangePayload;
-  const fail = payload.error ?? fnErr?.message;
+  const fail = payload.error ?? (await edgeDetail(fnErr)) ?? fnErr?.message;
   if (fail) return done(`?error=${encodeURIComponent(fail)}`);
 
   // Meta tokens are per-Page — stash the list and let the user pick one.
@@ -144,6 +166,6 @@ export async function GET(req: Request) {
       expires_at: payload.expires_at,
     },
   });
-  if (impErr) return done(`?error=${encodeURIComponent(impErr.message)}`);
+  if (impErr) return done(`?error=${encodeURIComponent((await edgeDetail(impErr)) ?? impErr.message)}`);
   return done(`?connected=${flow.provider}`);
 }

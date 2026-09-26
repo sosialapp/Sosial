@@ -50,7 +50,11 @@ async function json(r: Response): Promise<Record<string, unknown>> {
   }
 }
 
-const str = (v: unknown): string => (typeof v === "string" ? v : "");
+/** Provider ids are strings on most networks but numbers on some (Threads
+ *  user_id) — coerce rather than blanking them, or the exchange wrongly
+ *  reports a hidden account. */
+const str = (v: unknown): string =>
+  typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
 
 /* --------------------------------- drivers -------------------------------- */
 
