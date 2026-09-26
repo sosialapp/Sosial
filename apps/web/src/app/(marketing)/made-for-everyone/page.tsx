@@ -111,7 +111,7 @@ export default function MadeForEveryonePage() {
         items={[
           {
             q: 'Is the free plan a trial?',
-            a: 'No. It has limits (3 channels, 30 scheduled posts a month) and no end date. It resets every month whether you upgrade or not.',
+            a: 'No. It has limits (3 channels, 10 scheduled posts per channel, 20 AI credits a month) and no end date. Credits reset on the 1st whether you upgrade or not.',
           },
           {
             q: 'Does it work outside English?',

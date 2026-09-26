@@ -634,7 +634,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               also="Everything in Free, plus:"
               features={[
                 { text: '6 connected channels' },
-                { text: '50 scheduled posts per channel' },
+                { text: 'Unlimited scheduled posts' },
                 { text: '500 AI credits a month' },
                 { text: 'Media library and content organization' },
                 { text: 'Watermark you control — turn it off' },
@@ -654,9 +654,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               also="Everything in Solo, plus:"
               features={[
                 { text: '25 connected channels' },
-                { text: '100 scheduled posts per channel' },
+                { text: 'Unlimited scheduled posts' },
                 { text: '1,500 AI credits a month' },
-                { text: '3 team members and 3 workspaces' },
+                { text: '5 team members and 5 workspaces' },
                 { text: 'Approvals, roles and bulk scheduling' },
               ]}
               action={plan === 'free'
@@ -674,9 +674,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               also="Everything in Team, plus:"
               features={[
                 { text: '100 connected channels' },
-                { text: '250 scheduled posts per channel' },
+                { text: 'Unlimited scheduled posts' },
                 { text: '5,000 AI credits a month' },
-                { text: '10 team members and 10 workspaces' },
+                { text: 'Unlimited team members and workspaces' },
                 { text: 'Advanced analytics and brand voice' },
               ]}
               action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch — the web app supports it today.') }}

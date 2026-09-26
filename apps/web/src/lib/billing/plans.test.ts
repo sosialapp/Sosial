@@ -31,11 +31,11 @@ describe('canonical pricing', () => {
     expect(PLANS.business.limits.channels).toBe(100);
   });
 
-  it('limits scheduled posts PER CHANNEL, not globally', () => {
+  it('limits scheduled posts PER CHANNEL on free, unlimited when paid', () => {
     expect(PLANS.free.limits.scheduledPostsPerChannel).toBe(10);
-    expect(PLANS.solo.limits.scheduledPostsPerChannel).toBe(50);
-    expect(PLANS.team.limits.scheduledPostsPerChannel).toBe(100);
-    expect(PLANS.business.limits.scheduledPostsPerChannel).toBe(250);
+    expect(PLANS.solo.limits.scheduledPostsPerChannel).toBeNull();
+    expect(PLANS.team.limits.scheduledPostsPerChannel).toBeNull();
+    expect(PLANS.business.limits.scheduledPostsPerChannel).toBeNull();
   });
 
   it('encodes the canonical AI credit allowances', () => {
@@ -48,10 +48,12 @@ describe('canonical pricing', () => {
   it('encodes users and workspaces limits', () => {
     expect(PLANS.free.limits.users).toBe(1);
     expect(PLANS.free.limits.workspaces).toBe(1);
-    expect(PLANS.team.limits.users).toBe(3);
-    expect(PLANS.team.limits.workspaces).toBe(3);
-    expect(PLANS.business.limits.users).toBe(10);
-    expect(PLANS.business.limits.workspaces).toBe(10);
+    expect(PLANS.solo.limits.users).toBe(1);
+    expect(PLANS.solo.limits.workspaces).toBe(1);
+    expect(PLANS.team.limits.users).toBe(5);
+    expect(PLANS.team.limits.workspaces).toBe(5);
+    expect(PLANS.business.limits.users).toBeNull();
+    expect(PLANS.business.limits.workspaces).toBeNull();
   });
 
   it('forces the watermark on free and leaves it user-controlled when paid', () => {

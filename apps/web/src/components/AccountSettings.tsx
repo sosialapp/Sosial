@@ -32,6 +32,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
+import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 
 type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal';
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
@@ -420,34 +421,21 @@ export default function AccountSettings({
 
       {view === 'plan' ? (
         <div className="mt-4 space-y-3">
-          {[
-            {
-              name: 'Free',
-              price: 'Free',
-              features: ['3 connected channels · 30 scheduled posts a month', 'Unlimited studio, templates & ideas', '7-day analytics'],
-            },
-            {
-              name: 'Solo',
-              price: '$12/mo',
-              sub: '$120/yr annual — ≈ $10/month, billed yearly',
-              also: 'Everything in Free, plus:',
-              features: ['Unlimited scheduled posts', '500 AI generations / month', 'All 10 channels connected', '1-year analytics'],
-            },
-            {
-              name: 'Team',
-              price: '$29/mo',
-              sub: '$290/yr annual — ≈ $24.17/month, billed yearly',
-              also: 'Everything in Solo, plus:',
-              features: ['Approval workflow', '1,000 AI generations / month', 'Member, admin and owner roles', 'Priority support'],
-            },
-            {
-              name: 'Business',
-              price: '$79/mo',
-              sub: '$790/yr annual — ≈ $65.83/month, billed yearly',
-              also: 'Everything in Team, plus:',
-              features: ['2,000 AI generations / month', 'Unlimited seats for the whole crew', 'Per-channel member roles', 'Premium support'],
-            },
-          ].map((p) => (
+          {/* Plan cards derive from the canonical price book — never hardcoded. */}
+          {PLAN_ORDER.map((key, i) => {
+            const def = PLANS[key];
+            const p = {
+              name: def.label,
+              price: key === 'free' ? 'Free' : priceLabel(key, 'monthly'),
+              sub:
+                key === 'free'
+                  ? undefined
+                  : `${priceLabel(key, 'annual')} annual — ≈ $${monthlyEquivalent(key)}/month, billed yearly`,
+              also: i === 0 ? undefined : `Everything in ${PLANS[PLAN_ORDER[i - 1]].label}, plus:`,
+              features: def.points,
+            };
+            return p;
+          }).map((p) => (
             <Card key={p.name} className="p-5">
               <p className="font-display text-base font-extrabold tracking-tight">{p.name}</p>
               <p className="mt-0.5 font-display text-xl font-extrabold">{p.price}</p>

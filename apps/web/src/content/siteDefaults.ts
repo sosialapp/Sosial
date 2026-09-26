@@ -78,14 +78,15 @@ function pricingBlocks(): B[] {
   return [
     ...hero(
       'Simple plans, published prices.',
-      'Start free and stay free if that is enough. Upgrade when you want all ten channels, the AI writer or approvals. Monthly or annual — annual gives you two months free.',
+      'Start free and stay free if that is enough. Upgrade when you want more channels, unlimited scheduling, the AI writer or approvals. Monthly or annual — annual gives you two months free.',
     ),
     { t: 'h', c: 'Free — $0 forever. Enough to replace posting by hand.' },
     {
       t: 'ul',
       c: [
         '3 connected channels',
-        '30 scheduled posts a month',
+        '10 scheduled posts per channel',
+        '20 AI credits a month',
         'One calendar and queue',
         'Per-channel previews and live limits',
         'iOS, Android and web',
@@ -95,9 +96,9 @@ function pricingBlocks(): B[] {
     {
       t: 'ul',
       c: [
-        'All 10 channels connected',
+        '6 connected channels',
         'Unlimited scheduled posts',
-        'AI writer with live research (500 generations a month)',
+        'AI writer with live research (500 credits a month)',
         'Templates and studio',
         'Analytics across every channel',
       ],
@@ -107,10 +108,12 @@ function pricingBlocks(): B[] {
       t: 'ul',
       c: [
         'Everything in Solo',
+        '25 connected channels',
         'Approvals and review notes',
         'Member, admin and owner roles',
+        '5 team members and 5 workspaces',
         'Shared calendar for the whole team',
-        '1,000 AI generations a month · Priority support',
+        '1,500 AI credits a month · Priority support',
       ],
     },
     { t: 'h', c: 'Business — $79/month or $790/year. Scale the whole operation.' },
@@ -118,7 +121,8 @@ function pricingBlocks(): B[] {
       t: 'ul',
       c: [
         'Everything in Team',
-        '2,000 AI generations a month',
+        '100 connected channels',
+        '5,000 AI credits a month',
         'Unlimited seats for the whole crew',
         'Per-channel member roles',
         'Premium support',
@@ -130,9 +134,9 @@ function pricingBlocks(): B[] {
       { q: 'Are there per-channel fees?', a: 'No. Connecting Instagram costs the same as connecting X. Every plan that includes a channel includes all of its features.' },
       { q: 'What happens if I hit the free limit mid-month?', a: 'New scheduling pauses; nothing already queued is lost. Upgrade and the queue picks up where it left off, or wait for the reset next month.' },
       { q: 'Can I switch plans or cancel?', a: 'Any time, from billing settings. Plan and billing-interval changes apply immediately and are prorated by Stripe; cancelling keeps your plan until the end of the current period.' },
-      { q: 'Is the AI writer included?', a: 'On Solo, Team and Business — 500, 1,000 and 2,000 generations a month respectively. Free plans get the composer, previews and queue without AI generation.' },
-      { q: 'Do you charge for team seats on Team or Business?', a: 'No. Team and Business are flat prices for the whole workspace, whether it is two people or ten.' },
-      { q: 'How does annual billing work?', a: 'You pay once a year — annual costs the same as ten months, so you get two months free. Monthly allowances (AI generations, scheduled posts) still reset every month.' },
+      { q: 'Is the AI writer included?', a: 'On every plan — 20 credits a month on Free, then 500, 1,500 and 5,000 on Solo, Team and Business. Credits reset on the 1st.' },
+      { q: 'Do you charge for team seats on Team or Business?', a: 'No — both are one flat price for the whole workspace: up to 5 members on Team, unlimited on Business.' },
+      { q: 'How does annual billing work?', a: 'You pay once a year — annual costs the same as ten months, so you get two months free. AI credits still reset on the 1st of every month.' },
     ]),
   ];
 }
@@ -304,10 +308,10 @@ function madeForEveryoneBlocks(): B[] {
     { t: 'h', c: 'Price — free means free.' },
     {
       t: 'p',
-      c: 'Three channels and a month of scheduled posts cost nothing, with no card and no trial clock. When you outgrow it, the paid prices are on a page you can read before signing up.',
+      c: 'Three channels, scheduled posts and 20 AI credits a month cost nothing, with no card and no trial clock. When you outgrow it, the paid prices are on a page you can read before signing up.',
     },
     ...faqBlocks([
-      { q: 'Is the free plan a trial?', a: 'No. It has limits (3 channels, 30 scheduled posts a month) and no end date. It resets every month whether you upgrade or not.' },
+      { q: 'Is the free plan a trial?', a: 'No. It has limits (3 channels, 10 scheduled posts per channel, 20 AI credits a month) and no end date. Credits reset on the 1st whether you upgrade or not.' },
     ]),
   ];
 }

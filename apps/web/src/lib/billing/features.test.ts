@@ -18,10 +18,16 @@ describe('FEATURE_MATRIX', () => {
   it('derives limit rows from PLANS so the table cannot drift', () => {
     expect(row('Connected channels').value('free')).toBe('3 channels');
     expect(row('Connected channels').value('business')).toBe('100 channels');
-    expect(row('Scheduled posts per channel').value('solo')).toBe('50 posts');
+    expect(row('Scheduled posts per channel').value('free')).toBe('10 posts');
+    expect(row('Scheduled posts per channel').value('solo')).toBe('Unlimited');
+    expect(row('Scheduled posts per channel').value('team')).toBe('Unlimited');
+    expect(row('Scheduled posts per channel').value('business')).toBe('Unlimited');
     expect(row('AI credits per month').value('team')).toBe('1,500 credits');
     expect(row('Team members').value('free')).toBe('1 member');
-    expect(row('Workspaces / brands').value('business')).toBe('10 workspaces');
+    expect(row('Team members').value('team')).toBe('5 members');
+    expect(row('Team members').value('business')).toBe('Unlimited');
+    expect(row('Workspaces / brands').value('team')).toBe('5 workspaces');
+    expect(row('Workspaces / brands').value('business')).toBe('Unlimited');
   });
 
   it('marks the watermark as required on free and user-controlled when paid', () => {
