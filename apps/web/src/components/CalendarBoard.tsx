@@ -7,16 +7,24 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { PostWithTargets } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
+import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
 import { MONTHS, WEEKDAYS, addDays, addMonths, dayKey, formatTime, isSameDay, monthMatrix, moveToDay } from '@/lib/format';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 function snippet(p: PostWithTargets): string {
   const text = (p.title || p.body || 'Untitled').replace(/\s+/g, ' ').trim();
   return text.length > 68 ? `${text.slice(0, 68)}…` : text;
+}
+
+/** Threads/chains read as ONE post: head = lowest chain_position. */
+function chainHead(parts: PostWithTargets[]): PostWithTargets {
+  return [...parts].sort(
+    (a, b) =>
+      a.chain_position - b.chain_position || (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''),
+  )[0];
 }
 
 function ChannelDots({ post }: { post: PostWithTargets }) {
@@ -255,10 +263,27 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  /** Chain parts grouped by chain_id — only the head renders anywhere. */
+  const chainParts = useMemo(() => {
+    const m = new Map<string, PostWithTargets[]>();
+    for (const p of posts) {
+      if (!p.chain_id) continue;
+      const arr = m.get(p.chain_id) ?? [];
+      arr.push(p);
+      m.set(p.chain_id, arr);
+    }
+    return m;
+  }, [posts]);
+  const partCount = (p: PostWithTargets): number =>
+    p.chain_id ? (chainParts.get(p.chain_id)?.length ?? 1) : 1;
+  const isChainHead = (p: PostWithTargets): boolean =>
+    !p.chain_id || chainHead(chainParts.get(p.chain_id) ?? [p]).id === p.id;
+
   const byDay = useMemo(() => {
     const m = new Map<string, PostWithTargets[]>();
     for (const p of posts) {
       if (!p.scheduled_at) continue;
+      if (!isChainHead(p)) continue;
       const k = dayKey(new Date(p.scheduled_at));
       const arr = m.get(k) ?? [];
       arr.push(p);
@@ -268,9 +293,14 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
       arr.sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''));
     }
     return m;
-  }, [posts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts, chainParts]);
 
-  const undated = useMemo(() => posts.filter((p) => !p.scheduled_at), [posts]);
+  const undated = useMemo(
+    () => posts.filter((p) => !p.scheduled_at && isChainHead(p)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [posts, chainParts],
+  );
   const weeks = useMemo(() => monthMatrix(anchor), [anchor]);
   /** Monday-first 7-day window containing the anchor (Week view). */
   const weekDays = useMemo(() => {
@@ -278,7 +308,6 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [anchor]);
-  const dayPosts = byDay.get(selectedKey) ?? [];
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? null;
   const today = new Date();
   const todayKey = dayKey(today);
@@ -305,11 +334,32 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
   const weekStart = weekDays[0];
   const weekEnd = weekDays[6];
 
-  async function persist(id: string, iso: string) {
+  /** All parts that move as one: the post alone, or its whole chain. */
+  function chainOf(id: string): PostWithTargets[] {
+    const post = posts.find((p) => p.id === id);
+    if (!post) return [];
+    return post.chain_id ? (chainParts.get(post.chain_id) ?? [post]) : [post];
+  }
+
+  /** Retime the head to `iso`, shifting every part by the same delta so chain gaps survive. */
+  async function retime(id: string, iso: string) {
+    const parts = chainOf(id);
+    const head = parts.find((p) => p.id === id) ?? parts[0];
+    if (!head) return;
+    const delta = new Date(iso).getTime() - new Date(head.scheduled_at ?? iso).getTime();
+    const moves = parts.map((part) => ({
+      id: part.id,
+      iso: new Date(new Date(part.scheduled_at ?? iso).getTime() + delta).toISOString(),
+    }));
+    // Pre-validate everything: a chain never half-moves.
+    if (moves.some((m) => queueTooSoon(m.iso))) {
+      setErr(leadTimeMessage());
+      return;
+    }
     setErr(null);
     try {
       const sb = createClient();
-      await reschedulePost(sb, id, iso);
+      await Promise.all(moves.map((m) => reschedulePost(sb, m.id, m.iso)));
       startTransition(() => router.refresh());
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not reschedule that post.');
@@ -342,10 +392,12 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
 
   async function remove() {
     if (!selectedPostId) return;
+    const ids = chainOf(selectedPostId).map((p) => p.id);
+    if (!ids.length) return;
     setErr(null);
     try {
       const sb = createClient();
-      await deletePost(sb, selectedPostId);
+      await Promise.all(ids.map((id) => deletePost(sb, id)));
       setSelectedPostId(null);
       startTransition(() => router.refresh());
     } catch (e) {
@@ -358,9 +410,22 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
     setDragId(null);
     setOverKey(null);
     if (!id) return;
-    const post = posts.find((p) => p.id === id);
-    if (!post) return;
-    await persist(id, moveToDay(post.scheduled_at, target));
+    // Dragging a chain head moves every part to the new day, times kept.
+    const moves = chainOf(id).map((part) => ({ id: part.id, iso: moveToDay(part.scheduled_at, target) }));
+    if (!moves.length) return;
+    if (moves.some((m) => queueTooSoon(m.iso))) {
+      setErr(leadTimeMessage());
+      setSelectedKey(dayKey(target));
+      return;
+    }
+    setErr(null);
+    try {
+      const sb = createClient();
+      await Promise.all(moves.map((m) => reschedulePost(sb, m.id, m.iso)));
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not reschedule that post.');
+    }
     setSelectedKey(dayKey(target));
   }
 
@@ -423,9 +488,19 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
       </header>
 
       {err && (
-        <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
-          {err}
-        </p>
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div className="pointer-events-auto flex max-w-full items-center gap-3 rounded-full bg-ink py-2.5 pr-2.5 pl-4 text-sm text-paper shadow-xl">
+            <span className="truncate">{err}</span>
+            <button
+              type="button"
+              onClick={() => setErr(null)}
+              aria-label="Dismiss"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs opacity-70 transition hover:opacity-100"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="flex flex-1 flex-col xl:flex-row">
@@ -500,6 +575,11 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                               <span className="font-bold text-ink">{formatTime(p.scheduled_at)}</span>
                               <ChannelDots post={p} />
                             </div>
+                            {partCount(p) > 1 ? (
+                              <div className="text-[10px] font-bold text-faint">
+                                Thread · {partCount(p)}
+                              </div>
+                            ) : null}
                             <div className="truncate text-soft">{snippet(p)}</div>
                           </div>
                         ))}
@@ -632,6 +712,11 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                                   </span>
                                   <ChannelDots post={p} />
                                 </div>
+                                {partCount(p) > 1 ? (
+                                  <div className="mt-0.5 text-[10px] font-bold text-faint">
+                                    Thread · {partCount(p)} parts
+                                  </div>
+                                ) : null}
                                 <div className="mt-0.5 line-clamp-2 text-soft">{snippet(p)}</div>
                               </div>
                             ))}
@@ -730,6 +815,11 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
                                   {snippet(p)}
                                 </span>
                                 <ChannelDots post={p} />
+                                {partCount(p) > 1 ? (
+                                  <span className="shrink-0 text-[11px] font-bold text-faint">
+                                    Thread · {partCount(p)}
+                                  </span>
+                                ) : null}
                                 <Badge className={`${st.className} hidden shrink-0 sm:inline-flex`}>
                                   {st.label}
                                 </Badge>
@@ -750,58 +840,50 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
         </div>
 
         <aside className="w-full shrink-0 border-t border-line bg-card p-5 xl:w-80 xl:border-l xl:border-t-0">
-          <Card className="!border-0 !bg-transparent">
-            <p className="eyebrow mb-1">Selected day</p>
-            <h2 className="font-display text-base font-extrabold">
-              {new Date(`${selectedKey}T00:00:00`).toLocaleDateString(undefined, {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </h2>
-
-            <div className="mt-4 space-y-2">
-              {selectedPost ? (
-                <TimeEditor
-                  key={selectedPost.id}
-                  post={selectedPost}
-                  dayLabel={selectedKey}
-                  onSave={(iso) => void persist(selectedPost.id, iso)}
-                  onSaveChannels={(times) => void persistChannels(times)}
-                  onPublish={() => void publishNow()}
-                  onDelete={() => void remove()}
-                  busy={pending}
-                />
-              ) : dayPosts.length === 0 ? (
-                <p className="text-sm text-muted">Nothing scheduled.</p>
-              ) : (
-                dayPosts.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelectedPostId(p.id)}
-                    className="block w-full rounded-xl border border-line bg-paper p-3 text-left transition hover:border-ink/40"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-ink">{formatTime(p.scheduled_at)}</span>
-                      <ChannelDots post={p} />
-                    </div>
-                    <p className="mt-1 text-sm text-ink">{snippet(p)}</p>
-                  </button>
-                ))
-              )}
+          {selectedPost ? (
+            <div className="mb-5">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="eyebrow">
+                  Selected post
+                  {partCount(selectedPost) > 1 ? ` · thread of ${partCount(selectedPost)}` : ''}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPostId(null)}
+                  aria-label="Close editor"
+                  className="text-xs font-bold text-muted transition hover:text-ink"
+                >
+                  ✕
+                </button>
+              </div>
+              {partCount(selectedPost) > 1 ? (
+                <p className="mb-2 text-xs text-muted">
+                  Retiming or deleting applies to the whole thread.
+                </p>
+              ) : null}
+              <TimeEditor
+                key={selectedPost.id}
+                post={selectedPost}
+                dayLabel={selectedKey}
+                onSave={(iso) => void retime(selectedPost.id, iso)}
+                onSaveChannels={(times) => void persistChannels(times)}
+                onPublish={() => void publishNow()}
+                onDelete={() => void remove()}
+                busy={pending}
+              />
             </div>
-          </Card>
+          ) : null}
 
           {undated.length > 0 && (
             <div className="mt-6">
               <p className="eyebrow mb-2">Drafts · no date</p>
               <div className="space-y-1.5">
-                {undated.slice(0, 6).map((p) => (
-                  <div key={p.id} className="truncate rounded-lg bg-bone px-2.5 py-1.5 text-xs text-soft">
-                    {snippet(p)}
-                  </div>
-                ))}
+              {undated.slice(0, 6).map((p) => (
+                <div key={p.id} className="truncate rounded-lg bg-bone px-2.5 py-1.5 text-xs text-soft">
+                  {snippet(p)}
+                  {partCount(p) > 1 ? ` · thread of ${partCount(p)}` : ''}
+                </div>
+              ))}
               </div>
             </div>
           )}
