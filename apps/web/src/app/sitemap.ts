@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { allArticles } from '@/lib/blog';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { allResources } from '@/content/resources';
+import { allCustomPages } from '@/lib/sitePages';
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app';
 
@@ -46,5 +47,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...channels, ...posts, ...resources];
+  const custom: MetadataRoute.Sitemap = (await allCustomPages()).map((p) => ({
+    url: `${BASE}/${p.slug}`,
+    lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
+    changeFrequency: 'monthly',
+    priority: 0.5,
+  }));
+
+  return [...staticRoutes, ...channels, ...posts, ...resources, ...custom];
 }

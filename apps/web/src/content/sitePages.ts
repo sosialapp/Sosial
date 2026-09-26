@@ -9,7 +9,7 @@
  * - `section` — the CMS html renders as an extra content section in a fixed
  *   slot; the page's design is untouched when no row exists.
  */
-export type SitePageGroup = 'Product' | 'Channels' | 'Resources' | 'Company';
+export type SitePageGroup = 'Product' | 'Channels' | 'Resources' | 'Company' | 'Custom';
 
 export interface SitePageDef {
   slug: string;
@@ -71,4 +71,39 @@ export function sitePageDef(slug: string): SitePageDef | undefined {
 /** Slugs must stay URL- and table-safe (registry only, but enforced anyway). */
 export function isValidSiteSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:[-\/][a-z0-9]+)*$/.test(slug);
+}
+
+/**
+ * Top-level URL segments a custom page must never claim — real routes,
+ * system paths and admin words. The renderer only serves single-segment
+ * custom slugs, so only first segments matter here.
+ */
+export const RESERVED_SLUGS = new Set([
+  'about', 'admin', 'ai-assistant', 'api', 'blog', 'compare', 'features',
+  'integrations', 'login', 'made-for-everyone', 'pricing', 'privacy',
+  'publish', 'resources', 'terms', 'transparency',
+  'new', 'pages', 'sitemap', 'robots', 'favicon', 'manifest',
+]);
+
+/**
+ * Whether `slug` may become a custom page: single URL-safe segment, not a
+ * reserved word, not a registry route. Pure — safe to run client-side.
+ */
+export function customSlugAvailable(slug: string): boolean {
+  const s = slug.trim().toLowerCase();
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s)) return false;
+  if (RESERVED_SLUGS.has(s)) return false;
+  if (sitePageDef(s)) return false;
+  return true;
+}
+
+/** Normalize a typed page name/slug the way the renderer will serve it. */
+export function normalizeCustomSlug(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

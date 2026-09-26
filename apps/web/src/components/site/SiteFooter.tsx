@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { BRAND_NAMES, BrandIcon, brandColor, type BrandProvider } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
+import { siteFooterPages } from '@/lib/sitePages';
 import Logo from './Logo';
 
 /** Footer for every public page. Only links to routes that exist. */
@@ -18,7 +19,9 @@ const SOCIALS: BrandProvider[] = [
 /** Near-black marks read as invisible on the dark footer — those brands ship white on dark. */
 const DARK_MARKS: BrandProvider[] = ['tiktok', 'x', 'threads'];
 
-export default function SiteFooter() {
+export default async function SiteFooter() {
+  // Custom CMS pages flagged "show in footer" (live only — drafts never leak).
+  const extraPages = await siteFooterPages();
   return (
     <footer className="bg-ink text-paper">
       <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-4 py-14 md:grid-cols-3 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr]">
@@ -123,6 +126,13 @@ export default function SiteFooter() {
                 Transparency
               </Link>
             </li>
+            {extraPages.map((p) => (
+              <li key={p.slug}>
+                <Link href={`/${p.slug}`} className="hover:text-paper">
+                  {p.title}
+                </Link>
+              </li>
+            ))}
           </ul>
         </nav>
 
