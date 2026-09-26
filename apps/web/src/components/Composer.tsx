@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/posts';
+import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
 import { generateSocial, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
 import DateTimePicker from '@/components/DateTimePicker';
@@ -206,6 +207,10 @@ export default function Composer({
       setErr('Choose a valid date and time.');
       return;
     }
+    if (mode === 'schedule' && whenIso && queueTooSoon(whenIso)) {
+      setErr(leadTimeMessage());
+      return;
+    }
     if (!body.trim() && !title.trim() && files.length === 0) {
       setErr('Add a caption or some media first.');
       return;
@@ -251,6 +256,10 @@ export default function Composer({
     }
     if (mode === 'schedule' && !whenIso) {
       setErr('Choose a valid start date and time.');
+      return;
+    }
+    if (mode === 'schedule' && whenIso && queueTooSoon(whenIso)) {
+      setErr(leadTimeMessage());
       return;
     }
     const liveIdx = segments.map((_, i) => i).filter((i) => segments[i].body.trim());

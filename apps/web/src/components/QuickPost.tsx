@@ -8,6 +8,7 @@ import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
 import { createPost } from '@/lib/posts';
+import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
@@ -65,6 +66,10 @@ export default function QuickPost({
     }
     if (mode === 'schedule' && !when) {
       setErr('Choose a date and time first.');
+      return;
+    }
+    if (mode === 'schedule' && when && queueTooSoon(when)) {
+      setErr(leadTimeMessage());
       return;
     }
     setBusy(true);

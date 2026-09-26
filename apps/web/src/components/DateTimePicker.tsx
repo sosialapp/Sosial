@@ -315,6 +315,13 @@ export default function DateTimePicker({
   }, [view]);
 
   const todayKey = new Date().toDateString();
+  // Past days can't be scheduled (mobile parity: the queue needs >= 5 min
+  // lead, and the submit + write layers reject anything too soon anyway).
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
   const q = tzQuery.trim().toLowerCase();
   const tzMatches = useMemo(() => {
     const list = q
@@ -371,22 +378,27 @@ export default function DateTimePicker({
                 const selected = d.getFullYear() === wall.y && d.getMonth() + 1 === wall.m && d.getDate() === wall.d;
                 const outside = d.getMonth() + 1 !== view.m;
                 const isToday = d.toDateString() === todayKey;
+                const isPast = d < todayStart;
                 return (
                   <button
                     key={d.toISOString()}
                     type="button"
+                    disabled={isPast}
                     onClick={() => {
+                      if (isPast) return;
                       emit({ ...wall, y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
                       setOpen(null);
                     }}
                     className={`flex h-8 items-center justify-center rounded-lg text-xs font-bold transition ${
-                      selected
-                        ? 'bg-ink text-paper'
-                        : outside
-                          ? 'text-faint hover:bg-paper-dim'
-                          : isToday
-                            ? 'text-accent-ink hover:bg-accent-soft'
-                            : 'text-soft hover:bg-paper-dim'
+                      isPast
+                        ? 'cursor-not-allowed text-faint opacity-40'
+                        : selected
+                          ? 'bg-ink text-paper'
+                          : outside
+                            ? 'text-faint hover:bg-paper-dim'
+                            : isToday
+                              ? 'text-accent-ink hover:bg-accent-soft'
+                              : 'text-soft hover:bg-paper-dim'
                     }`}
                   >
                     {d.getDate()}

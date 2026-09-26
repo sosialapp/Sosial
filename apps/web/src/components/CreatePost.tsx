@@ -11,6 +11,7 @@ import DateTimePicker from '@/components/DateTimePicker';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
+import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
@@ -262,6 +263,10 @@ export default function CreatePost({
     }
     if (submitMode === 'schedule' && !whenIso) {
       setErr('Choose a date and time first.');
+      return;
+    }
+    if (submitMode === 'schedule' && whenIso && queueTooSoon(whenIso)) {
+      setErr(leadTimeMessage());
       return;
     }
     const live = segs.filter((s) => s.body.trim() || s.media.length > 0);

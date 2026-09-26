@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ALL_PROVIDERS } from './providers';
+import { assertQueueLeadTime } from './queue';
 import type { ConnectedChannel, PostWithTargets, WorkspaceInfo } from './types';
 
 /** Ordered media + targets for every post in a workspace (RLS-scoped).
@@ -123,6 +124,12 @@ export interface ComposeArgs {
   body: string;
   mode: ComposeMode;
   scheduleIso: string | null;
+  /**
+   * Queue lead-time check for schedule mode (mobile parity: >= 5 min).
+   * createChain sets this false for 'now' chains, whose parts queue from
+   * this instant by design. Defaults to true.
+   */
+  leadCheck?: boolean;
   channels: ConnectedChannel[];
   files: { file: File; kind: 'image' | 'video' }[];
   /** P17 chains: segments of one thread share a chainId, ordered by chainPosition. */
@@ -181,6 +188,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
     mode === 'now' ? new Date().toISOString() : mode === 'schedule' ? args.scheduleIso : null;
   const postStatus = mode === 'draft' ? 'draft' : needsApproval ? 'approval' : 'queued';
   const targetStatus = mode === 'draft' ? 'pending' : needsApproval ? 'needs_approval' : 'queued';
+  if (mode === 'schedule' && args.leadCheck !== false) assertQueueLeadTime(scheduledIso);
 
   const { data: prow, error: pErr } = await sb
     .from('posts')
@@ -310,6 +318,7 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
   if (args.mode !== 'draft' && (base === null || Number.isNaN(base))) {
     throw new Error('Choose a valid start date and time.');
   }
+  if (args.mode === 'schedule') assertQueueLeadTime(args.startIso);
   const chainId = crypto.randomUUID();
   const ids: string[] = [];
   for (let i = 0; i < args.segments.length; i++) {
@@ -324,6 +333,8 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
       body: seg.body,
       mode: args.mode === 'now' ? 'schedule' : args.mode,
       scheduleIso: iso,
+      // 'now' chains queue from this instant by design — no lead check.
+      leadCheck: args.mode !== 'now',
       channels: args.channels,
       files: seg.files,
       chainId,
@@ -337,6 +348,7 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
 
 /** Move a post (and its still-queued targets) to a new instant. */
 export async function reschedulePost(sb: SupabaseClient, postId: string, iso: string): Promise<void> {
+  assertQueueLeadTime(iso);
   const { error } = await sb.from('posts').update({ scheduled_at: iso }).eq('id', postId);
   if (error) throw new Error(error.message);
   await sb
@@ -357,6 +369,7 @@ export async function rescheduleChannels(
   times: { channelId: string; iso: string }[],
 ): Promise<void> {
   if (times.length === 0) return;
+  for (const t of times) assertQueueLeadTime(t.iso);
   const earliest = times.map((t) => t.iso).sort()[0];
   const { error } = await sb.from('posts').update({ scheduled_at: earliest }).eq('id', postId);
   if (error) throw new Error(error.message);
