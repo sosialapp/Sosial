@@ -201,7 +201,7 @@ export default function LoginForm({
         </div>
 
         <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button" aria-busy={busy}>
-          {busy ? <Spinner /> : <BrandIcon provider="google" className="h-4 w-4" />}
+          {busy ? <Spinner /> : <BrandIcon provider="google" badge={false} className="h-[18px] w-[18px]" />}
           Continue with Google
         </button>
 

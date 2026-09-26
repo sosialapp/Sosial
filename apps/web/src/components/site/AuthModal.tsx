@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import LoginForm from '../LoginForm';
@@ -86,18 +85,13 @@ export default function AuthModal({
         >
           ✕
         </button>
-        <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center">
-            <Image src="/bolt.png" alt="" width={34} height={34} aria-hidden="true" />
-          </span>
-          <div>
-            <p className="font-display text-lg font-extrabold tracking-tight">
-              {mode === 'in' ? 'Welcome back' : 'Get started free'}
-            </p>
-            <p className="text-xs text-muted">
-              {mode === 'in' ? 'Sign in to your workspace' : 'Free forever plan · No credit card'}
-            </p>
-          </div>
+        <div className="mb-5">
+          <p className="font-display text-lg font-extrabold tracking-tight">
+            {mode === 'in' ? 'Welcome back' : 'Get started free'}
+          </p>
+          <p className="text-xs text-muted">
+            {mode === 'in' ? 'Sign in to your workspace' : 'Free forever plan · No credit card'}
+          </p>
         </div>
         <LoginForm key={mode} initialMode={mode} compact />
         </div>
