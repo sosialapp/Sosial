@@ -31,6 +31,9 @@ export interface UsageSnapshot {
   /** non-published scheduled posts, per channel */
   channels: ChannelScheduledUsage[];
   scheduledTotal: number;
+  /** connected accounts vs the plan's channel cap */
+  channelsConnected: number;
+  channelsLimit: number | null;
 }
 
 /** Current usage-month bucket, UTC. */
@@ -52,6 +55,8 @@ export async function getUsage(workspaceId: string, plan: PlanKey): Promise<Usag
     scheduledPerChannelLimit: PLANS[plan].limits.scheduledPostsPerChannel,
     channels: [],
     scheduledTotal: 0,
+    channelsConnected: 0,
+    channelsLimit: PLANS[plan].limits.channels,
   };
 
   const admin = supabaseAdmin();
@@ -81,6 +86,16 @@ export async function getUsage(workspaceId: string, plan: PlanKey): Promise<Usag
     }
     out.channels = [...counts.entries()].map(([channelId, scheduled]) => ({ channelId, scheduled }));
     out.scheduledTotal = out.channels.reduce((sum, c) => sum + c.scheduled, 0);
+  } catch {
+    // same — derived usage must not break the page
+  }
+
+  try {
+    const { count } = await admin
+      .from('connected_channels')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId);
+    out.channelsConnected = count ?? 0;
   } catch {
     // same — derived usage must not break the page
   }

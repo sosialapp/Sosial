@@ -246,11 +246,40 @@ export default function BillingPanel({
               </span>
             </div>
           </div>
+          <div>
+            <div className="flex items-baseline justify-between">
+              <span className="font-bold">Connected channels</span>
+              <span className="text-muted">
+                {usage.channelsLimit === null
+                  ? `${usage.channelsConnected.toLocaleString()} connected · unlimited`
+                  : `${usage.channelsConnected.toLocaleString()} / ${usage.channelsLimit.toLocaleString()} connected`}
+              </span>
+            </div>
+            {usage.channelsLimit !== null ? (
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line">
+                <div
+                  className="h-full rounded-full bg-ink"
+                  style={{ width: `${Math.min(100, Math.round((usage.channelsConnected / usage.channelsLimit) * 100))}%` }}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
         {usage.aiCreditsLimit !== null && usage.aiCreditsUsed >= usage.aiCreditsLimit ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
             You've used every AI credit this month. They reset on the 1st — or{' '}
             <a className="font-bold underline" href="#change-plan">upgrade for more</a>.
+          </p>
+        ) : usage.aiCreditsLimit !== null && usage.aiCreditsRemaining !== null && usage.aiCreditsRemaining <= 5 ? (
+          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+            Only <strong>{usage.aiCreditsRemaining.toLocaleString()} AI credits</strong> left this month — they reset on the
+            1st, or <a className="font-bold underline" href="#change-plan">upgrade for a bigger allowance</a>.
+          </p>
+        ) : null}
+        {usage.channelsLimit !== null && usage.channelsConnected >= usage.channelsLimit ? (
+          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+            You've connected every channel your plan allows ({usage.channelsLimit.toLocaleString()}).{' '}
+            <a className="font-bold underline" href="#change-plan">Upgrade</a> to add more.
           </p>
         ) : null}
       </section>
@@ -290,7 +319,7 @@ export default function BillingPanel({
       </section>
 
       {/* ---- change plan ---- */}
-      <section className="card p-5" aria-label="Change plan">
+      <section id="change-plan" className="card scroll-mt-24 p-5" aria-label="Change plan">
         <p className="eyebrow">Change plan</p>
         <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Billing interval">
           {(['monthly', 'annual'] as const).map((i) => (
