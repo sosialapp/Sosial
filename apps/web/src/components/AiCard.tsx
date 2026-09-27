@@ -48,7 +48,7 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
 
 /**
  * Write with AI — the mobile studio's behavior on web. The idea owns the
- * card; destinations are picked in the card; the result comes back as
+ * card; destinations follow the connected channels; the result comes back as
  * editable per-channel drafts with counters and refine transforms, and only
  * "Use this caption/thread" hands anything to the composer.
  */
@@ -83,7 +83,7 @@ export default function AiCard({
   const [instructions, setInstructions] = useState('');
   const [advanced, setAdvanced] = useState(false);
 
-  /* --------------------------- destinations --------------------------- */
+  /* Destinations follow the connected channels — no picker in the card. */
   const known = useMemo(
     () => providers.filter((p) => SOCIAL_PLATFORMS.some((s) => s.id === p)),
     [providers],
@@ -98,15 +98,6 @@ export default function AiCard({
       return kept.length ? kept : ['x'];
     });
   }, [thread]);
-
-  const togglePlatform = (p: string) => {
-    if (p === 'any') return setPlatforms(['any']);
-    setPlatforms((prev) => {
-      const next = prev.filter((x) => x !== 'any');
-      const out = next.includes(p) ? next.filter((x) => x !== p) : [...next, p];
-      return out.length ? out : thread ? ['x'] : ['any'];
-    });
-  };
 
   /* ---------------------------- generation ---------------------------- */
   const [busy, setBusy] = useState(false);
@@ -211,11 +202,6 @@ export default function AiCard({
       : WRITER_LANGUAGES;
     return list.slice(0, 60);
   }, [langQuery]);
-
-  const destChoices = thread
-    ? SOCIAL_PLATFORMS.filter((p) => THREAD_PLATFORM_IDS.includes(p.id))
-    : SOCIAL_PLATFORMS;
-  const destCount = platforms.includes('any') ? 1 : platforms.length;
 
   return (
     <section
@@ -408,33 +394,6 @@ export default function AiCard({
             </button>
           </span>
         </div>
-      ) : null}
-
-      {/* Destination */}
-      <p className="mt-4 text-xs font-bold text-soft">Post to{thread ? ' (thread channels)' : ''}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Destinations">
-        {destChoices.map((p) => {
-          const on = platforms.includes(p.id);
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => togglePlatform(p.id)}
-              aria-pressed={on}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-                on
-                  ? 'border-ink bg-ink text-paper'
-                  : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
-              }`}
-            >
-              {p.id === 'any' ? null : <PlatformGlyph id={p.id} />}
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
-      {destCount > 1 ? (
-        <p className="mt-1 text-[11px] text-muted">Same facts everywhere — the wording adapts to each channel.</p>
       ) : null}
 
       {/* Advanced */}
