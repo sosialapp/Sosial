@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch } from 'lucide-react';
 import AiCard from '@/components/AiCard';
 import CreatePost from '@/components/CreatePost';
@@ -56,7 +56,35 @@ interface Template {
   origin?: 'web' | 'mobile';
 }
 
-type Tab = 'post' | 'templates' | 'publish' | 'ideas';
+export type Tab = 'post' | 'templates' | 'publish' | 'ideas';
+
+/** Canonical URL per hub tab — tab switches navigate so every tab is linkable. */
+export const TAB_URL: Record<Tab, string> = {
+  post: '/post',
+  templates: '/post-templates',
+  publish: '/post-publish',
+  ideas: '/post-ideas',
+};
+
+interface HubHandoff {
+  prefill?: { title: string; body: string; key: number; thread?: boolean; parts?: string[] };
+  files?: File[] | null;
+}
+
+/**
+ * Cross-tab handoff: tab switches are real navigations (fresh component),
+ * so flows that hand content to the composer (template use, studio export,
+ * idea posting) stash it here instead of component state. Consumed once on
+ * the next mount. Ideas/templates/projects persist via localStorage and need
+ * no handoff; draft edits travel via ?edit= and reload from the server.
+ */
+let hubHandoff: HubHandoff | null = null;
+
+function takeHubHandoff(): HubHandoff | null {
+  const h = hubHandoff;
+  hubHandoff = null;
+  return h;
+}
 
 const ideasKey = (workspaceId: string) => `sosial-ideas-${workspaceId}`;
 const templatesKey = (workspaceId: string) => `sosial-templates-${workspaceId}`;
@@ -309,15 +337,23 @@ export default function CreateHub({
   userId,
   role,
   initialPosts,
+  initialTab,
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
   userId: string;
   role: WorkspaceInfo['role'];
   initialPosts: PostWithTargets[];
+  /** Tab from the route path (/post-templates → templates). The URL is the source of truth. */
+  initialTab: Tab;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<Tab>('post');
+  // Tab switches navigate (colocated per-tab URLs) — no tab state to drift.
+  const tab = initialTab;
+  const goTab = (t: Tab) => {
+    if (t !== tab) router.push(TAB_URL[t], { scroll: false });
+  };
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [projects, setProjects] = useState<StudioProject[]>([]);
@@ -431,10 +467,14 @@ export default function CreateHub({
     })();
   }, [workspaceId]);
 
+  // Cross-tab handoff from template use / studio export / idea posting.
   useEffect(() => {
-    const t = searchParams.get('tab');
-    if (t === 'post' || t === 'templates' || t === 'publish' || t === 'ideas') setTab(t);
-  }, [searchParams]);
+    const h = takeHubHandoff();
+    if (!h) return;
+    if (h.prefill) setPrefill(h.prefill);
+    if (h.files !== undefined) setPendingFiles(h.files);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pushAll = (kind: LibraryKind, items: { id: string; title?: string; name?: string }[]) => {
     try {
@@ -617,8 +657,8 @@ export default function CreateHub({
   };
 
   const useIntoComposer = (t: { title: string; body: string }) => {
-    setPrefill({ title: t.title, body: t.body, key: Date.now() });
-    setTab('post');
+    hubHandoff = { prefill: { title: t.title, body: t.body, key: Date.now() } };
+    goTab('post');
   };
 
   /** Load a draft (or a whole chain, ordered) back into the composer for
@@ -652,7 +692,6 @@ export default function CreateHub({
       whenIso: head.scheduled_at,
       mediaParts,
     });
-    setTab('post');
   };
 
   /** Deep link from the standalone queue page: /post?edit=<postId>. */
@@ -662,6 +701,11 @@ export default function CreateHub({
     const id = searchParams.get('edit');
     if (!id) return;
     editConsumed.current = true;
+    // Draft edits belong to the composer tab — bounce there with the id intact.
+    if (initialTab !== 'post') {
+      router.replace(`/post?edit=${encodeURIComponent(id)}`);
+      return;
+    }
     startEdit(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, initialPosts]);
@@ -679,10 +723,12 @@ export default function CreateHub({
       const blob = await watermarkBlob(await exportCanvasPng(node, 1080));
       const page = project.pages[pageIndex] ?? project.pages[0];
       const file = new File([blob], `${project.name || 'design'}-p${pageIndex + 1}.png`, { type: 'image/png' });
-      setPendingFiles([file]);
-      setPrefill({ title: page?.title.text || project.name, body: page?.caption ?? '', key: Date.now() });
+      hubHandoff = {
+        files: [file],
+        prefill: { title: page?.title.text || project.name, body: page?.caption ?? '', key: Date.now() },
+      };
       setEditing(null);
-      setTab('post');
+      goTab('post');
       persistRecent(
         [{ project, pageIndex, at: Date.now() }, ...recent.filter((r) => !(r.project.id === project.id && r.pageIndex === pageIndex))].slice(0, 12),
       );
@@ -723,15 +769,17 @@ export default function CreateHub({
       }
     }
     const parts = [idea.body, ...(idea.thread ?? [])];
-    setPendingFiles(files.length ? files : null);
-    setPrefill({
-      title: idea.title,
-      body: idea.body,
-      key: Date.now(),
-      thread: (idea.thread?.length ?? 0) > 0,
-      parts: parts.length > 1 ? parts : undefined,
-    });
-    setTab('post');
+    hubHandoff = {
+      files: files.length ? files : null,
+      prefill: {
+        title: idea.title,
+        body: idea.body,
+        key: Date.now(),
+        thread: (idea.thread?.length ?? 0) > 0,
+        parts: parts.length > 1 ? parts : undefined,
+      },
+    };
+    goTab('post');
   };
 
   return (
@@ -747,7 +795,7 @@ export default function CreateHub({
             type="button"
             role="tab"
             aria-selected={tab === t}
-            onClick={() => setTab(t)}
+            onClick={() => goTab(t)}
             className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
               tab === t ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
             }`}
@@ -974,13 +1022,12 @@ export default function CreateHub({
               const files = blobs.map(
                 (b, i) => new File([b], `${editing.name || 'design'}-p${i + 1}.png`, { type: 'image/png' }),
               );
-              setPendingFiles(files);
-              setPrefill({ title: t, body: caption, key: Date.now() });
+              hubHandoff = { files, prefill: { title: t, body: caption, key: Date.now() } };
               persistRecent(
                 [{ project: editing, pageIndex: 0, at: Date.now() }, ...recent.filter((r) => r.project.id !== editing.id)].slice(0, 12),
               );
               setEditing(null);
-              setTab('post');
+              goTab('post');
             }}
             onClose={() => setEditing(null)}
           />
@@ -1138,7 +1185,7 @@ export default function CreateHub({
                               createdAt: Date.now(),
                             };
                             persistIdeas([idea, ...ideas]);
-                            setTab('ideas');
+                            goTab('ideas');
                           }}
                           className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
                         >

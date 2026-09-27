@@ -245,9 +245,18 @@ function TimeEditor({
   );
 }
 
-export default function CalendarBoard({ posts, channels }: { posts: PostWithTargets[]; channels: ConnectedChannel[] }) {
+export default function CalendarBoard({
+  posts,
+  channels,
+  initialView = 'week',
+}: {
+  posts: PostWithTargets[];
+  channels: ConnectedChannel[];
+  /** View from the route path (/calendar-month → month). The URL is the source of truth. */
+  initialView?: 'month' | 'week' | 'line';
+}) {
   const router = useRouter();
-  const [view, setView] = useState<'month' | 'week' | 'line'>('week');
+  const [view] = useState<'month' | 'week' | 'line'>(initialView);
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -454,9 +463,12 @@ export default function CalendarBoard({ posts, channels }: { posts: PostWithTarg
             value={view}
             onValueChange={(v) => {
               const next = v as 'month' | 'week' | 'line';
-              // Keep the agenda glued to the selected day when switching to it.
-              if (next === 'line') setAnchor(new Date(`${selectedKey}T00:00:00`));
-              setView(next);
+              if (next === view) return;
+              // Views live at their own URLs — navigate so every view is linkable.
+              router.push(
+                next === 'month' ? '/calendar-month' : next === 'line' ? '/calendar-line' : '/calendar',
+                { scroll: false },
+              );
             }}
           >
             <TabsList aria-label="Calendar view">

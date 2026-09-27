@@ -74,19 +74,19 @@ const ITEMS: DockItem[] = [
 
 const PLUS_OPTIONS = [
   {
-    href: '/post?tab=post',
+    href: '/post',
     label: 'Post',
     desc: 'Write and schedule',
     icon: <SendIcon className="h-4 w-4" />,
   },
   {
-    href: '/post?tab=ideas',
+    href: '/post-ideas',
     label: 'Ideas',
     desc: 'Capture it first',
     icon: <Lightbulb className="h-4 w-4" aria-hidden="true" />,
   },
   {
-    href: '/post?tab=templates',
+    href: '/post-templates',
     label: 'From template',
     desc: 'Start from a starter',
     icon: <LayoutGrid className="h-4 w-4" aria-hidden="true" />,
