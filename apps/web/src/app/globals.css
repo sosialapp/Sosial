@@ -188,7 +188,7 @@ body {
 @layer components {
   .card {
     background: var(--color-paper-dim);
-    border: 1px solid var(--color-line);
+    border: 2px solid var(--color-ink);
     border-radius: var(--radius-card);
   }
   .btn {

@@ -57,7 +57,7 @@ export function CalendarPreview() {
   const scheduled = [...byDay.values()].reduce((n, items) => n + items.length, 0);
 
   return (
-    <div aria-hidden="true" className="overflow-hidden rounded-2xl border border-line bg-card">
+    <div aria-hidden="true" className="overflow-hidden rounded-2xl border-2 border-ink bg-card">
       <div className="flex items-center justify-between border-b border-line bg-paper px-3 py-2.5">
         <p className="font-display text-sm font-extrabold tracking-tight">{monthLabel}</p>
         <span className="pill bg-paper-dim text-ink">{scheduled} scheduled</span>
@@ -165,7 +165,7 @@ export function WriterPreview() {
           </span>
         ))}
       </div>
-      <div className="mt-2.5 rounded-xl border border-line bg-paper p-3">
+      <div className="mt-2.5 rounded-xl border-2 border-ink bg-paper p-3">
         <p className="text-xs leading-relaxed text-ink">
           I wasted 2 years overthinking content. Here is the system that actually works:
         </p>

@@ -454,7 +454,7 @@ export default function Composer({
                 {files.map((f, i) => (
                   <div
                     key={`${f.file.name}-${i}`}
-                    className="relative overflow-hidden rounded-xl border border-line bg-bone"
+                    className="relative overflow-hidden rounded-xl border-2 border-ink bg-bone"
                   >
                     {f.kind === 'video' ? (
                       <video src={f.url} muted playsInline className="h-24 w-full object-cover" />

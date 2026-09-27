@@ -212,7 +212,7 @@ export default function ConnectPanel({
         </p>
       ) : null}
 
-      <section aria-label="Connect accounts" className="overflow-hidden rounded-2xl border border-line bg-card">
+      <section aria-label="Connect accounts" className="overflow-hidden rounded-2xl border-2 border-ink bg-card">
         {ordered.map((p, pi) => {
           const list = byProvider(p);
           const hasAny = list.length > 0;
@@ -258,7 +258,7 @@ export default function ConnectPanel({
               {expanded ? (
                 <div className="space-y-2 px-4 pb-4">
                   {p === 'bluesky' ? (
-                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                    <div className="space-y-2 rounded-xl border-2 border-ink bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
                         No OAuth needed — mint an app password at bsky.app → Settings → App passwords.
                       </p>
@@ -285,7 +285,7 @@ export default function ConnectPanel({
                     </div>
                   ) : null}
                   {p === 'mastodon' ? (
-                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                    <div className="space-y-2 rounded-xl border-2 border-ink bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
                         Your server registers Sosial itself — no app keys needed.
                       </p>
@@ -332,7 +332,7 @@ export default function ConnectPanel({
                       <p className="text-xs font-bold">Pick a Facebook Page</p>
                       <p className="-mt-1 text-[11px] text-muted">Publishing runs on the Page token.</p>
                       {fbPick.map((pg) => (
-                        <div key={pg.id} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
+                        <div key={pg.id} className="flex items-center gap-2.5 rounded-xl border-2 border-ink bg-card px-3 py-2">
                           {pg.picture ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={pg.picture} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />

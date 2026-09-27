@@ -186,7 +186,7 @@ export default function BillingPanel({
           </dl>
         ) : null}
         {entitlement.cancelAtPeriodEnd ? (
-          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+          <p className="mt-3 rounded-xl border-2 border-ink bg-surface/60 p-3 text-sm">
             Your subscription is canceled and will remain active until{' '}
             <strong>{fmtDate(entitlement.currentPeriodEnd)}</strong>. After that the workspace moves to the
             Free plan — your content and connected accounts stay.
@@ -266,18 +266,18 @@ export default function BillingPanel({
           </div>
         </div>
         {usage.aiCreditsLimit !== null && usage.aiCreditsUsed >= usage.aiCreditsLimit ? (
-          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+          <p className="mt-3 rounded-xl border-2 border-ink bg-surface/60 p-3 text-sm">
             You've used every AI credit this month. They reset on the 1st — or{' '}
             <a className="font-bold underline" href="#change-plan">upgrade for more</a>.
           </p>
         ) : usage.aiCreditsLimit !== null && usage.aiCreditsRemaining !== null && usage.aiCreditsRemaining <= 5 ? (
-          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+          <p className="mt-3 rounded-xl border-2 border-ink bg-surface/60 p-3 text-sm">
             Only <strong>{usage.aiCreditsRemaining.toLocaleString()} AI credits</strong> left this month — they reset on the
             1st, or <a className="font-bold underline" href="#change-plan">upgrade for a bigger allowance</a>.
           </p>
         ) : null}
         {usage.channelsLimit !== null && usage.channelsConnected >= usage.channelsLimit ? (
-          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+          <p className="mt-3 rounded-xl border-2 border-ink bg-surface/60 p-3 text-sm">
             You've connected every channel your plan allows ({usage.channelsLimit.toLocaleString()}).{' '}
             <a className="font-bold underline" href="#change-plan">Upgrade</a> to add more.
           </p>
@@ -340,7 +340,7 @@ export default function BillingPanel({
             const p = PLANS[k];
             const current = entitlement.plan === k && entitlement.active;
             return (
-              <div key={k} className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface/60 p-4">
+              <div key={k} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-ink bg-surface/60 p-4">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold">
                     {p.label}

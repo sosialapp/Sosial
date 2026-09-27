@@ -535,7 +535,7 @@ export default function AiCard({
               const over = seg.length > limit;
               const tooShort = isThreadView && seg.length < THREAD_POST_MIN;
               return (
-                <div key={i} className="rounded-xl border border-line bg-paper p-2">
+                <div key={i} className="rounded-xl border-2 border-ink bg-paper p-2">
                   <div className="flex items-center justify-between px-0.5">
                     <span className="text-[11px] font-extrabold tracking-wide text-[#5B3DF0] dark:text-[#B9A6F7]">
                       {active.posts.length > 1 ? `Post ${i + 1}` : 'Caption'}

@@ -190,7 +190,7 @@ export default function PostList({
           return (
               <div
                 key={g.key}
-                className="flex flex-wrap items-start gap-4 rounded-2xl border border-line bg-card p-4"
+                className="flex flex-wrap items-start gap-4 rounded-2xl border-2 border-ink bg-card p-4"
               >
               {media.length > 0 && (
                 <div className="flex shrink-0 gap-1.5">
