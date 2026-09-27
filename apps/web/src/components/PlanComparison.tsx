@@ -93,10 +93,10 @@ export default function PlanComparison() {
                   return (
                     <th key={key} scope="col" className="min-w-[160px] p-1.5 align-bottom">
                       <div
-                        className={`relative rounded-2xl border-2 p-4 text-center ${
+                        className={`relative rounded-2xl p-4 text-center ${
                           p.featured
-                            ? 'border-accent bg-white'
-                            : 'border-ink bg-white'
+                            ? 'border-2 border-accent bg-white'
+                            : 'border border-line bg-white'
                         }`}
                       >
                         {p.featured ? (

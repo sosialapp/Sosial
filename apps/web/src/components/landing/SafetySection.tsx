@@ -86,7 +86,7 @@ export default function SafetySection() {
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FACTS.map((f) => (
-            <div key={f.title} className="rounded-[28px] border-2 border-ink bg-white p-6">
+            <div key={f.title} className="rounded-[28px] border border-line bg-white p-6">
               <span className="grid h-[46px] w-[46px] place-items-center rounded-[14px]" style={{ background: f.bg, color: f.fg ?? '#1C1A14' }}>
                 {f.icon}
               </span>

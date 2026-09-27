@@ -52,7 +52,7 @@ export default function StepsSection() {
         </div>
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s) => (
-            <div key={s.n} className="relative rounded-[28px] border-2 border-ink bg-white p-6 pb-7">
+            <div key={s.n} className="relative rounded-[28px] border border-line bg-white p-6 pb-7">
               <span className="absolute top-5 right-5 rounded-full border-[1.5px] border-ink bg-white px-2.5 py-1 text-xs font-semibold">
                 {s.who}
               </span>

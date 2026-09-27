@@ -188,7 +188,7 @@ body {
 @layer components {
   .card {
     background: var(--color-paper-dim);
-    border: 2px solid var(--color-ink);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-card);
   }
   .btn {
@@ -1235,10 +1235,9 @@ body {
   --color-accent-ink: #F0B98A;
 }
 
-/* Dark-mode outline treatment: heavy outlines go bolt yellow while text
- * (text-ink) and faint border-ink/* variants stay as they are. Marketing
+/* Dark-mode outline treatment: heavy control outlines go bolt yellow while
+ * text (text-ink) and faint border-ink/* variants stay as they are. Marketing
  * never renders .theme-dark, so this only touches the app surfaces. */
-.theme-dark .card,
 .theme-dark .border-ink {
   border-color: var(--color-bolt);
 }

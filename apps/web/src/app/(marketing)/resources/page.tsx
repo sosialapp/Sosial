@@ -34,7 +34,7 @@ export default function ResourcesIndex() {
             <Link
               key={r.slug}
               href={resourceHref(r.slug)}
-              className="card flex h-full flex-col border-2 border-ink p-5 transition hover:border-accent"
+              className="card flex h-full flex-col border border-line p-5 transition hover:border-accent"
             >
               <span className="pill w-fit bg-paper text-soft ring-1 ring-line">{r.kind}</span>
               <h2 className="mt-3 font-display text-lg font-extrabold leading-snug tracking-tight">

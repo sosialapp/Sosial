@@ -75,7 +75,7 @@ export default function AuthModal({
           role="dialog"
           aria-modal="true"
           aria-label={mode === 'in' ? 'Sign in to Sosial' : 'Create your Sosial account'}
-          className="relative my-auto w-full max-w-sm rounded-3xl border-2 border-ink bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]"
+          className="relative my-auto w-full max-w-sm rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]"
         >
         <button
           type="button"

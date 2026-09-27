@@ -1133,7 +1133,7 @@ export default function CreateHub({
             <div className="mt-4 space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {STARTERS.map((s) => (
-                  <article key={s.id} className="rounded-2xl border-2 border-ink bg-paper p-3.5">
+                  <article key={s.id} className="rounded-2xl border border-line bg-paper p-3.5">
                     <p className="truncate text-sm font-bold">{s.name}</p>
                     <p className="mt-1 line-clamp-2 text-xs text-soft">{s.body}</p>
                     <button type="button" onClick={() => useIntoComposer(s)} className="btn btn-ghost mt-2.5 w-full !py-1.5 !text-xs">
@@ -1142,7 +1142,7 @@ export default function CreateHub({
                   </article>
                 ))}
               </div>
-              <div className="space-y-2 rounded-2xl border-2 border-ink bg-paper p-3.5">
+              <div className="space-y-2 rounded-2xl border border-line bg-paper p-3.5">
                 <p className="eyebrow">Save your own</p>
                 <input
                   value={tplName}
@@ -1173,7 +1173,7 @@ export default function CreateHub({
               {templates.length > 0 ? (
                 <div className="space-y-2">
                   {templates.map((t) => (
-                    <div key={t.id} className="flex items-center gap-2 rounded-xl border-2 border-ink bg-paper px-3 py-2.5">
+                    <div key={t.id} className="flex items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2.5">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold">
                           {t.name}

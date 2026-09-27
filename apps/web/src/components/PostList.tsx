@@ -105,7 +105,7 @@ function PreviewDialog({
     <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Post preview">
       <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
       <div className="relative flex min-h-full items-center justify-center p-4">
-        <div className="relative my-auto w-full max-w-lg rounded-3xl border-2 border-ink bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
+        <div className="relative my-auto w-full max-w-lg rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
           <button
             type="button"
             onClick={onClose}
@@ -333,7 +333,7 @@ export default function PostList({
             <>
               <div
                 key={g.key}
-                className="flex flex-wrap items-start gap-4 rounded-2xl border-2 border-ink bg-card p-4"
+                className="flex flex-wrap items-start gap-4 rounded-2xl border border-line bg-card p-4"
               >
               {media.length > 0 && (
                 <div className="flex shrink-0 gap-1.5">

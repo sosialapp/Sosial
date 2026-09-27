@@ -112,7 +112,7 @@ export default function MacMockup() {
               {/* main */}
               <div className="min-w-0 flex-1 overflow-hidden p-2.5">
                 {/* masthead pill */}
-                <div className="flex h-[26px] min-w-0 items-center gap-1.5 overflow-hidden rounded-full border-2 border-[#1C1A14] bg-white pr-2 pl-1.5">
+                <div className="flex h-[26px] min-w-0 items-center gap-1.5 overflow-hidden rounded-full border border-[#E6E6E6] bg-white pr-2 pl-1.5">
                   <Image src="/bolt.png" alt="" width={13} height={13} className="h-[13px] w-[13px] shrink-0" />
                   <span className="min-w-0 flex-1 truncate font-display text-[9px] font-extrabold">Studio</span>
                   <span className="flex shrink-0 items-center" aria-hidden="true">
@@ -138,7 +138,7 @@ export default function MacMockup() {
                 {/* stat tiles */}
                 <div className="mt-2 grid grid-cols-4 gap-1.5">
                   {STATS.map((s) => (
-                    <div key={s.label} className="rounded-[10px] border-2 border-[#1C1A14] bg-white p-1.5">
+                    <div key={s.label} className="rounded-[10px] border border-[#E6E6E6] bg-white p-1.5">
                       <div className="flex items-center gap-1">
                         <span
                           className="grid h-[15px] w-[15px] place-items-center rounded-[5px]"
@@ -162,7 +162,7 @@ export default function MacMockup() {
                 {/* calendar + right rail */}
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   {/* content calendar */}
-                  <div className="col-span-2 rounded-[10px] border-2 border-[#1C1A14] bg-white p-2">
+                  <div className="col-span-2 rounded-[10px] border border-[#E6E6E6] bg-white p-2">
                     <div className="flex items-center gap-1.5">
                       <span className="font-display text-[8.5px] font-extrabold">Content Calendar</span>
                       <span className="text-[6.5px]" style={{ color: MUTED }}>
@@ -226,7 +226,7 @@ export default function MacMockup() {
                   {/* right rail */}
                   <div className="flex min-w-0 flex-col gap-2">
                     {/* analytics */}
-                    <div className="rounded-[10px] border-2 border-[#1C1A14] bg-white p-2">
+                    <div className="rounded-[10px] border border-[#E6E6E6] bg-white p-2">
                       <div className="flex items-center justify-between">
                         <span className="truncate font-display text-[8.5px] font-extrabold">Analytics Overview</span>
                         <span className="text-[6px] font-bold">View all</span>
@@ -261,7 +261,7 @@ export default function MacMockup() {
                     </div>
 
                     {/* upcoming */}
-                    <div className="rounded-[10px] border-2 border-[#1C1A14] bg-white p-2">
+                    <div className="rounded-[10px] border border-[#E6E6E6] bg-white p-2">
                       <span className="block font-display text-[8.5px] font-extrabold">Upcoming Posts</span>
                       <div className="mt-1 space-y-[5px]">
                         {UPCOMING.map((u) => (

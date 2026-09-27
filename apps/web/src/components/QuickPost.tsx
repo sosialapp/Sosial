@@ -99,7 +99,7 @@ export default function QuickPost({
   }
 
   return (
-    <section className="card border-2 border-ink p-5" aria-label="Quick post">
+    <section className="card border border-line p-5" aria-label="Quick post">
       <div className="flex flex-wrap items-center gap-2">
         <div>
           <p className="font-display text-base font-extrabold tracking-tight">Quick post</p>

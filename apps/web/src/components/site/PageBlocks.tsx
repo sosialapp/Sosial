@@ -161,11 +161,11 @@ export function CardTrio({
               </>
             );
             return c.href ? (
-              <Link key={c.title} href={c.href} className="card flex flex-col border-2 border-ink p-5 transition hover:-translate-y-0.5">
+              <Link key={c.title} href={c.href} className="card flex flex-col border border-line p-5 transition hover:-translate-y-0.5">
                 {inner}
               </Link>
             ) : (
-              <div key={c.title} className="card flex flex-col border-2 border-ink p-5">
+              <div key={c.title} className="card flex flex-col border border-line p-5">
                 {inner}
               </div>
             );

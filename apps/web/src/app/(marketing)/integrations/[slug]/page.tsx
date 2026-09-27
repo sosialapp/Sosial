@@ -149,7 +149,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
                 <Link
                   key={r.key}
                   href={channelHref(r.key)}
-                  className="card flex items-center gap-3 border-2 border-ink p-4 transition hover:border-accent"
+                  className="card flex items-center gap-3 border border-line p-4 transition hover:border-accent"
                 >
                   <BrandIcon provider={r.key} className="h-5 w-5 shrink-0" />
                   <span className="text-sm font-bold">{r.name}</span>

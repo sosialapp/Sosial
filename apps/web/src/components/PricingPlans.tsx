@@ -102,10 +102,10 @@ export default function PricingPlans({
             return (
               <div
                 key={key}
-                className={`relative flex w-full flex-1 flex-col rounded-[20px] border-2 bg-white px-5 py-8 lg:p-6 ${
+                className={`relative flex w-full flex-1 flex-col rounded-[20px] bg-white px-5 py-8 lg:p-6 ${
                   p.featured
-                    ? 'border-accent shadow-[0_24px_60px_-30px_rgba(28,26,20,0.45)]'
-                    : 'border-ink'
+                    ? 'border-2 border-accent shadow-[0_24px_60px_-30px_rgba(28,26,20,0.45)]'
+                    : 'border border-line'
                 }`}
               >
                 {p.featured ? (

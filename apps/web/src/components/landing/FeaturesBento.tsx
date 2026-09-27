@@ -8,7 +8,7 @@ import type { ProviderKey } from '@/lib/types';
  * feature text, trimmed to tile size.
  */
 
-const tile = 'rounded-[28px] border-2 border-ink p-7 relative overflow-hidden';
+const tile = 'rounded-[28px] border border-line p-7 relative overflow-hidden';
 const h3 = 'font-display text-xl font-semibold leading-tight tracking-tight';
 const body = 'mt-2.5 text-[15px] leading-relaxed max-w-[36ch]';
 

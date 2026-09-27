@@ -78,7 +78,7 @@ export default async function BlogIndex({
             <Link
               key={a.slug}
               href={`/blog/${a.slug}`}
-                className="card flex h-full flex-col overflow-hidden border-2 border-ink transition hover:border-accent"
+                className="card flex h-full flex-col overflow-hidden border border-line transition hover:border-accent"
             >
               {a.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

@@ -76,7 +76,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
         <PostBody bodyHtml={post.bodyHtml} blocks={post.body} />
 
-        <div className="reveal mt-12 rounded-3xl border-2 border-ink bg-card p-6 md:p-8">
+        <div className="reveal mt-12 rounded-3xl border border-line bg-card p-6 md:p-8">
           <p className="eyebrow">Put it to work</p>
           <h2 className="mt-2 font-display text-xl font-extrabold tracking-tight">
             Schedule this week in one sitting.
@@ -99,7 +99,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                 <Link
                   key={a.slug}
                   href={`/blog/${a.slug}`}
-                  className="card flex h-full flex-col overflow-hidden border-2 border-ink transition hover:border-accent"
+                  className="card flex h-full flex-col overflow-hidden border border-line transition hover:border-accent"
                 >
                   {a.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element

@@ -145,7 +145,7 @@ function TimeEditor({
   };
 
   return (
-    <div className="rounded-xl border-2 border-ink bg-paper p-3">
+    <div className="rounded-xl border border-line bg-paper p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-bold text-ink">{formatTime(post.scheduled_at)}</span>
         <Badge className={st.className}>{st.label}</Badge>
@@ -509,7 +509,7 @@ export default function CalendarBoard({
         <div className="min-w-0 flex-1 p-4">
           {view === 'month' ? (
             <>
-              <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border-2 border-ink bg-line">
+              <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-line bg-line">
                 {WEEKDAYS.map((d) => (
                   <div key={d} className="bg-card px-2 py-2 text-center text-xs font-bold text-muted">
                     {d}
@@ -569,7 +569,7 @@ export default function CalendarBoard({
                               setSelectedPostId(p.id);
                             }}
                             title={snippet(p)}
-                            className={`cursor-grab rounded-lg border-2 border-ink bg-paper px-1.5 py-1 text-[11px] leading-tight ${
+                            className={`cursor-grab rounded-lg border border-line bg-paper px-1.5 py-1 text-[11px] leading-tight ${
                               dragId === p.id ? 'opacity-50' : ''
                             } ${selectedPostId === p.id ? 'ring-1 ring-accent' : ''}`}
                           >
@@ -596,7 +596,7 @@ export default function CalendarBoard({
             </>
           ) : view === 'week' ? (
             <>
-              <div className="overflow-hidden rounded-2xl border-2 border-ink bg-card">
+              <div className="overflow-hidden rounded-2xl border border-line bg-card">
                 <div className="overflow-x-auto">
                   <div className="min-w-[760px]">
                     {/* day headers */}
@@ -699,7 +699,7 @@ export default function CalendarBoard({
                                   setSelectedPostId(p.id);
                                 }}
                                 title={snippet(p)}
-                                className={`absolute max-h-[104px] cursor-grab overflow-hidden rounded-lg border-2 border-ink bg-paper px-2 py-1.5 text-[11px] leading-tight transition hover:border-ink/30 ${
+                                className={`absolute max-h-[104px] cursor-grab overflow-hidden rounded-lg border border-line bg-paper px-2 py-1.5 text-[11px] leading-tight transition hover:border-ink/30 ${
                                   dragId === p.id ? 'opacity-50' : ''
                                 } ${selectedPostId === p.id ? 'z-20 ring-1 ring-accent' : ''}`}
                                 style={{
@@ -736,7 +736,7 @@ export default function CalendarBoard({
             </>
           ) : (
             <>
-              <div className="overflow-hidden rounded-2xl border-2 border-ink bg-card">
+              <div className="overflow-hidden rounded-2xl border border-line bg-card">
                 {agenda.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-muted">
                     Nothing scheduled in these 14 days.
@@ -806,7 +806,7 @@ export default function CalendarBoard({
                                   setSelectedPostId(p.id);
                                 }}
                                 title={snippet(p)}
-                                className={`flex cursor-grab items-center gap-2.5 rounded-xl border-2 border-ink bg-paper px-3 py-2 transition ${
+                                className={`flex cursor-grab items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2 transition ${
                                   dragId === p.id ? 'opacity-50' : ''
                                 } ${selectedPostId === p.id ? 'ring-1 ring-accent' : ''}`}
                               >

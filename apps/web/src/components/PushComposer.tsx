@@ -51,7 +51,7 @@ export default function PushComposer({ audience }: { audience: number }) {
     'w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-faint';
 
   return (
-    <div className="grid gap-3 rounded-2xl border-2 border-ink bg-card p-4 sm:p-5">
+    <div className="grid gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5">
       <label className="grid gap-1 text-xs font-bold text-muted">
         Title ({title.trim().length}/120)
         <EmojiInput

@@ -240,7 +240,7 @@ export default function TeamManager({
               </div>
 
               {assigning === m.id ? (
-                <div className="mt-3 rounded-2xl border-2 border-ink bg-surface/60 p-4">
+                <div className="mt-3 rounded-2xl border border-line bg-surface/60 p-4">
                   <p className="text-xs font-bold">
                     Accounts {m.email} can post to
                   </p>

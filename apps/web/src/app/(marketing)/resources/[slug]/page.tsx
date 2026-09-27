@@ -64,7 +64,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
 
         <PostBody bodyHtml={cmsHtml} blocks={item.body} />
 
-        <div className="reveal mt-12 rounded-3xl border-2 border-ink bg-card p-6 md:p-8">
+        <div className="reveal mt-12 rounded-3xl border border-line bg-card p-6 md:p-8">
           <p className="eyebrow">Next step</p>
           <h2 className="mt-2 font-display text-xl font-extrabold tracking-tight">
             Put this into a live calendar.
@@ -86,7 +86,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
               <Link
                 key={r.slug}
                 href={resourceHref(r.slug)}
-                className="card flex h-full flex-col border-2 border-ink p-5 transition hover:border-accent"
+                className="card flex h-full flex-col border border-line p-5 transition hover:border-accent"
               >
                 <span className="pill w-fit bg-paper text-soft ring-1 ring-line">{r.kind}</span>
                 <h3 className="mt-3 font-display text-base font-extrabold leading-snug tracking-tight">

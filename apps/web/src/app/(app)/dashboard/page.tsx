@@ -67,7 +67,7 @@ function StatTile({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="card border-2 border-ink p-4 sm:p-5">
+    <div className="card border border-line p-4 sm:p-5">
       <div className="flex items-center gap-2.5">
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
@@ -224,7 +224,7 @@ export default async function DashboardPage() {
           />
 
           {/* Week calendar */}
-          <section className="card overflow-hidden border-2 border-ink p-5" aria-label="Content calendar">
+          <section className="card overflow-hidden border border-line p-5" aria-label="Content calendar">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-display text-base font-extrabold tracking-tight">Content Calendar</p>
               <p className="text-xs text-muted">{rangeLabel}</p>
@@ -332,7 +332,7 @@ export default async function DashboardPage() {
           />
 
           {/* Recent activity */}
-          <section className="card border-2 border-ink p-5" aria-label="Recent activity">
+          <section className="card border border-line p-5" aria-label="Recent activity">
             <div className="flex items-center justify-between">
               <p className="font-display text-base font-extrabold tracking-tight">Recent Activity</p>
               <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
@@ -380,7 +380,7 @@ export default async function DashboardPage() {
           </section>
 
           {/* Upcoming */}
-          <section className="card border-2 border-ink p-5" aria-label="Upcoming posts">
+          <section className="card border border-line p-5" aria-label="Upcoming posts">
             <div className="flex items-center justify-between">
               <p className="font-display text-base font-extrabold tracking-tight">Upcoming Posts</p>
               <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
@@ -426,7 +426,7 @@ export default async function DashboardPage() {
             const total = failed.length + approvals.length + sick.length;
             if (total === 0) return null;
             return (
-              <section className="card border-2 border-ink p-5" aria-label="Needs attention">
+              <section className="card border border-line p-5" aria-label="Needs attention">
                 <p className="font-display text-base font-extrabold tracking-tight">Needs attention</p>
                 <ul className="mt-3 space-y-2 text-sm">
                   {failed.slice(0, 2).map((p) => (

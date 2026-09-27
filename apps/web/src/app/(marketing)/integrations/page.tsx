@@ -33,7 +33,7 @@ export default function IntegrationsIndex() {
             <Link
               key={c.key}
               href={channelHref(c.key)}
-              className="card flex h-full flex-col border-2 border-ink p-5 transition hover:border-accent"
+              className="card flex h-full flex-col border border-line p-5 transition hover:border-accent"
             >
               <span className="flex items-center gap-3">
                 <BrandIcon provider={c.key} className="h-10 w-10 shrink-0" />
