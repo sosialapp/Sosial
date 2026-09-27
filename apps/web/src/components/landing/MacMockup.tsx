@@ -112,18 +112,18 @@ export default function MacMockup() {
               {/* main */}
               <div className="min-w-0 flex-1 overflow-hidden p-2.5">
                 {/* masthead pill */}
-                <div className="flex h-[26px] items-center gap-1.5 rounded-full border-2 border-[#1C1A14] bg-white pr-2 pl-1.5">
-                  <Image src="/bolt.png" alt="" width={13} height={13} className="h-[13px] w-[13px]" />
+                <div className="flex h-[26px] min-w-0 items-center gap-1.5 overflow-hidden rounded-full border-2 border-[#1C1A14] bg-white pr-2 pl-1.5">
+                  <Image src="/bolt.png" alt="" width={13} height={13} className="h-[13px] w-[13px] shrink-0" />
                   <span className="min-w-0 flex-1 truncate font-display text-[9px] font-extrabold">Studio</span>
-                  <span className="flex items-center" aria-hidden="true">
+                  <span className="flex shrink-0 items-center" aria-hidden="true">
                     {(['threads', 'instagram', 'tiktok'] as ProviderKey[]).map((p, i) => (
-                      <span key={p} className={i === 0 ? '' : '-ml-[5px]'}>
+                      <span key={p} className={i === 0 ? '' : '-ml-[4px]'}>
                         <span className="block rounded-full ring-1 ring-white">
-                          <BrandIcon provider={p} className="h-[15px] w-[15px] rounded-full" />
+                          <BrandIcon provider={p} className="h-[12px] w-[12px] rounded-full" />
                         </span>
                       </span>
                     ))}
-                    <span className="-ml-[3px] rounded-full bg-[#F4F4F4] px-[4px] py-[1px] text-[6.5px] font-extrabold" style={{ color: MUTED }}>
+                    <span className="ml-[2px] rounded-full bg-[#F4F4F4] px-[4px] py-[1px] text-[6px] font-extrabold" style={{ color: MUTED }}>
                       +1
                     </span>
                   </span>
