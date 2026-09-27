@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch } from 'lucide-react';
 import AiCard from '@/components/AiCard';
+import { channelAvatar } from '@/components/ChannelAvatar';
 import CreatePost from '@/components/CreatePost';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
@@ -466,6 +467,16 @@ export default function CreateHub({
       }
     })();
   }, [workspaceId]);
+
+  // Channel avatars for the publish list (photo + logo per target channel).
+  const avatarRecord = useMemo(() => {
+    const rec: Record<string, string> = {};
+    for (const c of channels) {
+      const a = channelAvatar(c.metadata);
+      if (a) rec[c.id] = a;
+    }
+    return rec;
+  }, [channels]);
 
   // Cross-tab handoff from template use / studio export / idea posting.
   useEffect(() => {
@@ -1007,6 +1018,7 @@ export default function CreateHub({
             userId={userId}
             workspaceId={workspaceId}
             onEdit={startEdit}
+            avatars={avatarRecord}
           />
         </div>
       ) : editing ? (

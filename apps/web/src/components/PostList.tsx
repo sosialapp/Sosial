@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MediaAssetRow, PostWithTargets, PostStatus, WorkspaceInfo } from '@/lib/types';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/posts';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { formatDateTime } from '@/lib/format';
+import ChannelAvatar from '@/components/ChannelAvatar';
 
 type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
 
@@ -54,12 +55,150 @@ function lastComment(p: PostWithTargets): string | null {
   return decided[0]?.comment ?? null;
 }
 
+/** Unique target channels across a card's parts (chain parts share targets). */
+function uniqueTargets(parts: PostWithTargets[]): { provider: string; channel_id: string }[] {
+  const seen = new Map<string, { provider: string; channel_id: string }>();
+  for (const p of parts) {
+    for (const t of p.post_targets) {
+      const key = t.channel_id ?? t.provider;
+      if (!seen.has(key)) seen.set(key, { provider: t.provider, channel_id: t.channel_id });
+    }
+  }
+  return [...seen.values()];
+}
+
+/**
+ * Full-post preview dialog. Read-only except an Edit shortcut for drafts —
+ * actions (approve, publish, delete) stay on the card behind it.
+ */
+function PreviewDialog({
+  parts,
+  avatars,
+  draftish,
+  onClose,
+  onEdit,
+}: {
+  parts: PostWithTargets[];
+  avatars: Record<string, string>;
+  draftish: boolean;
+  onClose: () => void;
+  onEdit: (() => void) | null;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  const head = parts[0];
+  const meta = POST_STATUS_META[head.status];
+  const isChain = parts.length > 1;
+  const targets = uniqueTargets(parts);
+  const media = parts.flatMap((p) => mediaOf(p));
+  return (
+    <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Post preview">
+      <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
+      <div className="relative flex min-h-full items-center justify-center p-4">
+        <div className="relative my-auto w-full max-w-lg rounded-3xl border-2 border-ink bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close preview"
+            className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full text-muted transition hover:bg-bone hover:text-ink"
+          >
+            ✕
+          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`pill ${meta.className}`}>{meta.label}</span>
+            {isChain ? (
+              <span className="pill bg-paper-dim text-ink">Chain · {parts.length} parts</span>
+            ) : null}
+            <span className="text-xs text-faint">
+              {head.sent_at ? `Sent ${formatDateTime(head.sent_at)}` : formatDateTime(head.scheduled_at)}
+            </span>
+          </div>
+          {targets.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2">
+              {targets.map((t) => (
+                <span key={t.channel_id ?? t.provider} className="flex items-center gap-1.5">
+                  <ChannelAvatar provider={t.provider} avatar={avatars[t.channel_id]} size={24} />
+                  <span className="text-xs font-bold">{providerMeta(t.provider).label}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <p className="mt-3 font-display text-base font-extrabold tracking-tight">
+            {head.title || 'Untitled post'}
+          </p>
+          <div className="mt-2 max-h-64 space-y-3 overflow-y-auto">
+            {parts.map((p, i) => (
+              <div key={p.id}>
+                {isChain ? (
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">
+                    Part {i + 1} of {parts.length}
+                  </p>
+                ) : null}
+                {p.body ? (
+                  <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap break-words text-soft">
+                    {p.body}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {media.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {media.map((m) =>
+                m.kind === 'video' ? (
+                  <video
+                    key={m.id}
+                    src={m.signed_url}
+                    muted
+                    playsInline
+                    controls
+                    className="h-20 w-20 rounded-lg border border-line bg-bone object-cover"
+                  />
+                ) : m.signed_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={m.id}
+                    src={m.signed_url}
+                    alt=""
+                    className="h-20 w-20 rounded-lg border border-line object-cover"
+                  />
+                ) : null,
+              )}
+            </div>
+          ) : null}
+          <div className="mt-5 flex gap-2">
+            {draftish && onEdit ? (
+              <button type="button" onClick={onEdit} className="btn btn-bolt">
+                Edit
+              </button>
+            ) : null}
+            <button type="button" onClick={onClose} className="btn btn-ghost">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PostList({
   posts,
   role,
   userId,
   workspaceId,
   onEdit,
+  avatars = {},
 }: {
   posts: PostWithTargets[];
   role: WorkspaceInfo['role'];
@@ -67,12 +206,15 @@ export default function PostList({
   workspaceId: string;
   /** Optional: open the draft in the composer. Defaults to /post?edit=<id>. */
   onEdit?: (postId: string) => void;
+  /** Channel avatar URLs by channel id — brand discs render without photos. */
+  avatars?: Record<string, string>;
 }) {
   const router = useRouter();
   const canApprove = role === 'owner' || role === 'admin';
   const [tab, setTab] = useState<Tab>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   /** Chain parts render as ONE card — a thread draft is a single post. */
@@ -176,9 +318,6 @@ export default function PostList({
           const head = g.parts[0];
           const isChain = g.parts.length > 1;
           const meta = POST_STATUS_META[head.status];
-          const providers = Array.from(
-            new Set(g.parts.flatMap((p) => p.post_targets.map((t) => t.provider))),
-          );
           const media = g.parts.flatMap((p) => mediaOf(p)).slice(0, 3);
           const mediaTotal = g.parts.reduce((n, p) => n + mediaOf(p).length, 0);
           const comment = lastComment(head);
@@ -187,7 +326,11 @@ export default function PostList({
           const busy = busyId === g.key;
           const ids = g.parts.map((p) => p.id);
           const targetErr = g.parts.flatMap((p) => p.post_targets).find((t) => t.last_error)?.last_error;
+          const targets = uniqueTargets(g.parts);
+          const shownTargets = targets.slice(0, 4);
+          const openPreview = () => setPreviewKey(g.key);
           return (
+            <>
               <div
                 key={g.key}
                 className="flex flex-wrap items-start gap-4 rounded-2xl border-2 border-ink bg-card p-4"
@@ -238,26 +381,41 @@ export default function PostList({
                     </span>
                   ) : null}
                   <span className="flex items-center gap-1">
-                    {providers.map((pr) => {
-                      const pm = providerMeta(pr);
-                      return (
-                        <span
-                          key={pr}
-                          title={pm.label}
-                          className="inline-block h-2.5 w-2.5 rounded-full"
-                          style={{ background: pm.color }}
-                        />
-                      );
-                    })}
+                    {shownTargets.map((t) => (
+                      <ChannelAvatar
+                        key={t.channel_id ?? t.provider}
+                        provider={t.provider}
+                        avatar={avatars[t.channel_id]}
+                        size={24}
+                      />
+                    ))}
+                    {targets.length > shownTargets.length ? (
+                      <span className="text-[11px] font-bold text-faint">+{targets.length - shownTargets.length}</span>
+                    ) : null}
                   </span>
                   <span className="text-xs text-faint">
                     {head.sent_at ? `Sent ${formatDateTime(head.sent_at)}` : formatDateTime(head.scheduled_at)}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-ink">{snippet(head)}</p>
-                {isChain && g.parts[1] ? (
-                  <p className="mt-1 text-xs text-muted">+ {g.parts.length - 1} more part{g.parts.length - 1 === 1 ? '' : 's'}: “{snippet(g.parts[1]).slice(0, 60)}…”</p>
-                ) : null}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={openPreview}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openPreview();
+                    }
+                  }}
+                  aria-label={`Preview ${head.title || 'post'}`}
+                  title="Preview"
+                  className="mt-2 cursor-pointer rounded-lg text-left"
+                >
+                  <p className="text-sm text-ink">{snippet(head)}</p>
+                  {isChain && g.parts[1] ? (
+                    <p className="mt-1 text-xs text-muted">+ {g.parts.length - 1} more part{g.parts.length - 1 === 1 ? '' : 's'}: “{snippet(g.parts[1]).slice(0, 60)}…”</p>
+                  ) : null}
+                </div>
                 {comment && (
                   <p className="mt-1 text-xs text-ink">Changes requested: “{comment}”</p>
                 )}
@@ -269,6 +427,13 @@ export default function PostList({
               </div>
 
               <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  onClick={openPreview}
+                >
+                  Preview
+                </button>
                 {canApprove && inApproval && (
                   <>
                     <button
@@ -334,6 +499,24 @@ export default function PostList({
                 </button>
               </div>
             </div>
+            {previewKey === g.key ? (
+              <PreviewDialog
+                parts={g.parts}
+                avatars={avatars}
+                draftish={draftish}
+                onClose={() => setPreviewKey(null)}
+                onEdit={
+                  draftish
+                    ? () => {
+                        setPreviewKey(null);
+                        if (onEdit) onEdit(head.id);
+                        else router.push(`/post?edit=${head.id}`);
+                      }
+                    : null
+                }
+              />
+            ) : null}
+          </>
           );
         })}
       </div>
