@@ -150,11 +150,13 @@ function channelRank(chans: ChannelStats[]): { channel: string; avg: number; pos
 
 /** Analytics tab: KPI grid, growth, engagement trend, channel leaderboard,
  *  best-time-to-post, per-channel sections, ranked posts, comment feed. */
-export default function AnalyticsScreen({ email, team, onProfile, onConnect }: {
+export default function AnalyticsScreen({ email, team, onProfile, onConnect, onBack }: {
   email: string;
   team: string;
   onProfile: () => void;
   onConnect: () => void;
+  /** Present when reached from Home (no dock there) — back chevron. */
+  onBack?: () => void;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -252,9 +254,16 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect }: {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
       >
         <View style={s.masthead}>
-          <View>
-            <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>{view === 'community' ? 'Community' : 'Analytics'}</Text>
-            {view === 'community' ? <Text style={s.heroSub}>Replies, comments and mentions.</Text> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {onBack ? (
+              <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="chevron-back" size={22} color={C.ink} />
+              </TouchableOpacity>
+            ) : null}
+            <View>
+              <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>{view === 'community' ? 'Community' : 'Analytics'}</Text>
+              {view === 'community' ? <Text style={s.heroSub}>Replies, comments and mentions.</Text> : null}
+            </View>
           </View>
           <AvatarButton email={email} team={team} onPress={onProfile} />
         </View>
@@ -558,6 +567,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect }: {
 
 const makeS = (C: Palette) => StyleSheet.create({
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
+  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   chanBtn: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 15, paddingVertical: 13 },
   chanBtnT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink },
   range: { borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },

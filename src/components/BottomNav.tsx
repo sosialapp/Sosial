@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 
-export type MainTab = 'create' | 'analytics';
+export type MainTab = 'home' | 'post';
 
-/** Buffer-style bottom bar: Create | (+) | Analytics. + expands to Template / Post. */
+/** Home | (+) | Post, left to right. + expands to Template / Post. */
 export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   tab: MainTab;
   onTab: (t: MainTab) => void;
@@ -28,13 +28,13 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 
   const inner = (
     <>
-      {item('create', 'bulb', 'Create')}
+      {item('home', 'home', 'Home')}
       <TouchableOpacity onPress={() => setPlus(true)} style={s.plusWrap} activeOpacity={0.8}>
         <View style={s.plus}>
           <Ionicons name="add" size={28} color={C.onInk} />
         </View>
       </TouchableOpacity>
-      {item('analytics', 'bar-chart', 'Analytics')}
+      {item('post', 'send', 'Post')}
     </>
   );
 

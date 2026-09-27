@@ -8,6 +8,7 @@ import { PostProvider, usePost } from './src/store/PostContext';
 import { ComposerProvider, useComposer } from './src/store/ComposerContext';
 import { loadProjects } from './src/screens/HomeScreen';
 import CreateScreen from './src/screens/CreateScreen';
+import DashboardScreen from './src/screens/DashboardScreen';
 import WelcomeScreen, { WelcomeProfile } from './src/screens/WelcomeScreen';
 import LandingScreen from './src/screens/LandingScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
@@ -18,7 +19,7 @@ import ExportScreen from './src/screens/ExportScreen';
 import ConnectScreen from './src/screens/ConnectScreen';
 import TeamScreen from './src/screens/TeamScreen';
 import PrivacyScreen from './src/screens/PrivacyScreen';
-import BottomNav, { MainTab } from './src/components/BottomNav';
+import BottomNav from './src/components/BottomNav';
 import ProfileMenu from './src/components/ProfileMenu';
 import Grain from './src/components/Grain';
 import { useFontsLoaded } from './src/utils/fonts';
@@ -29,15 +30,12 @@ import { backfillMissingAvatars } from './src/utils/avatarBackfill';
 import { pullCloudChannels } from './src/utils/cloudChannels';
 import { useTheme, ThemeProvider } from './src/theme';
 
-type Route = MainTab | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
+type Route = 'home' | 'create' | 'analytics' | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
 
 // Canvas is a fixed-size export artifact — ignore the OS font-size setting
 // so it renders pixel-identical on every device (esp. Android). Also kill
 // Android's extra font padding, which shifts every line box vs iOS.
 (Text as any).defaultProps = { ...((Text as any).defaultProps ?? {}), allowFontScaling: false, includeFontPadding: false };
-
-const TABS: MainTab[] = ['create', 'analytics'];
-
 // First-run gate: fresh installs land on the landing screen unless a cloud
 // session already exists. Skipping persists as local-only mode (dashboard on
 // open); signing out clears it so the next open lands back on landing.
@@ -47,7 +45,7 @@ const LOCAL_OK_KEY = 'zap_local_ok_v1';
 function Shell() {
   const { C, mode, toggle } = useTheme();
   const { openPostById, publishPostById } = useComposer();
-  const [route, setRoute] = useState<Route>('create');
+  const [route, setRoute] = useState<Route>('home');
   const [connectFrom, setConnectFrom] = useState<Route>('create');
   const [privacyFrom, setPrivacyFrom] = useState<Route>('account');
   const [teamFrom, setTeamFrom] = useState<Route>('create');
@@ -173,7 +171,7 @@ function Shell() {
     await dismissWelcome();
     try { await AsyncStorage.removeItem(LOCAL_OK_KEY); } catch {}
     setWelcomeLocked(false);
-    setRoute('create');
+    setRoute('home');
   };
 
   // Any sign-out lands back on landing (auth behind it, no skip): signed out means out.
@@ -210,7 +208,11 @@ function Shell() {
         return true;
       }
       if (r === 'account') {
-        setRoute('create');
+        setRoute('home');
+        return true;
+      }
+      if (r === 'analytics') {
+        setRoute('home');
         return true;
       }
       if (r === 'editor' || r === 'size') {
@@ -340,13 +342,24 @@ function Shell() {
     );
   }
 
-  const isTab = (TABS as string[]).includes(route);
+  // Dock shows on Home and the composer; the composer highlights Post.
+  const isTab = route === 'home' || route === 'create';
 
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: C.bone }}>
         <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
         <View style={{ flex: 1 }}>
+          {route === 'home' ? (
+            <DashboardScreen
+              team={account.team}
+              email={account.email}
+              onProfile={() => setProfileOpen(true)}
+              onConnect={() => goConnect('home')}
+              onPost={goCreatePost}
+              onAnalytics={() => setRoute('analytics')}
+            />
+          ) : null}
           {route === 'create' ? (
             <CreateScreen
               email={account.email}
@@ -365,10 +378,11 @@ function Shell() {
               team={account.team}
               onProfile={() => setProfileOpen(true)}
               onConnect={() => goConnect('analytics')}
+              onBack={() => setRoute('home')}
             />
           ) : null}
           {route === 'size' ? <SizeScreen onDone={() => setRoute('editor')} onBack={() => setRoute('create')} /> : null}
-          {route === 'editor' ? <EditorScreen onExport={() => setRoute('export')} onHome={() => setRoute('create')} onPosts={goCreatePost} /> : null}
+          {route === 'editor' ? <EditorScreen onExport={() => setRoute('export')} onHome={() => setRoute('home')} onPosts={goCreatePost} /> : null}
           {route === 'export' ? <ExportScreen onBack={() => setRoute('editor')} plan={account.plan} /> : null}
           {route === 'account' ? (
             <AccountScreen
@@ -404,8 +418,8 @@ function Shell() {
             style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
           >
             <BottomNav
-              tab={route as MainTab}
-              onTab={setRoute}
+              tab={route === 'create' ? 'post' : 'home'}
+              onTab={(t) => (t === 'home' ? setRoute('home') : goCreatePost())}
               onTemplate={newTemplate}
               onPost={goCreatePost}
             />
