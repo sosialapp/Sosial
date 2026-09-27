@@ -170,12 +170,7 @@ export default function SiteNav() {
                     className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition hover:bg-accent-soft"
                   >
                     <BrandIcon provider={c.key} className="h-4 w-4 shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-bold text-ink">{c.name}</span>
-                      <span className="block truncate text-xs text-muted">
-                        {c.limit.toLocaleString()}-character limit
-                      </span>
-                    </span>
+                    <span className="truncate text-sm font-bold text-ink">{c.name}</span>
                   </Link>
                 ))}
               </div>
