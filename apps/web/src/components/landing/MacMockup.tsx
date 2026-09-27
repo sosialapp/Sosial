@@ -228,7 +228,7 @@ export default function MacMockup() {
                     {/* analytics */}
                     <div className="rounded-[10px] border-2 border-[#1C1A14] bg-white p-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-display text-[8.5px] font-extrabold">Analytics</span>
+                        <span className="truncate font-display text-[8.5px] font-extrabold">Analytics Overview</span>
                         <span className="text-[6px] font-bold">View all</span>
                       </div>
                       <div className="mt-1 flex gap-[3px]">
