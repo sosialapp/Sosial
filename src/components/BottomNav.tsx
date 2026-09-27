@@ -82,7 +82,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 
 const makeS = (C: Palette) => StyleSheet.create({
   // Absolutely-positioned dock: no outer background, content scrolls under the pill.
-  float: { paddingHorizontal: 22, paddingBottom: 6, paddingTop: 6, backgroundColor: 'transparent' },
+  float: { paddingHorizontal: 22, paddingBottom: 16, paddingTop: 6, backgroundColor: 'transparent' },
   // Single iOS-style floating pill — SOLID background (no see-through),
   // hairline ring, soft lift.
   pill: {
