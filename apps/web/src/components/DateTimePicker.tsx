@@ -323,11 +323,11 @@ export default function DateTimePicker({
     return d;
   }, []);
   const q = tzQuery.trim().toLowerCase();
+  // No render cap: the full IANA list must stay scrollable (a cap used to
+  // cut the list off around America/Caracas).
   const tzMatches = useMemo(() => {
-    const list = q
-      ? zones.filter((z) => z.toLowerCase().includes(q) || zoneLabel(z).toLowerCase().includes(q))
-      : zones;
-    return list.slice(0, 80);
+    if (!q) return zones;
+    return zones.filter((z) => z.toLowerCase().includes(q) || zoneLabel(z).toLowerCase().includes(q));
   }, [q, zones]);
 
   return (
