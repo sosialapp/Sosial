@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
+import ChannelDock from '@/components/site/ChannelDock';
 import PageCms from '@/components/site/PageCms';
 import { CHANNEL_GUIDES, channelGuide, relatedChannels } from '@/content/channels';
 import { channelHref } from '@/content/types';
@@ -63,6 +64,9 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
           <Link href="/login" className="btn btn-primary mt-6">
             Connect {c.name}
           </Link>
+          <div className="mt-10">
+            <ChannelDock active={c.key} />
+          </div>
         </div>
       </section>
 
