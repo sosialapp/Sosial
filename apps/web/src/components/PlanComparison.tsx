@@ -49,13 +49,13 @@ export default function PlanComparison() {
 
   return (
     <section aria-label="Plan comparison" className="border-b border-line">
-      <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
+      <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <p className="eyebrow">Compare plans</p>
           <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
             Every limit, side by side.
           </h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted md:text-base">
             Scheduled posts are counted per connected channel and free up the moment a post
             publishes. AI credits reset on the 1st of every month, on every plan.
           </p>

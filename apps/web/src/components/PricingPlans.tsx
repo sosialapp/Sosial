@@ -62,10 +62,10 @@ export default function PricingPlans({
 
   return (
     <section aria-label="Plans" className="border-b border-line">
-      <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
+      <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <p className="eyebrow">Pricing</p>
-          <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight md:text-5xl">
+          <h1 className="mt-3 font-display text-5xl font-extrabold tracking-tight md:text-6xl">
             {title}
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">{lede}</p>

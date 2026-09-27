@@ -27,7 +27,7 @@ export function PageHero({
   return (
     <section className="border-b border-line bg-card/60">
       <div
-        className={`mx-auto max-w-[1440px] px-4 py-14 md:py-20 ${
+        className={`mx-auto max-w-[1440px] px-4 py-20 md:py-28 ${
           visual ? 'grid grid-cols-1 items-center gap-10 lg:grid-cols-2' : 'max-w-3xl'
         }`}
       >
@@ -108,20 +108,20 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
 export function FaqList({ items, title = 'Questions, answered' }: { items: { q: string; a: string }[]; title?: string }) {
   return (
     <section className="border-t border-line bg-card/60">
-      <div className="mx-auto max-w-3xl px-4 py-14 md:py-20">
-        <h2 className="text-center font-display text-2xl font-extrabold tracking-tight md:text-3xl">
+      <div className="mx-auto max-w-3xl px-4 py-20 md:py-28">
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           {title}
         </h2>
-        <div className="mt-8 divide-y divide-line overflow-hidden rounded-2xl border border-line">
+        <div className="mt-10 divide-y divide-line overflow-hidden rounded-2xl border border-line">
           {items.map((f) => (
             <details key={f.q} className="group bg-card open:bg-paper">
-              <summary className="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 font-display text-sm font-bold">
+              <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 font-display text-base font-bold">
                 {f.q}
                 <span aria-hidden="true" className="shrink-0 text-faint transition group-open:rotate-45">
                   +
                 </span>
               </summary>
-              <p className="px-5 pb-5 text-sm leading-relaxed text-muted">{f.a}</p>
+              <p className="px-6 pb-6 text-sm leading-relaxed text-muted md:text-base">{f.a}</p>
             </details>
           ))}
         </div>

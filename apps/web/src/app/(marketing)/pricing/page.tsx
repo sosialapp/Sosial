@@ -30,7 +30,7 @@ export default async function PricingPage() {
         updated={date ?? undefined}
       />
 
-      <PageCms slug="pricing" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
+      <PageCms slug="pricing" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
       <PlanComparison />
 
