@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
 import { generateSocial, rewritePosts, withHashtags, SOCIAL_PLATFORMS, THREAD_PLATFORM_IDS, THREAD_POST_MIN, capFor, platformLabel, type AiVariant, type RewriteOp } from '@/lib/ai';
+import { AI_FORMATS, detectFormat, type AiFormatId } from '@/lib/aiFormats';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 import { providerMeta } from '@/lib/providers';
 
@@ -48,9 +49,11 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
 
 /**
  * Write with AI — the mobile studio's behavior on web. The idea owns the
- * card; destinations follow the connected channels; the result comes back as
- * editable per-channel drafts with counters and refine transforms, and only
- * "Use this caption/thread" hands anything to the composer.
+ * card; destinations follow the connected channels; an optional structure
+ * preset (Breakdown / How-to / Story, suggested from the topic) shapes the
+ * output; the result comes back as editable per-channel drafts with counters
+ * and refine transforms, and only "Use this caption/thread" hands anything
+ * to the composer.
  */
 export default function AiCard({
   providers,
@@ -82,6 +85,31 @@ export default function AiCard({
   const [cta, setCta] = useState(true);
   const [instructions, setInstructions] = useState('');
   const [advanced, setAdvanced] = useState(false);
+  const [format, setFormat] = useState<'auto' | AiFormatId>(() => {
+    try {
+      const saved = window.localStorage.getItem('sosial-ai-format');
+      return saved === 'breakdown' || saved === 'howto' || saved === 'story' || saved === 'auto'
+        ? saved
+        : 'auto';
+    } catch {
+      return 'auto';
+    }
+  });
+  const [dismissedSuggestion, setDismissedSuggestion] = useState<string | null>(null);
+
+  function pickFormat(f: 'auto' | AiFormatId) {
+    setFormat(f);
+    try {
+      window.localStorage.setItem('sosial-ai-format', f);
+    } catch {
+      /* private mode */
+    }
+  }
+
+  /** One-tap suggestion from the topic — shown, never auto-applied. */
+  const suggested = format === 'auto' ? detectFormat(topic) : null;
+  const showSuggestion = suggested !== null && dismissedSuggestion !== topic;
+  const suggestedFormat = suggested ? AI_FORMATS.find((f) => f.id === suggested) : undefined;
 
   /* Destinations follow the connected channels — no picker in the card. */
   const known = useMemo(
@@ -124,6 +152,11 @@ export default function AiCard({
     try {
       const { createClient } = await import('@/lib/supabase/client');
       const sb = createClient();
+      const formatBlock =
+        format === 'auto' ? undefined : AI_FORMATS.find((f) => f.id === format)?.instructions;
+      const combined = [formatBlock, instructions.trim() || undefined]
+        .filter((s): s is string => Boolean(s))
+        .join('\n\n');
       const variants = await generateSocial(sb, {
         topic: t,
         platforms,
@@ -132,7 +165,7 @@ export default function AiCard({
         tone,
         language,
         style,
-        instructions: instructions.trim() || undefined,
+        instructions: combined || undefined,
         emoji,
         cta,
         hashtags,
@@ -393,6 +426,57 @@ export default function AiCard({
               +
             </button>
           </span>
+        </div>
+      ) : null}
+
+      {/* Structure preset — suggested from the topic, applied by tap */}
+      <p className="mt-4 text-xs font-bold text-soft">Structure</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Structure preset">
+        {(['auto', ...AI_FORMATS.map((f) => f.id)] as const).map((id) => {
+          const on = format === id;
+          const label = id === 'auto' ? 'Auto' : AI_FORMATS.find((f) => f.id === id)?.label ?? id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => pickFormat(id)}
+              aria-pressed={on}
+              className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                on
+                  ? 'border-ink bg-ink text-paper'
+                  : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      {format !== 'auto' ? (
+        <p className="mt-1 text-[11px] text-muted">
+          {AI_FORMATS.find((f) => f.id === format)?.blurb}
+        </p>
+      ) : showSuggestion && suggestedFormat ? (
+        <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 dark:border-white/10 dark:bg-white/5">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#5B3DF0] dark:text-[#B9A6F7]" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-[11px] text-soft">
+            Looks like a <strong>{suggestedFormat.label}</strong> — {suggestedFormat.blurb}
+          </p>
+          <button
+            type="button"
+            onClick={() => pickFormat(suggestedFormat.id)}
+            className="shrink-0 rounded-full bg-ink px-3 py-1 text-[11px] font-bold text-paper transition hover:opacity-85"
+          >
+            Use it
+          </button>
+          <button
+            type="button"
+            onClick={() => setDismissedSuggestion(topic)}
+            aria-label="Dismiss suggestion"
+            className="shrink-0 rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-ink"
+          >
+            ✕
+          </button>
         </div>
       ) : null}
 
