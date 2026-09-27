@@ -114,7 +114,19 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
     setTKind(a.type === 'video' ? 'video' : 'image');
   };
 
-  const save = async (at: number, plats: string[]) => {
+  // Mirrors ScheduleForm's onSave tail (types … accountIds unused here) so the
+  // picked timezone survives the edit round-trip.
+  const save = async (
+    at: number,
+    plats: string[],
+    _types?: unknown,
+    _sourceUrl?: unknown,
+    _threadsTopic?: unknown,
+    _ttPrivacy?: unknown,
+    _ytPrivacy?: unknown,
+    _accountIds?: unknown,
+    timezone?: string,
+  ) => {
     if (!sheet) return;
     if (queueTooSoon(at)) {
       Alert.alert('Too soon', `Earliest is ${minQueueLabel()} — scheduled posts need at least 5 minutes lead time.`);
@@ -146,6 +158,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
       videoUri: tKind === 'video' ? tUri : undefined,
       platforms: plats,
       scheduledAt: at,
+      timezone: timezone || undefined,
       createdAt: sheet.post?.createdAt ?? Date.now(),
     };
     await saveManagedPost(rec);
@@ -331,6 +344,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
         visible={sheet !== null}
         title={sheet?.post ? 'Edit post' : 'New post'}
         initialAt={sheet?.post?.scheduledAt}
+        initialTimezone={sheet?.post?.timezone}
         initialPlatforms={sheet?.post?.platforms}
         composer={{ title: '', caption: tBody, onCaption: setTBody }}
         media={{ items: tUri ? [{ uri: tUri, kind: tKind }] : [], onPick: pickMedia, onRemove: () => setTUri(undefined) }}

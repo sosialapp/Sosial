@@ -466,9 +466,9 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
           <div className="space-y-3">
             <Field label="Placement">
               <Seg
-                options={[{ value: 'below', label: 'Below' }, { value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }]}
+                options={[{ value: 'below', label: 'Below' }, { value: 'top', label: 'Top' }, { value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }]}
                 value={p.socialPos ?? 'below'}
-                onChange={(v) => patchPfp({ socialPos: v as 'below' | 'right' | 'left' })}
+                onChange={(v) => patchPfp({ socialPos: v as 'below' | 'top' | 'right' | 'left' })}
               />
             </Field>
             <SwitchRow title="Badge background" sub="Dark pill behind the icons" on={p.badgeBg ?? true} onPress={() => patchPfp({ badgeBg: !(p.badgeBg ?? true) })} />

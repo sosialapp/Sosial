@@ -107,7 +107,7 @@ export interface PfpStyle {
   pfpY: 'top' | 'bottom';
   size: number;
   shape: 'circle' | 'rounded';
-  socialPos: 'below' | 'right' | 'left';
+  socialPos: 'below' | 'top' | 'right' | 'left';
   badgeBg: boolean;
   badgeRows: 1 | 2;
   handleColor: string;

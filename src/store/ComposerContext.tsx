@@ -95,7 +95,7 @@ interface ComposerCtx {
   removeDraftMedia: (index: number) => void;
   moveDraftMedia: (from: number, to: number) => void;
   /** queue / draft / post-now against the live draft — true when stored */
-  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
+  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string) => Promise<boolean>;
   stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
   postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
   /** load a post into the live draft WITHOUT opening the sheet */
@@ -329,7 +329,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, [onThread, tMedia, tThreadMedia]);
 
   /** Title is no longer typed — it's the first line of the post text, kept for lists + reminders. */
-  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): ManagedPost => {
+  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): ManagedPost => {
     const firstImage = tMedia.find((m) => m.kind === 'image')?.uri;
     const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri;
     // Pair text+attachment BEFORE dropping empties so indices stay aligned.
@@ -360,6 +360,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       ytPrivacy: ytPrivacy || undefined,
       sourceUrl: sourceUrl || undefined,
       scheduledAt: at,
+      timezone: timezone || undefined,
       createdAt: sheetRef.current?.post?.createdAt ?? Date.now(),
       status,
     };
@@ -421,7 +422,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
+  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
       showInfo('Too soon', `Earliest is ${minQueueLabel()} — scheduled posts need at least 5 minutes lead time.`);
@@ -440,7 +441,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const keepApproval = sheetRef.current?.post?.status === 'approval';
     const isMember = canSubmit(await loadActor());
     const status: PostStatus = keepApproval || isMember ? 'approval' : 'queued';
-    const rec = buildRec(at, plats, status, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
+    const rec = buildRec(at, plats, status, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds, timezone);
     await saveManagedPost(rec);
     // Reminders are best-effort: only armed for posts that actually queue.
     let reminded = false;
@@ -1289,6 +1290,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         readOnlyNote={sheet?.post?.status === 'sent' && sheet.post.sentAt ? `Sent ${fmtDateTime(sheet.post.sentAt)}` : undefined}
         remoteIds={sheet?.post?.remoteIds}
         initialAt={sheet?.post?.scheduledAt}
+        initialTimezone={sheet?.post?.timezone}
         initialPlatforms={sheet?.post?.platforms}
         initialAccountIds={sheet?.post?.accountIds}
         initialTypes={sheet?.post?.platformTypes}

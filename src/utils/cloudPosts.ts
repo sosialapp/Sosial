@@ -93,7 +93,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
         body: post.body ?? '',
         status,
         scheduled_at: scheduledIso,
-        timezone: deviceTimezone(),
+        timezone: post.timezone ?? deviceTimezone(),
       },
       { onConflict: 'client_id' },
     )

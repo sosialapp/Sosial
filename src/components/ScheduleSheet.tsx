@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Animated, Easing, PanResponder, View, Text, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, Image, ActivityIndicator } from 'react-native';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, PanResponder, View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, Image, ActivityIndicator, AppState } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -15,6 +15,7 @@ import { fmtDateTime } from '../utils/reminders';
 import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
 import { loadMetaState, loadAccounts, connectedChannelIds, MetaState } from '../utils/metaStore';
+import { deviceZone, supportedZones, zoneLabel, offsetLabel, zonedToUtcMs } from '../utils/timezones';
 import { type ConnectedAccount, accountConnected, accountName, accountAvatar, asIdList } from '../utils/socialAccounts';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
@@ -360,6 +361,7 @@ export interface SheetMedia {
 interface Props {
   visible: boolean;
   initialAt?: number;
+  initialTimezone?: string;
   initialPlatforms?: string[];
   initialAccountIds?: Record<string, string[]>;
   initialTypes?: PlatformTypes;
@@ -372,7 +374,7 @@ interface Props {
   composer?: Composer;
   media?: SheetMedia;
   onDelete?: () => void;
-  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
+  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string) => void;
   onPostNow?: (plats: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
   draftLabel?: string;
   onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
@@ -401,7 +403,7 @@ interface Props {
  * `bare` renders the same form inline (Create → Post pill) instead of in the
  * bottom-sheet Modal — state and submit paths are identical either way.
  */
-export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange }: Props & { bare?: boolean }) {
+export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange }: Props & { bare?: boolean }) {
   const { C, mode: themeMode } = useTheme();
   const st = makeSt(C);
   const [plats, setPlats] = useState<string[]>(['any']);
@@ -420,6 +422,11 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
   const [sourceUrl, setSourceUrl] = useState('');
   const [preset, setPreset] = useState<'now' | 'custom'>('now');
   const [custom, setCustom] = useState(() => new Date(minQueueTime()));
+  const [devTz] = useState(deviceZone);
+  const [tz, setTz] = useState(devTz);
+  const [tzOpen, setTzOpen] = useState(false);
+  const [tzQuery, setTzQuery] = useState('');
+  const zones = useMemo(supportedZones, []);
   const [showPicker, setShowPicker] = useState(false);
   const [mode, setMode] = useState<'date' | 'time'>('date');
   const [pickingTime, setPickingTime] = useState(false);
@@ -430,6 +437,18 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
   const vCount = media?.items.length ?? 0;
   const vIdx = viewer !== null && vCount > 0 ? Math.min(viewer, vCount - 1) : null;
   const vItem = vIdx !== null ? media?.items[vIdx] : undefined;
+
+  // Channels connected elsewhere (web pull, Connect screen) land after the
+  // form mounts — refresh on foreground so the chips never go stale and the
+  // list never degrades to Anywhere-only.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s !== 'active') return;
+      loadMetaState().then((m) => setConnected(connectedChannelIds(m))).catch(() => {});
+      loadAccounts().then(setAccounts).catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
 
   // Threading is offered when at least one selected channel supports native
   // replies. "Anywhere" resolves to the connected set, mirroring publish time,
@@ -498,10 +517,13 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
       setPreset('now');
       // Default schedule = earliest queueable minute (7:51 → 7:56 preselected).
       setCustom(new Date(initialAt ?? minQueueTime()));
+      setTz(initialTimezone || devTz);
+      setTzOpen(false);
+      setTzQuery('');
       setShowPicker(false);
       setMode('date');
     }
-  }, [visible, initialAt, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, initialAccountIds]);
+  }, [visible, initialAt, initialTimezone, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, initialAccountIds]);
 
   // TikTok audience options come from the account itself — load them while the
   // sheet is open so the choice can be made upfront instead of at publish.
@@ -634,7 +656,16 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
     return Object.keys(out).length > 0 ? out : undefined;
   };
 
-  const at = preset === 'now' ? Date.now() + 60000 : custom.getTime();
+  const at = preset === 'now'
+    ? Date.now() + 60000
+    : tz === devTz
+      ? custom.getTime()
+      // Wall reading is in the selected zone — re-anchor it (web parity).
+      : zonedToUtcMs(custom.getFullYear(), custom.getMonth() + 1, custom.getDate(), custom.getHours() * 60 + custom.getMinutes(), tz);
+  // Button/sub labels always echo the wall the user picked, with the zone
+  // appended whenever it isn't the device zone.
+  const wallLabel = fmtDateTime(custom.getTime());
+  const zoneSuffix = preset === 'custom' && tz !== devTz ? ` · ${zoneLabel(tz)}` : '';
 
   // The 5-minute floor slides forward as time passes — a pick that was fine
   // a minute ago can go stale while the sheet sits open. Re-render on a tick
@@ -644,7 +675,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
     const t = setInterval(() => setTick((x) => x + 1), 15000);
     return () => clearInterval(t);
   }, [visible, preset]);
-  const tooSoon = preset === 'custom' && queueTooSoon(custom.getTime());
+  const tooSoon = preset === 'custom' && queueTooSoon(at);
 
   // Anywhere reads as selected when it literally is, or when every connected
   // channel is ticked (which is what tapping it produces)
@@ -702,7 +733,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
       Alert.alert('Pick a future time', 'Reminders can only fire in the future.');
       return;
     }
-    onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds());
+    onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds(), tz);
   };
 
   /** Delete asks twice — queue removals can't be undone. */
@@ -1069,7 +1100,7 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
           {(
             [
               { id: 'now', label: 'Now', sub: 'Publishes right away' },
-              { id: 'custom', label: 'Custom', sub: fmtDateTime(custom.getTime()) },
+              { id: 'custom', label: 'Custom', sub: `${wallLabel}${zoneSuffix}` },
             ] as const
           ).map((o) => {
             const on = preset === o.id;
@@ -1147,10 +1178,75 @@ export function ScheduleForm({ visible, initialAt, initialPlatforms, initialAcco
             </View>
           ) : null}
 
+          {preset === 'custom' && !readOnly ? (
+            <>
+              <Text style={[st.label, { marginTop: 6 }]}>Timezone</Text>
+              <TouchableOpacity
+                onPress={() => { setTzQuery(''); setTzOpen((v) => !v); }}
+                style={st.tzBtn}
+                activeOpacity={0.75}
+              >
+                <Text style={st.tzBtnT} numberOfLines={1}>{zoneLabel(tz)}</Text>
+                <Text style={st.tzBtnS}>{offsetLabel(tz)}</Text>
+                <Text style={st.topicChev}>›</Text>
+              </TouchableOpacity>
+              {tzOpen ? (
+                <View style={{ gap: 8, marginTop: 8 }}>
+                  <TextInput
+                    value={tzQuery}
+                    onChangeText={setTzQuery}
+                    placeholder="Search your city or timezone…"
+                    placeholderTextColor={C.faint}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={st.tzSearch}
+                  />
+                  <ScrollView
+                    style={{ maxHeight: 260 }}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <TouchableOpacity
+                      onPress={() => { setTz(devTz); setTzOpen(false); }}
+                      style={[st.tzRow, tz === devTz && { backgroundColor: C.accentSoft }]}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[st.tzRowT, tz === devTz && { color: C.accentInk }]} numberOfLines={1}>
+                        My timezone ({zoneLabel(devTz)})
+                      </Text>
+                      <Text style={st.tzRowS}>{offsetLabel(devTz)}</Text>
+                    </TouchableOpacity>
+                    {(() => {
+                      const q = tzQuery.trim().toLowerCase();
+                      const list = q
+                        ? zones.filter((z) => z.toLowerCase().includes(q) || zoneLabel(z).toLowerCase().includes(q))
+                        : zones;
+                      return list.map((z) => {
+                        const on = tz === z;
+                        return (
+                          <TouchableOpacity
+                            key={z}
+                            onPress={() => { setTz(z); setTzOpen(false); }}
+                            style={[st.tzRow, on && { backgroundColor: C.accentSoft }]}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[st.tzRowT, on && { color: C.accentInk }]} numberOfLines={1}>{zoneLabel(z)}</Text>
+                            <Text style={st.tzRowS}>{offsetLabel(z)}</Text>
+                          </TouchableOpacity>
+                        );
+                      });
+                    })()}
+                  </ScrollView>
+                </View>
+              ) : null}
+            </>
+          ) : null}
+
           <View style={{ marginTop: 10 }}>
             <PrimaryBtn
               icon={preset === 'now' && onPostNow && !bulkCount ? 'send' : undefined}
-              label={bulkCount ? `Queue ${bulkCount} page${bulkCount > 1 ? 's' : ''}` : preset === 'now' ? 'Post now' : `Queue for ${fmtDateTime(at)}`}
+              label={bulkCount ? `Queue ${bulkCount} page${bulkCount > 1 ? 's' : ''}` : preset === 'now' ? 'Post now' : `Queue for ${wallLabel}${zoneSuffix}`}
               loading={preset === 'now' && onPostNow && !bulkCount && !!publishing}
               loadingLabel="Posting…"
               onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels()) onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds()); } : save}
@@ -1356,4 +1452,11 @@ const makeSt = (C: Palette) => ({
   pickerDoneT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.onInk } as const,
   pickerBack: { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderRadius: R.md, paddingVertical: 12, paddingHorizontal: 20 } as const,
   pickerBackT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink } as const,
+  tzBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 14, paddingVertical: 12 } as const,
+  tzBtnT: { flexShrink: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink } as const,
+  tzBtnS: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted } as const,
+  tzSearch: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: C.ink, backgroundColor: C.card, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 14, paddingVertical: 11 } as const,
+  tzRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 10, borderRadius: R.md } as const,
+  tzRowT: { flexShrink: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink } as const,
+  tzRowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.faint } as const,
 });

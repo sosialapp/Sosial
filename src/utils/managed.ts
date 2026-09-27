@@ -100,6 +100,9 @@ export interface ManagedPost {
   /** Threads repost/quote source post URL or numeric media ID */
   sourceUrl?: string;
   scheduledAt?: number;
+  /** IANA zone the wall time was chosen in (web parity) — cloud + worker use
+   *  the instant; the zone is display context. Absent = device zone. */
+  timezone?: string;
   createdAt: number;
   /** last-write-wins clock for cross-device sync (ms). */
   updatedAt?: number;

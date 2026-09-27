@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import { useTheme } from '../theme';
 import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
@@ -15,7 +15,7 @@ export default function ConnectButton({ onPress }: { onPress: () => void }) {
   const extra = connected.length - shown.length;
 
   useEffect(() => {
-    (async () => {
+    const reload = async () => {
       try {
         const m = await loadMetaState();
         const list: string[] = [];
@@ -31,7 +31,14 @@ export default function ConnectButton({ onPress }: { onPress: () => void }) {
         if (m.ytRefreshToken || m.ytAccessToken) list.push('youtube');
         setConnected(list);
       } catch {}
-    })();
+    };
+    void reload();
+    // Channels connected elsewhere (web pull, Connect screen) land after
+    // this pill mounts — refresh on foreground so the logos never go stale.
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') void reload();
+    });
+    return () => sub.remove();
   }, []);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
@@ -12,6 +12,35 @@ import { Txt, PillToggle, Seg, Field, Stepper, PrimaryBtn, GhostBtn, SocialGlyph
 const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'tiktok', 'threads', 'facebook', 'youtube', 'linkedin', 'x', 'bluesky', 'mastodon', 'pinterest'];
 
 const FONT_IDS: FontId[] = ['jakarta', 'inter', 'space-grotesk', 'playfair', 'crimson', 'poppins', 'mono', 'anton', 'system'];
+
+/**
+ * Handle input with local draft state: every keystroke used to hit the post
+ * context, re-rendering the whole editor + canvas per character (laggy
+ * typing). The draft commits on blur/submit instead; parent changes (page
+ * switch) still resync. Autocaps/autocorrect off — handles hate them.
+ */
+function DraftTxt({ value, placeholder, onCommit }: {
+  value: string;
+  placeholder?: string;
+  onCommit: (v: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  useEffect(() => {
+    setText(value);
+  }, [value]);
+  return (
+    <Txt
+      value={text}
+      onChangeText={setText}
+      onEndEditing={() => {
+        if (text !== value) onCommit(text);
+      }}
+      placeholder={placeholder}
+      autoCapitalize="none"
+      autoCorrect={false}
+    />
+  );
+}
 
 
 export default function PhotoSocialsEditor() {
@@ -95,10 +124,10 @@ export default function PhotoSocialsEditor() {
           <Seg options={[{ value: 'circle', label: 'Circle' }, { value: 'rounded', label: 'Rounded' }]} value={p.shape} onChange={(v) => patchPfp({ shape: v as 'circle' | 'rounded' })} />
         </Field>
         <Field label="Username" hint="Universal name under your photo.">
-          <Txt value={p.username ?? ''} onChangeText={(v) => patchPfp({ username: v })} placeholder="Your name" />
+          <DraftTxt value={p.username ?? ''} onCommit={(v) => patchPfp({ username: v })} placeholder="Your name" />
         </Field>
         <Field label="Card handle" hint="Overrides the @handle in the card header. Empty = first badge handle.">
-          <Txt value={p.customHandle ?? ''} onChangeText={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" />
+          <DraftTxt value={p.customHandle ?? ''} onCommit={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" />
         </Field>
       </View>
 
@@ -120,7 +149,7 @@ export default function PhotoSocialsEditor() {
                 {on && found ? (
                   <View style={st.detail}>
                     <Text style={st.hLabel}>{SOCIAL_META[pl].label} handle</Text>
-                    <Txt value={found.handle} onChangeText={(v) => setHandle(pl, v)} placeholder="@yourhandle" />
+                    <DraftTxt value={found.handle} onCommit={(v) => setHandle(pl, v)} placeholder="@yourhandle" />
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                       <View style={{ flex: 1, gap: 6 }}>
                         <Text style={st.miniLabel}>Font</Text>
@@ -185,11 +214,12 @@ export default function PhotoSocialsEditor() {
               <Seg
                 options={[
                   { value: 'below', label: 'Below' },
+                  { value: 'top', label: 'Top' },
                   { value: 'right', label: 'Right' },
                   { value: 'left', label: 'Left' },
                 ]}
                 value={p.socialPos ?? 'below'}
-                onChange={(v) => patchPfp({ socialPos: v as 'below' | 'right' | 'left' })}
+                onChange={(v) => patchPfp({ socialPos: v as 'below' | 'top' | 'right' | 'left' })}
               />
             </Field>
             <View style={st.switchRow}>

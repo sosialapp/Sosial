@@ -51,7 +51,7 @@ export interface PfpStyle {
   pfpY: 'top' | 'bottom';
   size: number; // 40-120
   shape: 'circle' | 'rounded';
-  socialPos: 'below' | 'right' | 'left';
+  socialPos: 'below' | 'right' | 'left' | 'top';
   badgeBg: boolean;
   badgeRows: 1 | 2;
   handleColor: string; // social handle text color

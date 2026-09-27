@@ -14,9 +14,10 @@ export const CANVAS_W = 340;
 const { width: SCREEN_W } = Dimensions.get('window');
 export const CANVAS_SCALE = Math.min(1, (SCREEN_W - 40) / CANVAS_W);
 
-function dirFor(pos: string): 'column' | 'row' | 'row-reverse' {
+function dirFor(pos: string): 'column' | 'column-reverse' | 'row' | 'row-reverse' {
   if (pos === 'right') return 'row';
   if (pos === 'left') return 'row-reverse';
+  if (pos === 'top') return 'column-reverse';
   return 'column';
 }
 
@@ -72,8 +73,9 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
     : 0;
   const pfpVisible = !(page.pfp.hidden ?? false);
   const socialsBelow = pfpVisible && visibleSocials.length > 0 && socialPos === 'below';
+  const socialsAbove = pfpVisible && visibleSocials.length > 0 && socialPos === 'top';
   const pfpH = pfpVisible
-    ? page.pfp.size * s + pad(4) + (page.pfp.username?.trim() ? pad(handleSize) + pad(2) : 0) + (socialsBelow ? pad(iconSize) + pad(6) : 0)
+    ? page.pfp.size * s + pad(4) + (page.pfp.username?.trim() ? pad(handleSize) + pad(2) : 0) + ((socialsBelow || socialsAbove) ? pad(iconSize) + pad(6) : 0)
     : 0;
   const cardMax = Math.max(90, canvasH - pad(16) * 2 - titleH - pfpH - pad(10) * 2);
 
@@ -100,8 +102,8 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
     <View
       style={{
         flexDirection: dir,
-        alignItems: dir === 'column' ? crossAlign(align) : 'center',
-        justifyContent: dir === 'column' ? 'flex-start' : crossAlign(align),
+        alignItems: dir === 'column' || dir === 'column-reverse' ? crossAlign(align) : 'center',
+        justifyContent: dir === 'column' || dir === 'column-reverse' ? 'flex-start' : crossAlign(align),
         gap: pad(socialGap),
       }}
     >
@@ -131,7 +133,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           style={{
             flexDirection: 'row',
             flexWrap: badgeRows === 2 ? 'wrap' : 'nowrap',
-            justifyContent: dir === 'column' ? crossAlign(align) : 'center',
+            justifyContent: dir === 'column' || dir === 'column-reverse' ? crossAlign(align) : 'center',
             alignItems: 'center',
             gap: pad(socialGap),
             ...(badgeRows === 2 ? { maxWidth: pad(220) } : {}),

@@ -345,8 +345,9 @@ export default function StudioCanvas({
     : 0;
   const pfpVisible = !(page.pfp.hidden ?? false);
   const socialsBelow = pfpVisible && page.socials.some((s) => s.visible) && (page.pfp.socialPos ?? 'below') === 'below';
+  const socialsAbove = pfpVisible && page.socials.some((s) => s.visible) && (page.pfp.socialPos ?? 'below') === 'top';
   const pfpH = pfpVisible
-    ? page.pfp.size * k + pad(4) + (page.pfp.username?.trim() ? pad(page.pfp.handleSize ?? 8.5) + pad(2) : 0) + (socialsBelow ? pad(page.pfp.iconSize ?? 17) + pad(6) : 0)
+    ? page.pfp.size * k + pad(4) + (page.pfp.username?.trim() ? pad(page.pfp.handleSize ?? 8.5) + pad(2) : 0) + ((socialsBelow || socialsAbove) ? pad(page.pfp.iconSize ?? 17) + pad(6) : 0)
     : 0;
   const cardMax = Math.max(90, canvasH - pad(16) * 2 - titleH - pfpH - pad(10) * 2);
 
@@ -527,15 +528,16 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
   const badgeSurface = badgeBg ? '#111111' : (page.background.color ?? '#FFFFFF');
   const surfaceDark = badgeBg ? true : contrastRatio('#111111', badgeSurface) < contrastRatio('#FFFFFF', badgeSurface);
   const ringColor = surfaceDark ? '#FFFFFF' : '#111111';
-  const dir = socialPos === 'below' ? 'column' : 'row';
+  const dir = socialPos === 'below' ? 'column' : socialPos === 'top' ? 'column-reverse' : 'row';
+  const isColumn = dir === 'column' || dir === 'column-reverse';
   const cross = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
 
   return (
     <div
       style={{
-        display: 'flex', flexDirection: dir as 'column' | 'row',
-        alignItems: dir === 'column' ? cross : 'center',
-        justifyContent: dir === 'column' ? 'flex-start' : cross,
+        display: 'flex', flexDirection: dir as 'column' | 'column-reverse' | 'row',
+        alignItems: isColumn ? cross : 'center',
+        justifyContent: isColumn ? 'flex-start' : cross,
         gap: socialGap * k,
       }}
     >
@@ -574,7 +576,7 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
         <div
           style={{
             display: 'flex', flexDirection: 'row', flexWrap: badgeRows === 2 ? 'wrap' : 'nowrap',
-            justifyContent: dir === 'column' ? cross : 'center', alignItems: 'center', gap: socialGap * k,
+            justifyContent: isColumn ? cross : 'center', alignItems: 'center', gap: socialGap * k,
             ...(badgeRows === 2 ? { maxWidth: 220 * k } : {}),
           }}
         >
