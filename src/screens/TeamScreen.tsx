@@ -122,7 +122,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   };
 
   const initial = (email || teamName || 'Z')[0].toUpperCase();
-  const others = (team?.members ?? []);
+  // The header above already shows the current user — the roster lists teammates only.
+  const others = (team?.members ?? []).filter((m) => !(m.user_id && team?.myUserId && m.user_id === team.myUserId));
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
