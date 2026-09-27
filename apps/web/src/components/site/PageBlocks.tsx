@@ -69,8 +69,8 @@ export interface BlockItem {
 
 export function FeatureBlocks({ items }: { items: BlockItem[] }) {
   return (
-    <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
-      <div className="space-y-14 md:space-y-20">
+    <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
+      <div className="space-y-16 md:space-y-24">
         {items.map((b, i) => (
           <div
             key={b.title}
@@ -142,7 +142,7 @@ export function CardTrio({
 }) {
   return (
     <section className="border-y border-line bg-card/60">
-      <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
+      <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <p className="eyebrow">{eyebrow}</p>
         <h2 className="mt-2 max-w-xl font-display text-2xl font-extrabold tracking-tight md:text-3xl">
           {title}

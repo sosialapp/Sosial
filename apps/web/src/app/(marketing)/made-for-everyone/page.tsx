@@ -30,7 +30,7 @@ export default async function MadeForEveryonePage() {
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
 
-      <PageCms slug="made-for-everyone" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
+      <PageCms slug="made-for-everyone" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
       <CardTrio
         eyebrow="Who it is for"

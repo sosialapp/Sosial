@@ -30,7 +30,7 @@ export default async function TransparencyPage() {
         secondary={{ href: '/pricing', label: 'Published prices' }}
       />
 
-      <PageCms slug="transparency" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
+      <PageCms slug="transparency" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
       <FeatureBlocks
         items={[

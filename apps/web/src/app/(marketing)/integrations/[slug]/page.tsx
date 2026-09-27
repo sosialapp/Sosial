@@ -45,7 +45,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
   return (
     <>
       <section className="border-b border-line bg-card/60">
-        <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+        <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
           <Link href="/integrations" className="text-xs font-bold text-muted hover:text-ink">
             ← All integrations
           </Link>

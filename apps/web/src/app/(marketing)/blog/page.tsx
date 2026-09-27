@@ -29,7 +29,7 @@ export default async function BlogIndex({
   return (
     <>
       <section className="border-b border-line bg-card/60">
-        <div className="mx-auto max-w-5xl px-4 py-14 md:py-20">
+        <div className="mx-auto max-w-5xl px-4 py-20 md:py-28">
           <p className="eyebrow">Blog</p>
           <h1 className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl">
             Get better at publishing everywhere.
@@ -41,7 +41,7 @@ export default async function BlogIndex({
         </div>
       </section>
 
-      <div className="mx-auto max-w-5xl px-4 py-10 md:py-14">
+      <div className="mx-auto max-w-5xl px-4 py-16 md:py-20">
         <nav aria-label="Filter by topic" className="flex flex-wrap items-center gap-2">
           <Link
             href="/blog"

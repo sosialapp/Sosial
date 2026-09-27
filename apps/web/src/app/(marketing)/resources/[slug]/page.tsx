@@ -46,7 +46,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
 
   return (
     <>
-      <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+      <article className="mx-auto max-w-3xl px-4 py-16 md:py-24">
         <Link href="/resources" className="text-xs font-bold text-muted hover:text-ink">
           ← Resource library
         </Link>
@@ -79,7 +79,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
       </article>
 
       <section className="border-t border-line bg-card/60">
-        <div className="mx-auto max-w-5xl px-4 py-14">
+        <div className="mx-auto max-w-5xl px-4 py-16 md:py-20">
           <h2 className="font-display text-2xl font-extrabold tracking-tight">More resources</h2>
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             {more.map((r) => (

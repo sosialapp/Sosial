@@ -21,7 +21,7 @@ export default function LegalView({
   summary?: string | null;
 }) {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+    <article className="mx-auto max-w-3xl px-4 py-16 md:py-24">
       <p className="eyebrow">Legal</p>
       <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight">{title ?? doc.title}</h1>
       <p className="mt-3 text-sm font-bold text-faint">Last updated {updated ?? formatPostDate(doc.updated)}</p>

@@ -55,7 +55,7 @@ export default async function CustomSitePage({ params }: { params: Promise<{ slu
         lede={date ? `Published ${date}.` : 'From the Sosial team.'}
         secondary={{ href: '/pricing', label: 'Published prices' }}
       />
-      <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+      <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
         <div className="prose-sosial blog-rich" dangerouslySetInnerHTML={{ __html: page.bodyHtml ?? '' }} />
         <ChartIslands />
       </div>

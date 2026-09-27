@@ -16,7 +16,7 @@ export default function ResourcesIndex() {
   return (
     <>
       <section className="border-b border-line bg-card/60">
-        <div className="mx-auto max-w-5xl px-4 py-14 md:py-20">
+        <div className="mx-auto max-w-5xl px-4 py-20 md:py-28">
           <p className="eyebrow">Resource library</p>
           <h1 className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl">
             Templates, playbooks and cheat sheets.
@@ -28,7 +28,7 @@ export default function ResourcesIndex() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-5xl px-4 py-10 md:py-14">
+      <div className="mx-auto max-w-5xl px-4 py-16 md:py-20">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {items.map((r) => (
             <Link

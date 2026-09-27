@@ -24,7 +24,7 @@ export default async function SiteFooter() {
   const extraPages = await siteFooterPages();
   return (
     <footer className="bg-ink text-paper">
-      <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-4 py-14 md:grid-cols-3 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-4 py-16 md:grid-cols-3 md:py-20 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr]">
         <div className="col-span-2 md:col-span-1">
           <Logo />
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-paper/60">

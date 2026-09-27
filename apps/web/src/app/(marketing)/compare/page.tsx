@@ -60,10 +60,10 @@ export default async function ComparePage() {
         secondary={{ href: '/pricing', label: 'See pricing' }}
       />
 
-      <PageCms slug="compare" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
+      <PageCms slug="compare" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
       <section aria-label="Comparison" className="border-b border-line bg-card/60">
-        <div className="mx-auto max-w-[1440px] px-4 py-14 md:py-20">
+        <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>

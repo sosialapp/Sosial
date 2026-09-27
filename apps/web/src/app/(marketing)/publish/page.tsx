@@ -85,7 +85,7 @@ export default async function PublishPage() {
         }
       />
 
-      <PageCms slug="publish" className="mx-auto max-w-3xl px-4 py-12 md:py-16" />
+      <PageCms slug="publish" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
       <FeatureBlocks
         items={[
