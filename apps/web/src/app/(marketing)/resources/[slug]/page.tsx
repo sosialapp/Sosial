@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Kicker from '@/components/site/Kicker';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
 import { formatPageDate, sitePageHtml, sitePageMeta } from '@/lib/sitePages';
@@ -66,7 +65,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
         <PostBody bodyHtml={cmsHtml} blocks={item.body} />
 
         <div className="reveal mt-12 rounded-3xl border-2 border-ink bg-card p-6 md:p-8">
-          <Kicker>Next step</Kicker>
+          <p className="eyebrow">Next step</p>
           <h2 className="mt-2 font-display text-xl font-extrabold tracking-tight">
             Put this into a live calendar.
           </h2>

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Kicker from '@/components/site/Kicker';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
@@ -78,7 +77,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         <PostBody bodyHtml={post.bodyHtml} blocks={post.body} />
 
         <div className="reveal mt-12 rounded-3xl border-2 border-ink bg-card p-6 md:p-8">
-          <Kicker>Put it to work</Kicker>
+          <p className="eyebrow">Put it to work</p>
           <h2 className="mt-2 font-display text-xl font-extrabold tracking-tight">
             Schedule this week in one sitting.
           </h2>

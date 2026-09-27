@@ -85,11 +85,8 @@ export default function TeamSection() {
     <section aria-label="Approvals and roles" className="bg-ink text-paper">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-20 md:py-28 lg:grid-cols-2">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-paper px-3.5 py-1.5 font-display text-sm font-semibold">
-            <i className="h-2 w-2 rounded-full bg-bolt" aria-hidden="true" />
-            Approvals and roles
-          </span>
-          <h2 className="mt-4 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
+          <p className="eyebrow !text-paper/60">Approvals and roles</p>
+          <h2 className="mt-2 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
             Nothing ships unreviewed.
           </h2>
           <p className="mt-3 max-w-[52ch] text-paper/75">

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Kicker from '@/components/site/Kicker';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { channelHref } from '@/content/types';
@@ -17,7 +16,7 @@ export default function IntegrationsIndex() {
     <>
       <section className="border-b border-line bg-card/60">
         <div className="mx-auto max-w-5xl px-4 py-20 md:py-28">
-          <Kicker>Integrations</Kicker>
+          <p className="eyebrow">Integrations</p>
           <h1 className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl">
             Sosial × every channel you use.
           </h1>

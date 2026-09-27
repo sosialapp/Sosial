@@ -17,11 +17,8 @@ export default function FreeSection() {
     <section aria-label="Pricing" className="bg-paper">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-start gap-10 px-4 py-20 md:py-28 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-white px-3.5 py-1.5 font-display text-sm font-semibold">
-            <i className="h-2 w-2 rounded-full bg-bolt" aria-hidden="true" />
-            Pricing, published
-          </span>
-          <h2 className="mt-4 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
+          <p className="eyebrow">Pricing, published</p>
+          <h2 className="mt-2 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
             Start free. Pay when it earns it.
           </h2>
           <p className="font-display font-semibold leading-none tracking-tight text-bolt text-[clamp(5rem,12vw,9rem)]">

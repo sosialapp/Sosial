@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import Kicker from '@/components/site/Kicker';
 import {
   PLANS, PLAN_ORDER, priceFor, formatUsd, monthlyEquivalent, annualSavingsPct,
   type BillingInterval,
@@ -65,7 +64,7 @@ export default function PricingPlans({
     <section aria-label="Plans" className="border-b border-line">
       <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
-          <Kicker>Pricing</Kicker>
+          <p className="eyebrow">Pricing</p>
           <h1 className="mt-3 font-display text-5xl font-extrabold tracking-tight md:text-6xl">
             {title}
           </h1>

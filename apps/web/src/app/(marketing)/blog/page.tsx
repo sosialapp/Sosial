@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Kicker from '@/components/site/Kicker';
 import { BLOG_TAGS, allArticles, articlesByTag } from '@/lib/blog';
 import { blogTagClass, formatPostDate, type Category } from '@/content/types';
 
@@ -31,7 +30,7 @@ export default async function BlogIndex({
     <>
       <section className="border-b border-line bg-card/60">
         <div className="mx-auto max-w-5xl px-4 py-20 md:py-28">
-          <Kicker>Blog</Kicker>
+          <p className="eyebrow">Blog</p>
           <h1 className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl">
             Get better at publishing everywhere.
           </h1>

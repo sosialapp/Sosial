@@ -19,11 +19,8 @@ export default function FeaturesBento() {
     <section aria-label="Features" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
         <div className="max-w-[34ch]">
-          <span className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-white px-3.5 py-1.5 font-display text-sm font-semibold">
-            <i className="h-2 w-2 rounded-full bg-bolt" aria-hidden="true" />
-            What you get
-          </span>
-          <h2 className="mt-4 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
+          <p className="eyebrow">What you get</p>
+          <h2 className="mt-2 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
             Everything a daily poster needs.
           </h2>
           <p className="mt-3 text-muted">

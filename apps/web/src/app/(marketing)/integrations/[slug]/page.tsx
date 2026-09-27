@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Kicker from '@/components/site/Kicker';
 import { notFound } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import PageCms from '@/components/site/PageCms';
@@ -53,7 +52,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
           <div className="mt-6 flex items-center gap-3">
             <BrandIcon provider={c.key} className="h-12 w-12 shrink-0" />
             <div>
-              <Kicker>Integration</Kicker>
+              <p className="eyebrow">Integration</p>
               <h1 className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
                 {meta?.title ?? `Sosial × ${c.name}`}
               </h1>

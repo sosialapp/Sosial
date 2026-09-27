@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import Kicker from './Kicker';
 
 /**
  * Shared building blocks for feature and audience pages. Server components,
@@ -33,8 +32,8 @@ export function PageHero({
         }`}
       >
         <div className={visual ? '' : 'mx-auto text-center'}>
-          <Kicker>{eyebrow}</Kicker>
-          <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
+          <p className="eyebrow">{eyebrow}</p>
+          <h1 className="mt-2 font-display text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
             {title}
           </h1>
           <p className={`mt-4 text-lg leading-relaxed text-muted ${visual ? '' : 'mx-auto max-w-xl'}`}>
@@ -80,10 +79,8 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
             }`}
           >
             <div className={b.visual && i % 2 === 1 ? 'lg:order-2' : ''}>
-              {b.eyebrow ? (
-                <Kicker>{b.eyebrow}</Kicker>
-              ) : null}
-              <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight md:text-3xl">
+              {b.eyebrow ? <p className="eyebrow">{b.eyebrow}</p> : null}
+              <h2 className="mt-2 font-display text-2xl font-extrabold tracking-tight md:text-3xl">
                 {b.title}
               </h2>
               <p className="mt-3 text-base leading-relaxed text-muted">{b.body}</p>
@@ -146,8 +143,8 @@ export function CardTrio({
   return (
     <section className="border-y border-line bg-card/60">
       <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
-        <Kicker>{eyebrow}</Kicker>
-        <h2 className="mt-4 max-w-xl font-display text-2xl font-extrabold tracking-tight md:text-3xl">
+        <p className="eyebrow">{eyebrow}</p>
+        <h2 className="mt-2 max-w-xl font-display text-2xl font-extrabold tracking-tight md:text-3xl">
           {title}
         </h2>
         <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">

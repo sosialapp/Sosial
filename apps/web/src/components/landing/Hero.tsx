@@ -134,10 +134,7 @@ export default function Hero() {
 
       <div className="relative z-[2] mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="text-center lg:text-left">
-          <span className="animate-rise-1 inline-flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-white px-3.5 py-1.5 font-display text-sm font-semibold">
-            <i className="h-2 w-2 rounded-full bg-bolt" aria-hidden="true" />
-            One calendar for ten networks
-          </span>
+          <p className="eyebrow animate-rise-1">One calendar for ten networks</p>
           <h1 className="animate-rise-1 mt-5 font-display text-5xl leading-[1.02] font-semibold tracking-tight text-balance md:text-6xl">
             Every channel, posted{' '}
             <span className="mr-1 inline-block rotate-[-2deg] rounded-[0.45em] bg-bolt px-[0.28em] leading-[1.05]">
