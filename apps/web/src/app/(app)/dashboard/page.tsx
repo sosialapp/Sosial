@@ -321,16 +321,6 @@ export default async function DashboardPage() {
 
         {/* Right rail */}
         <div className="flex flex-col gap-4">
-          {/* Analytics snapshot */}
-          <AnalyticsCard
-            sentAt={posts
-              .filter(
-                (p) =>
-                  (p.status === 'sent' || p.status === 'partial') && p.sent_at,
-              )
-              .map((p) => p.sent_at as string)}
-          />
-
           {/* Recent activity */}
           <section className="card border border-line p-5" aria-label="Recent activity">
             <div className="flex items-center justify-between">
@@ -417,6 +407,16 @@ export default async function DashboardPage() {
               </ul>
             )}
           </section>
+
+          {/* Analytics snapshot */}
+          <AnalyticsCard
+            sentAt={posts
+              .filter(
+                (p) =>
+                  (p.status === 'sent' || p.status === 'partial') && p.sent_at,
+              )
+              .map((p) => p.sent_at as string)}
+          />
 
           {/* Needs attention, only when something is actually wrong */}
           {(() => {
