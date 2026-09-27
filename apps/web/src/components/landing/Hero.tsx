@@ -1,210 +1,130 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { BrandIcon, brandColor } from '@/components/BrandIcon';
+import { useState } from 'react';
+import Link from 'next/link';
+import { BrandIcon } from '@/components/BrandIcon';
 import AuthModal from '@/components/site/AuthModal';
 import type { ProviderKey } from '@/lib/types';
 
 /**
- * Centered hero with a living logo field. Every tile drifts on a CSS float,
- * parallaxes against the cursor, and — on a staggered cycle — flips on both
- * axes into the *next* brand. Each tile walks the full provider list in order
- * (offset by its own index), so within one cycle no box ever repeats a logo,
- * and no two boxes show the same brand at the same step.
+ * Split-studio hero (Later register): sentence-case headline left, the
+ * product itself right — a CSS-composed week + queue, no floating tiles,
+ * no stock imagery. Two CTAs: filled accent + outlined ghost.
+ * Palette is strictly the Sosial tokens (paper, ink, bolt, line).
  */
 
-const PROVIDERS: ProviderKey[] = [
-  'instagram',
-  'x',
-  'youtube',
-  'linkedin',
-  'tiktok',
-  'bluesky',
-  'pinterest',
-  'threads',
-  'facebook',
-  'mastodon',
+const WEEK: { day: string; chips: { label: string; hot?: boolean }[] }[] = [
+  { day: 'M', chips: [{ label: '9:00' }] },
+  { day: 'T', chips: [{ label: '12:30' }, { label: '18:00' }] },
+  { day: 'W', chips: [] },
+  { day: 'T', chips: [{ label: '9:00', hot: true }] },
+  { day: 'F', chips: [{ label: '15:45' }] },
 ];
 
-const FLOATERS: {
-  pos: string;
-  show: string;
-  box: string;
-  icon: string;
-  delay: string;
-  dur: string;
-  depth: number;
-}[] = [
-  { pos: 'left-[14%] top-[14%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '0s', dur: '5s', depth: 34 },
-  { pos: 'left-[28%] top-[7%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '0.8s', dur: '6s', depth: 20 },
-  { pos: 'left-[14%] top-[33%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '1.6s', dur: '5.4s', depth: 26 },
-  { pos: 'left-[19%] top-[56%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '2.2s', dur: '6.2s', depth: 14 },
-  { pos: 'left-[22%] top-[76%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '0.4s', dur: '5.6s', depth: 30 },
-  { pos: 'right-[14%] top-[9%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '1.1s', dur: '5.2s', depth: 34 },
-  { pos: 'right-[14%] top-[25%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '2.8s', dur: '6.4s', depth: 20 },
-  { pos: 'right-[23%] top-[45%]', show: 'hidden md:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '0.2s', dur: '5.8s', depth: 26 },
-  { pos: 'right-[16%] top-[62%]', show: 'hidden sm:block', box: 'h-20 w-20', icon: 'h-12 w-12', delay: '1.9s', dur: '5s', depth: 30 },
-  { pos: 'right-[22%] top-[76%]', show: 'hidden md:block', box: 'h-16 w-16', icon: 'h-10 w-10', delay: '3.1s', dur: '6s', depth: 14 },
+const QUEUE: { title: string; status: 'Queued' | 'Sent' }[] = [
+  { title: 'Launch teaser', status: 'Queued' },
+  { title: 'Roundup video', status: 'Sent' },
 ];
 
-/** Seconds between one tile's flips (also the full-cycle length of its loop). */
-const FLIP_CYCLE = 3.4;
-/** Stagger between tiles so they never all turn together. */
-const FLIP_STAGGER = 0.3;
+const DOCK: ProviderKey[] = ['threads', 'instagram', 'tiktok', 'x'];
 
-function FlipTile({
-  providers,
-  seed,
-  box,
-  icon,
-  floatDelay,
-  floatDur,
-}: {
-  providers: ProviderKey[];
-  seed: number;
-  box: string;
-  icon: string;
-  floatDelay: string;
-  floatDur: string;
-}) {
-  const n = providers.length;
-  const [index, setIndex] = useState(seed % n);
-  const face = useRef<HTMLSpanElement>(null);
-  const step = useRef(0);
-
-  useEffect(() => {
-    const el = face.current;
-    if (!el) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    const tl = gsap.timeline({ repeat: -1, delay: 1.8 + seed * FLIP_STAGGER });
-    tl.to(el, { rotateX: 90, rotateY: 90, duration: 0.34, ease: 'power2.in' })
-      .call(() => {
-        step.current += 1;
-        setIndex((seed + step.current) % n);
-      })
-      // A beat to let React paint the incoming mark while the tile is edge-on.
-      .to({}, { duration: 0.06 })
-      .set(el, { rotateX: -90, rotateY: -90 })
-      .to(el, { rotateX: 0, rotateY: 0, duration: 0.4, ease: 'power2.out' })
-      .to({}, { duration: Math.max(0.2, FLIP_CYCLE - 0.8) });
-
-    return () => {
-      tl.kill();
-    };
-  }, [n, seed]);
-
+function ProductVisual() {
   return (
-    <span className="animate-float block" style={{ animationDelay: floatDelay, animationDuration: floatDur }}>
-      <span className="block [perspective:900px]">
-        <span
-          ref={face}
-          className={`hero-tile flex items-center justify-center overflow-hidden rounded-3xl text-white shadow-[0_20px_50px_-20px_rgba(28,26,20,0.35)] ${box}`}
-          style={{ transformStyle: 'preserve-3d', background: brandColor(providers[index]) }}
-        >
-          <BrandIcon provider={providers[index]} mono className={icon} />
-        </span>
-      </span>
-    </span>
+    <div aria-hidden="true" className="relative mx-auto w-full max-w-md">
+      {/* week card */}
+      <div className="card p-5 shadow-[0_32px_70px_-32px_rgba(28,26,20,0.35)]">
+        <div className="flex items-center justify-between">
+          <p className="font-display text-sm font-extrabold tracking-tight">This week</p>
+          <span className="pill bg-paper-dim text-ink">4 queued</span>
+        </div>
+        <div className="mt-4 grid grid-cols-5 gap-1.5">
+          {WEEK.map((d, i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5">
+              <span className="text-[10px] font-bold text-faint">{d.day}</span>
+              {d.chips.length === 0 ? (
+                <span className="h-6" />
+              ) : (
+                d.chips.map((c, j) => (
+                  <span
+                    key={j}
+                    className={`w-full rounded-md px-1 py-1 text-center text-[10px] font-bold tabular-nums ${
+                      c.hot ? 'bg-ink text-paper' : 'border border-line bg-paper text-soft'
+                    }`}
+                  >
+                    {c.label}
+                  </span>
+                ))
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-1.5">
+          {DOCK.map((p) => (
+            <span
+              key={p}
+              className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full"
+              style={{ marginLeft: p === DOCK[0] ? 0 : -6 }}
+            >
+              <BrandIcon provider={p} mono className="h-4 w-4 text-soft" />
+            </span>
+          ))}
+          <span className="ml-1 text-[11px] font-bold text-faint">10 networks</span>
+        </div>
+      </div>
+      {/* queue card, overlapping */}
+      <div className="card -mt-5 ml-10 p-4 shadow-[0_32px_70px_-32px_rgba(28,26,20,0.35)]">
+        {QUEUE.map((q) => (
+          <div
+            key={q.title}
+            className="flex items-center justify-between gap-3 border-b border-line-soft py-2 first:pt-0 last:border-b-0 last:pb-0"
+          >
+            <span className="truncate text-xs font-semibold text-soft">{q.title}</span>
+            <span
+              className={`pill shrink-0 ${
+                q.status === 'Sent' ? 'bg-bolt font-bold text-ink' : 'bg-paper-dim text-ink'
+              }`}
+            >
+              {q.status}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
 export default function Hero() {
-  const root = useRef<HTMLElement>(null);
-  const tiles = useRef<(HTMLSpanElement | null)[]>([]);
-  const movers = useRef<{ x: (v: number) => void; y: (v: number) => void }[]>([]);
   const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
 
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia();
-      mm.add('(prefers-reduced-motion: no-preference)', () => {
-        gsap.from('.hero-tile', {
-          scale: 0,
-          autoAlpha: 0,
-          duration: 0.7,
-          ease: 'back.out(1.5)',
-          stagger: 0.06,
-          delay: 0.2,
-          // Only clear what the entrance set — 'all' would also wipe the
-          // React-set brand background, leaving white tiles with white glyphs.
-          clearProps: 'transform,opacity,visibility',
-        });
-        movers.current = tiles.current.map((el) =>
-          el
-            ? {
-                x: gsap.quickTo(el, 'x', { duration: 0.7, ease: 'power3' }),
-                y: gsap.quickTo(el, 'y', { duration: 0.7, ease: 'power3' }),
-              }
-            : { x: () => {}, y: () => {} },
-        );
-      });
-      return () => mm.revert();
-    },
-    { scope: root },
-  );
-
   return (
-    <section
-      ref={root}
-      onMouseMove={(e) => {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        const r = root.current?.getBoundingClientRect();
-        if (!r) return;
-        const px = (e.clientX - r.left) / r.width - 0.5;
-        const py = (e.clientY - r.top) / r.height - 0.5;
-        movers.current.forEach((m, i) => {
-          const d = FLOATERS[i]?.depth ?? 20;
-          m.x(px * d);
-          m.y(py * d);
-        });
-      }}
-      onMouseLeave={() =>
-        movers.current.forEach((m) => {
-          m.x(0);
-          m.y(0);
-        })
-      }
-      className="hero-grid relative overflow-hidden"
-    >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        {FLOATERS.map((f, i) => (
-          <span
-            key={f.pos}
-            ref={(el) => {
-              tiles.current[i] = el;
-            }}
-            className={`absolute ${f.pos} ${f.show}`}
-          >
-            <FlipTile
-              providers={PROVIDERS}
-              seed={i}
-              box={f.box}
-              icon={f.icon}
-              floatDelay={f.delay}
-              floatDur={f.dur}
-            />
-          </span>
-        ))}
-      </div>
-
-      <div className="relative mx-auto max-w-5xl px-4 pb-20 pt-16 text-center md:pb-28 md:pt-24">
-        <h1 className="animate-rise-1 font-display text-5xl font-extrabold leading-[0.95] tracking-tight md:text-7xl">
-          Plan it. Write it. Post it.
-        </h1>
-        <p className="animate-rise-1 mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
-          One composer and one shared calendar for ten networks, with an AI writer, approvals
-          and a queue that runs itself.
-        </p>
-        <div className="animate-rise-2 mt-8 flex flex-wrap items-center justify-center gap-2.5">
-          <button type="button" onClick={() => setAuth('up')} className="btn btn-bolt btn-lg">
-            Start scheduling free
-          </button>
+    <section className="relative overflow-hidden">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-4 pt-16 pb-20 md:pt-24 md:pb-28 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="text-center lg:text-left">
+          <p className="eyebrow animate-rise-1">Sosial for creators</p>
+          <h1 className="animate-rise-1 mt-3 font-display text-5xl leading-[1.02] font-extrabold tracking-tight text-balance md:text-6xl">
+            Every channel, posted on time.
+          </h1>
+          <p className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted md:text-lg lg:mx-0">
+            One composer and one shared calendar for ten networks. AI drafts, teammate
+            approvals, and a queue that runs itself while you sleep.
+          </p>
+          <div className="animate-rise-2 mt-8 flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
+            <button type="button" onClick={() => setAuth('up')} className="btn btn-bolt btn-lg">
+              Start scheduling free →
+            </button>
+            <Link href="/pricing" className="btn btn-ghost btn-lg">
+              See pricing
+            </Link>
+          </div>
+          <p className="animate-rise-2 mt-4 text-xs text-faint">
+            Free plan, no credit card. Cancel anytime.
+          </p>
         </div>
-        <AuthModal open={auth !== null} mode={auth ?? 'up'} onClose={() => setAuth(null)} />
+        <div className="animate-rise-2">
+          <ProductVisual />
+        </div>
       </div>
+      <AuthModal open={auth !== null} mode={auth ?? 'up'} onClose={() => setAuth(null)} />
     </section>
   );
 }
