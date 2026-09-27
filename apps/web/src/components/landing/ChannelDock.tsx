@@ -1,9 +1,6 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
 import { BrandIcon } from '@/components/BrandIcon';
+import { providerMeta } from '@/lib/providers';
 import type { ProviderKey } from '@/lib/types';
 
 const CHANNELS: ProviderKey[] = [
@@ -19,80 +16,34 @@ const CHANNELS: ProviderKey[] = [
   'pinterest',
 ];
 
-/** Falloff radius in px — wide on purpose so the swell feels calm, not twitchy. */
-const RADIUS = 170;
-/** Peak swell at the cursor — deliberately small. */
-const PEAK = 0.32;
-
 /**
- * One row of every channel Sosial publishes to, with the GreenSock macOS
- * dock magnification on hover: icons swell near the cursor and settle back
- * on leave. Tuned gentle (wide radius, low peak, soft ease) per request.
- * Static, fully usable row when JS or motion is off.
+ * Channel logo cloud (Later register): a quiet grid of every channel
+ * Sosial publishes to — icon plus name, no motion. Each tile links to
+ * its integration guide.
  */
 export default function ChannelDock() {
-  const rowRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const row = rowRef.current;
-    if (!row) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const tiles = Array.from(row.querySelectorAll<HTMLElement>('[data-dock-tile]'));
-    if (!tiles.length) return;
-
-    const settle = () =>
-      gsap.to(tiles, { scale: 1, y: 0, duration: 0.5, ease: 'power2.out', overwrite: 'auto' });
-
-    const onMove = (e: MouseEvent) => {
-      tiles.forEach((el) => {
-        const r = el.getBoundingClientRect();
-        const dist = Math.abs(e.clientX - (r.left + r.width / 2));
-        const t = Math.max(0, 1 - dist / RADIUS);
-        const eased = t * t * (3 - 2 * t);
-        gsap.to(el, {
-          scale: 1 + PEAK * eased,
-          y: -7 * eased,
-          duration: 0.35,
-          ease: 'power2.out',
-          overwrite: 'auto',
-        });
-      });
-    };
-
-    row.addEventListener('mousemove', onMove);
-    row.addEventListener('mouseleave', settle);
-    return () => {
-      row.removeEventListener('mousemove', onMove);
-      row.removeEventListener('mouseleave', settle);
-    };
-  }, []);
-
   return (
     <section aria-label="Channels" className="border-t border-line">
-      <div className="mx-auto max-w-[1440px] px-4 py-16 md:py-20">
+      <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <p className="eyebrow text-center">Channels</p>
         <h2 className="mx-auto mt-2 max-w-xl text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           Ten channels, one workspace.
         </h2>
-        <div className="mt-3 overflow-x-auto px-2 pb-6 pt-6">
-          <div
-            ref={rowRef}
-            className="mx-auto flex w-fit items-end justify-center gap-2.5 px-2 sm:gap-3"
-          >
-            {CHANNELS.map((p) => (
-              <Link
-                key={p}
-                href={`/integrations/${p}`}
-                data-dock-tile
-                aria-label={`${p} integration`}
-                title={p}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-paper shadow-[0_14px_30px_-18px_rgba(28,26,20,0.4)] sm:h-16 sm:w-16"
-                style={{ transformOrigin: '50% 100%' }}
-              >
-                <BrandIcon provider={p} className="h-7 w-7 sm:h-8 sm:w-8" />
-              </Link>
-            ))}
-          </div>
+        <p className="mx-auto mt-3 max-w-xl text-center text-sm leading-relaxed text-muted md:text-base">
+          Connect any mix. Every post is previewed the way it will actually appear.
+        </p>
+        <div className="mx-auto mt-9 grid max-w-4xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {CHANNELS.map((p) => (
+            <Link
+              key={p}
+              href={`/integrations/${p}`}
+              aria-label={`${providerMeta(p).label} integration`}
+              className="card flex items-center gap-3 p-4 transition hover:border-ink/30"
+            >
+              <BrandIcon provider={p} className="h-9 w-9 shrink-0" />
+              <span className="truncate text-sm font-bold text-ink">{providerMeta(p).label}</span>
+            </Link>
+          ))}
         </div>
       </div>
     </section>

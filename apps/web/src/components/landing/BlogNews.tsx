@@ -25,7 +25,7 @@ export default async function BlogNews() {
   if (posts.length === 0) return null;
   return (
     <section aria-label="Latest from the blog" className="border-t border-line">
-      <div className="mx-auto max-w-[1440px] px-4 py-16 md:py-24">
+      <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
             <p className="eyebrow">News</p>

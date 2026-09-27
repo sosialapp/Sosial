@@ -18,11 +18,14 @@ export default function LandingPage() {
 function FeaturesBento() {
   return (
     <section aria-label="Features" className="border-t border-line">
-      <div className="mx-auto max-w-[1440px] px-4 py-16 md:py-24">
+      <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <p className="eyebrow">Features</p>
         <h2 className="mt-2 max-w-xl font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           Everything you need to ship daily.
         </h2>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted md:text-base">
+          Four tools, one workspace. Nothing to bolt on.
+        </p>
         <div className="mt-9 grid grid-cols-1 gap-4 md:grid-cols-6">
           <article className="card p-6 md:col-span-4">
             <p className="eyebrow">Composer</p>
