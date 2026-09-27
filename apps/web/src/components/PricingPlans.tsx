@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import Kicker from '@/components/site/Kicker';
 import {
   PLANS, PLAN_ORDER, priceFor, formatUsd, monthlyEquivalent, annualSavingsPct,
   type BillingInterval,
@@ -64,7 +65,7 @@ export default function PricingPlans({
     <section aria-label="Plans" className="border-b border-line">
       <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="eyebrow">Pricing</p>
+          <Kicker>Pricing</Kicker>
           <h1 className="mt-3 font-display text-5xl font-extrabold tracking-tight md:text-6xl">
             {title}
           </h1>
@@ -102,10 +103,10 @@ export default function PricingPlans({
             return (
               <div
                 key={key}
-                className={`relative flex w-full flex-1 flex-col rounded-[20px] px-5 py-8 lg:p-6 ${
+                className={`relative flex w-full flex-1 flex-col rounded-[20px] border-2 bg-white px-5 py-8 lg:p-6 ${
                   p.featured
-                    ? 'border-2 border-accent bg-white shadow-[0_24px_60px_-30px_rgba(28,26,20,0.45)]'
-                    : 'border border-line bg-white'
+                    ? 'border-accent shadow-[0_24px_60px_-30px_rgba(28,26,20,0.45)]'
+                    : 'border-ink'
                 }`}
               >
                 {p.featured ? (

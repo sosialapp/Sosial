@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Kicker from '@/components/site/Kicker';
 import { BLOG_TAGS, allArticles, articlesByTag } from '@/lib/blog';
 import { blogTagClass, formatPostDate, type Category } from '@/content/types';
 
@@ -30,7 +31,7 @@ export default async function BlogIndex({
     <>
       <section className="border-b border-line bg-card/60">
         <div className="mx-auto max-w-5xl px-4 py-20 md:py-28">
-          <p className="eyebrow">Blog</p>
+          <Kicker>Blog</Kicker>
           <h1 className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl">
             Get better at publishing everywhere.
           </h1>
@@ -78,7 +79,7 @@ export default async function BlogIndex({
             <Link
               key={a.slug}
               href={`/blog/${a.slug}`}
-              className="card flex h-full flex-col overflow-hidden transition hover:border-accent"
+                className="card flex h-full flex-col overflow-hidden border-2 border-ink transition hover:border-accent"
             >
               {a.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

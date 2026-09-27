@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import Kicker from './Kicker';
 
 /**
  * Shared building blocks for feature and audience pages. Server components,
@@ -32,8 +33,8 @@ export function PageHero({
         }`}
       >
         <div className={visual ? '' : 'mx-auto text-center'}>
-          <p className="eyebrow">{eyebrow}</p>
-          <h1 className="mt-2 font-display text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
+          <Kicker>{eyebrow}</Kicker>
+          <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
             {title}
           </h1>
           <p className={`mt-4 text-lg leading-relaxed text-muted ${visual ? '' : 'mx-auto max-w-xl'}`}>
@@ -79,8 +80,10 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
             }`}
           >
             <div className={b.visual && i % 2 === 1 ? 'lg:order-2' : ''}>
-              {b.eyebrow ? <p className="eyebrow">{b.eyebrow}</p> : null}
-              <h2 className="mt-2 font-display text-2xl font-extrabold tracking-tight md:text-3xl">
+              {b.eyebrow ? (
+                <Kicker>{b.eyebrow}</Kicker>
+              ) : null}
+              <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight md:text-3xl">
                 {b.title}
               </h2>
               <p className="mt-3 text-base leading-relaxed text-muted">{b.body}</p>
@@ -107,21 +110,21 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
 
 export function FaqList({ items, title = 'Questions, answered' }: { items: { q: string; a: string }[]; title?: string }) {
   return (
-    <section className="border-t border-line bg-card/60">
+    <section aria-label="Frequently asked questions" className="border-t border-line bg-card/60">
       <div className="mx-auto max-w-3xl px-4 py-20 md:py-28">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           {title}
         </h2>
-        <div className="mt-10 divide-y divide-line overflow-hidden rounded-2xl border border-line">
+        <div className="mt-10">
           {items.map((f) => (
-            <details key={f.q} className="group bg-card open:bg-paper">
-              <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 font-display text-base font-bold">
+            <details key={f.q} className="border-t-[1.5px] border-ink last:border-b-[1.5px]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-5 py-[18px] font-display text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
                 {f.q}
-                <span aria-hidden="true" className="shrink-0 text-faint transition group-open:rotate-45">
+                <span aria-hidden="true" className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full border-[1.5px] border-ink text-xl leading-none transition-transform [[open]_&]:rotate-45 [[open]_&]:bg-bolt">
                   +
                 </span>
               </summary>
-              <p className="px-6 pb-6 text-sm leading-relaxed text-muted md:text-base">{f.a}</p>
+              <p className="max-w-[60ch] pb-5 text-[15px] leading-relaxed text-muted md:text-base">{f.a}</p>
             </details>
           ))}
         </div>
@@ -143,8 +146,8 @@ export function CardTrio({
   return (
     <section className="border-y border-line bg-card/60">
       <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
-        <p className="eyebrow">{eyebrow}</p>
-        <h2 className="mt-2 max-w-xl font-display text-2xl font-extrabold tracking-tight md:text-3xl">
+        <Kicker>{eyebrow}</Kicker>
+        <h2 className="mt-4 max-w-xl font-display text-2xl font-extrabold tracking-tight md:text-3xl">
           {title}
         </h2>
         <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -161,11 +164,11 @@ export function CardTrio({
               </>
             );
             return c.href ? (
-              <Link key={c.title} href={c.href} className="card flex flex-col p-5 transition hover:border-ink">
+              <Link key={c.title} href={c.href} className="card flex flex-col border-2 border-ink p-5 transition hover:-translate-y-0.5">
                 {inner}
               </Link>
             ) : (
-              <div key={c.title} className="card flex flex-col p-5">
+              <div key={c.title} className="card flex flex-col border-2 border-ink p-5">
                 {inner}
               </div>
             );

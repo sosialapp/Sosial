@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import Kicker from '@/components/site/Kicker';
 import {
   PLANS, formatUsd, monthlyEquivalent, priceFor,
   type BillingInterval, type PlanKey,
@@ -51,7 +52,7 @@ export default function PlanComparison() {
     <section aria-label="Plan comparison" className="border-b border-line">
       <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="eyebrow">Compare plans</p>
+          <Kicker>Compare plans</Kicker>
           <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
             Every limit, side by side.
           </h2>
@@ -93,10 +94,10 @@ export default function PlanComparison() {
                   return (
                     <th key={key} scope="col" className="min-w-[160px] p-1.5 align-bottom">
                       <div
-                        className={`relative rounded-2xl p-4 text-center ${
+                        className={`relative rounded-2xl border-2 p-4 text-center ${
                           p.featured
-                            ? 'border-2 border-accent bg-white'
-                            : 'border border-line bg-white'
+                            ? 'border-accent bg-white'
+                            : 'border-ink bg-white'
                         }`}
                       >
                         {p.featured ? (

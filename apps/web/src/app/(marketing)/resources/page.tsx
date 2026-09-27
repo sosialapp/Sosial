@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Kicker from '@/components/site/Kicker';
 import { allResources, resource } from '@/content/resources';
 import { resourceHref } from '@/content/types';
 
@@ -17,7 +18,7 @@ export default function ResourcesIndex() {
     <>
       <section className="border-b border-line bg-card/60">
         <div className="mx-auto max-w-5xl px-4 py-20 md:py-28">
-          <p className="eyebrow">Resource library</p>
+          <Kicker>Resource library</Kicker>
           <h1 className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl">
             Templates, playbooks and cheat sheets.
           </h1>
@@ -34,7 +35,7 @@ export default function ResourcesIndex() {
             <Link
               key={r.slug}
               href={resourceHref(r.slug)}
-              className="card flex h-full flex-col p-5 transition hover:border-accent"
+              className="card flex h-full flex-col border-2 border-ink p-5 transition hover:border-accent"
             >
               <span className="pill w-fit bg-paper text-soft ring-1 ring-line">{r.kind}</span>
               <h2 className="mt-3 font-display text-lg font-extrabold leading-snug tracking-tight">

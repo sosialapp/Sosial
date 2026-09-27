@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Kicker from '@/components/site/Kicker';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
@@ -76,8 +77,8 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
         <PostBody bodyHtml={post.bodyHtml} blocks={post.body} />
 
-        <div className="reveal mt-12 rounded-3xl border border-line bg-card p-6 md:p-8">
-          <p className="eyebrow">Put it to work</p>
+        <div className="reveal mt-12 rounded-3xl border-2 border-ink bg-card p-6 md:p-8">
+          <Kicker>Put it to work</Kicker>
           <h2 className="mt-2 font-display text-xl font-extrabold tracking-tight">
             Schedule this week in one sitting.
           </h2>
@@ -99,7 +100,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                 <Link
                   key={a.slug}
                   href={`/blog/${a.slug}`}
-                  className="card flex h-full flex-col overflow-hidden transition hover:border-accent"
+                  className="card flex h-full flex-col overflow-hidden border-2 border-ink transition hover:border-accent"
                 >
                   {a.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element

@@ -1,4 +1,5 @@
 import Prose from '@/components/site/Prose';
+import Kicker from '@/components/site/Kicker';
 import ChartIslands from '@/components/site/ChartIslands';
 import type { LegalDoc } from '@/content/legal';
 import { formatPostDate } from '@/content/types';
@@ -22,7 +23,7 @@ export default function LegalView({
 }) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 md:py-24">
-      <p className="eyebrow">Legal</p>
+      <Kicker>Legal</Kicker>
       <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight">{title ?? doc.title}</h1>
       <p className="mt-3 text-sm font-bold text-faint">Last updated {updated ?? formatPostDate(doc.updated)}</p>
       <p className="mt-5 text-lg leading-relaxed text-muted">{summary ?? doc.summary}</p>

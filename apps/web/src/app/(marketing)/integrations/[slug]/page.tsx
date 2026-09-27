@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Kicker from '@/components/site/Kicker';
 import { notFound } from 'next/navigation';
 import { BrandIcon } from '@/components/BrandIcon';
 import PageCms from '@/components/site/PageCms';
@@ -52,7 +53,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
           <div className="mt-6 flex items-center gap-3">
             <BrandIcon provider={c.key} className="h-12 w-12 shrink-0" />
             <div>
-              <p className="eyebrow">Integration</p>
+              <Kicker>Integration</Kicker>
               <h1 className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
                 {meta?.title ?? `Sosial × ${c.name}`}
               </h1>
@@ -149,7 +150,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
                 <Link
                   key={r.key}
                   href={channelHref(r.key)}
-                  className="card flex items-center gap-3 p-4 transition hover:border-accent"
+                  className="card flex items-center gap-3 border-2 border-ink p-4 transition hover:border-accent"
                 >
                   <BrandIcon provider={r.key} className="h-5 w-5 shrink-0" />
                   <span className="text-sm font-bold">{r.name}</span>
