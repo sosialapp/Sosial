@@ -210,6 +210,22 @@ export default function PhotoSocialsEditor() {
 
         {visibleSocials.length > 0 ? (
           <View style={{ gap: 14 }}>
+            {/* Handle text lives in each badge row above — its ink and size ride right here. */}
+            <Field label="Handle ink">
+              <Swatches colors={[...PALETTE, '#333333', '#666666', '#999999', '#CCCCCC']} value={p.handleColor} onChange={(c) => patchPfp({ handleColor: c })} />
+            </Field>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Field label="Handle size" hint={`${p.handleSize}px`}>
+                  <Stepper value={p.handleSize} onChange={(v) => patchPfp({ handleSize: v })} step={0.5} min={6} max={14} format={(v) => `${v}`} />
+                </Field>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field label="Icon size" hint={`${p.iconSize}px`}>
+                  <Stepper value={p.iconSize} onChange={(v) => patchPfp({ iconSize: v })} step={1} min={12} max={28} format={(v) => `${v}`} />
+                </Field>
+              </View>
+            </View>
             <Field label="Placement">
               <Seg
                 options={[
@@ -228,21 +244,6 @@ export default function PhotoSocialsEditor() {
                 <Text style={st.switchS}>Dark pill behind the icons</Text>
               </View>
               <PillToggle on={p.badgeBg ?? true} onPress={() => patchPfp({ badgeBg: !(p.badgeBg ?? true) })} />
-            </View>
-            <Field label="Handle ink">
-              <Swatches colors={[...PALETTE, '#333333', '#666666', '#999999', '#CCCCCC']} value={p.handleColor} onChange={(c) => patchPfp({ handleColor: c })} />
-            </Field>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Field label="Handle size" hint={`${p.handleSize}px`}>
-                  <Stepper value={p.handleSize} onChange={(v) => patchPfp({ handleSize: v })} step={0.5} min={6} max={14} format={(v) => `${v}`} />
-                </Field>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Field label="Icon size" hint={`${p.iconSize}px`}>
-                  <Stepper value={p.iconSize} onChange={(v) => patchPfp({ iconSize: v })} step={1} min={12} max={28} format={(v) => `${v}`} />
-                </Field>
-              </View>
             </View>
             <Field label="Icon style">
               <Seg options={[{ value: 'filled', label: 'Filled' }, { value: 'outline', label: 'Outline' }]} value={p.iconOutline ? 'outline' : 'filled'} onChange={(v) => patchPfp({ iconOutline: v === 'outline' })} />

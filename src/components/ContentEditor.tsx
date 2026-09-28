@@ -232,15 +232,6 @@ export default function ContentEditor() {
             </TouchableOpacity>
           ))}
         </View>
-        {blocks.length > 0 ? (
-          <Field label="Content ink">
-            <Swatches colors={PALETTE} value={commonInk} onChange={(c) => setBlocks(blocks.map((b) => ({ ...b, textColor: c })))} />
-          </Field>
-        ) : null}
-        <Field label="Content size" hint={`${Math.round((page.contentScale ?? 1) * 100)}%`}>
-          <Stepper value={page.contentScale ?? 1} onChange={(v) => patchPage({ contentScale: v })} step={0.05} min={0.5} max={1.5} format={(v) => `${Math.round(v * 100)}%`} />
-        </Field>
-
       {blocks.map((b, idx) => {
         const open = openId === b.id;
         return (
@@ -391,6 +382,15 @@ export default function ContentEditor() {
           <Text style={st.emptyBlocksS}>Add a block above to fill it.</Text>
         </View>
       ) : null}
+      {/* Global text styling rides under the blocks whose text it dresses. */}
+      {blocks.length > 0 ? (
+        <Field label="Content ink">
+          <Swatches colors={PALETTE} value={commonInk} onChange={(c) => setBlocks(blocks.map((b) => ({ ...b, textColor: c })))} />
+        </Field>
+      ) : null}
+      <Field label="Content size" hint={`${Math.round((page.contentScale ?? 1) * 100)}%`}>
+        <Stepper value={page.contentScale ?? 1} onChange={(v) => patchPage({ contentScale: v })} step={0.05} min={0.5} max={1.5} format={(v) => `${Math.round(v * 100)}%`} />
+      </Field>
       </View>
 
       <AIGenerateSheet visible={ai} template={page} ratio={sizeRatio} onClose={() => setAi(false)} onApply={applyAi} />

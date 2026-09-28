@@ -225,6 +225,9 @@ export function TitleStep({ page, patchTitle, patchPage }: Pick<StepApi, 'page' 
           rows={2}
           className="field min-h-[56px] resize-y font-display font-bold"
         />
+        <Field label="Headline ink">
+          <Swatches colors={PALETTE} value={t.color} onChange={(c) => patchTitle({ color: c })} />
+        </Field>
         <Field label="Placement">
           <Seg
             options={[
@@ -307,11 +310,7 @@ export function TitleStep({ page, patchTitle, patchPage }: Pick<StepApi, 'page' 
         </Field>
       </div>
       <div className="card space-y-3 p-4">
-        <Section no="04" title="Ink" hint="Headline color." />
-        <Swatches colors={PALETTE} value={t.color} onChange={(c) => patchTitle({ color: c })} />
-      </div>
-      <div className="card space-y-3 p-4">
-        <Section no="05" title="Caption" hint="Copied into the composer when you post." />
+        <Section no="04" title="Caption" hint="Copied into the composer when you post." />
         <EmojiTextarea
           value={page.caption ?? ''}
           onChange={(v) => patchPage({ caption: v })}
@@ -464,14 +463,7 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
         </div>
         {visibleSocials.length > 0 ? (
           <div className="space-y-3">
-            <Field label="Placement">
-              <Seg
-                options={[{ value: 'below', label: 'Below' }, { value: 'top', label: 'Top' }, { value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }]}
-                value={p.socialPos ?? 'below'}
-                onChange={(v) => patchPfp({ socialPos: v as 'below' | 'top' | 'right' | 'left' })}
-              />
-            </Field>
-            <SwitchRow title="Badge background" sub="Dark pill behind the icons" on={p.badgeBg ?? true} onPress={() => patchPfp({ badgeBg: !(p.badgeBg ?? true) })} />
+            {/* Handle text lives in each badge row above — its ink and size ride right here. */}
             <Field label="Handle ink">
               <Swatches colors={[...PALETTE, '#333333', '#666666', '#999999', '#CCCCCC']} value={p.handleColor} onChange={(c) => patchPfp({ handleColor: c })} />
             </Field>
@@ -483,6 +475,14 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
                 <Stepper value={p.iconSize} onChange={(v) => patchPfp({ iconSize: v })} step={1} min={12} max={28} format={(v) => `${v}`} />
               </Field>
             </div>
+            <Field label="Placement">
+              <Seg
+                options={[{ value: 'below', label: 'Below' }, { value: 'top', label: 'Top' }, { value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }]}
+                value={p.socialPos ?? 'below'}
+                onChange={(v) => patchPfp({ socialPos: v as 'below' | 'top' | 'right' | 'left' })}
+              />
+            </Field>
+            <SwitchRow title="Badge background" sub="Dark pill behind the icons" on={p.badgeBg ?? true} onPress={() => patchPfp({ badgeBg: !(p.badgeBg ?? true) })} />
             <Field label="Icon style">
               <Seg options={[{ value: 'filled', label: 'Filled' }, { value: 'outline', label: 'Outline' }]} value={p.iconOutline ? 'outline' : 'filled'} onChange={(v) => patchPfp({ iconOutline: v === 'outline' })} />
             </Field>

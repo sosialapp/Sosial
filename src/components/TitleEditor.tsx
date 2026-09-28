@@ -27,10 +27,13 @@ export default function TitleEditor() {
   const t = page.title;
   return (
     <View style={{ gap: 16 }}>
-      {/* 01 · Headline — the main line only */}
+      {/* 01 · Headline — text and its ink live together */}
       <View style={st.group}>
         <Section no="01" title="Headline" hint="The first thing people read." />
         <Txt value={t.text} onChangeText={(v) => patchTitle({ text: v })} placeholder="Type your headline…" multiline />
+        <Field label="Headline ink">
+          <Swatches colors={PALETTE} value={t.color} onChange={(c) => patchTitle({ color: c })} />
+        </Field>
         <Field label="Placement">
           <Seg<TitlePosition>
             options={[
@@ -97,15 +100,9 @@ export default function TitleEditor() {
         </Field>
       </View>
 
-      {/* 04 · Ink — headline color on its own */}
+      {/* 04 · Caption */}
       <View style={st.group}>
-        <Section no="04" title="Ink" hint="Headline color." />
-        <Swatches colors={PALETTE} value={t.color} onChange={(c) => patchTitle({ color: c })} />
-      </View>
-
-      {/* 05 · Caption */}
-      <View style={st.group}>
-        <Section no="05" title="Caption" hint="Copied to the clipboard when you post." />
+        <Section no="04" title="Caption" hint="Copied to the clipboard when you post." />
         <Txt value={page.caption ?? ''} onChangeText={(v) => patchPage({ caption: v })} placeholder="Description for Facebook / IG…" multiline />
       </View>
     </View>

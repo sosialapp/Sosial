@@ -166,14 +166,6 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
             </button>
           ))}
         </div>
-        {blocks.length > 0 ? (
-          <Field label="Content ink">
-            <Swatches colors={PALETTE} value={commonInk} onChange={(c) => patchPage({ blocks: blocks.map((b) => ({ ...b, textColor: c })) })} />
-          </Field>
-        ) : null}
-        <Field label="Content size" hint={`${Math.round((page.contentScale ?? 1) * 100)}%`}>
-          <Stepper value={page.contentScale ?? 1} onChange={(v) => patchPage({ contentScale: v })} step={0.05} min={0.5} max={1.5} format={(v) => `${Math.round(v * 100)}%`} />
-        </Field>
 
         {blocks.map((b, idx) => {
           const open = openId === b.id;
@@ -349,6 +341,15 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
             <p className="mt-1 text-xs text-muted">Add a block above to fill it.</p>
           </div>
         ) : null}
+        {/* Global text styling rides under the blocks whose text it dresses. */}
+        {blocks.length > 0 ? (
+          <Field label="Content ink">
+            <Swatches colors={PALETTE} value={commonInk} onChange={(c) => patchPage({ blocks: blocks.map((b) => ({ ...b, textColor: c })) })} />
+          </Field>
+        ) : null}
+        <Field label="Content size" hint={`${Math.round((page.contentScale ?? 1) * 100)}%`}>
+          <Stepper value={page.contentScale ?? 1} onChange={(v) => patchPage({ contentScale: v })} step={0.05} min={0.5} max={1.5} format={(v) => `${Math.round(v * 100)}%`} />
+        </Field>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, KeyboardAvoidingView, Platform, NativeScrollEvent, NativeSyntheticEvent, Animated, PanResponder, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, KeyboardAvoidingView, NativeScrollEvent, NativeSyntheticEvent, Animated, PanResponder, StatusBar } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { usePost } from '../store/PostContext';
 import PostCanvas, { CANVAS_W, CANVAS_SCALE } from '../components/PostCanvas';
@@ -266,8 +266,10 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
         </View>
       </View>
 
-      {/* sheet */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={expanded ? { height: 50 } : { flex: 1 }}>
+      {/* sheet — the aware scrollview below owns keyboard insets, so this
+          wrapper stays a plain layout box (an iOS padding behavior here
+          double-handles the keyboard and hides the focused input). */}
+      <KeyboardAvoidingView style={expanded ? { height: 50 } : { flex: 1 }}>
         <View style={[s.sheet, expanded && { height: 50 }, { marginBottom: -insets.bottom, paddingBottom: insets.bottom }]}>
           {/* pill tabs */}
           <View style={s.tabsWrap}>
@@ -287,11 +289,11 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
           {!expanded ? (
             <KeyboardAwareScrollView
               style={s.panel}
-              contentContainerStyle={{ gap: 18, paddingBottom: 24 }}
+              contentContainerStyle={{ gap: 18, paddingBottom: Math.max(32, insets.bottom + 12) }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               enableOnAndroid
-              extraScrollHeight={100}
+              extraScrollHeight={120}
             >
               {step === 'pages' ? (
                 <>
