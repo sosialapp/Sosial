@@ -1,8 +1,9 @@
 /**
  * Team section (Tenner parents architecture): ink band, control rows with
- * color icon discs left, static parent-style phone right (approve card +
- * toggles). Copy is the existing accurate approvals text.
+ * color icon discs left, SVG iPhone render (real app screenshot on screen)
+ * right. Copy is the existing accurate approvals text.
  */
+import Image from 'next/image';
 
 function Ico({ bg, fg = '#1C1A14', children }: { bg: string; fg?: string; children: React.ReactNode }) {
   return (
@@ -47,39 +48,6 @@ const CONTROLS: { title: string; body: string; bg: string; fg?: string; icon: Re
   },
 ];
 
-function ApprovePhone() {
-  return (
-    <div className="mx-auto w-60 rounded-[2.6rem] bg-[#0E181C] p-2 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.7)]">
-      <div className="overflow-hidden rounded-[2rem] bg-white px-4 pt-3 pb-4 text-[#1C1A14]">
-        <div className="mx-auto h-1.5 w-16 rounded-full bg-ink/10" />
-        <p className="mt-3 text-xs font-medium text-muted">Owner view · approval</p>
-        <p className="font-display text-2xl font-semibold">2 waiting</p>
-        <div className="mt-3 rounded-2xl border-[1.5px] border-ink/10 p-3">
-          <p className="text-[13px] font-semibold">Maya asked to publish</p>
-          <p className="mt-0.5 text-xs text-muted">Launch teaser · Threads · 9:00 AM</p>
-          <div className="mt-2.5 flex gap-2">
-            <span className="flex-1 rounded-[10px] bg-bolt py-2 text-center text-xs font-bold">Approve</span>
-            <span className="flex-1 rounded-[10px] border-[1.5px] border-ink py-2 text-center text-xs font-bold">Not now</span>
-          </div>
-        </div>
-        <p className="mt-3 mb-1 text-[11px] font-semibold text-muted">Workspace</p>
-        {[
-          ['Auto-post queue', true],
-          ['Weekend posting', false],
-          ['AI drafts for members', true],
-        ].map(([label, on]) => (
-          <div key={label as string} className="flex items-center justify-between border-t border-ink/10 py-2.5 text-[13px] font-medium">
-            <span>{label}</span>
-            <span className={`relative h-[22px] w-10 flex-none rounded-full ${on ? 'bg-ink' : 'bg-ink/15'}`}>
-              <span className={`absolute top-[3px] h-4 w-4 rounded-full bg-white ${on ? 'right-[3px]' : 'left-[3px]'}`} />
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function TeamSection() {
   return (
     <section aria-label="Approvals and roles" className="bg-ink text-paper">
@@ -105,8 +73,15 @@ export default function TeamSection() {
             ))}
           </div>
         </div>
-        <div className="justify-self-center" aria-label="Approval phone mock">
-          <ApprovePhone />
+        <div className="justify-self-center" aria-label="Sosial app on iPhone">
+          <Image
+            src="/team-phone.svg"
+            alt=""
+            width={520}
+            height={1057}
+            loading="lazy"
+            className="h-auto w-60 [filter:drop-shadow(0_30px_60px_rgba(0,0,0,0.5))] sm:w-72"
+          />
         </div>
       </div>
     </section>
