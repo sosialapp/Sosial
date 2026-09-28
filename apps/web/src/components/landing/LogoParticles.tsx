@@ -27,18 +27,21 @@ const LOGOS: ProviderKey[] = [
 ];
 
 const COUNT = 48;
-const BASE_SIZE = 64;
+const BASE_SIZE = 96;
 const DURATION = 5;
 const SPRITE = 128;
 
 function spriteSvg(provider: ProviderKey): string {
   const d = BRAND_PATHS[provider as BrandProvider];
-  const glyph = `<g transform="translate(28 28) scale(1.6667)"><path d="${d}" fill="#ffffff"/></g>`;
-  const disc =
+  const fill =
     provider === 'instagram'
-      ? `<defs><radialGradient id="socig" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FDF497"/><stop offset="5%" stop-color="#FDF497"/><stop offset="45%" stop-color="#FD5949"/><stop offset="60%" stop-color="#D6249F"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs><circle cx="48" cy="48" r="48" fill="url(#socig)"/>`
-      : `<circle cx="48" cy="48" r="48" fill="${brandColor(provider as BrandProvider)}"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">${disc}${glyph}</svg>`;
+      ? 'url(#socig)'
+      : brandColor(provider as BrandProvider);
+  const defs =
+    provider === 'instagram'
+      ? `<defs><radialGradient id="socig" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FDF497"/><stop offset="5%" stop-color="#FDF497"/><stop offset="45%" stop-color="#FD5949"/><stop offset="60%" stop-color="#D6249F"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs>`
+      : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">${defs}<g transform="translate(2 2) scale(0.8333)"><path d="${d}" fill="${fill}"/></g></svg>`;
 }
 
 function rasterize(svg: string): Promise<HTMLCanvasElement> {
