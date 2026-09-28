@@ -75,10 +75,10 @@ export default function TeamSection() {
         </div>
         <div className="justify-self-center" aria-label="Sosial app on iPhone">
           <Image
-            src="/team-phone.webp"
+            src="/team-phone.png"
             alt=""
-            width={520}
-            height={1057}
+            width={400}
+            height={826}
             loading="lazy"
             unoptimized
             className="h-auto w-60 [filter:drop-shadow(0_30px_60px_rgba(0,0,0,0.5))] sm:w-72"
