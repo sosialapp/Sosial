@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, TextInputProps, Platform, ActivityIndicator, DimensionValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import FontAwesome6 from '@expo/vector-icons/build/FontAwesome6';
@@ -6,6 +6,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { Svg, Path, G } from 'react-native-svg';
 import { useTheme, Palette, R } from '../theme';
 import { SOCIAL_META } from '../constants';
+import { useFocusScrollContext } from './FocusScroll';
 
 /** Real brand glyph for a social platform — optically balanced per brand */
 const GLYPH_SCALE: Record<string, number> = {
@@ -338,10 +339,27 @@ export function GoogleGlyph({ size = 16 }: { size?: number }) {
   );
 }
 
-/** Tonal inset text input */
-export function Txt(props: TextInputProps) {  const { C } = useTheme();
+/** Tonal inset text input — reports focus to the FocusScrollBridge (if any),
+ *  so the typed box scrolls above the keyboard on every screen that mounts
+ *  `useFocusScrollPanel`. Screens without the bridge behave exactly as before. */
+export function Txt(props: TextInputProps) {
+  const { C } = useTheme();
   const s = makeS(C);
-  return <TextInput {...props} placeholderTextColor={C.faint} style={[s.input, props.multiline && { minHeight: 60, textAlignVertical: 'top' }, props.style as any]} />;
+  const { ensureVisible } = useFocusScrollContext();
+  const ref = useRef<TextInput>(null);
+  const { onFocus, ...rest } = props;
+  return (
+    <TextInput
+      ref={ref}
+      {...rest}
+      onFocus={(e) => {
+        onFocus?.(e);
+        ensureVisible(ref.current);
+      }}
+      placeholderTextColor={C.faint}
+      style={[s.input, props.multiline && { minHeight: 60, textAlignVertical: 'top' }, props.style as any]}
+    />
+  );
 }
 
 /** Native-feel switch */

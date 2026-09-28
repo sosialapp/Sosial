@@ -10,9 +10,9 @@ import ContentEditor from '../components/ContentEditor';
 import PageSortList from '../components/PageSortList';
 import { saveManagedPost } from '../utils/managed';
 import { useTheme, Palette, R } from '../theme';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PrimaryBtn, GhostBtn } from '../components/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusScrollPanel, FocusScrollBridge } from '../components/FocusScroll';
 import { saveProjectPreset } from '../utils/presets';
 import { saveProject } from './HomeScreen';
 import { loadAccount } from '../utils/account';
@@ -41,6 +41,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
   const [dragging, setDragging] = useState(false);
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const insets = useSafeAreaInsets();
+  const focus = useFocusScrollPanel();
   const pagerRef = useRef<ScrollView>(null);
   const dragX = useRef(new Animated.Value(0)).current;
   const dragIdR = useRef<string | null>(null);
@@ -287,14 +288,16 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
           </View>
 
           {!expanded ? (
-            <KeyboardAwareScrollView
+            <ScrollView
+              ref={focus.scrollRef}
+              onScroll={focus.onScroll}
+              scrollEventThrottle={16}
               style={s.panel}
               contentContainerStyle={{ gap: 18, paddingBottom: Math.max(32, insets.bottom + 12) }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              enableOnAndroid
-              extraScrollHeight={120}
             >
+              <FocusScrollBridge ensureVisible={focus.ensureVisible}>
               {step === 'pages' ? (
                 <>
                   <PrimaryBtn label="Save entire post as preset" onPress={saveWholePreset} />
@@ -312,7 +315,8 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
               {step === 'title' ? <TitleEditor /> : null}
               {step === 'photo' ? <PhotoSocialsEditor /> : null}
               {step === 'content' ? <ContentEditor /> : null}
-            </KeyboardAwareScrollView>
+              </FocusScrollBridge>
+            </ScrollView>
           ) : null}
         </View>
       </KeyboardAvoidingView>
