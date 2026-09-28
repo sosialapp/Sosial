@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import AuthModal from '@/components/site/AuthModal';
-import MacMockup from '@/components/landing/MacMockup';
 
 /**
  * Fold (Tenner architecture, Sosial brand): powder-sky full screen, bolt sun
  * and white clouds, eyebrow, headline with a rotated highlight word, dual
- * CTAs, proof checklist, and a Mac mockup running a Sosial dashboard
- * snapshot. No raster, no stock.
+ * CTAs, proof checklist, and a devices render (laptop + phone running
+ * Sosial) with two floating status chips. No stock.
  */
 
 function Check({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
@@ -71,8 +71,26 @@ export default function Hero() {
             ))}
           </ul>
         </div>
-        <div className="animate-rise-2">
-          <MacMockup />
+        <div className="animate-rise-2 relative">
+          <Image
+            src="/hero-devices.png"
+            alt="Sosial composer on a laptop beside the Sosial home screen on a phone"
+            width={1600}
+            height={900}
+            priority
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="h-auto w-full [filter:drop-shadow(0_50px_100px_rgba(28,26,20,0.35))]"
+          />
+          <div className="animate-float absolute top-[8%] left-0 flex items-center gap-1.5 rounded-full border-2 border-ink bg-white px-3 py-1.5 text-[11px] font-bold shadow-lg sm:-left-4">
+            <i className="h-2 w-2 rounded-full bg-bolt" aria-hidden="true" />
+            4 queued
+          </div>
+          <div className="animate-float absolute right-0 bottom-[10%] flex items-center gap-1.5 rounded-full border-2 border-ink bg-ink px-3 py-1.5 text-[11px] font-bold text-paper shadow-lg [animation-delay:1.6s] [animation-duration:6.5s] sm:-right-4">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="m3.5 8.5 3 3 6-7" stroke="#FFC62E" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Published to 10 channels
+          </div>
         </div>
       </div>
       <AuthModal open={auth !== null} mode={auth ?? 'up'} onClose={() => setAuth(null)} />
