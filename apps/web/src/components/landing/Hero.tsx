@@ -40,7 +40,7 @@ export default function Hero() {
         <span className="absolute top-[-26px] left-16 h-16 w-16 rounded-full bg-white/70" />
       </span>
 
-      <div className="relative z-[2] mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:grid-cols-[1.02fr_0.98fr]">
+      <div className="relative z-[2] mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">
           <p className="eyebrow animate-rise-1">One calendar for ten networks</p>
           <h1 className="animate-rise-1 mt-5 font-display text-5xl leading-[1.02] font-semibold tracking-tight text-balance md:text-6xl">
@@ -78,19 +78,9 @@ export default function Hero() {
             width={1600}
             height={900}
             priority
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className="h-auto w-full [filter:drop-shadow(0_50px_100px_rgba(28,26,20,0.35))]"
+            sizes="(max-width: 1024px) 100vw, 60vw"
+            className="h-auto w-full [filter:drop-shadow(0_50px_100px_rgba(28,26,20,0.35))] lg:scale-[1.12] lg:origin-center"
           />
-          <div className="animate-float absolute top-[8%] left-0 flex items-center gap-1.5 rounded-full border-2 border-ink bg-white px-3 py-1.5 text-[11px] font-bold shadow-lg sm:-left-4">
-            <i className="h-2 w-2 rounded-full bg-bolt" aria-hidden="true" />
-            4 queued
-          </div>
-          <div className="animate-float absolute right-0 bottom-[10%] flex items-center gap-1.5 rounded-full border-2 border-ink bg-ink px-3 py-1.5 text-[11px] font-bold text-paper shadow-lg [animation-delay:1.6s] [animation-duration:6.5s] sm:-right-4">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="m3.5 8.5 3 3 6-7" stroke="#FFC62E" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Published to 10 channels
-          </div>
         </div>
       </div>
       <AuthModal open={auth !== null} mode={auth ?? 'up'} onClose={() => setAuth(null)} />
