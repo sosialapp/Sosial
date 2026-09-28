@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import AccountSettings from '@/components/AccountSettings';
-import { getEntitlement } from '@/lib/billing/entitlement';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -16,14 +15,12 @@ export default async function ProfilePage() {
     .eq('id', ctx.user.id)
     .maybeSingle();
   const p = (prof ?? {}) as { notif_posts?: boolean; notif_comments?: boolean; notif_weekly?: boolean };
-  const entitlement = await getEntitlement(ctx.workspace.id);
   return (
     <AccountSettings
       email={ctx.user.email ?? ''}
       workspaceId={ctx.workspace.id}
       workspaceName={ctx.workspace.name}
       role={ctx.workspace.role}
-      plan={entitlement.plan}
       canRename={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
       userId={ctx.user.id}
       initialNotif={{
