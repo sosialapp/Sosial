@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { BrandIcon } from '@/components/BrandIcon';
 import { ChannelPill } from '@/components/ui';
 import type { ProviderKey } from '@/lib/types';
@@ -93,14 +94,26 @@ export default function FeaturesBento() {
           </article>
 
           <article className={`${tile} bg-accent-soft md:col-span-4`}>
-            <h3 className={h3}>Ten networks, native previews.</h3>
-            <p className={`${body} text-ink/75`}>
-              Real API publishing with each network&apos;s real limits handled for you.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-1.5" aria-hidden="true">
-              {DOTS.map((p) => (
-                <BrandIcon key={p} provider={p} className="h-8 w-8" />
-              ))}
+            <div className="flex items-end justify-between gap-4">
+              <div className="min-w-0">
+                <h3 className={h3}>Ten networks, native previews.</h3>
+                <p className={`${body} text-ink/75`}>
+                  Real API publishing with each network&apos;s real limits handled for you.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-1.5" aria-hidden="true">
+                  {DOTS.map((p) => (
+                    <BrandIcon key={p} provider={p} className="h-8 w-8" />
+                  ))}
+                </div>
+              </div>
+              <Image
+                src="/bento-phone.png"
+                alt=""
+                width={200}
+                height={413}
+                loading="lazy"
+                className="h-52 w-auto shrink-0 [filter:drop-shadow(0_16px_28px_rgba(28,26,20,0.3))]"
+              />
             </div>
           </article>
         </div>
