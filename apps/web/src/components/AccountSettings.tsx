@@ -222,7 +222,13 @@ export default function AccountSettings({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ plan: 'ultimate' }),
       });
-      const data = (await res.json()) as { url?: string; error?: string };
+      const text = await res.text();
+      let data: { url?: string; error?: string };
+      try {
+        data = text ? (JSON.parse(text) as { url?: string; error?: string }) : {};
+      } catch {
+        throw new Error(`Billing request failed (status ${res.status}).`);
+      }
       if (!res.ok) throw new Error(data.error ?? 'Could not start checkout.');
       if (data.url) {
         window.location.href = data.url;

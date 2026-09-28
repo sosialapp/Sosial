@@ -81,7 +81,13 @@ export default function BillingPanel({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ plan, interval }),
       });
-      const data = (await res.json()) as { url?: string; mode?: string; error?: string };
+      const text = await res.text();
+      let data: { url?: string; mode?: string; error?: string };
+      try {
+        data = text ? (JSON.parse(text) as { url?: string; mode?: string; error?: string }) : {};
+      } catch {
+        throw new Error(`Billing request failed (status ${res.status}).`);
+      }
       if (!res.ok) throw new Error(data.error ?? 'Could not start billing.');
       if (data.url) {
         window.location.href = data.url;

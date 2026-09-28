@@ -105,6 +105,10 @@ async function ultimateCheckout(
 }
 
 export async function POST(req: Request) {
+  // Nothing in this route may fail with an empty body — the client only
+  // parses JSON, so every crash becomes a readable message instead of
+  // "Unexpected end of JSON input".
+  try {
   const ctx = await getWorkspaceContext();
   if (!ctx) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
 
@@ -219,6 +223,12 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Stripe request failed.' },
       { status: 502 },
+    );
+  }
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Billing request failed.' },
+      { status: 500 },
     );
   }
 }
