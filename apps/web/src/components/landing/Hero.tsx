@@ -35,9 +35,9 @@ export default function Hero() {
       <div className="relative z-[2] mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">
           <h1 className="animate-rise-1 font-display text-5xl leading-[1.02] font-semibold tracking-tight text-balance md:text-6xl">
-            Social Media Scheduling for{' '}
+            Autopilot social media scheduler with{' '}
             <span className="mr-1 inline-block rotate-[-2deg] rounded-[0.45em] bg-bolt px-[0.28em] leading-[1.05]">
-              Every Channel
+              AI-Written contents
             </span>
           </h1>
           <p className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed md:text-lg lg:mx-0">
