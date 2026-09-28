@@ -74,23 +74,15 @@ export default function TeamSection() {
           </div>
         </div>
         <div className="justify-self-center" aria-label="Sosial app on iPhone">
-          <div className="w-64 rounded-[3rem] bg-black p-2 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.7)] ring-1 ring-white/10 sm:w-80">
-            <div className="relative overflow-hidden rounded-[2.5rem] bg-black">
-              <Image
-                src="/team-screen.png"
-                alt=""
-                width={642}
-                height={1389}
-                loading="lazy"
-                unoptimized
-                className="h-auto w-full"
-              />
-              <span
-                aria-hidden="true"
-                className="absolute top-2.5 left-1/2 h-[24px] w-[112px] -translate-x-1/2 rounded-full bg-black"
-              />
-            </div>
-          </div>
+          <Image
+            src="/team-phone.webp"
+            alt=""
+            width={520}
+            height={1057}
+            loading="lazy"
+            unoptimized
+            className="h-auto w-60 [filter:drop-shadow(0_30px_60px_rgba(0,0,0,0.5))] sm:w-72"
+          />
         </div>
       </div>
     </section>
