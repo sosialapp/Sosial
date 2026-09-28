@@ -81,7 +81,7 @@ export default function TeamSection() {
             height={826}
             loading="lazy"
             unoptimized
-            className="h-auto w-60 [filter:drop-shadow(0_30px_60px_rgba(0,0,0,0.5))] sm:w-72"
+            className="h-auto w-72 [filter:drop-shadow(0_30px_60px_rgba(0,0,0,0.5))] sm:w-96"
           />
         </div>
       </div>
