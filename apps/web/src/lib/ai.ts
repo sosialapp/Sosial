@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { edgeErrorMessage } from './functions';
 
 /** Caption limits for channels that aren't chain-capable (joined text). */
 export const TEXT_CAPS: Record<string, number> = {
@@ -86,7 +87,7 @@ export async function generateSocial(
   args: AiGenerateArgs,
 ): Promise<AiVariant[]> {
   const { data, error } = await sb.functions.invoke('generate-captions', { body: args });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error((await edgeErrorMessage(error)) ?? error.message);
   const payload = data as { variants?: AiVariant[]; error?: string } | null;
   const variants = payload?.variants;
   if (!variants?.length) {
@@ -101,7 +102,7 @@ export async function rewritePosts(
   args: { posts: string[]; platform: string; thread: boolean; language?: string; op: RewriteOp },
 ): Promise<string[]> {
   const { data, error } = await sb.functions.invoke('generate-captions', { body: args });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error((await edgeErrorMessage(error)) ?? error.message);
   const payload = data as { posts?: string[]; error?: string } | null;
   if (!payload?.posts?.length) {
     throw new Error(payload?.error ?? 'The rewrite came back empty — kept your original.');

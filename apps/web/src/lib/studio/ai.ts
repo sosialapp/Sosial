@@ -6,6 +6,7 @@
  * server-side) and is clamped here before anything reaches the canvas.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { edgeErrorMessage } from '../functions';
 import { uid, type BlockType, type ContentBlock, type PostPage } from './model';
 
 /* --------------------------------- types --------------------------------- */
@@ -281,7 +282,7 @@ export async function generateStudio(
       maxBlocksPerPage: brief.maxBlocksPerPage,
     },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error((await edgeErrorMessage(error)) ?? error.message);
   const payload = data as { pages?: GenPage[]; error?: string } | null;
   if (payload?.error) throw new Error(payload.error);
   return normalizeResult(payload?.pages ?? [], brief, 'AI');
