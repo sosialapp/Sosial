@@ -80,17 +80,15 @@ export default function TeamSection() {
                 src="/team-screen.png"
                 alt=""
                 width={642}
-                height={825}
+                height={1389}
                 loading="lazy"
+                unoptimized
                 className="h-auto w-full"
               />
               <span
                 aria-hidden="true"
                 className="absolute top-2.5 left-1/2 h-[24px] w-[112px] -translate-x-1/2 rounded-full bg-black"
               />
-              <div aria-hidden="true" className="flex justify-center bg-black pt-14 pb-4">
-                <span className="h-1 w-28 rounded-full bg-white/30" />
-              </div>
             </div>
           </div>
         </div>
