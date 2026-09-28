@@ -13,15 +13,6 @@ import LogoParticles from '@/components/landing/LogoParticles';
  * (GSAP canvas-pen method). No stock.
  */
 
-function Check({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#1C1A14" />
-      <path d="M8 12.5l2.5 2.5L16 9.5" stroke="#FFC62E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 const btn =
   'inline-flex items-center justify-center gap-2.5 rounded-full border-2 border-ink font-display text-base font-semibold px-6 py-3.5 leading-none transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.18)]';
 
@@ -54,14 +45,6 @@ export default function Hero() {
               See pricing
             </Link>
           </div>
-          <ul className="animate-rise-2 mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium lg:justify-start">
-            {['Free plan, no credit card', 'Ten networks, native previews', 'Cancel anytime, keep your data'].map((t) => (
-              <li key={t} className="flex items-center gap-2">
-                <Check />
-                {t}
-              </li>
-            ))}
-          </ul>
         </div>
         <div className="animate-rise-2 relative">
           <Image
