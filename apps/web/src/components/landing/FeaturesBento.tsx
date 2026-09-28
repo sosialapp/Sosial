@@ -71,16 +71,6 @@ export default function FeaturesBento() {
             </div>
           </article>
 
-          <article className={`${tile} bg-[#D7E8F2] md:col-span-4`}>
-            <h3 className={h3}>Captions in your voice.</h3>
-            <p className={`${body} text-ink/75`}>
-              Topic in, captioned thread out, sized to your strictest channel.
-            </p>
-            <p className="mt-4 rounded-xl border-[1.5px] border-ink/15 bg-paper p-3 text-xs leading-relaxed" aria-hidden="true">
-              The hook your scrollers stop for, with hashtags that earn their place.
-            </p>
-          </article>
-
           <article className={`${tile} bg-ink text-paper md:col-span-4`}>
             <h3 className={h3}>Teammates draft, you approve.</h3>
             <p className={`${body} text-paper/75`}>
@@ -93,7 +83,7 @@ export default function FeaturesBento() {
             </div>
           </article>
 
-          <article className={`${tile} bg-accent-soft md:col-span-4`}>
+          <article className={`${tile} bg-accent-soft md:col-span-8`}>
             <div className="flex items-end justify-between gap-4">
               <div className="min-w-0">
                 <h3 className={h3}>Ten networks, native previews.</h3>
