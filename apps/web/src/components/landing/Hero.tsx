@@ -4,12 +4,13 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import AuthModal from '@/components/site/AuthModal';
+import LogoParticles from '@/components/landing/LogoParticles';
 
 /**
- * Fold (Tenner architecture, Sosial brand): powder-sky full screen, bolt sun
- * and white clouds, eyebrow, headline with a rotated highlight word, dual
- * CTAs, proof checklist, and a devices render (laptop + phone running
- * Sosial) with two floating status chips. No stock.
+ * Fold (Tenner architecture, Sosial brand): eyebrow, headline with a rotated
+ * highlight word, dual CTAs, proof checklist, and the devices render —
+ * floating over an ambient canvas of drifting social-logo particles
+ * (GSAP canvas-pen method). No stock.
  */
 
 function Check({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
@@ -28,17 +29,8 @@ export default function Hero() {
   const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
 
   return (
-    <section className="relative overflow-hidden bg-[#D7E8F2]">
-      {/* sun + clouds */}
-      <span aria-hidden="true" className="absolute -top-10 -right-10 h-36 w-36 rounded-full bg-bolt" />
-      <span aria-hidden="true" className="absolute bottom-24 -left-12 h-14 w-52 rounded-full bg-white/90">
-        <span className="absolute top-[-22px] left-10 h-16 w-16 rounded-full bg-white/90" />
-        <span className="absolute top-[-34px] left-24 h-20 w-20 rounded-full bg-white/90" />
-      </span>
-      <span aria-hidden="true" className="absolute top-24 right-[8%] h-10 w-36 rounded-full bg-white/70">
-        <span className="absolute top-[-18px] left-6 h-12 w-12 rounded-full bg-white/70" />
-        <span className="absolute top-[-26px] left-16 h-16 w-16 rounded-full bg-white/70" />
-      </span>
+    <section className="relative overflow-hidden">
+      <LogoParticles />
 
       <div className="relative z-[2] mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">
