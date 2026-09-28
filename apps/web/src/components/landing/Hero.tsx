@@ -50,8 +50,8 @@ export default function Hero() {
           <Image
             src="/hero-devices.png"
             alt="Sosial composer on a laptop beside the Sosial home screen on a phone"
-            width={1600}
-            height={970}
+            width={1540}
+            height={959}
             priority
             sizes="(max-width: 1024px) 100vw, 60vw"
             className="h-auto w-full [filter:drop-shadow(0_50px_100px_rgba(28,26,20,0.35))] lg:scale-[1.12] lg:origin-center"
