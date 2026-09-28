@@ -26,7 +26,7 @@ const LOGOS: ProviderKey[] = [
   'pinterest',
 ];
 
-const COUNT = 48;
+const COUNT = 90;
 const BASE_SIZE = 96;
 const DURATION = 5;
 const SPRITE = 128;
