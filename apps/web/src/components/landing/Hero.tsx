@@ -41,8 +41,9 @@ export default function Hero() {
             </span>
           </h1>
           <p className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed md:text-lg lg:mx-0">
-            One composer and one shared calendar for ten networks. AI drafts, teammate
-            approvals, and a queue that runs itself while you sleep.
+            Sosial is the AI social media scheduler with one composer and one shared
+            calendar for ten networks. AI drafts your posts, your team approves them,
+            and the queue publishes on its own, even while you sleep.
           </p>
           <div className="animate-rise-2 mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
             <button type="button" onClick={() => setAuth('up')} className={`${btn} bg-ink text-paper`}>
