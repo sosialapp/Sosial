@@ -3,10 +3,11 @@ import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import { useTheme } from '../theme';
 import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
-import { loadMetaState } from '../utils/metaStore';
+import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 
-/** Masthead Connect pill — shows stacked brand tiles for every connected
- *  channel (single logo when one, overlapped stack when many) + Connect. */
+/** Masthead Connect pill — shows stacked brand tiles for every channel that
+ *  can actually publish right now (same connectedChannelIds truth as the
+ *  composer — identity without live credentials never shows as live). */
 export default function ConnectButton({ onPress }: { onPress: () => void }) {
   const { C } = useTheme();
   const [connected, setConnected] = useState<string[]>([]);
@@ -18,18 +19,7 @@ export default function ConnectButton({ onPress }: { onPress: () => void }) {
     const reload = async () => {
       try {
         const m = await loadMetaState();
-        const list: string[] = [];
-        if (m.pageId) list.push('facebook');
-        if (m.igId) list.push('instagram');
-        if (m.threadsId) list.push('threads');
-        if (m.ttAccessToken || m.ttRefreshToken) list.push('tiktok');
-        if (m.xUserId && (m.xAccessToken || m.xRefreshToken)) list.push('x');
-        if (m.bskyDid && (m.bskyAccessJwt || m.bskyRefreshJwt)) list.push('bluesky');
-        if (m.mastodonAccessToken && m.mastodonInstance) list.push('mastodon');
-        if (m.pinAccessToken) list.push('pinterest');
-        if (m.liPersonUrn && (m.liAccessToken || m.liRefreshToken)) list.push('linkedin');
-        if (m.ytRefreshToken || m.ytAccessToken) list.push('youtube');
-        setConnected(list);
+        setConnected(connectedChannelIds(m));
       } catch {}
     };
     void reload();

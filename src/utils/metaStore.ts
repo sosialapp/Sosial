@@ -245,3 +245,30 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.ytRefreshToken || m.ytAccessToken) out.push('youtube');
   return out;
 }
+
+/**
+ * Channels the device knows by identity but cannot publish to right now:
+ * expired/cleared tokens, or cloud-only placeholders adopted from the web
+ * (identity rides along, credentials never leave Vault). These are the
+ * rows the Connect pill must NOT show as live — and the composer names
+ * them in a reconnect hint instead of silently hiding them.
+ */
+export function staleChannelKeys(m: MetaState): string[] {
+  const live = new Set(connectedChannelIds(m));
+  const has = (v: unknown): boolean => typeof v === 'string' && v.length > 0;
+  const out: string[] = [];
+  const consider = (key: string, identity: boolean) => {
+    if (identity && !live.has(key)) out.push(key);
+  };
+  consider('facebook', has(m.pageId) || has(m.pageName));
+  consider('instagram', has(m.igId) || has(m.igName));
+  consider('threads', has(m.threadsId) || has(m.threadsName));
+  consider('tiktok', has(m.ttOpenId) || has(m.ttName));
+  consider('x', has(m.xUserId) || has(m.xName));
+  consider('bluesky', has(m.bskyDid) || has(m.bskyHandle) || has(m.bskyName));
+  consider('mastodon', has(m.mastodonAccountId) || has(m.mastodonName));
+  consider('linkedin', has(m.liPersonUrn) || has(m.liName));
+  consider('pinterest', has(m.pinUsername));
+  consider('youtube', has(m.ytChannelName));
+  return out;
+}

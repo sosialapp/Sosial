@@ -14,7 +14,7 @@ import { MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
 import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
 import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
-import { loadMetaState, loadAccounts, connectedChannelIds, MetaState } from '../utils/metaStore';
+import { loadMetaState, loadAccounts, connectedChannelIds, staleChannelKeys, MetaState } from '../utils/metaStore';
 import { deviceZone, supportedZones, zoneLabel, offsetLabel, zonedToUtcMs } from '../utils/timezones';
 import { type ConnectedAccount, accountConnected, accountName, accountAvatar, asIdList } from '../utils/socialAccounts';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -396,6 +396,9 @@ interface Props {
   /** Notifies the host when a chain segment drag starts/stops, so an enclosing
    *  ScrollView (bare inline mode) can lock while the row follows the finger. */
   onSegDragChange?: (dragging: boolean) => void;
+  /** Jump to the Connect screen from the reconnect hint. Absent = the hint
+   *  renders without a tap target. */
+  onConnect?: () => void;
 }
 
 /**
@@ -403,11 +406,12 @@ interface Props {
  * `bare` renders the same form inline (Create → Post pill) instead of in the
  * bottom-sheet Modal — state and submit paths are identical either way.
  */
-export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange }: Props & { bare?: boolean }) {
+export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange, onConnect }: Props & { bare?: boolean }) {
   const { C, mode: themeMode } = useTheme();
   const st = makeSt(C);
   const [plats, setPlats] = useState<string[]>(['any']);
   const [connected, setConnected] = useState<string[]>([]);
+  const [stale, setStale] = useState<string[]>([]);
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [accountIds, setAccountIds] = useState<Record<string, string[]>>({});
   const [acctOpen, setAcctOpen] = useState<string | null>(null);
@@ -444,7 +448,10 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
       if (s !== 'active') return;
-      loadMetaState().then((m) => setConnected(connectedChannelIds(m))).catch(() => {});
+      loadMetaState().then((m) => {
+        setConnected(connectedChannelIds(m));
+        setStale(staleChannelKeys(m));
+      }).catch(() => {});
       loadAccounts().then(setAccounts).catch(() => {});
     });
     return () => sub.remove();
@@ -490,6 +497,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       loadMetaState().then((m) => {
         const c = connectedChannelIds(m);
         setConnected(c);
+        setStale(staleChannelKeys(m));
         // A saved draft can name a channel disconnected since — drop those
         // (they can't publish) instead of keeping invisible picks.
         if (!explicit) setPlats([]);
@@ -977,6 +985,22 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             })}
           </View>
           )}
+          {!readOnly && stale.length > 0 ? (
+            <TouchableOpacity
+              onPress={onConnect}
+              disabled={!onConnect}
+              style={st.staleRow}
+              activeOpacity={onConnect ? 0.7 : 1}
+            >
+              <Ionicons name="alert-circle-outline" size={15} color={C.yellowText} />
+              <Text style={st.staleT} numberOfLines={2}>
+                {stale.map((c) => SOCIAL_META[c]?.label ?? c).join(', ')} connected
+                before but {stale.length === 1 ? 'its login needs' : 'their logins need'} a refresh
+                {onConnect ? ' — tap to reconnect' : ''}
+              </Text>
+              {onConnect ? <Ionicons name="chevron-forward" size={16} color={C.muted} /> : null}
+            </TouchableOpacity>
+          ) : null}
 
           {readOnly ? <SentStats remoteIds={remoteIds} /> : null}
 
@@ -1391,6 +1415,8 @@ const makeSt = (C: Palette) => ({
   stackNames: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink } as const,
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 12, paddingVertical: 8 } as const,
   chipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink, textTransform: 'capitalize' } as const,
+  staleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.accentSoft, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 10 } as const,
+  staleT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, lineHeight: 17, color: C.accentInk } as const,
   soonT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk } as const,
   typeLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink } as const,
   typeChip: { backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 14, paddingVertical: 8 } as const,

@@ -773,6 +773,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               onClose={() => {}}
               onAi={openAi}
               onSegDragChange={setSegScrollLock}
+              onConnect={onConnect}
             />
           </View>
         ) : (

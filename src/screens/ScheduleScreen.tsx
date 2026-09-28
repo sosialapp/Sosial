@@ -351,6 +351,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
         onSave={save}
         onDelete={sheet?.post ? remove : undefined}
         onClose={() => setSheet(null)}
+        onConnect={onConnect}
       />
     </View>
   );
