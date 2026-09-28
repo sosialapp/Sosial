@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getWorkspaceContext } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { checkoutPriceId, pricesConfigured, stripe } from '@/lib/billing/stripe';
+import { checkoutPriceId, pricesConfigured, stripe, ultimatePriceId } from '@/lib/billing/stripe';
+
+/**
+ * Whether the caller may buy Ultimate: workspace owners and admins only.
+ * Members never see the offer (the profile plan cards gate the same way).
+ */
+function canBuyUltimate(role: string | null | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
 
 export const runtime = 'nodejs';
 
@@ -15,6 +23,87 @@ export const runtime = 'nodejs';
  * so upgrades, downgrades and monthly↔annual switches never create a second
  * subscription. Without a subscription, a Stripe Checkout session is created.
  */
+/**
+ * Ultimate lifetime purchase: a single $1 one-time Stripe Checkout
+ * (mode=payment — no subscription, no renewal). The webhook grants
+ * status='lifetime' on payment. Admins only; the profile plan cards and
+ * this gate enforce the same rule, and the offer never appears on public
+ * pricing. Refuses when Ultimate is already active or a paid subscription
+ * is live (cancel that first — lifetime and subscriptions don't mix).
+ */
+async function ultimateCheckout(
+  ctx: NonNullable<Awaited<ReturnType<typeof getWorkspaceContext>>>,
+  req: Request,
+) {
+  if (!canBuyUltimate(ctx.workspace.role)) {
+    return NextResponse.json(
+      { error: 'Ultimate is available to workspace owners and admins only.' },
+      { status: 403 },
+    );
+  }
+  const priceId = ultimatePriceId();
+  if (!priceId) {
+    return NextResponse.json(
+      { error: 'Billing is not configured yet — the Ultimate price ID is missing.' },
+      { status: 503 },
+    );
+  }
+
+  const admin = supabaseAdmin();
+  const { data: sub } = await admin
+    .from('subscriptions')
+    .select('plan, status, stripe_customer_id, stripe_subscription_id')
+    .eq('workspace_id', ctx.workspace.id)
+    .maybeSingle();
+  if (sub?.plan === 'ultimate' && sub?.status === 'lifetime') {
+    return NextResponse.json({ error: 'Ultimate is already active on this workspace.' }, { status: 400 });
+  }
+  if (
+    sub?.stripe_subscription_id &&
+    ['active', 'trialing', 'past_due'].includes(sub.status ?? '')
+  ) {
+    return NextResponse.json(
+      { error: 'Cancel your current subscription first — lifetime and subscriptions don’t mix.' },
+      { status: 400 },
+    );
+  }
+
+  const origin = req.headers.get('origin') ?? new URL(req.url).origin;
+  try {
+    const s = stripe();
+    let customerId = sub?.stripe_customer_id ?? null;
+    if (!customerId) {
+      const customer = await s.customers.create({
+        email: ctx.user.email ?? undefined,
+        metadata: { workspace_id: ctx.workspace.id },
+      });
+      customerId = customer.id;
+      await admin
+        .from('subscriptions')
+        .upsert(
+          { workspace_id: ctx.workspace.id, stripe_customer_id: customerId },
+          { onConflict: 'workspace_id' },
+        );
+    }
+    const session = await s.checkout.sessions.create({
+      mode: 'payment',
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      client_reference_id: ctx.workspace.id,
+      metadata: { workspace_id: ctx.workspace.id, plan: 'ultimate', lifetime: 'true' },
+      allow_promotion_codes: false,
+      success_url: `${origin}/billing?checkout=success`,
+      cancel_url: `${origin}/billing?checkout=cancelled`,
+    });
+    return NextResponse.json({ mode: 'checkout', url: session.url });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Stripe request failed.' },
+      { status: 502 },
+    );
+  }
+}
+
 export async function POST(req: Request) {
   const ctx = await getWorkspaceContext();
   if (!ctx) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
@@ -27,6 +116,10 @@ export async function POST(req: Request) {
   }
 
   // Validate against the canonical config — never trust the browser.
+  // Ultimate is a one-time $1 lifetime purchase (no interval, no proration).
+  if (body.plan === 'ultimate') {
+    return ultimateCheckout(ctx, req);
+  }
   const selected = checkoutPriceId(body.plan, body.interval);
   if (!selected) {
     return NextResponse.json(

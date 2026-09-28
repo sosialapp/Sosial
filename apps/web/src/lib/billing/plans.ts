@@ -14,11 +14,14 @@
  * - The billing period (Stripe renewal) is distinct from the usage period
  *   (calendar month). AI credits reset every calendar month even for annual
  *   subscribers; scheduled-post slots free up when a post is published.
+ * - Ultimate is a LIFETIME plan: one $1 payment, no interval, never on
+ *   public pricing. PLAN_ORDER deliberately excludes it — only the in-app
+ *   profile plan sections (admin-gated) may offer it.
  */
 
 export type BillingInterval = 'monthly' | 'annual';
 
-export type PlanKey = 'free' | 'solo' | 'team' | 'business';
+export type PlanKey = 'free' | 'solo' | 'team' | 'business' | 'ultimate';
 
 export interface PlanLimits {
   /** connectable channels (one per connected social account); null = unlimited */
@@ -50,6 +53,8 @@ export interface PlanDef {
   featured?: boolean;
   monthly: PlanPrice;
   annual: PlanPrice;
+  /** one-time lifetime price — set only for Ultimate (never interval-billed) */
+  lifetime?: PlanPrice;
   limits: PlanLimits;
   points: string[];
 }
@@ -148,9 +153,37 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'Unlimited team members and workspaces',
     ],
   },
+  ultimate: {
+    key: 'ultimate',
+    label: 'Ultimate',
+    blurb: 'Everything, forever. One payment.',
+    badge: 'Lifetime · admins only',
+    // Interval prices are placeholders so interval-shaped helpers stay total;
+    // the only real charge is lifetime ($1 once). Never list on intervals.
+    monthly: { price: 1 },
+    annual: { price: 1 },
+    lifetime: { price: 1 },
+    limits: {
+      channels: null,
+      scheduledPostsPerChannel: null,
+      aiCredits: null,
+      users: null,
+      workspaces: null,
+      watermarkRequired: false,
+    },
+    points: [
+      'Unlimited connected channels',
+      'Unlimited scheduled posts',
+      'Unlimited AI credits a month',
+      'Unlimited team members and workspaces',
+      'No watermark, ever',
+      'Pay once — yours for life',
+    ],
+  },
 };
 
-/** Canonical display order, cheapest first. */
+/** Canonical display order, cheapest first. Ultimate is intentionally absent —
+ *  public pricing, comparison tables and change-plan lists iterate this. */
 export const PLAN_ORDER: PlanKey[] = ['free', 'solo', 'team', 'business'];
 
 export const BILLING_INTERVALS: BillingInterval[] = ['monthly', 'annual'];
@@ -170,11 +203,13 @@ export function priceFor(plan: PlanKey, interval: BillingInterval): number {
 
 /** What the annual price works out to per month (display only — the charge is annual). */
 export function monthlyEquivalent(plan: PlanKey): number {
+  if (plan === 'ultimate') return 1;
   return Math.round((PLANS[plan].annual.price / 12) * 100) / 100;
 }
 
 /** Percent saved on annual vs paying monthly for 12 months. */
 export function annualSavingsPct(plan: PlanKey): number {
+  if (plan === 'ultimate') return 0;
   const full = PLANS[plan].monthly.price * 12;
   if (full === 0) return 0;
   return Math.round(((full - PLANS[plan].annual.price) / full) * 100);
@@ -191,16 +226,18 @@ export function intervalLabel(interval: BillingInterval): string {
 }
 
 export function priceLabel(plan: PlanKey, interval: BillingInterval): string {
+  if (plan === 'ultimate') return '$1 once';
   const p = PLANS[plan][interval].price;
   if (plan === 'free') return 'Free';
   return `${formatUsd(p)}/${interval === 'monthly' ? 'mo' : 'yr'}`;
 }
 
 /** The plan the user would move up to next (for upgrade CTAs), or null. */
-export function nextPlan(plan: PlanKey): Exclude<PlanKey, 'free'> | null {
+export function nextPlan(plan: PlanKey): Exclude<PlanKey, 'free' | 'ultimate'> | null {
+  if (plan === 'ultimate') return null;
   const i = PLAN_ORDER.indexOf(plan);
   const next = PLAN_ORDER[i + 1];
-  return next && next !== 'free' ? (next as Exclude<PlanKey, 'free'>) : null;
+  return next && next !== 'free' ? (next as Exclude<PlanKey, 'free' | 'ultimate'>) : null;
 }
 
 /** Limits for a plan (interval-independent). */

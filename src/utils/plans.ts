@@ -6,10 +6,13 @@
  * feature limits are identical between monthly and annual of the same plan;
  * scheduled posts are limited PER CHANNEL; unlimited is null, never a giant
  * number; the Free watermark is forced ON and locked.
+ *
+ * Ultimate is lifetime-only ($1 once, never interval-billed) and never
+ * appears on public pricing — PLAN_ORDER deliberately excludes it.
  */
 
 export type BillingInterval = 'monthly' | 'annual';
-export type PlanKey = 'free' | 'solo' | 'team' | 'business';
+export type PlanKey = 'free' | 'solo' | 'team' | 'business' | 'ultimate';
 
 export interface PlanLimits {
   channels: number | null;
@@ -28,6 +31,8 @@ export interface PlanDef {
   featured?: boolean;
   monthly: number;
   annual: number;
+  /** one-time lifetime price — Ultimate only */
+  lifetime?: number;
   limits: PlanLimits;
   points: string[];
 }
@@ -97,6 +102,24 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'Unlimited team members and workspaces',
     ],
   },
+  ultimate: {
+    key: 'ultimate',
+    label: 'Ultimate',
+    blurb: 'Everything, forever. One payment.',
+    badge: 'Lifetime · admins only',
+    monthly: 1,
+    annual: 1,
+    lifetime: 1,
+    limits: { channels: null, scheduledPostsPerChannel: null, aiCredits: null, users: null, workspaces: null, watermarkRequired: false },
+    points: [
+      'Unlimited connected channels',
+      'Unlimited scheduled posts',
+      'Unlimited AI credits a month',
+      'Unlimited team members and workspaces',
+      'No watermark, ever',
+      'Pay once — yours for life',
+    ],
+  },
 };
 
 export const PLAN_ORDER: PlanKey[] = ['free', 'solo', 'team', 'business'];
@@ -128,7 +151,7 @@ export function limitsFor(key: PlanKey): PlanLimits {
 
 /**
  * Mobile builds ship with three entitlement keys (free | pro | team) that map
- * onto the canonical plans: Solo → 'pro', Team → 'team', Business → 'team'
+ * onto the canonical plans: Solo → 'pro', Team/Business/Ultimate → 'team'
  * (same entitlements). All paid gating only distinguishes free vs paid, so
  * the mapping is safe.
  */

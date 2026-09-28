@@ -18,6 +18,11 @@ import { type BillingInterval, type PlanKey, isBillingInterval, isPlanKey } from
  *   STRIPE_PRICE_SOLO_MONTHLY     STRIPE_PRICE_SOLO_ANNUAL
  *   STRIPE_PRICE_TEAM_MONTHLY     STRIPE_PRICE_TEAM_ANNUAL
  *   STRIPE_PRICE_BUSINESS_MONTHLY STRIPE_PRICE_BUSINESS_ANNUAL
+ *   STRIPE_PRICE_ULTIMATE_LIFETIME  ($1 one-time price for the lifetime plan)
+ *
+ * Ultimate breaks the subscription mold on purpose: a single mode=payment
+ * Checkout for a fixed $1 one-time Price. No interval, no renewal, no
+ * proration — the webhook grants status='lifetime' on payment.
  */
 
 let client: Stripe | null = null;
@@ -58,7 +63,7 @@ export function priceIdFor(plan: Exclude<PlanKey, 'free'>, interval: BillingInte
 /** Stripe Price ID → canonical plan + interval. Unknown price → null. */
 export function resolveFromPriceId(
   priceId: string | null | undefined,
-): { plan: Exclude<PlanKey, 'free'>; interval: BillingInterval } | null {
+): { plan: Exclude<PlanKey, 'free' | 'ultimate'>; interval: BillingInterval } | null {
   if (!priceId) return null;
   for (const plan of ['solo', 'team', 'business'] as const) {
     for (const interval of ['monthly', 'annual'] as const) {
@@ -114,7 +119,13 @@ export function primaryPriceId(sub: Stripe.Subscription): string | null {
 
 /** True when the plan on this subscription is one we sell. */
 export function isKnownPlan(plan: string | null | undefined): plan is Exclude<PlanKey, 'free'> {
-  return plan === 'solo' || plan === 'team' || plan === 'business';
+  return plan === 'solo' || plan === 'team' || plan === 'business' || plan === 'ultimate';
 }
 
-export const PAID_PLANS = ['solo', 'team', 'business'] as const;
+export const PAID_PLANS = ['solo', 'team', 'business', 'ultimate'] as const;
+
+/** One-time $1 Price for the Ultimate lifetime plan (server-side, never the browser's). */
+export function ultimatePriceId(): string | undefined {
+  const env = process.env['STRIPE_PRICE_ULTIMATE_LIFETIME'];
+  return env && env.length > 0 ? env : undefined;
+}

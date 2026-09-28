@@ -6,6 +6,7 @@ import {
   resolveFromPriceId,
   primaryPriceId,
   subscriptionPeriod,
+  ultimatePriceId,
 } from '@/lib/billing/stripe';
 import { isPlanKey, isBillingInterval, type BillingInterval, type PlanKey } from '@/lib/billing/plans';
 
@@ -122,6 +123,32 @@ async function retrieveSubscription(id: string): Promise<Stripe.Subscription | n
   }
 }
 
+/**
+ * Ultimate lifetime grant: a paid one-time $1 checkout becomes a perpetual
+ * entitlement. No subscription exists, nothing renews, nothing can cancel —
+ * status='lifetime' with no period end, enforced by workspace_plan().
+ */
+async function grantLifetime(workspaceId: string | null, customerId: string | null) {
+  if (!workspaceId) return; // not ours / unattributable — ignore
+  const admin = supabaseAdmin();
+  await admin.from('subscriptions').upsert(
+    {
+      workspace_id: workspaceId,
+      plan: 'ultimate',
+      billing_interval: null,
+      status: 'lifetime',
+      stripe_customer_id: customerId,
+      stripe_subscription_id: null,
+      stripe_price_id: ultimatePriceId() ?? null,
+      current_period_start: new Date().toISOString(),
+      current_period_end: null,
+      cancel_at_period_end: false,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'workspace_id' },
+  );
+}
+
 export async function POST(req: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) return bad('Webhook secret not configured.', 503);
@@ -152,6 +179,15 @@ export async function POST(req: Request) {
         if (subId) {
           const sub = await retrieveSubscription(subId);
           if (sub) await syncSubscription(sub, session.client_reference_id ?? session.metadata?.workspace_id ?? null);
+        } else if (
+          session.metadata?.plan === 'ultimate' &&
+          session.metadata?.lifetime === 'true' &&
+          session.payment_status === 'paid'
+        ) {
+          await grantLifetime(
+            session.client_reference_id ?? session.metadata?.workspace_id ?? null,
+            typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
+          );
         }
         break;
       }

@@ -10,6 +10,7 @@ import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
+import { loadCloudTeam } from '../utils/teamCloud';
 import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -61,6 +62,13 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [sbAccount, setSbAccount] = useState<{ email: string; workspace: WorkspaceInfo } | null>(null);
   const [cloudImp, setCloudImp] = useState(0);
   const [cloudConn, setCloudConn] = useState(0);
+  /** Ultimate is admin-only — resolved from the cloud roster, never the device flag. */
+  const [isWorkspaceAdmin, setIsWorkspaceAdmin] = useState(false);
+  useEffect(() => {
+    loadCloudTeam()
+      .then((t) => setIsWorkspaceAdmin(t?.myRole === 'owner' || t?.myRole === 'admin'))
+      .catch(() => {});
+  }, []);
 
   /* Owner-push self-check: surfaces registration state instead of failing
    * silently, so a missing device is diagnosable on-device. */
@@ -680,6 +688,24 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               ]}
               action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch — the web app supports it today.') }}
             />
+
+            {isWorkspaceAdmin ? (
+              <PlanCard
+                name="Ultimate"
+                current={false}
+                price="$1 once"
+                sub="Lifetime — pay once, keep forever. Admins only."
+                also="Everything unlimited:"
+                features={[
+                  { text: 'Unlimited connected channels' },
+                  { text: 'Unlimited scheduled posts' },
+                  { text: 'Unlimited AI credits a month' },
+                  { text: 'Unlimited team members and workspaces' },
+                  { text: 'No watermark, ever' },
+                ]}
+                action={{ label: 'Get Ultimate — $1', onPress: () => Alert.alert('Ultimate', 'Ultimate is a $1 lifetime purchase on the web app — open Settings → Billing there to complete it. Play Billing activates at launch.') }}
+              />
+            ) : null}
           </View>
         ) : null}
 

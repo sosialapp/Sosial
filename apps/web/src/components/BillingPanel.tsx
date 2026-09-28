@@ -148,7 +148,11 @@ export default function BillingPanel({
         </div>
         <p className="mt-2 font-display text-2xl font-extrabold tracking-tight">{plan.label}</p>
         <p className="mt-1 text-sm text-muted">
-          {paid && entitlement.billingInterval ? (
+          {entitlement.plan === 'ultimate' ? (
+            <>
+              <span className="font-bold text-ink">$1 once</span> · lifetime, never billed again
+            </>
+          ) : paid && entitlement.billingInterval ? (
             <>
               <span className="font-bold text-ink">
                 {priceLabel(entitlement.plan, entitlement.billingInterval)}
@@ -163,7 +167,7 @@ export default function BillingPanel({
             'Free plan — no card on file'
           )}
         </p>
-        {paid ? (
+        {paid && entitlement.plan !== 'ultimate' ? (
           <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-xs font-bold text-muted">Billing</dt>
@@ -192,7 +196,7 @@ export default function BillingPanel({
             Free plan — your content and connected accounts stay.
           </p>
         ) : null}
-        {paid ? (
+        {paid && entitlement.plan !== 'ultimate' ? (
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={openPortal} disabled={busy !== null} className="btn btn-ghost">
               {busy === 'portal' ? 'Opening…' : 'Manage in Stripe'}

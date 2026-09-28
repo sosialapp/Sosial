@@ -7,7 +7,8 @@ import { PLANS, type BillingInterval, type PlanKey } from './plans';
  *
  * Cancellation keeps the paid plan until currentPeriodEnd (cancel_at_period_end);
  * after the period ends the entitlement falls back to Free. Past-due keeps a
- * grace period on the current plan until the period ends.
+ * grace period on the current plan until the period ends. Ultimate lifetime
+ * (status 'lifetime') never expires and has no period end.
  */
 
 export interface Entitlement {
@@ -52,8 +53,9 @@ export async function getEntitlement(workspaceId: string): Promise<Entitlement> 
     const status = data.status ?? 'free';
     const end = data.current_period_end ? new Date(data.current_period_end) : null;
     const periodEnded = end ? end.getTime() <= Date.now() : false;
+    const lifetime = plan === 'ultimate' && status === 'lifetime';
     const active =
-      PAID_STATUSES.has(status) && !periodEnded && plan !== 'free';
+      (PAID_STATUSES.has(status) || lifetime) && !periodEnded && plan !== 'free';
 
     return {
       plan: active ? plan : 'free',

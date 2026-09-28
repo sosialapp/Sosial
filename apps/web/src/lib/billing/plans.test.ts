@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PLANS, PLAN_ORDER, priceFor, monthlyEquivalent, annualSavingsPct,
-  isPlanKey, isBillingInterval, priceLabel, formatUsd,
+  isPlanKey, isBillingInterval, priceLabel, formatUsd, nextPlan,
   type BillingInterval,
 } from './plans';
 
@@ -129,5 +129,26 @@ describe('canonical pricing', () => {
       .filter(([k]) => k !== 'free')
       .map(([k, i]) => priceLabel(k, i));
     expect(new Set(paid).size).toBe(paid.length);
+  });
+
+  it('defines Ultimate as a $1 lifetime plan with everything unlimited', () => {
+    expect(isPlanKey('ultimate')).toBe(true);
+    expect(PLANS.ultimate.lifetime?.price).toBe(1);
+    expect(priceLabel('ultimate', 'monthly')).toBe('$1 once');
+    expect(priceLabel('ultimate', 'annual')).toBe('$1 once');
+    expect(PLANS.ultimate.limits).toEqual({
+      channels: null,
+      scheduledPostsPerChannel: null,
+      aiCredits: null,
+      users: null,
+      workspaces: null,
+      watermarkRequired: false,
+    });
+    expect(nextPlan('ultimate')).toBeNull();
+  });
+
+  it('keeps Ultimate off every public plan list', () => {
+    expect(PLAN_ORDER).toEqual(['free', 'solo', 'team', 'business']);
+    expect(PLAN_ORDER).not.toContain('ultimate');
   });
 });

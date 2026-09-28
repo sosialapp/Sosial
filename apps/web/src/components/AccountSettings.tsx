@@ -113,6 +113,7 @@ export default function AccountSettings({
   workspaceId,
   workspaceName,
   role,
+  plan,
   canRename,
   userId,
   initialNotif,
@@ -121,6 +122,8 @@ export default function AccountSettings({
   workspaceId: string;
   workspaceName: string;
   role: string;
+  /** Current workspace plan (for the Ultimate lifetime state). */
+  plan: string;
   canRename: boolean;
   userId: string;
   initialNotif: { posts: boolean; comments: boolean; weekly: boolean };
@@ -203,6 +206,32 @@ export default function AccountSettings({
       setNote('Password updated.');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not update the password.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Ultimate lifetime checkout — admins only, offered nowhere else. */
+  async function buyUltimate() {
+    setBusy(true);
+    setErr(null);
+    setNote(null);
+    try {
+      const res = await fetch('/api/billing/select', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ plan: 'ultimate' }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not start checkout.');
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setNote('Ultimate is active — everything unlimited, forever.');
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not start checkout.');
     } finally {
       setBusy(false);
     }
@@ -457,6 +486,28 @@ export default function AccountSettings({
           <Link href="/pricing" className="btn btn-ghost w-full">
             See full pricing
           </Link>
+          {(role === 'owner' || role === 'admin') ? (
+            <Card className="p-5">
+              <p className="font-display text-base font-extrabold tracking-tight">{PLANS.ultimate.label}</p>
+              <p className="mt-0.5 font-display text-xl font-extrabold">$1 once</p>
+              <p className="text-xs text-muted">Lifetime — pay once, keep forever. Admins only, never on public pricing.</p>
+              <ul className="mt-2 space-y-1.5">
+                {PLANS.ultimate.points.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-xs leading-relaxed text-soft">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#2f8f5b]" aria-hidden="true" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              {plan === 'ultimate' ? (
+                <p className="mt-3 text-sm font-bold text-[#2f8f5b]">Active — everything unlimited, forever.</p>
+              ) : (
+                <Button onClick={() => void buyUltimate()} disabled={busy} className="mt-3 w-full">
+                  {busy ? 'Opening checkout…' : 'Get Ultimate — $1'}
+                </Button>
+              )}
+            </Card>
+          ) : null}
         </div>
       ) : null}
 
