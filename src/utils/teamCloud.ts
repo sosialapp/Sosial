@@ -26,6 +26,10 @@ export interface CloudInvite {
   role: TeamRole;
   all_channels: boolean;
   expires_at: string | null;
+  /** Bearer redeem token (members can read it — owners share it as a link). */
+  token: string;
+  /** Set when an invite email actually left; null = share the link instead. */
+  emailed_at: string | null;
 }
 
 export interface CloudChannelOption {
@@ -70,7 +74,7 @@ export async function loadCloudTeam(): Promise<CloudTeam | null> {
       .order('created_at', { ascending: true }),
     sb
       .from('invites')
-      .select('id, email, role, all_channels, expires_at')
+      .select('id, email, role, all_channels, expires_at, token, emailed_at')
       .eq('workspace_id', wid)
       .is('accepted_at', null)
       .order('created_at', { ascending: false }),

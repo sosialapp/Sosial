@@ -18,7 +18,7 @@ export default async function TeamPage() {
       .order('created_at', { ascending: true }),
     sb
       .from('invites')
-      .select('id, email, role, all_channels, expires_at')
+      .select('id, email, role, all_channels, expires_at, token, emailed_at')
       .eq('workspace_id', ctx.workspace.id)
       .is('accepted_at', null)
       .order('created_at', { ascending: false }),

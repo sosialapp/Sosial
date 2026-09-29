@@ -276,15 +276,40 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
               <View style={s.plan}>
                 <Text style={s.planT}>Pending invites</Text>
                 {team.invites.map((inv) => (
-                  <View key={inv.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                    <Text style={s.rowS} numberOfLines={1}>{inv.email}</Text>
-                    <View style={s.rolePill}><Text style={s.rolePillT}>{inv.role}</Text></View>
-                    {isManager ? (
-                      <TouchableOpacity onPress={() => cancelPendingInvite(inv.id, inv.email)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Text style={[s.del, { fontSize: 13 }]}>✕</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
+                  <TouchableOpacity
+                    key={inv.id}
+                    onPress={() => {
+                      if (inv.emailed_at) return;
+                      const url = `https://sosial.app/invite/${inv.token}`;
+                      Alert.alert(
+                        'Email never sent',
+                        `Share this invite link directly:\n${url}`,
+                        [
+                          { text: 'Close', style: 'cancel' },
+                          { text: 'Copy link', onPress: () => { void Clipboard.setStringAsync(url); } },
+                        ],
+                      );
+                    }}
+                    disabled={!!inv.emailed_at}
+                    activeOpacity={inv.emailed_at ? 1 : 0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={s.rowS} numberOfLines={1}>{inv.email}</Text>
+                          <View style={s.rolePill}><Text style={s.rolePillT}>{inv.role}</Text></View>
+                          {isManager ? (
+                            <TouchableOpacity onPress={() => cancelPendingInvite(inv.id, inv.email)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                              <Text style={[s.del, { fontSize: 13 }]}>✕</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                        <Text style={[s.rowS, { color: inv.emailed_at ? C.faint : C.accentInk }]}>
+                          {inv.emailed_at ? 'Invite sent' : 'Email pending — tap for the link'}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             ) : null}

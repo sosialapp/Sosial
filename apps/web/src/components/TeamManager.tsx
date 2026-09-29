@@ -19,6 +19,9 @@ export interface TeamInviteRow {
   role: 'owner' | 'admin' | 'member';
   all_channels: boolean;
   expires_at: string | null;
+  /** Bearer redeem token + delivery stamp (for the copy-link fallback). */
+  token: string;
+  emailed_at: string | null;
 }
 
 export interface TeamChannelRow {
@@ -334,7 +337,22 @@ export default function TeamManager({
           <ul className="mt-3 space-y-2">
             {invites.map((inv) => (
               <li key={inv.id} className="flex items-center gap-2 text-sm">
-                <span className="min-w-0 flex-1 truncate font-bold">{inv.email}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-bold">{inv.email}</span>
+                  {inv.emailed_at ? (
+                    <span className="block text-xs text-faint">Invite sent</span>
+                  ) : (
+                    <span className="block text-xs">
+                      <button
+                        type="button"
+                        onClick={() => void navigator.clipboard?.writeText(`https://sosial.app/invite/${inv.token}`)}
+                        className="font-bold text-accent-ink hover:underline"
+                      >
+                        Email pending — copy invite link
+                      </button>
+                    </span>
+                  )}
+                </span>
                 <span className="pill shrink-0 bg-surface text-soft">{inv.role}</span>
                 {inv.expires_at ? (
                   <span className="shrink-0 text-xs text-muted">
