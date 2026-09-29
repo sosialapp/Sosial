@@ -61,8 +61,9 @@ export default async function AboutPage() {
           },
           {
             eyebrow: 'Company',
-            title: 'Operated by EGATE WORLDWIDE.',
-            body: 'Sosial is built and run by EGATE WORLDWIDE. We are fully remote — no office yet — so email is the fastest way to reach a human: support@sosial.app.',
+            title: 'Operated by EGATE WORLDWIDE (KT0582667-V).',
+            body: 'Sosial is built and run by EGATE WORLDWIDE (KT0582667-V), registered in Malaysia. Our registered address is 30, Jalan BM 5/10 Seksyen 5, Bandar Bukit Mahkota Bangi, 43000 Kajang, Selangor, Malaysia.',
+            points: ['Email: support@sosial.app', 'Phone: +601111343000'],
           },
         ]}
       />
