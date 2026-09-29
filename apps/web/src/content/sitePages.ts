@@ -59,7 +59,7 @@ export const SITE_PAGES: SitePageDef[] = [
   { slug: 'compare', label: 'Compare', group: 'Resources', route: '/compare', mode: 'section', hint: 'Extra content section under the hero.' },
   { slug: 'made-for-everyone', label: 'Made for everyone', group: 'Resources', route: '/made-for-everyone', mode: 'section', hint: 'Extra content section under the hero.' },
   { slug: 'transparency', label: 'Transparency', group: 'Resources', route: '/transparency', mode: 'section', hint: 'Extra content section under the hero.' },
-  { slug: 'about', label: 'About', group: 'Company', route: '/about', mode: 'section', hint: 'Extra content section under the hero.' },
+  { slug: 'about', label: 'About', group: 'Company', route: '/about', mode: 'body', hint: 'Replaces the article body.' },
   { slug: 'terms', label: 'Terms of Use', group: 'Company', route: '/terms', mode: 'body', hint: 'Replaces the legal sections.' },
   { slug: 'privacy', label: 'Privacy Policy', group: 'Company', route: '/privacy', mode: 'body', hint: 'Replaces the legal sections.' },
 ];
