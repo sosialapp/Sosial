@@ -170,7 +170,18 @@ async function handleSendInvite(job: Job): Promise<void> {
     info(`invite ${inviteId} expired`);
     return;
   }
-  await resendInviteEmail(inv);
+  try {
+    await resendInviteEmail(inv);
+  } catch (e) {
+    // Already on Sosial: GoTrue will never email an existing user — the
+    // invite link goes out through the inviter instead. Complete the job;
+    // retrying could never succeed.
+    if (/already (been )?registered|already exists/i.test(e instanceof Error ? e.message : String(e))) {
+      info(`invite ${inviteId} already registered — link handoff, no retry`);
+      return;
+    }
+    throw e;
+  }
   info(`invite ${inviteId} resent to ${inv.email}`);
 }
 

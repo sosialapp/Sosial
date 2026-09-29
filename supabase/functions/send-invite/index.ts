@@ -88,6 +88,21 @@ serve(async (req: Request): Promise<Response> => {
     data: { workspace_id, invite_id: invite.id },
   });
   if (mailErr) {
+    const msg = String((mailErr as { message?: unknown })?.message ?? mailErr);
+    // Already on Sosial: Supabase will never email an existing user, and a
+    // retry could never succeed — hand the invite link back instead so the
+    // inviter can share it directly. Never queue a retry for this case.
+    if (/already (been )?registered|already exists/i.test(msg)) {
+      return Response.json(
+        {
+          invite_id: invite.id,
+          token: invite.token,
+          already_registered: true,
+          invite_url: `${siteUrl}/invite/${invite.token}`,
+        },
+        { headers: CORS },
+      );
+    }
     // Row exists, mail failed: enqueue the retry job and tell the caller —
     // the worker re-sends until delivery succeeds or the invite expires.
     await admin.from("job_queue").upsert(

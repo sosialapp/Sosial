@@ -73,6 +73,7 @@ export default function TeamManager({
   const [allChannels, setAllChannels] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const [assigning, setAssigning] = useState<string | null>(null);
@@ -138,11 +139,12 @@ export default function TeamManager({
     }
     setBusy(true);
     setErr(null);
+    setInviteLink(null);
     try {
       const sb = createClient();
       // Row + email go through send-invite — the raw create_invite RPC
       // writes the row but sends nothing, so invitees never hear about it.
-      const { error } = await sb.functions.invoke('send-invite', {
+      const { data, error } = await sb.functions.invoke('send-invite', {
         body: {
           workspace_id: workspaceId,
           email: email.trim(),
@@ -154,6 +156,15 @@ export default function TeamManager({
       setEmail('');
       setRole('member');
       setAllChannels(true);
+      const url = (data as { invite_url?: unknown } | null)?.invite_url;
+      if (
+        (data as { already_registered?: unknown } | null)?.already_registered === true &&
+        typeof url === 'string' &&
+        url
+      ) {
+        // Already on Sosial — no email can reach them, hand over the link.
+        setInviteLink(url);
+      }
       router.refresh();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : 'Could not send the invite.');
@@ -385,6 +396,19 @@ export default function TeamManager({
               </label>
             </div>
             {err ? <p className="text-sm font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p> : null}
+            {inviteLink ? (
+              <div className="rounded-xl border border-line bg-surface/60 p-3 text-sm">
+                <p className="font-bold">They&rsquo;re already on Sosial — no email needed.</p>
+                <p className="mt-1 break-all text-xs text-muted">{inviteLink}</p>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(inviteLink)}
+                  className="btn btn-ghost mt-2"
+                >
+                  Copy invite link
+                </button>
+              </div>
+            ) : null}
             <button type="submit" disabled={busy} className="btn btn-primary w-full sm:w-auto">
               {busy ? 'Sending…' : 'Send invite'}
             </button>

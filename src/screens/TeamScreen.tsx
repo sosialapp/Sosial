@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
+import * as Clipboard from 'expo-clipboard';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
 import {
@@ -83,12 +84,23 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
     }
     setBusy(true);
     try {
-      await createInvite(team.workspaceId, mEmail, mRole, mAll);
+      const res = await createInvite(team.workspaceId, mEmail, mRole, mAll);
       setMEmail('');
       setMRole('member');
       setMAll(true);
       setMProviders([]);
       await reload();
+      if (res.alreadyRegistered && res.inviteUrl) {
+        // On Sosial already — no email can reach them, hand over the link.
+        Alert.alert(
+          "They're already on Sosial",
+          `No email needed — send them this invite link:\n${res.inviteUrl}`,
+          [
+            { text: 'Done', style: 'cancel' },
+            { text: 'Copy link', onPress: () => { void Clipboard.setStringAsync(res.inviteUrl!); } },
+          ],
+        );
+      }
     } catch (e) {
       Alert.alert('Could not send invite', e instanceof Error ? e.message : 'Try again.');
     } finally {

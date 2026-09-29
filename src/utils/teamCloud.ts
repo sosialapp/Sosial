@@ -128,17 +128,23 @@ export async function createInvite(
   email: string,
   role: 'member' | 'admin',
   allChannels: boolean,
-): Promise<void> {
+): Promise<{ alreadyRegistered: boolean; inviteUrl: string | null }> {
   // Row + email go through the send-invite function — the raw create_invite
   // RPC writes the row but sends nothing, which is why invites used to
   // arrive with no email. callEdgeFunction surfaces the server's message
   // verbatim (including mail failures, which the function queues for retry).
-  await callEdgeFunction('send-invite', {
+  // Existing Sosial users can't be emailed an invite — the function hands
+  // back a shareable link instead.
+  const res = (await callEdgeFunction('send-invite', {
     workspace_id: workspaceId,
     email: email.trim(),
     role,
     all_channels: allChannels,
-  });
+  })) as { already_registered?: boolean; invite_url?: string } | null;
+  return {
+    alreadyRegistered: res?.already_registered === true,
+    inviteUrl: typeof res?.invite_url === 'string' ? res.invite_url : null,
+  };
 }
 
 export async function removeMember(workspaceId: string, userId: string | null): Promise<void> {
