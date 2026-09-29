@@ -33,6 +33,10 @@ export async function createClient() {
   );
 }
 
+/** Cookie remembering the last workspace the user actively joined (invite
+ *  redeem). Preferred over the arbitrary first membership below. */
+export const WORKSPACE_COOKIE = 'sosial_ws';
+
 /** Signed-in user + workspace, bootstrapping the workspace on first login
  *  exactly like the mobile app's myWorkspace(). Null when signed out.
  *  Cached per request — the layout and every page call this, but the auth +
@@ -47,6 +51,31 @@ export const getWorkspaceContext = cache(async (): Promise<{
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return null;
+
+  // Honor the last actively-joined workspace first: without this, an
+  // invitee who already owns a personal workspace lands there after
+  // redeeming and never sees the team that invited them.
+  try {
+    const preferred = (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null;
+    if (preferred) {
+      const { data: pref } = await sb
+        .from('workspace_members')
+        .select('role, workspaces!inner(id, name)')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .eq('workspace_id', preferred)
+        .maybeSingle();
+      const pw = pref?.workspaces as unknown as { id: string; name: string | null } | null;
+      if (pw) {
+        return {
+          user,
+          workspace: { id: String(pw.id), name: String(pw.name ?? 'My team'), role: (pref?.role ?? 'member') as WorkspaceInfo['role'] },
+        };
+      }
+    }
+  } catch {
+    // Non-request contexts have no cookies — fall through to the default.
+  }
 
   const { data: mem } = await sb
     .from('workspace_members')

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { createClient, WORKSPACE_COOKIE } from '@/lib/supabase/server';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -57,8 +58,19 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     );
   }
 
-  const { error } = await sb.rpc('accept_invite', { p_token: token });
-  if (!error || /already accepted/i.test(String(error?.message ?? ''))) redirect('/calendar');
+  const { data: workspaceId, error } = await sb.rpc('accept_invite', { p_token: token });
+  if ((!error && workspaceId) || /already accepted/i.test(String(error?.message ?? ''))) {
+    // Land them IN the team they just joined — otherwise first-membership
+    // logic drops them into a personal workspace and the invite looks dead.
+    if (!error && workspaceId) {
+      (await cookies()).set(WORKSPACE_COOKIE, String(workspaceId), {
+        path: '/',
+        maxAge: 365 * 24 * 3600,
+        sameSite: 'lax',
+      });
+    }
+    redirect('/calendar');
+  }
 
   return (
     <Card
