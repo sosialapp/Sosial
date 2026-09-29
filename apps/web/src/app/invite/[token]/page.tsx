@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
+import Image from 'next/image';
 import { cookies } from 'next/headers';
 import { createClient, WORKSPACE_COOKIE } from '@/lib/supabase/server';
 
@@ -10,8 +11,8 @@ function Card({ title, body, action }: { title: string; body: string; action: Re
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="card w-full max-w-sm p-6 text-center">
-        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-2xl font-extrabold text-white">
-          S
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center">
+          <Image src="/bolt.png" alt="Sosial" width={44} height={44} />
         </div>
         <h1 className="font-display text-xl font-extrabold tracking-tight">{title}</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
