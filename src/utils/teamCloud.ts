@@ -1,4 +1,4 @@
-import { supabase, currentSession } from './supabase';
+import { supabase, currentSession, callEdgeFunction } from './supabase';
 import { SOCIAL_META } from '../constants';
 
 /**
@@ -129,13 +129,16 @@ export async function createInvite(
   role: 'member' | 'admin',
   allChannels: boolean,
 ): Promise<void> {
-  const { error } = await supabase().rpc('create_invite', {
-    p_workspace_id: workspaceId,
-    p_email: email.trim(),
-    p_role: role,
-    p_all_channels: allChannels,
+  // Row + email go through the send-invite function — the raw create_invite
+  // RPC writes the row but sends nothing, which is why invites used to
+  // arrive with no email. callEdgeFunction surfaces the server's message
+  // verbatim (including mail failures, which the function queues for retry).
+  await callEdgeFunction('send-invite', {
+    workspace_id: workspaceId,
+    email: email.trim(),
+    role,
+    all_channels: allChannels,
   });
-  if (error) throw new Error(error.message);
 }
 
 export async function removeMember(workspaceId: string, userId: string | null): Promise<void> {

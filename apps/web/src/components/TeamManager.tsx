@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { edgeErrorMessage } from '@/lib/functions';
 
 export interface TeamMemberRow {
   id: string;
@@ -139,13 +140,17 @@ export default function TeamManager({
     setErr(null);
     try {
       const sb = createClient();
-      const { error } = await sb.rpc('create_invite', {
-        p_workspace_id: workspaceId,
-        p_email: email.trim(),
-        p_role: role,
-        p_all_channels: allChannels,
+      // Row + email go through send-invite — the raw create_invite RPC
+      // writes the row but sends nothing, so invitees never hear about it.
+      const { error } = await sb.functions.invoke('send-invite', {
+        body: {
+          workspace_id: workspaceId,
+          email: email.trim(),
+          role,
+          all_channels: allChannels,
+        },
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error((await edgeErrorMessage(error)) ?? error.message);
       setEmail('');
       setRole('member');
       setAllChannels(true);
