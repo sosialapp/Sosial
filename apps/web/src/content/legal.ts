@@ -224,7 +224,7 @@ export const PRIVACY: LegalDoc = {
           c: [
             'Access and export: you can review everything in your workspace and export your content at any time.',
             'Correction: you can edit or delete any post, draft or connected channel.',
-            'Deletion: you can delete your workspace, which removes your data as described above.',
+            'Deletion: you can delete your workspace, which removes your data as described above. [Request deletion](/delete-data).',
           ],
         },
       ],

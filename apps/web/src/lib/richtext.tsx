@@ -4,25 +4,26 @@ export { embedUrl, resolveEmbed } from '@/lib/embeds';
 
 /**
  * Tiny inline formatter for blog text (client-safe — no server imports, so
- * both Prose and the admin preview use it). Supports **bold**, *italic* and
- * [label](https://…) links; anything unmatched renders as literal text.
+ * both Prose and the admin preview use it). Supports **bold**, *italic*,
+ * [label](https://…) external links and [label](/path) internal links;
+ * anything unmatched renders as literal text.
  * React element construction (never innerHTML) keeps stored content XSS-safe
  * by construction. No nesting — inner markers stay literal.
  */
 export function renderInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   let k = 0;
-  const linkRe = /\[([^\]]+)\]\((https?:[^)\s]+)\)/g;
+  const linkRe = /\[([^\]]+)\]\(((?:https?:[^)\s]+)|(?:\/[^)\s]*))\)/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = linkRe.exec(text)) !== null) {
     if (m.index > last) nodes.push(...renderEmphasis(text.slice(last, m.index), () => k++));
+    const internal = m[2].startsWith('/') && !m[2].startsWith('//');
     nodes.push(
       <a
         key={k++}
         href={m[2]}
-        target="_blank"
-        rel="noopener noreferrer"
+        {...(internal ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
         className="font-bold text-accent-ink underline underline-offset-2"
       >
         {renderEmphasis(m[1], () => k++)}
