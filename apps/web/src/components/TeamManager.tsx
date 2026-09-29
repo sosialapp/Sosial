@@ -100,6 +100,13 @@ export default function TeamManager({
     if (myRole === 'admin') return m.role === 'member';
     return false;
   };
+  /** Who may have their role changed, and why it mirrors removal power. */
+  const canChangeRole = (m: TeamMemberRow): boolean => {
+    if (m.user_id === myUserId) return false;
+    if (myRole === 'owner') return m.role !== 'owner';
+    if (myRole === 'admin') return m.role === 'member';
+    return false;
+  };
   const providersOf = (m: TeamMemberRow): string[] =>
     grants.filter((g) => g.member_id === m.id).map((g) => g.provider);
   const summary = (m: TeamMemberRow): string => {
@@ -212,6 +219,38 @@ export default function TeamManager({
     }
   };
 
+  const saveRole = async (m: TeamMemberRow, role: 'member' | 'admin') => {
+    if (role === m.role) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const { error } = await sb.rpc('set_member_role', { p_member_id: m.id, p_role: role });
+      if (error) throw new Error(error.message);
+      router.refresh();
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'Could not change the role.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const leave = async () => {
+    if (!window.confirm('Leave this workspace? You will lose access to its channels, posts and team.')) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const { error } = await sb.rpc('leave_workspace', { p_workspace_id: workspaceId });
+      if (error) throw new Error(error.message);
+      router.push('/dashboard');
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'Could not leave the workspace.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async (m: TeamMemberRow) => {
     setBusy(true);
     setErr(null);
@@ -275,6 +314,29 @@ export default function TeamManager({
                   </p>
                 </div>
                 <span className="flex shrink-0 items-center gap-1.5">
+                  {canChangeRole(m) ? (
+                    <select
+                      value={m.role}
+                      disabled={busy}
+                      onChange={(e) => void saveRole(m, e.target.value as 'member' | 'admin')}
+                      aria-label={`Role for ${m.email}`}
+                      title="Change role"
+                      className="rounded-full border border-line bg-card px-2.5 py-1.5 text-xs font-bold text-soft disabled:opacity-50"
+                    >
+                      <option value="member">Member</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  ) : null}
+                  {self && myRole !== 'owner' ? (
+                    <button
+                      type="button"
+                      onClick={() => void leave()}
+                      disabled={busy}
+                      className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft hover:bg-surface disabled:opacity-50"
+                    >
+                      Leave team
+                    </button>
+                  ) : null}
                   {canAssign(m) ? (
                     <button
                       type="button"

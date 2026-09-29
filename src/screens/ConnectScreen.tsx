@@ -45,8 +45,11 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const meta = useMemo(() => metaFromAccounts(accounts), [accounts]);
   const [teamCount, setTeamCount] = useState<number | null>(null);
-  /** Workspace-wide removal is owner-only (enforced by remove-channel-token too). */
-  const [isOwner, setIsOwner] = useState(false);
+  /** Channel writes are owner/admin-only (enforced by the token functions too). */
+  const [isManager, setIsManager] = useState(false);
+  /** Signed-in cloud users act on the shared workspace; signed-out users
+   *  only ever touch device-local channels, so the gate doesn't apply. */
+  const [cloudUser, setCloudUser] = useState(false);
   const [pages, setPages] = useState<FbPage[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [openProvider, setOpenProvider] = useState<ProviderKey | null>(null);
@@ -74,11 +77,14 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     loadCloudTeam()
       .then((t) => {
         setTeamCount(t ? Math.max(0, t.members.length - 1) : 0);
-        setIsOwner(t ? t.myRole === 'owner' : false);
+        setIsManager(t ? t.myRole === 'owner' || t.myRole === 'admin' : false);
       })
       .catch(() => setTeamCount(0));
     currentSession()
-      .then((sn) => setIsOwner(sn ? sn.workspace.role === 'owner' : false))
+      .then((sn) => {
+        setCloudUser(!!sn);
+        setIsManager(sn ? sn.workspace.role === 'owner' || sn.workspace.role === 'admin' : false);
+      })
       .catch(() => {});
   }, []);
 
@@ -473,10 +479,15 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     else if (p === 'pinterest') void loadPinBoardsFor(a);
   };
 
-  /** "Connect on this device" for a cloud-only placeholder. OAuth providers
-   *  start the browser flow against the placeholder id (the return upgrades
-   *  it in place); manual providers prefill the handle box and select the
-   *  row so "Add this account" upgrades it instead of duplicating. */
+  /** Managers-only gate for every connect/remove tap (the token functions
+   *  enforce the same rule server-side — this just explains it first).
+   *  Signed-out users only touch device-local channels: always allowed. */
+  const needManager = (): boolean => {
+    if (!cloudUser || isManager) return true;
+    Alert.alert('Owners and admins only', 'Only owners and admins can connect or remove channels.');
+    return false;
+  };
+  /** "Connect on this device" for a cloud-only placeholder (upgrades in place). */
   const connectCloudOnly = (p: ProviderKey, a: ConnectedAccount) => {
     selectAccount(p, a);
     if (providerCfg[p].manual) {
@@ -539,7 +550,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
               </View>
             ))}
           </View>
-          <TouchableOpacity onPress={() => void doBsky(addId())} activeOpacity={0.7} style={s.pageRow}>
+          <TouchableOpacity onPress={() => { if (needManager()) void doBsky(addId()); }} activeOpacity={0.7} style={s.pageRow}>
             <Text style={s.pageT}>{list.length > 0 ? 'Add this account' : 'Connect Bluesky'}</Text>
           </TouchableOpacity>
         </>
@@ -573,7 +584,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
               </View>
             ))}
           </View>
-          <TouchableOpacity onPress={() => void doMastodon(addId())} activeOpacity={0.7} style={s.pageRow}>
+          <TouchableOpacity onPress={() => { if (needManager()) void doMastodon(addId()); }} activeOpacity={0.7} style={s.pageRow}>
             <Text style={s.pageT}>{list.length > 0 ? 'Add this account' : 'Connect Mastodon'}</Text>
           </TouchableOpacity>
         </>
@@ -708,6 +719,12 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         <Text style={s.kicker}>Channels</Text>
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Connect</Text>
 
+        {!isManager && cloudUser ? (
+          <View style={[s.warn, { marginTop: 12 }]}>
+            <Text style={s.warnT}>You can see the workspace channels here, but only owners and admins can connect or remove them.</Text>
+          </View>
+        ) : null}
+
         <TouchableOpacity onPress={onTeam} style={s.teamBtn} activeOpacity={0.8}>
           <View style={s.teamIcon}>
             <Ionicons name="people-outline" size={19} color={C.onInk} />
@@ -762,7 +779,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             const list = accounts.filter((a) => a.provider === p);
             const hasAny = list.length > 0;
             const expanded = openProvider === p;
-            const connect = () => { if (cfg.configured) cfg.connect(undefined); };
+            const connect = () => { if (!needManager()) return; if (cfg.configured) cfg.connect(undefined); };
             return (
               <View key={p}>
                 <TouchableOpacity
@@ -814,19 +831,21 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                           </TouchableOpacity>
                           {cloud ? (
                             <View style={s.cloudActions}>
-                              <TouchableOpacity onPress={() => void connectCloudOnly(p, a)} activeOpacity={0.7}>
+                              <TouchableOpacity onPress={() => { if (needManager()) void connectCloudOnly(p, a); }} activeOpacity={0.7}>
                                 <Text style={s.go}>Connect</Text>
                               </TouchableOpacity>
-                              {isOwner ? (
+                              {!cloudUser || isManager ? (
                                 <TouchableOpacity onPress={() => void removeCloudAccount(a)} activeOpacity={0.7}>
                                   <Text style={s.discT}>Remove</Text>
                                 </TouchableOpacity>
                               ) : null}
                             </View>
                           ) : (
+                            !cloudUser || isManager ? (
                             <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7}>
                               <Text style={s.discT}>Remove</Text>
                             </TouchableOpacity>
+                            ) : null
                           )}
                         </View>
                       );
@@ -844,7 +863,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                       </View>
                     ) : null}
                     {!cfg.manual && cfg.configured ? (
-                      <TouchableOpacity onPress={() => cfg.connect(makeAccount(p).id)} activeOpacity={0.7} style={s.addRow}>
+                      <TouchableOpacity onPress={() => { if (needManager()) cfg.connect(makeAccount(p).id); }} activeOpacity={0.7} style={s.addRow}>
                         <Ionicons name="add-circle-outline" size={16} color={C.accentInk} />
                         <Text style={s.addRowT}>Add another {cfg.label} account</Text>
                       </TouchableOpacity>

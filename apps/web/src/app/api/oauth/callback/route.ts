@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { channelManageError } from '@/lib/channelAccess';
 import { isOAuthProvider, redirectUri } from '@/lib/oauth';
 import {
   FLOW_COOKIE,
@@ -79,6 +80,8 @@ export async function GET(req: Request) {
     data: { session },
   } = await sb.auth.getSession();
   if (!session) return done(`?error=${encodeURIComponent('Sign in first.')}`);
+  const denied = await channelManageError(sb, flow.workspace_id);
+  if (denied) return done(`?error=${encodeURIComponent(denied)}`);
 
   const { data, error: fnErr } = await sb.functions.invoke('oauth-exchange', {
     body: {

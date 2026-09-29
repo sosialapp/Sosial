@@ -74,9 +74,10 @@ serve(async (req: Request): Promise<Response> => {
     .eq("status", "active")
     .maybeSingle();
   if (!mem) return bad("Not a member of this workspace.", 403);
-  // Rule: only the workspace owner can disconnect/remove a connected account.
-  if (mem.role !== "owner") {
-    return bad("Only the workspace owner can disconnect a connected account.", 403);
+  // Rule: owners and admins may disconnect/remove a connected account.
+  const role = (mem as { role?: string } | null)?.role;
+  if (role !== "owner" && role !== "admin") {
+    return bad("Only owners and admins can disconnect a connected account.", 403);
   }
 
   let query = admin

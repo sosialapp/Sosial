@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
+import { channelManageError } from '@/lib/channelAccess';
 import { redirectUri } from '@/lib/oauth';
 import { FLOW_COOKIE, b64e, cookieOpts, type FlowState } from '@/lib/oauthServer';
 
@@ -48,14 +49,8 @@ export async function POST(req: Request) {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
-  const { data: mem } = await sb
-    .from('workspace_members')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .maybeSingle();
-  if (!mem) return NextResponse.json({ error: 'Not a member of this workspace.' }, { status: 403 });
+  const denied = await channelManageError(sb, workspaceId);
+  if (denied) return NextResponse.json({ error: denied }, { status: 403 });
 
   const origin = new URL(req.url).origin;
   const redir = redirectUri(origin);

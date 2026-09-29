@@ -53,7 +53,7 @@ export default async function ChannelsPage({
           channels={channels}
           fbPick={fbPick}
           status={{ connected: params.connected, already: params.already, error: params.error }}
-          canManage={ctx.workspace.role === 'owner'}
+          canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
         />
       </div>
 

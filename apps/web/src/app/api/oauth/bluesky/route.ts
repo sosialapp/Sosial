@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { channelManageError } from '@/lib/channelAccess';
 
 /**
  * POST /api/oauth/bluesky { workspace_id, handle, app_password }
@@ -24,6 +25,8 @@ export async function POST(req: Request) {
     data: { session },
   } = await sb.auth.getSession();
   if (!session) return Response.json({ error: 'Sign in first.' }, { status: 401 });
+  const denied = await channelManageError(sb, workspaceId);
+  if (denied) return Response.json({ error: denied }, { status: 403 });
 
   const { data, error: fnErr } = await sb.functions.invoke('oauth-exchange', {
     body: { provider: 'bluesky', handle, app_password: appPassword },

@@ -182,6 +182,24 @@ export async function cancelInvite(inviteId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Change a teammate's role (owner: anyone but owners; admin: members only;
+ *  'owner' can never be granted). Server-enforced in set_member_role. */
+export async function setMemberRole(memberId: string, role: 'member' | 'admin'): Promise<void> {
+  const { error } = await supabase().rpc('set_member_role', {
+    p_member_id: memberId,
+    p_role: role,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Walk away from a workspace (members and admins; owners cannot abandon). */
+export async function leaveTeam(workspaceId: string): Promise<void> {
+  const { error } = await supabase().rpc('leave_workspace', {
+    p_workspace_id: workspaceId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /* ---------------- permission mirror (matches the backend) ---------------- */
 
 export interface Actor {

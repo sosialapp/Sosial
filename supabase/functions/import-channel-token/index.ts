@@ -66,16 +66,20 @@ serve(async (req: Request): Promise<Response> => {
 
   const admin = createClient(supaUrl, serviceKey);
 
-  // Membership gate: active member of THIS workspace (service client bypasses
-  // RLS, so this check is the entire authorization — never skip it).
+  // Role gate: owners and admins only (service client bypasses RLS, so
+  // this check is the entire authorization — never skip it). Ordinary
+  // members can neither connect channels nor push device tokens upward.
   const { data: mem } = await admin
     .from("workspace_members")
-    .select("id")
+    .select("id, role")
     .eq("workspace_id", workspace_id)
     .eq("user_id", user.id)
     .eq("status", "active")
     .maybeSingle();
-  if (!mem) return bad("Not a member of this workspace.", 403);
+  const role = (mem as { role?: string } | null)?.role;
+  if (!mem || (role !== "owner" && role !== "admin")) {
+    return bad("Only owners and admins can connect channels.", 403);
+  }
 
   // Re-import hygiene: clear canonical names FIRST (Vault enforces unique
   // names). By-name (not by previous row) so orphan secrets from any failed

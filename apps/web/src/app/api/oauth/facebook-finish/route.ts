@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { channelManageError } from '@/lib/channelAccess';
 import { PICK_COOKIE, b64d, type PickState } from '@/lib/oauthServer';
 
 /**
@@ -29,6 +30,12 @@ export async function POST(req: Request) {
     data: { session },
   } = await sb.auth.getSession();
   if (!session) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
+  const denied = await channelManageError(sb, pick.workspace_id);
+  if (denied) {
+    const res = NextResponse.json({ error: denied }, { status: 403 });
+    res.cookies.delete(PICK_COOKIE);
+    return res;
+  }
 
   // Same Page twice is a no-op with a name — but let expired rows heal.
   const { data: existing } = await sb

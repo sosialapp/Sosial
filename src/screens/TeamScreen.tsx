@@ -7,6 +7,7 @@ import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
 import {
   loadCloudTeam, createInvite, removeMember, setMemberGrants, cancelInvite,
+  setMemberRole, leaveTeam,
   canRemoveMember, canAssignChannels, channelsSummary,
   type CloudTeam, type CloudMember, type TeamRole,
 } from '../utils/teamCloud';
@@ -53,6 +54,13 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
 
   const actor = { userId: team?.myUserId ?? null, role: (team?.myRole ?? 'member') as TeamRole };
   const isManager = actor.role === 'owner' || actor.role === 'admin';
+  /** Mirrors removal power: owners change anyone but owners, admins change members only. */
+  const canChangeRole = (m: CloudMember): boolean => {
+    if (!!m.user_id && m.user_id === team?.myUserId) return false;
+    if (actor.role === 'owner') return m.role !== 'owner';
+    if (actor.role === 'admin') return m.role === 'member';
+    return false;
+  };
 
   const openAssign = (m: CloudMember) => {
     if (assigningId === m.id) { setAssigningId(null); return; }
@@ -169,6 +177,41 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
     }
   };
 
+  const saveRole = async (m: CloudMember, role: 'member' | 'admin') => {
+    if (role === m.role) return;
+    setBusy(true);
+    try {
+      await setMemberRole(m.id, role);
+      await reload();
+    } catch (e) {
+      Alert.alert('Could not change role', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const leave = () => {
+    Alert.alert('Leave team', 'Walk away from this workspace? You lose its channels, posts and team.', [
+      { text: 'Stay', style: 'cancel' },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: async () => {
+          if (!team) return;
+          setBusy(true);
+          try {
+            await leaveTeam(team.workspaceId);
+            onBack();
+          } catch (e) {
+            Alert.alert('Could not leave', e instanceof Error ? e.message : 'Try again.');
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
   const toggleMProvider = (p: string) => {
     setMAll(false);
     setMProviders((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -259,9 +302,15 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                       <View style={s.rolePill}><Text style={s.rolePillT}>{m.role}</Text></View>
                     </View>
                     <Text style={s.rowS} numberOfLines={1}>{channelsSummary(m, team.channels)}</Text>
-                    {showChannels || showTrash ? (
+                    {showChannels || showTrash || canChangeRole(m) ? (
                       <View style={s.actions}>
-                        {showChannels ? (
+                        {canChangeRole(m) ? (
+                          <MiniBtn
+                            label={m.role === 'admin' ? 'Make member' : 'Make admin'}
+                            disabled={busy}
+                            onPress={() => void saveRole(m, m.role === 'admin' ? 'member' : 'admin')}
+                          />
+                        ) : null}                        {showChannels ? (
                           <MiniBtn label={assigningId === m.id ? 'Done' : 'Assign channels'} disabled={busy} onPress={() => openAssign(m)} />
                         ) : null}
                         {showTrash ? (
@@ -405,6 +454,12 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
             ) : (
               <Text style={s.hint}>Only the owner and admins can invite or appoint accounts. Ask one to add your teammates.</Text>
             )}
+
+            {actor.role !== 'owner' ? (
+              <TouchableOpacity onPress={leave} activeOpacity={0.7} style={{ marginTop: 4, alignSelf: 'center' }}>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.redText }}>Leave team</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
       </ScrollView>

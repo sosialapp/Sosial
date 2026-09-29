@@ -3,6 +3,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
 import { authorizeUrl, isOAuthProvider, redirectUri, type OAuthConfig } from '@/lib/oauth';
 import { FLOW_COOKIE, b64e, cookieOpts, type FlowState } from '@/lib/oauthServer';
+import { channelManageError } from '@/lib/channelAccess';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { PLANS } from '@/lib/billing/plans';
 
@@ -38,14 +39,8 @@ export async function GET(req: Request) {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return back('Sign in first.');
-  const { data: mem } = await sb
-    .from('workspace_members')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .maybeSingle();
-  if (!mem) return back('Not a member of this workspace.');
+  const denied = await channelManageError(sb, workspaceId);
+  if (denied) return back(denied);
 
   // Channel cap, enforced server-side for every plan (never trust the UI).
   // Reconnecting an already-connected provider is always allowed.

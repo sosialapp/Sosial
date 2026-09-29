@@ -54,7 +54,8 @@ export default function ConnectPanel({
   fbPick: FbPickPage[] | null;
   /** Result banners (from ?connected= / ?error=). */
   status: { connected?: string; already?: string; error?: string };
-  /** Workspace owner only — only they see Remove/disconnect. */
+  /** Owners and admins — they see Remove/disconnect and every connect
+   *  action. Ordinary members get a read-only list plus a note. */
   canManage: boolean;
 }) {
   const [open, setOpen] = useState<ProviderId | null>(fbPick ? 'facebook' : null);
@@ -93,6 +94,10 @@ export default function ConnectPanel({
 
   async function connectBsky() {
     setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
     if (!bskyHandle.trim()) {
       setErr('Enter your Bluesky handle first.');
       return;
@@ -124,6 +129,10 @@ export default function ConnectPanel({
 
   async function connectMastodon() {
     setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
     if (!mastodonInstance.trim()) {
       setErr('Type your username, or a server like fosstodon.org.');
       return;
@@ -211,6 +220,11 @@ export default function ConnectPanel({
           {err}
         </p>
       ) : null}
+      {!canManage ? (
+        <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs font-bold text-muted">
+          You can see the workspace channels here, but only owners and admins can connect or remove them.
+        </p>
+      ) : null}
 
       <section aria-label="Connect accounts" className="overflow-hidden rounded-2xl border border-line bg-card">
         {ordered.map((p, pi) => {
@@ -222,8 +236,12 @@ export default function ConnectPanel({
 
           const onRow = () => {
             // No accounts yet on an OAuth provider: consent opens in a new
-            // tab so this page keeps its place.
+            // tab so this page keeps its place. Members can't start connects.
             if (!manual && !hasAny) {
+              if (!canManage) {
+                setErr('Only owners and admins can connect channels.');
+                return;
+              }
               if (leaving) return;
               setLeaving(p);
               window.open(startHref(p as OAuthProvider), '_blank', 'noopener');
@@ -346,7 +364,7 @@ export default function ConnectPanel({
                           <button
                             type="button"
                             onClick={() => pickPage(pg.id)}
-                            disabled={picking !== null}
+                            disabled={picking !== null || !canManage}
                             className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
                           >
                             {picking === pg.id ? 'Connecting…' : 'Connect'}
@@ -357,6 +375,7 @@ export default function ConnectPanel({
                   ) : null}
 
                   {!manual ? (
+                    canManage ? (
                     <div className="rounded-xl bg-paper px-3 py-2.5">
                       <a
                         href={startHref(p as OAuthProvider)}
@@ -380,6 +399,11 @@ export default function ConnectPanel({
                         </p>
                       ) : null}
                     </div>
+                    ) : !hasAny ? (
+                      <p className="rounded-xl bg-paper px-3 py-2.5 text-center text-[11px] font-bold text-muted">
+                        Only owners and admins can connect channels.
+                      </p>
+                    ) : null
                   ) : null}
                 </div>
               ) : null}
