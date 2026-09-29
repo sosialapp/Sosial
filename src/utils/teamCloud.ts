@@ -163,6 +163,15 @@ export async function setMemberGrants(
   if (error) throw new Error(error.message);
 }
 
+/** Withdraw a pending invite (owner/admin only). Accepted invites are
+ *  memberships — remove the member instead. */
+export async function cancelInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase().rpc('cancel_invite', {
+    p_invite_id: inviteId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /* ---------------- permission mirror (matches the backend) ---------------- */
 
 export interface Actor {

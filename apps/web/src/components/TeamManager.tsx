@@ -162,6 +162,22 @@ export default function TeamManager({
     }
   };
 
+  const cancelPendingInvite = async (inv: TeamInviteRow) => {
+    if (!window.confirm(`Withdraw the invite to ${inv.email}? They won't be able to join with it.`)) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const { error } = await sb.rpc('cancel_invite', { p_invite_id: inv.id });
+      if (error) throw new Error(error.message);
+      router.refresh();
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'Could not cancel the invite.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async (m: TeamMemberRow) => {
     setBusy(true);
     setErr(null);
@@ -313,6 +329,18 @@ export default function TeamManager({
                   <span className="shrink-0 text-xs text-muted">
                     expires {new Date(inv.expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </span>
+                ) : null}
+                {canManage ? (
+                  <button
+                    type="button"
+                    onClick={() => void cancelPendingInvite(inv)}
+                    disabled={busy}
+                    aria-label={`Cancel invite to ${inv.email}`}
+                    title="Cancel invite"
+                    className="shrink-0 rounded-full px-2 py-1 text-sm font-bold text-faint transition hover:text-[#9F2F2D] disabled:opacity-40"
+                  >
+                    ✕
+                  </button>
                 ) : null}
               </li>
             ))}

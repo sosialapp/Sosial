@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
 import {
-  loadCloudTeam, createInvite, removeMember, setMemberGrants,
+  loadCloudTeam, createInvite, removeMember, setMemberGrants, cancelInvite,
   canRemoveMember, canAssignChannels, channelsSummary,
   type CloudTeam, type CloudMember, type TeamRole,
 } from '../utils/teamCloud';
@@ -108,6 +108,28 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
             await reload();
           } catch (e) {
             Alert.alert('Could not remove', e instanceof Error ? e.message : 'Try again.');
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const cancelPendingInvite = (inviteId: string, email: string) => {
+    Alert.alert('Cancel invite', `Withdraw the invite to ${email}? They won't be able to join with it.`, [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Cancel invite',
+        style: 'destructive',
+        onPress: async () => {
+          if (!team) return;
+          setBusy(true);
+          try {
+            await cancelInvite(inviteId);
+            await reload();
+          } catch (e) {
+            Alert.alert('Could not cancel', e instanceof Error ? e.message : 'Try again.');
           } finally {
             setBusy(false);
           }
@@ -245,6 +267,11 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                   <View key={inv.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
                     <Text style={s.rowS} numberOfLines={1}>{inv.email}</Text>
                     <View style={s.rolePill}><Text style={s.rolePillT}>{inv.role}</Text></View>
+                    {isManager ? (
+                      <TouchableOpacity onPress={() => cancelPendingInvite(inv.id, inv.email)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Text style={[s.del, { fontSize: 13 }]}>✕</Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 ))}
               </View>
@@ -350,6 +377,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
   youTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted },
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
+  del: { fontSize: 14, color: C.faint },
   rolePill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   rolePillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk, textTransform: 'capitalize' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
