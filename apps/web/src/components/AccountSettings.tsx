@@ -291,7 +291,7 @@ export default function AccountSettings({
 
           <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
             <Row icon={<Bell className="h-5 w-5" aria-hidden="true" />} label="Notification settings" sub="Post reminders, comments, digest" onClick={() => setView('notif')} />
-            <Row icon={<Mail className="h-5 w-5" aria-hidden="true" />} label="Email settings" sub={email || 'Set your email'} onClick={() => { setDraftName(workspaceName); setView('email'); }} />
+            <Row icon={<Mail className="h-5 w-5" aria-hidden="true" />} label="Email & workspace" sub={`${email || 'Set your email'} · ${workspaceName}`} onClick={() => { setDraftName(workspaceName); setView('email'); }} />
             <Row icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label="Change password" onClick={() => { setPw1(''); setPw2(''); setView('password'); }} />
           </Card>
 
