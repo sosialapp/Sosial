@@ -71,19 +71,23 @@ export default function FeaturesBento() {
             </div>
           </article>
 
-          <article className={`${tile} bg-ink text-paper md:col-span-4`}>
-            <h3 className={h3}>Teammates draft, you approve.</h3>
-            <p className={`${body} text-paper/75`}>
-              Members send posts for review. Approve in one tap, limit each person to the
-              channels they run.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-2" aria-hidden="true">
-              <span className="rounded-full bg-bolt px-4 py-1.5 text-xs font-bold text-ink">Approve</span>
-              <span className="rounded-full border-[1.5px] border-paper/40 px-4 py-1.5 text-xs font-bold">Send back</span>
+          <article className={`${tile} bg-ink text-paper md:col-span-12`}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h3 className={h3}>Teammates draft, you approve.</h3>
+                <p className={`${body} text-paper/75`}>
+                  Members send posts for review. Approve in one tap, limit each person to the
+                  channels they run.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2" aria-hidden="true">
+                <span className="rounded-full bg-bolt px-4 py-1.5 text-xs font-bold text-ink">Approve</span>
+                <span className="rounded-full border-[1.5px] border-paper/40 px-4 py-1.5 text-xs font-bold">Send back</span>
+              </div>
             </div>
           </article>
 
-          <article className={`${tile} bg-accent-soft md:col-span-8`}>
+          <article className={`${tile} bg-accent-soft md:col-span-12`}>
             <Image
               src="/bento-phone.png"
               alt=""
@@ -92,14 +96,18 @@ export default function FeaturesBento() {
               loading="lazy"
               className="h-56 w-auto [filter:drop-shadow(0_16px_28px_rgba(28,26,20,0.3))]"
             />
-            <h3 className={`${h3} mt-5`}>Ten networks, native previews.</h3>
-            <p className={`${body} text-ink/75`}>
-              Real API publishing with each network&apos;s real limits handled for you.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-1.5" aria-hidden="true">
-              {DOTS.map((p) => (
-                <BrandIcon key={p} provider={p} className="h-8 w-8" />
-              ))}
+            <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="min-w-0">
+                <h3 className={h3}>Ten networks, native previews.</h3>
+                <p className={`${body} text-ink/75`}>
+                  Real API publishing with each network&apos;s real limits handled for you.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-1.5" aria-hidden="true">
+                {DOTS.map((p) => (
+                  <BrandIcon key={p} provider={p} className="h-8 w-8" />
+                ))}
+              </div>
             </div>
           </article>
         </div>
