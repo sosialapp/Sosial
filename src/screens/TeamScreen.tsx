@@ -253,7 +253,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                                 style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
                                 activeOpacity={0.75}
                               >
-                                <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} badge={false} />
+                                <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} />
                                 <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
                               </TouchableOpacity>
                             );
@@ -353,7 +353,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                           style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
                           activeOpacity={0.75}
                         >
-                          <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} badge={false} />
+                          <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} />
                           <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
                         </TouchableOpacity>
                       );

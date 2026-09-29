@@ -1,9 +1,8 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import Image from 'next/image';
-import { cookies } from 'next/headers';
-import { createClient, WORKSPACE_COOKIE } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -22,9 +21,18 @@ function Card({ title, body, action }: { title: string; body: string; action: Re
   );
 }
 
-/** Team invite redeem: signed-in user claims the token, then lands in the app. */
-export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+/** Team invite landing: signed-out users get the sign-in card (with a return
+ *  trip); signed-in users hand off to the redeem route, which accepts the
+ *  token, remembers the workspace in a cookie, and lands them in the team. */
+export default async function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ err?: string }>;
+}) {
   const { token } = await params;
+  const sp = await searchParams;
 
   if (!UUID.test(token)) {
     return (
@@ -34,6 +42,20 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         action={
           <Link href="/login" className="btn btn-ghost w-full">
             Go to sign in
+          </Link>
+        }
+      />
+    );
+  }
+
+  if (sp?.err) {
+    return (
+      <Card
+        title="Could not accept this invite"
+        body={sp.err}
+        action={
+          <Link href="/calendar" className="btn btn-ghost w-full">
+            Back to calendar
           </Link>
         }
       />
@@ -59,29 +81,5 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     );
   }
 
-  const { data: workspaceId, error } = await sb.rpc('accept_invite', { p_token: token });
-  if ((!error && workspaceId) || /already accepted/i.test(String(error?.message ?? ''))) {
-    // Land them IN the team they just joined — otherwise first-membership
-    // logic drops them into a personal workspace and the invite looks dead.
-    if (!error && workspaceId) {
-      (await cookies()).set(WORKSPACE_COOKIE, String(workspaceId), {
-        path: '/',
-        maxAge: 365 * 24 * 3600,
-        sameSite: 'lax',
-      });
-    }
-    redirect('/calendar');
-  }
-
-  return (
-    <Card
-      title="Could not accept this invite"
-      body={String(error?.message ?? 'The invite is invalid or expired. Ask for a fresh one.')}
-      action={
-        <Link href="/calendar" className="btn btn-ghost w-full">
-          Back to calendar
-        </Link>
-      }
-    />
-  );
+  redirect(`/api/invite/${token}`);
 }

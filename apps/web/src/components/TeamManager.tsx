@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
 
@@ -304,8 +305,9 @@ export default function TeamManager({
                                 : [...prev, c.provider],
                             );
                           }}
-                          className={`pill border ${on ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
+                          className={`pill border flex items-center gap-1.5 ${on ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
                         >
+                          <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={20} />
                           {channelLabel(c)}
                         </button>
                       );
