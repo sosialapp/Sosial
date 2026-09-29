@@ -17,11 +17,22 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ROLES = new Set(["admin", "member"]);
 
+// Browser preflight must pass before supabase-js can POST at all — without
+// these headers fetch throws and the client sees "Failed to send a request
+// to the Edge Function" (native apps don't preflight, which is why mobile
+// never noticed).
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+};
+
 function bad(msg: string, status = 400): Response {
-  return Response.json({ error: msg }, { status });
+  return Response.json({ error: msg }, { status, headers: CORS });
 }
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return bad("POST only", 405);
 
   const supaUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("SB_URL") ?? "";
@@ -92,5 +103,5 @@ serve(async (req: Request): Promise<Response> => {
   }
   await admin.from("invites").update({ emailed_at: new Date().toISOString() }).eq("id", invite.id);
 
-  return Response.json({ invite_id: invite.id, token: invite.token });
+  return Response.json({ invite_id: invite.id, token: invite.token }, { headers: CORS });
 });
