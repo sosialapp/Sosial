@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import * as Clipboard from 'expo-clipboard';
+import { supabase } from '../utils/supabase';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
 import {
@@ -36,6 +37,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [mProviders, setMProviders] = useState<string[]>([]);
 
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [renamingTeam, setRenamingTeam] = useState(false);
+  const [teamNameDraft, setTeamNameDraft] = useState('');
   const [gAll, setGAll] = useState(true);
   const [gProviders, setGProviders] = useState<string[]>([]);
 
@@ -150,6 +153,22 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
     ]);
   };
 
+  const saveTeamName = async () => {
+    if (!team) return;
+    const name = teamNameDraft.trim() || 'My team';
+    setBusy(true);
+    try {
+      const { error } = await supabase().from('workspaces').update({ name }).eq('id', team.workspaceId);
+      if (error) throw new Error(error.message);
+      setRenamingTeam(false);
+      await reload();
+    } catch (e) {
+      Alert.alert('Could not save', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const toggleMProvider = (p: string) => {
     setMAll(false);
     setMProviders((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -171,6 +190,25 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
           <Text style={s.sub}>
             {team.workspaceName} · {team.members.length} member{team.members.length === 1 ? '' : 's'}
           </Text>
+        ) : null}
+        {team && isManager ? (
+          renamingTeam ? (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Txt value={teamNameDraft} onChangeText={setTeamNameDraft} placeholder="Team name" />
+              </View>
+              <TouchableOpacity onPress={() => void saveTeamName()} style={[s.miniBtn, { backgroundColor: C.ink }]} activeOpacity={0.7}>
+                <Text style={[s.miniBtnT, { color: C.onInk }]}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setRenamingTeam(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={[s.del, { fontSize: 14 }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => { setTeamNameDraft(team.workspaceName); setRenamingTeam(true); }} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Rename team</Text>
+            </TouchableOpacity>
+          )
         ) : null}
 
         {plan !== 'team' ? (
@@ -415,6 +453,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   youTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted },
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
   del: { fontSize: 14, color: C.faint },
+  miniBtn: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: R.md, backgroundColor: C.card },
+  miniBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.ink },
   rolePill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   rolePillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk, textTransform: 'capitalize' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },

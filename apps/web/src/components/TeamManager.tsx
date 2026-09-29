@@ -56,6 +56,7 @@ function channelLabel(c: TeamChannelRow): string {
  *  disconnect an account (that lives on the Channels page). */
 export default function TeamManager({
   workspaceId,
+  workspaceName,
   myUserId,
   myRole,
   members,
@@ -64,6 +65,7 @@ export default function TeamManager({
   channels,
 }: {
   workspaceId: string;
+  workspaceName: string;
   myUserId: string;
   myRole: 'owner' | 'admin' | 'member';
   members: TeamMemberRow[];
@@ -72,6 +74,7 @@ export default function TeamManager({
   channels: TeamChannelRow[];
 }) {
   const router = useRouter();
+  const [draftName, setDraftName] = useState(workspaceName);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'admin'>('member');
   const [allChannels, setAllChannels] = useState(true);
@@ -134,6 +137,22 @@ export default function TeamManager({
       setBusy(false);
     }
   };
+
+  async function saveName() {
+    const name = draftName.trim() || 'My team';
+    setBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const { error } = await sb.from('workspaces').update({ name }).eq('id', workspaceId);
+      if (error) throw new Error(error.message);
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save the team name.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const invite = async (e: FormEvent) => {
     e.preventDefault();
@@ -214,6 +233,28 @@ export default function TeamManager({
 
   return (
     <div className="space-y-3">
+      {canManage ? (
+        <section className="card p-5" aria-label="Team name">
+          <p className="eyebrow">Team name</p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              placeholder="My team"
+              aria-label="Team name"
+              className="field min-w-0 flex-1"
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void saveName()}
+              className="btn btn-primary shrink-0"
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </section>
+      ) : null}
       <section className="card divide-y divide-line-soft" aria-label="Members">
         {members.map((m) => {
           const self = m.user_id === myUserId;

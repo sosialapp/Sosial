@@ -41,6 +41,7 @@ export default async function TeamPage() {
       <div className="mt-4">
         <TeamManager
           workspaceId={ctx.workspace.id}
+          workspaceName={ctx.workspace.name}
           myUserId={ctx.user.id}
           myRole={ctx.workspace.role}
           members={membersRes.data ?? []}
