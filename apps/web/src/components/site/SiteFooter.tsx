@@ -51,6 +51,13 @@ export default async function SiteFooter() {
               </Link>
             ))}
           </div>
+          <p className="mt-4 text-xs leading-relaxed text-paper/60">
+            Operated by EGATE WORLDWIDE (KT0582667-V)
+            <br />
+            <a href="mailto:support@sosial.app" className="underline hover:text-paper">
+              support@sosial.app
+            </a>
+          </p>
         </div>
 
         <nav aria-label="Product">
