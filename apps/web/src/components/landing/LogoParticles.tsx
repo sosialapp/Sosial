@@ -27,7 +27,7 @@ const LOGOS: ProviderKey[] = [
 ];
 
 const COUNT = 90;
-const BASE_SIZE = 128;
+const BASE_SIZE = 192;
 const DURATION = 5;
 const SPRITE = 128;
 
