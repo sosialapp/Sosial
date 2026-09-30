@@ -64,15 +64,23 @@ export default function FeaturesBento() {
 
         {/* First row */}
         <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <article className="flex flex-col rounded-xl bg-[conic-gradient(from_180deg_at_50%_50%,#FFA4FC_-27.68deg,#E064A2_1.73deg,#FFA4FC_332.32deg,#E064A2_361.73deg)] p-5 md:h-[483px]">
+          <article className="flex flex-col overflow-hidden rounded-xl bg-[conic-gradient(from_180deg_at_50%_50%,#FFA4FC_-27.68deg,#E064A2_1.73deg,#FFA4FC_332.32deg,#E064A2_361.73deg)] p-5 md:h-[483px]">
             <h3 className={`${title} text-[#0B0A0A]`}>
               Write and generate your content. Anytime, anywhere
             </h3>
             <p className={`${sub} text-[rgba(11,10,10,0.6)]`}>
               Choose from 100+ expert-made templates. Use your brand colors and custom fonts.
             </p>
-            {/* Illustration: phone mockups */}
-            <ArtSlot className="min-h-40 flex-1" />
+            <div className="relative -mx-5 -mb-5 mt-4 min-h-40 flex-1">
+              <Image
+                src="/bento-phones.png"
+                alt="Sosial AI writer, team dashboard and content card designer on three phones"
+                fill
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, 400px"
+                className="object-cover object-top mix-blend-lighten"
+              />
+            </div>
           </article>
 
           <article className="rounded-xl bg-[linear-gradient(180deg,#005BD2_0%,#7BCAC3_100%)] p-5 md:h-[483px]">
