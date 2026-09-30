@@ -5,7 +5,7 @@
  * where supplied artwork will be placed.
  */
 
-const title = 'font-display text-2xl font-bold leading-5 tracking-[-0.4px]';
+const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
 const sub = 'mt-2 font-display text-sm leading-5 tracking-[-0.4px]';
 
 /** Invisible spacer reserving the illustration area in a card. */
