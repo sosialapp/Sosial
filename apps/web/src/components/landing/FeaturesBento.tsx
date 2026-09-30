@@ -25,22 +25,20 @@ function Sparkle({ className = '' }: { className?: string }) {
   );
 }
 
-/** Six-fold woven knot in the spirit of the ChatGPT mark, white outline. */
+/** Official OpenAI knot outline, inherits parent text colour. */
 function KnotMark({ className = '' }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 100 100"
+      viewBox="0 0 24 24"
       aria-hidden="true"
       className={className}
       fill="none"
-      stroke="#fff"
-      strokeWidth="7"
+      stroke="currentColor"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {[0, 60, 120, 180, 240, 300].map((a) => (
-        <path key={a} d="M50 6 L74 50 L50 64" transform={`rotate(${a} 50 50)`} />
-      ))}
+      <path d="M14.1 13.3L8 16.8l-4.2-2.6A4 4 0 0 1 6 6.7m6 7.8L6 11V6a4 4 0 0 1 7.6-2m-3.7 9.3V6.2l4.4-2.6a4 4 0 0 1 5.3 5.8m-9.7 1.3L16 7.2l4.2 2.6a4 4 0 0 1-2.2 7.5m-6-7.8l6 3.5v5a4 4 0 0 1-7.6 2m3.7-9.3v7.1l-4.4 2.6a4 4 0 0 1-5.3-5.8" />
     </svg>
   );
 }
@@ -189,7 +187,7 @@ export default function FeaturesBento() {
                 </p>
               </div>
               {/* Illustration: AI knot mark */}
-              <KnotMark className="h-20 w-20 shrink-0" />
+              <KnotMark className="h-20 w-20 shrink-0 text-white" />
             </div>
             <div className="relative flex flex-1 items-center">
               <div className="w-full rounded-xl bg-black/25 p-4">
@@ -205,9 +203,15 @@ export default function FeaturesBento() {
                   aria-hidden="true"
                   className="animate-sheen pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-black/10 to-transparent"
                 />
-                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
-                  <path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10Z" />
-                </svg>
+                <span aria-hidden="true" className="flex items-center gap-1">
+                  {[0, 150, 300].map((ms) => (
+                    <span
+                      key={ms}
+                      style={{ animationDelay: `${ms}ms` }}
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-black"
+                    />
+                  ))}
+                </span>
                 Generate
               </p>
             </div>
