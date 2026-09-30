@@ -194,11 +194,11 @@ export default function FeaturesBento() {
             </div>
           </article>
 
-          <article className="relative flex flex-col overflow-hidden rounded-xl bg-black p-5 md:col-span-7 md:h-[483px]">
-            <h3 className={`${title} relative text-white`}>
+          <article className="relative flex flex-col overflow-hidden rounded-xl bg-[linear-gradient(180deg,#FCE7CB_0%,#F9CF9C_100%)] p-5 md:col-span-7 md:h-[483px]">
+            <h3 className={`${title} relative text-[#0B0A0A]`}>
               Connect to our 10 channels. Up to 100 accounts
             </h3>
-            <p className={`${sub} relative text-white/60`}>
+            <p className={`${sub} relative text-[rgba(11,10,10,0.6)]`}>
               Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon, YouTube,
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>
