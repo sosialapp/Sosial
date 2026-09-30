@@ -7,6 +7,10 @@ const root = dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: root,
+  images: {
+    // Portrait placeholders for the landing connect card.
+    remotePatterns: [{ protocol: 'https', hostname: 'randomuser.me' }],
+  },
   // Native module — keep it out of the server bundle so the platform picks the
   // right prebuilt binary (used by the server-side watermark compositor).
   serverExternalPackages: ['sharp'],

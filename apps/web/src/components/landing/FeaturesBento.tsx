@@ -209,7 +209,52 @@ export default function FeaturesBento() {
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>
             {/* Illustration: account avatars + channel logo grid */}
-            <ArtSlot className="relative min-h-40 flex-1" />
+            <div className="relative mt-6 flex justify-center" aria-hidden="true">
+              <div className="flex -space-x-4">
+                {[
+                  { img: 'women/44', channel: 'threads' },
+                  { img: 'men/32', channel: 'mastodon' },
+                  { img: 'women/68', channel: 'instagram' },
+                  { img: 'men/75', channel: 'x' },
+                ].map((a) => (
+                  <span key={a.img} className="relative block h-16 w-16">
+                    <Image
+                      src={`https://randomuser.me/api/portraits/${a.img}.jpg`}
+                      alt=""
+                      width={128}
+                      height={128}
+                      loading="lazy"
+                      className="h-16 w-16 rounded-full object-cover ring-2 ring-white/80"
+                    />
+                    <BrandIcon
+                      provider={a.channel as BrandProvider}
+                      className="absolute -right-1 -bottom-1 h-6 w-6"
+                    />
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div
+              className="relative mx-auto mt-6 grid max-w-md grid-cols-5 place-items-center gap-x-6 gap-y-5"
+              aria-hidden="true"
+            >
+              {(
+                [
+                  'x',
+                  'mastodon',
+                  'pinterest',
+                  'threads',
+                  'instagram',
+                  'facebook',
+                  'youtube',
+                  'bluesky',
+                  'tiktok',
+                  'linkedin',
+                ] as BrandProvider[]
+              ).map((p) => (
+                <BrandIcon key={p} provider={p} badge={false} className="h-12 w-12" />
+              ))}
+            </div>
           </article>
         </div>
       </div>
