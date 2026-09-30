@@ -7,6 +7,7 @@
 import type { CSSProperties } from 'react';
 import Image from 'next/image';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import ChannelAvatar from '@/components/ChannelAvatar';
 import TypewriterPrompt from '@/components/landing/TypewriterPrompt';
 
 const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
@@ -208,7 +209,7 @@ export default function FeaturesBento() {
               Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon, YouTube,
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>
-            {/* Illustration: account avatars + channel logo grid */}
+            {/* Illustration: account avatars, app-style badges layered above the next photo */}
             <div className="relative mt-6 flex justify-center" aria-hidden="true">
               <div className="flex -space-x-4">
                 {[
@@ -220,19 +221,16 @@ export default function FeaturesBento() {
                   { img: 'men/45', channel: 'tiktok' },
                   { img: 'women/33', channel: 'youtube' },
                   { img: 'men/22', channel: 'bluesky' },
-                ].map((a) => (
-                  <span key={a.img} className="relative block h-16 w-16">
-                    <Image
-                      src={`https://randomuser.me/api/portraits/${a.img}.jpg`}
-                      alt=""
-                      width={128}
-                      height={128}
-                      loading="lazy"
-                      className="h-16 w-16 rounded-full object-cover"
-                    />
-                    <BrandIcon
-                      provider={a.channel as BrandProvider}
-                      className="absolute -right-1 -bottom-1 h-6 w-6"
+                ].map((a, i, all) => (
+                  <span
+                    key={a.img}
+                    className="block h-16 w-16 shrink-0"
+                    style={{ zIndex: all.length - i }}
+                  >
+                    <ChannelAvatar
+                      provider={a.channel}
+                      avatar={`https://randomuser.me/api/portraits/${a.img}.jpg`}
+                      size={64}
                     />
                   </span>
                 ))}
