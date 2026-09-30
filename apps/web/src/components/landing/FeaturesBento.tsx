@@ -6,8 +6,7 @@
  */
 import type { CSSProperties } from 'react';
 import Image from 'next/image';
-import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
-import ChannelAvatar from '@/components/ChannelAvatar';
+import { BrandIcon, brandColor, type BrandProvider } from '@/components/BrandIcon';
 import TypewriterPrompt from '@/components/landing/TypewriterPrompt';
 
 const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
@@ -209,7 +208,7 @@ export default function FeaturesBento() {
               Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon, YouTube,
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>
-            {/* Illustration: account avatars, app-style badges layered above the next photo */}
+            {/* Illustration: account avatars, ringless badges layered above the next photo */}
             <div className="relative mt-6 flex justify-center" aria-hidden="true">
               <div className="flex -space-x-4">
                 {[
@@ -224,14 +223,33 @@ export default function FeaturesBento() {
                 ].map((a, i, all) => (
                   <span
                     key={a.img}
-                    className="block h-16 w-16 shrink-0"
+                    className="relative block h-16 w-16 shrink-0"
                     style={{ zIndex: all.length - i }}
                   >
-                    <ChannelAvatar
-                      provider={a.channel}
-                      avatar={`https://randomuser.me/api/portraits/${a.img}.jpg`}
-                      size={64}
+                    <Image
+                      src={`https://randomuser.me/api/portraits/${a.img}.jpg`}
+                      alt=""
+                      width={128}
+                      height={128}
+                      loading="lazy"
+                      className="block h-16 w-16 rounded-full object-cover"
                     />
+                    <span
+                      className="absolute flex items-center justify-center rounded-full"
+                      style={{
+                        right: -2,
+                        bottom: -2,
+                        width: 35,
+                        height: 35,
+                        background: brandColor(a.channel as BrandProvider),
+                      }}
+                    >
+                      <BrandIcon
+                        provider={a.channel as BrandProvider}
+                        mono
+                        className="h-[62%] w-[62%] text-white"
+                      />
+                    </span>
                   </span>
                 ))}
               </div>
