@@ -4,7 +4,9 @@
  * Plus Jakarta Sans throughout. Each card has a marked illustration slot
  * where supplied artwork will be placed.
  */
+import type { CSSProperties } from 'react';
 import Image from 'next/image';
+import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 
 const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
 const sub = 'mt-2 font-display text-sm leading-5 tracking-[-0.4px]';
@@ -22,14 +24,59 @@ function Sparkle({ className = '' }: { className?: string }) {
   );
 }
 
-function BoltEmblem() {
+function OrbitLogo({
+  provider,
+  position,
+  duration,
+  reverse = false,
+}: {
+  provider: BrandProvider;
+  position: string;
+  duration: string;
+  reverse?: boolean;
+}) {
   return (
-    <div className="relative mx-auto mt-8 h-64 w-64" aria-hidden="true">
-      <div className="absolute inset-0 rounded-[112px] border border-[#FFC240] opacity-10" />
-      <div className="absolute inset-[6.94%] rounded-[92px] border border-[#FFC240] opacity-30" />
-      <div className="absolute inset-[13.89%] rounded-[72px] border border-[#FFC240] opacity-60" />
-      <div className="absolute inset-[20.83%] rounded-[52px] border border-[#FFC240]" />
-      <div className="absolute inset-[27.78%] flex items-center justify-center overflow-hidden rounded-[32px] border border-[#FFC240] bg-black shadow-[0px_25px_20px_-1px_rgba(0,0,0,0.2),inset_0px_-1px_1px_1px_rgba(204,199,199,0.2),inset_0px_1px_1px_1px_rgba(204,199,199,0.2)]">
+    <span aria-hidden="true" className={`absolute ${position}`}>
+      <span
+        style={{ '--d': duration } as CSSProperties}
+        className={`block text-white ${reverse ? 'animate-orbit' : 'animate-orbit-rev'}`}
+      >
+        <BrandIcon provider={provider} mono className="block h-6 w-6" />
+      </span>
+    </span>
+  );
+}
+
+function BoltEmblem() {
+  const outer = '48s';
+  const middle = '36s';
+  return (
+    <div className="relative mx-auto mt-8 h-72 w-72" aria-hidden="true">
+      <div className="absolute inset-0 rounded-[28%] border border-[#FFC240] opacity-10" />
+      <div className="absolute inset-[6.94%] rounded-[28%] border border-[#FFC240] opacity-30" />
+      <div className="absolute inset-[13.89%] rounded-[28%] border border-[#FFC240] opacity-60" />
+      <div className="absolute inset-[20.83%] rounded-[28%] border border-[#FFC240]" />
+      <div
+        style={{ '--d': outer } as CSSProperties}
+        className="absolute inset-0 animate-orbit"
+      >
+        <OrbitLogo provider="facebook" position="top-0 left-1/2 -translate-x-1/2 -translate-y-1/2" duration={outer} />
+        <OrbitLogo provider="x" position="top-1/2 right-0 -translate-y-1/2 translate-x-1/2" duration={outer} />
+        <OrbitLogo provider="youtube" position="bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2" duration={outer} />
+        <OrbitLogo provider="tiktok" position="top-1/2 left-0 -translate-x-1/2 -translate-y-1/2" duration={outer} />
+      </div>
+      <div
+        style={{ '--d': middle } as CSSProperties}
+        className="absolute inset-[13.89%] animate-orbit-rev"
+      >
+        <OrbitLogo provider="bluesky" position="top-0 left-1/2 -translate-x-1/2 -translate-y-1/2" duration={middle} reverse />
+        <OrbitLogo provider="threads" position="top-1/2 right-0 -translate-y-1/2 translate-x-1/2" duration={middle} reverse />
+        <OrbitLogo provider="linkedin" position="bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2" duration={middle} reverse />
+        <OrbitLogo provider="instagram" position="top-1/2 left-0 -translate-x-1/2 -translate-y-1/2" duration={middle} reverse />
+        <OrbitLogo provider="pinterest" position="top-[10%] left-[10%] -translate-x-1/2 -translate-y-1/2" duration={middle} reverse />
+        <OrbitLogo provider="mastodon" position="top-[10%] right-[10%] -translate-y-1/2 translate-x-1/2" duration={middle} reverse />
+      </div>
+      <div className="absolute inset-[27.78%] animate-heartbeat overflow-hidden rounded-[32px] border border-[#FFC240] bg-black shadow-[0px_25px_20px_-1px_rgba(0,0,0,0.2),inset_0px_-1px_1px_1px_rgba(204,199,199,0.2),inset_0px_1px_1px_1px_rgba(204,199,199,0.2)]">
         <Image
           src="/bento-bolt.png"
           alt=""

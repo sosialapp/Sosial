@@ -117,6 +117,49 @@ body {
   }
 }
 
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-rev {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  12% {
+    transform: scale(1.14);
+  }
+  24% {
+    transform: scale(1);
+  }
+  36% {
+    transform: scale(1.1);
+  }
+  48% {
+    transform: scale(1);
+  }
+}
+
+/* Orbit duration comes from --d so sibling layers can share one clock. */
+.animate-orbit {
+  animation: orbit var(--d, 48s) linear infinite;
+}
+.animate-orbit-rev {
+  animation: orbit-rev var(--d, 48s) linear infinite;
+}
+.animate-heartbeat {
+  animation: heartbeat 1.8s ease-in-out infinite;
+  transform-origin: center;
+}
+
 .animate-rise {
   animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -174,6 +217,9 @@ body {
   .animate-rise-2,
   .animate-rise-3,
   .animate-float,
+  .animate-orbit,
+  .animate-orbit-rev,
+  .animate-heartbeat,
   .reveal,
   .marquee-track {
     animation: none;
