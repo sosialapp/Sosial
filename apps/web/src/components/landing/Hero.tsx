@@ -27,7 +27,7 @@ export default function Hero() {
         <div className="text-center lg:text-left">
           <h1 className="animate-rise-1 font-display text-5xl leading-[1.02] font-semibold tracking-tight text-balance md:text-6xl">
             Autopilot social media scheduler with{' '}
-            <span className="mr-1 inline-block rotate-[-2deg] rounded-[0.45em] bg-bolt px-[0.28em] leading-[1.05]">
+            <span className="underline decoration-bolt decoration-[0.14em] underline-offset-[0.18em]">
               AI-Written contents
             </span>
           </h1>
