@@ -209,28 +209,23 @@ export default function FeaturesBento() {
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>
             {/* Illustration: account avatars + channel logo grid */}
-            <div className="relative mt-6 flex justify-center" aria-hidden="true">
+            <div className="relative mt-6 flex justify-center gap-3" aria-hidden="true">
+              {(['threads', 'mastodon', 'instagram', 'x'] as BrandProvider[]).map((p) => (
+                <BrandIcon key={p} provider={p} className="h-8 w-8" />
+              ))}
+            </div>
+            <div className="relative mt-4 flex justify-center" aria-hidden="true">
               <div className="flex -space-x-4">
-                {[
-                  { img: 'women/44', channel: 'threads' },
-                  { img: 'men/32', channel: 'mastodon' },
-                  { img: 'women/68', channel: 'instagram' },
-                  { img: 'men/75', channel: 'x' },
-                ].map((a) => (
-                  <span key={a.img} className="relative block h-16 w-16">
-                    <Image
-                      src={`https://randomuser.me/api/portraits/${a.img}.jpg`}
-                      alt=""
-                      width={128}
-                      height={128}
-                      loading="lazy"
-                      className="h-16 w-16 rounded-full object-cover ring-2 ring-white/80"
-                    />
-                    <BrandIcon
-                      provider={a.channel as BrandProvider}
-                      className="absolute -right-1 -bottom-1 h-6 w-6"
-                    />
-                  </span>
+                {['women/44', 'men/32', 'women/68', 'men/75'].map((img) => (
+                  <Image
+                    key={img}
+                    src={`https://randomuser.me/api/portraits/${img}.jpg`}
+                    alt=""
+                    width={128}
+                    height={128}
+                    loading="lazy"
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
                 ))}
               </div>
             </div>
