@@ -119,15 +119,17 @@ export default function FeaturesBento() {
             <p className={`${sub} text-[rgba(11,10,10,0.6)]`}>
               Choose from 100+ expert-made templates. Use your brand colors and custom fonts.
             </p>
-            <div className="relative -mx-5 -mb-5 mt-4 min-h-40 flex-1">
-              <Image
-                src="/bento-phones.png"
-                alt="Sosial AI writer, team dashboard and content card designer on three phones"
-                fill
-                loading="lazy"
-                sizes="(max-width: 768px) 100vw, 400px"
-                className="object-cover object-top"
-              />
+            <div className="-mx-5 -mb-5 mt-4 flex min-h-40 flex-1 flex-col justify-end">
+              <div className="relative aspect-[3391/2779] w-full">
+                <Image
+                  src="/bento-phones.png"
+                  alt="Sosial AI writer, team dashboard and content card designer on three phones"
+                  fill
+                  loading="lazy"
+                  sizes="(max-width: 768px) 100vw, 400px"
+                  className="object-contain"
+                />
+              </div>
             </div>
           </article>
 
