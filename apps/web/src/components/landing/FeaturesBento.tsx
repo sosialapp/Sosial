@@ -117,7 +117,7 @@ export default function FeaturesBento() {
   return (
     <section aria-label="Features" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
-        <div className="max-w-[34ch]">
+        <div className="mx-auto max-w-[34ch] text-center">
           <p className="eyebrow">What you get</p>
           <h2 className="mt-2 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
             Everything a daily poster needs.
