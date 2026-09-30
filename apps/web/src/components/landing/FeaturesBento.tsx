@@ -51,14 +51,24 @@ export default function FeaturesBento() {
           </article>
 
           <article className={`${tile} bg-accent-soft md:col-span-8`}>
-            <Image
-              src="/bento-phone.png"
-              alt=""
-              width={200}
-              height={413}
-              loading="lazy"
-              className="h-56 w-auto [filter:drop-shadow(0_16px_28px_rgba(28,26,20,0.3))]"
-            />
+            <div className="flex flex-wrap items-end gap-4">
+              <Image
+                src="/bento-phone.png"
+                alt=""
+                width={200}
+                height={413}
+                loading="lazy"
+                className="h-56 w-auto [filter:drop-shadow(0_16px_28px_rgba(28,26,20,0.3))]"
+              />
+              <Image
+                src="/bento-channels.svg"
+                alt="Ten channels"
+                width={175}
+                height={175}
+                loading="lazy"
+                className="h-36 w-auto rounded-2xl [filter:drop-shadow(0_16px_28px_rgba(28,26,20,0.3))]"
+              />
+            </div>
             <h3 className={`${h3} mt-5`}>Ten networks, native previews.</h3>
             <p className={`${body} text-ink/75`}>
               Real API publishing with each network&apos;s real limits handled for you.
