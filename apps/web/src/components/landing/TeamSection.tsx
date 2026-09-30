@@ -27,7 +27,7 @@ const CONTROLS: { title: string; body: string }[] = [
 export default function TeamSection() {
   return (
     <section aria-label="Approvals and roles" className="bg-ink text-paper">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-20 md:py-28 lg:grid-cols-2">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-14 md:py-28 lg:grid-cols-2">
         <div>
           <p className="eyebrow !text-paper/60">Approvals and roles</p>
           <h2 className="mt-2 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">

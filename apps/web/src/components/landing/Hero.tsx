@@ -22,9 +22,9 @@ export default function Hero() {
     <section className="relative overflow-hidden">
       <LogoParticles />
 
-      <div className="relative z-[2] mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:grid-cols-[0.85fr_1.15fr]">
+      <div className="relative z-[2] mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">
-          <h1 className="animate-rise-1 font-display text-5xl leading-[1.02] font-semibold tracking-tight text-balance md:text-6xl">
+          <h1 className="animate-rise-1 font-display text-4xl leading-[1.02] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
             Autopilot social media scheduler with{' '}
             <span className="underline decoration-bolt decoration-[0.14em] underline-offset-[0.18em]">
               AI-Written contents

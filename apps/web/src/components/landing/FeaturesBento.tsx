@@ -116,7 +116,7 @@ function BoltEmblem() {
 export default function FeaturesBento() {
   return (
     <section aria-label="Features" className="bg-paper">
-      <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
+      <div className="mx-auto max-w-6xl px-4 py-14 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <p className="eyebrow">What you get</p>
           <h2 className="mt-2 font-display text-[17px] leading-[1.12] font-semibold tracking-tight whitespace-nowrap sm:text-2xl md:text-4xl">
@@ -218,7 +218,7 @@ export default function FeaturesBento() {
                 ].map((a, i, all) => (
                   <span
                     key={a.img}
-                    className="relative block h-16 w-16 shrink-0"
+                    className="relative block h-12 w-12 shrink-0 sm:h-16 sm:w-16"
                     style={{ zIndex: all.length - i }}
                   >
                     <Image
@@ -227,15 +227,13 @@ export default function FeaturesBento() {
                       width={128}
                       height={128}
                       loading="lazy"
-                      className="block h-16 w-16 rounded-full object-cover"
+                      className="block h-12 w-12 rounded-full object-cover sm:h-16 sm:w-16"
                     />
                     <span
-                      className="absolute flex items-center justify-center rounded-full"
+                      className="absolute flex h-7 w-7 items-center justify-center rounded-full sm:h-9 sm:w-9"
                       style={{
                         right: -2,
                         bottom: -2,
-                        width: 35,
-                        height: 35,
                         background: brandColor(a.channel as BrandProvider),
                       }}
                     >
@@ -250,7 +248,7 @@ export default function FeaturesBento() {
                 </div>
               </div>
               <div
-                className="relative mx-auto mt-5 grid w-full max-w-md grid-cols-5 place-items-center gap-x-6 gap-y-5"
+                className="relative mx-auto mt-5 grid w-full max-w-md grid-cols-5 place-items-center gap-x-3 gap-y-4 sm:gap-x-6 sm:gap-y-5"
                 aria-hidden="true"
               >
               {(
@@ -267,7 +265,7 @@ export default function FeaturesBento() {
                   'linkedin',
                 ] as BrandProvider[]
               ).map((p) => (
-                <BrandIcon key={p} provider={p} badge={false} className="h-12 w-12" />
+                <BrandIcon key={p} provider={p} badge={false} className="h-9 w-9 sm:h-12 sm:w-12" />
               ))}
               </div>
             </div>

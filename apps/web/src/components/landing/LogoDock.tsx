@@ -70,11 +70,11 @@ export default function LogoDock() {
         <div className="flex justify-center">
           <div
             ref={trackRef}
-            className="flex items-end gap-3 overflow-x-auto rounded-[28px] border border-line bg-white/70 px-6 pt-5 pb-4 backdrop-blur-sm"
+            className="flex max-w-full items-end gap-2.5 overflow-x-auto rounded-[28px] border border-line bg-white/70 px-5 pt-4 pb-3 backdrop-blur-sm sm:gap-3 sm:px-6 sm:pt-5 sm:pb-4"
           >
             {CHANNELS.map((c) => (
               <span key={c} className="block shrink-0 will-change-transform">
-                <BrandIcon provider={c} className="h-12 w-12" />
+                <BrandIcon provider={c} className="h-10 w-10 sm:h-12 sm:w-12" />
               </span>
             ))}
           </div>
