@@ -9,7 +9,7 @@ const ch = (provider: string, metadata?: Record<string, unknown>) => ({ provider
 const part = (body: string, kinds: string[] = []) => ({ body, kinds });
 
 describe('compat profiles', () => {
-  it('covers exactly the ten live channels', () => {
+  it('covers the live channels plus Telegram', () => {
     expect(Object.keys(CAPABILITIES).sort()).toEqual([
       'bluesky',
       'facebook',
@@ -17,6 +17,7 @@ describe('compat profiles', () => {
       'linkedin',
       'mastodon',
       'pinterest',
+      'telegram',
       'threads',
       'tiktok',
       'x',

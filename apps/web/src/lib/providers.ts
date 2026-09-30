@@ -23,6 +23,7 @@ export const PROVIDER_META: Record<ProviderKey, ProviderInfo> = {
   bluesky: { label: 'Bluesky', color: '#0285FF', glyph: 'BS', limit: 300, kind: 'social' },
   mastodon: { label: 'Mastodon', color: '#6364FF', glyph: 'M', limit: 500, kind: 'social' },
   pinterest: { label: 'Pinterest', color: '#E60023', glyph: 'P', limit: 800, kind: 'visual' },
+  telegram: { label: 'Telegram', color: '#229ED9', glyph: 'TG', limit: 1024, kind: 'social' },
 };
 
 export function providerMeta(p: string): ProviderInfo {

@@ -122,6 +122,17 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     contentWarning: true,
     limits: { text: 500, media: 4 },
   },
+  telegram: {
+    label: 'Telegram',
+    // Bot API: text, photo, video, albums (sendMediaGroup). No polls on our
+    // publish path and no native scheduling — Sosial's worker owns the clock.
+    supports: { text: true, image: true, video: true, carousel: true, document: false, poll: false, link: true },
+    thread: false, replyChain: false, article: false,
+    requiresMedia: false, requiresVideo: false,
+    boardRequired: false, titleRequired: false,
+    // Captions cap at 1024; the adapter truncates longer body text.
+    limits: { text: 1024, media: 10 },
+  },
 };
 
 export type CompatLevel = 'error' | 'warn';

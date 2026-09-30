@@ -16,11 +16,11 @@ export interface FbPickPage {
   ig?: string;
 }
 
-type ProviderId = OAuthProvider | 'bluesky';
+type ProviderId = OAuthProvider | 'bluesky' | 'telegram';
 
-const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky'];
+const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram'];
 
-const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true };
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true };
 
 function accountName(c: ConnectedChannel): string {
   return c.display_name ?? (c.handle ? `@${c.handle}` : c.handle) ?? c.external_id;
@@ -62,6 +62,8 @@ export default function ConnectPanel({
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   const [mastodonInstance, setMastodonInstance] = useState('');
+  const [tgToken, setTgToken] = useState('');
+  const [tgChat, setTgChat] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
@@ -162,6 +164,37 @@ export default function ConnectPanel({
     }
   }
 
+  async function connectTelegram() {
+    setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!tgToken.trim()) {
+      setErr('Paste the bot token from @BotFather first.');
+      return;
+    }
+    if (!tgChat.trim()) {
+      setErr('Enter the destination channel or group.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bot_token: tgToken.trim(), chat_id: tgChat.trim() }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect Telegram.');
+      window.location.href = '/channels?connected=telegram';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect Telegram.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function pickPage(id: string) {
     setErr(null);
     setPicking(id);
@@ -189,14 +222,29 @@ export default function ConnectPanel({
     if (list.length === 0) {
       if (p === 'bluesky') return 'Handle + app password';
       if (p === 'mastodon') return 'Username + login';
+      if (p === 'telegram') return 'Bot token + destination';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
     return `${list.length} accounts`;
   };
 
-  const alreadyLabel = status.already === 'bluesky' ? 'Bluesky' : status.already ? oauthLabel(status.already) : '';
-  const connectedLabel = status.connected === 'bluesky' ? 'Bluesky' : status.connected ? oauthLabel(status.connected) : '';
+  const alreadyLabel =
+    status.already === 'bluesky'
+      ? 'Bluesky'
+      : status.already === 'telegram'
+        ? 'Telegram'
+        : status.already
+          ? oauthLabel(status.already)
+          : '';
+  const connectedLabel =
+    status.connected === 'bluesky'
+      ? 'Bluesky'
+      : status.connected === 'telegram'
+        ? 'Telegram'
+        : status.connected
+          ? oauthLabel(status.connected)
+          : '';
 
   return (
     <div className="space-y-3">
@@ -317,6 +365,34 @@ export default function ConnectPanel({
                       />
                       <button type="button" onClick={connectMastodon} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
                         {busy ? 'Registering…' : hasAny ? 'Add this account' : 'Connect Mastodon'}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {p === 'telegram' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        No OAuth — message @BotFather for a bot token, add the bot to your
+                        channel or group as an admin, then paste the destination below.
+                      </p>
+                      <input
+                        value={tgToken}
+                        onChange={(e) => setTgToken(e.target.value)}
+                        placeholder="Bot token (123456:ABC-DEF…)"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-label="Telegram bot token"
+                        className="field !text-xs"
+                      />
+                      <input
+                        value={tgChat}
+                        onChange={(e) => setTgChat(e.target.value)}
+                        placeholder="Destination: @mychannel or -1001234567890"
+                        aria-label="Telegram destination chat"
+                        className="field !text-xs"
+                      />
+                      <button type="button" onClick={connectTelegram} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                        {busy ? 'Checking with Telegram…' : hasAny ? 'Add another bot' : 'Connect Telegram'}
                       </button>
                     </div>
                   ) : null}

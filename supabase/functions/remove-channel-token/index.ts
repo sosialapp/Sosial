@@ -16,6 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const PROVIDERS = new Set([
   "facebook", "instagram", "threads", "tiktok", "x",
   "bluesky", "linkedin", "mastodon", "pinterest", "youtube",
+  "telegram",
 ]);
 
 // Browser preflight must pass before supabase-js can POST at all.
