@@ -152,7 +152,7 @@ export default function FeaturesBento() {
           </article>
 
           <article className="rounded-xl bg-[linear-gradient(180deg,#005BD2_0%,#7BCAC3_100%)] p-5 md:h-[483px]">
-            <h3 className={`${title} text-white`}>Post now, or schedule your post in one Sosial</h3>
+            <h3 className={`${title} text-white`}>Post now, or schedule your post in Sosial</h3>
             <p className={`${sub} text-white`}>
               Share your presentation with a live link. Present with notes, a timer, and other
               aids.
