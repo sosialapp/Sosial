@@ -4,6 +4,7 @@
  * Plus Jakarta Sans throughout. Each card has a marked illustration slot
  * where supplied artwork will be placed.
  */
+import Image from 'next/image';
 
 const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
 const sub = 'mt-2 font-display text-sm leading-5 tracking-[-0.4px]';
@@ -28,10 +29,15 @@ function BoltEmblem() {
       <div className="absolute inset-[6.94%] rounded-[92px] border border-[#FFC240] opacity-30" />
       <div className="absolute inset-[13.89%] rounded-[72px] border border-[#FFC240] opacity-60" />
       <div className="absolute inset-[20.83%] rounded-[52px] border border-[#FFC240]" />
-      <div className="absolute inset-[27.78%] flex items-center justify-center rounded-[32px] border border-[#FFC240] bg-black shadow-[0px_25px_20px_-1px_rgba(0,0,0,0.2),inset_0px_-1px_1px_1px_rgba(204,199,199,0.2),inset_0px_1px_1px_1px_rgba(204,199,199,0.2)]">
-        <svg viewBox="0 0 24 24" className="h-10 w-10" fill="#FFC240" aria-hidden="true">
-          <path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2Z" />
-        </svg>
+      <div className="absolute inset-[27.78%] flex items-center justify-center overflow-hidden rounded-[32px] border border-[#FFC240] bg-black shadow-[0px_25px_20px_-1px_rgba(0,0,0,0.2),inset_0px_-1px_1px_1px_rgba(204,199,199,0.2),inset_0px_1px_1px_1px_rgba(204,199,199,0.2)]">
+        <Image
+          src="/bento-bolt.png"
+          alt=""
+          width={1254}
+          height={1254}
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
       </div>
       <Sparkle className="absolute top-[8%] left-[4%] h-5 w-5" />
       <Sparkle className="absolute top-[12%] right-[6%] h-5 w-5" />
