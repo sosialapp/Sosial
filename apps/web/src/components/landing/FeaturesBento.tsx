@@ -25,6 +25,26 @@ function Sparkle({ className = '' }: { className?: string }) {
   );
 }
 
+/** Six-fold woven knot in the spirit of the ChatGPT mark, white outline. */
+function KnotMark({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="#fff"
+      strokeWidth="7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {[0, 60, 120, 180, 240, 300].map((a) => (
+        <path key={a} d="M50 6 L74 50 L50 64" transform={`rotate(${a} 50 50)`} />
+      ))}
+    </svg>
+  );
+}
+
 function OrbitLogo({
   provider,
   position,
@@ -169,7 +189,7 @@ export default function FeaturesBento() {
                 </p>
               </div>
               {/* Illustration: AI knot mark */}
-              <ArtSlot className="h-20 w-20 shrink-0" />
+              <KnotMark className="h-20 w-20 shrink-0" />
             </div>
             <div className="relative flex flex-1 items-center">
               <div className="w-full rounded-xl bg-black/25 p-4">
@@ -180,7 +200,11 @@ export default function FeaturesBento() {
                 ]}
                 className="min-h-[3.25rem] rounded-lg border border-white/15 bg-black/30 px-4 py-3 font-display text-sm text-white/90"
               />
-              <p className="mt-3 flex items-center justify-center gap-2 rounded-full bg-white py-2.5 font-display text-sm font-bold text-black">
+              <p className="relative mt-3 flex items-center justify-center gap-2 overflow-hidden rounded-full bg-white py-2.5 font-display text-sm font-bold text-black">
+                <span
+                  aria-hidden="true"
+                  className="animate-sheen pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-black/10 to-transparent"
+                />
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
                   <path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10Z" />
                 </svg>

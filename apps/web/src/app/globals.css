@@ -148,6 +148,16 @@ body {
   }
 }
 
+@keyframes sheen {
+  0% {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  55%,
+  100% {
+    transform: translateX(280%) skewX(-20deg);
+  }
+}
+
 /* Orbit duration comes from --d so sibling layers can share one clock. */
 .animate-orbit {
   animation: orbit var(--d, 48s) linear infinite;
@@ -158,6 +168,9 @@ body {
 .animate-heartbeat {
   animation: heartbeat 1.8s ease-in-out infinite;
   transform-origin: center;
+}
+.animate-sheen {
+  animation: sheen 2.8s ease-in-out infinite;
 }
 
 .animate-rise {
@@ -220,6 +233,7 @@ body {
   .animate-orbit,
   .animate-orbit-rev,
   .animate-heartbeat,
+  .animate-sheen,
   .reveal,
   .marquee-track {
     animation: none;
