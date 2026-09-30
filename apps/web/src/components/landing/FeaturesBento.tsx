@@ -236,9 +236,10 @@ export default function FeaturesBento() {
               Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon, YouTube,
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>
-            {/* Illustration: account avatars, ringless badges layered above the next photo */}
-            <div className="relative mt-6 flex justify-center" aria-hidden="true">
-              <div className="flex -space-x-4">
+            {/* Illustration: account avatars + channel logo grid, centered */}
+            <div className="relative flex flex-1 flex-col items-center justify-center">
+              <div className="flex justify-center" aria-hidden="true">
+                <div className="flex -space-x-4">
                 {[
                   { img: 'women/44', channel: 'threads' },
                   { img: 'men/32', channel: 'mastodon' },
@@ -280,12 +281,12 @@ export default function FeaturesBento() {
                     </span>
                   </span>
                 ))}
+                </div>
               </div>
-            </div>
-            <div
-              className="relative mx-auto mt-6 grid max-w-md grid-cols-5 place-items-center gap-x-6 gap-y-5"
-              aria-hidden="true"
-            >
+              <div
+                className="relative mx-auto mt-5 grid w-full max-w-md grid-cols-5 place-items-center gap-x-6 gap-y-5"
+                aria-hidden="true"
+              >
               {(
                 [
                   'x',
@@ -302,6 +303,7 @@ export default function FeaturesBento() {
               ).map((p) => (
                 <BrandIcon key={p} provider={p} badge={false} className="h-12 w-12" />
               ))}
+              </div>
             </div>
           </article>
         </div>
