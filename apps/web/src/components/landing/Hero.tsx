@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import AuthModal from '@/components/site/AuthModal';
 import LogoParticles from '@/components/landing/LogoParticles';
 
@@ -41,9 +40,6 @@ export default function Hero() {
               Start scheduling free
               <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
-            <Link href="/pricing" className={`${btn} bg-white text-ink`}>
-              See pricing
-            </Link>
           </div>
         </div>
         <div className="animate-rise-2 relative">
