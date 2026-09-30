@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
+import CompatibilityPanel from '@/components/CompatibilityPanel';
+import { checkCompatibility } from '@/lib/compat';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
@@ -88,6 +90,23 @@ export default function Composer({
   const [tone, setTone] = useState<string>('auto');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiErr, setAiErr] = useState<string | null>(null);
+
+  /** Live per-channel verdicts (Phase 0 engine) — panel display + submit gates. */
+  const compat = useMemo(() => {
+    const chs = ready.filter((c) => picked.includes(c.id));
+    const headKinds = files.map((f) => f.kind);
+    const parts =
+      kind === 'chain'
+        ? segments.map((s, i) => ({ body: s.body, kinds: i === 0 ? headKinds : [] }))
+        : [{ body, kinds: headKinds }];
+    return {
+      providers: Array.from(new Set(chs.map((c) => c.provider))),
+      issues: checkCompatibility(
+        chs.map((c) => ({ provider: c.provider, metadata: c.metadata })),
+        { thread: kind === 'chain', parts, title },
+      ),
+    };
+  }, [ready, picked, files, segments, body, title, kind]);
 
   const filesRef = useRef(files);
   filesRef.current = files;
@@ -223,6 +242,14 @@ export default function Composer({
       setErr(blockedSingle.message);
       return;
     }
+    // Drafts save freely; anything else must clear the capability gate.
+    if (mode !== 'draft') {
+      const singleBlockers = compat.issues.filter((i) => i.level === 'error');
+      if (singleBlockers.length) {
+        setErr(singleBlockers.map((i) => i.message).join('\n'));
+        return;
+      }
+    }
     setBusy(true);
     try {
       const sb = createClient();
@@ -281,6 +308,13 @@ export default function Composer({
     if (blockedChain) {
       setErr(blockedChain.message);
       return;
+    }
+    if (mode !== 'draft') {
+      const chainBlockers = compat.issues.filter((i) => i.level === 'error');
+      if (chainBlockers.length) {
+        setErr(chainBlockers.map((i) => i.message).join('\n'));
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -341,6 +375,10 @@ export default function Composer({
           {err}
         </p>
       )}
+
+      <div className="px-6 pt-4">
+        <CompatibilityPanel providers={compat.providers} issues={compat.issues} />
+      </div>
 
       <div className="flex flex-1 flex-col gap-6 p-6 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-4">

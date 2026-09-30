@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import CompatibilityPanel from '@/components/CompatibilityPanel';
+import { checkCompatibility } from '@/lib/compat';
 import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
 import { GitBranch } from 'lucide-react';
@@ -188,6 +190,21 @@ export default function CreatePost({
     return ls.length ? Math.min(...ls) : 2200;
   }, [ready, picked]);
 
+  /** Live per-channel verdicts (Phase 0 engine) — panel display + submit gate. */
+  const compat = useMemo(() => {
+    const chs = ready.filter((c) => picked.includes(c.id));
+    return {
+      providers: Array.from(new Set(chs.map((c) => c.provider))),
+      issues: checkCompatibility(
+        chs.map((c) => ({ provider: c.provider, metadata: c.metadata })),
+        {
+          thread,
+          parts: segs.map((s) => ({ body: s.body, kinds: s.media.map((m) => m.kind) })),
+        },
+      ),
+    };
+  }, [ready, picked, segs, thread]);
+
   function toggle(id: string) {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
@@ -286,9 +303,14 @@ export default function CreatePost({
       setErr(blocked.message);
       return;
     }
-    if (segs[0] && segs[0].body.length > limit) {
-      setErr(`Caption is ${segs[0].body.length - limit} characters over the strictest channel limit.`);
-      return;
+    // Capability gate: per-channel blockers (limits, media, threads,
+    // destinations). Drafts save freely — the panel still shows the issues.
+    if (submitMode !== 'draft') {
+      const blockers = compat.issues.filter((i) => i.level === 'error');
+      if (blockers.length) {
+        setErr(blockers.map((i) => i.message).join('\n'));
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -502,6 +524,8 @@ export default function CreatePost({
             ) : null}
 
             {err ? <p className="mt-3 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
+
+            <CompatibilityPanel providers={compat.providers} issues={compat.issues} />
 
             {/* One row: thread link · save draft · post — aligned */}
             <div className="mt-3 flex flex-wrap items-center gap-3">
