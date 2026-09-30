@@ -31,5 +31,7 @@ export function apiClientId(keyId: string, idem: string): string {
 }
 
 export function isValidIdempotencyKey(v: unknown): v is string {
-  return typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v);
+  // Any non-empty token without whitespace (URLs included) — namespaced per
+  // key in apiClientId, so collisions across workspaces are impossible.
+  return typeof v === 'string' && v.length >= 1 && v.length <= 128 && !/\s/.test(v);
 }

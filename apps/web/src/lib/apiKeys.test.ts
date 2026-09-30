@@ -21,6 +21,7 @@ describe('apiKeys', () => {
   it('namespaces idempotency keys per api key', () => {
     expect(apiClientId('kid', 'order-1')).toBe('api:kid:order-1');
     expect(isValidIdempotencyKey('order-1_x')).toBe(true);
+    expect(isValidIdempotencyKey('https://example.com/item/42')).toBe(true);
     expect(isValidIdempotencyKey('no spaces')).toBe(false);
     expect(isValidIdempotencyKey('')).toBe(false);
     expect(isValidIdempotencyKey(42)).toBe(false);

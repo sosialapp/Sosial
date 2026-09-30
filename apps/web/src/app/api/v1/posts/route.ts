@@ -184,7 +184,7 @@ export async function POST(req: Request) {
   let clientId: string | undefined;
   if (b.idempotency_key !== undefined) {
     if (!isValidIdempotencyKey(b.idempotency_key)) {
-      return bad('`idempotency_key` must be 1-64 letters, numbers, dashes or underscores.');
+      return bad('`idempotency_key` must be 1-128 characters with no spaces.');
     }
     clientId = apiClientId(ctx.keyId, b.idempotency_key);
     const { data: existing } = await admin
