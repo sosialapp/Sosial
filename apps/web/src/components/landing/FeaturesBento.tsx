@@ -209,43 +209,32 @@ export default function FeaturesBento() {
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>
             {/* Illustration: account avatars + channel logo grid */}
-            <div className="relative mt-6 flex justify-center gap-3" aria-hidden="true">
-              {(
-                [
-                  'threads',
-                  'mastodon',
-                  'instagram',
-                  'x',
-                  'facebook',
-                  'tiktok',
-                  'youtube',
-                  'bluesky',
-                ] as BrandProvider[]
-              ).map((p) => (
-                <BrandIcon key={p} provider={p} className="h-8 w-8" />
-              ))}
-            </div>
-            <div className="relative mt-4 flex justify-center" aria-hidden="true">
+            <div className="relative mt-6 flex justify-center" aria-hidden="true">
               <div className="flex -space-x-4">
                 {[
-                  'women/44',
-                  'men/32',
-                  'women/68',
-                  'men/75',
-                  'women/12',
-                  'men/45',
-                  'women/33',
-                  'men/22',
-                ].map((img) => (
-                  <Image
-                    key={img}
-                    src={`https://randomuser.me/api/portraits/${img}.jpg`}
-                    alt=""
-                    width={128}
-                    height={128}
-                    loading="lazy"
-                    className="h-16 w-16 rounded-full object-cover"
-                  />
+                  { img: 'women/44', channel: 'threads' },
+                  { img: 'men/32', channel: 'mastodon' },
+                  { img: 'women/68', channel: 'instagram' },
+                  { img: 'men/75', channel: 'x' },
+                  { img: 'women/12', channel: 'facebook' },
+                  { img: 'men/45', channel: 'tiktok' },
+                  { img: 'women/33', channel: 'youtube' },
+                  { img: 'men/22', channel: 'bluesky' },
+                ].map((a) => (
+                  <span key={a.img} className="relative block h-16 w-16">
+                    <Image
+                      src={`https://randomuser.me/api/portraits/${a.img}.jpg`}
+                      alt=""
+                      width={128}
+                      height={128}
+                      loading="lazy"
+                      className="h-16 w-16 rounded-full object-cover"
+                    />
+                    <BrandIcon
+                      provider={a.channel as BrandProvider}
+                      className="absolute -right-1 -bottom-1 h-6 w-6"
+                    />
+                  </span>
                 ))}
               </div>
             </div>
