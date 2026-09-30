@@ -20,9 +20,9 @@ export default function FeaturesBento() {
           </p>
         </div>
 
-        <div className="mt-10 overflow-hidden rounded-[28px] border border-line">
+        <div className="mt-10 overflow-hidden rounded-[28px]">
           <Image
-            src="/bento-grids.png"
+            src="/bento-grids.svg"
             alt="Sosial features: write and generate content, post now or schedule, card templates with collaboration, AI automation, and connections to ten channels"
             width={1440}
             height={994}
