@@ -8,7 +8,7 @@ import Image from 'next/image';
 export default function FeaturesBento() {
   return (
     <section aria-label="Features" className="bg-paper">
-      <div className="mx-auto max-w-6xl px-4 pt-20 md:pt-28">
+      <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
         <div className="max-w-[34ch]">
           <p className="eyebrow">What you get</p>
           <h2 className="mt-2 font-display text-3xl leading-[1.12] font-semibold tracking-tight md:text-4xl">
@@ -19,18 +19,18 @@ export default function FeaturesBento() {
             anything on.
           </p>
         </div>
-      </div>
 
-      <div className="mt-10 pb-20 md:pb-28">
-        <Image
-          src="/bento-grids.png"
-          alt="Sosial features: write and generate content, post now or schedule, card templates with collaboration, AI automation, and connections to ten channels"
-          width={2880}
-          height={1988}
-          loading="lazy"
-          sizes="100vw"
-          className="h-auto w-full"
-        />
+        <div className="mx-auto mt-10 max-w-4xl">
+          <Image
+            src="/bento-grids.png"
+            alt="Sosial features: write and generate content, post now or schedule, card templates with collaboration, AI automation, and connections to ten channels"
+            width={2880}
+            height={1988}
+            loading="lazy"
+            sizes="(max-width: 896px) 100vw, 896px"
+            className="h-auto w-full"
+          />
+        </div>
       </div>
     </section>
   );
