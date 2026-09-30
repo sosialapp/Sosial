@@ -78,7 +78,7 @@ export default function FeaturesBento() {
                 fill
                 loading="lazy"
                 sizes="(max-width: 768px) 100vw, 400px"
-                className="object-cover object-top mix-blend-lighten"
+                className="object-cover object-top"
               />
             </div>
           </article>
