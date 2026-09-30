@@ -155,6 +155,12 @@ export interface ComposeArgs {
   chainPosition?: number;
   /** IANA zone the schedule was chosen in; defaults to the server's device zone. */
   timezone?: string;
+  /**
+   * Idempotency: reuse an existing client_id instead of minting one (the
+   * public API passes its namespaced key so retries return the same post).
+   * Defaults to a fresh id.
+   */
+  clientId?: string;
 }
 
 export function extFor(name: string, kind: string): string {
@@ -200,7 +206,7 @@ export function friendlyLimit(message: string): string {
  */
 export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise<string> {
   const { workspaceId, userId, title, body, mode, channels, files } = args;
-  const clientId = newClientId();
+  const clientId = args.clientId ?? newClientId();
   const needsApproval = args.role === 'member' && mode !== 'draft';
   const scheduledIso =
     mode === 'now' ? new Date().toISOString() : mode === 'schedule' ? args.scheduleIso : null;

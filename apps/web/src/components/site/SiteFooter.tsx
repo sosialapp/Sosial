@@ -133,6 +133,11 @@ export default async function SiteFooter() {
                 Transparency
               </Link>
             </li>
+            <li>
+              <Link href="/developers" className="hover:text-paper">
+                Developers
+              </Link>
+            </li>
             {extraPages.map((p) => (
               <li key={p.slug}>
                 <Link href={`/${p.slug}`} className="hover:text-paper">
