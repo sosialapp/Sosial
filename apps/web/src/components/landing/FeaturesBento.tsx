@@ -7,7 +7,7 @@
 import type { CSSProperties } from 'react';
 import Image from 'next/image';
 import { BrandIcon, brandColor, type BrandProvider } from '@/components/BrandIcon';
-import TypewriterPrompt from '@/components/landing/TypewriterPrompt';
+import AiPromptBox from '@/components/landing/AiPromptBox';
 
 const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
 const sub = 'mt-2 font-display text-sm leading-5 tracking-[-0.4px]';
@@ -190,49 +190,15 @@ export default function FeaturesBento() {
               <KnotMark className="h-20 w-20 shrink-0 text-white" />
             </div>
             <div className="relative flex flex-1 items-center">
-              <div className="w-full rounded-xl bg-black/25 p-4">
-              <TypewriterPrompt
-                texts={[
-                  'Write a content about AI will replace human.',
-                  'Write a latest news about global economy.',
-                ]}
-                className="min-h-[3.25rem] rounded-lg border border-white/15 bg-black/30 px-4 py-3 font-display text-sm text-white/90"
-              />
-              <p className="relative mt-3 flex items-center justify-center gap-2 overflow-hidden rounded-full bg-white py-2.5 font-display text-sm font-bold text-black">
-                <span
-                  aria-hidden="true"
-                  className="animate-sheen pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-black/10 to-transparent"
-                />
-                <span aria-hidden="true" className="flex items-center gap-1">
-                  {[0, 150, 300].map((ms) => (
-                    <span
-                      key={ms}
-                      style={{ animationDelay: `${ms}ms` }}
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-black"
-                    />
-                  ))}
-                </span>
-                Generate
-              </p>
-            </div>
+              <AiPromptBox />
             </div>
           </article>
 
-          <article className="relative flex flex-col overflow-hidden rounded-xl bg-[linear-gradient(180deg,#FCE7CB_0%,#F9CF9C_100%)] p-5 md:col-span-7 md:h-[483px]">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 700 483"
-              preserveAspectRatio="xMidYMid slice"
-              className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.12]"
-            >
-              {[200, 260, 320, 380, 440].map((r) => (
-                <circle key={r} cx="430" cy="330" r={r} fill="none" stroke="#B45309" strokeWidth="1.5" />
-              ))}
-            </svg>
-            <h3 className={`${title} relative text-[#0B0A0A]`}>
+          <article className="relative flex flex-col overflow-hidden rounded-xl bg-black p-5 md:col-span-7 md:h-[483px]">
+            <h3 className={`${title} relative text-white`}>
               Connect to our 10 channels. Up to 100 accounts
             </h3>
-            <p className={`${sub} relative text-[rgba(11,10,10,0.6)]`}>
+            <p className={`${sub} relative text-white/60`}>
               Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon, YouTube,
               X, TikTok, Pinterest. Up to 100 accounts.
             </p>

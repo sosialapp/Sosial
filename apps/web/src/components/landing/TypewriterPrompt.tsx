@@ -10,9 +10,12 @@ import { useEffect, useState } from 'react';
 export default function TypewriterPrompt({
   texts,
   className = '',
+  onPhase,
 }: {
   texts: string[];
   className?: string;
+  /** True while a finished line holds ("generating"), false while typing. */
+  onPhase?: (generating: boolean) => void;
 }) {
   const [output, setOutput] = useState(texts[0] ?? '');
 
@@ -38,6 +41,7 @@ export default function TypewriterPrompt({
         } else {
           line = (line + 1) % texts.length;
           phase = 'typing';
+          onPhase?.(false);
           timer = setTimeout(step, 350);
         }
         return;
@@ -49,12 +53,13 @@ export default function TypewriterPrompt({
         timer = setTimeout(step, 40 + Math.random() * 60);
       } else {
         phase = 'hold';
+        onPhase?.(true);
         timer = setTimeout(step, 2000);
       }
     };
     timer = setTimeout(step, 2000);
     return () => clearTimeout(timer);
-  }, [texts]);
+  }, [texts, onPhase]);
 
   return (
     <p className={className}>
