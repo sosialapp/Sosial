@@ -24,10 +24,16 @@ export async function verifyApiKey(req: Request): Promise<ApiKeyContext | null> 
     .maybeSingle();
   if (error || !data) return null;
   const row = data as { id: string; workspace_id: string; created_by: string | null };
-  void admin
-    .from('workspace_api_keys')
-    .update({ last_used_at: new Date().toISOString() })
-    .eq('id', row.id);
+  // Awaited: serverless runtimes freeze after the response, so fire-and-
+  // forget writes get dropped (and an untracked key is undebuggable).
+  try {
+    await admin
+      .from('workspace_api_keys')
+      .update({ last_used_at: new Date().toISOString() })
+      .eq('id', row.id);
+  } catch {
+    /* usage tracking must never fail the call */
+  }
   return { keyId: row.id, workspaceId: row.workspace_id, createdBy: row.created_by };
 }
 
