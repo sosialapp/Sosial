@@ -1,11 +1,17 @@
 /**
- * Feature bento (Tenner architecture): section header plus the coded first
- * row — generate (pink conic), schedule (blue gradient with the bolt
- * emblem), templates (green gradient). Plus Jakarta Sans throughout.
+ * Feature bento (Tenner architecture): the five-card grid in code — first
+ * row generate / schedule / templates, second row AI automate / connect.
+ * Plus Jakarta Sans throughout. Each card has a marked illustration slot
+ * where supplied artwork will be placed.
  */
 
 const title = 'font-display text-2xl font-bold leading-5 tracking-[-0.4px]';
 const sub = 'mt-2 font-display text-sm leading-5 tracking-[-0.4px]';
+
+/** Invisible spacer reserving the illustration area in a card. */
+function ArtSlot({ className = '' }: { className?: string }) {
+  return <div aria-hidden="true" className={className} />;
+}
 
 function Sparkle({ className = '' }: { className?: string }) {
   return (
@@ -50,14 +56,17 @@ export default function FeaturesBento() {
           </p>
         </div>
 
+        {/* First row */}
         <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <article className="rounded-xl bg-[conic-gradient(from_180deg_at_50%_50%,#FFA4FC_-27.68deg,#E064A2_1.73deg,#FFA4FC_332.32deg,#E064A2_361.73deg)] p-5 md:h-[483px]">
+          <article className="flex flex-col rounded-xl bg-[conic-gradient(from_180deg_at_50%_50%,#FFA4FC_-27.68deg,#E064A2_1.73deg,#FFA4FC_332.32deg,#E064A2_361.73deg)] p-5 md:h-[483px]">
             <h3 className={`${title} text-[#0B0A0A]`}>
               Write and generate your content. Anytime, anywhere
             </h3>
             <p className={`${sub} text-[rgba(11,10,10,0.6)]`}>
               Choose from 100+ expert-made templates. Use your brand colors and custom fonts.
             </p>
+            {/* Illustration: phone mockups */}
+            <ArtSlot className="min-h-40 flex-1" />
           </article>
 
           <article className="rounded-xl bg-[linear-gradient(180deg,#005BD2_0%,#7BCAC3_100%)] p-5 md:h-[483px]">
@@ -69,13 +78,68 @@ export default function FeaturesBento() {
             <BoltEmblem />
           </article>
 
-          <article className="rounded-xl bg-[linear-gradient(180deg,#96FFB9_0%,#C5DF93_100%)] p-5 md:h-[483px]">
+          <article className="flex flex-col rounded-xl bg-[linear-gradient(180deg,#96FFB9_0%,#C5DF93_100%)] p-5 md:h-[483px]">
             <h3 className={`${title} text-[#0B0A0A]`}>
               Choose your own content style from our card templates
             </h3>
             <p className={`${sub} text-[rgba(11,10,10,0.6)]`}>
               Create, craft and share stories together with real time collaboration.
             </p>
+            {/* Illustration: collaboration avatars */}
+            <ArtSlot className="min-h-40 flex-1" />
+          </article>
+        </div>
+
+        {/* Second row */}
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-12">
+          <article className="relative overflow-hidden rounded-xl bg-[linear-gradient(180deg,#3D0E96_0%,#22086B_100%)] p-5 md:col-span-5 md:h-[483px]">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(139,92,246,0.55),transparent_60%)]"
+            />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <h3 className={`${title} text-white`}>Automate your content using AI</h3>
+                <p className={`${sub} text-white/80`}>
+                  Generate new idea, write you content with AI powered by ChatGPT latest model.
+                </p>
+              </div>
+              {/* Illustration: AI knot mark */}
+              <ArtSlot className="h-20 w-20 shrink-0" />
+            </div>
+            <div className="relative mt-6 rounded-xl bg-black/25 p-4">
+              <p className="rounded-lg border border-white/15 bg-black/30 px-4 py-3 font-display text-sm text-white/90">
+                Write a content about AI will replace human.
+              </p>
+              <p className="mt-3 flex items-center justify-center gap-2 rounded-full bg-white py-2.5 font-display text-sm font-bold text-black">
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
+                  <path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10Z" />
+                </svg>
+                Generate
+              </p>
+            </div>
+          </article>
+
+          <article className="relative flex flex-col overflow-hidden rounded-xl bg-[linear-gradient(180deg,#FCE7CB_0%,#F9CF9C_100%)] p-5 md:col-span-7 md:h-[483px]">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 700 483"
+              preserveAspectRatio="xMidYMid slice"
+              className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.12]"
+            >
+              {[200, 260, 320, 380, 440].map((r) => (
+                <circle key={r} cx="430" cy="330" r={r} fill="none" stroke="#B45309" strokeWidth="1.5" />
+              ))}
+            </svg>
+            <h3 className={`${title} relative text-[#0B0A0A]`}>
+              Connect to our 10 channels. Up to 100 accounts
+            </h3>
+            <p className={`${sub} relative text-[rgba(11,10,10,0.6)]`}>
+              Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon, YouTube,
+              X, TikTok, Pinterest. Up to 100 accounts.
+            </p>
+            {/* Illustration: account avatars + channel logo grid */}
+            <ArtSlot className="relative min-h-40 flex-1" />
           </article>
         </div>
       </div>
