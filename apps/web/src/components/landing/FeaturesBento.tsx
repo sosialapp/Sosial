@@ -106,7 +106,7 @@ export default function FeaturesBento() {
 
         {/* Second row */}
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-12">
-          <article className="relative overflow-hidden rounded-xl bg-[linear-gradient(180deg,#3D0E96_0%,#22086B_100%)] p-5 md:col-span-5 md:h-[483px]">
+          <article className="relative flex flex-col overflow-hidden rounded-xl bg-[linear-gradient(180deg,#3D0E96_0%,#22086B_100%)] p-5 md:col-span-5 md:h-[483px]">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(139,92,246,0.55),transparent_60%)]"
@@ -121,7 +121,8 @@ export default function FeaturesBento() {
               {/* Illustration: AI knot mark */}
               <ArtSlot className="h-20 w-20 shrink-0" />
             </div>
-            <div className="relative mt-6 rounded-xl bg-black/25 p-4">
+            <div className="relative flex flex-1 items-center">
+              <div className="w-full rounded-xl bg-black/25 p-4">
               <p className="rounded-lg border border-white/15 bg-black/30 px-4 py-3 font-display text-sm text-white/90">
                 Write a content about AI will replace human.
               </p>
@@ -131,6 +132,7 @@ export default function FeaturesBento() {
                 </svg>
                 Generate
               </p>
+            </div>
             </div>
           </article>
 
