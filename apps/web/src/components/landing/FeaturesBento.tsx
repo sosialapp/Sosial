@@ -210,13 +210,33 @@ export default function FeaturesBento() {
             </p>
             {/* Illustration: account avatars + channel logo grid */}
             <div className="relative mt-6 flex justify-center gap-3" aria-hidden="true">
-              {(['threads', 'mastodon', 'instagram', 'x'] as BrandProvider[]).map((p) => (
+              {(
+                [
+                  'threads',
+                  'mastodon',
+                  'instagram',
+                  'x',
+                  'facebook',
+                  'tiktok',
+                  'youtube',
+                  'bluesky',
+                ] as BrandProvider[]
+              ).map((p) => (
                 <BrandIcon key={p} provider={p} className="h-8 w-8" />
               ))}
             </div>
             <div className="relative mt-4 flex justify-center" aria-hidden="true">
               <div className="flex -space-x-4">
-                {['women/44', 'men/32', 'women/68', 'men/75'].map((img) => (
+                {[
+                  'women/44',
+                  'men/32',
+                  'women/68',
+                  'men/75',
+                  'women/12',
+                  'men/45',
+                  'women/33',
+                  'men/22',
+                ].map((img) => (
                   <Image
                     key={img}
                     src={`https://randomuser.me/api/portraits/${img}.jpg`}
