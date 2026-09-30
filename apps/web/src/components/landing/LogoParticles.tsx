@@ -63,7 +63,6 @@ interface P {
   x: number;
   y: number;
   scale: number;
-  rotate: number;
   sprite: HTMLCanvasElement;
 }
 
@@ -104,7 +103,6 @@ export default function LogoParticles() {
         const size = BASE_SIZE * p.scale;
         if (size < 0.5) continue;
         ctx.translate(w / 2, h / 2);
-        ctx.rotate(p.rotate);
         ctx.drawImage(p.sprite, p.x - size / 2, p.y - size / 2, size, size);
         ctx.resetTransform();
         ctx.setTransform(
@@ -133,7 +131,6 @@ export default function LogoParticles() {
             return Math.sin(angle * 10) * radius;
           },
           scale: 1.1,
-          rotate: 0,
         },
         {
           duration: DURATION,
@@ -141,7 +138,6 @@ export default function LogoParticles() {
           x: 0,
           y: 0,
           scale: 0,
-          rotate: -3,
           stagger: { each: -0.05, repeat: -1 },
         },
         0,
@@ -154,7 +150,7 @@ export default function LogoParticles() {
       if (dead) return;
       parts = Array.from(
         { length: COUNT },
-        (_, i) => ({ x: 0, y: 0, scale: 0, rotate: 0, sprite: sprites[i % sprites.length] }),
+        (_, i) => ({ x: 0, y: 0, scale: 0, sprite: sprites[i % sprites.length] }),
       );
       build(99);
     });
