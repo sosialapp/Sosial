@@ -135,7 +135,7 @@ export default function FeaturesBento() {
               Write and generate your content. Anytime, anywhere
             </h3>
             <p className={`${sub} text-[rgba(11,10,10,0.6)]`}>
-              Choose from 100+ expert-made templates. Use your brand colors and custom fonts.
+              Stop guessing what works. Get real data on your content performance.
             </p>
             <div className="-mx-5 -mb-5 mt-4 flex min-h-40 flex-1 flex-col justify-end">
               <div className="relative aspect-[3391/2779] w-full">
