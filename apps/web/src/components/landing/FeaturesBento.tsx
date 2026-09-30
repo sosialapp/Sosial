@@ -7,6 +7,7 @@
 import type { CSSProperties } from 'react';
 import Image from 'next/image';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import TypewriterPrompt from '@/components/landing/TypewriterPrompt';
 
 const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
 const sub = 'mt-2 font-display text-sm leading-5 tracking-[-0.4px]';
@@ -170,9 +171,13 @@ export default function FeaturesBento() {
             </div>
             <div className="relative flex flex-1 items-center">
               <div className="w-full rounded-xl bg-black/25 p-4">
-              <p className="rounded-lg border border-white/15 bg-black/30 px-4 py-3 font-display text-sm text-white/90">
-                Write a content about AI will replace human.
-              </p>
+              <TypewriterPrompt
+                texts={[
+                  'Write a content about AI will replace human.',
+                  'Write a latest news about global economy.',
+                ]}
+                className="min-h-[3.25rem] rounded-lg border border-white/15 bg-black/30 px-4 py-3 font-display text-sm text-white/90"
+              />
               <p className="mt-3 flex items-center justify-center gap-2 rounded-full bg-white py-2.5 font-display text-sm font-bold text-black">
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
                   <path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10Z" />
