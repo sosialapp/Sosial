@@ -116,7 +116,7 @@ function BoltEmblem() {
 export default function FeaturesBento() {
   return (
     <section aria-label="Features" className="bg-paper">
-      <div className="mx-auto max-w-6xl px-4 py-14 md:py-28">
+      <div className="mx-auto max-w-6xl px-4 pt-10 pb-14 md:pt-16 md:pb-28">
         <div className="mx-auto max-w-3xl text-center">
           <p className="eyebrow">What you get</p>
           <h2 className="mt-2 font-display text-[17px] leading-[1.12] font-semibold tracking-tight whitespace-nowrap sm:text-2xl md:text-4xl">

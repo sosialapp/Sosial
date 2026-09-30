@@ -66,7 +66,7 @@ export default function LogoDock() {
 
   return (
     <section aria-label="Channels" className="bg-paper">
-      <div className="mx-auto max-w-6xl px-4 pb-4">
+      <div className="mx-auto max-w-6xl px-4">
         <div className="flex justify-center">
           <div
             ref={trackRef}
@@ -79,9 +79,6 @@ export default function LogoDock() {
             ))}
           </div>
         </div>
-        <p className="mt-3 text-center text-xs font-semibold text-faint">
-          Every channel Sosial publishes to
-        </p>
       </div>
     </section>
   );
