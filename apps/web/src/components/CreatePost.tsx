@@ -434,6 +434,14 @@ export default function CreatePost({
                 ready.map((c) => {
                   const chainOk = !thread || THREAD_PROVIDERS.includes(c.provider);
                   const on = picked.includes(c.id) && chainOk;
+                  const label = providerMeta(c.provider).label;
+                  const rawHandle =
+                    typeof c.handle === 'string' && c.handle.trim()
+                      ? c.handle.trim().replace(/^@/, '')
+                      : null;
+                  const sub =
+                    rawHandle ??
+                    (c.display_name && c.display_name !== label ? c.display_name : null);
                   return (
                     <button
                       key={c.id}
@@ -444,7 +452,7 @@ export default function CreatePost({
                       title={
                         !chainOk
                           ? 'Thread posts go to X, Threads, Mastodon and Bluesky only'
-                          : (c.display_name ?? providerMeta(c.provider).label)
+                          : (c.display_name ?? label)
                       }
                       className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold transition ${
                         !chainOk
@@ -454,8 +462,15 @@ export default function CreatePost({
                             : 'border-line bg-paper text-faint opacity-60 hover:opacity-100'
                       }`}
                     >
-                      <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={24} />
-                      {providerMeta(c.provider).label}
+                      <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={30} />
+                      <span className="min-w-0 leading-tight">
+                        <span className="block">{label}</span>
+                        {sub ? (
+                          <span className="block truncate text-[10px] font-semibold text-muted">
+                            {rawHandle ? `@${rawHandle}` : sub}
+                          </span>
+                        ) : null}
+                      </span>
                     </button>
                   );
                 })
@@ -561,21 +576,33 @@ export default function CreatePost({
                     <ul className="mt-3 space-y-2">
                       {ready
                         .filter((c) => picked.includes(c.id))
-                        .map((c) => (
-                          <li key={c.id} className="flex items-center gap-2.5">
-                            <ChannelAvatar
-                              provider={c.provider}
-                              avatar={channelAvatar(c.metadata)}
-                              size={30}
-                            />
-                            <span className="min-w-0 flex-1 truncate text-sm font-bold">
-                              {c.display_name ?? c.handle ?? providerMeta(c.provider).label}
-                            </span>
-                            <span className="shrink-0 text-xs text-faint">
-                              {providerMeta(c.provider).label}
-                            </span>
-                          </li>
-                        ))}
+                        .map((c) => {
+                          const label = providerMeta(c.provider).label;
+                          const rawHandle =
+                            typeof c.handle === 'string' && c.handle.trim()
+                              ? c.handle.trim().replace(/^@/, '')
+                              : null;
+                          const sub =
+                            rawHandle ??
+                            (c.display_name && c.display_name !== label ? c.display_name : null);
+                          return (
+                            <li key={c.id} className="flex items-center gap-2.5">
+                              <ChannelAvatar
+                                provider={c.provider}
+                                avatar={channelAvatar(c.metadata)}
+                                size={30}
+                              />
+                              <span className="min-w-0 flex-1 leading-tight">
+                                <span className="block truncate text-sm font-bold">{label}</span>
+                                {sub ? (
+                                  <span className="block truncate text-xs text-muted">
+                                    {rawHandle ? `@${rawHandle}` : sub}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </li>
+                          );
+                        })}
                     </ul>
                     {(() => {
                       const snippet =

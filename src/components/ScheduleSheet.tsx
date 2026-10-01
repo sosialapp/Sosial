@@ -1035,7 +1035,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   {c === 'any' ? (
                     <Ionicons name="globe-outline" size={14} color={on ? C.onInk : C.muted} />
                   ) : (
-                    <ChannelAvatar platform={c} avatar={avatarFor(c)} size={20} />
+                    <ChannelAvatar platform={c} avatar={avatarFor(c)} size={22} />
                   )}
                   <View style={{ gap: 0 }}>
                     <Text style={[st.chipT, on && { color: C.onInk }]}>{label}</Text>
@@ -1479,7 +1479,7 @@ const makeSt = (C: Palette) => ({
   sentNote: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk } as const,
   stackTile: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.paper } as const,
   stackNames: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink } as const,
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 9, paddingVertical: 5 } as const,
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 10, paddingVertical: 6 } as const,
   chipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.ink, textTransform: 'capitalize' } as const,
   staleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.accentSoft, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 10 } as const,
   staleT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, lineHeight: 17, color: C.accentInk } as const,
