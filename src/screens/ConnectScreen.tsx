@@ -18,6 +18,7 @@ import { X_CLIENT_ID } from '../utils/xConfig';
 import { completeBskyLogin } from '../utils/bskyAuth';
 import { validateTelegramBot, resolveTelegramChat } from '../utils/telegramAuth';
 import { validateDiscordBot, listDiscordGuilds, listDiscordChannels, type DiscordGuild, type DiscordChannel } from '../utils/discordAuth';
+import { validateWordPress } from '../utils/wordpressAuth';
 import { loginMastodon, completeMastodonLogin } from '../utils/mastodonAuth';
 import { loginLinkedIn, completeLiLogin, listMyLiOrgs, pickLiOrg, LiOrg } from '../utils/liAuth';
 import { LI_CLIENT_ID } from '../utils/liConfig';
@@ -34,7 +35,7 @@ import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
-const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord'];
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress'];
 
 function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
@@ -65,6 +66,9 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [dcGuild, setDcGuild] = useState('');
   const [dcChannels, setDcChannels] = useState<DiscordChannel[]>([]);
   const [dcChannel, setDcChannel] = useState('');
+  const [wpSite, setWpSite] = useState('');
+  const [wpUser, setWpUser] = useState('');
+  const [wpPass, setWpPass] = useState('');
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
@@ -477,6 +481,45 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
+  const doWordPress = async (accountId?: string) => {
+    if (!wpSite.trim()) {
+      Alert.alert('Site URL missing', 'Enter your site URL first (https://…).');
+      return;
+    }
+    if (!wpUser.trim()) {
+      Alert.alert('Username missing', 'Enter the WordPress username.');
+      return;
+    }
+    if (!wpPass) {
+      Alert.alert('Password missing', 'Paste the application password.');
+      return;
+    }
+    setBusy('Checking the site…');
+    try {
+      const site = await validateWordPress(wpSite, wpUser, wpPass);
+      await saveProviderFields(
+        'wordpress',
+        {
+          wpSiteUrl: wpSite.trim().replace(/\/+$/, ''),
+          wpUsername: wpUser.trim(),
+          wpAppPassword: wpPass,
+          wpSiteName: site.siteName,
+        },
+        accountId,
+      );
+      setWpSite('');
+      setWpUser('');
+      setWpPass('');
+      setAccounts(await loadAccounts());
+      setOpenProvider('wordpress');
+      Alert.alert('Connected', `WordPress → ${site.siteName}.`);
+    } catch (e: any) {
+      Alert.alert('WordPress connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const doLinkedin = async (accountId?: string) => {
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
@@ -568,6 +611,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, connect: doPinterest },
     telegram: { label: 'Telegram', manual: true, configured: true, connect: doTelegram },
     discord: { label: 'Discord', manual: true, configured: true, connect: doDiscord },
+    wordpress: { label: 'WordPress', manual: true, configured: true, connect: doWordPress },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -622,6 +666,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       if (p === 'mastodon') return 'Username + login';
       if (p === 'telegram') return 'Bot token + chat';
       if (p === 'discord') return 'Bot token + server';
+      if (p === 'wordpress') return 'Site + app password';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountLabel(list[0]);
@@ -768,6 +813,31 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
               </TouchableOpacity>
             </>
           )}
+        </>
+      );
+    }
+    if (p === 'wordpress') {
+      return (
+        <>
+          <Txt value={wpSite} onChangeText={setWpSite} placeholder="https://example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+          <Txt value={wpUser} onChangeText={setWpUser} placeholder="Username" autoCapitalize="none" autoCorrect={false} />
+          <Txt value={wpPass} onChangeText={setWpPass} placeholder="xxxx xxxx xxxx xxxx" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect WordPress</Text>
+            {[
+              'On your site: Users → Profile → Application Passwords',
+              'Name it “Sosial”, copy the generated password',
+              'Each site connects separately — no central approval',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { if (needManager()) void doWordPress(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another site' : 'Connect WordPress'}</Text>
+          </TouchableOpacity>
         </>
       );
     }

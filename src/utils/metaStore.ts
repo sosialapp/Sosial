@@ -94,6 +94,12 @@ export interface MetaState {
   dcGuildName?: string;
   dcChannelId?: string;
   dcChannelName?: string;
+  // WordPress (per-site Application Password, no OAuth) — long-lived, no
+  // refresh. Each site is its own channel: URL + username + app password.
+  wpSiteUrl?: string;
+  wpUsername?: string;
+  wpAppPassword?: string;
+  wpSiteName?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -257,6 +263,7 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.ytRefreshToken || m.ytAccessToken) out.push('youtube');
   if (m.tgBotToken && m.tgChatId) out.push('telegram');
   if (m.dcBotToken && m.dcChannelId) out.push('discord');
+  if (m.wpSiteUrl && m.wpUsername && m.wpAppPassword) out.push('wordpress');
   return out;
 }
 
@@ -286,5 +293,6 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('youtube', has(m.ytChannelName));
   consider('telegram', has(m.tgChatId) || has(m.tgChatTitle));
   consider('discord', has(m.dcChannelId) || has(m.dcChannelName));
+  consider('wordpress', has(m.wpSiteUrl));
   return out;
 }

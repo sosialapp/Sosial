@@ -12,7 +12,8 @@ export type ProviderKey =
   | 'pinterest'
   | 'youtube'
   | 'telegram'
-  | 'discord';
+  | 'discord'
+  | 'wordpress';
 
 /**
  * One social account (a.k.a. channel) with its provider-specific credentials.
@@ -40,6 +41,7 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   youtube: ['ytAccessToken', 'ytRefreshToken', 'ytExpiresAt', 'ytChannelName'],
   telegram: ['tgBotToken', 'tgChatId', 'tgChatTitle'],
   discord: ['dcBotToken', 'dcGuildId', 'dcGuildName', 'dcChannelId', 'dcChannelName'],
+  wordpress: ['wpSiteUrl', 'wpUsername', 'wpAppPassword', 'wpSiteName'],
 };
 
 const FIELD_TO_PROVIDER: Record<string, ProviderKey> = {};
@@ -131,6 +133,7 @@ export function accountConnected(a: ConnectedAccount): boolean {
     case 'youtube': return !!(f.ytRefreshToken || f.ytAccessToken);
     case 'telegram': return !!(f.tgBotToken && f.tgChatId);
     case 'discord': return !!(f.dcBotToken && f.dcChannelId);
+    case 'wordpress': return !!(f.wpSiteUrl && f.wpUsername && f.wpAppPassword);
     default: return false;
   }
 }
@@ -151,6 +154,15 @@ export function accountExternalId(a: ConnectedAccount): string | undefined {
     case 'youtube': return undefined;
     case 'telegram': return f.tgChatId as string | undefined;
     case 'discord': return f.dcChannelId as string | undefined;
+    case 'wordpress': {
+      // Must equal the cloud external_id (`host::user`, host lowercased, no
+      // trailing slash) or pulls adopt duplicates instead of matching.
+      const host = String(f.wpSiteUrl ?? '')
+        .replace(/^https?:\/\//i, '')
+        .toLowerCase();
+      const user = f.wpUsername as string | undefined;
+      return host && user ? `${host}::${user}` : undefined;
+    }
     default: return undefined;
   }
 }
@@ -178,6 +190,7 @@ export function accountName(a: ConnectedAccount): string | undefined {
       const guild = f.dcGuildName as string | undefined;
       return guild ? `${guild} / #${name}` : `#${name}`;
     }
+    case 'wordpress': return (f.wpSiteName as string | undefined) ?? (f.wpSiteUrl as string | undefined);
     default: return undefined;
   }
 }

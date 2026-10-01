@@ -17,16 +17,17 @@ export interface FbPickPage {
   ig?: string;
 }
 
-type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord';
+type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress';
 
-const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord'];
+const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress'];
 
-const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true };
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true };
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
   if (p === 'telegram') return 'Telegram';
   if (p === 'discord') return 'Discord';
+  if (p === 'wordpress') return 'WordPress';
   return oauthLabel(p);
 }
 
@@ -78,6 +79,9 @@ export default function ConnectPanel({
   const [mastodonInstance, setMastodonInstance] = useState('');
   const [tgToken, setTgToken] = useState('');
   const [tgChat, setTgChat] = useState('');
+  const [wpSite, setWpSite] = useState('');
+  const [wpUser, setWpUser] = useState('');
+  const [wpPass, setWpPass] = useState('');
   const [dcToken, setDcToken] = useState('');
   const [dcGuilds, setDcGuilds] = useState<{ id: string; name: string }[]>([]);
   const [dcGuild, setDcGuild] = useState('');
@@ -311,6 +315,45 @@ export default function ConnectPanel({
     }
   }
 
+  async function connectWordPress() {
+    setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!wpSite.trim()) {
+      setErr('Enter your site URL first.');
+      return;
+    }
+    if (!wpUser.trim()) {
+      setErr('Enter the WordPress username.');
+      return;
+    }
+    if (!wpPass) {
+      setErr('Paste the application password too.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/wordpress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          site_url: wpSite.trim(),
+          username: wpUser.trim(),
+          app_password: wpPass,
+        }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect WordPress.');
+      window.location.href = '/channels?connected=wordpress';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect WordPress.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function connectTelegram() {    setErr(null);
     if (!canManage) {
       setErr('Only owners and admins can connect channels.');
@@ -369,6 +412,7 @@ export default function ConnectPanel({
       if (p === 'mastodon') return 'Username + login';
       if (p === 'telegram') return 'Bot token + destination';
       if (p === 'discord') return 'Bot token + server';
+      if (p === 'wordpress') return 'Site + app password';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -382,9 +426,11 @@ export default function ConnectPanel({
         ? 'Telegram'
         : status.already === 'discord'
           ? 'Discord'
-          : status.already
-            ? oauthLabel(status.already)
-            : '';
+          : status.already === 'wordpress'
+            ? 'WordPress'
+            : status.already
+              ? oauthLabel(status.already)
+              : '';
   const connectedLabel =
     status.connected === 'bluesky'
       ? 'Bluesky'
@@ -392,9 +438,11 @@ export default function ConnectPanel({
         ? 'Telegram'
         : status.connected === 'discord'
           ? 'Discord'
-          : status.connected
-            ? oauthLabel(status.connected)
-            : '';
+          : status.connected === 'wordpress'
+            ? 'WordPress'
+            : status.connected
+              ? oauthLabel(status.connected)
+              : '';
 
   return (
     <div className="space-y-3">
@@ -635,6 +683,49 @@ export default function ConnectPanel({
                           ) : null}
                         </>
                       )}
+                    </div>
+                  ) : null}
+
+                  {p === 'wordpress' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        No central login — each site mints its own password at Users →
+                        Profile → Application Passwords (needs WP 5.6+).
+                      </p>
+                      <input
+                        value={wpSite}
+                        onChange={(e) => setWpSite(e.target.value)}
+                        placeholder="Site URL (https://example.com)"
+                        inputMode="url"
+                        autoComplete="url"
+                        aria-label="WordPress site URL"
+                        className="field !text-xs"
+                      />
+                      <input
+                        value={wpUser}
+                        onChange={(e) => setWpUser(e.target.value)}
+                        placeholder="Username"
+                        autoComplete="username"
+                        aria-label="WordPress username"
+                        className="field !text-xs"
+                      />
+                      <input
+                        value={wpPass}
+                        onChange={(e) => setWpPass(e.target.value)}
+                        placeholder="Application password (xxxx xxxx …)"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-label="WordPress application password"
+                        className="field !text-xs"
+                      />
+                      {err ? (
+                        <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                          {err}
+                        </p>
+                      ) : null}
+                      <button type="button" onClick={connectWordPress} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                        {busy ? 'Checking the site…' : hasAny ? 'Add another site' : 'Connect WordPress'}
+                      </button>
                     </div>
                   ) : null}
 

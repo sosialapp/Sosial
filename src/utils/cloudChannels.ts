@@ -18,7 +18,7 @@ const KEY = 'sosial_cloud_channels_v1';
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
   | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
-  | 'telegram' | 'discord';
+  | 'telegram' | 'discord' | 'wordpress';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -196,6 +196,18 @@ export async function buildImportPayload(
         access_token: String(f.dcBotToken), metadata: withAvatar(metadata),
       };
     }
+    case 'wordpress': {
+      if (!f.wpSiteUrl || !f.wpUsername || !f.wpAppPassword) return null;
+      const host = String(f.wpSiteUrl).replace(/^https?:\/\//i, '').toLowerCase();
+      return {
+        provider: 'wordpress',
+        external_id: `${host}::${f.wpUsername}`,
+        display_name: f.wpSiteName,
+        instance_url: String(f.wpSiteUrl).replace(/\/+$/, ''),
+        access_token: String(f.wpAppPassword),
+        metadata: withAvatar({ username: String(f.wpUsername) }),
+      };
+    }
     default:
       return null;
   }
@@ -289,6 +301,7 @@ const NAME_FIELD: Record<string, string> = {
   youtube: 'ytChannelName',
   telegram: 'tgChatTitle',
   discord: 'dcChannelName',
+  wordpress: 'wpSiteName',
 };
 
 /**
@@ -309,6 +322,7 @@ const IDENTITY_FIELD: Record<string, string> = {
   youtube: '',
   telegram: 'tgChatId',
   discord: 'dcChannelId',
+  wordpress: 'wpSiteUrl',
 };
 
 interface CloudChannelRow {

@@ -17,6 +17,7 @@ import { publishLinkedInTarget } from './linkedin';
 import { publishPinterestTarget } from './pinterest';
 import { publishTelegramTarget } from './telegram';
 import { publishDiscordTarget } from './discord';
+import { publishWordPressTarget } from './wordpress';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
@@ -114,6 +115,12 @@ async function handlePublishTarget(job: Job): Promise<void> {
     }
     if (provider === 'discord') {
       const { remoteId, remoteUrl } = await publishDiscordTarget(bundle);
+      await markTargetSent(targetId, remoteId, remoteUrl);
+      info(`target ${targetId} sent → ${remoteId}`);
+      return;
+    }
+    if (provider === 'wordpress') {
+      const { remoteId, remoteUrl } = await publishWordPressTarget(bundle);
       await markTargetSent(targetId, remoteId, remoteUrl);
       info(`target ${targetId} sent → ${remoteId}`);
       return;

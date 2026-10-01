@@ -16,6 +16,7 @@ import { publishMastodon } from '../utils/mastodonPublish';
 import { publishPinterest } from '../utils/pinPublish';
 import { publishTelegram } from '../utils/telegramPublish';
 import { publishDiscord } from '../utils/discordPublish';
+import { publishWordPress } from '../utils/wordpressPublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1098,6 +1099,25 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'Discord', dcAccts, dcRes);
             done.push('Discord');
+          } else if (ch === 'wordpress') {
+            const wpAccts = accountsFor('wordpress');
+            if (wpAccts.length === 0) throw new Error('WordPress not connected');
+            const wpRes = await Promise.allSettled(wpAccts.map(async (wpAcct) => {
+              const wp = wpAcct.fields;
+              if (!wp.wpSiteUrl || !wp.wpUsername || !wp.wpAppPassword) throw new Error('WordPress not connected');
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.wordpress.images);
+              // Title falls back to the first line inside the publisher.
+              keepAcct(ch, wpAcct.id, await publishWordPress({
+                siteUrl: String(wp.wpSiteUrl),
+                username: String(wp.wpUsername),
+                appPassword: String(wp.wpAppPassword),
+                title: p.title ?? '',
+                text: caption,
+                imageUris: imgs.map((a) => a.uri),
+              }));
+            }));
+            throwIfPartial(ch, 'WordPress', wpAccts, wpRes);
+            done.push('WordPress');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

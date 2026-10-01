@@ -20,7 +20,7 @@ import { AiLanguage } from './types';
 export type SocialPlatform =
   | 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon'
   | 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest'
-  | 'telegram' | 'discord';
+  | 'telegram' | 'discord' | 'wordpress';
 
 /** 'auto' lets the model pick the voice. All voices sit side by side — no hidden rows. */
 export type SocialTone = 'auto' | 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
@@ -48,6 +48,7 @@ export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'pinterest', label: 'Pinterest' },
   { id: 'telegram', label: 'Telegram' },
   { id: 'discord', label: 'Discord' },
+  { id: 'wordpress', label: 'WordPress' },
 ];
 
 /** How each destination wants to be written — the core message stays identical. */
@@ -65,6 +66,7 @@ export const PLATFORM_ADAPT: Record<SocialPlatform, string> = {
   pinterest: 'descriptive and keyword-rich, idea-led, no slang',
   telegram: 'direct chat style, short paragraphs, links plain',
   discord: 'casual community tone, markdown-friendly, no hype',
+  wordpress: 'article voice, clear headline thinking, scannable structure',
 };
 
 /** Caption limits for channels that aren't chain-capable (joined text length). */
@@ -77,6 +79,7 @@ const TEXT_CAPS: Partial<Record<SocialPlatform, number>> = {
   pinterest: 800,
   telegram: 1024,
   discord: 2000,
+  wordpress: 100000,
 };
 
 export type SocialStyle =

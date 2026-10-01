@@ -37,6 +37,7 @@ export const SOCIAL_META: Record<string, { label: string; bg: string; glyph: str
   pinterest: { label: 'Pinterest', bg: '#E60023', glyph: 'P' },
   telegram: { label: 'Telegram', bg: '#229ED9', glyph: 'TG' },
   discord: { label: 'Discord', bg: '#5865F2', glyph: 'DC' },
+  wordpress: { label: 'WordPress', bg: '#21759B', glyph: 'WP' },
 };
 
 export function uid(prefix = 'id'): string {

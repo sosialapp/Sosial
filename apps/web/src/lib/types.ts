@@ -10,7 +10,8 @@ export type ProviderKey =
   | 'pinterest'
   | 'youtube'
   | 'telegram'
-  | 'discord';
+  | 'discord'
+  | 'wordpress';
 
 export type PostStatus =
   | 'draft'

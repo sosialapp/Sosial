@@ -9,7 +9,7 @@ export interface MediaAttachment {
   kind: 'image' | 'video';
 }
 
-export type ChannelKey = 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x' | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube' | 'telegram' | 'discord';
+export type ChannelKey = 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x' | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube' | 'telegram' | 'discord' | 'wordpress';
 
 /** Per-channel post format. TikTok is auto-derived from media (video vs photo). */
 export type PlatformTypes = Partial<{
@@ -25,9 +25,10 @@ export type PlatformTypes = Partial<{
   youtube: 'video' | 'short';
   telegram: 'post';
   discord: 'post';
+  wordpress: 'post';
 }>;
 
-export const POST_TYPE_OPTIONS: Record<'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok' | 'telegram' | 'discord', { id: string; label: string }[]> = {
+export const POST_TYPE_OPTIONS: Record<'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok' | 'telegram' | 'discord' | 'wordpress', { id: string; label: string }[]> = {
   facebook: [
     { id: 'post', label: 'Post' },
     { id: 'reel', label: 'Reel' },
@@ -71,6 +72,9 @@ export const POST_TYPE_OPTIONS: Record<'facebook' | 'instagram' | 'threads' | 'x
     { id: 'post', label: 'Post' },
   ],
   discord: [
+    { id: 'post', label: 'Post' },
+  ],
+  wordpress: [
     { id: 'post', label: 'Post' },
   ],
 };

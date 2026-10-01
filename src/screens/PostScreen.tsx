@@ -118,6 +118,9 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
     const name = meta.dcChannelName.replace(/^#/, '');
     return meta.dcGuildName ? `${meta.dcGuildName} / #${name}` : `#${name}`;
   })();
+  const wpSub = !meta.wpSiteUrl
+    ? 'Not connected'
+    : meta.wpSiteName ?? meta.wpSiteUrl.replace(/^https?:\/\//i, '');
   const drawerChannels = [
     { id: 'facebook', label: 'Facebook', sub: meta.pageName ?? 'Not connected', connected: !!meta.pageId },
     { id: 'instagram', label: 'Instagram', sub: meta.igName ?? 'Not connected', connected: !!meta.igId },
@@ -131,6 +134,7 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
     { id: 'pinterest', label: 'Pinterest', sub: 'Coming soon', connected: false, comingSoon: true },
     { id: 'telegram', label: 'Telegram', sub: meta.tgChatTitle ?? ((meta.tgBotToken && meta.tgChatId) ? 'Connected' : 'Not connected'), connected: !!(meta.tgBotToken && meta.tgChatId) },
     { id: 'discord', label: 'Discord', sub: discordSub, connected: !!(meta.dcBotToken && meta.dcChannelId) },
+    { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!(meta.wpSiteUrl && meta.wpUsername && meta.wpAppPassword) },
   ];
   const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
 

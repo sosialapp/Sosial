@@ -9,7 +9,7 @@ const ch = (provider: string, metadata?: Record<string, unknown>) => ({ provider
 const part = (body: string, kinds: string[] = []) => ({ body, kinds });
 
 describe('compat profiles', () => {
-  it('covers the live channels plus Telegram and Discord', () => {
+  it('covers the live channels plus Telegram, Discord and WordPress', () => {
     expect(Object.keys(CAPABILITIES).sort()).toEqual([
       'bluesky',
       'discord',
@@ -21,6 +21,7 @@ describe('compat profiles', () => {
       'telegram',
       'threads',
       'tiktok',
+      'wordpress',
       'x',
       'youtube',
     ]);
@@ -102,7 +103,7 @@ describe('checkCompatibility', () => {
 
   it('skips providers it cannot judge', () => {
     expect(
-      checkCompatibility([ch('wordpress')], { thread: true, parts: [part('x'.repeat(99999))] }),
+      checkCompatibility([ch('tumblr')], { thread: true, parts: [part('x'.repeat(99999))] }),
     ).toEqual([]);
   });
 });

@@ -23,6 +23,7 @@ const GLYPH_SCALE: Record<string, number> = {
   mastodon: 1,
   telegram: 1.1,
   discord: 1,
+  wordpress: 1,
 };
 export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform: string; size?: number; color?: string }) {
   const s = size * (GLYPH_SCALE[platform] ?? 1);
@@ -31,6 +32,7 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
   if (platform === 'mastodon') return <FontAwesome6 name="mastodon" size={s} color={color} />;
   if (platform === 'telegram') return <FontAwesome6 name="telegram" size={s} color={color} />;
   if (platform === 'discord') return <FontAwesome6 name="discord" size={s} color={color} />;
+  if (platform === 'wordpress') return <FontAwesome6 name="wordpress" size={s} color={color} />;
   if (platform === 'bluesky') {
     return (
       <Svg width={s} height={s} viewBox="0 0 24 24">
