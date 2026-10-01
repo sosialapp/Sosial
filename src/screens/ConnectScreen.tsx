@@ -27,7 +27,7 @@ import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { BUILD_TAG } from '../utils/build';
 import { loadCloudTeam } from '../utils/teamCloud';
 import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount } from '../utils/cloudChannels';
-import { currentSession } from '../utils/supabase';
+import { currentSession, callEdgeFunction } from '../utils/supabase';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
@@ -59,6 +59,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
+  const [syncing, setSyncing] = useState(false);
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
 
   useEffect(() => {
@@ -704,6 +705,31 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     return null;
   };
 
+  /** On-demand health check: worker revalidates every token (expired ones
+   *  surface here), avatars refresh, then we reload. Same backend as web Sync. */
+  const syncHealth = async () => {
+    if (!needManager()) return;
+    setSyncing(true);
+    try {
+      const sn = await currentSession().catch(() => null);
+      if (!sn) {
+        Alert.alert('Sign in', 'Sign in to Sosial Cloud first (Account tab).');
+        return;
+      }
+      const j: any = await callEdgeFunction('recheck-channels', { workspace_id: sn.workspace.id });
+      await syncCloudChannels().catch(() => null);
+      setAccounts(await loadAccounts().catch(() => []));
+      Alert.alert(
+        'Health check started',
+        `Re-checking ${j?.queued_refresh ?? 'your'} channel(s) — expired tokens will show up here shortly.`,
+      );
+    } catch (e: any) {
+      Alert.alert('Sync failed', e?.message ?? 'Could not start the health check.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const orderedProviders = [...PROVIDERS].sort(
     (a, b) =>
       Number(accounts.some((x) => x.provider === b)) -
@@ -774,6 +800,17 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         ) : null}
 
         <View style={s.list}>
+          {cloudUser ? (
+            <TouchableOpacity
+              onPress={() => void syncHealth()}
+              disabled={syncing}
+              activeOpacity={0.7}
+              style={[s.syncBtn, syncing && { opacity: 0.6 }]}
+            >
+              <Ionicons name="sync" size={15} color={C.accentInk} />
+              <Text style={s.syncBtnT}>{syncing ? 'Checking…' : 'Check channel health'}</Text>
+            </TouchableOpacity>
+          ) : null}
           {orderedProviders.map((p) => {
             const cfg = providerCfg[p];
             const list = accounts.filter((a) => a.provider === p);
@@ -815,7 +852,6 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
 
                 {expanded ? (
                   <View style={s.sub}>
-                    {cfg.manual ? renderManualForm(p) : null}
                     {list.map((a) => {
                       const isSel = selectedAccountFor(p)?.id === a.id;
                       const cloud = isCloudOnly(a);
@@ -835,14 +871,14 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                                 <Text style={s.go}>Connect</Text>
                               </TouchableOpacity>
                               {!cloudUser || isManager ? (
-                                <TouchableOpacity onPress={() => void removeCloudAccount(a)} activeOpacity={0.7}>
+                                <TouchableOpacity onPress={() => void removeCloudAccount(a)} activeOpacity={0.7} style={s.discBtn}>
                                   <Text style={s.discT}>Remove</Text>
                                 </TouchableOpacity>
                               ) : null}
                             </View>
                           ) : (
                             !cloudUser || isManager ? (
-                            <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7}>
+                            <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7} style={s.discBtn}>
                               <Text style={s.discT}>Remove</Text>
                             </TouchableOpacity>
                             ) : null
@@ -850,6 +886,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                         </View>
                       );
                     })}
+                    {cfg.manual ? renderManualForm(p) : null}
                     {!cfg.manual ? renderSubPanel(p) : null}
                     {p === 'tiktok' && list.length > 0 ? (
                       <View style={s.switchBox}>
@@ -916,6 +953,9 @@ const makeS = (C: Palette) => StyleSheet.create({
   pageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 13, paddingVertical: 11 },
   pageT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   discT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText },
+  discBtn: { borderWidth: 1, borderColor: C.lineSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 12, paddingVertical: 10, marginBottom: 10, backgroundColor: C.paper },
+  syncBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   cloudActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cloudBadge: { backgroundColor: C.accentSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
   cloudBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk },

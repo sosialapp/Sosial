@@ -721,6 +721,27 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     }
   };
 
+  /** Post-now double confirm: destination list before anything ships. */
+  const confirmPostNow = (go: () => void) => {
+    const targets = plats.includes('any') ? connected : plats;
+    const lines = targets.map((c) => {
+      const label = SOCIAL_META[c]?.label ?? c[0].toUpperCase() + c.slice(1);
+      const names = selectedAccountIds(c)
+        .map((id) => {
+          const a = accounts.find((x) => x.id === id);
+          return a ? accountName(a) : null;
+        })
+        .filter((n): n is string => Boolean(n));
+      return names.length ? `• ${label} (${names.join(', ')})` : `• ${label}`;
+    });
+    const snippet = (composer?.caption ?? '').trim().replace(/\s+/g, ' ');
+    Alert.alert(
+      `Post now to ${targets.length} channel${targets.length === 1 ? '' : 's'}?`,
+      `${lines.join('\n')}${snippet ? `\n\n“${snippet.slice(0, 140)}${snippet.length > 140 ? '…' : ''}”` : ''}`,
+      [{ text: 'Cancel', style: 'cancel' }, { text: 'Post now', onPress: go }],
+    );
+  };
+
   const needChannels = (): boolean => {
     if (plats.length === 0) {
       Alert.alert('No channels picked', 'Pick at least one channel first — nothing is selected by default.');
@@ -1273,7 +1294,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               label={bulkCount ? `Queue ${bulkCount} page${bulkCount > 1 ? 's' : ''}` : preset === 'now' ? 'Post now' : `Queue for ${wallLabel}${zoneSuffix}`}
               loading={preset === 'now' && onPostNow && !bulkCount && !!publishing}
               loadingLabel="Posting…"
-              onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels()) onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds()); } : save}
+              onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels()) confirmPostNow(() => onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds())); } : save}
             />
           </View>
           </>

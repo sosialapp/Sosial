@@ -78,6 +78,37 @@ export default function ConnectPanel({
   const [dcChannels, setDcChannels] = useState<{ id: string; name: string }[]>([]);
   const [dcChannel, setDcChannel] = useState('');
   const [query, setQuery] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncedNote, setSyncedNote] = useState<string | null>(null);
+
+  /** On-demand health check: worker revalidates every token, avatars refresh,
+   *  then we poll a few times while statuses land. */
+  async function syncNow() {
+    if (!canManage) {
+      setErr('Only owners and admins can sync channels.');
+      return;
+    }
+    setSyncing(true);
+    setErr(null);
+    setSyncedNote(null);
+    try {
+      const r = await fetch('/api/channels/sync', { method: 'POST' });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; queued_refresh?: number; error?: string };
+      if (!r.ok || !j.ok) throw new Error(j.error ?? 'Sync failed.');
+      setSyncedNote(
+        `Checking ${j.queued_refresh ?? 0} channel(s) — statuses update shortly.`,
+      );
+      for (let i = 0; i < 5; i++) {
+        await new Promise((res) => setTimeout(res, 5000));
+        router.refresh();
+      }
+      setSyncedNote('Checked — statuses are up to date.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Sync failed.');
+    } finally {
+      setSyncing(false);
+    }
+  }
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
@@ -387,15 +418,28 @@ export default function ConnectPanel({
         </p>
       ) : null}
 
-      <div className="mb-3">
+      <div className="mb-3 flex gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search channels or accounts"
           aria-label="Search channels"
-          className="field"
+          className="field min-w-0 flex-1"
         />
+        {canManage ? (
+          <button
+            type="button"
+            onClick={syncNow}
+            disabled={syncing}
+            className="shrink-0 rounded-full border border-line bg-card px-4 py-2 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
+          >
+            {syncing ? 'Checking…' : 'Sync'}
+          </button>
+        ) : null}
       </div>
+      {syncedNote ? (
+        <p className="mb-3 rounded-xl bg-paper-dim px-3.5 py-2 text-xs font-bold text-muted">{syncedNote}</p>
+      ) : null}
       <section aria-label="Connect accounts" className="overflow-hidden rounded-2xl border border-line bg-card">
         {visible.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted">
@@ -450,6 +494,30 @@ export default function ConnectPanel({
 
               {expanded ? (
                 <div className="space-y-2 px-4 pb-4">
+                  {list.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2.5 rounded-xl px-1 py-1">
+                      <ChannelAvatar
+                        provider={c.provider}
+                        avatar={channelAvatar(c.metadata)}
+                        size={30}
+                        badge={list.length > 1}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{accountName(c)}</span>
+                      <span
+                        aria-label={c.status}
+                        title={c.status}
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[c.status] ?? 'bg-surface'}`}
+                      />
+                      {canManage ? (
+                        <DisconnectChannel
+                          workspaceId={workspaceId}
+                          provider={c.provider}
+                          externalId={c.external_id}
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+
                   {p === 'bluesky' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
@@ -596,30 +664,6 @@ export default function ConnectPanel({
                       </button>
                     </div>
                   ) : null}
-
-                  {list.map((c) => (
-                    <div key={c.id} className="flex items-center gap-2.5 rounded-xl px-1 py-1">
-                      <ChannelAvatar
-                        provider={c.provider}
-                        avatar={channelAvatar(c.metadata)}
-                        size={30}
-                        badge={list.length > 1}
-                      />
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{accountName(c)}</span>
-                      <span
-                        aria-label={c.status}
-                        title={c.status}
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[c.status] ?? 'bg-surface'}`}
-                      />
-                      {canManage ? (
-                        <DisconnectChannel
-                          workspaceId={workspaceId}
-                          provider={c.provider}
-                          externalId={c.external_id}
-                        />
-                      ) : null}
-                    </div>
-                  ))}
 
                   {p === 'facebook' && fbPick ? (
                     <div className="space-y-1.5 rounded-xl border border-accent bg-accent-soft/40 p-3">

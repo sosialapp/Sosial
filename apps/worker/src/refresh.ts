@@ -16,12 +16,14 @@
  *   backs off and retries.
  */
 import { rest } from './db';
+import { readSecret } from './db';
 import { restPatch } from './rest';
 import { info, warn } from './logger';
 import {
   tokenRow,
   bundleFor,
   type ChannelRow,
+  type TokenRow,
 } from './avatars';
 import { ensureToken as ensureTikTokToken } from './tiktok';
 import { ensureToken as ensureXToken } from './x';
@@ -51,6 +53,47 @@ async function getChannel(channelId: string): Promise<ChannelRow | null> {
   return rows?.[0] ?? null;
 }
 
+/** Live ping for providers that never rotate (bot tokens, Mastodon). Throws
+ *  auth-flavoured errors so the shared catch below marks the channel expired. */
+async function pingChannel(c: ChannelRow, t: TokenRow): Promise<void> {
+  const secret = t.access_token_secret_id ? await readSecret(t.access_token_secret_id) : null;
+  if (!secret) throw new Error('Token secrets missing — reconnect the channel.');
+  if (c.provider === 'telegram') {
+    const r = await fetch(`https://api.telegram.org/bot${secret}/getMe`);
+    const j = (await r.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
+    if (!r.ok || !j?.ok) {
+      throw new Error(`Telegram rejected the bot token (unauthorized): ${j?.description ?? r.status}. Reconnect the channel.`);
+    }
+    return;
+  }
+  if (c.provider === 'discord') {
+    const r = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: { Authorization: `Bot ${secret}` },
+    });
+    if (r.status === 401 || r.status === 403) {
+      throw new Error('Discord rejected the bot token (unauthorized) — reconnect the channel.');
+    }
+    if (!r.ok) throw new Error(`Discord ping failed (${r.status})`);
+    return;
+  }
+  // Mastodon: same base normalization as the publisher.
+  const host = String(c.instance_url ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '')
+    .split('/')[0]
+    .split('?')[0];
+  if (!host || /\s/.test(host)) throw new Error('Mastodon channel missing its instance — reconnect the channel.');
+  const r = await fetch(`https://${host}/api/v1/accounts/verify_credentials`, {
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  if (r.status === 401 || r.status === 403) {
+    throw new Error('Mastodon rejected the token (unauthorized) — reconnect the channel.');
+  }
+  if (!r.ok) throw new Error(`Mastodon ping failed (${r.status})`);
+}
+
 export async function refreshChannelToken(
   channelId: string,
 ): Promise<'refreshed' | 'skipped'> {
@@ -70,6 +113,18 @@ export async function refreshChannelToken(
 
   const b = bundleFor(c, t);
   try {
+    // Bot-token providers don't rotate — a live ping is the health check.
+    // Mastodon tokens don't expire either; verify_credentials proves them.
+    if (c.provider === 'telegram' || c.provider === 'discord' || c.provider === 'mastodon') {
+      await pingChannel(c, t);
+      await restPatch('connected_channels', c.id, {
+        status: 'connected',
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      });
+      info(`refresh ${c.provider}/${c.external_id}: ping ok`);
+      return 'refreshed';
+    }
     switch (c.provider) {
       case 'tiktok':
         await ensureTikTokToken(b);

@@ -64,7 +64,7 @@ export default function DisconnectChannel({
         type="button"
         onClick={remove}
         disabled={busy}
-        className="text-xs font-bold text-muted transition hover:text-ink disabled:opacity-50"
+        className="shrink-0 rounded-full border border-line px-3 py-1 text-xs font-bold text-muted transition hover:border-[#9F2F2D] hover:text-[#9F2F2D] disabled:opacity-50 dark:hover:border-[#f2a8a8] dark:hover:text-[#f2a8a8]"
       >
         {busy ? 'Removing…' : 'Remove'}
       </button>
