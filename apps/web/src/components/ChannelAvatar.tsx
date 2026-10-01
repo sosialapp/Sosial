@@ -26,6 +26,11 @@ export default function ChannelAvatar({
 }) {
   const meta = providerMeta(provider);
   const badgeSize = Math.max(14, Math.round(size * 0.54));
+  // Integer, even pixel sizes everywhere: at 14px badges a fractional glyph
+  // rounds asymmetrically and reads as off-center. Border is 2px a side.
+  const even = (n: number): number => Math.max(8, Math.round(n / 2) * 2);
+  const badgeGlyph = even(badgeSize - 6);
+  const discGlyph = even(size * 0.6);
   // Stored avatar URLs die (TikTok/fbcdn sign theirs with expiries) — a dead
   // photo must fall back to the brand disc, never a broken-image icon.
   const [dead, setDead] = useState(false);
@@ -37,7 +42,7 @@ export default function ChannelAvatar({
         style={{ width: size, height: size, background: meta.color }}
         title={meta.label}
       >
-        <BrandIcon provider={provider as BrandProvider} mono className="h-[62%] w-[62%] text-white" />
+        <BrandIcon provider={provider as BrandProvider} mono className="block text-white" style={{ width: discGlyph, height: discGlyph }} />
       </span>
     );
   }
@@ -66,7 +71,7 @@ export default function ChannelAvatar({
           }}
           aria-hidden="true"
         >
-          <BrandIcon provider={provider as BrandProvider} mono className="text-white" style={{ width: '62%', height: '62%' }} />
+          <BrandIcon provider={provider as BrandProvider} mono className="block text-white" style={{ width: badgeGlyph, height: badgeGlyph }} />
         </span>
       ) : null}
     </span>
