@@ -17,7 +17,7 @@ import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/
 import { loadMetaState, loadAccounts, connectedChannelIds, staleChannelKeys, MetaState } from '../utils/metaStore';
 import { deviceZone, supportedZones, zoneLabel, offsetLabel, zonedToUtcMs } from '../utils/timezones';
 import { type ConnectedAccount, accountConnected,
-  accountName, accountAvatar, asIdList, schedulableProviders } from
+  accountName, accountAvatar, accountHandle, asIdList, schedulableProviders } from
   '../utils/socialAccounts';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
@@ -660,6 +660,17 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     return undefined;
   };
 
+  /** First handle line for a provider (live account first, else placeholder). */
+  const handleFor = (c: string): string | undefined => {
+    const all = accounts.filter((a) => a.provider === c);
+    const ranked = [...all.filter((a) => accountConnected(a)), ...all.filter((a) => !accountConnected(a))];
+    for (const a of ranked) {
+      const h = accountHandle(a);
+      if (h) return h;
+    }
+    return undefined;
+  };
+
   /** Connected accounts for one provider (a picker shows only when >1). */
   const accountsFor = (c: string): ConnectedAccount[] =>
     accounts.filter((a) => a.provider === c && accountConnected(a));
@@ -1024,9 +1035,16 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   {c === 'any' ? (
                     <Ionicons name="globe-outline" size={14} color={on ? C.onInk : C.muted} />
                   ) : (
-                    <ChannelAvatar platform={c} avatar={avatarFor(c)} size={24} />
+                    <ChannelAvatar platform={c} avatar={avatarFor(c)} size={20} />
                   )}
-                  <Text style={[st.chipT, on && { color: C.onInk }]}>{label}</Text>
+                  <View style={{ gap: 0 }}>
+                    <Text style={[st.chipT, on && { color: C.onInk }]}>{label}</Text>
+                    {c !== 'any' && handleFor(c) ? (
+                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: on ? C.onInk : C.muted }} numberOfLines={1}>
+                        {handleFor(c)}
+                      </Text>
+                    ) : null}
+                  </View>
                   {soon ? <Text style={st.soonT}>Soon</Text> : null}
                 </TouchableOpacity>
               );
@@ -1151,7 +1169,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                       ) : null}
                     </View>
                   ) : null}
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {POST_TYPE_OPTIONS[c].map((o) => {
                       const on = typeFor(c) === o.id;
                       return (
@@ -1461,8 +1479,8 @@ const makeSt = (C: Palette) => ({
   sentNote: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk } as const,
   stackTile: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.paper } as const,
   stackNames: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink } as const,
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 12, paddingVertical: 8 } as const,
-  chipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink, textTransform: 'capitalize' } as const,
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 9, paddingVertical: 5 } as const,
+  chipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.ink, textTransform: 'capitalize' } as const,
   staleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.accentSoft, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 10 } as const,
   staleT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, lineHeight: 17, color: C.accentInk } as const,
   soonT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk } as const,

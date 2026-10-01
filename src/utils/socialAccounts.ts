@@ -238,6 +238,39 @@ export function connectedProviderKeys(accounts: ConnectedAccount[]): ProviderKey
   return connectedAccounts(accounts).map((a) => a.provider);
 }
 
+/** Short identity line under a channel name (mirrors the web composer's
+ *  @handle sub-label). @-prefixed for people-handles, plain for pages, orgs,
+ *  sites and communities. Undefined when nothing recognizable is stored. */
+export function accountHandle(a: ConnectedAccount): string | undefined {
+  const f = a.fields;
+  const at = (v: unknown): string | undefined =>
+    typeof v === 'string' && v.length > 0 ? `@${v.replace(/^@/, '')}` : undefined;
+  const plain = (v: unknown): string | undefined =>
+    typeof v === 'string' && v.length > 0 ? v : undefined;
+  switch (a.provider) {
+    case 'facebook': return plain(f.pageName);
+    case 'instagram': return at(f.igName);
+    case 'threads': return at(f.threadsName);
+    case 'tiktok': return at(f.ttName);
+    case 'x': return at(f.xName);
+    case 'bluesky': return at(f.bskyHandle ?? f.bskyName);
+    case 'mastodon': return at(f.mastodonName);
+    case 'linkedin': return plain(f.liOrgName ?? f.liName);
+    case 'pinterest': return at(f.pinUsername);
+    case 'youtube': return plain(f.ytChannelName);
+    case 'telegram': return plain(f.tgChatTitle ?? f.tgChatId);
+    case 'discord': return plain(accountName(a));
+    case 'wordpress': return plain(
+      f.wpSiteName ?? (typeof f.wpSiteUrl === 'string' ? f.wpSiteUrl.replace(/^https?:\/\//i, '') : undefined),
+    );
+    case 'devto': return at(f.devUsername ?? f.devName);
+    case 'hashnode': return plain(f.hnPublicationTitle);
+    case 'ghost': return plain(f.ghSiteName);
+    case 'vk': return plain(f.vkGroupName);
+    default: return undefined;
+  }
+}
+
 /**
  * Every provider this device can reach right now: live local credentials
  * PLUS cloud-only placeholders adopted from another device. Placeholders

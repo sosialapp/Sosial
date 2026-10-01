@@ -107,7 +107,7 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
 export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { platform: string; avatar?: string; size?: number; badge?: boolean }) {
   const { C } = useTheme();
   const bg = SOCIAL_META[platform]?.bg ?? C.ink;
-  const badgeSize = Math.max(14, Math.round(size * 0.54));
+  const badgeSize = Math.max(11, Math.round(size * 0.42));
   return (
     <View style={{ width: size, height: size }}>
       {avatar ? (

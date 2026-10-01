@@ -36,7 +36,7 @@ import {
 import PublishNotice, { PubRow } from '../components/PublishNotice';
 import AICopySheet from '../components/AICopySheet';
 import { SocialResult } from '../utils/ai/social';
-import { pullCloudStatus, markCloudLegSent, markCloudPostSent } from '../utils/cloudPosts';
+import { pullCloudStatus, pullCloudPosts, pushPendingPosts, markCloudLegSent, markCloudPostSent } from '../utils/cloudPosts';
 
 /** Minimum gap between automatic retries of a failed/overdue queued post. */
 const RETRY_MS = 5 * 60 * 1000;
@@ -1426,21 +1426,29 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   // so its verdicts must land before the local pass reads the rows — otherwise
   // the sweep republishes what the worker already posted. Bump only when
   // something actually flipped.
+  // Full convergence (push unsynced locals + adopt web posts) runs on launch
+  // and foreground — never on the 60s tick, where media re-uploads would burn
+  // bandwidth forever. This is what keeps the phone and the web identical.
   useEffect(() => {
-    const sweep = () => {
+    const sweep = (full: boolean) => {
       void (async () => {
         try {
+          if (full) {
+            const pushed = await pushPendingPosts().catch(() => 0);
+            const pp = await pullCloudPosts().catch(() => ({ adopted: 0, updated: 0, removed: 0 }));
+            if (pushed > 0 || pp.adopted + pp.updated + pp.removed > 0) bump();
+          }
           const r = await pullCloudStatus();
           if (r.updated > 0) bump();
         } catch {}
         await publishDueRef.current();
       })();
     };
-    void sweep();
+    void sweep(true);
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') void sweep();
+      if (s === 'active') void sweep(true);
     });
-    const timer = setInterval(sweep, 60000);
+    const timer = setInterval(() => sweep(false), 60000);
     return () => {
       sub.remove();
       clearInterval(timer);

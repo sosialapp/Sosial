@@ -445,6 +445,36 @@ async function unmarkPushed(clientId: string): Promise<void> {
   } catch {}
 }
 
+/**
+ * Push every local post that never reached the cloud (saved offline,
+ * signed-out, or written by a local-only path). This is the other half of
+ * web/mobile parity: without it the phone keeps rows the web never sees.
+ * Best-effort per row — one failure must not block the rest. Never throws.
+ */
+export async function pushPendingPosts(): Promise<number> {
+  try {
+    const session = await currentSession().catch(() => null);
+    if (!session) return 0;
+    const [locals, pushed] = await Promise.all([
+      loadManagedPosts().catch(() => []),
+      loadPushed(),
+    ]);
+    let n = 0;
+    for (const p of locals) {
+      if (!p?.id || pushed[p.id]) continue;
+      try {
+        await pushPostToCloud(p);
+        n += 1;
+      } catch {
+        /* next save or sweep retries */
+      }
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
 async function loadAdopted(): Promise<Set<string>> {
   try {
     const raw = await AsyncStorage.getItem(ADOPTED_KEY);
