@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import WorkspaceSwitcher, { type WorkspaceOption } from '@/components/WorkspaceSwitcher';
 import Dock from '@/components/Dock';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -57,6 +58,23 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const channels = await fetchLiveChannels(sb, ctx.workspace.id);
+  const { data: memberships } = await sb
+    .from('workspace_members')
+    .select('role, workspaces!inner(id, name)')
+    .eq('user_id', ctx.user.id)
+    .eq('status', 'active');
+  const workspaces: WorkspaceOption[] = (
+    ((memberships ?? []) as unknown as {
+      role: string;
+      workspaces: { id: string; name: string | null };
+    }[])
+  )
+    .map((m) => ({
+      id: String(m.workspaces.id),
+      name: String(m.workspaces.name ?? 'My team'),
+      role: String(m.role),
+    }))
+    .sort((a, b) => (b.id === ctx.workspace.id ? 1 : 0) - (a.id === ctx.workspace.id ? 1 : 0));
 
   return (
     <ThemeScope className="app-shell min-h-screen bg-bone text-ink">
@@ -68,7 +86,25 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <div className="sticky top-0 z-30 bg-bone pt-3 pr-4 pb-2 pl-[76px] sm:pr-6 sm:pl-24">
         <header className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
           <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
-          <p className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">{ctx.workspace.name}</p>
+          <WorkspaceSwitcher
+            current={{
+              id: ctx.workspace.id,
+              name: ctx.workspace.name,
+              role: ctx.workspace.role,
+            }}
+            workspaces={
+              workspaces.some((w) => w.id === ctx.workspace.id)
+                ? workspaces
+                : [
+                    {
+                      id: ctx.workspace.id,
+                      name: ctx.workspace.name,
+                      role: ctx.workspace.role,
+                    },
+                    ...workspaces,
+                  ]
+            }
+          />
           <ConnectHeader channels={channels} />
           <Link
             href="/team"
