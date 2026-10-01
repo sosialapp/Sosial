@@ -18,7 +18,7 @@ const KEY = 'sosial_cloud_channels_v1';
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
   | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
-  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -231,6 +231,16 @@ export async function buildImportPayload(
         metadata: withAvatar({ publicationId: String(f.hnPublicationId) }),
       };
     }
+    case 'ghost': {
+      if (!f.ghSiteUrl || !f.ghAdminKey) return null;
+      return {
+        provider: 'ghost',
+        external_id: String(f.ghSiteUrl).replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase(),
+        display_name: f.ghSiteName,
+        instance_url: String(f.ghSiteUrl).replace(/\/+$/, ''),
+        access_token: String(f.ghAdminKey),
+      };
+    }
     default:
       return null;
   }
@@ -327,6 +337,7 @@ const NAME_FIELD: Record<string, string> = {
   wordpress: 'wpSiteName',
   devto: 'devName',
   hashnode: 'hnPublicationTitle',
+  ghost: 'ghSiteName',
 };
 
 /**
@@ -350,6 +361,7 @@ const IDENTITY_FIELD: Record<string, string> = {
   wordpress: 'wpSiteUrl',
   devto: 'devUserId',
   hashnode: 'hnPublicationId',
+  ghost: 'ghSiteUrl',
 };
 
 interface CloudChannelRow {

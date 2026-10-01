@@ -21,6 +21,7 @@ import { validateDiscordBot, listDiscordGuilds, listDiscordChannels, type Discor
 import { validateWordPress } from '../utils/wordpressAuth';
 import { validateDevto } from '../utils/devtoAuth';
 import { validateHashnode, type HashnodePublication } from '../utils/hashnodeAuth';
+import { validateGhost } from '../utils/ghostAuth';
 import { loginMastodon, completeMastodonLogin } from '../utils/mastodonAuth';
 import { loginLinkedIn, completeLiLogin, listMyLiOrgs, pickLiOrg, LiOrg } from '../utils/liAuth';
 import { LI_CLIENT_ID } from '../utils/liConfig';
@@ -37,7 +38,7 @@ import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
-const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode'];
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost'];
 
 function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
@@ -75,6 +76,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [hnToken, setHnToken] = useState('');
   const [hnPubs, setHnPubs] = useState<HashnodePublication[]>([]);
   const [hnPub, setHnPub] = useState('');
+  const [ghSite, setGhSite] = useState('');
+  const [ghKey, setGhKey] = useState('');
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
@@ -605,6 +608,39 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
+  const doGhost = async (accountId?: string) => {
+    if (!ghSite.trim()) {
+      Alert.alert('Site URL missing', 'Enter your Ghost site URL first (https://…).');
+      return;
+    }
+    if (!ghKey) {
+      Alert.alert('Key missing', 'Paste the Admin API key (id:secret).');
+      return;
+    }
+    setBusy('Checking the site…');
+    try {
+      const site = await validateGhost(ghKey, ghSite);
+      await saveProviderFields(
+        'ghost',
+        {
+          ghSiteUrl: site.siteUrl,
+          ghAdminKey: ghKey.trim(),
+          ghSiteName: site.siteName,
+        },
+        accountId,
+      );
+      setGhSite('');
+      setGhKey('');
+      setAccounts(await loadAccounts());
+      setOpenProvider('ghost');
+      Alert.alert('Connected', `Ghost → ${site.siteName}.`);
+    } catch (e: any) {
+      Alert.alert('Ghost connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const doLinkedin = async (accountId?: string) => {
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
@@ -699,6 +735,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     wordpress: { label: 'WordPress', manual: true, configured: true, connect: doWordPress },
     devto: { label: 'Dev.to', manual: true, configured: true, connect: doDevto },
     hashnode: { label: 'Hashnode', manual: true, configured: true, connect: doHashnode },
+    ghost: { label: 'Ghost', manual: true, configured: true, connect: doGhost },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -986,6 +1023,30 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
               </TouchableOpacity>
             </>
           )}
+        </>
+      );
+    }
+    if (p === 'ghost') {
+      return (
+        <>
+          <Txt value={ghSite} onChangeText={setGhSite} placeholder="https://example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+          <Txt value={ghKey} onChangeText={setGhKey} placeholder="Admin API key (id:secret)" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Ghost</Text>
+            {[
+              'Ghost Admin → Settings → Integrations → Add custom',
+              'Copy the Admin API Key (not the content key)',
+              'Each site connects separately — no central approval',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { if (needManager()) void doGhost(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another site' : 'Connect Ghost'}</Text>
+          </TouchableOpacity>
         </>
       );
     }

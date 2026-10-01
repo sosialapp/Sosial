@@ -16,7 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const PROVIDERS = new Set([
   "facebook", "instagram", "threads", "tiktok", "x",
   "bluesky", "linkedin", "mastodon", "pinterest", "youtube",
-  "telegram", "discord", "wordpress", "devto", "hashnode",
+  "telegram", "discord", "wordpress", "devto", "hashnode", "ghost",
 ]);
 
 function bad(msg: string, status = 400): Response {

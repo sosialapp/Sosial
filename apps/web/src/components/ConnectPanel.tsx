@@ -17,11 +17,11 @@ export interface FbPickPage {
   ig?: string;
 }
 
-type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode';
+type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost';
 
-const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode'];
+const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost'];
 
-const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true };
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true };
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
@@ -30,6 +30,7 @@ function providerLabel(p: ProviderId): string {
   if (p === 'wordpress') return 'WordPress';
   if (p === 'devto') return 'Dev.to';
   if (p === 'hashnode') return 'Hashnode';
+  if (p === 'ghost') return 'Ghost';
   return oauthLabel(p);
 }
 
@@ -88,6 +89,8 @@ export default function ConnectPanel({
   const [hnToken, setHnToken] = useState('');
   const [hnPubs, setHnPubs] = useState<{ id: string; title: string; url: string }[]>([]);
   const [hnPub, setHnPub] = useState('');
+  const [ghSite, setGhSite] = useState('');
+  const [ghKey, setGhKey] = useState('');
   const [dcToken, setDcToken] = useState('');
   const [dcGuilds, setDcGuilds] = useState<{ id: string; name: string }[]>([]);
   const [dcGuild, setDcGuild] = useState('');
@@ -388,6 +391,37 @@ export default function ConnectPanel({
     }
   }
 
+  async function connectGhost() {
+    setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!ghSite.trim()) {
+      setErr('Enter your Ghost site URL first.');
+      return;
+    }
+    if (!ghKey) {
+      setErr('Paste the Admin API key too.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/ghost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site_url: ghSite.trim(), admin_key: ghKey.trim() }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect Ghost.');
+      window.location.href = '/channels?connected=ghost';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect Ghost.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function connectDevto() {
     setErr(null);
     if (!canManage) {
@@ -515,6 +549,7 @@ export default function ConnectPanel({
       if (p === 'wordpress') return 'Site + app password';
       if (p === 'devto') return 'API key';
       if (p === 'hashnode') return 'Token + publication';
+      if (p === 'ghost') return 'Site + Admin key';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -534,9 +569,11 @@ export default function ConnectPanel({
               ? 'Dev.to'
               : status.already === 'hashnode'
                 ? 'Hashnode'
-                : status.already
-                  ? oauthLabel(status.already)
-                  : '';
+                : status.already === 'ghost'
+                  ? 'Ghost'
+                  : status.already
+                    ? oauthLabel(status.already)
+                    : '';
   const connectedLabel =
     status.connected === 'bluesky'
       ? 'Bluesky'
@@ -550,9 +587,11 @@ export default function ConnectPanel({
               ? 'Dev.to'
               : status.connected === 'hashnode'
                 ? 'Hashnode'
-                : status.connected
-                  ? oauthLabel(status.connected)
-                  : '';
+                : status.connected === 'ghost'
+                  ? 'Ghost'
+                  : status.connected
+                    ? oauthLabel(status.connected)
+                    : '';
 
   return (
     <div className="space-y-3">
@@ -793,6 +832,41 @@ export default function ConnectPanel({
                           ) : null}
                         </>
                       )}
+                    </div>
+                  ) : null}
+
+                  {p === 'ghost' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        No central login — each site issues its own key at Ghost Admin
+                        → Settings → Integrations.
+                      </p>
+                      <input
+                        value={ghSite}
+                        onChange={(e) => setGhSite(e.target.value)}
+                        placeholder="Site URL (https://example.com)"
+                        inputMode="url"
+                        autoComplete="url"
+                        aria-label="Ghost site URL"
+                        className="field !text-xs"
+                      />
+                      <input
+                        value={ghKey}
+                        onChange={(e) => setGhKey(e.target.value)}
+                        placeholder="Admin API key (id:secret)"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-label="Ghost Admin API key"
+                        className="field !text-xs"
+                      />
+                      {err ? (
+                        <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                          {err}
+                        </p>
+                      ) : null}
+                      <button type="button" onClick={connectGhost} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                        {busy ? 'Checking the site…' : hasAny ? 'Add another site' : 'Connect Ghost'}
+                      </button>
                     </div>
                   ) : null}
 

@@ -24,6 +24,7 @@ export const ATTACH_LIMITS: Record<string, { images: number; videos: number }> =
   wordpress: { images: 1, videos: 0 },
   devto: { images: 0, videos: 0 },
   hashnode: { images: 0, videos: 0 },
+  ghost: { images: 1, videos: 0 },
 };
 
 /** Normalize legacy single-uri opts into an attachment list. */

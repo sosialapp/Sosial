@@ -19,6 +19,7 @@ import { publishDiscord } from '../utils/discordPublish';
 import { publishWordPress } from '../utils/wordpressPublish';
 import { publishDevto } from '../utils/devtoPublish';
 import { publishHashnode } from '../utils/hashnodePublish';
+import { publishGhost } from '../utils/ghostPublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1149,6 +1150,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'Hashnode', hnAccts, hnRes);
             done.push('Hashnode');
+          } else if (ch === 'ghost') {
+            const ghAccts = accountsFor('ghost');
+            if (ghAccts.length === 0) throw new Error('Ghost not connected');
+            const ghRes = await Promise.allSettled(ghAccts.map(async (ghAcct) => {
+              const gh = ghAcct.fields;
+              if (!gh.ghSiteUrl || !gh.ghAdminKey) throw new Error('Ghost not connected');
+              keepAcct(ch, ghAcct.id, await publishGhost({
+                siteUrl: String(gh.ghSiteUrl),
+                adminKey: String(gh.ghAdminKey),
+                title: p.title ?? '',
+                text: caption,
+              }));
+            }));
+            throwIfPartial(ch, 'Ghost', ghAccts, ghRes);
+            done.push('Ghost');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

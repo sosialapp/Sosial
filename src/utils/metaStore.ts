@@ -111,6 +111,11 @@ export interface MetaState {
   hnToken?: string;
   hnPublicationId?: string;
   hnPublicationTitle?: string;
+  // Ghost (per-site Admin API key, no OAuth) — long-lived, no refresh. Each
+  // site is its own channel: URL + key (JWT signed per request, 5-min expiry).
+  ghSiteUrl?: string;
+  ghAdminKey?: string;
+  ghSiteName?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -277,6 +282,7 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.wpSiteUrl && m.wpUsername && m.wpAppPassword) out.push('wordpress');
   if (m.devApiKey) out.push('devto');
   if (m.hnToken && m.hnPublicationId) out.push('hashnode');
+  if (m.ghSiteUrl && m.ghAdminKey) out.push('ghost');
   return out;
 }
 
@@ -309,5 +315,6 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('wordpress', has(m.wpSiteUrl));
   consider('devto', has(m.devUsername) || has(m.devName));
   consider('hashnode', has(m.hnPublicationTitle) || has(m.hnPublicationId));
+  consider('ghost', has(m.ghSiteUrl));
   return out;
 }

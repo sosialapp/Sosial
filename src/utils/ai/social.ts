@@ -20,7 +20,7 @@ import { AiLanguage } from './types';
 export type SocialPlatform =
   | 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon'
   | 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest'
-  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost';
 
 /** 'auto' lets the model pick the voice. All voices sit side by side — no hidden rows. */
 export type SocialTone = 'auto' | 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
@@ -51,6 +51,7 @@ export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'wordpress', label: 'WordPress' },
   { id: 'devto', label: 'Dev.to' },
   { id: 'hashnode', label: 'Hashnode' },
+  { id: 'ghost', label: 'Ghost' },
 ];
 
 /** How each destination wants to be written — the core message stays identical. */
@@ -71,6 +72,7 @@ export const PLATFORM_ADAPT: Record<SocialPlatform, string> = {
   wordpress: 'article voice, clear headline thinking, scannable structure',
   devto: 'technical developer voice, markdown-native, code-friendly',
   hashnode: 'technical developer voice, tutorial clarity, markdown-native',
+  ghost: 'publication voice, editorial structure, clean scannable prose',
 };
 
 /** Caption limits for channels that aren't chain-capable (joined text length). */
@@ -86,6 +88,7 @@ const TEXT_CAPS: Partial<Record<SocialPlatform, number>> = {
   wordpress: 100000,
   devto: 100000,
   hashnode: 100000,
+  ghost: 100000,
 };
 
 export type SocialStyle =

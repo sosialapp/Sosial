@@ -13,7 +13,8 @@ export type ProviderKey =
   | 'discord'
   | 'wordpress'
   | 'devto'
-  | 'hashnode';
+  | 'hashnode'
+  | 'ghost';
 
 export type PostStatus =
   | 'draft'
