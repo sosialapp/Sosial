@@ -391,6 +391,11 @@ export default function ConnectPanel({
                         aria-label="Telegram destination chat"
                         className="field !text-xs"
                       />
+                      {err ? (
+                        <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                          {err}
+                        </p>
+                      ) : null}
                       <button type="button" onClick={connectTelegram} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
                         {busy ? 'Checking with Telegram…' : hasAny ? 'Add another bot' : 'Connect Telegram'}
                       </button>

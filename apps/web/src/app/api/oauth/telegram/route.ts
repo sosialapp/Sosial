@@ -37,11 +37,20 @@ export async function POST(req: Request) {
   });
   const payload = (data ?? {}) as { ok?: boolean; error?: string; title?: string };
   if (error || !payload.ok) {
+    // FunctionsHttpError carries the raw Response on `context`; platform
+    // rejects use { message }, our handler uses { error } — read both.
+    let detail: string | null = null;
     const context = (error as { context?: unknown } | null)?.context;
-    const ctxBody = context instanceof Response ? await context.json().catch(() => null) : null;
+    if (context instanceof Response) {
+      const body = (await context.json().catch(() => null)) as { error?: string; message?: string } | null;
+      detail = body?.error ?? body?.message ?? null;
+    } else if (context && typeof context === 'object') {
+      const body = context as { error?: string; message?: string };
+      detail = body.error ?? body.message ?? null;
+    }
     const msg =
       payload.error ??
-      (ctxBody as { error?: string } | null)?.error ??
+      detail ??
       error?.message ??
       'Could not connect Telegram.';
     return NextResponse.json({ error: msg }, { status: 502 });
