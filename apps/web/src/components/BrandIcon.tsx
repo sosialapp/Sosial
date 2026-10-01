@@ -243,5 +243,23 @@ function Glyph({ provider }: { provider: BrandProvider }) {
       </g>
     );
   }
+  // VK's knockout glyph turns to mush at small sizes — the real app icon is
+  // just bold VK lettering, which stays crisp everywhere.
+  if (provider === 'vk') {
+    return (
+      <text
+        x="12"
+        y="12.5"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontFamily="Arial, Helvetica, sans-serif"
+        fontWeight={900}
+        fontSize="10"
+        letterSpacing="0.5"
+      >
+        VK
+      </text>
+    );
+  }
   return <path d={PATHS[provider]} />;
 }

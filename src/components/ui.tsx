@@ -3,7 +3,7 @@ import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, TextInputPr
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import FontAwesome6 from '@expo/vector-icons/build/FontAwesome6';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { Svg, Path, G } from 'react-native-svg';
+import { Svg, Path, G, Text as SvgText } from 'react-native-svg';
 import { useTheme, Palette, R } from '../theme';
 import { SOCIAL_META } from '../constants';
 import { useFocusScrollContext } from './FocusScroll';
@@ -78,12 +78,21 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
     );
   }
   if (platform === 'vk') {
+    // Bold VK lettering (the real app-icon look) — the knockout glyph path
+    // turns to mush at small sizes.
     return (
       <Svg width={s} height={s} viewBox="0 0 24 24">
-        <Path
-          d="M15.07 2H8.93C3.33 2 2 3.33 2 8.93v6.14C2 20.67 3.33 22 8.93 22h6.14c5.6 0 6.93-1.33 6.93-6.93V8.93C22 3.33 20.67 2 15.07 2zm3.45 14.14h-1.6c-.63 0-.82-.5-1.95-1.62-.99-.96-1.42-1.09-1.66-1.09-.26 0-.33.08-.33.46v1.47c0 .33-.1.53-.98.53-1.46 0-3.08-.88-4.22-2.5-1.73-2.42-2.2-4.25-2.2-4.62 0-.2.08-.39.46-.39h1.6c.42 0 .58.2.73.62.81 2.32 2.17 4.36 2.73 4.36.21 0 .3-.1.3-.63V9.98c-.06-1.13-.67-1.22-.67-1.62 0-.18.14-.36.38-.36h2.52c.32 0 .43.17.43.54v3.28c0 .3.14.4.22.4.18 0 .34-.1.67-.36 2.08-2.33 3.56-5.93 3.56-5.93.2-.35.74-.68 1.09-.68h1.6c.45 0 .55.2.45.68-.2.84-2.15 5.67-2.15 5.67-.18.29-.24.42 0 .75.18.24.74.74 1.12 1.19.7.8 1.23 1.47 1.23 1.47.2.29.1.53-.48.53z"
+        <SvgText
+          x="12"
+          y="12.5"
+          textAnchor="middle"
+          fontFamily="Arial"
+          fontWeight="900"
+          fontSize="10"
           fill={color}
-        />
+        >
+          VK
+        </SvgText>
       </Svg>
     );
   }
