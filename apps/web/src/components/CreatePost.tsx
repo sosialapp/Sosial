@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -124,7 +124,7 @@ export default function CreatePost({
   });
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
   const [parts, setParts] = useState(() => Math.max(3, initParts?.length ?? 3));
-  const [mode, setMode] = useState<'now' | 'schedule'>('schedule');
+  const [mode, setMode] = useState<'now' | 'schedule'>('now');
   const [whenIso, setWhenIso] = useState<string | null>(
     initialWhenIso ?? new Date(minQueueTime()).toISOString(),
   );
@@ -132,6 +132,9 @@ export default function CreatePost({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
+  /** Post-now confirmation: validations pass first, then the channel list. */
+  const [confirmNow, setConfirmNow] = useState(false);
+  const nowConfirmed = useRef(false);
 
   /** Draft edit: reload the saved remote media into real Files so the normal
    *  upload path carries them on save. Runs once per mount (the host remounts
@@ -273,8 +276,8 @@ export default function CreatePost({
 
   /* ------------------------------- submit ------------------------------- */
 
-  async function submit(e: FormEvent, submitMode: ComposeMode) {
-    e.preventDefault();
+  async function submit(e: FormEvent | null, submitMode: ComposeMode) {
+    e?.preventDefault();
     setErr(null);
     const chosen = ready.filter((c) => picked.includes(c.id));
     if (!chosen.length) {
@@ -313,6 +316,12 @@ export default function CreatePost({
         return;
       }
     }
+    // Post-now always confirms with the destination list after validating.
+    if (submitMode === 'now' && !nowConfirmed.current) {
+      setConfirmNow(true);
+      return;
+    }
+    nowConfirmed.current = false;
     setBusy(true);
     try {
       const sb = createClient();
@@ -527,6 +536,88 @@ export default function CreatePost({
             {err ? <p className="mt-3 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
 
             <CompatibilityPanel providers={compat.providers} issues={compat.issues} />
+
+            {confirmNow ? (
+              <div
+                className="fixed inset-0 z-[100] overflow-y-auto"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Confirm post now"
+              >
+                <div
+                  className="absolute inset-0 bg-ink/50"
+                  onClick={() => {
+                    nowConfirmed.current = false;
+                    setConfirmNow(false);
+                  }}
+                  aria-hidden="true"
+                />
+                <div className="relative flex min-h-full items-center justify-center p-4">
+                  <div className="relative my-auto w-full max-w-md rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
+                    <h2 className="font-display text-lg font-extrabold tracking-tight">
+                      Post now to {ready.filter((c) => picked.includes(c.id)).length} channel
+                      {picked.length === 1 ? '' : 's'}?
+                    </h2>
+                    <ul className="mt-3 space-y-2">
+                      {ready
+                        .filter((c) => picked.includes(c.id))
+                        .map((c) => (
+                          <li key={c.id} className="flex items-center gap-2.5">
+                            <ChannelAvatar
+                              provider={c.provider}
+                              avatar={channelAvatar(c.metadata)}
+                              size={30}
+                            />
+                            <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                              {c.display_name ?? c.handle ?? providerMeta(c.provider).label}
+                            </span>
+                            <span className="shrink-0 text-xs text-faint">
+                              {providerMeta(c.provider).label}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                    {(() => {
+                      const snippet =
+                        segs.find((s) => s.body.trim())?.body.trim().replace(/\s+/g, ' ') ?? '';
+                      const parts = segs.filter((s) => s.body.trim() || s.media.length > 0).length;
+                      if (!snippet) return null;
+                      return (
+                        <p className="mt-3 rounded-xl bg-paper-dim px-3 py-2 text-xs text-soft">
+                          “{snippet.slice(0, 140)}
+                          {snippet.length > 140 ? '…' : ''}”
+                          {thread && parts > 1 ? ` (+${parts - 1} more parts)` : ''}
+                        </p>
+                      );
+                    })()}
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          nowConfirmed.current = false;
+                          setConfirmNow(false);
+                        }}
+                        className="btn btn-ghost flex-1"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          nowConfirmed.current = true;
+                          setConfirmNow(false);
+                          void submit(null, 'now');
+                        }}
+                        className="btn btn-primary flex-1"
+                      >
+                        Post now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {/* One row: thread link · save draft · post — aligned */}
             <div className="mt-3 flex flex-wrap items-center gap-3">

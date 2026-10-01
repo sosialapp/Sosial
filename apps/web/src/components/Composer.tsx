@@ -62,7 +62,7 @@ export default function Composer({
   const [kind, setKind] = useState<Kind>('single');
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
-  const [mode, setMode] = useState<ComposeMode>('schedule');
+  const [mode, setMode] = useState<ComposeMode>('now');
   const [whenIso, setWhenIso] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
   const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));

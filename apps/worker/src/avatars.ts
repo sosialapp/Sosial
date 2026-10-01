@@ -157,6 +157,23 @@ async function avatarUrl(c: ChannelRow, token: string): Promise<string> {
       const j = await getJson(`${TT_API}/user/info/?fields=open_id,avatar_url`, token);
       return firstString(j?.data?.user?.avatar_url);
     }
+    case 'discord': {
+      // Guild icon is public CDN — no token needed in the URL itself.
+      // Servers without an icon honestly return nothing (brand disc stays).
+      const guildId = c.metadata?.guildId;
+      if (typeof guildId !== 'string' || !guildId) return '';
+      const res = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+        headers: { Authorization: `Bot ${token}` },
+      });
+      const guilds = (await res.json().catch(() => [])) as { id: string; icon: string | null }[];
+      if (!res.ok || !Array.isArray(guilds)) {
+        throw new Error(`discord guilds (${res.status})`);
+      }
+      const icon = guilds.find((g) => g?.id === guildId)?.icon;
+      if (!icon) return '';
+      const ext = icon.startsWith('a_') ? 'gif' : 'png';
+      return `https://cdn.discordapp.com/icons/${guildId}/${icon}.${ext}`;
+    }
     case 'x': {
       const j = await getJson(`${X_API}/users/${encodeURIComponent(ext)}?user.fields=profile_image_url`, token);
       return firstString(j?.data?.profile_image_url).replace(/_normal(\.\w+)$/, '$1');
