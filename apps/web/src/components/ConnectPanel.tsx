@@ -280,7 +280,7 @@ export default function ConnectPanel({
           const hasAny = list.length > 0;
           const expanded = open === p;
           const manual = MANUAL[p] === true;
-          const label = p === 'bluesky' ? 'Bluesky' : oauthLabel(p);
+          const label = p === 'bluesky' ? 'Bluesky' : p === 'telegram' ? 'Telegram' : oauthLabel(p);
 
           const onRow = () => {
             // No accounts yet on an OAuth provider: consent opens in a new
