@@ -16,6 +16,8 @@ import { loginTikTok, completeTikTokLogin, openTikTokSite } from '../utils/tikto
 import { loginX, completeXLogin } from '../utils/xAuth';
 import { X_CLIENT_ID } from '../utils/xConfig';
 import { completeBskyLogin } from '../utils/bskyAuth';
+import { validateTelegramBot, resolveTelegramChat } from '../utils/telegramAuth';
+import { validateDiscordBot, listDiscordGuilds, listDiscordChannels, type DiscordGuild, type DiscordChannel } from '../utils/discordAuth';
 import { loginMastodon, completeMastodonLogin } from '../utils/mastodonAuth';
 import { loginLinkedIn, completeLiLogin, listMyLiOrgs, pickLiOrg, LiOrg } from '../utils/liAuth';
 import { LI_CLIENT_ID } from '../utils/liConfig';
@@ -32,7 +34,7 @@ import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
-const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest'];
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord'];
 
 function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
@@ -56,6 +58,13 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   const [mastodonInstance, setMastodonInstance] = useState('');
+  const [tgToken, setTgToken] = useState('');
+  const [tgChat, setTgChat] = useState('');
+  const [dcToken, setDcToken] = useState('');
+  const [dcGuilds, setDcGuilds] = useState<DiscordGuild[]>([]);
+  const [dcGuild, setDcGuild] = useState('');
+  const [dcChannels, setDcChannels] = useState<DiscordChannel[]>([]);
+  const [dcChannel, setDcChannel] = useState('');
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
@@ -366,6 +375,108 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
+  const doTelegram = async (accountId?: string) => {
+    if (!tgToken.trim()) {
+      Alert.alert('Bot token missing', 'Paste the token from @BotFather first.');
+      return;
+    }
+    if (!tgChat.trim()) {
+      Alert.alert('Destination missing', 'Enter the channel or group (id or @username).');
+      return;
+    }
+    setBusy('Checking Telegram…');
+    try {
+      await validateTelegramBot(tgToken.trim());
+      const chat = await resolveTelegramChat(tgToken.trim(), tgChat.trim());
+      await saveProviderFields(
+        'telegram',
+        { tgBotToken: tgToken.trim(), tgChatId: chat.id, tgChatTitle: chat.title },
+        accountId,
+      );
+      setTgToken('');
+      setTgChat('');
+      setAccounts(await loadAccounts());
+      setOpenProvider('telegram');
+      Alert.alert('Connected', `Telegram → ${chat.title}.`);
+    } catch (e: any) {
+      Alert.alert('Telegram connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const loadDcGuilds = async () => {
+    if (!dcToken.trim()) {
+      Alert.alert('Bot token missing', 'Paste the token from the Developer Portal first.');
+      return;
+    }
+    setBusy('Asking Discord…');
+    try {
+      const guilds = await listDiscordGuilds(dcToken.trim());
+      setDcGuilds(guilds);
+      setDcGuild('');
+      setDcChannels([]);
+      setDcChannel('');
+      if (!guilds.length) Alert.alert('No servers', 'That bot is in no servers — invite it first.');
+    } catch (e: any) {
+      Alert.alert('Discord failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const loadDcChannels = async (guildId: string) => {
+    setDcGuild(guildId);
+    setDcChannels([]);
+    setDcChannel('');
+    if (!guildId) return;
+    setBusy('Loading channels…');
+    try {
+      const channels = await listDiscordChannels(dcToken.trim(), guildId);
+      setDcChannels(channels);
+      if (!channels.length) Alert.alert('No text channels', 'Check the bot can see one.');
+    } catch (e: any) {
+      Alert.alert('Discord failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const doDiscord = async (accountId?: string) => {
+    if (!dcChannel) {
+      Alert.alert('Channel missing', 'Pick a server and channel first.');
+      return;
+    }
+    setBusy('Connecting Discord…');
+    try {
+      const guild = dcGuilds.find((g) => g.id === dcGuild);
+      const channel = dcChannels.find((c) => c.id === dcChannel);
+      await saveProviderFields(
+        'discord',
+        {
+          dcBotToken: dcToken.trim(),
+          dcGuildId: dcGuild,
+          dcGuildName: guild?.name ?? '',
+          dcChannelId: dcChannel,
+          dcChannelName: channel?.name ?? '',
+        },
+        accountId,
+      );
+      setDcToken('');
+      setDcGuilds([]);
+      setDcGuild('');
+      setDcChannels([]);
+      setDcChannel('');
+      setAccounts(await loadAccounts());
+      setOpenProvider('discord');
+      Alert.alert('Connected', `Discord → #${channel?.name ?? dcChannel}.`);
+    } catch (e: any) {
+      Alert.alert('Discord connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const doLinkedin = async (accountId?: string) => {
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
@@ -455,6 +566,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     linkedin: { label: 'LinkedIn', manual: false, configured: liConfigured, connect: doLinkedin },
     youtube: { label: 'YouTube', manual: false, configured: ytConfigured, connect: doYoutube },
     pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, connect: doPinterest },
+    telegram: { label: 'Telegram', manual: true, configured: true, connect: doTelegram },
+    discord: { label: 'Discord', manual: true, configured: true, connect: doDiscord },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -507,6 +620,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     if (list.length === 0) {
       if (p === 'bluesky') return 'Handle + app password';
       if (p === 'mastodon') return 'Username + login';
+      if (p === 'telegram') return 'Bot token + chat';
+      if (p === 'discord') return 'Bot token + server';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountLabel(list[0]);
@@ -588,6 +703,71 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           <TouchableOpacity onPress={() => { if (needManager()) void doMastodon(addId()); }} activeOpacity={0.7} style={s.pageRow}>
             <Text style={s.pageT}>{list.length > 0 ? 'Add this account' : 'Connect Mastodon'}</Text>
           </TouchableOpacity>
+        </>
+      );
+    }
+    if (p === 'telegram') {
+      return (
+        <>
+          <Txt value={tgToken} onChangeText={setTgToken} placeholder="Bot token (123456:ABC…)" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <Txt value={tgChat} onChangeText={setTgChat} placeholder="Destination: @channel or -100…" autoCapitalize="none" autoCorrect={false} />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Telegram</Text>
+            {[
+              'Message @BotFather for a bot token',
+              'Add the bot to your channel/group as an admin',
+              'Paste the destination id or @username above',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { if (needManager()) void doTelegram(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another bot' : 'Connect Telegram'}</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+    if (p === 'discord') {
+      return (
+        <>
+          <Txt value={dcToken} onChangeText={(v) => { setDcToken(v); setDcGuilds([]); setDcGuild(''); setDcChannels([]); setDcChannel(''); }} placeholder="Bot token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Discord</Text>
+            {[
+              'Developer Portal → app → Bot → copy token',
+              'OAuth2 URL Generator → bot scope + Send/Attach/Embed + View + History',
+              'Invite it to your server, then list servers below',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          {dcGuilds.length === 0 ? (
+            <TouchableOpacity onPress={() => { if (needManager()) void loadDcGuilds(); }} activeOpacity={0.7} style={s.pageRow}>
+              <Text style={s.pageT}>List my servers</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              {dcGuilds.map((g) => (
+                <TouchableOpacity key={g.id} onPress={() => void loadDcChannels(g.id)} activeOpacity={0.7} style={s.pageRow}>
+                  <Text style={s.pageT}>{dcGuild === g.id ? '✓ ' : ''}{g.name}</Text>
+                </TouchableOpacity>
+              ))}
+              {dcChannels.map((c) => (
+                <TouchableOpacity key={c.id} onPress={() => setDcChannel(c.id)} activeOpacity={0.7} style={s.pageRow}>
+                  <Text style={s.pageT}>{dcChannel === c.id ? '✓ ' : ''}#{c.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={() => { if (needManager()) void doDiscord(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+                <Text style={s.pageT}>{list.length > 0 ? 'Add this channel' : 'Connect Discord'}</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </>
       );
     }

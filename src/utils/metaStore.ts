@@ -82,6 +82,18 @@ export interface MetaState {
   ytRefreshToken?: string;
   ytExpiresAt?: number;
   ytChannelName?: string;
+  // Telegram (bot token, no OAuth) — long-lived, no refresh. Destination chat
+  // id + title ride alongside; publishing goes straight at the Bot API.
+  tgBotToken?: string;
+  tgChatId?: string;
+  tgChatTitle?: string;
+  // Discord (bot token, no OAuth) — long-lived, no refresh. Server + channel
+  // picked at connect time; publishing posts to the channel id.
+  dcBotToken?: string;
+  dcGuildId?: string;
+  dcGuildName?: string;
+  dcChannelId?: string;
+  dcChannelName?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -243,6 +255,8 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.mastodonAccessToken && m.mastodonInstance) out.push('mastodon');
   if (m.pinAccessToken) out.push('pinterest');
   if (m.ytRefreshToken || m.ytAccessToken) out.push('youtube');
+  if (m.tgBotToken && m.tgChatId) out.push('telegram');
+  if (m.dcBotToken && m.dcChannelId) out.push('discord');
   return out;
 }
 
@@ -270,5 +284,7 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('linkedin', has(m.liPersonUrn) || has(m.liName));
   consider('pinterest', has(m.pinUsername));
   consider('youtube', has(m.ytChannelName));
+  consider('telegram', has(m.tgChatId) || has(m.tgChatTitle));
+  consider('discord', has(m.dcChannelId) || has(m.dcChannelName));
   return out;
 }

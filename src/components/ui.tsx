@@ -21,12 +21,16 @@ const GLYPH_SCALE: Record<string, number> = {
   pinterest: 1,
   bluesky: 1.05,
   mastodon: 1,
+  telegram: 1.1,
+  discord: 1,
 };
 export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform: string; size?: number; color?: string }) {
   const s = size * (GLYPH_SCALE[platform] ?? 1);
   if (platform === 'x') return <FontAwesome6 name="x-twitter" size={s} color={color} />;
   if (platform === 'threads') return <FontAwesome6 name="threads" size={s} color={color} />;
   if (platform === 'mastodon') return <FontAwesome6 name="mastodon" size={s} color={color} />;
+  if (platform === 'telegram') return <FontAwesome6 name="telegram" size={s} color={color} />;
+  if (platform === 'discord') return <FontAwesome6 name="discord" size={s} color={color} />;
   if (platform === 'bluesky') {
     return (
       <Svg width={s} height={s} viewBox="0 0 24 24">

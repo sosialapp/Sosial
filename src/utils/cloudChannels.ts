@@ -17,7 +17,8 @@ const KEY = 'sosial_cloud_channels_v1';
 
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
-  | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube';
+  | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
+  | 'telegram' | 'discord';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -176,6 +177,25 @@ export async function buildImportPayload(
         expires_at: iso(f.ytExpiresAt), ...avatarMeta,
       };
     }
+    case 'telegram': {
+      if (!f.tgBotToken || !f.tgChatId) return null;
+      return {
+        provider: 'telegram', external_id: String(f.tgChatId), display_name: f.tgChatTitle,
+        access_token: String(f.tgBotToken), ...avatarMeta,
+      };
+    }
+    case 'discord': {
+      if (!f.dcBotToken || !f.dcChannelId) return null;
+      const metadata: Record<string, string> = {};
+      if (f.dcGuildId) metadata.guildId = String(f.dcGuildId);
+      if (f.dcGuildName) metadata.guildName = String(f.dcGuildName);
+      if (f.dcChannelName) metadata.channelName = String(f.dcChannelName);
+      return {
+        provider: 'discord', external_id: String(f.dcChannelId),
+        display_name: f.dcChannelName ? `#${f.dcChannelName}` : undefined,
+        access_token: String(f.dcBotToken), metadata: withAvatar(metadata),
+      };
+    }
     default:
       return null;
   }
@@ -267,6 +287,8 @@ const NAME_FIELD: Record<string, string> = {
   linkedin: 'liName',
   pinterest: 'pinUsername',
   youtube: 'ytChannelName',
+  telegram: 'tgChatTitle',
+  discord: 'dcChannelName',
 };
 
 /**
@@ -285,6 +307,8 @@ const IDENTITY_FIELD: Record<string, string> = {
   linkedin: 'liPersonUrn',
   pinterest: 'pinUsername',
   youtube: '',
+  telegram: 'tgChatId',
+  discord: 'dcChannelId',
 };
 
 interface CloudChannelRow {
@@ -401,9 +425,19 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
       const fields: Record<string, unknown> = { cloudOnly: true };
       if (idKey) fields[idKey] = row.external_id;
       if (row.display_name) fields[NAME_FIELD[provider]] = row.display_name;
-      if (provider === 'bluesky' && row.handle) fields.bskyHandle = row.handle;
-      if (provider === 'bluesky' && row.instance_url) fields.bskyPdsHost = row.instance_url;
-      if (provider === 'mastodon' && row.instance_url) fields.mastodonInstance = row.instance_url;
+        if (provider === 'bluesky' && row.handle) fields.bskyHandle = row.handle;
+        if (provider === 'bluesky' && row.instance_url) fields.bskyPdsHost = row.instance_url;
+        if (provider === 'mastodon' && row.instance_url) fields.mastodonInstance = row.instance_url;
+        if (provider === 'telegram' && row.metadata) {
+          const md = row.metadata as Record<string, unknown>;
+          if (typeof md.username === 'string' && md.username) fields.tgChatTitle = `@${md.username}`;
+        }
+        if (provider === 'discord' && row.metadata) {
+          const md = row.metadata as Record<string, unknown>;
+          if (typeof md.guildId === 'string' && md.guildId) fields.dcGuildId = md.guildId;
+          if (typeof md.guildName === 'string' && md.guildName) fields.dcGuildName = md.guildName;
+          if (typeof md.channelName === 'string' && md.channelName) fields.dcChannelName = md.channelName;
+        }
       if (avatar) fields.avatar = avatar;
       touch({ ...makeAccount(provider, fields) });
       if (!out.created.includes(provider)) out.created.push(provider);

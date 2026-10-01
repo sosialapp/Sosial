@@ -19,6 +19,8 @@ export const ATTACH_LIMITS: Record<string, { images: number; videos: number }> =
   mastodon: { images: 4, videos: 1 },
   pinterest: { images: 4, videos: 0 },
   youtube: { images: 0, videos: 1 },
+  telegram: { images: 10, videos: 1 },
+  discord: { images: 10, videos: 1 },
 };
 
 /** Normalize legacy single-uri opts into an attachment list. */

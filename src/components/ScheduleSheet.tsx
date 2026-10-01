@@ -22,10 +22,10 @@ import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
 import { fetchPostStats, SentPostStats } from '../utils/postStats';
 import { fbComments, igComments, thComments, mastodonComments, bskyComments, ytComments, PerPost, FeedComment } from '../utils/analytics';
 
-const CHANNELS = ['any', 'facebook', 'instagram', 'tiktok', 'threads', 'linkedin', 'bluesky', 'youtube', 'mastodon', 'pinterest', 'x'];
+const CHANNELS = ['any', 'facebook', 'instagram', 'tiktok', 'threads', 'linkedin', 'bluesky', 'youtube', 'mastodon', 'pinterest', 'x', 'telegram', 'discord'];
 const COMING_SOON: string[] = [];
-type TypeChannel = 'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok';
-const TYPE_CHANNELS: TypeChannel[] = ['facebook', 'instagram', 'threads', 'x', 'linkedin', 'youtube', 'bluesky', 'mastodon', 'pinterest', 'tiktok'];
+type TypeChannel = 'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok' | 'telegram' | 'discord';
+const TYPE_CHANNELS: TypeChannel[] = ['facebook', 'instagram', 'threads', 'x', 'linkedin', 'youtube', 'bluesky', 'mastodon', 'pinterest', 'tiktok', 'telegram', 'discord'];
 
 /** YouTube listing options — static, no fetch needed. */
 const YT_LISTING = [

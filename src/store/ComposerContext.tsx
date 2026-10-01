@@ -14,6 +14,8 @@ import { publishX } from '../utils/xPublish';
 import { publishBsky, BskyRef } from '../utils/bskyPublish';
 import { publishMastodon } from '../utils/mastodonPublish';
 import { publishPinterest } from '../utils/pinPublish';
+import { publishTelegram } from '../utils/telegramPublish';
+import { publishDiscord } from '../utils/discordPublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1062,6 +1064,40 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'YouTube', ytAccts, ytRes);
             done.push('YouTube');
+          } else if (ch === 'telegram') {
+            const tgAccts = accountsFor('telegram');
+            if (tgAccts.length === 0) throw new Error('Telegram not connected');
+            const tgRes = await Promise.allSettled(tgAccts.map(async (tgAcct) => {
+              const tg = tgAcct.fields;
+              if (!tg.tgBotToken || !tg.tgChatId) throw new Error('Telegram not connected');
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.telegram.images);
+              keepAcct(ch, tgAcct.id, await publishTelegram({
+                botToken: String(tg.tgBotToken),
+                chatId: String(tg.tgChatId),
+                text: caption,
+                imageUris: imgs.map((a) => a.uri),
+                videoUri: firstVideo?.uri,
+              }));
+            }));
+            throwIfPartial(ch, 'Telegram', tgAccts, tgRes);
+            done.push('Telegram');
+          } else if (ch === 'discord') {
+            const dcAccts = accountsFor('discord');
+            if (dcAccts.length === 0) throw new Error('Discord not connected');
+            const dcRes = await Promise.allSettled(dcAccts.map(async (dcAcct) => {
+              const dc = dcAcct.fields;
+              if (!dc.dcBotToken || !dc.dcChannelId) throw new Error('Discord not connected');
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.discord.images);
+              keepAcct(ch, dcAcct.id, await publishDiscord({
+                botToken: String(dc.dcBotToken),
+                channelId: String(dc.dcChannelId),
+                text: caption,
+                imageUris: imgs.map((a) => a.uri),
+                videoUri: firstVideo?.uri,
+              }));
+            }));
+            throwIfPartial(ch, 'Discord', dcAccts, dcRes);
+            done.push('Discord');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

@@ -10,7 +10,9 @@ export type ProviderKey =
   | 'mastodon'
   | 'linkedin'
   | 'pinterest'
-  | 'youtube';
+  | 'youtube'
+  | 'telegram'
+  | 'discord';
 
 /**
  * One social account (a.k.a. channel) with its provider-specific credentials.
@@ -36,6 +38,8 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   linkedin: ['liAccessToken', 'liRefreshToken', 'liExpiresAt', 'liPersonUrn', 'liName', 'liOrgId', 'liOrgName'],
   pinterest: ['pinAccessToken', 'pinRefreshToken', 'pinExpiresAt', 'pinUsername', 'pinBoardId', 'pinBoardName'],
   youtube: ['ytAccessToken', 'ytRefreshToken', 'ytExpiresAt', 'ytChannelName'],
+  telegram: ['tgBotToken', 'tgChatId', 'tgChatTitle'],
+  discord: ['dcBotToken', 'dcGuildId', 'dcGuildName', 'dcChannelId', 'dcChannelName'],
 };
 
 const FIELD_TO_PROVIDER: Record<string, ProviderKey> = {};
@@ -125,6 +129,8 @@ export function accountConnected(a: ConnectedAccount): boolean {
     case 'linkedin': return !!(f.liPersonUrn && (f.liAccessToken || f.liRefreshToken));
     case 'pinterest': return !!f.pinAccessToken;
     case 'youtube': return !!(f.ytRefreshToken || f.ytAccessToken);
+    case 'telegram': return !!(f.tgBotToken && f.tgChatId);
+    case 'discord': return !!(f.dcBotToken && f.dcChannelId);
     default: return false;
   }
 }
@@ -143,6 +149,8 @@ export function accountExternalId(a: ConnectedAccount): string | undefined {
     case 'linkedin': return f.liPersonUrn as string | undefined;
     case 'pinterest': return f.pinUsername as string | undefined;
     case 'youtube': return undefined;
+    case 'telegram': return f.tgChatId as string | undefined;
+    case 'discord': return f.dcChannelId as string | undefined;
     default: return undefined;
   }
 }
@@ -161,6 +169,8 @@ export function accountName(a: ConnectedAccount): string | undefined {
     case 'linkedin': return (f.liOrgName as string | undefined) ?? (f.liName as string | undefined);
     case 'pinterest': return (f.pinBoardName as string | undefined) ?? (f.pinUsername as string | undefined);
     case 'youtube': return f.ytChannelName as string | undefined;
+    case 'telegram': return (f.tgChatTitle as string | undefined) ?? (f.tgChatId as string | undefined);
+    case 'discord': return (f.dcChannelName as string | undefined) ?? (f.dcChannelId as string | undefined);
     default: return undefined;
   }
 }
