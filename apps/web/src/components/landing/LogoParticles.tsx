@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { BRAND_PATHS, brandColor, type BrandProvider } from '@/components/BrandIcon';
+import { BRAND_PATHS, brandColor, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/BrandIcon';
+import { planeFromBundledMark } from '../telegramMark';
 import type { ProviderKey } from '@/lib/types';
 
 /**
@@ -32,7 +33,18 @@ const DURATION = 5;
 const SPRITE = 128;
 
 function spriteSvg(provider: ProviderKey): string {
-  const d = BRAND_PATHS[provider as BrandProvider];
+  // Telegram drifts as the bare plane (official app-icon style); everything
+  // else uses the bundled mark with its bare-glyph transform, if any.
+  const d =
+    provider === 'telegram'
+      ? planeFromBundledMark(BRAND_PATHS.telegram)
+      : BRAND_PATHS[provider as BrandProvider];
+  const extra =
+    provider === 'telegram'
+      ? ' transform="translate(12 12) scale(1.5) translate(-12 -12)"'
+      : GLYPH_TRANSFORMS[provider as BrandProvider]
+        ? ` transform="${GLYPH_TRANSFORMS[provider as BrandProvider]}"`
+        : '';
   const fill =
     provider === 'instagram'
       ? 'url(#socig)'
@@ -41,7 +53,7 @@ function spriteSvg(provider: ProviderKey): string {
     provider === 'instagram'
       ? `<defs><radialGradient id="socig" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FDF497"/><stop offset="5%" stop-color="#FDF497"/><stop offset="45%" stop-color="#FD5949"/><stop offset="60%" stop-color="#D6249F"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs>`
       : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">${defs}<g transform="translate(2 2) scale(0.8333)"><path d="${d}" fill="${fill}"/></g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">${defs}<g transform="translate(2 2) scale(0.8333)"><path d="${d}" fill="${fill}"${extra}/></g></svg>`;
 }
 
 function rasterize(svg: string): Promise<HTMLCanvasElement> {
