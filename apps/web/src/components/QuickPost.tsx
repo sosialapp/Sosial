@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -46,14 +46,16 @@ export default function QuickPost({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [confirmNow, setConfirmNow] = useState(false);
+  const nowConfirmed = useRef(false);
 
   function toggle(id: string) {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     setDone(null);
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  async function submit(e: FormEvent | null) {
+    e?.preventDefault();
     setErr(null);
     setDone(null);
     const chosen = ready.filter((c) => picked.includes(c.id));
@@ -73,6 +75,12 @@ export default function QuickPost({
       setErr(leadTimeMessage());
       return;
     }
+    // Post-now always confirms with the destination list after validating.
+    if (mode === 'now' && !nowConfirmed.current) {
+      setConfirmNow(true);
+      return;
+    }
+    nowConfirmed.current = false;
     setBusy(true);
     try {
       const sb = createClient();
@@ -197,6 +205,81 @@ export default function QuickPost({
 
           {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
           {done ? <p className="mt-2 text-xs font-bold text-[#346538]">{done}</p> : null}
+
+          {confirmNow ? (
+            <div
+              className="fixed inset-0 z-[100] overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm post now"
+            >
+              <div
+                className="absolute inset-0 bg-ink/50"
+                onClick={() => {
+                  nowConfirmed.current = false;
+                  setConfirmNow(false);
+                }}
+                aria-hidden="true"
+              />
+              <div className="relative flex min-h-full items-center justify-center p-4">
+                <div className="relative my-auto w-full max-w-md rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
+                  <h2 className="font-display text-lg font-extrabold tracking-tight">
+                    Post now to {ready.filter((c) => picked.includes(c.id)).length} channel
+                    {picked.length === 1 ? '' : 's'}?
+                  </h2>
+                  <ul className="mt-3 space-y-2">
+                    {ready
+                      .filter((c) => picked.includes(c.id))
+                      .map((c) => (
+                        <li key={c.id} className="flex items-center gap-2.5">
+                          <ChannelAvatar
+                            provider={c.provider}
+                            avatar={channelAvatar(c.metadata)}
+                            size={30}
+                          />
+                          <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                            {c.display_name ?? c.handle ?? providerMeta(c.provider).label}
+                          </span>
+                          <span className="shrink-0 text-xs text-faint">
+                            {providerMeta(c.provider).label}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                  {body.trim() ? (
+                    <p className="mt-3 rounded-xl bg-paper-dim px-3 py-2 text-xs text-soft">
+                      “{body.trim().replace(/\s+/g, ' ').slice(0, 140)}
+                      {body.trim().length > 140 ? '…' : ''}”
+                    </p>
+                  ) : null}
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        nowConfirmed.current = false;
+                        setConfirmNow(false);
+                      }}
+                      className="btn btn-ghost flex-1"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        nowConfirmed.current = true;
+                        setConfirmNow(false);
+                        void submit(null);
+                      }}
+                      className="btn btn-primary flex-1"
+                    >
+                      Post now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Action stays put — only the label changes. */}
           <div className="mt-3 flex items-center gap-2">
