@@ -100,7 +100,6 @@ export default function FeaturesBento() {
     <section aria-label="Features" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-10 pb-14 md:pt-16 md:pb-28">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="eyebrow">What you get</p>
           <h2 className="mt-2 font-display text-[17px] leading-[1.12] font-semibold tracking-tight whitespace-nowrap sm:text-2xl md:text-4xl">
             Everything a daily poster needs.
           </h2>
@@ -176,11 +175,12 @@ export default function FeaturesBento() {
 
           <article className="relative flex flex-col overflow-hidden rounded-xl bg-[linear-gradient(180deg,#FCE7CB_0%,#F9CF9C_100%)] p-5 md:col-span-7 md:h-[483px]">
             <h3 className={`${title} relative text-[#0B0A0A]`}>
-              Connect to our 10 channels. Up to 100 accounts
+              Connect to our 15 channels. Up to 100 accounts
             </h3>
             <p className={`${sub} relative text-[rgba(11,10,10,0.6)]`}>
-              Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon, YouTube,
-              X, TikTok, Pinterest. Up to 100 accounts.
+              Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon,
+              YouTube, X, TikTok, Pinterest, Telegram, Discord, WordPress, Dev.to and
+              Hashnode. Up to 100 accounts.
             </p>
             {/* Illustration: account avatars + channel logo grid, centered */}
             <div className="relative flex flex-1 flex-col items-center justify-center">
@@ -243,9 +243,14 @@ export default function FeaturesBento() {
                   'bluesky',
                   'tiktok',
                   'linkedin',
+                  'telegram',
+                  'discord',
+                  'wordpress',
+                  'devto',
+                  'hashnode',
                 ] as BrandProvider[]
               ).map((p) => (
-                <BrandIcon key={p} provider={p} badge={false} className="h-9 w-9 sm:h-12 sm:w-12" />
+                <BrandIcon key={p} provider={p} badge={false} className="h-10 w-10" />
               ))}
               </div>
             </div>

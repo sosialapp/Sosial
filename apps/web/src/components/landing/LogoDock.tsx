@@ -22,6 +22,11 @@ const CHANNELS: BrandProvider[] = [
   'bluesky',
   'mastodon',
   'pinterest',
+  'telegram',
+  'discord',
+  'wordpress',
+  'devto',
+  'hashnode',
 ];
 
 const RANGE = 180;
@@ -66,7 +71,7 @@ export default function LogoDock() {
 
   return (
     <section aria-label="Channels" className="bg-paper">
-      <div className="mx-auto max-w-6xl px-4">
+      <div className="mx-auto max-w-6xl px-4 pt-12 md:pt-16">
         <div className="flex justify-center">
           <div
             ref={trackRef}
