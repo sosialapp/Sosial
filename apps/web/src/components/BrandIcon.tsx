@@ -213,7 +213,7 @@ function iconPath(provider: BrandProvider): string {
  * without this it renders small everywhere. 1.3x about the center still
  * clears the viewport after Pad insets it.
  */
-const TELEGRAM_SCALE = 'translate(12 12) scale(1.3) translate(-12 -12)';
+const TELEGRAM_SCALE = 'translate(12 12) scale(1.5) translate(-12 -12)';
 
 function Glyph({ provider }: { provider: BrandProvider }) {
   if (provider === 'telegram') {
