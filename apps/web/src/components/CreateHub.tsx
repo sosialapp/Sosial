@@ -8,7 +8,7 @@ import { channelAvatar } from '@/components/ChannelAvatar';
 import CreatePost from '@/components/CreatePost';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
-import PostList from '@/components/PostList';
+import PostList, { TAB_MATCH, type Tab as StatusTab } from '@/components/PostList';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
@@ -57,13 +57,12 @@ interface Template {
   origin?: 'web' | 'mobile';
 }
 
-export type Tab = 'post' | 'templates' | 'publish' | 'ideas';
+export type Tab = 'post' | 'templates' | 'ideas';
 
 /** Canonical URL per hub tab — tab switches navigate so every tab is linkable. */
 export const TAB_URL: Record<Tab, string> = {
   post: '/post',
   templates: '/post-templates',
-  publish: '/post-publish',
   ideas: '/post-ideas',
 };
 
@@ -202,8 +201,23 @@ const fmtDate = (ts: number): string => {
   }
 };
 
-const TAB_LABEL: Record<Tab, string> = { post: 'Post', templates: 'Templates', publish: 'Publish', ideas: 'Ideas' };
-const TAB_ORDER: Tab[] = ['post', 'templates', 'publish', 'ideas'];
+const STATUS_ORDER: StatusTab[] = ['all', 'queue', 'drafts', 'approvals', 'sent', 'failed'];
+const STATUS_PILL_LABEL: Record<StatusTab, string> = {
+  all: 'All',
+  queue: 'Queue',
+  drafts: 'Drafts',
+  approvals: 'Approvals',
+  sent: 'Sent',
+  failed: 'Failed',
+};
+const STATUS_TITLE: Record<StatusTab, string> = {
+  all: 'All posts',
+  queue: 'Queue',
+  drafts: 'Drafts',
+  approvals: 'Approvals',
+  sent: 'Sent',
+  failed: 'Failed',
+};
 
 /* ---------------- cross-device library sync ---------------- */
 
@@ -355,6 +369,29 @@ export default function CreateHub({
   const goTab = (t: Tab) => {
     if (t !== tab) router.push(TAB_URL[t], { scroll: false });
   };
+  // /post hosts the composer plus the status lists (?filter=) — the URL is
+  // the source of truth. ?edit= always means the composer.
+  const rawFilter = searchParams.get('filter');
+  const filterView: StatusTab | null =
+    rawFilter === 'all' ||
+    rawFilter === 'queue' ||
+    rawFilter === 'drafts' ||
+    rawFilter === 'approvals' ||
+    rawFilter === 'sent' ||
+    rawFilter === 'failed'
+      ? rawFilter
+      : null;
+  const editId = searchParams.get('edit');
+  const view: 'create' | 'templates' | 'ideas' | StatusTab =
+    tab === 'templates'
+      ? 'templates'
+      : tab === 'ideas'
+        ? 'ideas'
+        : editId
+          ? 'create'
+          : (filterView ?? 'create');
+  const statusView: StatusTab | null =
+    view !== 'create' && view !== 'templates' && view !== 'ideas' ? view : null;
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [projects, setProjects] = useState<StudioProject[]>([]);
@@ -703,6 +740,8 @@ export default function CreateHub({
       whenIso: head.scheduled_at,
       mediaParts,
     });
+    // Edits belong to the composer — bounce list views back to Create.
+    if (view !== 'create') router.push('/post');
   };
 
   /** Deep link from the standalone queue page: /post?edit=<postId>. */
@@ -712,10 +751,10 @@ export default function CreateHub({
     const id = searchParams.get('edit');
     if (!id) return;
     editConsumed.current = true;
-    // Draft edits belong to the composer tab — bounce there with the id intact.
-    if (initialTab !== 'post') {
+    // Draft edits belong to the composer — bounce there with the id intact,
+    // then load regardless (same-route replaces don't remount to re-run us).
+    if (initialTab !== 'post' || filterView) {
       router.replace(`/post?edit=${encodeURIComponent(id)}`);
-      return;
     }
     startEdit(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -795,29 +834,77 @@ export default function CreateHub({
 
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
-      <p className="eyebrow">Post</p>
-      <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">New post</h1>
-      <p className="mt-1 text-sm text-muted">Catch the idea, design the visual, then post it everywhere.</p>
+      {statusView ? (
+        <>
+          <p className="eyebrow">Posts</p>
+          <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+            {STATUS_TITLE[statusView]}
+          </h1>
+        </>
+      ) : (
+        <>
+          <p className="eyebrow">Post</p>
+          <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">New post</h1>
+          <p className="mt-1 text-sm text-muted">Catch the idea, design the visual, then post it everywhere.</p>
+        </>
+      )}
 
-      <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Post sections">
-        {TAB_ORDER.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => goTab(t)}
-            className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-              tab === t ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
-            }`}
-          >
-            {TAB_LABEL[t]}
-            {t === 'ideas' && ideas.length ? ` · ${ideas.length}` : ''}
-          </button>
-        ))}
+      <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Post sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'create'}
+          onClick={() => router.push('/post', { scroll: false })}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            view === 'create' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+          }`}
+        >
+          Create
+        </button>
+        {STATUS_ORDER.map((s) => {
+          const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
+          return (
+            <button
+              key={s}
+              type="button"
+              role="tab"
+              aria-selected={view === s}
+              onClick={() => router.push(`/post?filter=${s}`, { scroll: false })}
+              className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+                view === s ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+              }`}
+            >
+              {STATUS_PILL_LABEL[s]}
+              {count > 0 && <span className="ml-1.5 opacity-60">{count}</span>}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'templates'}
+          onClick={() => router.push('/post-templates', { scroll: false })}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            view === 'templates' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+          }`}
+        >
+          Templates
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'ideas'}
+          onClick={() => router.push('/post-ideas', { scroll: false })}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            view === 'ideas' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+          }`}
+        >
+          Ideas
+          {ideas.length ? ` · ${ideas.length}` : ''}
+        </button>
       </div>
 
-      {tab === 'post' ? (
+      {view === 'create' ? (
         <div className="mt-4">
           <CreatePost
             key={`${prefill?.key ?? 'fresh'}-${draftEdit?.key ?? 0}-${pendingFiles ? pendingFiles.length : 0}`}
@@ -840,7 +927,7 @@ export default function CreateHub({
             onEdited={() => setDraftEdit(null)}
           />
         </div>
-      ) : tab === 'ideas' ? (
+      ) : view === 'ideas' ? (
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-5">
           <div className="flex min-w-0 flex-col gap-4 xl:col-span-3">
             <div className="card space-y-3 p-4 sm:p-5">
@@ -1010,15 +1097,18 @@ export default function CreateHub({
             />
           </div>
         </div>
-      ) : tab === 'publish' ? (
+      ) : statusView ? (
         <div className="mt-4">
           <PostList
+            key={statusView}
             posts={initialPosts}
             role={role}
             userId={userId}
             workspaceId={workspaceId}
             onEdit={startEdit}
             avatars={avatarRecord}
+            initialTab={statusView}
+            hideChrome
           />
         </div>
       ) : editing ? (

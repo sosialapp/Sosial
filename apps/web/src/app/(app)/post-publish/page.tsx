@@ -1,13 +1,8 @@
-import HubPage from '../post/hub-page';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-/** Publish queue at its own URL. */
-export default async function PostPublishPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const sp = await searchParams;
-  return <HubPage tab="publish" searchTab={sp?.tab} />;
+/** Merged into /post — the All pill preserves the old publish-list view. */
+export default function PostPublishPage() {
+  redirect('/post?filter=all');
 }

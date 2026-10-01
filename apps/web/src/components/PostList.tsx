@@ -16,7 +16,7 @@ import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
 
-type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
+export type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -27,7 +27,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'failed', label: 'Failed' },
 ];
 
-const TAB_MATCH: Record<Tab, (s: PostStatus) => boolean> = {
+export const TAB_MATCH: Record<Tab, (s: PostStatus) => boolean> = {
   all: () => true,
   queue: (s) => s === 'queued' || s === 'publishing',
   drafts: (s) => s === 'draft',
@@ -199,6 +199,8 @@ export default function PostList({
   workspaceId,
   onEdit,
   avatars = {},
+  initialTab,
+  hideChrome,
 }: {
   posts: PostWithTargets[];
   role: WorkspaceInfo['role'];
@@ -208,10 +210,14 @@ export default function PostList({
   onEdit?: (postId: string) => void;
   /** Channel avatar URLs by channel id — brand discs render without photos. */
   avatars?: Record<string, string>;
+  /** Preselect a status filter (the /post pills pass theirs). */
+  initialTab?: Tab;
+  /** Hide the header + pill row (the /post pills already cover filtering). */
+  hideChrome?: boolean;
 }) {
   const router = useRouter();
   const canApprove = role === 'owner' || role === 'admin';
-  const [tab, setTab] = useState<Tab>('all');
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
@@ -283,6 +289,7 @@ export default function PostList({
 
   return (
     <div className="flex min-h-screen flex-col">
+      {!hideChrome && (
       <header className="border-b border-line px-6 py-4">
         <p className="eyebrow">Queue</p>
         <h1 className="font-display text-xl font-extrabold tracking-tight">Posts</h1>
@@ -305,6 +312,7 @@ export default function PostList({
           })}
         </div>
       </header>
+      )}
 
       {err && (
         <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
