@@ -126,7 +126,7 @@ export default function DashboardScreen({ team, email, onProfile, onConnect, onP
         <View style={s.masthead}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Image source={require('../../assets/bolt.png')} style={{ width: 22, height: 28 }} resizeMode="contain" />
-            <Text style={s.wordmark} numberOfLines={1}>{team || 'My team'}</Text>
+            <Text style={s.wordmark} numberOfLines={1}>Sosial</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ConnectButton onPress={onConnect} />
