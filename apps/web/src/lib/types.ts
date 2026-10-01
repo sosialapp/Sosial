@@ -9,7 +9,8 @@ export type ProviderKey =
   | 'mastodon'
   | 'pinterest'
   | 'youtube'
-  | 'telegram';
+  | 'telegram'
+  | 'discord';
 
 export type PostStatus =
   | 'draft'

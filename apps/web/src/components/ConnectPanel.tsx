@@ -16,15 +16,16 @@ export interface FbPickPage {
   ig?: string;
 }
 
-type ProviderId = OAuthProvider | 'bluesky' | 'telegram';
+type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord';
 
-const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram'];
+const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord'];
 
-const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true };
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true };
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
   if (p === 'telegram') return 'Telegram';
+  if (p === 'discord') return 'Discord';
   return oauthLabel(p);
 }
 
@@ -70,6 +71,11 @@ export default function ConnectPanel({
   const [mastodonInstance, setMastodonInstance] = useState('');
   const [tgToken, setTgToken] = useState('');
   const [tgChat, setTgChat] = useState('');
+  const [dcToken, setDcToken] = useState('');
+  const [dcGuilds, setDcGuilds] = useState<{ id: string; name: string }[]>([]);
+  const [dcGuild, setDcGuild] = useState('');
+  const [dcChannels, setDcChannels] = useState<{ id: string; name: string }[]>([]);
+  const [dcChannel, setDcChannel] = useState('');
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -183,8 +189,91 @@ export default function ConnectPanel({
     }
   }
 
-  async function connectTelegram() {
+  type DcList = { guilds?: { id: string; name: string }[]; channels?: { id: string; name: string }[]; error?: string };
+
+  async function dcCall(stage: { guild_id?: string; channel_id?: string }): Promise<DcList> {
+    const r = await fetch('/api/oauth/discord', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_token: dcToken.trim(), ...stage }),
+    });
+    const j = (await r.json().catch(() => ({}))) as DcList & { ok?: boolean };
+    if (!r.ok || (j as { error?: string }).error) {
+      throw new Error((j as { error?: string }).error ?? 'Discord call failed.');
+    }
+    return j;
+  }
+
+  async function loadDcGuilds() {
     setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!dcToken.trim()) {
+      setErr('Paste the bot token from the Developer Portal first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const j = await dcCall({});
+      setDcGuilds(j.guilds ?? []);
+      setDcGuild('');
+      setDcChannels([]);
+      setDcChannel('');
+      if (!(j.guilds ?? []).length) setErr('That bot is in no servers — invite it first.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not reach Discord.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadDcChannels(guildId: string) {
+    setDcGuild(guildId);
+    setDcChannels([]);
+    setDcChannel('');
+    if (!guildId) return;
+    setBusy(true);
+    try {
+      const j = await dcCall({ guild_id: guildId });
+      setDcChannels(j.channels ?? []);
+      if (!(j.channels ?? []).length) setErr('No text channels there — check the bot can see one.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not list channels.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connectDiscord() {
+    setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!dcChannel) {
+      setErr('Pick a channel first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/discord', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bot_token: dcToken.trim(), guild_id: dcGuild, channel_id: dcChannel }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect Discord.');
+      window.location.href = '/channels?connected=discord';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect Discord.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connectTelegram() {    setErr(null);
     if (!canManage) {
       setErr('Only owners and admins can connect channels.');
       return;
@@ -241,6 +330,7 @@ export default function ConnectPanel({
       if (p === 'bluesky') return 'Handle + app password';
       if (p === 'mastodon') return 'Username + login';
       if (p === 'telegram') return 'Bot token + destination';
+      if (p === 'discord') return 'Bot token + server';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -252,17 +342,21 @@ export default function ConnectPanel({
       ? 'Bluesky'
       : status.already === 'telegram'
         ? 'Telegram'
-        : status.already
-          ? oauthLabel(status.already)
-          : '';
+        : status.already === 'discord'
+          ? 'Discord'
+          : status.already
+            ? oauthLabel(status.already)
+            : '';
   const connectedLabel =
     status.connected === 'bluesky'
       ? 'Bluesky'
       : status.connected === 'telegram'
         ? 'Telegram'
-        : status.connected
-          ? oauthLabel(status.connected)
-          : '';
+        : status.connected === 'discord'
+          ? 'Discord'
+          : status.connected
+            ? oauthLabel(status.connected)
+            : '';
 
   return (
     <div className="space-y-3">
@@ -398,6 +492,74 @@ export default function ConnectPanel({
                       <button type="button" onClick={connectMastodon} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
                         {busy ? 'Registering…' : hasAny ? 'Add this account' : 'Connect Mastodon'}
                       </button>
+                    </div>
+                  ) : null}
+
+                  {p === 'discord' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        No OAuth — create an app in the Developer Portal, enable the bot,
+                        invite it to your server, then paste the token.
+                      </p>
+                      <input
+                        value={dcToken}
+                        onChange={(e) => {
+                          setDcToken(e.target.value);
+                          setDcGuilds([]);
+                          setDcGuild('');
+                          setDcChannels([]);
+                          setDcChannel('');
+                        }}
+                        placeholder="Bot token"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-label="Discord bot token"
+                        className="field !text-xs"
+                      />
+                      {dcGuilds.length === 0 ? (
+                        <button type="button" onClick={loadDcGuilds} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                          {busy ? 'Asking Discord…' : 'List my servers'}
+                        </button>
+                      ) : (
+                        <>
+                          <select
+                            value={dcGuild}
+                            onChange={(e) => loadDcChannels(e.target.value)}
+                            aria-label="Discord server"
+                            className="field !text-xs"
+                          >
+                            <option value="">Pick a server…</option>
+                            {dcGuilds.map((g) => (
+                              <option key={g.id} value={g.id}>
+                                {g.name}
+                              </option>
+                            ))}
+                          </select>
+                          {dcChannels.length > 0 ? (
+                            <select
+                              value={dcChannel}
+                              onChange={(e) => setDcChannel(e.target.value)}
+                              aria-label="Discord channel"
+                              className="field !text-xs"
+                            >
+                              <option value="">Pick a channel…</option>
+                              {dcChannels.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  #{c.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : null}
+                          <button type="button" onClick={connectDiscord} disabled={busy || !dcChannel} className="btn btn-primary w-full !py-2 !text-xs">
+                            {busy ? 'Connecting…' : hasAny ? 'Add this channel' : 'Connect Discord'}
+                          </button>
+                          {err ? (
+                            <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                              {err}
+                            </p>
+                          ) : null}
+                        </>
+                      )}
                     </div>
                   ) : null}
 

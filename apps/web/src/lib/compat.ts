@@ -133,6 +133,16 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     // Captions cap at 1024; the adapter truncates longer body text.
     limits: { text: 1024, media: 10 },
   },
+  discord: {
+    label: 'Discord',
+    // Bot posts to a channel: text, images, videos/files as attachments,
+    // links auto-embed. Content caps at 2000 (backend rejects, never truncates).
+    supports: { text: true, image: true, video: true, carousel: false, document: true, poll: false, link: true },
+    thread: false, replyChain: false, article: false,
+    requiresMedia: false, requiresVideo: false,
+    boardRequired: false, titleRequired: false,
+    limits: { text: 2000, media: 10 },
+  },
 };
 
 export type CompatLevel = 'error' | 'warn';

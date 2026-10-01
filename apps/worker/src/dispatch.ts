@@ -16,6 +16,7 @@ import { publishMastodonTarget } from './mastodon';
 import { publishLinkedInTarget } from './linkedin';
 import { publishPinterestTarget } from './pinterest';
 import { publishTelegramTarget } from './telegram';
+import { publishDiscordTarget } from './discord';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
@@ -107,6 +108,12 @@ async function handlePublishTarget(job: Job): Promise<void> {
     }
     if (provider === 'telegram') {
       const { remoteId, remoteUrl } = await publishTelegramTarget(bundle);
+      await markTargetSent(targetId, remoteId, remoteUrl);
+      info(`target ${targetId} sent → ${remoteId}`);
+      return;
+    }
+    if (provider === 'discord') {
+      const { remoteId, remoteUrl } = await publishDiscordTarget(bundle);
       await markTargetSent(targetId, remoteId, remoteUrl);
       info(`target ${targetId} sent → ${remoteId}`);
       return;
