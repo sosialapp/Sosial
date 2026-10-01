@@ -861,7 +861,7 @@ export default function CreateHub({
               : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
-          Post
+          Create
         </button>
         <button
           type="button"

@@ -170,7 +170,14 @@ export function accountName(a: ConnectedAccount): string | undefined {
     case 'pinterest': return (f.pinBoardName as string | undefined) ?? (f.pinUsername as string | undefined);
     case 'youtube': return f.ytChannelName as string | undefined;
     case 'telegram': return (f.tgChatTitle as string | undefined) ?? (f.tgChatId as string | undefined);
-    case 'discord': return (f.dcChannelName as string | undefined) ?? (f.dcChannelId as string | undefined);
+    case 'discord': {
+      const raw =
+        (f.dcChannelName as string | undefined) ?? (f.dcChannelId as string | undefined);
+      if (!raw) return undefined;
+      const name = raw.replace(/^#/, '');
+      const guild = f.dcGuildName as string | undefined;
+      return guild ? `${guild} / #${name}` : `#${name}`;
+    }
     default: return undefined;
   }
 }

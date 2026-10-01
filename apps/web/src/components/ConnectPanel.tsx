@@ -31,6 +31,12 @@ function providerLabel(p: ProviderId): string {
 }
 
 function accountName(c: ConnectedChannel): string {
+  if (c.provider === 'discord') {
+    const md = (c.metadata ?? {}) as Record<string, unknown>;
+    const guild = typeof md.guildName === 'string' ? md.guildName : '';
+    const ch = (c.display_name ?? c.external_id).replace(/^#/, '') || c.external_id;
+    return guild ? `${guild} / #${ch}` : `#${ch}`;
+  }
   return c.display_name ?? (c.handle ? `@${c.handle}` : c.handle) ?? c.external_id;
 }
 

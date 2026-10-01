@@ -112,6 +112,12 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
     reload();
   }, [refreshedAt]);
 
+  const discordSub = (() => {
+    if (!meta.dcBotToken || !meta.dcChannelId) return 'Not connected';
+    if (!meta.dcChannelName) return 'Connected';
+    const name = meta.dcChannelName.replace(/^#/, '');
+    return meta.dcGuildName ? `${meta.dcGuildName} / #${name}` : `#${name}`;
+  })();
   const drawerChannels = [
     { id: 'facebook', label: 'Facebook', sub: meta.pageName ?? 'Not connected', connected: !!meta.pageId },
     { id: 'instagram', label: 'Instagram', sub: meta.igName ?? 'Not connected', connected: !!meta.igId },
@@ -124,7 +130,7 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
     { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? ((meta.mastodonAccessToken && meta.mastodonInstance) ? 'Connected' : 'Not connected'), connected: !!(meta.mastodonAccessToken && meta.mastodonInstance) },
     { id: 'pinterest', label: 'Pinterest', sub: 'Coming soon', connected: false, comingSoon: true },
     { id: 'telegram', label: 'Telegram', sub: meta.tgChatTitle ?? ((meta.tgBotToken && meta.tgChatId) ? 'Connected' : 'Not connected'), connected: !!(meta.tgBotToken && meta.tgChatId) },
-    { id: 'discord', label: 'Discord', sub: meta.dcChannelName ? `#${meta.dcChannelName}` : ((meta.dcBotToken && meta.dcChannelId) ? 'Connected' : 'Not connected'), connected: !!(meta.dcBotToken && meta.dcChannelId) },
+    { id: 'discord', label: 'Discord', sub: discordSub, connected: !!(meta.dcBotToken && meta.dcChannelId) },
   ];
   const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
 
