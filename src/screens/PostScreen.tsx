@@ -135,6 +135,7 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
     { id: 'telegram', label: 'Telegram', sub: meta.tgChatTitle ?? ((meta.tgBotToken && meta.tgChatId) ? 'Connected' : 'Not connected'), connected: !!(meta.tgBotToken && meta.tgChatId) },
     { id: 'discord', label: 'Discord', sub: discordSub, connected: !!(meta.dcBotToken && meta.dcChannelId) },
     { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!(meta.wpSiteUrl && meta.wpUsername && meta.wpAppPassword) },
+    { id: 'devto', label: 'Dev.to', sub: meta.devName ?? meta.devUsername ?? (meta.devApiKey ? 'Connected' : 'Not connected'), connected: !!meta.devApiKey },
   ];
   const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
 

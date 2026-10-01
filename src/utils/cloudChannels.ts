@@ -18,7 +18,7 @@ const KEY = 'sosial_cloud_channels_v1';
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
   | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
-  | 'telegram' | 'discord' | 'wordpress';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -208,6 +208,19 @@ export async function buildImportPayload(
         metadata: withAvatar({ username: String(f.wpUsername) }),
       };
     }
+    case 'devto': {
+      // Numeric user id only — the username is mutable and would duplicate
+      // rows against the web's id-keyed external_id.
+      if (!f.devApiKey || !f.devUserId) return null;
+      return {
+        provider: 'devto',
+        external_id: String(f.devUserId),
+        display_name: f.devName,
+        handle: f.devUsername ? `@${f.devUsername}` : undefined,
+        access_token: String(f.devApiKey),
+        metadata: withAvatar({ username: String(f.devUsername ?? '') }),
+      };
+    }
     default:
       return null;
   }
@@ -302,6 +315,7 @@ const NAME_FIELD: Record<string, string> = {
   telegram: 'tgChatTitle',
   discord: 'dcChannelName',
   wordpress: 'wpSiteName',
+  devto: 'devName',
 };
 
 /**
@@ -323,6 +337,7 @@ const IDENTITY_FIELD: Record<string, string> = {
   telegram: 'tgChatId',
   discord: 'dcChannelId',
   wordpress: 'wpSiteUrl',
+  devto: 'devUserId',
 };
 
 interface CloudChannelRow {
@@ -451,6 +466,14 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
           if (typeof md.guildId === 'string' && md.guildId) fields.dcGuildId = md.guildId;
           if (typeof md.guildName === 'string' && md.guildName) fields.dcGuildName = md.guildName;
           if (typeof md.channelName === 'string' && md.channelName) fields.dcChannelName = md.channelName;
+        }
+        if (provider === 'devto' && row.metadata) {
+          const md = row.metadata as Record<string, unknown>;
+          if (typeof md.username === 'string' && md.username) fields.devUsername = md.username;
+        }
+        if (provider === 'devto' && row.metadata) {
+          const md = row.metadata as Record<string, unknown>;
+          if (typeof md.username === 'string' && md.username) fields.devUsername = md.username;
         }
       if (avatar) fields.avatar = avatar;
       touch({ ...makeAccount(provider, fields) });

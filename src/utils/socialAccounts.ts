@@ -13,7 +13,8 @@ export type ProviderKey =
   | 'youtube'
   | 'telegram'
   | 'discord'
-  | 'wordpress';
+  | 'wordpress'
+  | 'devto';
 
 /**
  * One social account (a.k.a. channel) with its provider-specific credentials.
@@ -42,6 +43,7 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   telegram: ['tgBotToken', 'tgChatId', 'tgChatTitle'],
   discord: ['dcBotToken', 'dcGuildId', 'dcGuildName', 'dcChannelId', 'dcChannelName'],
   wordpress: ['wpSiteUrl', 'wpUsername', 'wpAppPassword', 'wpSiteName'],
+  devto: ['devApiKey', 'devUsername', 'devName', 'devUserId'],
 };
 
 const FIELD_TO_PROVIDER: Record<string, ProviderKey> = {};
@@ -134,6 +136,7 @@ export function accountConnected(a: ConnectedAccount): boolean {
     case 'telegram': return !!(f.tgBotToken && f.tgChatId);
     case 'discord': return !!(f.dcBotToken && f.dcChannelId);
     case 'wordpress': return !!(f.wpSiteUrl && f.wpUsername && f.wpAppPassword);
+    case 'devto': return !!f.devApiKey;
     default: return false;
   }
 }
@@ -163,6 +166,7 @@ export function accountExternalId(a: ConnectedAccount): string | undefined {
       const user = f.wpUsername as string | undefined;
       return host && user ? `${host}::${user}` : undefined;
     }
+    case 'devto': return f.devUserId as string | undefined;
     default: return undefined;
   }
 }
@@ -191,6 +195,7 @@ export function accountName(a: ConnectedAccount): string | undefined {
       return guild ? `${guild} / #${name}` : `#${name}`;
     }
     case 'wordpress': return (f.wpSiteName as string | undefined) ?? (f.wpSiteUrl as string | undefined);
+    case 'devto': return (f.devName as string | undefined) ?? (f.devUsername as string | undefined);
     default: return undefined;
   }
 }

@@ -100,6 +100,12 @@ export interface MetaState {
   wpUsername?: string;
   wpAppPassword?: string;
   wpSiteName?: string;
+  // Dev.to (API key, no OAuth) — long-lived, no refresh. Numeric user id is
+  // the stable cloud identity (web stores it as external_id).
+  devApiKey?: string;
+  devUsername?: string;
+  devName?: string;
+  devUserId?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -264,6 +270,7 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.tgBotToken && m.tgChatId) out.push('telegram');
   if (m.dcBotToken && m.dcChannelId) out.push('discord');
   if (m.wpSiteUrl && m.wpUsername && m.wpAppPassword) out.push('wordpress');
+  if (m.devApiKey) out.push('devto');
   return out;
 }
 
@@ -294,5 +301,6 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('telegram', has(m.tgChatId) || has(m.tgChatTitle));
   consider('discord', has(m.dcChannelId) || has(m.dcChannelName));
   consider('wordpress', has(m.wpSiteUrl));
+  consider('devto', has(m.devUsername) || has(m.devName));
   return out;
 }

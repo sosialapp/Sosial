@@ -17,17 +17,18 @@ export interface FbPickPage {
   ig?: string;
 }
 
-type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress';
+type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto';
 
-const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress'];
+const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto'];
 
-const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true };
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true };
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
   if (p === 'telegram') return 'Telegram';
   if (p === 'discord') return 'Discord';
   if (p === 'wordpress') return 'WordPress';
+  if (p === 'devto') return 'Dev.to';
   return oauthLabel(p);
 }
 
@@ -82,6 +83,7 @@ export default function ConnectPanel({
   const [wpSite, setWpSite] = useState('');
   const [wpUser, setWpUser] = useState('');
   const [wpPass, setWpPass] = useState('');
+  const [devKey, setDevKey] = useState('');
   const [dcToken, setDcToken] = useState('');
   const [dcGuilds, setDcGuilds] = useState<{ id: string; name: string }[]>([]);
   const [dcGuild, setDcGuild] = useState('');
@@ -315,6 +317,33 @@ export default function ConnectPanel({
     }
   }
 
+  async function connectDevto() {
+    setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!devKey.trim()) {
+      setErr('Paste the API key from dev.to → Settings → Extensions first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/devto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: devKey.trim() }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect Dev.to.');
+      window.location.href = '/channels?connected=devto';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect Dev.to.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function connectWordPress() {
     setErr(null);
     if (!canManage) {
@@ -413,6 +442,7 @@ export default function ConnectPanel({
       if (p === 'telegram') return 'Bot token + destination';
       if (p === 'discord') return 'Bot token + server';
       if (p === 'wordpress') return 'Site + app password';
+      if (p === 'devto') return 'API key';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -428,9 +458,11 @@ export default function ConnectPanel({
           ? 'Discord'
           : status.already === 'wordpress'
             ? 'WordPress'
-            : status.already
-              ? oauthLabel(status.already)
-              : '';
+            : status.already === 'devto'
+              ? 'Dev.to'
+              : status.already
+                ? oauthLabel(status.already)
+                : '';
   const connectedLabel =
     status.connected === 'bluesky'
       ? 'Bluesky'
@@ -440,9 +472,11 @@ export default function ConnectPanel({
           ? 'Discord'
           : status.connected === 'wordpress'
             ? 'WordPress'
-            : status.connected
-              ? oauthLabel(status.connected)
-              : '';
+            : status.connected === 'devto'
+              ? 'Dev.to'
+              : status.connected
+                ? oauthLabel(status.connected)
+                : '';
 
   return (
     <div className="space-y-3">
@@ -683,6 +717,32 @@ export default function ConnectPanel({
                           ) : null}
                         </>
                       )}
+                    </div>
+                  ) : null}
+
+                  {p === 'devto' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        No OAuth — mint a key at dev.to → Settings → Extensions, then
+                        paste it below.
+                      </p>
+                      <input
+                        value={devKey}
+                        onChange={(e) => setDevKey(e.target.value)}
+                        placeholder="API key"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-label="Dev.to API key"
+                        className="field !text-xs"
+                      />
+                      {err ? (
+                        <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                          {err}
+                        </p>
+                      ) : null}
+                      <button type="button" onClick={connectDevto} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                        {busy ? 'Checking with Dev.to…' : hasAny ? 'Add another account' : 'Connect Dev.to'}
+                      </button>
                     </div>
                   ) : null}
 

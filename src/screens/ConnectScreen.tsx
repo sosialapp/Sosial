@@ -19,6 +19,7 @@ import { completeBskyLogin } from '../utils/bskyAuth';
 import { validateTelegramBot, resolveTelegramChat } from '../utils/telegramAuth';
 import { validateDiscordBot, listDiscordGuilds, listDiscordChannels, type DiscordGuild, type DiscordChannel } from '../utils/discordAuth';
 import { validateWordPress } from '../utils/wordpressAuth';
+import { validateDevto } from '../utils/devtoAuth';
 import { loginMastodon, completeMastodonLogin } from '../utils/mastodonAuth';
 import { loginLinkedIn, completeLiLogin, listMyLiOrgs, pickLiOrg, LiOrg } from '../utils/liAuth';
 import { LI_CLIENT_ID } from '../utils/liConfig';
@@ -35,7 +36,7 @@ import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
-const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress'];
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto'];
 
 function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
@@ -69,6 +70,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [wpSite, setWpSite] = useState('');
   const [wpUser, setWpUser] = useState('');
   const [wpPass, setWpPass] = useState('');
+  const [devKey, setDevKey] = useState('');
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
@@ -520,6 +522,35 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
+  const doDevto = async (accountId?: string) => {
+    if (!devKey.trim()) {
+      Alert.alert('API key missing', 'Paste the key from dev.to → Settings → Extensions.');
+      return;
+    }
+    setBusy('Checking Dev.to…');
+    try {
+      const id = await validateDevto(devKey.trim());
+      await saveProviderFields(
+        'devto',
+        {
+          devApiKey: devKey.trim(),
+          devUserId: id.userId,
+          devUsername: id.username,
+          devName: id.name,
+        },
+        accountId,
+      );
+      setDevKey('');
+      setAccounts(await loadAccounts());
+      setOpenProvider('devto');
+      Alert.alert('Connected', `Dev.to → ${id.name || id.username}.`);
+    } catch (e: any) {
+      Alert.alert('Dev.to connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const doLinkedin = async (accountId?: string) => {
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
@@ -612,6 +643,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     telegram: { label: 'Telegram', manual: true, configured: true, connect: doTelegram },
     discord: { label: 'Discord', manual: true, configured: true, connect: doDiscord },
     wordpress: { label: 'WordPress', manual: true, configured: true, connect: doWordPress },
+    devto: { label: 'Dev.to', manual: true, configured: true, connect: doDevto },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -667,6 +699,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       if (p === 'telegram') return 'Bot token + chat';
       if (p === 'discord') return 'Bot token + server';
       if (p === 'wordpress') return 'Site + app password';
+      if (p === 'devto') return 'API key';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountLabel(list[0]);
@@ -837,6 +870,29 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doWordPress(addId()); }} activeOpacity={0.7} style={s.pageRow}>
             <Text style={s.pageT}>{list.length > 0 ? 'Add another site' : 'Connect WordPress'}</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+    if (p === 'devto') {
+      return (
+        <>
+          <Txt value={devKey} onChangeText={setDevKey} placeholder="API key" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Dev.to</Text>
+            {[
+              'dev.to → Settings → Extensions → generate a key',
+              'Paste it above — articles publish under your account',
+              'Tags cap at 4, covers come later',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { if (needManager()) void doDevto(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another account' : 'Connect Dev.to'}</Text>
           </TouchableOpacity>
         </>
       );

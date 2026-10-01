@@ -26,6 +26,7 @@ export const PROVIDER_META: Record<ProviderKey, ProviderInfo> = {
   telegram: { label: 'Telegram', color: '#229ED9', glyph: 'TG', limit: 1024, kind: 'social' },
   discord: { label: 'Discord', color: '#5865F2', glyph: 'DC', limit: 2000, kind: 'social' },
   wordpress: { label: 'WordPress', color: '#21759B', glyph: 'WP', limit: 100000, kind: 'professional' },
+  devto: { label: 'Dev.to', color: '#0A0A0A', glyph: 'DEV', limit: 100000, kind: 'professional' },
 };
 
 export function providerMeta(p: string): ProviderInfo {

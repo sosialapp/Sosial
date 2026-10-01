@@ -17,6 +17,7 @@ import { publishPinterest } from '../utils/pinPublish';
 import { publishTelegram } from '../utils/telegramPublish';
 import { publishDiscord } from '../utils/discordPublish';
 import { publishWordPress } from '../utils/wordpressPublish';
+import { publishDevto } from '../utils/devtoPublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1118,6 +1119,20 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'WordPress', wpAccts, wpRes);
             done.push('WordPress');
+          } else if (ch === 'devto') {
+            const devAccts = accountsFor('devto');
+            if (devAccts.length === 0) throw new Error('Dev.to not connected');
+            const devRes = await Promise.allSettled(devAccts.map(async (devAcct) => {
+              const dv = devAcct.fields;
+              if (!dv.devApiKey) throw new Error('Dev.to not connected');
+              keepAcct(ch, devAcct.id, await publishDevto({
+                apiKey: String(dv.devApiKey),
+                title: p.title ?? '',
+                text: caption,
+              }));
+            }));
+            throwIfPartial(ch, 'Dev.to', devAccts, devRes);
+            done.push('Dev.to');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

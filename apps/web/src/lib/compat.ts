@@ -153,6 +153,16 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     boardRequired: false, titleRequired: false,
     limits: { text: 100000, media: 1 },
   },
+  devto: {
+    label: 'Dev.to',
+    // Forem article: title + markdown body. Tags cap at 4 (backend trims);
+    // covers ship as absolute URLs only, so v1 sends none.
+    supports: { text: true, image: false, video: false, carousel: false, document: false, poll: false, link: true },
+    thread: false, replyChain: false, article: true,
+    requiresMedia: false, requiresVideo: false,
+    boardRequired: false, titleRequired: false,
+    limits: { text: 100000 },
+  },
 };
 
 export type CompatLevel = 'error' | 'warn';

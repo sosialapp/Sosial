@@ -11,7 +11,8 @@ export type ProviderKey =
   | 'youtube'
   | 'telegram'
   | 'discord'
-  | 'wordpress';
+  | 'wordpress'
+  | 'devto';
 
 export type PostStatus =
   | 'draft'
