@@ -87,8 +87,8 @@ serve(async (req: Request): Promise<Response> => {
   } catch (e) {
     return bad(e instanceof Error ? e.message : "Bad site URL.");
   }
-  const user = username.trim();
-  const auth = `Basic ${btoa(`${user}:${(app_password as string).trim()}`)}`;
+  const wpUser = username.trim();
+  const auth = `Basic ${btoa(`${wpUser}:${(app_password as string).trim()}`)}`;
 
   let userId: string;
   try {
@@ -115,11 +115,11 @@ serve(async (req: Request): Promise<Response> => {
     body: JSON.stringify({
       workspace_id,
       provider: "wordpress",
-      external_id: `${host}::${user}`,
+      external_id: `${host}::${wpUser}`,
       display_name: siteName,
-      handle: user,
+      handle: wpUser,
       instance_url: base,
-      metadata: { username: user },
+      metadata: { username: wpUser },
       access_token: (app_password as string).trim(),
       token_type: "Basic",
       scopes: [],
