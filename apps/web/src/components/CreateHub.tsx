@@ -853,32 +853,16 @@ export default function CreateHub({
         <button
           type="button"
           role="tab"
-          aria-selected={view === 'create'}
+          aria-selected={view === 'create' || statusView !== null}
           onClick={() => router.push('/post', { scroll: false })}
           className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-            view === 'create' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+            view === 'create' || statusView !== null
+              ? 'border-accent bg-accent text-ink'
+              : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
-          Create
+          Post
         </button>
-        {STATUS_ORDER.map((s) => {
-          const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
-          return (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={view === s}
-              onClick={() => router.push(`/post?filter=${s}`, { scroll: false })}
-              className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-                view === s ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
-              }`}
-            >
-              {STATUS_PILL_LABEL[s]}
-              {count > 0 && <span className="ml-1.5 opacity-60">{count}</span>}
-            </button>
-          );
-        })}
         <button
           type="button"
           role="tab"
@@ -903,6 +887,30 @@ export default function CreateHub({
           {ideas.length ? ` · ${ideas.length}` : ''}
         </button>
       </div>
+      {(view === 'create' || statusView !== null) && (
+        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Post filters">
+          {STATUS_ORDER.map((s) => {
+            const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
+            return (
+              <button
+                key={s}
+                type="button"
+                role="tab"
+                aria-selected={statusView === s}
+                onClick={() => router.push(`/post?filter=${s}`, { scroll: false })}
+                className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+                  statusView === s
+                    ? 'border-accent bg-accent text-ink'
+                    : 'border-line bg-card text-muted hover:bg-paper'
+                }`}
+              >
+                {STATUS_PILL_LABEL[s]}
+                {count > 0 && <span className="ml-1.5 opacity-60">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {view === 'create' ? (
         <div className="mt-4">
