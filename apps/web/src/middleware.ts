@@ -21,6 +21,7 @@ const GATED_PREFIXES = [
   '/post-ideas',
   '/post-publish',
   '/post-templates',
+  '/inbox',
   '/profile',
   '/queue',
   '/reports',
