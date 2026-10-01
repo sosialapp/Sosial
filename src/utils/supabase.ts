@@ -67,23 +67,93 @@ export interface WorkspaceInfo {
   role: 'owner' | 'admin' | 'member';
 }
 
-/** Workspace for this user (created on first login). Null when logged out. */
+/** Last-used workspace override (mirrors the web's sosial_ws cookie). */
+const WS_KEY = 'sosial_ws_id';
+
+export interface WorkspaceSummary extends WorkspaceInfo {
+  liveChannels: number;
+}
+
+/**
+ * Every workspace this user actively belongs to, oldest first, each with
+ * its live (status=connected) channel count so same-named workspaces can
+ * be told apart at a glance.
+ */
+export async function listMyWorkspaces(userId: string): Promise<WorkspaceSummary[]> {
+  const sb = supabase();
+  const { data, error } = await sb
+    .from('workspace_members')
+    .select('role, created_at, workspaces!inner(id, name, created_at)')
+    .eq('user_id', userId)
+    .eq('status', 'active');
+  if (error) throw friendly(error, 'Could not load your workspaces.');
+  const rows = (data ?? []) as {
+    role: string;
+    created_at?: string;
+    workspaces: any;
+  }[];
+  const out: (WorkspaceSummary & { joinedAt: string; wsCreated: string })[] = [];
+  for (const r of rows) {
+    const w = r.workspaces as { id?: unknown; name?: unknown; created_at?: unknown } | null;
+    if (!w || typeof w.id !== 'string') continue;
+    let liveChannels = 0;
+    try {
+      const { count } = await sb
+        .from('connected_channels')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', w.id)
+        .eq('status', 'connected');
+      liveChannels = count ?? 0;
+    } catch {
+      /* count is display-only — never block resolution */
+    }
+    out.push({
+      id: w.id,
+      name: String(w.name ?? 'My team'),
+      role: r.role as WorkspaceInfo['role'],
+      liveChannels,
+      joinedAt: String(r.created_at ?? ''),
+      wsCreated: String(w.created_at ?? ''),
+    });
+  }
+  out.sort((a, b) => (a.wsCreated || a.joinedAt).localeCompare(b.wsCreated || b.joinedAt));
+  return out.map(({ joinedAt: _j, wsCreated: _w, ...rest }) => rest);
+}
+
+/** Pin this device to a workspace (must be an active membership). */
+export async function switchWorkspace(workspaceId: string): Promise<WorkspaceInfo> {
+  const sb = supabase();
+  const { data } = await sb.auth.getSession();
+  const user = data.session?.user;
+  if (!user) throw new Error('Sign in first.');
+  const all = await listMyWorkspaces(user.id);
+  const hit = all.find((w) => w.id === workspaceId);
+  if (!hit) throw new Error('That workspace is no longer available.');
+  await SecureStore.setItemAsync(WS_KEY, hit.id).catch(() => {});
+  return { id: hit.id, name: hit.name, role: hit.role };
+}
+
+/** Workspace for this user. Null when logged out. */
 export async function myWorkspace(userId: string, email: string): Promise<WorkspaceInfo | null> {
   const sb = supabase();
-  // status='active' mirrors the Edge Functions' membership gate — a stale
-  // invited/removed row must never look like a workspace (that phantom is
-  // exactly what 403s cloud calls while the app looks signed in).
-  const { data: mem, error: memErr } = await sb
-    .from('workspace_members')
-    .select('role, workspaces!inner(id, name)')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .limit(1)
-    .maybeSingle();
-  if (memErr) throw friendly(memErr, 'Could not load your workspace.');
-  if (mem?.workspaces) {
-    const w = mem.workspaces as any;
-    return { id: String(w.id), name: String(w.name ?? 'My team'), role: mem.role as WorkspaceInfo['role'] };
+  // All active memberships — never .limit(1): same-named workspaces made the
+  // old first-row pick land on an empty workspace while the web (cookie) sat
+  // on the live one, and the device silently pulled zero channels.
+  let all: WorkspaceSummary[];
+  try {
+    all = await listMyWorkspaces(userId);
+  } catch (e) {
+    throw friendly(e, 'Could not load your workspace.');
+  }
+  if (all.length > 0) {
+    const stored = await SecureStore.getItemAsync(WS_KEY).catch(() => null);
+    const pinned = stored ? all.find((w) => w.id === stored) : undefined;
+    // Default to the workspace that actually has channels — a fresh empty
+    // twin must never shadow the live one.
+    const pick =
+      pinned ?? [...all].sort((a, b) => b.liveChannels - a.liveChannels)[0]!;
+    await SecureStore.setItemAsync(WS_KEY, pick.id).catch(() => {});
+    return { id: pick.id, name: pick.name, role: pick.role };
   }
   // First login: bootstrap workspace + owner membership (RLS allows both:
   // workspaces_owner_create + the owner-bootstrapping members policy).
@@ -102,7 +172,9 @@ export async function myWorkspace(userId: string, email: string): Promise<Worksp
     all_channels: true,
   });
   if (mErr) throw friendly(mErr, 'Could not join your workspace.');
-  return { id: String(ws.id), name: String(ws.name ?? 'My team'), role: 'owner' };
+  const created = { id: String(ws.id), name: String(ws.name ?? 'My team'), role: 'owner' as const };
+  await SecureStore.setItemAsync(WS_KEY, created.id).catch(() => {});
+  return created;
 }
 
 export async function currentSession(): Promise<{ user: User; session: Session; workspace: WorkspaceInfo } | null> {

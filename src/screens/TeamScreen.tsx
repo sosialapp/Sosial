@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import * as Clipboard from 'expo-clipboard';
-import { supabase } from '../utils/supabase';
+import { supabase, listMyWorkspaces, switchWorkspace, type WorkspaceSummary } from '../utils/supabase';
+import { pullCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
 import {
@@ -31,6 +32,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [team, setTeam] = useState<CloudTeam | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
 
   const [mEmail, setMEmail] = useState('');
   const [mRole, setMRole] = useState<'member' | 'admin'>('member');
@@ -47,7 +49,43 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
     const t = await loadCloudTeam().catch(() => null);
     setTeam(t);
     setLoading(false);
+    try {
+      const { data: sess } = await supabase().auth.getSession();
+      if (sess.session?.user) {
+        setWorkspaces(await listMyWorkspaces(sess.session.user.id));
+      }
+    } catch {
+      /* workspace list is a nicety — team still loads */
+    }
     return t;
+  };
+
+  const confirmSwitch = (w: WorkspaceSummary) => {
+    if (team && w.id === team.workspaceId) return;
+    Alert.alert(
+      'Switch workspace?',
+      `"${w.name}" holds ${w.liveChannels} live channel${w.liveChannels === 1 ? '' : 's'}. The app will pull its channels after switching.`,
+      [
+        { text: 'Stay', style: 'cancel' },
+        {
+          text: 'Switch',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await switchWorkspace(w.id);
+              // Re-converge both directions on the new workspace before paint.
+              await pullCloudChannels(true).catch(() => null);
+              await syncCloudChannels().catch(() => null);
+              await reload();
+            } catch (e) {
+              Alert.alert('Could not switch', e instanceof Error ? e.message : 'Try again.');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   useEffect(() => { void reload(); }, []);
@@ -252,6 +290,40 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
               <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Rename team</Text>
             </TouchableOpacity>
           )
+        ) : null}
+
+        {workspaces.length > 1 ? (
+          <View style={[s.member, { marginTop: 12 }]}>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={s.rowT}>Your workspaces</Text>
+              <Text style={s.rowS}>Same login can hold several — pick the one with your channels.</Text>
+              {workspaces.map((w) => {
+                const current = team ? w.id === team.workspaceId : false;
+                return (
+                  <TouchableOpacity
+                    key={w.id}
+                    onPress={() => confirmSwitch(w)}
+                    disabled={busy || current}
+                    activeOpacity={0.7}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}
+                  >
+                    <View style={[s.miniAvatar, current ? { backgroundColor: C.ink } : null]}>
+                      <Text style={[s.miniAvatarT, current ? { color: C.onInk } : null]}>
+                        {(w.name || '?')[0].toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, gap: 1 }}>
+                      <Text style={s.rowT} numberOfLines={1}>{w.name}</Text>
+                      <Text style={s.rowS} numberOfLines={1}>
+                        {w.liveChannels} live channel{w.liveChannels === 1 ? '' : 's'} · {w.role}
+                      </Text>
+                    </View>
+                    {current ? <Text style={[s.rowT, { color: C.accentInk }]}>✓</Text> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         ) : null}
 
         {plan !== 'team' ? (
