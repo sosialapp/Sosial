@@ -79,15 +79,6 @@ export async function publishDiscordTarget(bundle: Bundle): Promise<{ remoteId: 
     );
   }
 
-  // Threaded reply: the message id was stored on the target options by the
-  // inbox reply flow. fail_if_not_exists false keeps the send alive if the
-  // original was deleted.
-  const replyTo =
-    b.target.options && typeof (b.target.options as Record<string, unknown>).replyTo === 'string'
-      ? String((b.target.options as Record<string, unknown>).replyTo)
-      : '';
-  const reference = replyTo ? { message_reference: { message_id: replyTo, fail_if_not_exists: false } } : {};
-
   const media = [...(b.media ?? [])]
     .filter((m) => m.kind === 'image' || m.kind === 'video')
     .sort((a, z) => a.position - z.position)
@@ -99,7 +90,7 @@ export async function publishDiscordTarget(bundle: Bundle): Promise<{ remoteId: 
     const msg = await callDiscord<DiscordMessage>(token, `/channels/${channelId}/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ content: text, allowed_mentions: { parse: [] }, ...reference }),
+      body: JSON.stringify({ content: text, allowed_mentions: { parse: [] } }),
     });
     info('discord message sent', { target: b.target.id, message: msg.id });
     return { remoteId: msg.id, remoteUrl: postUrl(b, msg.channel_id, msg.id) };
@@ -107,7 +98,7 @@ export async function publishDiscordTarget(bundle: Bundle): Promise<{ remoteId: 
 
   // ---- files (multipart files[n]) ----
   const form = new FormData();
-  const payload: Record<string, unknown> = { allowed_mentions: { parse: [] }, ...reference };
+  const payload: Record<string, unknown> = { allowed_mentions: { parse: [] } };
   if (text) payload.content = text;
   form.append('payload_json', JSON.stringify(payload));
   for (let i = 0; i < media.length; i++) {

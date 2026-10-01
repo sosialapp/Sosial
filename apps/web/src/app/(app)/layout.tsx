@@ -112,12 +112,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           >
             Team
           </Link>
-          <Link
-            href="/inbox"
-            className="hidden h-9 items-center rounded-full border border-line bg-paper px-3 text-sm font-bold text-soft transition hover:bg-bone sm:inline-flex"
-          >
-            Inbox
-          </Link>
           <ThemeToggle />
         </header>
       </div>

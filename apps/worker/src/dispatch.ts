@@ -17,7 +17,6 @@ import { publishLinkedInTarget } from './linkedin';
 import { publishPinterestTarget } from './pinterest';
 import { publishTelegramTarget } from './telegram';
 import { publishDiscordTarget } from './discord';
-import { syncDiscordInbox } from './discordInbox';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
@@ -153,13 +152,6 @@ async function handleSyncAvatars(job: Job): Promise<void> {
   info(`sync_avatars done: ${checked} checked, ${saved} saved, ${failed.length} failed`);
 }
 
-async function handleSyncInbox(job: Job): Promise<void> {
-  const channelId = String(job.payload?.channel_id ?? '');
-  if (!channelId) throw new Error(`job ${job.id}: sync_inbox needs channel_id`);
-  info(`sync_inbox channel ${channelId} (job ${job.id})`);
-  await syncDiscordInbox(channelId);
-}
-
 async function handleSendPush(job: Job): Promise<void> {
   const title = String(job.payload?.title ?? '').trim();
   const body = String(job.payload?.body ?? '').trim();
@@ -215,7 +207,6 @@ export async function dispatch(job: Job): Promise<void> {
     case 'cleanup_media': return handleCleanupMedia(job);
     case 'send_invite': return handleSendInvite(job);
     case 'sync_avatars': return handleSyncAvatars(job);
-    case 'sync_inbox': return handleSyncInbox(job);
     case 'send_push': return handleSendPush(job);
     default: throw new Error(`unknown job kind '${String((job as any)?.kind)}' (job ${job.id})`);
   }
