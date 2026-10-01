@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import AvatarSync from '@/components/AvatarSync';
-import { channelAvatar } from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import ConnectPanel, { type FbPickPage } from '@/components/ConnectPanel';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';

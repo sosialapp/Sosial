@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import ChannelAvatar from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import CompatibilityPanel from '@/components/CompatibilityPanel';
 import { checkCompatibility } from '@/lib/compat';
 import AiCard from '@/components/AiCard';

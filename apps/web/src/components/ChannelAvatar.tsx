@@ -4,12 +4,6 @@ import { useEffect, useState } from 'react';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
 import { providerMeta } from '@/lib/providers';
 
-/** Avatar URL tucked into channel metadata by the mobile sync (may be absent). */
-export function channelAvatar(metadata: Record<string, unknown> | null | undefined): string | undefined {
-  const v = metadata?.avatar;
-  return typeof v === 'string' && v.length > 0 ? v : undefined;
-}
-
 /**
  * Channel avatar, same as the mobile app: the account's profile picture
  * leads as a circular tile; the social logo rides as a larger circular disc

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import ChannelAvatar, { channelAvatar } from '@/components/ChannelAvatar';
+import ChannelAvatar from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';

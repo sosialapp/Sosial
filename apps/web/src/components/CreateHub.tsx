@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch } from 'lucide-react';
 import AiCard from '@/components/AiCard';
-import { channelAvatar } from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import CreatePost from '@/components/CreatePost';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
