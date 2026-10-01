@@ -25,15 +25,15 @@ export default function Hero() {
       <div className="relative z-[2] mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">
           <h1 className="animate-rise-1 font-display text-4xl leading-[1.02] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
-            Autopilot social media scheduler with{' '}
+            Sosial. Made for{' '}
             <span className="underline decoration-bolt decoration-[0.14em] underline-offset-[0.18em]">
-              AI-Written contents
+              everyone who posts
             </span>
+            .
           </h1>
           <p className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed md:text-lg lg:mx-0">
-            Sosial is the AI social media scheduler with one composer and one shared
-            calendar for ten networks. AI drafts your posts, your team approves them,
-            and the queue publishes on its own, even while you sleep.
+            Creators, founders, marketers, agencies, affiliate marketers and
+            everyone in between.
           </p>
           <div className="animate-rise-2 mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
             <button type="button" onClick={() => setAuth('up')} className={`${btn} bg-ink text-paper`}>
