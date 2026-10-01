@@ -20,6 +20,7 @@ import { publishWordPress } from '../utils/wordpressPublish';
 import { publishDevto } from '../utils/devtoPublish';
 import { publishHashnode } from '../utils/hashnodePublish';
 import { publishGhost } from '../utils/ghostPublish';
+import { publishVk } from '../utils/vkPublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1165,6 +1166,22 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'Ghost', ghAccts, ghRes);
             done.push('Ghost');
+          } else if (ch === 'vk') {
+            const vkAccts = accountsFor('vk');
+            if (vkAccts.length === 0) throw new Error('VK not connected');
+            const vkRes = await Promise.allSettled(vkAccts.map(async (vkAcct) => {
+              const vkF = vkAcct.fields;
+              if (!vkF.vkToken || !vkF.vkGroupId) throw new Error('VK not connected');
+              const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.vk.images);
+              keepAcct(ch, vkAcct.id, await publishVk({
+                token: String(vkF.vkToken),
+                groupId: String(vkF.vkGroupId),
+                text: caption,
+                imageUris: imgs.map((a) => a.uri),
+              }));
+            }));
+            throwIfPartial(ch, 'VK', vkAccts, vkRes);
+            done.push('VK');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

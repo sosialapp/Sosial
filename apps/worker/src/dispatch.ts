@@ -21,6 +21,7 @@ import { publishWordPressTarget } from './wordpress';
 import { publishDevtoTarget } from './devto';
 import { publishHashnodeTarget } from './hashnode';
 import { publishGhostTarget } from './ghost';
+import { publishVkTarget } from './vk';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
@@ -142,6 +143,12 @@ async function handlePublishTarget(job: Job): Promise<void> {
     }
     if (provider === 'ghost') {
       const { remoteId, remoteUrl } = await publishGhostTarget(bundle);
+      await markTargetSent(targetId, remoteId, remoteUrl);
+      info(`target ${targetId} sent → ${remoteId}`);
+      return;
+    }
+    if (provider === 'vk') {
+      const { remoteId, remoteUrl } = await publishVkTarget(bundle);
       await markTargetSent(targetId, remoteId, remoteUrl);
       info(`target ${targetId} sent → ${remoteId}`);
       return;

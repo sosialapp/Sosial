@@ -22,6 +22,7 @@ import { validateWordPress } from '../utils/wordpressAuth';
 import { validateDevto } from '../utils/devtoAuth';
 import { validateHashnode, type HashnodePublication } from '../utils/hashnodeAuth';
 import { validateGhost } from '../utils/ghostAuth';
+import { validateVk } from '../utils/vkAuth';
 import { loginMastodon, completeMastodonLogin } from '../utils/mastodonAuth';
 import { loginLinkedIn, completeLiLogin, listMyLiOrgs, pickLiOrg, LiOrg } from '../utils/liAuth';
 import { LI_CLIENT_ID } from '../utils/liConfig';
@@ -38,7 +39,7 @@ import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
-const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost'];
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
 
 function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
@@ -78,6 +79,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [hnPub, setHnPub] = useState('');
   const [ghSite, setGhSite] = useState('');
   const [ghKey, setGhKey] = useState('');
+  const [vkCommunity, setVkCommunity] = useState('');
+  const [vkKey, setVkKey] = useState('');
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
@@ -641,6 +644,40 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
+  const doVk = async (accountId?: string) => {
+    if (!vkCommunity.trim()) {
+      Alert.alert('Community missing', 'Enter the community link, short name or numeric id first.');
+      return;
+    }
+    if (!vkKey) {
+      Alert.alert('Key missing', 'Paste the community access key.');
+      return;
+    }
+    setBusy('Asking VK…');
+    try {
+      const community = await validateVk(vkKey, vkCommunity);
+      await saveProviderFields(
+        'vk',
+        {
+          vkToken: vkKey.trim(),
+          vkGroupId: community.groupId,
+          vkGroupName: community.groupName,
+          vkScreenName: community.screenName,
+        },
+        accountId,
+      );
+      setVkCommunity('');
+      setVkKey('');
+      setAccounts(await loadAccounts());
+      setOpenProvider('vk');
+      Alert.alert('Connected', `VK → ${community.groupName}.`);
+    } catch (e: any) {
+      Alert.alert('VK connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const doLinkedin = async (accountId?: string) => {
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
@@ -736,6 +773,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     devto: { label: 'Dev.to', manual: true, configured: true, connect: doDevto },
     hashnode: { label: 'Hashnode', manual: true, configured: true, connect: doHashnode },
     ghost: { label: 'Ghost', manual: true, configured: true, connect: doGhost },
+    vk: { label: 'VK', manual: true, configured: true, connect: doVk },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -1046,6 +1084,30 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doGhost(addId()); }} activeOpacity={0.7} style={s.pageRow}>
             <Text style={s.pageT}>{list.length > 0 ? 'Add another site' : 'Connect Ghost'}</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+    if (p === 'vk') {
+      return (
+        <>
+          <Txt value={vkCommunity} onChangeText={setVkCommunity} placeholder="vk.com/club123, short name or id" autoCapitalize="none" autoCorrect={false} />
+          <Txt value={vkKey} onChangeText={setVkKey} placeholder="Community access key" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect VK</Text>
+            {[
+              'Community → Manage → Working with API → Access Tokens',
+              'Create a key with wall + photos rights (never expires)',
+              'Communities only — personal-profile posting is VK-gated',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { if (needManager()) void doVk(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another community' : 'Connect VK'}</Text>
           </TouchableOpacity>
         </>
       );

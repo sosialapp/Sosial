@@ -16,7 +16,8 @@ export type ProviderKey =
   | 'wordpress'
   | 'devto'
   | 'hashnode'
-  | 'ghost';
+  | 'ghost'
+  | 'vk';
 
 /**
  * One social account (a.k.a. channel) with its provider-specific credentials.
@@ -48,6 +49,7 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   devto: ['devApiKey', 'devUsername', 'devName', 'devUserId'],
   hashnode: ['hnToken', 'hnPublicationId', 'hnPublicationTitle'],
   ghost: ['ghSiteUrl', 'ghAdminKey', 'ghSiteName'],
+  vk: ['vkToken', 'vkGroupId', 'vkGroupName', 'vkScreenName'],
 };
 
 const FIELD_TO_PROVIDER: Record<string, ProviderKey> = {};
@@ -143,6 +145,7 @@ export function accountConnected(a: ConnectedAccount): boolean {
     case 'devto': return !!f.devApiKey;
     case 'hashnode': return !!(f.hnToken && f.hnPublicationId);
     case 'ghost': return !!(f.ghSiteUrl && f.ghAdminKey);
+    case 'vk': return !!(f.vkToken && f.vkGroupId);
     default: return false;
   }
 }
@@ -174,6 +177,7 @@ export function accountExternalId(a: ConnectedAccount): string | undefined {
     }
     case 'hashnode': return f.hnPublicationId as string | undefined;
     case 'ghost': return f.ghSiteUrl as string | undefined;
+    case 'vk': return f.vkGroupId as string | undefined;
     default: return undefined;
   }
 }
@@ -205,6 +209,7 @@ export function accountName(a: ConnectedAccount): string | undefined {
     case 'devto': return (f.devName as string | undefined) ?? (f.devUsername as string | undefined);
     case 'hashnode': return (f.hnPublicationTitle as string | undefined) ?? (f.hnPublicationId as string | undefined);
     case 'ghost': return (f.ghSiteName as string | undefined) ?? (f.ghSiteUrl as string | undefined);
+    case 'vk': return (f.vkGroupName as string | undefined) ?? (f.vkGroupId as string | undefined);
     default: return undefined;
   }
 }

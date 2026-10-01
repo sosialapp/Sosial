@@ -14,7 +14,8 @@ export type ProviderKey =
   | 'wordpress'
   | 'devto'
   | 'hashnode'
-  | 'ghost';
+  | 'ghost'
+  | 'vk';
 
 export type PostStatus =
   | 'draft'

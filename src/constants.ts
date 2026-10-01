@@ -41,6 +41,7 @@ export const SOCIAL_META: Record<string, { label: string; bg: string; glyph: str
   devto: { label: 'Dev.to', bg: '#0A0A0A', glyph: 'DEV' },
   hashnode: { label: 'Hashnode', bg: '#2962FF', glyph: 'HN' },
   ghost: { label: 'Ghost', bg: '#15171A', glyph: 'GH' },
+  vk: { label: 'VK', bg: '#0077FF', glyph: 'VK' },
 };
 
 export function uid(prefix = 'id'): string {

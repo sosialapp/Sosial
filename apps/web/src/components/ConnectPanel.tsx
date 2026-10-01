@@ -17,11 +17,11 @@ export interface FbPickPage {
   ig?: string;
 }
 
-type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost';
+type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk';
 
-const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost'];
+const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
 
-const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true };
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true, vk: true };
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
@@ -31,6 +31,7 @@ function providerLabel(p: ProviderId): string {
   if (p === 'devto') return 'Dev.to';
   if (p === 'hashnode') return 'Hashnode';
   if (p === 'ghost') return 'Ghost';
+  if (p === 'vk') return 'VK';
   return oauthLabel(p);
 }
 
@@ -91,6 +92,8 @@ export default function ConnectPanel({
   const [hnPub, setHnPub] = useState('');
   const [ghSite, setGhSite] = useState('');
   const [ghKey, setGhKey] = useState('');
+  const [vkCommunity, setVkCommunity] = useState('');
+  const [vkKey, setVkKey] = useState('');
   const [dcToken, setDcToken] = useState('');
   const [dcGuilds, setDcGuilds] = useState<{ id: string; name: string }[]>([]);
   const [dcGuild, setDcGuild] = useState('');
@@ -391,8 +394,38 @@ export default function ConnectPanel({
     }
   }
 
-  async function connectGhost() {
+  async function connectVk() {
     setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!vkCommunity.trim()) {
+      setErr('Enter the community link, short name or numeric id first.');
+      return;
+    }
+    if (!vkKey) {
+      setErr('Paste the community access key too.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/vk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ community: vkCommunity.trim(), access_token: vkKey.trim() }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect VK.');
+      window.location.href = '/channels?connected=vk';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect VK.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connectGhost() {    setErr(null);
     if (!canManage) {
       setErr('Only owners and admins can connect channels.');
       return;
@@ -550,6 +583,7 @@ export default function ConnectPanel({
       if (p === 'devto') return 'API key';
       if (p === 'hashnode') return 'Token + publication';
       if (p === 'ghost') return 'Site + Admin key';
+      if (p === 'vk') return 'Community + access key';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -571,9 +605,11 @@ export default function ConnectPanel({
                 ? 'Hashnode'
                 : status.already === 'ghost'
                   ? 'Ghost'
-                  : status.already
-                    ? oauthLabel(status.already)
-                    : '';
+                  : status.already === 'vk'
+                    ? 'VK'
+                    : status.already
+                      ? oauthLabel(status.already)
+                      : '';
   const connectedLabel =
     status.connected === 'bluesky'
       ? 'Bluesky'
@@ -589,9 +625,11 @@ export default function ConnectPanel({
                 ? 'Hashnode'
                 : status.connected === 'ghost'
                   ? 'Ghost'
-                  : status.connected
-                    ? oauthLabel(status.connected)
-                    : '';
+                  : status.connected === 'vk'
+                    ? 'VK'
+                    : status.connected
+                      ? oauthLabel(status.connected)
+                      : '';
 
   return (
     <div className="space-y-3">
@@ -866,6 +904,41 @@ export default function ConnectPanel({
                       ) : null}
                       <button type="button" onClick={connectGhost} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
                         {busy ? 'Checking the site…' : hasAny ? 'Add another site' : 'Connect Ghost'}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {p === 'vk' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        Communities only — mint an access key at Community →
+                        Manage → Working with API → Access Tokens (wall + photos
+                        rights). Personal-profile posting is gated by VK.
+                      </p>
+                      <input
+                        value={vkCommunity}
+                        onChange={(e) => setVkCommunity(e.target.value)}
+                        placeholder="vk.com/club123, short name or id"
+                        autoComplete="url"
+                        aria-label="VK community"
+                        className="field !text-xs"
+                      />
+                      <input
+                        value={vkKey}
+                        onChange={(e) => setVkKey(e.target.value)}
+                        placeholder="Community access key"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-label="VK community access key"
+                        className="field !text-xs"
+                      />
+                      {err ? (
+                        <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                          {err}
+                        </p>
+                      ) : null}
+                      <button type="button" onClick={connectVk} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                        {busy ? 'Asking VK…' : hasAny ? 'Add another community' : 'Connect VK'}
                       </button>
                     </div>
                   ) : null}

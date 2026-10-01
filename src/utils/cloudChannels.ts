@@ -18,7 +18,7 @@ const KEY = 'sosial_cloud_channels_v1';
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
   | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
-  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -241,6 +241,17 @@ export async function buildImportPayload(
         access_token: String(f.ghAdminKey),
       };
     }
+    case 'vk': {
+      if (!f.vkToken || !f.vkGroupId) return null;
+      return {
+        provider: 'vk',
+        external_id: String(f.vkGroupId),
+        display_name: f.vkGroupName,
+        handle: f.vkScreenName ? `@${f.vkScreenName}` : undefined,
+        access_token: String(f.vkToken),
+        metadata: withAvatar({ screen_name: String(f.vkScreenName ?? '') }),
+      };
+    }
     default:
       return null;
   }
@@ -338,6 +349,7 @@ const NAME_FIELD: Record<string, string> = {
   devto: 'devName',
   hashnode: 'hnPublicationTitle',
   ghost: 'ghSiteName',
+  vk: 'vkGroupName',
 };
 
 /**
@@ -362,6 +374,7 @@ const IDENTITY_FIELD: Record<string, string> = {
   devto: 'devUserId',
   hashnode: 'hnPublicationId',
   ghost: 'ghSiteUrl',
+  vk: 'vkGroupId',
 };
 
 interface CloudChannelRow {
@@ -502,6 +515,12 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
           }
           if (typeof md.publicationTitle === 'string' && md.publicationTitle) {
             fields.hnPublicationTitle = md.publicationTitle;
+          }
+        }
+        if (provider === 'vk' && row.metadata) {
+          const md = row.metadata as Record<string, unknown>;
+          if (typeof md.screen_name === 'string' && md.screen_name) {
+            fields.vkScreenName = md.screen_name;
           }
         }
       if (avatar) fields.avatar = avatar;

@@ -183,6 +183,17 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     boardRequired: false, titleRequired: false,
     limits: { text: 100000, media: 1 },
   },
+  vk: {
+    label: 'VK',
+    // Community wall post as the community: message + up to 10 uploaded
+    // photos. Videos need the video.save dance + processing poll — v1 sends
+    // none. Personal-profile posting is VK-gated, so communities only.
+    supports: { text: true, image: true, video: false, carousel: false, document: false, poll: false, link: true },
+    thread: false, replyChain: false, article: false,
+    requiresMedia: false, requiresVideo: false,
+    boardRequired: false, titleRequired: false,
+    limits: { text: 16384, media: 10 },
+  },
 };
 
 export type CompatLevel = 'error' | 'warn';

@@ -116,6 +116,12 @@ export interface MetaState {
   ghSiteUrl?: string;
   ghAdminKey?: string;
   ghSiteName?: string;
+  // VK (community access key, no OAuth) — unlimited, no refresh. Each
+  // community is its own channel: numeric group id + key (wall + photos).
+  vkToken?: string;
+  vkGroupId?: string;
+  vkGroupName?: string;
+  vkScreenName?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -283,6 +289,7 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.devApiKey) out.push('devto');
   if (m.hnToken && m.hnPublicationId) out.push('hashnode');
   if (m.ghSiteUrl && m.ghAdminKey) out.push('ghost');
+  if (m.vkToken && m.vkGroupId) out.push('vk');
   return out;
 }
 
@@ -316,5 +323,6 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('devto', has(m.devUsername) || has(m.devName));
   consider('hashnode', has(m.hnPublicationTitle) || has(m.hnPublicationId));
   consider('ghost', has(m.ghSiteUrl));
+  consider('vk', has(m.vkGroupId) || has(m.vkGroupName));
   return out;
 }
