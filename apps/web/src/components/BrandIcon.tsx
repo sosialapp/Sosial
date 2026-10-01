@@ -12,6 +12,7 @@
  */
 
 import type { CSSProperties, ReactNode } from 'react';
+import { planeFromBundledMark } from './telegramMark';
 import { PROVIDER_META } from '@/lib/providers';
 
 export type BrandProvider =
@@ -120,7 +121,7 @@ export function BrandIcon({
       >
         <title>{label}</title>
         <Pad>
-          <path d={PATHS[provider]} />
+          <path d={iconPath(provider)} />
         </Pad>
       </svg>
     );
@@ -137,7 +138,7 @@ export function BrandIcon({
       >
         <svg viewBox="0 0 24 24" className="h-[62%] w-[62%]" fill="#fff" aria-hidden="true">
           <Pad>
-            <path d={PATHS[provider]} />
+            <path d={iconPath(provider)} />
           </Pad>
         </svg>
       </span>
@@ -201,3 +202,8 @@ function Pad({ children }: { children: ReactNode }) {
 
 /** Path data for places that need to compose a custom SVG (e.g. a gradient). */
 export const BRAND_PATHS = PATHS;
+
+/** Icon-context glyph: plane-only for Telegram (official app-icon style). */
+function iconPath(provider: BrandProvider): string {
+  return provider === 'telegram' ? planeFromBundledMark(PATHS.telegram) : PATHS[provider];
+}

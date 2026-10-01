@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
 import { providerMeta } from '@/lib/providers';
 
@@ -29,7 +32,11 @@ export default function ChannelAvatar({
 }) {
   const meta = providerMeta(provider);
   const badgeSize = Math.max(14, Math.round(size * 0.54));
-  if (!avatar) {
+  // Stored avatar URLs die (TikTok/fbcdn sign theirs with expiries) — a dead
+  // photo must fall back to the brand disc, never a broken-image icon.
+  const [dead, setDead] = useState(false);
+  useEffect(() => setDead(false), [avatar]);
+  if (!avatar || dead) {
     return (
       <span
         className="flex shrink-0 items-center justify-center overflow-hidden rounded-full"
@@ -49,6 +56,7 @@ export default function ChannelAvatar({
         width={size}
         height={size}
         loading="lazy"
+        onError={() => setDead(true)}
         className="block h-full w-full rounded-full object-cover"
         style={{ background: meta.color }}
       />
