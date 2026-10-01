@@ -121,7 +121,7 @@ export function BrandIcon({
       >
         <title>{label}</title>
         <Pad>
-          <path d={iconPath(provider)} />
+          <Glyph provider={provider} />
         </Pad>
       </svg>
     );
@@ -138,7 +138,7 @@ export function BrandIcon({
       >
         <svg viewBox="0 0 24 24" className="h-[62%] w-[62%]" fill="#fff" aria-hidden="true">
           <Pad>
-            <path d={iconPath(provider)} />
+            <Glyph provider={provider} />
           </Pad>
         </svg>
       </span>
@@ -206,4 +206,22 @@ export const BRAND_PATHS = PATHS;
 /** Icon-context glyph: plane-only for Telegram (official app-icon style). */
 function iconPath(provider: BrandProvider): string {
   return provider === 'telegram' ? planeFromBundledMark(PATHS.telegram) : PATHS[provider];
+}
+
+/**
+ * The plane fills ~70% of its viewBox where other marks fill edge to edge —
+ * without this it renders small everywhere. 1.3x about the center still
+ * clears the viewport after Pad insets it.
+ */
+const TELEGRAM_SCALE = 'translate(12 12) scale(1.3) translate(-12 -12)';
+
+function Glyph({ provider }: { provider: BrandProvider }) {
+  if (provider === 'telegram') {
+    return (
+      <g transform={TELEGRAM_SCALE}>
+        <path d={iconPath(provider)} />
+      </g>
+    );
+  }
+  return <path d={PATHS[provider]} />;
 }
