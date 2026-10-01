@@ -238,6 +238,22 @@ export function connectedProviderKeys(accounts: ConnectedAccount[]): ProviderKey
   return connectedAccounts(accounts).map((a) => a.provider);
 }
 
+/**
+ * Every provider this device can reach right now: live local credentials
+ * PLUS cloud-only placeholders adopted from another device. Placeholders
+ * carry no device tokens, but the cloud row behind them holds Vault tokens,
+ * so the worker publishes for them — scheduling (and Anywhere fan-out)
+ * must include them. Device-side instant legs still need a local connect;
+ * runPublish skips cloud-only legs for the worker instead of failing them.
+ */
+export function schedulableProviders(accounts: ConnectedAccount[]): ProviderKey[] {
+  const out: ProviderKey[] = [];
+  for (const a of accounts) {
+    if ((accountConnected(a) || isCloudOnly(a)) && !out.includes(a.provider)) out.push(a.provider);
+  }
+  return out;
+}
+
 export function findAccount(accounts: ConnectedAccount[], id: string): ConnectedAccount | undefined {
   return accounts.find((a) => a.id === id);
 }

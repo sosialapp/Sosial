@@ -16,7 +16,9 @@ import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQ
 import { chainLimit, splitThread, THREAD_CAPS, isChainPlatform } from '../utils/thread';
 import { loadMetaState, loadAccounts, connectedChannelIds, staleChannelKeys, MetaState } from '../utils/metaStore';
 import { deviceZone, supportedZones, zoneLabel, offsetLabel, zonedToUtcMs } from '../utils/timezones';
-import { type ConnectedAccount, accountConnected, accountName, accountAvatar, asIdList } from '../utils/socialAccounts';
+import { type ConnectedAccount, accountConnected,
+  accountName, accountAvatar, asIdList, schedulableProviders } from
+  '../utils/socialAccounts';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
 import { fetchPostStats, SentPostStats } from '../utils/postStats';
@@ -444,15 +446,22 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
   // Channels connected elsewhere (web pull, Connect screen) land after the
   // form mounts — refresh on foreground so the chips never go stale and the
-  // list never degrades to Anywhere-only.
+  // list never degrades to Anywhere-only. Cloud-only placeholders count:
+  // the worker publishes for them.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
       if (s !== 'active') return;
       loadMetaState().then((m) => {
         setConnected(connectedChannelIds(m));
         setStale(staleChannelKeys(m));
+        loadAccounts().then((all) => {
+          setAccounts(all);
+          const sched = new Set<string>(schedulableProviders(all));
+          setConnected([...new Set([...connectedChannelIds(m), ...sched])]);
+          // Placeholders need no "reconnect" — the worker publishes for them.
+          setStale((prev) => prev.filter((c) => !sched.has(c)));
+        }).catch(() => {});
       }).catch(() => {});
-      loadAccounts().then(setAccounts).catch(() => {});
     });
     return () => sub.remove();
   }, []);
@@ -506,6 +515,15 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       // Multi-account providers offer a per-channel account picker.
       loadAccounts().then((all) => {
         setAccounts(all);
+        // Cloud-only placeholders are schedulable via the worker — they must
+        // be visible chips, not just an Anywhere fallback.
+        const sched = new Set<string>(schedulableProviders(all));
+        setConnected((prev) => [...new Set([...prev, ...sched])]);
+        // …and they must not nag a "reconnect" — the worker publishes for them.
+        setStale((prev) => prev.filter((c) => !sched.has(c)));
+        // Saved drafts may name placeholder channels the cred-check above
+        // dropped — restore those (they publish via the worker).
+        if (explicit && init) setPlats(init.filter((p) => p === 'any' || sched.has(p)));
         const valid = new Set(all.map((a) => a.id));
         const next: Record<string, string[]> = {};
         for (const [k, v] of Object.entries(initialAccountIds ?? {})) {

@@ -7,7 +7,9 @@ import { uid } from '../constants';
 import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, ManagedPost, PostStatus, MediaAttachment, postAttachments, postThreadSegments, postThreadMedia, alignThreadMedia, ThreadSegment, ThreadSegmentMedia, THREAD_MEDIA_MAX, PlatformTypes, defaultPlatformType, ChannelKey, queueTooSoon, minQueueLabel, isEmptyPost, LEG_COOLDOWN_MS, MAX_AUTO_TRIES, VIDEO_CHANNEL_MS, PHOTO_CHANNEL_MS } from '../utils/managed';
 import { joinThread, isChainPlatform } from '../utils/thread';
 import { loadMetaState, loadAccounts, saveProviderFields, MetaState, connectedChannelIds } from '../utils/metaStore';
-import { type ConnectedAccount, type ProviderKey, findAccount, findAccountForProvider, asIdList, accountName } from '../utils/socialAccounts';
+import { type ConnectedAccount, type ProviderKey,
+  findAccount, findAccountForProvider, asIdList, accountName,
+  isCloudOnly, schedulableProviders } from '../utils/socialAccounts';
 import { publishFacebook, publishFacebookReel, publishFacebookStory, publishInstagram, publishInstagramStory, publishThreads, uploadTikTokPhoto, MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { publishTikTokVideo, publishTikTokPhotos } from '../utils/tiktokPublish';
 import { publishX } from '../utils/xPublish';
@@ -405,10 +407,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   /** Every channel with live credentials right now. */
   const connectedChannels = (m: MetaState): string[] => connectedChannelIds(m);
 
-  /** "Anywhere" means every connected channel — resolve to a concrete list at publish time. */
-  const resolvePlats = (plats: string[], m: MetaState): string[] => {
+  /** "Anywhere" means every reachable channel — local credentials plus
+   *  cloud-only placeholders the worker publishes for. Resolve to a concrete
+   *  list at publish time. */
+  const resolvePlats = (plats: string[], m: MetaState, accounts: ConnectedAccount[]): string[] => {
     if (!plats || plats.length === 0 || plats.includes('any')) {
-      const c = connectedChannels(m);
+      const c = [...new Set([...connectedChannels(m), ...schedulableProviders(accounts)])];
       return c.length > 0 ? c : ['any'];
     }
     return plats;
@@ -439,7 +443,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       showInfo('Nothing to post', 'Write something or attach a photo/video first.');
       return false;
     }
-    const resolved = resolvePlats(plats, await loadMetaState());
+    const resolved = resolvePlats(plats, await loadMetaState(), await loadAccounts().catch(() => []));
     const blocked = mediaBlock(resolved);
     if (blocked) {
       showInfo('That channel needs media', blocked.message, blocked.channels);
@@ -548,7 +552,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
     try {
-      const resolved = resolvePlats(plats, await loadMetaState());
+      const resolved = resolvePlats(plats, await loadMetaState(), await loadAccounts().catch(() => []));
       const blocked = mediaBlock(resolved);
       if (blocked) {
         showInfo('That channel needs media', blocked.message, blocked.channels);
@@ -569,6 +573,26 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const rec = buildRec(undefined, plats, 'queued', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
       const r = await runPublish(rec);
       if (!r) return false;
+      const cloudOnly =
+        r.cloud.length > 0 && r.done.length === 0 && r.errs.length === 0 && r.manual.length === 0;
+      if (cloudOnly) {
+        // Nothing for this device to attempt — hand the whole post to Sosial
+        // Cloud (mirrored below, worker enqueues unscheduled rows ~minutely).
+        await saveManagedPost({ ...rec, status: 'queued' as PostStatus });
+        bump();
+        showInfo(
+          'Posting via Sosial Cloud',
+          'These channels are connected on another device — the cloud worker will post within a minute or so.',
+        );
+        clearDraft();
+        return true;
+      }
+      if (r.cloud.length > 0) {
+        // Mixed run: mirror so the worker picks up its legs (~1 min) while
+        // the device legs settle locally below.
+        await saveManagedPost({ ...rec, status: 'queued' as PostStatus });
+        bump();
+      }
       const ok = r.done.length > 0 && r.errs.length === 0 && r.manual.length === 0;
       if (!ok) {
         // failed — keep it as a draft so nothing is lost; user can retry from Drafts.
@@ -614,6 +638,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     done: string[];
     errs: string[];
     manual: string[];
+    /** worker-owned legs: cloud-only placeholders the device must not attempt */
+    cloud: string[];
     remoteIds: Record<string, string>;
     /** resolved plats this run covered (TikTok pre-flight may narrow it) */
     resolved: string[];
@@ -658,6 +684,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     /** Accounts still missing a post this run — the only ones a leg attempts. */
     const accountsFor = (ch: string): ConnectedAccount[] =>
       resolvedAll(ch).filter((a) => !prevIds[acctKey(ch, a.id)]);
+    /** Worker-owned channel: every resolved account is a cloud-only
+     *  placeholder — the device holds no tokens, so it must never attempt a
+     *  device leg (that would fail loudly every sweep). The cloud mirror
+     *  already carries the post; worker verdicts flip it sent. */
+    const workerOnly = (ch: string): boolean => {
+      if (ch === 'any') return false;
+      const all = resolvedAll(ch);
+      return all.length > 0 && all.every(isCloudOnly);
+    };
     const accountFor = (ch: string): ConnectedAccount | undefined => accountsFor(ch)[0] ?? resolvedAll(ch)[0];
     const acctFields = (ch: string): Record<string, unknown> => accountFor(ch)?.fields ?? {};
     /** A channel's accounts published concurrently — successes keep their ids
@@ -678,7 +713,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const why = first instanceof Error ? first.message : String((first as any)?.message ?? first ?? 'failed');
       throw new Error(`Posted to ${accts.length - badIdx.length} of ${accts.length} accounts — ${names} failed: ${why}. Retry posts only the missing ones.`);
     };
-    let plats = resolvePlats(p.platforms, m);
+    let plats = resolvePlats(p.platforms, m, accounts);
     // buildRec derives title from the body's first line — posting title + body
     // would print that line twice. Independent titles (e.g. design names from
     // Export) still prefix the body.
@@ -696,6 +731,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const done: string[] = [];
     const errs: string[] = [];
     const manual: string[] = [];
+    const cloud: string[] = [];
     /** per-channel remote ids for the Sent analytics view */
     const remoteIds: Record<string, string> = {};
     const keepAcct = (ch: string, aid: string, v: unknown) => {
@@ -720,10 +756,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const honorCooldown = silent; // foreground taps always attempt now
     let pending = plats.filter((ch) => {
       if (ch === 'any') return true;
+      if (workerOnly(ch)) return false; // worker publishes; no device attempt, no error note
       if (isDone(ch)) return false;
       if (honorCooldown && (p.retryAfter?.[ch] ?? 0) > Date.now()) return false;
       return true;
     });
+    // Worker-owned legs ride along for the notice + settle (never attempted).
+    for (const ch of plats) {
+      if (ch !== 'any' && workerOnly(ch) && !isDone(ch) && !cloud.includes(ch)) cloud.push(ch);
+    }
     /** Persist ids landed so far for a channel WITHOUT touching its error
      *  note or cooldown (partial multi-account success: the retry must skip
      *  posted accounts but still see the failure). Never throws. */
@@ -1236,7 +1277,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       if (!silent) setPublishing(false);
       publishingRef.current = false;
     }
-    return { done, errs, manual, remoteIds, resolved: plats };
+    return { done, errs, manual, cloud, remoteIds, resolved: plats };
   };
 
   /**
@@ -1286,7 +1327,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finishPublish = async (p: ManagedPost, run: RunResult, opts?: { silent?: boolean }) => {
-    const { done, errs, manual } = run;
+    const { done, errs, manual, cloud } = run;
     const rows: PubRow[] = [
       ...done.map((n) => ({ id: n.toLowerCase(), label: n, state: 'done' as const })),
       ...manual.map((n) => ({
@@ -1301,6 +1342,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const note = i > 0 ? e.slice(i + 2) : undefined;
         return { id: label.toLowerCase(), label, state: 'fail' as const, note };
       }),
+      ...cloud.map((n) => ({
+        id: n.toLowerCase(),
+        label: labelFor(n),
+        state: 'pending' as const,
+        note: 'Posting via Sosial Cloud…',
+      })),
     ];
     const allGood = done.length > 0 && errs.length === 0 && manual.length === 0;
     if (!opts?.silent) setNotice({ mode: 'result', title: allGood ? 'Published' : 'Publish result', rows });
@@ -1332,13 +1379,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       // run) may have completed the set — flip sent without reposting.
       try {
         const fresh0 = (await loadManagedPosts()).find((x) => x.id === p.id);
-        const resolved0 = resolvePlats((fresh0 ?? p).platforms, meta);
+        const resolved0 = resolvePlats((fresh0 ?? p).platforms, meta, await loadAccounts().catch(() => []));
         const real0 = resolved0.filter((c) => c !== 'any');
         if (
           fresh0 && (fresh0.status ?? 'queued') === 'queued' && real0.length > 0 &&
           real0.every((c) => !!((fresh0.remoteIds ?? {})[c]))
         ) {
-          await settlePost(fresh0, resolved0, { done: [], errs: [], manual: [], remoteIds: {}, resolved: resolved0 }, { silent: true });
+          await settlePost(fresh0, resolved0, { done: [], errs: [], manual: [], cloud: [], remoteIds: {}, resolved: resolved0 }, { silent: true });
           continue;
         }
         // Parked: auto-retry gave up — the row says why; only a manual tap re-arms.

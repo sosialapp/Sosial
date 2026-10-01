@@ -5,8 +5,8 @@ import { useTheme, Palette, T, R } from '../theme';
 import { AvatarButton } from '../components/ProfileMenu';
 import ConnectButton from '../components/ConnectButton';
 import { loadManagedPosts, ManagedPost } from '../utils/managed';
-import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
-import { PROVIDER_KEYS } from '../utils/socialAccounts';
+import { loadMetaState, connectedChannelIds, loadAccounts } from '../utils/metaStore';
+import { PROVIDER_KEYS, schedulableProviders } from '../utils/socialAccounts';
 import { fetchAnalytics } from '../utils/analytics';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
 
@@ -54,7 +54,10 @@ export default function DashboardScreen({ team, email, onProfile, onConnect, onP
       const [list, meta] = await Promise.all([loadManagedPosts(), loadMetaState()]);
       setPosts(list);
       // Publishable channels only — same truth as the pill and the composer.
-      const live = connectedChannelIds(meta);
+      // Cloud-only placeholders count: the worker publishes for them even
+      // though this device holds no tokens.
+      const accounts = await loadAccounts().catch(() => []);
+      const live = [...new Set([...connectedChannelIds(meta), ...schedulableProviders(accounts)])];
       setChannels(live.length);
       setConnected(live.length > 0);
       // Analytics snapshot (last 7 days) — only when channels exist; the
