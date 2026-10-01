@@ -120,7 +120,7 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
   }, [refreshedAt]);
 
   const discordSub = (() => {
-    if (!meta.dcBotToken || !meta.dcChannelId) return 'Not connected';
+    if (!meta.dcChannelId) return 'Not connected';
     if (!meta.dcChannelName) return 'Connected';
     const name = meta.dcChannelName.replace(/^#/, '');
     return meta.dcGuildName ? `${meta.dcGuildName} / #${name}` : `#${name}`;
@@ -140,8 +140,8 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
     { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? ((meta.mastodonAccessToken && meta.mastodonInstance) ? 'Connected' : 'Not connected'), connected: !!(meta.mastodonAccessToken && meta.mastodonInstance) || sched.has('mastodon') },
     { id: 'pinterest', label: 'Pinterest', sub: 'Coming soon', connected: false, comingSoon: true },
     { id: 'telegram', label: 'Telegram', sub: meta.tgChatTitle ?? ((meta.tgBotToken && meta.tgChatId) ? 'Connected' : 'Not connected'), connected: !!(meta.tgBotToken && meta.tgChatId) || sched.has('telegram') },
-    { id: 'discord', label: 'Discord', sub: discordSub, connected: !!(meta.dcBotToken && meta.dcChannelId) || sched.has('discord') },
-    { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!(meta.wpSiteUrl && meta.wpUsername && meta.wpAppPassword) || sched.has('wordpress') },
+    { id: 'discord', label: 'Discord', sub: discordSub, connected: !!meta.dcChannelId || sched.has('discord') },
+    { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!meta.wpSiteUrl || sched.has('wordpress') },
     { id: 'devto', label: 'Dev.to', sub: meta.devName ?? meta.devUsername ?? (meta.devApiKey ? 'Connected' : 'Not connected'), connected: !!meta.devApiKey || sched.has('devto') },
     { id: 'hashnode', label: 'Hashnode', sub: meta.hnPublicationTitle ?? (meta.hnToken && meta.hnPublicationId ? 'Connected' : 'Not connected'), connected: !!(meta.hnToken && meta.hnPublicationId) || sched.has('hashnode') },
     { id: 'ghost', label: 'Ghost', sub: meta.ghSiteName ?? meta.ghSiteUrl ?? ((meta.ghAdminKey ? 'Connected' : 'Not connected')), connected: !!(meta.ghAdminKey) || sched.has('ghost') },

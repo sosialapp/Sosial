@@ -3,11 +3,12 @@ import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import { useTheme } from '../theme';
 import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
-import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
+import { loadMetaState, loadAccounts, connectedChannelIds } from '../utils/metaStore';
+import { schedulableProviders } from '../utils/socialAccounts';
 
-/** Masthead Connect pill — shows stacked brand tiles for every channel that
- *  can actually publish right now (same connectedChannelIds truth as the
- *  composer — identity without live credentials never shows as live). */
+/** Masthead Connect pill — shows stacked brand tiles for every schedulable
+ *  channel (local credentials plus cloud-only placeholders the worker
+ *  publishes for — same truth as the composer). */
 export default function ConnectButton({ onPress }: { onPress: () => void }) {
   const { C } = useTheme();
   const [connected, setConnected] = useState<string[]>([]);
@@ -19,7 +20,8 @@ export default function ConnectButton({ onPress }: { onPress: () => void }) {
     const reload = async () => {
       try {
         const m = await loadMetaState();
-        setConnected(connectedChannelIds(m));
+        const all = await loadAccounts().catch(() => []);
+        setConnected([...new Set([...connectedChannelIds(m), ...schedulableProviders(all)])]);
       } catch {}
     };
     void reload();

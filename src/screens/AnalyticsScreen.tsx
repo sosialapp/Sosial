@@ -8,7 +8,8 @@ import ChannelDrawer from '../components/ChannelDrawer';
 import CommunityScreen from './CommunityScreen';
 import { AreaChart, BarsChart } from '../components/charts';
 import { SOCIAL_META } from '../constants';
-import { loadMetaState, MetaState } from '../utils/metaStore';
+import { loadMetaState, loadAccounts, MetaState } from '../utils/metaStore';
+import { schedulableProviders } from '../utils/socialAccounts';
 import { fetchAnalytics, Analytics, RANGES, RangeKey, ChannelStats, PerPost, rangeBounds } from '../utils/analytics';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -166,12 +167,16 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
   const [refreshing, setRefreshing] = useState(false);
   const [channel, setChannel] = useState('all');
   const [drawer, setDrawer] = useState(false);
+  const [sched, setSched] = useState<Set<string>>(new Set());
   const [range, setRange] = useState<RangeKey>('last30');
   const [view, setView] = useState<'analytics' | 'community'>('analytics');
 
   const load = async (m?: MetaState, r?: RangeKey) => {
     const mm = m ?? (await loadMetaState());
     setMeta(mm);
+    loadAccounts()
+      .then((all) => setSched(new Set<string>(schedulableProviders(all))))
+      .catch(() => {});
     setLoading(true);
     try {
       setData(await fetchAnalytics(mm, r ?? range));
@@ -200,17 +205,33 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
     }
   };
 
+  const discordSub = (() => {
+    if (!meta.dcChannelId) return 'Not connected';
+    if (!meta.dcChannelName) return 'Connected';
+    const name = meta.dcChannelName.replace(/^#/, '');
+    return meta.dcGuildName ? `${meta.dcGuildName} / #${name}` : `#${name}`;
+  })();
+  const wpSub = !meta.wpSiteUrl
+    ? 'Not connected'
+    : meta.wpSiteName ?? meta.wpSiteUrl.replace(/^https?:\/\//i, '');
   const drawerChannels = [
-    { id: 'facebook', label: 'Facebook', sub: meta.pageName ?? 'Not connected', connected: !!meta.pageId },
-    { id: 'instagram', label: 'Instagram', sub: meta.igName ?? 'Not connected', connected: !!meta.igId },
-    { id: 'threads', label: 'Threads', sub: meta.threadsName ?? 'Not connected', connected: !!meta.threadsId },
-    { id: 'tiktok', label: 'TikTok', sub: meta.ttName ?? ((meta.ttAccessToken || meta.ttRefreshToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ttAccessToken || meta.ttRefreshToken) },
-    { id: 'x', label: 'X', sub: meta.xName ?? ((meta.xAccessToken || meta.xRefreshToken) ? 'Connected' : 'Not connected'), connected: !!(meta.xAccessToken || meta.xRefreshToken) },
-    { id: 'bluesky', label: 'Bluesky', sub: meta.bskyName ?? ((meta.bskyAccessJwt || meta.bskyRefreshJwt) ? 'Connected' : 'Not connected'), connected: !!(meta.bskyAccessJwt || meta.bskyRefreshJwt) },
-    { id: 'linkedin', label: 'LinkedIn', sub: meta.liName ?? ((meta.liPersonUrn ? 'Connected' : 'Not connected')), connected: !!meta.liPersonUrn },
-    { id: 'youtube', label: 'YouTube', sub: meta.ytChannelName ?? ((meta.ytRefreshToken || meta.ytAccessToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ytRefreshToken || meta.ytAccessToken) },
-    { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? ((meta.mastodonAccessToken && meta.mastodonInstance) ? 'Connected' : 'Not connected'), connected: !!(meta.mastodonAccessToken && meta.mastodonInstance) },
+    { id: 'facebook', label: 'Facebook', sub: meta.pageName ?? 'Not connected', connected: !!meta.pageId || sched.has('facebook') },
+    { id: 'instagram', label: 'Instagram', sub: meta.igName ?? 'Not connected', connected: !!meta.igId || sched.has('instagram') },
+    { id: 'threads', label: 'Threads', sub: meta.threadsName ?? 'Not connected', connected: !!meta.threadsId || sched.has('threads') },
+    { id: 'tiktok', label: 'TikTok', sub: meta.ttName ?? ((meta.ttAccessToken || meta.ttRefreshToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ttAccessToken || meta.ttRefreshToken) || sched.has('tiktok') },
+    { id: 'x', label: 'X', sub: meta.xName ?? ((meta.xAccessToken || meta.xRefreshToken) ? 'Connected' : 'Not connected'), connected: !!(meta.xAccessToken || meta.xRefreshToken) || sched.has('x') },
+    { id: 'bluesky', label: 'Bluesky', sub: meta.bskyName ?? ((meta.bskyAccessJwt || meta.bskyRefreshJwt) ? 'Connected' : 'Not connected'), connected: !!(meta.bskyAccessJwt || meta.bskyRefreshJwt) || sched.has('bluesky') },
+    { id: 'linkedin', label: 'LinkedIn', sub: meta.liName ?? ((meta.liPersonUrn ? 'Connected' : 'Not connected')), connected: !!meta.liPersonUrn || sched.has('linkedin') },
+    { id: 'youtube', label: 'YouTube', sub: meta.ytChannelName ?? ((meta.ytRefreshToken || meta.ytAccessToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ytRefreshToken || meta.ytAccessToken) || sched.has('youtube') },
+    { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? ((meta.mastodonAccessToken && meta.mastodonInstance) ? 'Connected' : 'Not connected'), connected: !!(meta.mastodonAccessToken && meta.mastodonInstance) || sched.has('mastodon') },
     { id: 'pinterest', label: 'Pinterest', sub: 'Coming soon', connected: false, comingSoon: true },
+    { id: 'telegram', label: 'Telegram', sub: meta.tgChatTitle ?? ((meta.tgBotToken && meta.tgChatId) ? 'Connected' : 'Not connected'), connected: !!(meta.tgBotToken && meta.tgChatId) || sched.has('telegram') },
+    { id: 'discord', label: 'Discord', sub: discordSub, connected: !!meta.dcChannelId || sched.has('discord') },
+    { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!meta.wpSiteUrl || sched.has('wordpress') },
+    { id: 'devto', label: 'Dev.to', sub: meta.devName ?? meta.devUsername ?? (meta.devApiKey ? 'Connected' : 'Not connected'), connected: !!meta.devApiKey || sched.has('devto') },
+    { id: 'hashnode', label: 'Hashnode', sub: meta.hnPublicationTitle ?? (meta.hnToken && meta.hnPublicationId ? 'Connected' : 'Not connected'), connected: !!(meta.hnToken && meta.hnPublicationId) || sched.has('hashnode') },
+    { id: 'ghost', label: 'Ghost', sub: meta.ghSiteName ?? meta.ghSiteUrl ?? (meta.ghAdminKey ? 'Connected' : 'Not connected'), connected: !!meta.ghAdminKey || sched.has('ghost') },
+    { id: 'vk', label: 'VK', sub: meta.vkGroupName ?? (meta.vkToken && meta.vkGroupId ? 'Connected' : 'Not connected'), connected: !!(meta.vkToken && meta.vkGroupId) || sched.has('vk') },
   ];
   const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
 

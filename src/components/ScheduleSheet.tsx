@@ -649,6 +649,17 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     return out as PlatformTypes;
   };
 
+  /** First avatar for a provider (live account first, else placeholder) — brand disc when none. */
+  const avatarFor = (c: string): string | undefined => {
+    const all = accounts.filter((a) => a.provider === c);
+    const ranked = [...all.filter((a) => accountConnected(a)), ...all.filter((a) => !accountConnected(a))];
+    for (const a of ranked) {
+      const av = accountAvatar(a);
+      if (av) return av;
+    }
+    return undefined;
+  };
+
   /** Connected accounts for one provider (a picker shows only when >1). */
   const accountsFor = (c: string): ConnectedAccount[] =>
     accounts.filter((a) => a.provider === c && accountConnected(a));
@@ -1013,9 +1024,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   {c === 'any' ? (
                     <Ionicons name="globe-outline" size={14} color={on ? C.onInk : C.muted} />
                   ) : (
-                    <View style={{ width: 22, height: 22, borderRadius: 7, backgroundColor: SOCIAL_META[c]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
-                      <SocialGlyph platform={c} size={11} color="#fff" />
-                    </View>
+                    <ChannelAvatar platform={c} avatar={avatarFor(c)} size={24} />
                   )}
                   <Text style={[st.chipT, on && { color: C.onInk }]}>{label}</Text>
                   {soon ? <Text style={st.soonT}>Soon</Text> : null}
