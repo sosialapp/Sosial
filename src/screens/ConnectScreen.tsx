@@ -31,7 +31,6 @@ import { YT_CLIENT_ID } from '../utils/ytConfig';
 import { loginPinterest, completePinLogin } from '../utils/pinAuth';
 import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
-import { BUILD_TAG } from '../utils/build';
 import { loadCloudTeam } from '../utils/teamCloud';
 import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount } from '../utils/cloudChannels';
 import { currentSession, callEdgeFunction } from '../utils/supabase';
@@ -86,7 +85,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
-  const [diag, setDiag] = useState<string | null>(null);
+  const [acctsLoading, setAcctsLoading] = useState(true);
 
   useEffect(() => {
     // Backfill first so the push below already carries fresh pictures, then
@@ -97,20 +96,10 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       // Force: this screen exists to reflect the cloud — never serve a stale
       // throttled pull here. Pull BEFORE pushing so an account the owner
       // disconnected elsewhere is retracted locally first and never re-imported.
-      try {
-        const pullRes = await pullCloudChannels(true);
-        const sn0 = await currentSession().catch(() => null);
-        const fails = (pullRes?.failed ?? []).map((f) => f.message).join('; ');
-        setDiag(
-          sn0
-            ? `ws "${sn0.workspace.name}" ${sn0.workspace.id.slice(0, 8)} · +${pullRes?.matched.length ?? 0} ~${pullRes?.created.length ?? 0} −${pullRes?.removed.length ?? 0}${fails ? ` · ERR: ${fails.slice(0, 160)}` : ''}`
-            : 'not signed in to Sosial Cloud',
-        );
-      } catch (e: any) {
-        setDiag(`pull crashed: ${String(e?.message ?? e).slice(0, 160)}`);
-      }
+      await pullCloudChannels(true).catch(() => null);
       await syncCloudChannels().catch(() => null);
       setAccounts(await loadAccounts().catch(() => []));
+      setAcctsLoading(false);
     })();
     loadCloudTeam()
       .then((t) => {
@@ -791,7 +780,6 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const accountLabel = (a: ConnectedAccount): string => {
     const n = accountName(a);
     if (n) return n;
-    if (isCloudOnly(a)) return 'Via cloud';
     if (a.provider === 'facebook') return 'Choose a Page';
     if (a.provider === 'pinterest') return 'Connected — pick a board';
     return 'Connected';
@@ -1130,11 +1118,11 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const renderSubPanel = (p: ProviderKey) => {
     const sel = selectedAccountFor(p);
     if (sel && isCloudOnly(sel)) {
-      // Page/org/board pickers need device tokens — the placeholder only
-      // offers the upgrade path (Connect on its row).
+      // Page/org/board pickers need this phone connected — the placeholder
+      // only offers the upgrade path (Connect on its row).
       return (
         <View style={s.pageRow}>
-          <Text style={s.pageT} numberOfLines={2}>Synced from another device — press Connect on the account above to manage it here.</Text>
+          <Text style={s.pageT} numberOfLines={2}>To manage it on this phone, press Connect on the account above.</Text>
         </View>
       );
     }
@@ -1283,11 +1271,6 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             <Text style={s.warnT}>You can see the workspace channels here, but only owners and admins can connect or remove them.</Text>
           </View>
         ) : null}
-        {diag ? (
-          <Text style={{ marginTop: 8, fontSize: 11, color: C.muted }} numberOfLines={3}>
-            sync: {diag}
-          </Text>
-        ) : null}
 
         <TouchableOpacity onPress={onTeam} style={s.teamBtn} activeOpacity={0.8}>
           <View style={s.teamIcon}>
@@ -1349,7 +1332,17 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
               <Text style={s.syncBtnT}>{syncing ? 'Checking…' : 'Check channel health'}</Text>
             </TouchableOpacity>
           ) : null}
-          {orderedProviders.map((p) => {
+          {acctsLoading ? (
+            [...Array(6)].map((_, i) => (
+              <View key={i} style={[s.row, i !== 0 && s.rowDiv]}>
+                <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.lineSoft }} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <View style={{ width: '38%', height: 13, borderRadius: 6, backgroundColor: C.lineSoft }} />
+                  <View style={{ width: '68%', height: 11, borderRadius: 6, backgroundColor: C.lineSoft }} />
+                </View>
+              </View>
+            ))
+          ) : orderedProviders.map((p) => {
             const cfg = providerCfg[p];
             const list = accounts.filter((a) => a.provider === p);
             const hasAny = list.length > 0;
@@ -1376,7 +1369,6 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                         <Text style={s.rowS} numberOfLines={1}>
                           {list.slice(0, 2).map((a) => accountName(a) ?? accountLabel(a)).join(' · ')}
                           {list.length > 2 ? `  +${list.length - 2} more` : ''}
-                          {list.length > 0 && list.every(isCloudOnly) ? ' · via cloud' : ''}
                         </Text>
                       </View>
                     )}
@@ -1398,9 +1390,6 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                           <TouchableOpacity onPress={() => selectAccount(p, a)} activeOpacity={0.7} style={s.acctSel}>
                             <ChannelAvatar platform={p} avatar={accountAvatar(a)} size={30} badge={list.length > 1} />
                             <Text style={s.acctT} numberOfLines={1}>{accountLabel(a)}</Text>
-                            {cloud ? (
-                              <View style={s.cloudBadge}><Text style={s.cloudBadgeT}>Cloud</Text></View>
-                            ) : null}
                             {!cloud && list.length > 1 && isSel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
                           </TouchableOpacity>
                           {cloud ? (
@@ -1449,8 +1438,6 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             );
           })}
         </View>
-
-        <Text style={s.buildTag}>build {BUILD_TAG}</Text>
       </ScrollView>
     </View>
   );
@@ -1495,7 +1482,4 @@ const makeS = (C: Palette) => StyleSheet.create({
   syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 12, paddingVertical: 10, marginBottom: 10, backgroundColor: C.paper },
   syncBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   cloudActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cloudBadge: { backgroundColor: C.accentSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
-  cloudBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk },
-  buildTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint, textAlign: 'center', marginTop: 14, marginBottom: 4 },
 });

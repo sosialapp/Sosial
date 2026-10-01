@@ -576,13 +576,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const cloudOnly =
         r.cloud.length > 0 && r.done.length === 0 && r.errs.length === 0 && r.manual.length === 0;
       if (cloudOnly) {
-        // Nothing for this device to attempt — hand the whole post to Sosial
-        // Cloud (mirrored below, worker enqueues unscheduled rows ~minutely).
+        // Nothing for this device to attempt — hand the whole post over so
+        // it goes out within a minute or so.
         await saveManagedPost({ ...rec, status: 'queued' as PostStatus });
         bump();
         showInfo(
-          'Posting via Sosial Cloud',
-          'These channels are connected on another device — the cloud worker will post within a minute or so.',
+          'Sending…',
+          'Your post is on its way and will appear on your channels shortly.',
         );
         clearDraft();
         return true;
@@ -1346,7 +1346,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         id: n.toLowerCase(),
         label: labelFor(n),
         state: 'pending' as const,
-        note: 'Posting via Sosial Cloud…',
+        note: 'Sending…',
       })),
     ];
     const allGood = done.length > 0 && errs.length === 0 && manual.length === 0;
