@@ -86,6 +86,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
+  const [diag, setDiag] = useState<string | null>(null);
 
   useEffect(() => {
     // Backfill first so the push below already carries fresh pictures, then
@@ -96,7 +97,18 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       // Force: this screen exists to reflect the cloud — never serve a stale
       // throttled pull here. Pull BEFORE pushing so an account the owner
       // disconnected elsewhere is retracted locally first and never re-imported.
-      await pullCloudChannels(true).catch(() => null);
+      try {
+        const pullRes = await pullCloudChannels(true);
+        const sn0 = await currentSession().catch(() => null);
+        const fails = (pullRes?.failed ?? []).map((f) => f.message).join('; ');
+        setDiag(
+          sn0
+            ? `ws "${sn0.workspace.name}" ${sn0.workspace.id.slice(0, 8)} · +${pullRes?.matched.length ?? 0} ~${pullRes?.created.length ?? 0} −${pullRes?.removed.length ?? 0}${fails ? ` · ERR: ${fails.slice(0, 160)}` : ''}`
+            : 'not signed in to Sosial Cloud',
+        );
+      } catch (e: any) {
+        setDiag(`pull crashed: ${String(e?.message ?? e).slice(0, 160)}`);
+      }
       await syncCloudChannels().catch(() => null);
       setAccounts(await loadAccounts().catch(() => []));
     })();
@@ -1270,6 +1282,11 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           <View style={[s.warn, { marginTop: 12 }]}>
             <Text style={s.warnT}>You can see the workspace channels here, but only owners and admins can connect or remove them.</Text>
           </View>
+        ) : null}
+        {diag ? (
+          <Text style={{ marginTop: 8, fontSize: 11, color: C.muted }} numberOfLines={3}>
+            sync: {diag}
+          </Text>
         ) : null}
 
         <TouchableOpacity onPress={onTeam} style={s.teamBtn} activeOpacity={0.8}>
