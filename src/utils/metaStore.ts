@@ -106,6 +106,11 @@ export interface MetaState {
   devUsername?: string;
   devName?: string;
   devUserId?: string;
+  // Hashnode (PAT, no OAuth) — long-lived, no refresh. Publication picked at
+  // connect time; publishing posts markdown to it.
+  hnToken?: string;
+  hnPublicationId?: string;
+  hnPublicationTitle?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -271,6 +276,7 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.dcBotToken && m.dcChannelId) out.push('discord');
   if (m.wpSiteUrl && m.wpUsername && m.wpAppPassword) out.push('wordpress');
   if (m.devApiKey) out.push('devto');
+  if (m.hnToken && m.hnPublicationId) out.push('hashnode');
   return out;
 }
 
@@ -302,5 +308,6 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('discord', has(m.dcChannelId) || has(m.dcChannelName));
   consider('wordpress', has(m.wpSiteUrl));
   consider('devto', has(m.devUsername) || has(m.devName));
+  consider('hashnode', has(m.hnPublicationTitle) || has(m.hnPublicationId));
   return out;
 }

@@ -27,6 +27,7 @@ export const PROVIDER_META: Record<ProviderKey, ProviderInfo> = {
   discord: { label: 'Discord', color: '#5865F2', glyph: 'DC', limit: 2000, kind: 'social' },
   wordpress: { label: 'WordPress', color: '#21759B', glyph: 'WP', limit: 100000, kind: 'professional' },
   devto: { label: 'Dev.to', color: '#0A0A0A', glyph: 'DEV', limit: 100000, kind: 'professional' },
+  hashnode: { label: 'Hashnode', color: '#2962FF', glyph: 'HN', limit: 100000, kind: 'professional' },
 };
 
 export function providerMeta(p: string): ProviderInfo {

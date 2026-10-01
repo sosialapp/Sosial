@@ -136,6 +136,7 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
     { id: 'discord', label: 'Discord', sub: discordSub, connected: !!(meta.dcBotToken && meta.dcChannelId) },
     { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!(meta.wpSiteUrl && meta.wpUsername && meta.wpAppPassword) },
     { id: 'devto', label: 'Dev.to', sub: meta.devName ?? meta.devUsername ?? (meta.devApiKey ? 'Connected' : 'Not connected'), connected: !!meta.devApiKey },
+    { id: 'hashnode', label: 'Hashnode', sub: meta.hnPublicationTitle ?? (meta.hnToken && meta.hnPublicationId ? 'Connected' : 'Not connected'), connected: !!(meta.hnToken && meta.hnPublicationId) },
   ];
   const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
 

@@ -19,6 +19,7 @@ import { publishTelegramTarget } from './telegram';
 import { publishDiscordTarget } from './discord';
 import { publishWordPressTarget } from './wordpress';
 import { publishDevtoTarget } from './devto';
+import { publishHashnodeTarget } from './hashnode';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
@@ -128,6 +129,12 @@ async function handlePublishTarget(job: Job): Promise<void> {
     }
     if (provider === 'devto') {
       const { remoteId, remoteUrl } = await publishDevtoTarget(bundle);
+      await markTargetSent(targetId, remoteId, remoteUrl);
+      info(`target ${targetId} sent → ${remoteId}`);
+      return;
+    }
+    if (provider === 'hashnode') {
+      const { remoteId, remoteUrl } = await publishHashnodeTarget(bundle);
       await markTargetSent(targetId, remoteId, remoteUrl);
       info(`target ${targetId} sent → ${remoteId}`);
       return;

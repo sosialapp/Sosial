@@ -20,6 +20,7 @@ import { validateTelegramBot, resolveTelegramChat } from '../utils/telegramAuth'
 import { validateDiscordBot, listDiscordGuilds, listDiscordChannels, type DiscordGuild, type DiscordChannel } from '../utils/discordAuth';
 import { validateWordPress } from '../utils/wordpressAuth';
 import { validateDevto } from '../utils/devtoAuth';
+import { validateHashnode, type HashnodePublication } from '../utils/hashnodeAuth';
 import { loginMastodon, completeMastodonLogin } from '../utils/mastodonAuth';
 import { loginLinkedIn, completeLiLogin, listMyLiOrgs, pickLiOrg, LiOrg } from '../utils/liAuth';
 import { LI_CLIENT_ID } from '../utils/liConfig';
@@ -36,7 +37,7 @@ import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 
-const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto'];
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode'];
 
 function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
@@ -71,6 +72,9 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [wpUser, setWpUser] = useState('');
   const [wpPass, setWpPass] = useState('');
   const [devKey, setDevKey] = useState('');
+  const [hnToken, setHnToken] = useState('');
+  const [hnPubs, setHnPubs] = useState<HashnodePublication[]>([]);
+  const [hnPub, setHnPub] = useState('');
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
@@ -551,6 +555,56 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
+  const loadHnPubs = async () => {
+    if (!hnToken.trim()) {
+      Alert.alert('Token missing', 'Paste the token from hashnode.com → Settings → Developer.');
+      return;
+    }
+    setBusy('Asking Hashnode…');
+    try {
+      const id = await validateHashnode(hnToken.trim());
+      setHnPubs(id.publications);
+      setHnPub('');
+      if (!id.publications.length) {
+        Alert.alert('No publications', 'That token sees no publications — publish from an account with a blog.');
+      }
+    } catch (e: any) {
+      Alert.alert('Hashnode failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const doHashnode = async (accountId?: string) => {
+    const pub = hnPubs.find((g) => g.id === hnPub);
+    if (!pub) {
+      Alert.alert('Publication missing', 'Pick a publication first.');
+      return;
+    }
+    setBusy('Connecting Hashnode…');
+    try {
+      await saveProviderFields(
+        'hashnode',
+        {
+          hnToken: hnToken.trim(),
+          hnPublicationId: pub.id,
+          hnPublicationTitle: pub.title,
+        },
+        accountId,
+      );
+      setHnToken('');
+      setHnPubs([]);
+      setHnPub('');
+      setAccounts(await loadAccounts());
+      setOpenProvider('hashnode');
+      Alert.alert('Connected', `Hashnode → ${pub.title}.`);
+    } catch (e: any) {
+      Alert.alert('Hashnode connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const doLinkedin = async (accountId?: string) => {
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
@@ -644,6 +698,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     discord: { label: 'Discord', manual: true, configured: true, connect: doDiscord },
     wordpress: { label: 'WordPress', manual: true, configured: true, connect: doWordPress },
     devto: { label: 'Dev.to', manual: true, configured: true, connect: doDevto },
+    hashnode: { label: 'Hashnode', manual: true, configured: true, connect: doHashnode },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -700,6 +755,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       if (p === 'discord') return 'Bot token + server';
       if (p === 'wordpress') return 'Site + app password';
       if (p === 'devto') return 'API key';
+      if (p === 'hashnode') return 'Token + publication';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountLabel(list[0]);
@@ -894,6 +950,42 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           <TouchableOpacity onPress={() => { if (needManager()) void doDevto(addId()); }} activeOpacity={0.7} style={s.pageRow}>
             <Text style={s.pageT}>{list.length > 0 ? 'Add another account' : 'Connect Dev.to'}</Text>
           </TouchableOpacity>
+        </>
+      );
+    }
+    if (p === 'hashnode') {
+      return (
+        <>
+          <Txt value={hnToken} onChangeText={(v) => { setHnToken(v); setHnPubs([]); setHnPub(''); }} placeholder="Personal access token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Hashnode</Text>
+            {[
+              'hashnode.com → Settings → Developer → new token',
+              'List publications, pick the blog below',
+              'Articles publish there as you',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          {hnPubs.length === 0 ? (
+            <TouchableOpacity onPress={() => { if (needManager()) void loadHnPubs(); }} activeOpacity={0.7} style={s.pageRow}>
+              <Text style={s.pageT}>List my publications</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              {hnPubs.map((g) => (
+                <TouchableOpacity key={g.id} onPress={() => setHnPub(g.id)} activeOpacity={0.7} style={s.pageRow}>
+                  <Text style={s.pageT}>{hnPub === g.id ? '✓ ' : ''}{g.title}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={() => { if (needManager()) void doHashnode(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+                <Text style={s.pageT}>{list.length > 0 ? 'Add this publication' : 'Connect Hashnode'}</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </>
       );
     }

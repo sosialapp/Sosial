@@ -9,12 +9,13 @@ const ch = (provider: string, metadata?: Record<string, unknown>) => ({ provider
 const part = (body: string, kinds: string[] = []) => ({ body, kinds });
 
 describe('compat profiles', () => {
-  it('covers the live channels plus Telegram, Discord, WordPress and Dev.to', () => {
+  it('covers the live channels plus Telegram, Discord, WordPress, Dev.to and Hashnode', () => {
     expect(Object.keys(CAPABILITIES).sort()).toEqual([
       'bluesky',
       'devto',
       'discord',
       'facebook',
+      'hashnode',
       'instagram',
       'linkedin',
       'mastodon',

@@ -12,7 +12,8 @@ export type ProviderKey =
   | 'telegram'
   | 'discord'
   | 'wordpress'
-  | 'devto';
+  | 'devto'
+  | 'hashnode';
 
 export type PostStatus =
   | 'draft'

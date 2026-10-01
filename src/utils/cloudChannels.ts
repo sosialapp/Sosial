@@ -18,7 +18,7 @@ const KEY = 'sosial_cloud_channels_v1';
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
   | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
-  | 'telegram' | 'discord' | 'wordpress' | 'devto';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -221,6 +221,16 @@ export async function buildImportPayload(
         metadata: withAvatar({ username: String(f.devUsername ?? '') }),
       };
     }
+    case 'hashnode': {
+      if (!f.hnToken || !f.hnPublicationId) return null;
+      return {
+        provider: 'hashnode',
+        external_id: String(f.hnPublicationId),
+        display_name: f.hnPublicationTitle,
+        access_token: String(f.hnToken),
+        metadata: withAvatar({ publicationId: String(f.hnPublicationId) }),
+      };
+    }
     default:
       return null;
   }
@@ -316,6 +326,7 @@ const NAME_FIELD: Record<string, string> = {
   discord: 'dcChannelName',
   wordpress: 'wpSiteName',
   devto: 'devName',
+  hashnode: 'hnPublicationTitle',
 };
 
 /**
@@ -338,6 +349,7 @@ const IDENTITY_FIELD: Record<string, string> = {
   discord: 'dcChannelId',
   wordpress: 'wpSiteUrl',
   devto: 'devUserId',
+  hashnode: 'hnPublicationId',
 };
 
 interface CloudChannelRow {
@@ -471,9 +483,14 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
           const md = row.metadata as Record<string, unknown>;
           if (typeof md.username === 'string' && md.username) fields.devUsername = md.username;
         }
-        if (provider === 'devto' && row.metadata) {
+        if (provider === 'hashnode' && row.metadata) {
           const md = row.metadata as Record<string, unknown>;
-          if (typeof md.username === 'string' && md.username) fields.devUsername = md.username;
+          if (typeof md.publicationId === 'string' && md.publicationId) {
+            fields.hnPublicationId = md.publicationId;
+          }
+          if (typeof md.publicationTitle === 'string' && md.publicationTitle) {
+            fields.hnPublicationTitle = md.publicationTitle;
+          }
         }
       if (avatar) fields.avatar = avatar;
       touch({ ...makeAccount(provider, fields) });

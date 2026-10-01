@@ -39,6 +39,7 @@ export const SOCIAL_META: Record<string, { label: string; bg: string; glyph: str
   discord: { label: 'Discord', bg: '#5865F2', glyph: 'DC' },
   wordpress: { label: 'WordPress', bg: '#21759B', glyph: 'WP' },
   devto: { label: 'Dev.to', bg: '#0A0A0A', glyph: 'DEV' },
+  hashnode: { label: 'Hashnode', bg: '#2962FF', glyph: 'HN' },
 };
 
 export function uid(prefix = 'id'): string {

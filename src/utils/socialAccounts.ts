@@ -14,7 +14,8 @@ export type ProviderKey =
   | 'telegram'
   | 'discord'
   | 'wordpress'
-  | 'devto';
+  | 'devto'
+  | 'hashnode';
 
 /**
  * One social account (a.k.a. channel) with its provider-specific credentials.
@@ -44,6 +45,7 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   discord: ['dcBotToken', 'dcGuildId', 'dcGuildName', 'dcChannelId', 'dcChannelName'],
   wordpress: ['wpSiteUrl', 'wpUsername', 'wpAppPassword', 'wpSiteName'],
   devto: ['devApiKey', 'devUsername', 'devName', 'devUserId'],
+  hashnode: ['hnToken', 'hnPublicationId', 'hnPublicationTitle'],
 };
 
 const FIELD_TO_PROVIDER: Record<string, ProviderKey> = {};
@@ -137,6 +139,7 @@ export function accountConnected(a: ConnectedAccount): boolean {
     case 'discord': return !!(f.dcBotToken && f.dcChannelId);
     case 'wordpress': return !!(f.wpSiteUrl && f.wpUsername && f.wpAppPassword);
     case 'devto': return !!f.devApiKey;
+    case 'hashnode': return !!(f.hnToken && f.hnPublicationId);
     default: return false;
   }
 }
@@ -166,7 +169,7 @@ export function accountExternalId(a: ConnectedAccount): string | undefined {
       const user = f.wpUsername as string | undefined;
       return host && user ? `${host}::${user}` : undefined;
     }
-    case 'devto': return f.devUserId as string | undefined;
+    case 'hashnode': return f.hnPublicationId as string | undefined;
     default: return undefined;
   }
 }
@@ -196,6 +199,7 @@ export function accountName(a: ConnectedAccount): string | undefined {
     }
     case 'wordpress': return (f.wpSiteName as string | undefined) ?? (f.wpSiteUrl as string | undefined);
     case 'devto': return (f.devName as string | undefined) ?? (f.devUsername as string | undefined);
+    case 'hashnode': return (f.hnPublicationTitle as string | undefined) ?? (f.hnPublicationId as string | undefined);
     default: return undefined;
   }
 }

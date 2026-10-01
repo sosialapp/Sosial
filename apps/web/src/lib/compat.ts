@@ -163,6 +163,16 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     boardRequired: false, titleRequired: false,
     limits: { text: 100000 },
   },
+  hashnode: {
+    label: 'Hashnode',
+    // Publication article: title + markdown body via publishPost. Same v1
+    // shape as Dev.to (no tags/covers without composer fields for them).
+    supports: { text: true, image: false, video: false, carousel: false, document: false, poll: false, link: true },
+    thread: false, replyChain: false, article: true,
+    requiresMedia: false, requiresVideo: false,
+    boardRequired: false, titleRequired: false,
+    limits: { text: 100000 },
+  },
 };
 
 export type CompatLevel = 'error' | 'warn';

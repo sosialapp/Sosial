@@ -17,11 +17,11 @@ export interface FbPickPage {
   ig?: string;
 }
 
-type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto';
+type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode';
 
-const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto'];
+const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode'];
 
-const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true };
+const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true };
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
@@ -29,6 +29,7 @@ function providerLabel(p: ProviderId): string {
   if (p === 'discord') return 'Discord';
   if (p === 'wordpress') return 'WordPress';
   if (p === 'devto') return 'Dev.to';
+  if (p === 'hashnode') return 'Hashnode';
   return oauthLabel(p);
 }
 
@@ -84,6 +85,9 @@ export default function ConnectPanel({
   const [wpUser, setWpUser] = useState('');
   const [wpPass, setWpPass] = useState('');
   const [devKey, setDevKey] = useState('');
+  const [hnToken, setHnToken] = useState('');
+  const [hnPubs, setHnPubs] = useState<{ id: string; title: string; url: string }[]>([]);
+  const [hnPub, setHnPub] = useState('');
   const [dcToken, setDcToken] = useState('');
   const [dcGuilds, setDcGuilds] = useState<{ id: string; name: string }[]>([]);
   const [dcGuild, setDcGuild] = useState('');
@@ -317,6 +321,73 @@ export default function ConnectPanel({
     }
   }
 
+  type HnList = { publications?: { id: string; title: string; url: string }[]; error?: string };
+
+  async function hnCall(stage: { publication_id?: string }): Promise<HnList> {
+    const r = await fetch('/api/oauth/hashnode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pat: hnToken.trim(), ...stage }),
+    });
+    const j = (await r.json().catch(() => ({}))) as HnList & { ok?: boolean };
+    if (!r.ok || (j as { error?: string }).error) {
+      throw new Error((j as { error?: string }).error ?? 'Hashnode call failed.');
+    }
+    return j;
+  }
+
+  async function loadHnPubs() {
+    setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!hnToken.trim()) {
+      setErr('Paste the personal access token first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const j = await hnCall({});
+      setHnPubs(j.publications ?? []);
+      setHnPub('');
+      if (!(j.publications ?? []).length) {
+        setErr('No publications on that token — publish from a Hashnode account with a blog.');
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not reach Hashnode.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connectHashnode() {
+    setErr(null);
+    if (!canManage) {
+      setErr('Only owners and admins can connect channels.');
+      return;
+    }
+    if (!hnPub) {
+      setErr('Pick a publication first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/oauth/hashnode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pat: hnToken.trim(), publication_id: hnPub }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect Hashnode.');
+      window.location.href = '/channels?connected=hashnode';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect Hashnode.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function connectDevto() {
     setErr(null);
     if (!canManage) {
@@ -443,6 +514,7 @@ export default function ConnectPanel({
       if (p === 'discord') return 'Bot token + server';
       if (p === 'wordpress') return 'Site + app password';
       if (p === 'devto') return 'API key';
+      if (p === 'hashnode') return 'Token + publication';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -460,9 +532,11 @@ export default function ConnectPanel({
             ? 'WordPress'
             : status.already === 'devto'
               ? 'Dev.to'
-              : status.already
-                ? oauthLabel(status.already)
-                : '';
+              : status.already === 'hashnode'
+                ? 'Hashnode'
+                : status.already
+                  ? oauthLabel(status.already)
+                  : '';
   const connectedLabel =
     status.connected === 'bluesky'
       ? 'Bluesky'
@@ -474,9 +548,11 @@ export default function ConnectPanel({
             ? 'WordPress'
             : status.connected === 'devto'
               ? 'Dev.to'
-              : status.connected
-                ? oauthLabel(status.connected)
-                : '';
+              : status.connected === 'hashnode'
+                ? 'Hashnode'
+                : status.connected
+                  ? oauthLabel(status.connected)
+                  : '';
 
   return (
     <div className="space-y-3">
@@ -709,6 +785,57 @@ export default function ConnectPanel({
                           ) : null}
                           <button type="button" onClick={connectDiscord} disabled={busy || !dcChannel} className="btn btn-primary w-full !py-2 !text-xs">
                             {busy ? 'Connecting…' : hasAny ? 'Add this channel' : 'Connect Discord'}
+                          </button>
+                          {err ? (
+                            <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                              {err}
+                            </p>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {p === 'hashnode' ? (
+                    <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                      <p className="text-[11px] leading-relaxed text-muted">
+                        No OAuth — generate a token at hashnode.com → Settings →
+                        Developer, then pick the publication below.
+                      </p>
+                      <input
+                        value={hnToken}
+                        onChange={(e) => {
+                          setHnToken(e.target.value);
+                          setHnPubs([]);
+                          setHnPub('');
+                        }}
+                        placeholder="Personal access token"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-label="Hashnode personal access token"
+                        className="field !text-xs"
+                      />
+                      {hnPubs.length === 0 ? (
+                        <button type="button" onClick={loadHnPubs} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
+                          {busy ? 'Asking Hashnode…' : 'List my publications'}
+                        </button>
+                      ) : (
+                        <>
+                          <select
+                            value={hnPub}
+                            onChange={(e) => setHnPub(e.target.value)}
+                            aria-label="Hashnode publication"
+                            className="field !text-xs"
+                          >
+                            <option value="">Pick a publication…</option>
+                            {hnPubs.map((g) => (
+                              <option key={g.id} value={g.id}>
+                                {g.title}
+                              </option>
+                            ))}
+                          </select>
+                          <button type="button" onClick={connectHashnode} disabled={busy || !hnPub} className="btn btn-primary w-full !py-2 !text-xs">
+                            {busy ? 'Connecting…' : hasAny ? 'Add this publication' : 'Connect Hashnode'}
                           </button>
                           {err ? (
                             <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">

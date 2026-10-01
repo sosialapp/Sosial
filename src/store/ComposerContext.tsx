@@ -18,6 +18,7 @@ import { publishTelegram } from '../utils/telegramPublish';
 import { publishDiscord } from '../utils/discordPublish';
 import { publishWordPress } from '../utils/wordpressPublish';
 import { publishDevto } from '../utils/devtoPublish';
+import { publishHashnode } from '../utils/hashnodePublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1133,6 +1134,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'Dev.to', devAccts, devRes);
             done.push('Dev.to');
+          } else if (ch === 'hashnode') {
+            const hnAccts = accountsFor('hashnode');
+            if (hnAccts.length === 0) throw new Error('Hashnode not connected');
+            const hnRes = await Promise.allSettled(hnAccts.map(async (hnAcct) => {
+              const hn = hnAcct.fields;
+              if (!hn.hnToken || !hn.hnPublicationId) throw new Error('Hashnode not connected');
+              keepAcct(ch, hnAcct.id, await publishHashnode({
+                pat: String(hn.hnToken),
+                publicationId: String(hn.hnPublicationId),
+                title: p.title ?? '',
+                text: caption,
+              }));
+            }));
+            throwIfPartial(ch, 'Hashnode', hnAccts, hnRes);
+            done.push('Hashnode');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });
