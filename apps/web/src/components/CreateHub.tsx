@@ -889,6 +889,19 @@ export default function CreateHub({
       </div>
       {(view === 'create' || statusView !== null) && (
         <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Post filters">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'create'}
+            onClick={() => router.push('/post', { scroll: false })}
+            className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+              view === 'create'
+                ? 'border-accent bg-accent text-ink'
+                : 'border-line bg-card text-muted hover:bg-paper'
+            }`}
+          >
+            New post
+          </button>
           {STATUS_ORDER.map((s) => {
             const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
             return (
