@@ -22,6 +22,12 @@ const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'te
 
 const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true };
 
+function providerLabel(p: ProviderId): string {
+  if (p === 'bluesky') return 'Bluesky';
+  if (p === 'telegram') return 'Telegram';
+  return oauthLabel(p);
+}
+
 function accountName(c: ConnectedChannel): string {
   return c.display_name ?? (c.handle ? `@${c.handle}` : c.handle) ?? c.external_id;
 }
@@ -64,6 +70,7 @@ export default function ConnectPanel({
   const [mastodonInstance, setMastodonInstance] = useState('');
   const [tgToken, setTgToken] = useState('');
   const [tgChat, setTgChat] = useState('');
+  const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
@@ -87,9 +94,21 @@ export default function ConnectPanel({
   }, [router]);
 
   const byProvider = (p: string): ConnectedChannel[] => channels.filter((c) => c.provider === p);
+  const matchesQuery = (p: ProviderId): boolean => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const list = byProvider(p);
+    return (
+      providerLabel(p).toLowerCase().includes(q) ||
+      list.some((c) =>
+        [accountName(c), c.handle ?? '', c.external_id].some((v) => v.toLowerCase().includes(q)),
+      )
+    );
+  };
   const ordered: ProviderId[] = [...ORDER].sort(
     (a, b) => Number(byProvider(b).length > 0) - Number(byProvider(a).length > 0),
   );
+  const visible = ordered.filter(matchesQuery);
 
   const startHref = (p: OAuthProvider): string =>
     `/api/oauth/start?provider=${p}&workspace_id=${encodeURIComponent(workspaceId)}`;
@@ -218,8 +237,7 @@ export default function ConnectPanel({
     }
   }
 
-  const subtitle = (p: ProviderId, list: ConnectedChannel[]): string => {
-    if (list.length === 0) {
+  const subtitle = (p: ProviderId, list: ConnectedChannel[]): string => {    if (list.length === 0) {
       if (p === 'bluesky') return 'Handle + app password';
       if (p === 'mastodon') return 'Username + login';
       if (p === 'telegram') return 'Bot token + destination';
@@ -274,13 +292,27 @@ export default function ConnectPanel({
         </p>
       ) : null}
 
+      <div className="mb-3">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search channels or accounts"
+          aria-label="Search channels"
+          className="field"
+        />
+      </div>
       <section aria-label="Connect accounts" className="overflow-hidden rounded-2xl border border-line bg-card">
-        {ordered.map((p, pi) => {
+        {visible.length === 0 ? (
+          <p className="px-4 py-6 text-center text-sm text-muted">
+            No channels match “{query.trim()}”.
+          </p>
+        ) : null}
+        {visible.map((p, pi) => {
           const list = byProvider(p);
           const hasAny = list.length > 0;
           const expanded = open === p;
           const manual = MANUAL[p] === true;
-          const label = p === 'bluesky' ? 'Bluesky' : p === 'telegram' ? 'Telegram' : oauthLabel(p);
+          const label = providerLabel(p);
 
           const onRow = () => {
             // No accounts yet on an OAuth provider: consent opens in a new
