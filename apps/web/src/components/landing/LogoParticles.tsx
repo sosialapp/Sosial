@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { BRAND_PATHS, brandColor, brandPath, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/BrandIcon';
-import { planeFromBundledMark } from '../telegramMark';
+import { brandColor, brandPath, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/BrandIcon';
 import type { ProviderKey } from '@/lib/types';
 
 /**
@@ -33,18 +32,13 @@ const DURATION = 5;
 const SPRITE = 128;
 
 function spriteSvg(provider: ProviderKey): string {
-  // Telegram drifts as the bare plane (official app-icon style); everything
-  // else uses the bundled mark with its bare-glyph transform, if any.
-  const d =
-    provider === 'telegram'
-      ? planeFromBundledMark(BRAND_PATHS.telegram)
-      : brandPath(provider as BrandProvider);
+  // Bare-glyph transforms where one exists (VK scale); everything else uses
+  // the bundled mark as authored — including Telegram's circled badge.
+  const d = brandPath(provider as BrandProvider);
   const extra =
-    provider === 'telegram'
-      ? ' transform="translate(12 12) scale(1.5) translate(-12 -12)"'
-      : GLYPH_TRANSFORMS[provider as BrandProvider]
-        ? ` transform="${GLYPH_TRANSFORMS[provider as BrandProvider]}"`
-        : '';
+    GLYPH_TRANSFORMS[provider as BrandProvider]
+      ? ` transform="${GLYPH_TRANSFORMS[provider as BrandProvider]}"`
+      : '';
   // Official Snoo carries eye/mouth holes — needs the even-odd rule.
   const rule = provider === 'reddit' ? ' fill-rule="evenodd" clip-rule="evenodd"' : '';
   const fill =

@@ -12,7 +12,6 @@
  */
 
 import type { CSSProperties, ReactNode } from 'react';
-import { planeFromBundledMark } from './telegramMark';
 import { PROVIDER_META } from '@/lib/providers';
 
 export type BrandProvider =
@@ -214,7 +213,7 @@ export function BrandIcon({
     >
       <title>{label}</title>
       <Pad>
-        <path d={iconPath(provider)} fill={brandColor(provider)} />
+        <path d={PATHS[provider]} fill={brandColor(provider)} />
       </Pad>
     </svg>
   );
@@ -240,31 +239,12 @@ export const GLYPH_TRANSFORMS: Partial<Record<BrandProvider, string>> = {
   vk: 'scale(1.2)',
 };
 
-/** Icon-context glyph: plane-only for Telegram (official app-icon style). */
+/** Icon-context glyph path (official bundled marks, circled badges included). */
 export function brandPath(provider: BrandProvider): string {
-  return iconPath(provider);
-}
-
-function iconPath(provider: BrandProvider): string {
-  if (provider === 'telegram') return planeFromBundledMark(PATHS.telegram);
   return PATHS[provider];
 }
 
-/**
- * The plane fills ~70% of its viewBox where other marks fill edge to edge —
- * without this it renders small everywhere. 1.3x about the center still
- * clears the viewport after Pad insets it.
- */
-const TELEGRAM_SCALE = 'translate(12 12) scale(1.5) translate(-12 -12)';
-
 function Glyph({ provider }: { provider: BrandProvider }) {
-  if (provider === 'telegram') {
-    return (
-      <g transform={TELEGRAM_SCALE}>
-        <path d={iconPath(provider)} />
-      </g>
-    );
-  }
   // Official Snoo carries eye/mouth holes — needs the even-odd rule.
   if (provider === 'reddit') {
     return <path d={PATHS[provider]} fillRule="evenodd" clipRule="evenodd" />;
@@ -277,5 +257,5 @@ function Glyph({ provider }: { provider: BrandProvider }) {
       </g>
     );
   }
-  return <path d={iconPath(provider)} />;
+  return <path d={brandPath(provider)} />;
 }

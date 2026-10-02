@@ -27,6 +27,10 @@ const CHANNELS: BrandProvider[] = [
   'wordpress',
   'devto',
   'hashnode',
+  'ghost',
+  'vk',
+  'reddit',
+  'gmb',
 ];
 
 const RANGE = 180;

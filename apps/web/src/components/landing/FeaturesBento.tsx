@@ -175,12 +175,12 @@ export default function FeaturesBento() {
 
           <article className="relative flex flex-col overflow-hidden rounded-xl bg-[linear-gradient(180deg,#FCE7CB_0%,#F9CF9C_100%)] p-5 md:col-span-7 md:h-[483px]">
             <h3 className={`${title} relative text-[#0B0A0A]`}>
-              Connect to our 15 channels. Up to 100 accounts
+              Connect to our 19 channels. Up to 100 accounts
             </h3>
             <p className={`${sub} relative text-[rgba(11,10,10,0.6)]`}>
               Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon,
-              YouTube, X, TikTok, Pinterest, Telegram, Discord, WordPress, Dev.to and
-              Hashnode. Up to 100 accounts.
+              YouTube, X, TikTok, Pinterest, Telegram, Discord, WordPress, Dev.to,
+              Hashnode, Ghost, VK, Reddit and Google Business. Up to 100 accounts.
             </p>
             {/* Illustration: account avatars + channel logo grid, centered */}
             <div className="relative flex flex-1 flex-col items-center justify-center">
