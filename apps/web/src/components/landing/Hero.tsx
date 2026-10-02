@@ -3,14 +3,32 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import AuthModal from '@/components/site/AuthModal';
-import LogoParticles from '@/components/landing/LogoParticles';
+import { GridPulse } from '@/components/ui/grid-pulse';
+import { BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
 
 /**
  * Fold (Tenner architecture, Sosial brand): eyebrow, headline with a rotated
  * highlight word, dual CTAs, proof checklist, and the devices render —
- * floating over an ambient canvas of drifting social-logo particles
- * (GSAP canvas-pen method). No stock.
+ * floating over an interactive GridPulse field whose lit cells occasionally
+ * carry channel marks. No stock.
  */
+
+const HERO_LOGOS: BrandProvider[] = [
+  'x',
+  'instagram',
+  'tiktok',
+  'facebook',
+  'threads',
+  'youtube',
+  'linkedin',
+  'bluesky',
+  'mastodon',
+  'pinterest',
+  'telegram',
+  'discord',
+  'reddit',
+  'vk',
+];
 
 const btn =
   'inline-flex items-center justify-center gap-2.5 rounded-full border-2 border-ink font-display text-base font-semibold px-6 py-3.5 leading-none transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.18)]';
@@ -20,18 +38,29 @@ export default function Hero() {
 
   return (
     <section className="relative overflow-hidden">
-      <LogoParticles />
+      <GridPulse
+        cell={26}
+        logos={HERO_LOGOS.map((p) => BRAND_PATHS[p])}
+        logoChance={0.22}
+        ambient={3}
+      />
 
       <div className="relative z-[2] mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">
-          <h1 className="animate-rise-1 font-display text-4xl leading-[1.02] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
+          <h1
+            data-grid-avoid
+            className="animate-rise-1 font-display text-4xl leading-[1.02] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
+          >
             Sosial. Made for{' '}
             <span className="underline decoration-bolt decoration-[0.14em] underline-offset-[0.18em]">
               everyone who posts
             </span>
             .
           </h1>
-          <p className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed md:text-lg lg:mx-0">
+          <p
+            data-grid-avoid
+            className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed md:text-lg lg:mx-0"
+          >
             Creators, founders, marketers, agencies, affiliate marketers and
             everyone in between.
           </p>
