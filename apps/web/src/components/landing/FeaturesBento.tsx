@@ -183,7 +183,7 @@ export default function FeaturesBento() {
               Hashnode, Ghost, VK, Reddit and Google Business. Up to 100 accounts.
             </p>
             {/* Illustration: account avatars + channel logo grid, centered */}
-            <div className="relative flex flex-1 flex-col items-center justify-center">
+            <div className="relative flex flex-1 flex-col items-center justify-center pt-4">
               <div className="flex justify-center" aria-hidden="true">
                 <div className="flex -space-x-3 sm:-space-x-4">
                 {[
@@ -198,7 +198,7 @@ export default function FeaturesBento() {
                 ].map((a, i, all) => (
                   <span
                     key={a.img}
-                    className="relative block h-10 w-10 shrink-0 sm:h-16 sm:w-16"
+                    className="relative block h-9 w-9 shrink-0 sm:h-14 sm:w-14"
                     style={{ zIndex: all.length - i }}
                   >
                     <Image
@@ -207,10 +207,10 @@ export default function FeaturesBento() {
                       width={128}
                       height={128}
                       loading="lazy"
-                      className="block h-10 w-10 rounded-full object-cover sm:h-16 sm:w-16"
+                      className="block h-9 w-9 rounded-full object-cover sm:h-14 sm:w-14"
                     />
                     <span
-                      className="absolute flex h-6 w-6 items-center justify-center rounded-full sm:h-9 sm:w-9"
+                      className="absolute flex h-5 w-5 items-center justify-center rounded-full sm:h-8 sm:w-8"
                       style={{
                         right: -2,
                         bottom: -2,
@@ -228,7 +228,7 @@ export default function FeaturesBento() {
                 </div>
               </div>
               <div
-                className="relative mx-auto mt-5 grid w-full max-w-md grid-cols-5 place-items-center gap-x-2 gap-y-4 sm:gap-x-6 sm:gap-y-5"
+                className="relative mx-auto mt-6 flex w-full max-w-md flex-wrap items-center justify-center gap-x-4 gap-y-4 sm:gap-x-6 sm:gap-y-5"
                 aria-hidden="true"
               >
               {(
