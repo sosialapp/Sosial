@@ -5,14 +5,13 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
-import CompatibilityPanel from '@/components/CompatibilityPanel';
-import { checkCompatibility } from '@/lib/compat';
+import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
 import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
-import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import { providerMeta } from '@/lib/providers';
+import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
@@ -194,7 +193,7 @@ export default function CreatePost({
     return ls.length ? Math.min(...ls) : 2200;
   }, [ready, picked]);
 
-  /** Live per-channel verdicts (Phase 0 engine) — panel display + submit gate. */
+  /** Live per-channel verdicts — powers the grey pills + tap messages. */
   const compat = useMemo(() => {
     const chs = ready.filter((c) => picked.includes(c.id));
     return {
@@ -209,7 +208,49 @@ export default function CreatePost({
     };
   }, [ready, picked, segs, thread]);
 
+  /**
+   * Inline gating: a channel the draft can't satisfy renders grey with its
+   * reason on tap (instead of a separate panel below). "Unselected" chips
+   * judge the CURRENT draft — picking them mid-compose is allowed so the
+   * user sees exactly what's missing and fixes it in place.
+   */
+  const allReady = useMemo(() => {
+    const totalMedia = segs.reduce((n, s) => n + s.media.length, 0);
+    const hasVideo = segs.some((s) => s.media.some((m) => m.kind === 'video'));
+    const hasImage = segs.some((s) => s.media.some((m) => m.kind === 'image'));
+    const chainOk = (p: string) => !thread || THREAD_PROVIDERS.includes(p);
+    return ready.map((c) => {
+      const cap = CAPABILITIES[c.provider as keyof typeof CAPABILITIES];
+      const base = { id: c.id, chainOk: chainOk(c.provider), reason: '' as string };
+      if (!base.chainOk) return { ...base, blocked: true, reason: 'Thread posts go to X, Threads, Mastodon and Bluesky only' };
+      if (!cap) return { ...base, blocked: false, reason: '' };
+      if (cap.requiresVideo && !hasVideo) {
+        return { ...base, blocked: true, reason: `${cap.label} needs a video — this post has none attached.` };
+      }
+      if (cap.requiresMedia && totalMedia === 0) {
+        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video — text alone can't go there.` };
+      }
+      if (hasVideo && cap.supports.video === false) {
+        return { ...base, blocked: true, reason: `${cap.label} doesn't take video — remove the video or drop the channel.` };
+      }
+      if (hasImage && cap.supports.image === false) {
+        return { ...base, blocked: true, reason: `${cap.label} takes text and links only — remove the image or drop the channel.` };
+      }
+      return { ...base, blocked: false, reason: '' };
+    });
+  }, [ready, segs, thread]);
+
+  /** Reasons for chips the user STILL tried to pick (grey + blocked). */
+  const [chipNote, setChipNote] = useState<string | null>(null);
+  const chipMeta = useMemo(() => new Map(allReady.map((x) => [x.id, x])), [allReady]);
+
   function toggle(id: string) {
+    const info = chipMeta.get(id);
+    if (info?.blocked) {
+      setChipNote(info.reason || "This channel can't take the current draft.");
+      return;
+    }
+    setChipNote(null);
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
@@ -432,8 +473,9 @@ export default function CreatePost({
                 </p>
               ) : (
                 ready.map((c) => {
-                  const chainOk = !thread || THREAD_PROVIDERS.includes(c.provider);
-                  const on = picked.includes(c.id) && chainOk;
+                  const info = chipMeta.get(c.id);
+                  const blocked = !!info?.blocked;
+                  const on = picked.includes(c.id) && !blocked;
                   const label = providerMeta(c.provider).label;
                   const rawHandle =
                     typeof c.handle === 'string' && c.handle.trim()
@@ -446,17 +488,12 @@ export default function CreatePost({
                     <button
                       key={c.id}
                       type="button"
-                      onClick={() => chainOk && toggle(c.id)}
+                      onClick={() => toggle(c.id)}
                       aria-pressed={on}
-                      disabled={!chainOk}
-                      title={
-                        !chainOk
-                          ? 'Thread posts go to X, Threads, Mastodon and Bluesky only'
-                          : (c.display_name ?? label)
-                      }
+                      title={blocked ? info?.reason : (c.display_name ?? label)}
                       className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold transition ${
-                        !chainOk
-                          ? 'cursor-not-allowed border-line bg-paper text-faint opacity-30'
+                        blocked
+                          ? 'cursor-not-allowed border-line bg-bone text-faint opacity-50'
                           : on
                             ? 'border-ink bg-paper text-ink'
                             : 'border-line bg-paper text-faint opacity-60 hover:opacity-100'
@@ -550,7 +587,11 @@ export default function CreatePost({
 
             {err ? <p className="mt-3 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
 
-            <CompatibilityPanel providers={compat.providers} issues={compat.issues} />
+            {chipNote ? (
+              <p className="mt-3 rounded-xl bg-[#FDF6E7] px-3 py-2 text-xs font-bold text-amber-700">
+                {chipNote}
+              </p>
+            ) : null}
 
             {confirmNow ? (
               <div

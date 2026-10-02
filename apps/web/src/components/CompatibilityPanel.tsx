@@ -2,6 +2,7 @@
 
 import { providerStatus, type CompatIssue } from '@/lib/compat';
 import { providerMeta } from '@/lib/providers';
+import { CheckIcon, CrossIcon } from '@/components/StatusIcons';
 
 /**
  * Content compatibility (§6): per-channel verdicts that update live as the
@@ -35,11 +36,11 @@ export default function CompatibilityPanel({
             <li key={p} className="text-sm">
               <span
                 aria-hidden="true"
-                className={`mr-1.5 font-extrabold ${
+                className={`mr-1.5 inline-flex ${
                   st === 'ok' ? 'text-green-700' : st === 'warn' ? 'text-amber-600' : 'text-red-600'
                 }`}
               >
-                {st === 'ok' ? '✓' : st === 'warn' ? '!' : '×'}
+                {st === 'ok' ? <CheckIcon size={14} /> : st === 'warn' ? '!' : <CrossIcon size={13} />}
               </span>
               <span className="font-bold">{providerMeta(p).label}</span>
               {mine.map((m, j) => (

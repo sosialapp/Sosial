@@ -26,6 +26,15 @@ import { fbComments, igComments, thComments, mastodonComments, bskyComments, ytC
 
 const CHANNELS = ['any', 'facebook', 'instagram', 'tiktok', 'threads', 'linkedin', 'bluesky', 'youtube', 'mastodon', 'pinterest', 'x', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
 const COMING_SOON: string[] = [];
+/** Media gating per channel (mirrors web CAPABILITIES.requiresMedia/Video +
+ *  supports.video): 'any' = needs photo or video, 'video' = needs a video,
+ *  'no-video' = text/photos only. */
+const MEDIA_RULES: Record<string, 'any' | 'video' | 'no-video'> = {
+  instagram: 'any',
+  tiktok: 'any',
+  youtube: 'video',
+  pinterest: 'any',
+};
 type TypeChannel = 'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk';
 const TYPE_CHANNELS: TypeChannel[] = ['facebook', 'instagram', 'threads', 'x', 'linkedin', 'youtube', 'bluesky', 'mastodon', 'pinterest', 'tiktok', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
 
@@ -594,10 +603,39 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   /** One popup covering every channel the current media won't fit. */
   const warnAttachments = (targets: string[]) => {
     const msgs = [...new Set(targets.filter((c) => c !== 'any').map(attachWarning).filter((m): m is string => !!m))];
-    if (msgs.length) Alert.alert('Media won’t fit', msgs.join('\n\n'));
+    if (msgs.length) Alert.alert('Media won\u2019t fit', msgs.join('\n\n'));
   };
 
+  /** Channels this draft can't reach: needs-media rules from the compat
+   *  engine — these chips render grey and explain on tap. */
+  const [chipBlocked, setChipBlocked] = useState<Record<string, string>>({});
+  const [chipNote, setChipNote] = useState<string | null>(null);
+  useEffect(() => {
+    const items = media?.items ?? [];
+    const hasVideo = items.some((a) => a.kind === 'video');
+    const blockedNow: Record<string, string> = {};
+    if (!items.length) {
+      for (const c of connected) {
+        const cap = MEDIA_RULES[c];
+        if (cap === 'video') blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} needs a video — this post has none attached.`;
+        else if (cap === 'any') blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} needs a photo or video — text alone can't go there.`;
+      }
+    } else if (hasVideo) {
+      for (const c of connected) {
+        if (MEDIA_RULES[c] === 'no-video') {
+          blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} doesn't take video — remove the video or drop the channel.`;
+        }
+      }
+    }
+    setChipBlocked(blockedNow);
+  }, [media, connected]);
+
   const togglePlat = (c: string) => {
+    if (chipBlocked[c]) {
+      setChipNote(chipBlocked[c]);
+      return;
+    }
+    setChipNote(null);
     if (c === 'any') {
       // Anywhere ticks every connected channel (selected pill color each),
       // keeping the per-channel post-type rows visible
@@ -823,7 +861,12 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   const content = (
     <>
       <Text style={st.title}>{title ?? 'Add to queue'}</Text>
-          {readOnly && readOnlyNote ? <Text style={st.sentNote}>✓ {readOnlyNote}</Text> : null}
+          {readOnly && readOnlyNote ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="checkmark-circle" size={15} color={C.accent} />
+              <Text style={st.sentNote}>{readOnlyNote}</Text>
+            </View>
+          ) : null}
 
           {composer ? (
             <View style={st.post}>
@@ -1024,23 +1067,28 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             {orderedChannels.map((c) => {
               const on = c === 'any' ? anyOn : plats.includes(c);
               const soon = (COMING_SOON as string[]).includes(c);
+              const blocked = !!chipBlocked[c];
               const label = c === 'any' ? 'Anywhere' : c[0].toUpperCase() + c.slice(1);
               return (
                 <TouchableOpacity
                   key={c}
                   onPress={() => togglePlat(c)}
-                  style={[st.chip, on && { backgroundColor: C.ink, borderColor: C.ink }, soon && { opacity: 0.75 }]}
+                  style={[
+                    st.chip,
+                    blocked && { opacity: 0.45 },
+                    on && !blocked && { backgroundColor: C.ink, borderColor: C.ink },
+                  ]}
                   activeOpacity={0.75}
                 >
                   {c === 'any' ? (
-                    <Ionicons name="globe-outline" size={14} color={on ? C.onInk : C.muted} />
+                    <Ionicons name="globe-outline" size={14} color={on && !blocked ? C.onInk : C.muted} />
                   ) : (
                     <ChannelAvatar platform={c} avatar={avatarFor(c)} size={22} />
                   )}
                   <View style={{ gap: 0 }}>
-                    <Text style={[st.chipT, on && { color: C.onInk }]}>{label}</Text>
+                    <Text style={[st.chipT, on && !blocked && { color: C.onInk }]}>{label}</Text>
                     {c !== 'any' && handleFor(c) ? (
-                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: on ? C.onInk : C.muted }} numberOfLines={1}>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: on && !blocked ? C.onInk : C.muted }} numberOfLines={1}>
                         {handleFor(c)}
                       </Text>
                     ) : null}
@@ -1051,6 +1099,12 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             })}
           </View>
           )}
+          {chipNote ? (
+            <View style={[st.staleRow, { backgroundColor: C.accentSoft }]}>
+              <Ionicons name="alert-circle-outline" size={15} color={C.yellowText} />
+              <Text style={st.staleT} numberOfLines={3}>{chipNote}</Text>
+            </View>
+          ) : null}
           {!readOnly && stale.length > 0 ? (
             <TouchableOpacity
               onPress={onConnect}

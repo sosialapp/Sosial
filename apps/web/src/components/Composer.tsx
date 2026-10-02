@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
-import CompatibilityPanel from '@/components/CompatibilityPanel';
-import { checkCompatibility } from '@/lib/compat';
+import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { generateSocial, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
+import { CheckIcon } from '@/components/StatusIcons';
 import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
@@ -117,7 +117,43 @@ export default function Composer({
     [],
   );
 
+  /**
+   * Inline gating: chips the draft can't satisfy render grey and explain on
+   * tap — the standalone panel is gone.
+   */
+  const allReady = useMemo(() => {
+    const totalMedia = files.length;
+    const hasVideo = files.some((f) => f.kind === 'video');
+    const hasImage = files.some((f) => f.kind === 'image');
+    return ready.map((c) => {
+      const cap = CAPABILITIES[c.provider as keyof typeof CAPABILITIES];
+      const base = { id: c.id, reason: '' as string };
+      if (!cap) return { ...base, blocked: false };
+      if (cap.requiresVideo && !hasVideo) {
+        return { ...base, blocked: true, reason: `${cap.label} needs a video — this post has none attached.` };
+      }
+      if (cap.requiresMedia && totalMedia === 0) {
+        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video — text alone can't go there.` };
+      }
+      if (hasVideo && cap.supports.video === false) {
+        return { ...base, blocked: true, reason: `${cap.label} doesn't take video — remove the video or drop the channel.` };
+      }
+      if (hasImage && cap.supports.image === false) {
+        return { ...base, blocked: true, reason: `${cap.label} takes text and links only — remove the image or drop the channel.` };
+      }
+      return { ...base, blocked: false };
+    });
+  }, [ready, files]);
+  const [chipNote, setChipNote] = useState<string | null>(null);
+  const chipMeta = useMemo(() => new Map(allReady.map((x) => [x.id, x])), [allReady]);
+
   function toggle(id: string) {
+    const info = chipMeta.get(id);
+    if (info?.blocked) {
+      setChipNote(info.reason || "This channel can't take the current draft.");
+      return;
+    }
+    setChipNote(null);
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
@@ -376,10 +412,6 @@ export default function Composer({
         </p>
       )}
 
-      <div className="px-6 pt-4">
-        <CompatibilityPanel providers={compat.providers} issues={compat.issues} />
-      </div>
-
       <div className="flex flex-1 flex-col gap-6 p-6 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-4">
           {kind === 'single' ? (
@@ -570,14 +602,21 @@ export default function Composer({
               <div className="space-y-1.5">
                 {ready.map((c) => {
                   const meta = providerMeta(c.provider);
+                  const info = chipMeta.get(c.id);
+                  const blocked = !!info?.blocked;
                   const on = picked.includes(c.id);
                   return (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => toggle(c.id)}
+                      title={blocked ? info?.reason : undefined}
                       className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        on ? 'border-ink bg-paper-dim' : 'border-line bg-paper hover:bg-bone'
+                        blocked
+                          ? 'cursor-not-allowed border-line bg-bone text-faint opacity-50'
+                          : on
+                            ? 'border-ink bg-paper-dim'
+                            : 'border-line bg-paper hover:bg-bone'
                       }`}
                     >
                       <BrandIcon provider={c.provider} className="h-6 w-6 shrink-0" />
@@ -588,8 +627,8 @@ export default function Composer({
                           {meta.limit.toLocaleString()} chars
                         </span>
                       </span>
-                      <span className={`text-xs font-bold ${on ? 'text-ink' : 'text-faint'}`}>
-                        {on ? '✓' : ''}
+                      <span className={`inline-flex ${on && !blocked ? 'text-ink' : 'text-faint'}`}>
+                        {on && !blocked ? <CheckIcon size={14} /> : null}
                       </span>
                     </button>
                   );
@@ -597,6 +636,12 @@ export default function Composer({
               </div>
             )}
           </div>
+
+          {chipNote ? (
+            <p className="rounded-xl bg-[#FDF6E7] px-3 py-2 text-xs font-bold text-amber-700">
+              {chipNote}
+            </p>
+          ) : null}
 
           <div className="card p-4">
             <p className="eyebrow mb-3">When</p>

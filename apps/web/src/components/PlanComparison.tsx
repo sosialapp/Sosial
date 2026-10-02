@@ -7,6 +7,7 @@ import {
   type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
+import { CheckIcon, CrossIcon } from '@/components/StatusIcons';
 
 /**
  * Full plan comparison. Limit values are generated from the canonical PLANS
@@ -17,15 +18,15 @@ import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
 function Cell({ value }: { value: string | boolean }) {
   if (value === true) {
     return (
-      <span className="text-ink" aria-label="Included">
-        ✓
+      <span className="inline-flex text-ink" aria-label="Included">
+        <CheckIcon size={15} />
       </span>
     );
   }
   if (value === false) {
     return (
-      <span className="text-faint" aria-label="Not included">
-        —
+      <span className="inline-flex text-faint" aria-label="Not included">
+        <CrossIcon size={14} />
       </span>
     );
   }

@@ -8,6 +8,32 @@ import { useTheme, Palette, R } from '../theme';
 import { SOCIAL_META } from '../constants';
 import { useFocusScrollContext } from './FocusScroll';
 
+/** Filled circle-check (Ionicons checkmark-circle shape, 512 viewBox) — the
+ *  shared "connected/done" icon used everywhere ✓ used to be typed. */
+export function CheckIcon({ size = 16, color }: { size?: number; color?: string }) {
+  return (
+    <Ionicons
+      name="checkmark-circle"
+      size={size}
+      color={color}
+      style={{ opacity: 1 }}
+    />
+  );
+}
+
+/** Filled circle-cross (Ionicons close-circle shape) — the shared "remove"
+ *  icon used everywhere ✕/× used to be typed. */
+export function CrossIcon({ size = 16, color }: { size?: number; color?: string }) {
+  return (
+    <Ionicons
+      name="close-circle"
+      size={size}
+      color={color}
+      style={{ opacity: 1 }}
+    />
+  );
+}
+
 /** Real brand glyph for a social platform — optically balanced per brand */
 const GLYPH_SCALE: Record<string, number> = {
   instagram: 1,

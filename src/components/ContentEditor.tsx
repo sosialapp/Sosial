@@ -243,7 +243,7 @@ export default function ContentEditor() {
               </TouchableOpacity>
               <TouchableOpacity onPress={() => move(b.id, -1)} style={st.icon} activeOpacity={0.6}><Text style={st.iconT}>↑</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => move(b.id, 1)} style={st.icon} activeOpacity={0.6}><Text style={st.iconT}>↓</Text></TouchableOpacity>
-              <TouchableOpacity onPress={() => remove(b.id)} style={[st.icon, st.del]} activeOpacity={0.6}><Text style={[st.iconT, { color: C.redText }]}>✕</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => remove(b.id)} style={[st.icon, st.del]} activeOpacity={0.6}><Ionicons name="close-circle" size={16} color={C.redText} /></TouchableOpacity>
             </View>
             {open ? (
               <View style={{ gap: 10, marginTop: 12 }}>
@@ -268,7 +268,7 @@ export default function ContentEditor() {
                           <Txt value={line} onChangeText={(v) => { const items = [...(b.items ?? [])]; items[li] = v; update(b.id, { items }); }} multiline />
                         </View>
                         <TouchableOpacity onPress={() => update(b.id, { items: (b.items ?? []).filter((_, k) => k !== li) })} style={[st.icon, st.del]} activeOpacity={0.6}>
-                          <Text style={[st.iconT, { color: C.redText }]}>✕</Text>
+                          <Ionicons name="close-circle" size={16} color={C.redText} />
                         </TouchableOpacity>
                       </View>
                     ))}

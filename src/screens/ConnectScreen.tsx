@@ -964,12 +964,18 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             <>
               {dcGuilds.map((g) => (
                 <TouchableOpacity key={g.id} onPress={() => void loadDcChannels(g.id)} activeOpacity={0.7} style={s.pageRow}>
-                  <Text style={s.pageT}>{dcGuild === g.id ? '✓ ' : ''}{g.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {dcGuild === g.id ? <Ionicons name="checkmark-circle" size={15} color={C.accent} /> : null}
+                    <Text style={s.pageT}>{g.name}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
               {dcChannels.map((c) => (
                 <TouchableOpacity key={c.id} onPress={() => setDcChannel(c.id)} activeOpacity={0.7} style={s.pageRow}>
-                  <Text style={s.pageT}>{dcChannel === c.id ? '✓ ' : ''}#{c.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {dcChannel === c.id ? <Ionicons name="checkmark-circle" size={15} color={C.accent} /> : null}
+                    <Text style={s.pageT}>#{c.name}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity onPress={() => { if (needManager()) void doDiscord(addId()); }} activeOpacity={0.7} style={s.pageRow}>
@@ -1053,7 +1059,10 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             <>
               {hnPubs.map((g) => (
                 <TouchableOpacity key={g.id} onPress={() => setHnPub(g.id)} activeOpacity={0.7} style={s.pageRow}>
-                  <Text style={s.pageT}>{hnPub === g.id ? '✓ ' : ''}{g.title}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {hnPub === g.id ? <Ionicons name="checkmark-circle" size={15} color={C.accent} /> : null}
+                    <Text style={s.pageT}>{g.title}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity onPress={() => { if (needManager()) void doHashnode(addId()); }} activeOpacity={0.7} style={s.pageRow}>

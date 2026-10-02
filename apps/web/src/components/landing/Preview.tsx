@@ -1,6 +1,7 @@
 import { monthMatrix, dayKey } from '@/lib/format';
 import { PROVIDER_META } from '@/lib/providers';
 import { BrandIcon } from '@/components/BrandIcon';
+import { CheckIcon } from '@/components/StatusIcons';
 import type { ProviderKey } from '@/lib/types';
 
 /**
@@ -136,7 +137,7 @@ export function ComposerPreview() {
               </span>
               <span className="block truncate text-[11px] text-muted">{r.sub}</span>
             </span>
-            <span className="text-xs font-bold text-ink">✓</span>
+            <span className="inline-flex text-xs font-bold text-ink"><CheckIcon size={14} /></span>
           </div>
         ))}
       </div>

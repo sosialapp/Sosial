@@ -138,7 +138,7 @@ export default function BackgroundPicker() {
                   ])}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Text style={{ fontSize: 15, color: C.faint }}>✕</Text>
+                  <Ionicons name="close-circle" size={16} color={C.faint} />
                 </TouchableOpacity>
               </View>
             ))}

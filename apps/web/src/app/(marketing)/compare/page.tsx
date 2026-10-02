@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { FaqList, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import { CheckIcon, CrossIcon } from '@/components/StatusIcons';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
@@ -35,14 +36,14 @@ const HEADERS = ['Sosial', 'Suites', 'Single-network apps', 'By hand'] as const;
 function mark(cell: Cell) {
   if (cell === true) {
     return (
-      <span className="text-ink" aria-label="Yes">
-        ✓
+      <span className="inline-flex text-ink" aria-label="Yes">
+        <CheckIcon size={15} />
       </span>
     );
   }
   return (
-    <span className="text-faint" aria-label="No">
-      ×
+    <span className="inline-flex text-faint" aria-label="No">
+      <CrossIcon size={14} />
     </span>
   );
 }

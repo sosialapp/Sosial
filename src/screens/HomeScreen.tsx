@@ -308,7 +308,7 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
                     <Ionicons name="ellipsis-horizontal" size={20} color={C.muted} />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                    <Text style={s.del}>✕</Text>
+                    <Ionicons name="close-circle" size={16} color={C.redText} />
                   </TouchableOpacity>
                 </TouchableOpacity>
               ))}

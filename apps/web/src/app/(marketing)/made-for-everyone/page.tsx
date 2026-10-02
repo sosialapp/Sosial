@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { CardTrio, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { CheckIcon } from '@/components/StatusIcons';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -104,7 +105,7 @@ export default async function MadeForEveryonePage() {
                     'Your data exportable on request',
                   ].map((t) => (
                     <li key={t} className="flex items-start gap-2.5">
-                      <span className="mt-0.5 text-ink">✓</span>
+                      <span className="mt-0.5 inline-flex text-ink"><CheckIcon size={15} /></span>
                       {t}
                     </li>
                   ))}

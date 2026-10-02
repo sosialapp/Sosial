@@ -167,13 +167,21 @@ export default function QuickPost({
           <div className="mt-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Channels">
             {ready.map((c) => {
               const on = picked.includes(c.id);
+              const label = providerMeta(c.provider).label;
+              const rawHandle =
+                typeof c.handle === 'string' && c.handle.trim()
+                  ? c.handle.trim().replace(/^@/, '')
+                  : null;
+              const sub =
+                rawHandle ??
+                (c.display_name && c.display_name !== label ? c.display_name : null);
               return (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => toggle(c.id)}
                   aria-pressed={on}
-                  title={c.display_name ?? providerMeta(c.provider).label}
+                  title={c.display_name ?? label}
                   className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold transition ${
                     on
                       ? 'border-ink bg-paper text-ink'
@@ -183,9 +191,16 @@ export default function QuickPost({
                   <ChannelAvatar
                     provider={c.provider}
                     avatar={channelAvatar(c.metadata)}
-                    size={24}
+                    size={30}
                   />
-                  {providerMeta(c.provider).label}
+                  <span className="min-w-0 leading-tight text-left">
+                    <span className="block">{label}</span>
+                    {sub ? (
+                      <span className="block truncate text-[10px] font-semibold text-muted">
+                        {rawHandle ? `@${rawHandle}` : sub}
+                      </span>
+                    ) : null}
+                  </span>
                 </button>
               );
             })}
@@ -230,21 +245,33 @@ export default function QuickPost({
                   <ul className="mt-3 space-y-2">
                     {ready
                       .filter((c) => picked.includes(c.id))
-                      .map((c) => (
-                        <li key={c.id} className="flex items-center gap-2.5">
-                          <ChannelAvatar
-                            provider={c.provider}
-                            avatar={channelAvatar(c.metadata)}
-                            size={30}
-                          />
-                          <span className="min-w-0 flex-1 truncate text-sm font-bold">
-                            {c.display_name ?? c.handle ?? providerMeta(c.provider).label}
-                          </span>
-                          <span className="shrink-0 text-xs text-faint">
-                            {providerMeta(c.provider).label}
-                          </span>
-                        </li>
-                      ))}
+                      .map((c) => {
+                        const label = providerMeta(c.provider).label;
+                        const rawHandle =
+                          typeof c.handle === 'string' && c.handle.trim()
+                            ? c.handle.trim().replace(/^@/, '')
+                            : null;
+                        const sub =
+                          rawHandle ??
+                          (c.display_name && c.display_name !== label ? c.display_name : null);
+                        return (
+                          <li key={c.id} className="flex items-center gap-2.5">
+                            <ChannelAvatar
+                              provider={c.provider}
+                              avatar={channelAvatar(c.metadata)}
+                              size={30}
+                            />
+                            <span className="min-w-0 flex-1 leading-tight">
+                              <span className="block truncate text-sm font-bold">{label}</span>
+                              {sub ? (
+                                <span className="block truncate text-xs text-muted">
+                                  {rawHandle ? `@${rawHandle}` : sub}
+                                </span>
+                              ) : null}
+                            </span>
+                          </li>
+                        );
+                      })}
                   </ul>
                   {body.trim() ? (
                     <p className="mt-3 rounded-xl bg-paper-dim px-3 py-2 text-xs text-soft">

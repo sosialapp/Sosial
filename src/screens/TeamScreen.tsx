@@ -282,7 +282,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                 <Text style={[s.miniBtnT, { color: C.onInk }]}>Save</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setRenamingTeam(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={[s.del, { fontSize: 14 }]}>✕</Text>
+                <Ionicons name="close-circle" size={18} color={C.redText} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -318,7 +318,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                         {w.liveChannels} live channel{w.liveChannels === 1 ? '' : 's'} · {w.role}
                       </Text>
                     </View>
-                    {current ? <Text style={[s.rowT, { color: C.accentInk }]}>✓</Text> : null}
+                    {current ? <Ionicons name="checkmark-circle" size={16} color={C.accentInk} /> : null}
                   </TouchableOpacity>
                 );
               })}
@@ -459,7 +459,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                           <View style={s.rolePill}><Text style={s.rolePillT}>{inv.role}</Text></View>
                           {isManager ? (
                             <TouchableOpacity onPress={() => cancelPendingInvite(inv.id, inv.email)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                              <Text style={[s.del, { fontSize: 13 }]}>✕</Text>
+                              <Ionicons name="close-circle" size={17} color={C.redText} />
                             </TouchableOpacity>
                           ) : null}
                         </View>

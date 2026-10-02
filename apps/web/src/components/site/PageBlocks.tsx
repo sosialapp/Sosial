@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { CheckIcon } from '@/components/StatusIcons';
 
 /**
  * Shared building blocks for feature and audience pages. Server components,
@@ -84,12 +85,12 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
                 {b.title}
               </h2>
               <p className="mt-3 text-base leading-relaxed text-muted">{b.body}</p>
-              {b.points ? (
+                  {b.points ? (
                 <ul className="mt-5 space-y-2.5">
                   {b.points.map((p) => (
                     <li key={p} className="flex items-start gap-2.5 text-sm leading-relaxed text-soft">
-                      <span className="mt-0.5 text-ink" aria-hidden="true">
-                        ✓
+                      <span className="mt-0.5 inline-flex text-ink" aria-hidden="true">
+                        <CheckIcon size={15} />
                       </span>
                       {p}
                     </li>
