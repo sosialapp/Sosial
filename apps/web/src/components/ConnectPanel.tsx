@@ -34,6 +34,9 @@ const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'te
 
 const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true, vk: true };
 
+/** Listed but not connectable yet — shows a Soon tag instead of Connect. */
+const COMING_SOON: ProviderId[] = ['gmb'];
+
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
   if (p === 'telegram') return 'Telegram';
@@ -765,9 +768,15 @@ export default function ConnectPanel({
           const hasAny = list.length > 0;
           const expanded = open === p;
           const manual = MANUAL[p] === true;
+          const soon = COMING_SOON.includes(p);
           const label = providerLabel(p);
 
           const onRow = () => {
+            // Coming soon: expand to the note, never start OAuth.
+            if (soon) {
+              setOpen(expanded ? null : p);
+              return;
+            }
             // No accounts yet on an OAuth provider: consent opens in a new
             // tab so this page keeps its place. Members can't start connects.
             if (!manual && !hasAny) {
@@ -801,6 +810,8 @@ export default function ConnectPanel({
                     aria-hidden="true"
                     className={`h-4 w-4 shrink-0 text-faint transition-transform ${expanded ? 'rotate-180' : ''}`}
                   />
+                ) : soon ? (
+                  <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">Soon</span>
                 ) : (
                   <span className="shrink-0 text-[13px] font-bold text-accent-ink">Connect</span>
                 )}
@@ -1276,7 +1287,14 @@ export default function ConnectPanel({
                   ) : null}
 
                   {!manual ? (
-                    canManage ? (
+                    soon ? (
+                    <div className="rounded-xl bg-paper px-3 py-2.5">
+                      <p className="text-center text-[11px] leading-relaxed text-muted">
+                        Google Business Profile is coming soon — Google still has to approve
+                        the API access. It will light up here the moment it does.
+                      </p>
+                    </div>
+                    ) : canManage ? (
                     <div className="rounded-xl bg-paper px-3 py-2.5">
                       <a
                         href={startHref(p as OAuthProvider)}

@@ -16,6 +16,7 @@ import { ensureToken as ensureXToken } from './x';
 import { ensureToken as ensureLinkedInToken } from './linkedin';
 import { ensureToken as ensurePinterestToken } from './pinterest';
 import { ensureToken as ensureYouTubeToken } from './youtube';
+import { ensureToken as ensureGmbToken } from './gmb';
 import { ensureSession as ensureBlueskySession } from './bsky';
 
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
@@ -110,6 +111,8 @@ async function accessToken(c: ChannelRow, t: TokenRow): Promise<string> {
       return ensurePinterestToken(b);
     case 'youtube':
       return ensureYouTubeToken(b);
+    case 'gmb':
+      return ensureGmbToken(b);
     case 'bluesky':
       return (await ensureBlueskySession(b)).token;
     default:
@@ -204,6 +207,22 @@ async function avatarUrl(c: ChannelRow, token: string): Promise<string> {
       if (!inst) throw new Error('Mastodon channel missing instance URL.');
       const j = await getJson(`${inst}/api/v1/accounts/verify_credentials`, token);
       return firstString(j?.avatar, j?.avatar_static);
+    }
+    case 'gmb': {
+      // Location cover photo via the v4 media library (first photo wins).
+      // Photo-less locations honestly return nothing (brand disc stays).
+      const parent = String(c.external_id ?? '');
+      if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(parent)) {
+        throw new Error('GBP location missing — reconnect the channel.');
+      }
+      const r = await fetch(
+        `https://mybusiness.googleapis.com/v4/${parent}/media?pageSize=1`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.error?.message ?? `gmb media (${r.status})`);
+      const items = Array.isArray(j?.mediaItems) ? j.mediaItems : [];
+      return firstString(items[0]?.googleUrl, items[0]?.thumbnailUrl);
     }
     case 'telegram': {
       // Chat photo lives behind two Bot API calls: getChat yields the file

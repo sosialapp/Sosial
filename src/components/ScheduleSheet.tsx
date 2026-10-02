@@ -25,7 +25,7 @@ import { fetchPostStats, SentPostStats } from '../utils/postStats';
 import { fbComments, igComments, thComments, mastodonComments, bskyComments, ytComments, PerPost, FeedComment } from '../utils/analytics';
 
 const CHANNELS = ['any', 'facebook', 'instagram', 'tiktok', 'threads', 'linkedin', 'bluesky', 'youtube', 'mastodon', 'pinterest', 'x', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'reddit', 'gmb'];
-const COMING_SOON: string[] = [];
+const COMING_SOON: string[] = ['gmb'];
 /** Media gating per channel (mirrors web CAPABILITIES.requiresMedia/Video +
  *  supports.video): 'any' = needs photo or video, 'video' = needs a video,
  *  'no-video' = text/photos only. */
@@ -774,7 +774,11 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
   // Channel chips: Anywhere first, then connected only — unconnected channels
   // can't publish, so listing them only leads to "isn't connected" dead ends.
-  const orderedChannels = ['any', ...CHANNELS.filter((c) => c !== 'any' && connected.includes(c))];
+  const orderedChannels = [
+    'any',
+    ...CHANNELS.filter((c) => c !== 'any' && connected.includes(c)),
+    ...(COMING_SOON as string[]).filter((c) => c !== 'any' && !connected.includes(c)),
+  ];
 
   const onPick = (_e: any, d?: Date) => {
     if (_e?.type === 'dismissed') {

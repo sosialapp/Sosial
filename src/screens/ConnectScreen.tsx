@@ -907,7 +907,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const ytConfigured = YT_CLIENT_ID.length > 0 && !YT_CLIENT_ID.startsWith('PASTE_');
   const pinConfigured = PIN_CLIENT_ID.length > 0 && !PIN_CLIENT_ID.startsWith('PASTE_');
 
-  const providerCfg: Record<ProviderKey, { label: string; manual: boolean; configured: boolean; connect: (accountId?: string) => void }> = {
+  const providerCfg: Record<ProviderKey, { label: string; manual: boolean; configured: boolean; soon?: boolean; connect: (accountId?: string) => void }> = {
     facebook: { label: 'Facebook', manual: false, configured, connect: doFacebook },
     instagram: { label: 'Instagram', manual: false, configured: IG_APP_ID.length > 0, connect: doInstagram },
     threads: { label: 'Threads', manual: false, configured, connect: doThreads },
@@ -926,7 +926,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     ghost: { label: 'Ghost', manual: true, configured: true, connect: doGhost },
     vk: { label: 'VK', manual: true, configured: true, connect: doVk },
     reddit: { label: 'Reddit', manual: false, configured: rdConfigured(), connect: doReddit },
-    gmb: { label: 'Google Business Profile', manual: false, configured: true, connect: doGmb },
+    gmb: { label: 'Google Business Profile', manual: false, configured: true, soon: true, connect: doGmb },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -1654,10 +1654,17 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             const hasAny = list.length > 0;
             const expanded = openProvider === p;
             const connect = () => { if (!needManager()) return; if (cfg.configured) cfg.connect(undefined); };
+            const soonTap = () => {
+              Alert.alert(
+                `${cfg.label} is coming soon`,
+                'Google still has to approve the API access. It will light up here the moment it does.',
+              );
+            };
             return (
               <View key={p}>
                 <TouchableOpacity
                   onPress={() => {
+                    if (cfg.soon) { soonTap(); return; }
                     if (!cfg.manual && !hasAny) connect();
                     else setOpenProvider(expanded ? null : p);
                   }}
@@ -1666,7 +1673,12 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                 >
                   <ChannelIcon platform={p} />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.rowT}>{cfg.label}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={s.rowT}>{cfg.label}</Text>
+                      {cfg.soon ? (
+                        <View style={s.soonBadge}><Text style={s.soonBadgeT}>Soon</Text></View>
+                      ) : null}
+                    </View>
                     {list.length === 0 ? (
                       <Text style={s.rowS} numberOfLines={1}>{statusLabel(p, list)}</Text>
                     ) : (
@@ -1719,8 +1731,13 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                         </View>
                       );
                     })}
-                    {cfg.manual ? renderManualForm(p) : null}
-                    {!cfg.manual ? renderSubPanel(p) : null}
+                    {cfg.manual && !cfg.soon ? renderManualForm(p) : null}
+                    {!cfg.manual && !cfg.soon ? renderSubPanel(p) : null}
+                    {cfg.soon ? (
+                      <View style={s.pageRow}>
+                        <Text style={s.pageT} numberOfLines={3}>Coming soon — Google still has to approve the API access. It will light up here the moment it does.</Text>
+                      </View>
+                    ) : null}
                     {p === 'tiktok' && list.length > 0 ? (
                       <View style={s.switchBox}>
                         <Text style={s.switchT}>
@@ -1732,7 +1749,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                         </TouchableOpacity>
                       </View>
                     ) : null}
-                    {!cfg.manual && cfg.configured ? (
+                    {!cfg.manual && cfg.configured && !cfg.soon ? (
                       <TouchableOpacity onPress={() => { if (needManager()) cfg.connect(makeAccount(p).id); }} activeOpacity={0.7} style={s.addRow}>
                         <Ionicons name="add-circle-outline" size={16} color={C.accentInk} />
                         <Text style={s.addRowT}>Add another {cfg.label} account</Text>
@@ -1772,8 +1789,11 @@ const makeS = (C: Palette) => StyleSheet.create({
   addRowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   switchBox: { backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.lineSoft, padding: 12, marginTop: 8, gap: 8 },
   switchT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18, color: C.muted },
-  switchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10, backgroundColor: C.accentSoft },
+  switchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+           paddingVertical: 8, borderRadius: 10, backgroundColor: C.accentSoft },
   switchBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
+  soonBadge: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  soonBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.accentInk },
   bskyField: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, paddingHorizontal: 13 },
   bskySuffix: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14.5, color: C.muted },
   helpCard: { backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, padding: 12, gap: 8 },
