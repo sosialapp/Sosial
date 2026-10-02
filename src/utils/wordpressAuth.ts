@@ -53,7 +53,7 @@ export async function validateWordPress(
   siteUrl: string,
   username: string,
   appPassword: string,
-): Promise<{ userId: string; siteName: string }> {
+): Promise<{ userId: string; siteName: string; avatar?: string }> {
   const base = siteBase(siteUrl);
   const header = auth(username.trim(), appPassword.trim());
   let me: { id: number };
@@ -66,11 +66,29 @@ export async function validateWordPress(
     );
   }
   let siteName = base.replace(/^https?:\/\//i, '');
+  let avatar: string | undefined;
   try {
-    const root = await wp<{ name?: string }>(base, header, '/');
+    const root = await wp<{ name?: string; site_icon?: number }>(base, header, '/');
     if (root.name) siteName = root.name;
+    // Site icon, best-effort — icon-less sites keep the brand disc.
+    const iconId = Number(root.site_icon ?? 0);
+    if (iconId > 0) {
+      try {
+        const media = await wp<{
+          source_url?: string;
+          media_details?: { sizes?: Record<string, { source_url?: string }> };
+        }>(base, header, `/wp/v2/media/${iconId}`);
+        const thumb =
+          media?.media_details?.sizes?.thumbnail?.source_url ??
+          media?.media_details?.sizes?.medium?.source_url ??
+          media?.source_url;
+        if (typeof thumb === 'string' && thumb) avatar = thumb;
+      } catch {
+        /* no avatar */
+      }
+    }
   } catch {
     /* display-only */
   }
-  return { userId: String(me.id), siteName };
+  return { userId: String(me.id), siteName, avatar };
 }

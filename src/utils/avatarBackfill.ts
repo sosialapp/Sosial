@@ -9,6 +9,9 @@ import { getValidMastodon, fetchMastodonProfile } from './mastodonAuth';
 import { getValidLi, fetchLiProfile } from './liAuth';
 import { getValidYt, fetchYtProfile } from './ytAuth';
 import { getValidPin, fetchPinProfile } from './pinAuth';
+import { fetchTelegramChatAvatar } from './telegramAuth';
+import { validateDevto } from './devtoAuth';
+import { validateWordPress } from './wordpressAuth';
 import { syncCloudChannels } from './cloudChannels';
 
 const LAST_KEY = 'avatar_backfill_at_v1';
@@ -76,6 +79,32 @@ async function fetchAvatar(a: ConnectedAccount): Promise<string | undefined> {
     case 'pinterest': {
       const c = await getValidPin(a.id);
       return (await fetchPinProfile(c.token)).avatar;
+    }
+    case 'telegram': {
+      const tok = str(f.tgBotToken);
+      const chatId = str(f.tgChatId);
+      if (!tok || !chatId) return undefined;
+      return fetchTelegramChatAvatar(tok, chatId);
+    }
+    case 'wordpress': {
+      const site = str(f.wpSiteUrl);
+      const user = str(f.wpUsername);
+      const pass = str(f.wpAppPassword);
+      if (!site || !user || !pass) return undefined;
+      try {
+        return (await validateWordPress(site, user, pass)).avatar;
+      } catch {
+        return undefined;
+      }
+    }
+    case 'devto': {
+      const key = str(f.devApiKey);
+      if (!key) return undefined;
+      try {
+        return (await validateDevto(key)).avatar;
+      } catch {
+        return undefined;
+      }
     }
     default:
       return undefined;

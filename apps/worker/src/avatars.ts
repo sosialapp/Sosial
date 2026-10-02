@@ -205,6 +205,62 @@ async function avatarUrl(c: ChannelRow, token: string): Promise<string> {
       const j = await getJson(`${inst}/api/v1/accounts/verify_credentials`, token);
       return firstString(j?.avatar, j?.avatar_static);
     }
+    case 'telegram': {
+      // Chat photo lives behind two Bot API calls: getChat yields the file
+      // id, getFile resolves it to a downloadable path. The file URL is
+      // stable while the bot token is valid. Chats without a photo honestly
+      // return nothing (brand disc stays).
+      const post = async (method: string, payload: Record<string, unknown>): Promise<any> => {
+        const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j: any = await r.json().catch(() => ({}));
+        if (!r.ok || j?.ok !== true) {
+          throw new Error(j?.description ?? `telegram ${method} (${r.status})`);
+        }
+        return j.result;
+      };
+      const chat = await post('getChat', { chat_id: ext });
+      const fileId = chat?.photo?.small_file_id;
+      if (typeof fileId !== 'string' || !fileId) return '';
+      const file = await post('getFile', { file_id: fileId });
+      if (typeof file?.file_path !== 'string' || !file.file_path) return '';
+      return `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+    }
+    case 'wordpress': {
+      // Site icon id lives on the REST index; the media item carries the
+      // file URL (thumbnail when available, full size otherwise).
+      const base = (c.instance_url || '').replace(/\/+$/, '');
+      if (!/^https?:\/\//i.test(base)) throw new Error('WordPress channel missing site URL.');
+      const username = c.metadata?.username;
+      if (typeof username !== 'string' || !username) {
+        throw new Error('WordPress channel missing username.');
+      }
+      const auth = `Basic ${Buffer.from(`${username}:${token}`).toString('base64')}`;
+      const get = async (path: string): Promise<any> => {
+        const r = await fetch(`${base}/wp-json${path}`, { headers: { Authorization: auth } });
+        const j: any = await r.json().catch(() => ({}));
+        if (!r.ok || !j) throw new Error(j?.message ?? `wordpress ${path} (${r.status})`);
+        return j;
+      };
+      const root = await get('/');
+      const iconId = Number(root?.site_icon ?? 0);
+      if (!iconId) return '';
+      const media = await get(`/wp/v2/media/${iconId}`);
+      return firstString(
+        media?.media_details?.sizes?.thumbnail?.source_url,
+        media?.media_details?.sizes?.medium?.source_url,
+        media?.source_url,
+      );
+    }
+    case 'devto': {
+      const r = await fetch('https://dev.to/api/users/me', { headers: { 'api-key': token } });
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok || !j?.id) throw new Error(j?.error ?? `devto me (${r.status})`);
+      return firstString(j?.profile_image_90, j?.profile_image);
+    }
     default:
       throw new Error(`no avatar fetcher for provider '${c.provider}'`);
   }

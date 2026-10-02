@@ -86,10 +86,10 @@ serve(async (req: Request): Promise<Response> => {
 
   // Validate token + destination against Telegram before storing anything.
   let bot: { username?: string; first_name?: string; id: number };
-  let chat: { id: number; title?: string; username?: string; type: string };
+  let chat: { id: number; title?: string; username?: string; type: string; photo?: { small_file_id?: string } };
   try {
     bot = await callBot<{ username?: string; first_name?: string; id: number }>(token, "getMe", {});
-    chat = await callBot<{ id: number; title?: string; username?: string; type: string }>(
+    chat = await callBot<{ id: number; title?: string; username?: string; type: string; photo?: { small_file_id?: string } }>(
       token,
       "getChat",
       { chat_id: target },
@@ -103,6 +103,19 @@ serve(async (req: Request): Promise<Response> => {
 
   const resolvedId = String(chat.id);
   const title = chat.title ?? chat.username ?? resolvedId;
+
+  // Chat photo, best-effort: getChat yields a file id, getFile resolves it.
+  // Missing/failed photos must never fail the connect.
+  let avatar: string | undefined;
+  try {
+    const fileId = chat.photo?.small_file_id;
+    if (fileId) {
+      const file = await callBot<{ file_path?: string }>(token, "getFile", { file_id: fileId });
+      if (file?.file_path) avatar = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+    }
+  } catch {
+    /* photo-less chats keep the brand disc */
+  }
 
   // Store through the existing import path (Vault + connected_channels).
   const importRes = await fetch(`${supaUrl}/functions/v1/import-channel-token`, {
@@ -121,6 +134,7 @@ serve(async (req: Request): Promise<Response> => {
         chatType: chat.type,
         username: chat.username ?? "",
         botUsername: bot.username ?? "",
+        ...(avatar ? { avatar } : {}),
       },
       access_token: token,
       token_type: "Bot",

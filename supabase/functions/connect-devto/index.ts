@@ -57,7 +57,7 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Only workspace owners and admins can connect channels.", 403);
   }
 
-  let me: { id: number; username?: string; name?: string };
+  let me: { id: number; username?: string; name?: string; profile_image?: string; profile_image_90?: string };
   try {
     const res = await fetch(`${API}/users/me`, { headers: { "api-key": key } });
     const json = (await res.json().catch(() => null)) as typeof me & { error?: string };
@@ -74,6 +74,13 @@ serve(async (req: Request): Promise<Response> => {
     );
   }
 
+  const avatar =
+    typeof me.profile_image_90 === "string" && me.profile_image_90
+      ? me.profile_image_90
+      : typeof me.profile_image === "string" && me.profile_image
+        ? me.profile_image
+        : undefined;
+
   const importRes = await fetch(`${supaUrl}/functions/v1/import-channel-token`, {
     method: "POST",
     headers: { "content-type": "application/json", Authorization: authHeader },
@@ -83,7 +90,7 @@ serve(async (req: Request): Promise<Response> => {
       external_id: String(me.id),
       display_name: me.name || me.username || "Dev.to",
       handle: me.username ? `@${me.username}` : null,
-      metadata: { username: me.username ?? "" },
+      metadata: { username: me.username ?? "", ...(avatar ? { avatar } : {}) },
       access_token: key,
       token_type: "ApiKey",
       scopes: [],

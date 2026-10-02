@@ -407,7 +407,12 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       const chat = await resolveTelegramChat(tgToken.trim(), tgChat.trim());
       await saveProviderFields(
         'telegram',
-        { tgBotToken: tgToken.trim(), tgChatId: chat.id, tgChatTitle: chat.title },
+        {
+          tgBotToken: tgToken.trim(),
+          tgChatId: chat.id,
+          tgChatTitle: chat.title,
+          ...(chat.avatar ? { avatar: chat.avatar } : {}),
+        },
         accountId,
       );
       setTgToken('');
@@ -517,6 +522,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           wpUsername: wpUser.trim(),
           wpAppPassword: wpPass,
           wpSiteName: site.siteName,
+          ...(site.avatar ? { avatar: site.avatar } : {}),
         },
         accountId,
       );
@@ -548,6 +554,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           devUserId: id.userId,
           devUsername: id.username,
           devName: id.name,
+          ...(id.avatar ? { avatar: id.avatar } : {}),
         },
         accountId,
       );

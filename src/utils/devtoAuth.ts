@@ -10,12 +10,13 @@ export interface DevtoIdentity {
   userId: string;
   username: string;
   name: string;
+  avatar?: string;
 }
 
 export async function validateDevto(apiKey: string): Promise<DevtoIdentity> {
   const key = apiKey.trim();
   if (!key) throw new Error('Paste the API key first.');
-  let me: { id: number; username?: string; name?: string };
+  let me: { id: number; username?: string; name?: string; profile_image?: string; profile_image_90?: string };
   try {
     const res = await fetch(`${API}/users/me`, { headers: { 'api-key': key } });
     const json = (await res.json().catch(() => null)) as
@@ -37,5 +38,6 @@ export async function validateDevto(apiKey: string): Promise<DevtoIdentity> {
     userId: String(me.id),
     username: me.username ?? '',
     name: me.name ?? me.username ?? '',
+    avatar: me.profile_image_90 ?? me.profile_image ?? undefined,
   };
 }

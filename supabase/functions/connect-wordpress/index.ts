@@ -101,9 +101,27 @@ serve(async (req: Request): Promise<Response> => {
     );
   }
   let siteName = base.replace(/^https?:\/\//i, "");
+  let avatar: string | undefined;
   try {
-    const root = await wp<{ name?: string }>(base, auth, "/");
+    const root = await wp<{ name?: string; site_icon?: number }>(base, auth, "/");
     if (root.name) siteName = root.name;
+    // Site icon, best-effort — icon-less sites keep the brand disc.
+    const iconId = Number(root.site_icon ?? 0);
+    if (iconId > 0) {
+      try {
+        const media = await wp<{
+          source_url?: string;
+          media_details?: { sizes?: Record<string, { source_url?: string }> };
+        }>(base, auth, `/wp/v2/media/${iconId}`);
+        const thumb =
+          media?.media_details?.sizes?.thumbnail?.source_url ??
+          media?.media_details?.sizes?.medium?.source_url ??
+          media?.source_url;
+        if (typeof thumb === "string" && thumb) avatar = thumb;
+      } catch {
+        /* fall through without an avatar */
+      }
+    }
   } catch {
     /* display-only */
   }
@@ -119,7 +137,7 @@ serve(async (req: Request): Promise<Response> => {
       display_name: siteName,
       handle: wpUser,
       instance_url: base,
-      metadata: { username: wpUser },
+      metadata: { username: wpUser, ...(avatar ? { avatar } : {}) },
       access_token: (app_password as string).trim(),
       token_type: "Basic",
       scopes: [],
