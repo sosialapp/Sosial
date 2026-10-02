@@ -52,7 +52,7 @@ function BoltEmblem() {
   const outer = '48s';
   const middle = '36s';
   return (
-    <div className="relative mx-auto mt-8 h-72 w-72" aria-hidden="true">
+    <div className="relative mx-auto mt-8 h-56 w-56 sm:h-72 sm:w-72" aria-hidden="true">
       <div className="absolute inset-0 rounded-[28%] border border-[#FFC240] opacity-10" />
       <div className="absolute inset-[6.94%] rounded-[28%] border border-[#FFC240] opacity-30" />
       <div className="absolute inset-[13.89%] rounded-[28%] border border-[#FFC240] opacity-60" />
@@ -100,7 +100,7 @@ export default function FeaturesBento() {
     <section aria-label="Features" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-10 pb-14 md:pt-16 md:pb-28">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="mt-2 font-display text-[17px] leading-[1.12] font-semibold tracking-tight whitespace-nowrap sm:text-2xl md:text-4xl">
+          <h2 className="mt-2 font-display text-[17px] leading-[1.12] font-semibold tracking-tight text-balance sm:whitespace-nowrap sm:text-2xl md:text-4xl">
             Everything a daily poster needs.
           </h2>
           <p className="mt-3 text-muted">
@@ -185,7 +185,7 @@ export default function FeaturesBento() {
             {/* Illustration: account avatars + channel logo grid, centered */}
             <div className="relative flex flex-1 flex-col items-center justify-center">
               <div className="flex justify-center" aria-hidden="true">
-                <div className="flex -space-x-4">
+                <div className="flex -space-x-3 sm:-space-x-4">
                 {[
                   { img: 'women/44', channel: 'threads' },
                   { img: 'men/32', channel: 'mastodon' },
@@ -198,7 +198,7 @@ export default function FeaturesBento() {
                 ].map((a, i, all) => (
                   <span
                     key={a.img}
-                    className="relative block h-12 w-12 shrink-0 sm:h-16 sm:w-16"
+                    className="relative block h-10 w-10 shrink-0 sm:h-16 sm:w-16"
                     style={{ zIndex: all.length - i }}
                   >
                     <Image
@@ -207,10 +207,10 @@ export default function FeaturesBento() {
                       width={128}
                       height={128}
                       loading="lazy"
-                      className="block h-12 w-12 rounded-full object-cover sm:h-16 sm:w-16"
+                      className="block h-10 w-10 rounded-full object-cover sm:h-16 sm:w-16"
                     />
                     <span
-                      className="absolute flex h-7 w-7 items-center justify-center rounded-full sm:h-9 sm:w-9"
+                      className="absolute flex h-6 w-6 items-center justify-center rounded-full sm:h-9 sm:w-9"
                       style={{
                         right: -2,
                         bottom: -2,
@@ -228,7 +228,7 @@ export default function FeaturesBento() {
                 </div>
               </div>
               <div
-                className="relative mx-auto mt-5 grid w-full max-w-md grid-cols-5 place-items-center gap-x-3 gap-y-4 sm:gap-x-6 sm:gap-y-5"
+                className="relative mx-auto mt-5 grid w-full max-w-md grid-cols-5 place-items-center gap-x-2 gap-y-4 sm:gap-x-6 sm:gap-y-5"
                 aria-hidden="true"
               >
               {(
@@ -248,9 +248,13 @@ export default function FeaturesBento() {
                   'wordpress',
                   'devto',
                   'hashnode',
+                  'ghost',
+                  'vk',
+                  'reddit',
+                  'gmb',
                 ] as BrandProvider[]
               ).map((p) => (
-                <BrandIcon key={p} provider={p} badge={false} className="h-10 w-10" />
+                <BrandIcon key={p} provider={p} badge={false} className="h-8 w-8 sm:h-10 sm:w-10" />
               ))}
               </div>
             </div>

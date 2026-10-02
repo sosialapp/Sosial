@@ -76,14 +76,16 @@ export default function LogoDock() {
   return (
     <section aria-label="Channels" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-12 md:pt-16">
-        <div className="flex justify-center">
+        {/* Mobile: two centered rows that wrap (19 logos never fit one strip
+            on a phone — a scrollable pill looked broken). Desktop: dock. */}
+        <div className="flex justify-center max-md:px-1">
           <div
             ref={trackRef}
-            className="flex max-w-full items-end gap-2.5 overflow-x-auto rounded-[28px] border border-line bg-white/70 px-5 pt-4 pb-3 backdrop-blur-sm sm:gap-3 sm:px-6 sm:pt-5 sm:pb-4"
+            className="flex max-w-full items-end gap-2.5 overflow-x-auto rounded-[28px] border border-line bg-white/70 px-5 pt-4 pb-3 backdrop-blur-sm sm:gap-3 sm:px-6 sm:pt-5 sm:pb-4 max-md:max-w-md max-md:flex-wrap max-md:justify-center max-md:gap-y-4 max-md:overflow-visible max-md:px-6 max-md:py-5"
           >
             {CHANNELS.map((c) => (
               <span key={c} className="block shrink-0 will-change-transform">
-                <BrandIcon provider={c} className="h-10 w-10 sm:h-12 sm:w-12" />
+                <BrandIcon provider={c} className="h-9 w-9 sm:h-12 sm:w-12" />
               </span>
             ))}
           </div>
