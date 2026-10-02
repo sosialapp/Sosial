@@ -30,6 +30,9 @@ interface Bundle {
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const API = 'https://mybusinessaccountmanagement.googleapis.com/v1';
 const API_BI = 'https://mybusinessbusinessinformation.googleapis.com/v1';
+// Local posts live on the v4 Google My Business API, NOT the Business
+// Information host — posting there 404s. Separate console entry below.
+const API_POSTS = 'https://mybusiness.googleapis.com/v4';
 
 function clientCreds(): { id: string; secret: string } {
   const id = env('YT_CLIENT_ID') || env('GOOGLE_CLIENT_ID');
@@ -145,7 +148,7 @@ export async function publishGmbTarget(bundle: Bundle): Promise<{ remoteId: stri
   try {
     data = await api<typeof data>(
       access,
-      `${API_BI}/${parent}/localPosts`,
+      `${API_POSTS}/${parent}/localPosts`,
       { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form) },
     );
   } catch (e: any) {
@@ -153,7 +156,7 @@ export async function publishGmbTarget(bundle: Bundle): Promise<{ remoteId: stri
     access = await ensureToken(b, true);
     data = await api<typeof data>(
       access,
-      `${API_BI}/${parent}/localPosts`,
+      `${API_POSTS}/${parent}/localPosts`,
       { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form) },
     );
   }

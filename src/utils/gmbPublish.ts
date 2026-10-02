@@ -4,7 +4,7 @@
  * Offers/events/CTAs/media are v1 omissions — compat declares text only.
  */
 
-import { API_BI } from './gmbConfig';
+import { API_POSTS } from './gmbConfig';
 import { getValidGmb } from './gmbAuth';
 
 function locationName(externalId: string): string {
@@ -26,7 +26,7 @@ export async function publishGmb(opts: {
   const text = (opts.text ?? '').trim();
   if (!text) throw new Error('Google Business Profile needs post text — this post is empty.');
 
-  const res = await fetch(`${API_BI}/${parent}/localPosts`, {
+  const res = await fetch(`${API_POSTS}/${parent}/localPosts`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -38,7 +38,7 @@ export async function publishGmb(opts: {
   if (res.status === 401) {
     // Force-refresh once and retry.
     const fresh = await getValidGmb(opts.accountId);
-    const retry = await fetch(`${API_BI}/${parent}/localPosts`, {
+    const retry = await fetch(`${API_POSTS}/${parent}/localPosts`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${fresh}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ languageCode: 'en', summary: text.slice(0, 1500), topicType: 'STANDARD' }),
