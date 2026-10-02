@@ -76,12 +76,13 @@ export default function LogoDock() {
   return (
     <section aria-label="Channels" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-12 md:pt-16">
-        {/* Mobile: two centered rows that wrap (19 logos never fit one strip
-            on a phone — a scrollable pill looked broken). Desktop: dock. */}
-        <div className="flex justify-center max-md:px-1">
+        {/* Two centered rows everywhere (10 + 9 on desktop): a single strip of
+            19 never fit gracefully. The hover dock still works on wrapped
+            rows; touch and reduced-motion stay static. */}
+        <div className="flex justify-center">
           <div
             ref={trackRef}
-            className="flex max-w-full items-end gap-2.5 overflow-x-auto rounded-[28px] border border-line bg-white/70 px-5 pt-4 pb-3 backdrop-blur-sm sm:gap-3 sm:px-6 sm:pt-5 sm:pb-4 max-md:max-w-md max-md:flex-wrap max-md:justify-center max-md:gap-y-4 max-md:overflow-visible max-md:px-6 max-md:py-5"
+            className="flex max-w-[660px] flex-wrap items-end justify-center gap-3 rounded-[28px] border border-line bg-white/70 px-6 py-5 backdrop-blur-sm sm:gap-4 sm:px-8"
           >
             {CHANNELS.map((c) => (
               <span key={c} className="block shrink-0 will-change-transform">

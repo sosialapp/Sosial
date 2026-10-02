@@ -374,8 +374,9 @@ export function GridPulse({
         // The hairlines, faint on their own so the lit cells keep full ink.
         // Override with --grid-pulse-line.
         "[--grid-pulse-line:color-mix(in_oklab,var(--color-ink)_7%,transparent)]",
-        // Fades out at the bottom, so whatever follows can climb over it.
-        "[mask-image:linear-gradient(to_bottom,#000_92%,transparent)]",
+        // Long soft fade toward the bottom, so the field dissolves instead
+        // of ending on a line.
+        "[mask-image:linear-gradient(to_bottom,#000_40%,transparent_100%)]",
         className,
       )}
       style={

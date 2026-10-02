@@ -79,7 +79,7 @@ export default function Hero() {
             height={959}
             priority
             sizes="(max-width: 1024px) 100vw, 60vw"
-            className="h-auto w-full [filter:drop-shadow(0_50px_100px_rgba(28,26,20,0.35))] lg:scale-[1.12] lg:origin-center"
+            className="h-auto w-full lg:scale-[1.12] lg:origin-center"
           />
         </div>
       </div>
