@@ -21,7 +21,8 @@ export type OAuthProvider =
   | 'linkedin'
   | 'pinterest'
   | 'mastodon'
-  | 'reddit';
+  | 'reddit'
+  | 'gmb';
 
 export const OAUTH_PROVIDERS: { id: OAuthProvider; label: string }[] = [
   { id: 'tiktok', label: 'TikTok' },
@@ -34,6 +35,7 @@ export const OAUTH_PROVIDERS: { id: OAuthProvider; label: string }[] = [
   { id: 'pinterest', label: 'Pinterest' },
   { id: 'mastodon', label: 'Mastodon' },
   { id: 'reddit', label: 'Reddit' },
+  { id: 'gmb', label: 'Google Business Profile' },
 ];
 
 export const isOAuthProvider = (v: unknown): v is OAuthProvider =>
@@ -68,6 +70,9 @@ const PIN_SCOPES = ['boards:read', 'boards:write', 'pins:read', 'pins:write', 'u
 // refreshes the hourly access token from it. Commercial use needs Reddit's
 // app review + paid tier; personal/dev testing rides the free tier.
 const REDDIT_SCOPES = ['identity', 'mysubreddits', 'submit', 'read'];
+// business.manage — same Google client as YouTube, so one consent can cover
+// both (YT_SCOPES + this when connecting GBP).
+const GMB_SCOPES = ['https://www.googleapis.com/auth/business.manage'];
 
 const q = (p: Record<string, string>): string =>
   Object.entries(p)
@@ -85,6 +90,7 @@ export interface OAuthConfig {
   linkedin?: { client_id?: string };
   pinterest?: { client_id?: string };
   reddit?: { client_id?: string };
+  gmb?: { client_id?: string };
 }
 
 /** Public client id for a provider. Empty = not configured. */
@@ -108,6 +114,8 @@ export function clientIdFor(provider: OAuthProvider, config: OAuthConfig): strin
       return config.pinterest?.client_id ?? '';
     case 'reddit':
       return config.reddit?.client_id ?? '';
+    case 'gmb':
+      return config.gmb?.client_id ?? '';
     case 'mastodon':
       return '';
   }
@@ -186,6 +194,13 @@ export function authorizeUrl({ provider, config, redirectUri: redir, state, chal
       return (
         'https://www.reddit.com/api/v1/authorize' +
         `?${q({ response_type: 'code', client_id: id, redirect_uri: redir, duration: 'permanent', scope: REDDIT_SCOPES.join(' '), state })}`
+      );
+    case 'gmb':
+      // access_type=offline + prompt=consent so Google always returns a
+      // refresh_token (same contract as YouTube).
+      return (
+        'https://accounts.google.com/o/oauth2/v2/auth' +
+        `?${q({ response_type: 'code', client_id: id, redirect_uri: redir, scope: GMB_SCOPES.join(' '), access_type: 'offline', prompt: 'consent', state })}`
       );
   }
 }

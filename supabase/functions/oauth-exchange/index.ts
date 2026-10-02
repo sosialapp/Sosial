@@ -603,6 +603,77 @@ async function pinterest(b: ExchangeBody): Promise<Response> {
 
 const REDDIT_UA = "web:Sosial:v1.0 (by /u/sosialapp)";
 
+const GMB_SCOPES = [
+  "https://www.googleapis.com/auth/business.manage",
+];
+
+async function gmbList(access: string, url: string): Promise<Record<string, unknown>> {
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${access}` } });
+  return json(r);
+}
+
+async function gmb(b: ExchangeBody): Promise<Response> {
+  const id = Deno.env.get("YT_CLIENT_ID") ?? Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
+  const secret = Deno.env.get("YT_CLIENT_SECRET") ?? Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
+  if (!id || !secret) return bad("Google Business Profile is not configured yet.", 402);
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form({
+      code: b.code,
+      client_id: id,
+      client_secret: secret,
+      redirect_uri: b.redirect_uri,
+      grant_type: "authorization_code",
+    }),
+  });
+  const j = await json(r);
+  const access = str(j.access_token);
+  if (!access) {
+    return bad(`Google refused the login. ${str(j.error_description ?? j.error ?? j.message).slice(0, 140)}`, 502);
+  }
+  const refresh = str(j.refresh_token);
+  const expiresAt = Date.now() + (Number(j.expires_in) || 3600) * 1000;
+  // Locations across every accessible account — the picker stages like
+  // Facebook Pages / Reddit subreddits.
+  const out: { name: string; title: string }[] = [];
+  try {
+    const accounts = (await gmbList(access, "https://mybusinessaccountmanagement.googleapis.com/v1/accounts")) as {
+      accounts?: { name: string; accountName?: string }[];
+    };
+    for (const a of accounts.accounts ?? []) {
+      const locs = (await gmbList(
+        access,
+        `https://mybusinessbusinessinformation.googleapis.com/v1/${a.name}/locations?pageSize=100&readMask=name,title`,
+      )) as { locations?: { name: string; title?: string }[] };
+      for (const l of locs.locations ?? []) {
+        out.push({ name: l.name, title: l.title || a.accountName || l.name });
+      }
+    }
+  } catch (e) {
+    const msg = String((e as Error)?.message ?? e);
+    if (/403|permission|disabled|not been used/i.test(msg)) {
+      return bad(
+        "Your Google Cloud project doesn't have Business Profile API access yet — approve it once in the Google API console, then reconnect.",
+        502,
+      );
+    }
+    return bad("Could not read your Business Profile locations.", 502);
+  }
+  if (out.length === 0) {
+    return bad("No Business Profile locations found on that Google account.", 400);
+  }
+  return ok({
+    access_token: access,
+    refresh_token: refresh || undefined,
+    expires_at: iso(expiresAt),
+    // Location pick comes next (staged); these carry over via the stash.
+    external_id: "gmb:pending",
+    display_name: "Google Business Profile",
+    locations: out,
+  });
+}
+
 async function redditMe(access: string): Promise<{ name: string; id: string; avatar?: string }> {
   const r = await fetch("https://oauth.reddit.com/api/v1/me", {
     headers: { Authorization: `Bearer ${access}`, "User-Agent": REDDIT_UA },
@@ -762,6 +833,9 @@ serve(async (req: Request): Promise<Response> => {
       case "reddit":
         if (!b.code || !b.redirect_uri) return bad("code and redirect_uri required.", 400);
         return await reddit(b);
+      case "gmb":
+        if (!b.code || !b.redirect_uri) return bad("code and redirect_uri required.", 400);
+        return await gmb(b);
       case "bluesky":
         return await bluesky(b);
       default:

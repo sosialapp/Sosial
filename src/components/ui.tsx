@@ -55,6 +55,7 @@ const GLYPH_SCALE: Record<string, number> = {
   ghost: 1,
   vk: 1,
   reddit: 1,
+  gmb: 1.15,
 };
 export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform: string; size?: number; color?: string }) {
   const s = size * (GLYPH_SCALE[platform] ?? 1);
@@ -137,6 +138,7 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
     whatsapp: 'logo-whatsapp',
     linkedin: 'logo-linkedin',
     pinterest: 'logo-pinterest',
+    gmb: 'logo-google',
   };
   return <Ionicons name={map[platform] ?? 'ellipse'} size={s} color={color} />;
 }

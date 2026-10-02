@@ -141,6 +141,29 @@ export async function GET(req: Request) {
     return res;
   }
 
+  // GBP posts per-location — stash tokens + locations, the panel picks one.
+  if (flow.provider === 'gmb') {
+    const gg = payload as ExchangePayload & { locations?: { name: string; title: string }[] };
+    if (!payload.access_token || !Array.isArray(gg.locations)) {
+      return done(`?error=${encodeURIComponent('Google hid the login — try connecting again.')}`);
+    }
+    const pick: PickState = {
+      workspace_id: flow.workspace_id,
+      nonce: flow.nonce,
+      pages: [],
+      gmb: {
+        access_token: payload.access_token,
+        refresh_token: payload.refresh_token,
+        expires_at: payload.expires_at,
+        locations: gg.locations,
+      },
+    };
+    const res = NextResponse.redirect(`${origin}/channels?connect=gmb`);
+    res.cookies.delete(FLOW_COOKIE);
+    res.cookies.set(PICK_COOKIE, b64e(pick), cookieOpts(origin));
+    return res;
+  }
+
   if (!payload.access_token || !payload.external_id) {
     return done(`?error=${encodeURIComponent('The provider hid the account — try again.')}`);
   }

@@ -17,6 +17,7 @@ import { loginX, completeXLogin } from '../utils/xAuth';
 import { validateVk } from '../utils/vkAuth';
 import { loginReddit, fetchRedditSubreddits, type RdSub } from '../utils/redditAuth';
 import { rdConfigured } from '../utils/redditConfig';
+import { loginGmb, fetchGmbLocations, completeGmbLogin, type GmbLocation } from '../utils/gmbAuth';
 import { X_CLIENT_ID } from '../utils/xConfig';
 import { completeBskyLogin } from '../utils/bskyAuth';
 import { validateTelegramBot, resolveTelegramChat } from '../utils/telegramAuth';
@@ -88,6 +89,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [rdSubs, setRdSubs] = useState<RdSub[]>([]);
   const [rdOpen, setRdOpen] = useState(false);
   const [rdSr, setRdSr] = useState('');
+  const [ggLocs, setGgLocs] = useState<GmbLocation[]>([]);
+  const [ggOpen, setGgOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
   const [acctsLoading, setAcctsLoading] = useState(true);
@@ -274,6 +277,28 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           setOpenProvider('reddit');
         }
         if (!name) Alert.alert('Connected', 'Reddit connected — we couldn’t read the handle yet.');
+      } else if (r.channel === 'gmb') {
+        // Exchange first, then stage the location pick.
+        const pid = r.accountId ?? 'acct_gmb';
+        await completeGmbLogin(r.code, pid);
+        const accts = await loadAccounts();
+        setAccounts(accts);
+        setSelId((s) => ({ ...s, gmb: pid }));
+        try {
+          const acct = accts.find((a) => a.id === pid);
+          const tok = (acct?.fields.gmAccessToken as string | undefined) ?? '';
+          if (tok) {
+            setGgLocs(await fetchGmbLocations(tok));
+            setGgOpen(true);
+            setOpenProvider('gmb');
+          } else {
+            Alert.alert('Connected', 'Google connected — reconnect to pick a location.');
+          }
+        } catch (e: any) {
+          Alert.alert('Connected', e?.message ?? 'Google connected — pick your location below.');
+          setGgOpen(true);
+          setOpenProvider('gmb');
+        }
       }
       if (r.code) await markCodeDone(r.code);
     } catch (e: any) {
@@ -680,6 +705,45 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
+  const doGmb = async (accountId?: string) => {
+    setBusy('Opening Google…');
+    if (!(await loginGmb(accountId))) backedOut('Google Business Profile');
+  };
+
+  /** Stage 2 of the GBP connect: clone account-level tokens into a
+   *  per-location row (multi-account clone via saveProviderFields). */
+  const doGmbPick = async (loc: GmbLocation, accountId?: string) => {
+    setBusy(`Connecting ${loc.title}…`);
+    try {
+      const accounts = await loadAccounts();
+      const src =
+        (accountId ? accounts.find((a) => a.id === accountId) : undefined) ??
+        accounts.find((a) => a.provider === 'gmb' && !!a.fields.gmLocation) ??
+        accounts.find((a) => a.provider === 'gmb' && a.fields.gmRefreshToken);
+      const f = src?.fields ?? {};
+      if (!f.gmRefreshToken) {
+        throw new Error('Google login is missing — connect Google Business Profile first.');
+      }
+      await saveProviderFields(
+        'gmb',
+        {
+          gmAccessToken: f.gmAccessToken,
+          gmRefreshToken: f.gmRefreshToken,
+          gmExpiresAt: f.gmExpiresAt,
+          gmLocation: loc.name,
+          gmLocationTitle: loc.title,
+        },
+        accountId,
+      );
+      setAccounts(await loadAccounts());
+      Alert.alert('Connected', `Google Business Profile → ${loc.title}.`);
+    } catch (e: any) {
+      Alert.alert('Google Business Profile connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const doReddit = async (accountId?: string) => {
     if (!rdConfigured()) {
       Alert.alert('Keys missing', 'Paste the Reddit Client ID/Secret into .env first, then reload.');
@@ -862,6 +926,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     ghost: { label: 'Ghost', manual: true, configured: true, connect: doGhost },
     vk: { label: 'VK', manual: true, configured: true, connect: doVk },
     reddit: { label: 'Reddit', manual: false, configured: rdConfigured(), connect: doReddit },
+    gmb: { label: 'Google Business Profile', manual: false, configured: true, connect: doGmb },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -1230,6 +1295,28 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         </>
       );
     }
+    if (p === 'gmb') {
+      return (
+        <>
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Google Business Profile</Text>
+            {[
+              'Sign in with the Google account that manages the profile',
+              'Pick your location below (each connects separately)',
+              'Posts publish as local posts on the profile',
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { if (needManager()) void doGmb(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another location' : 'Connect Google Business Profile'}</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
     return null;
   };
 
@@ -1267,6 +1354,51 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           ) : (
             <TouchableOpacity onPress={() => acct && void loadPagesFor(acct)} activeOpacity={0.7} style={s.pageRow}>
               <Text style={s.pageT}>Load my Pages</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      );
+    }
+    if (p === 'gmb') {
+      const sel = selectedAccountFor('gmb');
+      const cur = sel?.fields.gmLocation as string | undefined;
+      return (
+        <>
+          {ggOpen && ggLocs.length > 0 ? (
+            ggLocs.map((l) => (
+              <TouchableOpacity
+                key={l.name}
+                onPress={() => { if (needManager()) void doGmbPick(l, sel?.id); }}
+                style={[s.pageRow, cur === l.name && { borderWidth: 1.5, borderColor: C.accent }]}
+                activeOpacity={0.75}
+              >
+                <Text style={s.pageT} numberOfLines={1}>{l.title}</Text>
+                {cur === l.name ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity
+              onPress={async () => {
+                const acct = sel ?? selectedAccountFor('gmb');
+                const tok = (acct?.fields.gmAccessToken as string | undefined) ?? '';
+                if (!tok) {
+                  Alert.alert('Connect first', 'Sign in with Google above, then pick your location here.');
+                  return;
+                }
+                setBusy('Loading locations…');
+                try {
+                  setGgLocs(await fetchGmbLocations(tok));
+                  setGgOpen(true);
+                } catch (e: any) {
+                  Alert.alert('Could not list locations', e?.message ?? 'Try again.');
+                } finally {
+                  setBusy(null);
+                }
+              }}
+              activeOpacity={0.7}
+              style={s.pageRow}
+            >
+              <Text style={s.pageT}>List my locations</Text>
             </TouchableOpacity>
           )}
         </>

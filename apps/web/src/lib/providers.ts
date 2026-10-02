@@ -31,6 +31,7 @@ export const PROVIDER_META: Record<ProviderKey, ProviderInfo> = {
   ghost: { label: 'Ghost', color: '#15171A', glyph: 'GH', limit: 100000, kind: 'professional' },
   vk: { label: 'VK', color: '#0077FF', glyph: 'VK', limit: 16384, kind: 'social' },
   reddit: { label: 'Reddit', color: '#FF4500', glyph: 'r/', limit: 40000, kind: 'social' },
+  gmb: { label: 'Google Business Profile', color: '#4285F4', glyph: 'G', limit: 1500, kind: 'professional' },
 };
 
 export function providerMeta(p: string): ProviderInfo {

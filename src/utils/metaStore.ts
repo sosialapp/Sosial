@@ -130,6 +130,13 @@ export interface MetaState {
   rdUserId?: string;
   rdUserName?: string;
   rdSubreddit?: string;
+  // Google Business Profile (same Google client as YouTube). Each location
+  // is its own channel: account-level tokens + the location resource name.
+  gmAccessToken?: string;
+  gmRefreshToken?: string;
+  gmExpiresAt?: number;
+  gmLocation?: string;
+  gmLocationTitle?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -299,6 +306,7 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.ghSiteUrl && m.ghAdminKey) out.push('ghost');
   if (m.vkToken && m.vkGroupId) out.push('vk');
   if (m.rdRefreshToken && m.rdSubreddit) out.push('reddit');
+  if (m.gmRefreshToken && m.gmLocation) out.push('gmb');
   return out;
 }
 
@@ -334,5 +342,6 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('ghost', has(m.ghSiteUrl));
   consider('vk', has(m.vkGroupId) || has(m.vkGroupName));
   consider('reddit', has(m.rdSubreddit) || has(m.rdUserName));
+  consider('gmb', has(m.gmLocation) || has(m.gmLocationTitle));
   return out;
 }

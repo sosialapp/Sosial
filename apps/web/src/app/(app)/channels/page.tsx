@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import AvatarSync from '@/components/AvatarSync';
 import { channelAvatar } from '@/lib/channelAvatar';
-import ConnectPanel, { type FbPickPage, type RedditPickSub } from '@/components/ConnectPanel';
+import ConnectPanel, { type FbPickPage, type RedditPickSub, type GmbPickLocation } from '@/components/ConnectPanel';
 import { fetchChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
@@ -57,6 +57,26 @@ export default async function ChannelsPage({
     }
   }
 
+  // GBP location pick pending from the OAuth callback (httpOnly cookie).
+  let gmbPick: GmbPickLocation[] | null = null;
+  if (params.connect === 'gmb') {
+    try {
+      const jar = await cookies();
+      const raw = jar.get('sosial_fb_pick')?.value;
+      const pick = raw
+        ? (JSON.parse(Buffer.from(raw, 'base64url').toString()) as {
+            workspace_id?: string;
+            gmb?: { locations?: GmbPickLocation[] };
+          })
+        : null;
+      if (pick?.workspace_id === ctx.workspace.id && Array.isArray(pick.gmb?.locations)) {
+        gmbPick = pick.gmb!.locations;
+      }
+    } catch {
+      gmbPick = null;
+    }
+  }
+
   const missingAvatars = channels.filter(
     (c) => c.status === 'connected' && !channelAvatar(c.metadata),
   ).length;
@@ -77,6 +97,7 @@ export default async function ChannelsPage({
           channels={channels}
           fbPick={fbPick}
           redditPick={redditPick}
+          gmbPick={gmbPick}
           status={{ connected: params.connected, already: params.already, error: params.error }}
           canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
         />

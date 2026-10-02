@@ -23,6 +23,11 @@ export interface RedditPickSub {
   subscribers?: number;
 }
 
+export interface GmbPickLocation {
+  name: string;
+  title: string;
+}
+
 type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk';
 
 const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
@@ -38,6 +43,7 @@ function providerLabel(p: ProviderId): string {
   if (p === 'hashnode') return 'Hashnode';
   if (p === 'ghost') return 'Ghost';
   if (p === 'vk') return 'VK';
+  if (p === 'gmb') return 'Google Business';
   return oauthLabel(p);
 }
 
@@ -71,6 +77,7 @@ export default function ConnectPanel({
   channels,
   fbPick,
   redditPick,
+  gmbPick,
   status,
   canManage,
 }: {
@@ -80,13 +87,17 @@ export default function ConnectPanel({
   fbPick: FbPickPage[] | null;
   /** Reddit subreddits waiting for a pick (from ?connect=reddit). */
   redditPick: { username: string; subreddits: RedditPickSub[] } | null;
+  /** GBP locations waiting for a pick (from ?connect=gmb). */
+  gmbPick: GmbPickLocation[] | null;
   /** Result banners (from ?connected= / ?error=). */
   status: { connected?: string; already?: string; error?: string };
   /** Owners and admins — they see Remove/disconnect and every connect
    *  action. Ordinary members get a read-only list plus a note. */
   canManage: boolean;
 }) {
-  const [open, setOpen] = useState<ProviderId | null>(fbPick ? 'facebook' : redditPick ? 'reddit' : null);
+  const [open, setOpen] = useState<ProviderId | null>(
+    fbPick ? 'facebook' : redditPick ? 'reddit' : gmbPick ? 'gmb' : null,
+  );
   const [srFilter, setSrFilter] = useState('');
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
@@ -584,8 +595,7 @@ export default function ConnectPanel({
     }
   }
 
-  async function pickSubreddit(name: string) {
-    const sr = name.trim().replace(/^r\//i, '').toLowerCase();
+  async function pickSubreddit(name: string) {    const sr = name.trim().replace(/^r\//i, '').toLowerCase();
     if (!sr) {
       setErr('Type a subreddit name first.');
       return;
@@ -612,6 +622,29 @@ export default function ConnectPanel({
     }
   }
 
+  async function pickLocation(name: string) {
+    setErr(null);
+    setPicking(name);
+    try {
+      const r = await fetch('/api/oauth/gmb-finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location: name }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; already?: boolean; error?: string };
+      if (j.already) {
+        window.location.href = '/channels?already=gmb';
+        return;
+      }
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect that location.');
+      window.location.href = '/channels?connected=gmb';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect that location.');
+    } finally {
+      setPicking(null);
+    }
+  }
+
   const subtitle = (p: ProviderId, list: ConnectedChannel[]): string => {    if (list.length === 0) {
       if (p === 'bluesky') return 'Handle + app password';
       if (p === 'mastodon') return 'Username + login';
@@ -622,6 +655,7 @@ export default function ConnectPanel({
       if (p === 'hashnode') return 'Token + publication';
       if (p === 'ghost') return 'Site + Admin key';
       if (p === 'vk') return 'Community + access key';
+      if (p === 'gmb') return 'Account + location';
       if (p === 'reddit') return 'Account + subreddit';
       return 'Tap to connect';
     }
@@ -1215,6 +1249,29 @@ export default function ConnectPanel({
                             : `Connect r/${srFilter.trim().replace(/^r\//i, '')} anyway`}
                         </button>
                       ) : null}
+                    </div>
+                  ) : null}
+
+                  {p === 'gmb' && gmbPick ? (
+                    <div className="space-y-1.5 rounded-xl border border-accent bg-accent-soft/40 p-3">
+                      <p className="text-xs font-bold">Pick a Business Profile location</p>
+                      <p className="-mt-1 text-[11px] text-muted">
+                        Each location connects separately — posts publish as local posts on it.
+                      </p>
+                      {gmbPick.map((l) => (
+                        <div key={l.name} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
+                          <BrandIcon provider="gmb" className="h-8 w-8" />
+                          <span className="min-w-0 flex-1 truncate text-sm font-bold">{l.title}</span>
+                          <button
+                            type="button"
+                            onClick={() => pickLocation(l.name)}
+                            disabled={picking !== null || !canManage}
+                            className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
+                          >
+                            {picking === l.name ? 'Connecting…' : 'Connect'}
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   ) : null}
 

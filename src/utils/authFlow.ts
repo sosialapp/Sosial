@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 export type AuthChannel = 'facebook' | 'instagram' |
   'threads' | 'tiktok' | 'x' | 'linkedin' | 'mastodon' |
-  'pinterest' | 'youtube' | 'reddit';
+  'pinterest' | 'youtube' | 'reddit' | 'gmb';
 
 export interface PendingAuth {
   channel: AuthChannel;

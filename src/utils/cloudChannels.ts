@@ -18,7 +18,7 @@ const KEY = 'sosial_cloud_channels_v1';
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
   | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
-  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'reddit';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'reddit' | 'gmb';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -268,6 +268,17 @@ export async function buildImportPayload(
         }),
       };
     }
+    case 'gmb': {
+      if (!f.gmRefreshToken || !f.gmLocation) return null;
+      return {
+        provider: 'gmb',
+        external_id: String(f.gmLocation),
+        display_name: f.gmLocationTitle,
+        access_token: typeof f.gmAccessToken === 'string' ? f.gmAccessToken : '',
+        refresh_token: typeof f.gmRefreshToken === 'string' ? f.gmRefreshToken : undefined,
+        expires_at: typeof f.gmExpiresAt === 'number' ? new Date(f.gmExpiresAt).toISOString() : undefined,
+      };
+    }
     default:
       return null;
   }
@@ -367,6 +378,7 @@ const NAME_FIELD: Record<string, string> = {
   ghost: 'ghSiteName',
   vk: 'vkGroupName',
   reddit: 'rdSubreddit',
+  gmb: 'gmLocationTitle',
 };
 
 /**
@@ -393,6 +405,7 @@ const IDENTITY_FIELD: Record<string, string> = {
   ghost: 'ghSiteUrl',
   vk: 'vkGroupId',
   reddit: 'rdSubreddit',
+  gmb: 'gmLocation',
 };
 
 interface CloudChannelRow {
@@ -549,6 +562,9 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
           if (typeof md.subreddit === 'string' && md.subreddit) {
             fields.rdSubreddit = md.subreddit;
           }
+        }
+        if (provider === 'gmb' && row.display_name && row.external_id) {
+          fields.gmLocationTitle = row.display_name;
         }
       if (avatar) fields.avatar = avatar;
       touch({ ...makeAccount(provider, fields) });

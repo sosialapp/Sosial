@@ -206,6 +206,17 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     boardRequired: false, titleRequired: true,
     limits: { text: 40000, title: 300 },
   },
+  gmb: {
+    label: 'Google Business Profile',
+    // Local post (STANDARD topic): 1500-char summary. Offers/events need
+    // structured payloads, CTAs need composer fields, media needs the
+    // media.startUpload dance — v1 sends text only.
+    supports: { text: true, image: false, video: false, carousel: false, document: false, poll: false, link: true },
+    thread: false, replyChain: false, article: false,
+    requiresMedia: false, requiresVideo: false,
+    boardRequired: false, titleRequired: false,
+    limits: { text: 1500 },
+  },
 };
 
 export type CompatLevel = 'error' | 'warn';

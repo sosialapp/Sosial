@@ -60,5 +60,6 @@ serve(async (req: Request): Promise<Response> => {
   put("linkedin", "client_id", get("LI_CLIENT_ID"));
   put("pinterest", "client_id", get("PIN_CLIENT_ID"));
   put("reddit", "client_id", get("REDDIT_CLIENT_ID"));
+  put("gmb", "client_id", get("YT_CLIENT_ID") || get("GOOGLE_CLIENT_ID"));
   return Response.json(out, { headers: CORS });
 });

@@ -16,7 +16,8 @@ export type ProviderKey =
   | 'hashnode'
   | 'ghost'
   | 'vk'
-  | 'reddit';
+  | 'reddit'
+  | 'gmb';
 
 export type PostStatus =
   | 'draft'

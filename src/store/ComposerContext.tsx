@@ -25,6 +25,7 @@ import { publishGhost } from '../utils/ghostPublish';
 import { publishVk } from '../utils/vkPublish';
 import { publishRedditWithRefresh } from '../utils/redditPublish';
 import { getValidRedditToken } from '../utils/redditAuth';
+import { publishGmb } from '../utils/gmbPublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1241,6 +1242,20 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'Reddit', rdAccts, rdRes);
             done.push('Reddit');
+          } else if (ch === 'gmb') {
+            const ggAccts = accountsFor('gmb');
+            if (ggAccts.length === 0) throw new Error('Google Business Profile not connected');
+            const ggRes = await Promise.allSettled(ggAccts.map(async (ggAcct) => {
+              const ggF = ggAcct.fields;
+              if (!ggF.gmRefreshToken || !ggF.gmLocation) throw new Error('Google Business Profile not connected');
+              keepAcct(ch, ggAcct.id, await publishGmb({
+                accountId: ggAcct.id,
+                locationExternalId: String(ggF.gmLocation),
+                text: caption,
+              }));
+            }));
+            throwIfPartial(ch, 'Google Business Profile', ggAccts, ggRes);
+            done.push('Google Business Profile');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

@@ -39,6 +39,13 @@ export interface PickState {
     avatar?: string;
     subreddits: { name: string; title: string; subscribers?: number }[];
   };
+  /** Google Business Profile only: staged location pick. */
+  gmb?: {
+    access_token: string;
+    refresh_token?: string;
+    expires_at?: string;
+    locations: { name: string; title: string }[];
+  };
 }
 
 export const b64e = (o: unknown): string => Buffer.from(JSON.stringify(o)).toString('base64url');

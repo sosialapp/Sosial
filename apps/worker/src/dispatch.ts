@@ -23,6 +23,7 @@ import { publishHashnodeTarget } from './hashnode';
 import { publishGhostTarget } from './ghost';
 import { publishVkTarget } from './vk';
 import { publishRedditTarget } from './reddit';
+import { publishGmbTarget } from './gmb';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
@@ -156,6 +157,12 @@ async function handlePublishTarget(job: Job): Promise<void> {
     }
     if (provider === 'reddit') {
       const { remoteId, remoteUrl } = await publishRedditTarget(bundle);
+      await markTargetSent(targetId, remoteId, remoteUrl);
+      info(`target ${targetId} sent → ${remoteId}`);
+      return;
+    }
+    if (provider === 'gmb') {
+      const { remoteId, remoteUrl } = await publishGmbTarget(bundle);
       await markTargetSent(targetId, remoteId, remoteUrl);
       info(`target ${targetId} sent → ${remoteId}`);
       return;
