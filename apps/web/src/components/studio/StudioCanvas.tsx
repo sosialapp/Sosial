@@ -242,11 +242,8 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <span style={{ ...ff(c.font), fontSize: 9 * k, color: c.faint, flexShrink: 0 }}>· 2h</span>
           {c.watermark ? <Watermark font={c.font} size={8} color={c.faint} k={k} /> : null}
           <span style={{ flex: 1 }} />
-          <span style={{ width: 12 * k, height: 12 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible', color: c.ink }}>
-            <BrandIcon provider="threads" mono className="h-[72%] w-[72%]" />
-          </span>
-          {/* Official Threads wordmark beside the glyph (1922×375.61 art
-              normalized into a wide box) — currentColor, theme-aware. */}
+          {/* Official Threads wordmark (1922×375.61 art normalized into a
+              wide box) — currentColor, theme-aware. */}
           <svg width={40 * k} height={8 * k} viewBox="0 0 1922 375.61" style={{ display: 'block', flexShrink: 0 }} aria-hidden="true">
             <g fill={c.ink}>
               <path d="M267.15,173.74c-.47-54.26-29.88-86.96-79.57-86.96-33.17,0-61.06,15-75.71,38.91l32.11,22.38c8.32-13.13,19.81-24.03,40.9-24.03,23.79,0,36.1,13.24,39.61,37.85-11.49-1.76-22.97-2.7-34.81-2.7-64.22,0-94.46,29.06-94.46,67.5s30.24,62.11,74.77,62.11c48.87,0,78.05-32.93,90.01-73.71,12.42,5.62,20.98,18.75,20.98,38.44,0,52.74-60.82,81.45-112.39,81.45-76.06,0-125.75-49.92-125.75-131.14,0-99.5,65.75-163.25,154.11-163.25,59.3,0,88.6,26.02,108.52,60.94l32.82-22.97C316.61,33.34,268.2,1,195.54,1,79.75,1,1,83.15,1,202.34c0,108.99,77.11,172.28,168.99,172.28,75.94,0,152.71-44.3,152.71-120.12,0-39.61-22.74-65.86-55.55-80.75h0ZM168.59,249.33c-16.76,0-31.52-7.97-31.52-22.62,0-23.09,28.36-30.12,56.14-30.12,10.55,0,20.86.7,30,2.7-6.56,30-26.02,50.04-54.61,50.04h0Z" />
