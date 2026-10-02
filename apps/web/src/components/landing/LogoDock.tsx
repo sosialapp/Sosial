@@ -82,7 +82,7 @@ export default function LogoDock() {
         <div className="flex justify-center">
           <div
             ref={trackRef}
-            className="flex max-w-[660px] flex-wrap items-end justify-center gap-3 rounded-[28px] border border-line bg-white/70 px-6 py-5 backdrop-blur-sm sm:gap-4 sm:px-8"
+            className="flex max-w-[688px] flex-wrap items-end justify-center gap-3 rounded-[28px] border border-line bg-white/70 px-8 py-5 backdrop-blur-sm sm:gap-4"
           >
             {CHANNELS.map((c) => (
               <span key={c} className="block shrink-0 will-change-transform">
