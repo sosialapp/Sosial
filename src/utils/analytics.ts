@@ -13,6 +13,8 @@ import { getValidYt } from './ytAuth';
 import { X_API } from './xConfig';
 import { getValidXToken } from './xAuth';
 import { getValidBsky } from './bskyAuth';
+import { getValidGmb } from './gmbAuth';
+import { GMB_PERF } from './gmbConfig';
 
 export type RangeKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'last90' | 'last180' | 'last365';
 
@@ -800,6 +802,59 @@ async function ytStats(m: MetaState, start: number, end: number): Promise<Channe
   return base;
 }
 
+/** Google Business Profile: location-level Performance API (the only
+ *  surface — local posts expose no per-post metrics). Call-to-action clicks
+ *  + photo views over the range repeat on the single channel row. */
+async function gmbStats(m: MetaState, start: number, end: number): Promise<ChannelStats> {
+  const base: ChannelStats = {
+    channel: 'gmb' as any,
+    label: m.gmLocationTitle ?? 'Google Business Profile',
+    followers: null, posts: 0, reactions: 0, comments: 0, views: null,
+    engagementRate: null, perPost: [],
+  };
+  if (!m.gmRefreshToken || !m.gmLocation) return { ...base, note: 'Google Business Profile not connected.' };
+  try {
+    const token = await getValidGmb();
+    const h = { Authorization: `Bearer ${token}` };
+    const parent = String(m.gmLocation);
+    const ymd = (d: Date) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    const qsParams = (metrics: string[]) =>
+      metrics.map((mm) => `dailyMetrics=${mm}`).join('&') +
+      `&daily_range.start_date.year=${new Date(start).getFullYear()}` +
+      `&daily_range.start_date.month=${new Date(start).getMonth() + 1}` +
+      `&daily_range.start_date.day=${new Date(start).getDate()}` +
+      `&daily_range.end_date.year=${new Date(end).getFullYear()}` +
+      `&daily_range.end_date.month=${new Date(end).getMonth() + 1}` +
+      `&daily_range.end_date.day=${new Date(end).getDate()}`;
+    const sumSeries = (j: any): number => {
+      let total = 0;
+      for (const s of (Array.isArray(j?.multiDailyMetricsTimeSeries) ? j.multiDailyMetricsTimeSeries : []) as any[]) {
+        for (const pt of (s?.dailyMetricEntities ?? []) as any[]) {
+          const v = num(pt?.value?.metricValue?.totalInteractionCount ?? pt?.value?.totalInteractionCount ?? pt?.value);
+          total += v;
+        }
+      }
+      return total;
+    };
+    const [cta, photos] = await Promise.all([
+      jget(`${GMB_PERF}/${parent}:fetchMultiDailyMetricsTimeSeries?${qsParams(['CALL_CLICKS', 'WEBSITE_CLICKS', 'BOOKING_CLICKS'])}`, h).catch(() => null),
+      jget(`${GMB_PERF}/${parent}:fetchMultiDailyMetricsTimeSeries?${qsParams(['PHOTO_COUNT'])}`, h).catch(() => null),
+    ]);
+    const clicks = cta ? sumSeries(cta) : 0;
+    const views = photos ? sumSeries(photos) : 0;
+    base.views = views || null;
+    base.shares = clicks;
+    base.posts = 0;
+    base.note =
+      clicks + views > 0
+        ? `Location metrics (last ${Math.max(1, Math.round((end - start) / 86400000))}d): ${clicks} call/website/booking clicks · GBP exposes no per-post stats.`
+        : 'GBP exposes no per-post stats — connect the Business Profile Performance & Images APIs on your Google project to see location metrics.';
+  } catch (e: any) {
+    base.note = e?.message ?? 'Google Business Profile request failed.';
+  }
+  return base;
+}
+
 export async function ytComments(m: MetaState, stats: PerPost[]): Promise<FeedComment[]> {
   if (!m.ytRefreshToken && !m.ytAccessToken) return [];
   let token = '';
@@ -979,8 +1034,8 @@ export interface Analytics {
 
 export async function fetchAnalytics(m: MetaState, range: RangeKey): Promise<Analytics> {
   const { start, end } = rangeBounds(range);
-  const [fb, ig, th, tt, xx, bs, mt, pn, li, yt] = await Promise.all([fbStats(m, start, end), igStats(m, start, end), thStats(m, start, end), ttStats(m, start, end), xStats(m, start, end), bskyStats(m, start, end), mastodonStats(m, start, end), pinStats(m, start, end), liStats(m, start, end), ytStats(m, start, end)]);
+  const [fb, ig, th, tt, xx, bs, mt, pn, li, yt, gg] = await Promise.all([fbStats(m, start, end), igStats(m, start, end), thStats(m, start, end), ttStats(m, start, end), xStats(m, start, end), bskyStats(m, start, end), mastodonStats(m, start, end), pinStats(m, start, end), liStats(m, start, end), ytStats(m, start, end), gmbStats(m, start, end)]);
   const [fc, ic, tc, mc, bc, yc] = await Promise.all([fbComments(m, fb.perPost), igComments(m, ig.perPost), thComments(m, th.perPost), mastodonComments(m, mt.perPost), bskyComments(m, bs.perPost), ytComments(m, yt.perPost)]);
   const comments = [...fc, ...ic, ...tc, ...mc, ...bc, ...yc].sort((a, b) => b.ts - a.ts);
-  return { channels: [fb, ig, th, tt, xx, bs, mt, pn, li, yt], comments };
+  return { channels: [fb, ig, th, tt, xx, bs, mt, pn, li, yt, gg], comments };
 }

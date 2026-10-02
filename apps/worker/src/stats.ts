@@ -24,6 +24,7 @@ import { ensureSession as ensureBlueskySession } from './bsky';
 import { ensureToken as ensureLinkedInToken } from './linkedin';
 import { ensureToken as ensurePinterestToken } from './pinterest';
 import { ensureToken as ensureYouTubeToken } from './youtube';
+import { ensureToken as ensureGmbToken } from './gmb';
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const IG_GRAPH = 'https://graph.instagram.com';
 const THREADS_API = 'https://graph.threads.net';
@@ -32,6 +33,8 @@ const YT_API = 'https://www.googleapis.com/youtube/v3';
 const LI_API = 'https://api.linkedin.com';
 const LI_VERSION = '202405';
 const PIN_API = 'https://api.pinterest.com/v5';
+const GMB_BI = 'https://mybusinessbusinessinformation.googleapis.com/v1';
+const GMB_PERF = 'https://businessprofileperformance.googleapis.com/v1';
 
 /** How many recent sent targets one run inspects per channel. */
 const MAX_TARGETS = 30;
@@ -86,6 +89,8 @@ async function accessToken(c: ChannelRow, t: TokenRow): Promise<string> {
       return ensurePinterestToken(b);
     case 'youtube':
       return ensureYouTubeToken(b);
+    case 'gmb':
+      return ensureGmbToken(b);
     default:
       return directToken(c, t);
   }
@@ -252,6 +257,74 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
         views: impressions || null,
         shares: sumMetric(['PIN_CLICK', 'OUTBOUND_CLICK']),
         note: 'Saves count as likes — Pinterest exposes no comment API.',
+      };
+    }
+    case 'gmb': {
+      // Google Business Profile local posts have NO per-post metrics API —
+      // the location-level Performance & Performance Images APIs are the
+      // only surfaces. Both attach to the LOCATION (external_id), not the
+      // post, so the numbers land once per location rather than per post;
+      // the same totals repeat across that location's posts with a note.
+      const token = await accessToken(c, t);
+      const parent = String(c.external_id ?? '');
+      if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(parent)) {
+        throw new Error('GBP location missing — reconnect the channel.');
+      }
+      const end = new Date();
+      const start = new Date(end.getTime() - 30 * 86400000);
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      let callToActions = 0;
+      let views = 0;
+      let note = '';
+      try {
+        const j = await jget(
+          `${GMB_PERF}/${parent}:fetchMultiDailyMetricsTimeSeries` +
+            `?dailyMetrics=CALL_CLICKS&dailyMetrics=WEBSITE_CLICKS&dailyMetrics=BOOKING_CLICKS` +
+            `&daily_range.start_date.year=${start.getFullYear()}` +
+            `&daily_range.start_date.month=${start.getMonth() + 1}` +
+            `&daily_range.start_date.day=${start.getDate()}` +
+            `&daily_range.end_date.year=${end.getFullYear()}` +
+            `&daily_range.end_date.month=${end.getMonth() + 1}` +
+            `&daily_range.end_date.day=${end.getDate()}`,
+          { Authorization: `Bearer ${token}` },
+        );
+        const series = Array.isArray(j?.multiDailyMetricsTimeSeries) ? j.multiDailyMetricsTimeSeries : [];
+        for (const s of series) {
+          for (const pt of s?.dailyMetricEntities ?? []) {
+            callToActions += num(pt?.value?.metricValue?.totalInteractionCount ?? pt?.value?.totalInteractionCount);
+          }
+        }
+      } catch (e: any) {
+        note = String(e?.message ?? '').slice(0, 120);
+      }
+      try {
+        const media = await jget(
+          `${GMB_PERF}/${parent}:fetchMultiDailyMetricsTimeSeries` +
+            `?dailyMetrics=PHOTO_COUNT&daily_range.start_date.year=${start.getFullYear()}` +
+            `&daily_range.start_date.month=${start.getMonth() + 1}` +
+            `&daily_range.start_date.day=${start.getDate()}` +
+            `&daily_range.end_date.year=${end.getFullYear()}` +
+            `&daily_range.end_date.month=${end.getMonth() + 1}` +
+            `&daily_range.end_date.day=${end.getDate()}`,
+          { Authorization: `Bearer ${token}` },
+        );
+        const series = Array.isArray(media?.multiDailyMetricsTimeSeries) ? media.multiDailyMetricsTimeSeries : [];
+        for (const s of series) {
+          for (const pt of s?.dailyMetricEntities ?? []) {
+            views += num(pt?.value?.metricValue?.totalInteractionCount ?? pt?.value?.totalInteractionCount);
+          }
+        }
+      } catch {
+        /* photo metric optional */
+      }
+      return {
+        likes: 0,
+        comments: 0,
+        views: views || null,
+        shares: callToActions,
+        note:
+          note ||
+          'Location-level metrics (clicks + photo views, last 30d) repeat across this profile\u2019s posts — GBP exposes no per-post stats.',
       };
     }
     default:
