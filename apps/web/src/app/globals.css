@@ -265,12 +265,19 @@ body {
     border: 1px solid transparent;
     cursor: pointer;
     transition:
-      transform 0.15s ease,
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
       background 0.15s ease,
       opacity 0.15s ease;
   }
+  /* The hero lift: every button rises and casts the same hard shadow. */
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 0 -2px rgba(28, 26, 20, 0.18);
+  }
   .btn:active:not(:disabled) {
     transform: translateY(1px);
+    box-shadow: none;
   }
   .btn:disabled {
     opacity: 0.5;
