@@ -7,31 +7,49 @@ import {
   type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
-import { CheckIcon, CrossIcon } from '@/components/StatusIcons';
+import { CheckIcon } from '@/components/StatusIcons';
 
 /**
- * Full plan comparison — simple modern, matching the pricing cards: grid
- * wash header, pill interval toggle, one elevated featured column, soft
- * row striping and section dividers. Limit values are generated from the
- * canonical PLANS config via FEATURE_MATRIX, so the table can never drift
- * from what the server enforces.
+ * Full plan comparison. Limit values are generated from the canonical PLANS
+ * config via FEATURE_MATRIX, so the table can never drift from what the
+ * server enforces. Light throughout: excluded features read as quiet dashes,
+ * the popular plan tracks down one soft-tinted column.
  */
 function Cell({ value, featured }: { value: string | boolean; featured?: boolean }) {
   if (value === true) {
     return (
-      <span className={`inline-flex ${featured ? 'text-accent' : 'text-ink'}`} aria-label="Included">
-        <CheckIcon size={16} />
+      <span className="inline-flex items-center justify-center" aria-label="Included">
+        <span
+          className={`flex h-6 w-6 items-center justify-center rounded-full ${
+            featured ? 'bg-accent' : 'bg-ink/[0.07]'
+          }`}
+        >
+          <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" aria-hidden="true">
+            <path
+              d="M5 12.5 10 17.5 19 7"
+              stroke={featured ? '#1C1A14' : 'currentColor'}
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={featured ? '' : 'text-ink'}
+            />
+          </svg>
+        </span>
       </span>
     );
   }
   if (value === false) {
     return (
-      <span className={`inline-flex ${featured ? 'text-paper/30' : 'text-faint/50'}`} aria-label="Not included">
-        <CrossIcon size={15} />
+      <span className={`text-lg leading-none ${featured ? 'text-paper/25' : 'text-faint/40'}`} aria-label="Not included">
+        —
       </span>
     );
   }
-  return <span className={`text-sm font-semibold ${featured ? 'text-paper' : 'text-ink'}`}>{value}</span>;
+  return (
+    <span className={`text-[15px] font-semibold ${featured ? 'text-paper' : 'text-ink'}`}>
+      {value}
+    </span>
+  );
 }
 
 function headerPrice(key: PlanKey, interval: BillingInterval): string {
@@ -51,7 +69,6 @@ export default function PlanComparison() {
 
   return (
     <section aria-label="Plan comparison" className="relative overflow-hidden">
-      {/* Grid wash, same family as the cards above. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.04)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_30%,#000_20%,transparent_75%)]"
@@ -69,7 +86,6 @@ export default function PlanComparison() {
           </p>
         </div>
 
-        {/* Interval toggle — same pill as the cards */}
         <div className="mt-10 flex justify-center">
           <div
             className="inline-flex items-center gap-1 rounded-full border border-line bg-white p-1 shadow-[0_2px_10px_rgba(28,26,20,0.06)]"
@@ -92,21 +108,21 @@ export default function PlanComparison() {
           </div>
         </div>
 
-        <div className="mt-12 overflow-x-auto pb-2 [scrollbar-width:thin]">
-          <table className="w-full min-w-[900px] border-separate border-spacing-0">
+        <div className="mt-12 overflow-x-auto pb-4 [scrollbar-width:thin]">
+          <table className="w-full min-w-[920px] border-separate border-spacing-0">
             <thead>
               <tr>
-                <th scope="col" className="w-[200px] min-w-[200px] p-1.5 align-bottom" />
+                <th scope="col" className="w-[210px] min-w-[210px] p-2 align-bottom" />
                 {FEATURE_PLAN_ORDER.map((key) => {
                   const p = PLANS[key];
                   const featured = !!p.featured;
                   return (
-                    <th key={key} scope="col" className="min-w-[150px] p-1.5 align-bottom">
+                    <th key={key} scope="col" className="min-w-[160px] p-2 align-bottom">
                       <div
                         className={`relative rounded-3xl p-5 text-center transition-all duration-200 ${
                           featured
-                            ? 'bg-ink text-paper shadow-[0_24px_60px_-24px_rgba(28,26,20,0.5)]'
-                            : 'border border-line bg-white/80 backdrop-blur-sm'
+                            ? 'border-2 border-ink bg-ink text-paper shadow-[0_24px_60px_-24px_rgba(28,26,20,0.55)]'
+                            : 'border border-line bg-white'
                         }`}
                       >
                         {featured ? (
@@ -123,10 +139,10 @@ export default function PlanComparison() {
                         </p>
                         <Link
                           href={key === 'free' ? '/login' : '/billing'}
-                          className={`mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_0_-2px_rgba(28,26,20,0.22)] active:translate-y-0 ${
+                          className={`mt-4 inline-flex w-full items-center justify-center rounded-full py-2.5 text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_0_-2px_rgba(28,26,20,0.22)] active:translate-y-0 ${
                             featured
                               ? 'bg-accent text-accent-ink hover:bg-accent-bright'
-                              : 'border-2 border-ink/10 text-ink hover:border-ink'
+                              : 'bg-ink/[0.05] text-ink hover:bg-ink hover:text-paper'
                           }`}
                         >
                           {key === 'free' ? 'Start free' : `Choose ${p.label}`}
@@ -140,33 +156,27 @@ export default function PlanComparison() {
             {FEATURE_MATRIX.map((cat) => (
               <tbody key={cat.title}>
                 <tr>
-                  <th
-                    scope="colgroup"
-                    colSpan={1 + FEATURE_PLAN_ORDER.length}
-                    className="pt-10 pb-2 text-left"
-                  >
-                    <span className="font-display text-xs font-bold tracking-[0.14em] text-faint uppercase">
+                  <th scope="colgroup" colSpan={1 + FEATURE_PLAN_ORDER.length} className="pt-9 pb-1 text-left">
+                    <span className="font-display text-xs font-bold tracking-[0.16em] text-faint uppercase">
                       {cat.title}
                     </span>
                   </th>
                 </tr>
-                {cat.rows.map((row, ri) => (
-                  <tr key={row.label} className={ri % 2 === 0 ? '' : ''}>
+                {cat.rows.map((row) => (
+                  <tr key={row.label} className="group">
                     <th
                       scope="row"
-                      className={`border-b border-line/60 py-3.5 pr-4 text-left text-sm font-medium text-soft ${ri === 0 ? 'rounded-l-xl border-t border-t-line/60 bg-white/50 pl-3' : ''}`}
+                      className="border-b border-line/70 py-4 pr-4 text-left text-[15px] font-medium text-soft"
                     >
                       {row.label}
                     </th>
-                    {FEATURE_PLAN_ORDER.map((key, ki) => {
+                    {FEATURE_PLAN_ORDER.map((key) => {
                       const featured = !!PLANS[key].featured;
                       return (
                         <td
                           key={key}
-                          className={`border-b border-line/60 py-3.5 text-center ${
-                            featured ? 'bg-ink/[0.035]' : ''
-                          } ${ri === 0 ? 'border-t border-t-line/60' : ''} ${
-                            ki === FEATURE_PLAN_ORDER.length - 1 && ri === 0 ? 'rounded-r-xl' : ''
+                          className={`border-b border-line/70 py-4 text-center ${
+                            featured ? 'bg-accent/[0.08]' : ''
                           }`}
                         >
                           <Cell value={row.value(key)} featured={featured} />
@@ -179,6 +189,14 @@ export default function PlanComparison() {
             ))}
           </table>
         </div>
+
+        <p className="mt-6 text-center text-xs text-faint">
+          All four plans include the calendar, queue and auto-publishing.{' '}
+          <Link href="/login" className="font-bold text-ink hover:underline">
+            Start free
+          </Link>{' '}
+          — upgrade when you outgrow it.
+        </p>
       </div>
     </section>
   );
