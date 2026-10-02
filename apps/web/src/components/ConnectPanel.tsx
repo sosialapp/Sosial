@@ -17,6 +17,12 @@ export interface FbPickPage {
   ig?: string;
 }
 
+export interface RedditPickSub {
+  name: string;
+  title: string;
+  subscribers?: number;
+}
+
 type ProviderId = OAuthProvider | 'bluesky' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk';
 
 const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
@@ -64,6 +70,7 @@ export default function ConnectPanel({
   workspaceId,
   channels,
   fbPick,
+  redditPick,
   status,
   canManage,
 }: {
@@ -71,13 +78,16 @@ export default function ConnectPanel({
   channels: ConnectedChannel[];
   /** Facebook Pages waiting for a pick (from ?connect=facebook). */
   fbPick: FbPickPage[] | null;
+  /** Reddit subreddits waiting for a pick (from ?connect=reddit). */
+  redditPick: { username: string; subreddits: RedditPickSub[] } | null;
   /** Result banners (from ?connected= / ?error=). */
   status: { connected?: string; already?: string; error?: string };
   /** Owners and admins — they see Remove/disconnect and every connect
    *  action. Ordinary members get a read-only list plus a note. */
   canManage: boolean;
 }) {
-  const [open, setOpen] = useState<ProviderId | null>(fbPick ? 'facebook' : null);
+  const [open, setOpen] = useState<ProviderId | null>(fbPick ? 'facebook' : redditPick ? 'reddit' : null);
+  const [srFilter, setSrFilter] = useState('');
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   const [mastodonInstance, setMastodonInstance] = useState('');
@@ -574,6 +584,34 @@ export default function ConnectPanel({
     }
   }
 
+  async function pickSubreddit(name: string) {
+    const sr = name.trim().replace(/^r\//i, '').toLowerCase();
+    if (!sr) {
+      setErr('Type a subreddit name first.');
+      return;
+    }
+    setErr(null);
+    setPicking(sr);
+    try {
+      const r = await fetch('/api/oauth/reddit-finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subreddit: sr }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; already?: boolean; error?: string };
+      if (j.already) {
+        window.location.href = '/channels?already=reddit';
+        return;
+      }
+      if (!j.ok) throw new Error(j.error ?? 'Could not connect that subreddit.');
+      window.location.href = '/channels?connected=reddit';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not connect that subreddit.');
+    } finally {
+      setPicking(null);
+    }
+  }
+
   const subtitle = (p: ProviderId, list: ConnectedChannel[]): string => {    if (list.length === 0) {
       if (p === 'bluesky') return 'Handle + app password';
       if (p === 'mastodon') return 'Username + login';
@@ -584,6 +622,7 @@ export default function ConnectPanel({
       if (p === 'hashnode') return 'Token + publication';
       if (p === 'ghost') return 'Site + Admin key';
       if (p === 'vk') return 'Community + access key';
+      if (p === 'reddit') return 'Account + subreddit';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -1122,6 +1161,60 @@ export default function ConnectPanel({
                           </button>
                         </div>
                       ))}
+                    </div>
+                  ) : null}
+
+                  {p === 'reddit' && redditPick ? (
+                    <div className="space-y-1.5 rounded-xl border border-accent bg-accent-soft/40 p-3">
+                      <p className="text-xs font-bold">Post to r/… as u/{redditPick.username}</p>
+                      <p className="-mt-1 text-[11px] text-muted">
+                        Each subreddit connects separately. Its rules and karma minimums still
+                        apply — Reddit may hold posts for mod review.
+                      </p>
+                      <input
+                        value={srFilter}
+                        onChange={(e) => setSrFilter(e.target.value)}
+                        placeholder="Filter subreddits…"
+                        aria-label="Filter subreddits"
+                        className="field !text-xs"
+                      />
+                      {redditPick.subreddits
+                        .filter((s) => !srFilter.trim() || s.name.toLowerCase().includes(srFilter.trim().toLowerCase()))
+                        .slice(0, 30)
+                        .map((s) => (
+                          <div key={s.name} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
+                            <BrandIcon provider="reddit" className="h-8 w-8" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-bold">r/{s.name}</span>
+                              <span className="block truncate text-[11px] text-muted">
+                                {s.title}
+                                {typeof s.subscribers === 'number' && s.subscribers > 0
+                                  ? ` · ${s.subscribers.toLocaleString()} members`
+                                  : ''}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => pickSubreddit(s.name)}
+                              disabled={picking !== null || !canManage}
+                              className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
+                            >
+                              {picking === s.name.toLowerCase() ? 'Connecting…' : 'Connect'}
+                            </button>
+                          </div>
+                        ))}
+                      {srFilter.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => pickSubreddit(srFilter.trim())}
+                          disabled={picking !== null || !canManage}
+                          className="btn btn-ghost w-full !py-2 !text-xs"
+                        >
+                          {picking === srFilter.trim().replace(/^r\//i, '').toLowerCase()
+                            ? 'Connecting…'
+                            : `Connect r/${srFilter.trim().replace(/^r\//i, '')} anyway`}
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
 

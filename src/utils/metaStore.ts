@@ -122,6 +122,14 @@ export interface MetaState {
   vkGroupId?: string;
   vkGroupName?: string;
   vkScreenName?: string;
+  // Reddit (OAuth, permanent refresh token). Each subreddit is its own
+  // channel: account-level tokens + the destination subreddit.
+  rdAccessToken?: string;
+  rdRefreshToken?: string;
+  rdExpiresAt?: number;
+  rdUserId?: string;
+  rdUserName?: string;
+  rdSubreddit?: string;
 }
 
 const ACCOUNTS_KEY = 'zap_accounts_v1';
@@ -290,6 +298,7 @@ export function connectedChannelIds(m: MetaState): string[] {
   if (m.hnToken && m.hnPublicationId) out.push('hashnode');
   if (m.ghSiteUrl && m.ghAdminKey) out.push('ghost');
   if (m.vkToken && m.vkGroupId) out.push('vk');
+  if (m.rdRefreshToken && m.rdSubreddit) out.push('reddit');
   return out;
 }
 
@@ -324,5 +333,6 @@ export function staleChannelKeys(m: MetaState): string[] {
   consider('hashnode', has(m.hnPublicationTitle) || has(m.hnPublicationId));
   consider('ghost', has(m.ghSiteUrl));
   consider('vk', has(m.vkGroupId) || has(m.vkGroupName));
+  consider('reddit', has(m.rdSubreddit) || has(m.rdUserName));
   return out;
 }

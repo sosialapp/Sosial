@@ -23,6 +23,8 @@ import { publishDevto } from '../utils/devtoPublish';
 import { publishHashnode } from '../utils/hashnodePublish';
 import { publishGhost } from '../utils/ghostPublish';
 import { publishVk } from '../utils/vkPublish';
+import { publishRedditWithRefresh } from '../utils/redditPublish';
+import { getValidRedditToken } from '../utils/redditAuth';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
 import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
@@ -1223,6 +1225,22 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }));
             throwIfPartial(ch, 'VK', vkAccts, vkRes);
             done.push('VK');
+          } else if (ch === 'reddit') {
+            const rdAccts = accountsFor('reddit');
+            if (rdAccts.length === 0) throw new Error('Reddit not connected');
+            const rdRes = await Promise.allSettled(rdAccts.map(async (rdAcct) => {
+              const rdF = rdAcct.fields;
+              if (!rdF.rdRefreshToken || !rdF.rdSubreddit) throw new Error('Reddit not connected');
+              keepAcct(ch, rdAcct.id, await publishRedditWithRefresh({
+                accountId: rdAcct.id,
+                refreshToken: () => getValidRedditToken(rdAcct.id),
+                subreddit: String(rdF.rdSubreddit),
+                title: p.title ?? '',
+                text: caption,
+              }));
+            }));
+            throwIfPartial(ch, 'Reddit', rdAccts, rdRes);
+            done.push('Reddit');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

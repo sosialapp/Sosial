@@ -17,7 +17,8 @@ export type ProviderKey =
   | 'devto'
   | 'hashnode'
   | 'ghost'
-  | 'vk';
+  | 'vk'
+  | 'reddit';
 
 /**
  * One social account (a.k.a. channel) with its provider-specific credentials.
@@ -50,6 +51,7 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   hashnode: ['hnToken', 'hnPublicationId', 'hnPublicationTitle'],
   ghost: ['ghSiteUrl', 'ghAdminKey', 'ghSiteName'],
   vk: ['vkToken', 'vkGroupId', 'vkGroupName', 'vkScreenName'],
+  reddit: ['rdAccessToken', 'rdRefreshToken', 'rdExpiresAt', 'rdUserId', 'rdUserName', 'rdSubreddit'],
 };
 
 const FIELD_TO_PROVIDER: Record<string, ProviderKey> = {};
@@ -146,6 +148,7 @@ export function accountConnected(a: ConnectedAccount): boolean {
     case 'hashnode': return !!(f.hnToken && f.hnPublicationId);
     case 'ghost': return !!(f.ghSiteUrl && f.ghAdminKey);
     case 'vk': return !!(f.vkToken && f.vkGroupId);
+    case 'reddit': return !!(f.rdRefreshToken && f.rdSubreddit);
     default: return false;
   }
 }
@@ -178,6 +181,10 @@ export function accountExternalId(a: ConnectedAccount): string | undefined {
     case 'hashnode': return f.hnPublicationId as string | undefined;
     case 'ghost': return f.ghSiteUrl as string | undefined;
     case 'vk': return f.vkGroupId as string | undefined;
+    case 'reddit':
+      return typeof f.rdSubreddit === 'string' && f.rdSubreddit && typeof f.rdUserName === 'string'
+        ? `u/${f.rdUserName.toLowerCase()}/r/${f.rdSubreddit.toLowerCase()}`
+        : undefined;
     default: return undefined;
   }
 }
@@ -210,6 +217,7 @@ export function accountName(a: ConnectedAccount): string | undefined {
     case 'hashnode': return (f.hnPublicationTitle as string | undefined) ?? (f.hnPublicationId as string | undefined);
     case 'ghost': return (f.ghSiteName as string | undefined) ?? (f.ghSiteUrl as string | undefined);
     case 'vk': return (f.vkGroupName as string | undefined) ?? (f.vkGroupId as string | undefined);
+    case 'reddit': return (f.rdSubreddit as string | undefined) ? `r/${f.rdSubreddit}` : undefined;
     default: return undefined;
   }
 }
@@ -267,6 +275,7 @@ export function accountHandle(a: ConnectedAccount): string | undefined {
     case 'hashnode': return plain(f.hnPublicationTitle);
     case 'ghost': return plain(f.ghSiteName);
     case 'vk': return plain(f.vkGroupName);
+    case 'reddit': return plain(f.rdUserName) ? `@${f.rdUserName}` : undefined;
     default: return undefined;
   }
 }

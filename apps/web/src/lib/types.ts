@@ -15,7 +15,8 @@ export type ProviderKey =
   | 'devto'
   | 'hashnode'
   | 'ghost'
-  | 'vk';
+  | 'vk'
+  | 'reddit';
 
 export type PostStatus =
   | 'draft'

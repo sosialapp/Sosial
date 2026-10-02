@@ -110,6 +110,37 @@ export async function GET(req: Request) {
     return res;
   }
 
+  // Reddit posts per-subreddit — stash tokens + subs, the panel picks one.
+  if (flow.provider === 'reddit') {
+    const rd = payload as ExchangePayload & {
+      subreddits?: { name: string; title: string; subscribers?: number }[];
+    };
+    if (!payload.access_token) {
+      return done(`?error=${encodeURIComponent('Reddit hid the login — try connecting again.')}`);
+    }
+    const username =
+      typeof payload.metadata?.redditUser === 'string' && payload.metadata.redditUser
+        ? payload.metadata.redditUser
+        : String(payload.display_name ?? '').replace(/^u\//, '');
+    const pick: PickState = {
+      workspace_id: flow.workspace_id,
+      nonce: flow.nonce,
+      pages: [],
+      reddit: {
+        username,
+        access_token: payload.access_token,
+        refresh_token: payload.refresh_token,
+        expires_at: payload.expires_at,
+        avatar: payload.metadata?.avatar,
+        subreddits: Array.isArray(rd.subreddits) ? rd.subreddits : [],
+      },
+    };
+    const res = NextResponse.redirect(`${origin}/channels?connect=reddit`);
+    res.cookies.delete(FLOW_COOKIE);
+    res.cookies.set(PICK_COOKIE, b64e(pick), cookieOpts(origin));
+    return res;
+  }
+
   if (!payload.access_token || !payload.external_id) {
     return done(`?error=${encodeURIComponent('The provider hid the account — try again.')}`);
   }

@@ -14,6 +14,9 @@ import {
 } from '../utils/metaAuth';
 import { loginTikTok, completeTikTokLogin, openTikTokSite } from '../utils/tiktokAuth';
 import { loginX, completeXLogin } from '../utils/xAuth';
+import { validateVk } from '../utils/vkAuth';
+import { loginReddit, fetchRedditSubreddits, type RdSub } from '../utils/redditAuth';
+import { rdConfigured } from '../utils/redditConfig';
 import { X_CLIENT_ID } from '../utils/xConfig';
 import { completeBskyLogin } from '../utils/bskyAuth';
 import { validateTelegramBot, resolveTelegramChat } from '../utils/telegramAuth';
@@ -22,7 +25,6 @@ import { validateWordPress } from '../utils/wordpressAuth';
 import { validateDevto } from '../utils/devtoAuth';
 import { validateHashnode, type HashnodePublication } from '../utils/hashnodeAuth';
 import { validateGhost } from '../utils/ghostAuth';
-import { validateVk } from '../utils/vkAuth';
 import { loginMastodon, completeMastodonLogin } from '../utils/mastodonAuth';
 import { loginLinkedIn, completeLiLogin, listMyLiOrgs, pickLiOrg, LiOrg } from '../utils/liAuth';
 import { LI_CLIENT_ID } from '../utils/liConfig';
@@ -83,6 +85,9 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [pinBoards, setPinBoards] = useState<PinBoard[] | null>(null);
   const [pinBoardsLoading, setPinBoardsLoading] = useState(false);
   const [liOrgs, setLiOrgs] = useState<LiOrg[]>([]);
+  const [rdSubs, setRdSubs] = useState<RdSub[]>([]);
+  const [rdOpen, setRdOpen] = useState(false);
+  const [rdSr, setRdSr] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
   const [acctsLoading, setAcctsLoading] = useState(true);
@@ -246,6 +251,29 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         const acct = accts.find((a) => a.id === pid);
         if (acct) void loadPinBoardsFor(acct);
         if (!name) Alert.alert('Connected', 'Pinterest connected — we couldn’t read the handle yet. Pick a board below.');
+      } else if (r.channel === 'reddit') {
+        // Tokens + identity are stored by completeRedditLogin; then fetch the
+        // subscribed subreddits and show the pick list (staged like FB Pages).
+        const pid = r.accountId ?? 'acct_reddit';
+        const { name } = { name: (await loadAccounts()).find((a) => a.id === pid)?.fields.rdUserName as string | undefined };
+        const accts = await loadAccounts();
+        setAccounts(accts);
+        setSelId((s) => ({ ...s, reddit: pid }));
+        try {
+          const acct = accts.find((a) => a.id === pid);
+          const tok = (acct?.fields.rdAccessToken as string | undefined) ?? '';
+          if (tok) {
+            setRdSubs(await fetchRedditSubreddits(tok));
+            setRdOpen(true);
+            setOpenProvider('reddit');
+          } else {
+            Alert.alert('Connected', 'Reddit connected — reconnect to pick a subreddit.');
+          }
+        } catch {
+          Alert.alert('Connected', 'Reddit connected — couldn’t list your subreddits, type one below.');
+          setOpenProvider('reddit');
+        }
+        if (!name) Alert.alert('Connected', 'Reddit connected — we couldn’t read the handle yet.');
       }
       if (r.code) await markCodeDone(r.code);
     } catch (e: any) {
@@ -652,8 +680,59 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     }
   };
 
-  const doVk = async (accountId?: string) => {
-    if (!vkCommunity.trim()) {
+  const doReddit = async (accountId?: string) => {
+    if (!rdConfigured()) {
+      Alert.alert('Keys missing', 'Paste the Reddit Client ID/Secret into .env first, then reload.');
+      return;
+    }
+    setBusy('Opening Reddit…');
+    if (!(await loginReddit(accountId))) backedOut('Reddit');
+  };
+
+  /** Stage 2 of the Reddit connect: clone the account-level tokens into a
+   *  per-subreddit row (multi-account clone via saveProviderFields). */
+  const doRedditPick = async (subreddit: string, accountId?: string) => {
+    const sr = subreddit.trim().replace(/^r\//i, '');
+    if (!/^[A-Za-z0-9_]+$/.test(sr)) {
+      Alert.alert('Subreddit invalid', 'Letters, numbers and underscores only.');
+      return;
+    }
+    setBusy(`Checking r/${sr}…`);
+    try {
+      // Source fields: the picked account or the account-level default.
+      const accounts = await loadAccounts();
+      const src =
+        (accountId ? accounts.find((a) => a.id === accountId) : undefined) ??
+        accounts.find((a) => a.provider === 'reddit' && !!a.fields.rdSubreddit) ??
+        accounts.find((a) => a.provider === 'reddit' && a.fields.rdUserName);
+      const f = src?.fields ?? {};
+      if (!f.rdRefreshToken || !f.rdUserName) {
+        throw new Error('Reddit login is missing — connect Reddit first.');
+      }
+      await saveProviderFields(
+        'reddit',
+        {
+          rdAccessToken: f.rdAccessToken,
+          rdRefreshToken: f.rdRefreshToken,
+          rdExpiresAt: f.rdExpiresAt,
+          rdUserId: f.rdUserId,
+          rdUserName: f.rdUserName,
+          avatar: f.avatar,
+          rdSubreddit: sr,
+        },
+        accountId,
+      );
+      setRdSr('');
+      setAccounts(await loadAccounts());
+      Alert.alert('Connected', `Reddit → r/${sr}.`);
+    } catch (e: any) {
+      Alert.alert('Reddit connect failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const doVk = async (accountId?: string) => {    if (!vkCommunity.trim()) {
       Alert.alert('Community missing', 'Enter the community link, short name or numeric id first.');
       return;
     }
@@ -782,6 +861,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     hashnode: { label: 'Hashnode', manual: true, configured: true, connect: doHashnode },
     ghost: { label: 'Ghost', manual: true, configured: true, connect: doGhost },
     vk: { label: 'VK', manual: true, configured: true, connect: doVk },
+    reddit: { label: 'Reddit', manual: false, configured: rdConfigured(), connect: doReddit },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -1128,6 +1208,28 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         </>
       );
     }
+    if (p === 'reddit') {
+      return (
+        <>
+          <View style={s.helpCard}>
+            <Text style={s.helpTitle}>How to connect Reddit</Text>
+            {[
+              'Sign in with Reddit — we ask for identity, subreddits and submit',
+              'Pick the subreddits you post to (each connects separately)',
+              "Reddit's rules still apply — karma minimums, mod queues",
+            ].map((step, i) => (
+              <View key={i} style={s.helpStep}>
+                <Text style={s.helpNum}>{i + 1}</Text>
+                <Text style={s.helpText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { if (needManager()) void doReddit(addId()); }} activeOpacity={0.7} style={s.pageRow}>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another subreddit' : 'Connect Reddit'}</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
     return null;
   };
 
@@ -1204,6 +1306,62 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           ) : (
             <TouchableOpacity onPress={() => acct && void loadLiOrgsFor(acct)} activeOpacity={0.7} style={s.pageRow}>
               <Text style={s.pageT}>Load my Company Pages</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      );
+    }
+    if (p === 'reddit') {
+      const sel = selectedAccountFor('reddit');
+      const cur = sel?.fields.rdSubreddit as string | undefined;
+      const filter = rdSr.trim().toLowerCase();
+      const list = rdSubs.filter((x) => !filter || x.name.toLowerCase().includes(filter)).slice(0, 30);
+      return (
+        <>
+          {rdOpen && rdSubs.length > 0 ? (
+            <>
+              <Txt value={rdSr} onChangeText={setRdSr} placeholder="Filter subreddits…" autoCapitalize="none" autoCorrect={false} />
+              {list.map((x) => (
+                <TouchableOpacity
+                  key={x.name}
+                  onPress={() => { if (needManager()) void doRedditPick(x.name, sel?.id); }}
+                  style={[s.pageRow, cur && cur.toLowerCase() === x.name.toLowerCase() && { borderWidth: 1.5, borderColor: C.accent }]}
+                  activeOpacity={0.75}
+                >
+                  <Text style={s.pageT} numberOfLines={1}>r/{x.name} · {x.title}</Text>
+                  {cur && cur.toLowerCase() === x.name.toLowerCase() ? <Ionicons name="checkmark-circle" size={18} color={C.accent} /> : null}
+                </TouchableOpacity>
+              ))}
+              {filter && /^[A-Za-z0-9_]+$/.test(filter) && !list.some((x) => x.name.toLowerCase() === filter) ? (
+                <TouchableOpacity onPress={() => { if (needManager()) void doRedditPick(filter, sel?.id); }} activeOpacity={0.7} style={s.pageRow}>
+                  <Text style={s.pageT}>Connect r/{filter} anyway</Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
+          ) : (
+            <TouchableOpacity
+              onPress={async () => {
+                const acct = sel ?? selectedAccountFor('reddit');
+                const tok = (acct?.fields.rdAccessToken as string | undefined) ?? '';
+                if (!tok) {
+                  Alert.alert('Connect first', 'Sign in with Reddit above, then pick subreddits here.');
+                  return;
+                }
+                setBusy('Loading subreddits…');
+                try {
+                  setRdSubs(await fetchRedditSubreddits(tok));
+                  setRdOpen(true);
+                } catch (e: any) {
+                  Alert.alert('Could not list subreddits', e?.message ?? 'Type the name instead.');
+                  setRdOpen(true);
+                } finally {
+                  setBusy(null);
+                }
+              }}
+              activeOpacity={0.7}
+              style={s.pageRow}
+            >
+              <Text style={s.pageT}>List my subreddits</Text>
             </TouchableOpacity>
           )}
         </>

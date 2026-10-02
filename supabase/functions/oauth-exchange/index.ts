@@ -16,7 +16,8 @@
 //
 // Supabase secrets: TT_CLIENT_KEY, TT_CLIENT_SECRET, META_APP_ID,
 // META_APP_SECRET, IG_APP_ID, IG_APP_SECRET, X_CLIENT_ID, YT_CLIENT_ID,
-// YT_CLIENT_SECRET, LI_CLIENT_ID, LI_CLIENT_SECRET.
+// YT_CLIENT_SECRET, LI_CLIENT_ID, LI_CLIENT_SECRET, REDDIT_CLIENT_ID,
+// REDDIT_CLIENT_SECRET.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
@@ -600,6 +601,94 @@ async function pinterest(b: ExchangeBody): Promise<Response> {
   });
 }
 
+const REDDIT_UA = "web:Sosial:v1.0 (by /u/sosialapp)";
+
+async function redditMe(access: string): Promise<{ name: string; id: string; avatar?: string }> {
+  const r = await fetch("https://oauth.reddit.com/api/v1/me", {
+    headers: { Authorization: `Bearer ${access}`, "User-Agent": REDDIT_UA },
+  });
+  const j = await json(r);
+  const name = str((j as Record<string, unknown>).name);
+  if (!r.ok || !name) throw new Error("Could not read your Reddit profile.");
+  const icon = str((j as Record<string, unknown>).icon_img);
+  return { name, id: str((j as Record<string, unknown>).id), avatar: icon || undefined };
+}
+
+async function redditSubs(access: string): Promise<{ name: string; title: string; subscribers: number }[]> {
+  const out: { name: string; title: string; subscribers: number }[] = [];
+  let after = "";
+  for (let page = 0; page < 3 && out.length < 200; page++) {
+    const qs = after ? `?limit=100&after=${encodeURIComponent(after)}` : "?limit=100";
+    const r = await fetch(`https://oauth.reddit.com/subreddits/mine/subscriber${qs}`, {
+      headers: { Authorization: `Bearer ${access}`, "User-Agent": REDDIT_UA },
+    });
+    const j = await json(r);
+    const kids = ((j.data as { children?: { data?: { display_name?: string; title?: string; subscribers?: number } }[] } | undefined)?.children) ?? [];
+    for (const k of kids) {
+      const name = str(k?.data?.display_name);
+      if (name) {
+        out.push({
+          name,
+          title: str(k?.data?.title) || `r/${name}`,
+          subscribers: Number(k?.data?.subscribers ?? 0),
+        });
+      }
+    }
+    after = str((j.data as { after?: string } | undefined)?.after);
+    if (!after) break;
+  }
+  return out;
+}
+
+async function reddit(b: ExchangeBody): Promise<Response> {
+  const id = Deno.env.get("REDDIT_CLIENT_ID") ?? "";
+  const secret = Deno.env.get("REDDIT_CLIENT_SECRET") ?? "";
+  if (!id || !secret) return bad("Reddit is not configured yet.", 402);
+  const r = await fetch("https://www.reddit.com/api/v1/access_token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      // HTTP Basic (base64 client_id:secret), NOT body creds.
+      Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+      "User-Agent": REDDIT_UA,
+    },
+    body: form({ grant_type: "authorization_code", code: b.code, redirect_uri: b.redirect_uri }),
+  });
+  const j = await json(r);
+  const access = str(j.access_token);
+  if (!access) {
+    return bad(`Reddit refused the login. ${str(j.error_description ?? j.error ?? j.message).slice(0, 140)}`, 502);
+  }
+  const refresh = str(j.refresh_token);
+  const expiresAt = Date.now() + (Number(j.expires_in) || 3600) * 1000;
+  let me: { name: string; id: string; avatar?: string };
+  let subs: { name: string; title: string; subscribers: number }[] = [];
+  try {
+    me = await redditMe(access);
+  } catch {
+    return bad("Could not read your Reddit profile.", 502);
+  }
+  try {
+    subs = await redditSubs(access);
+  } catch { /* empty picker — account still connects */ }
+  // Staged like Facebook Pages: the callback stashes tokens + subreddits,
+  // the Connect panel picks the destination subreddit, finish imports it.
+  return ok({
+    access_token: access,
+    refresh_token: refresh || undefined,
+    expires_at: iso(expiresAt),
+    external_id: `u/${me.name.toLowerCase()}`,
+    display_name: `u/${me.name}`,
+    handle: `@${me.name}`,
+    metadata: {
+      redditUser: me.name,
+      redditId: me.id,
+      ...(me.avatar ? { avatar: me.avatar } : {}),
+    },
+    subreddits: subs,
+  });
+}
+
 /* --------------------------------- server --------------------------------- */
 
 serve(async (req: Request): Promise<Response> => {
@@ -670,6 +759,9 @@ serve(async (req: Request): Promise<Response> => {
       case "pinterest":
         if (!b.code || !b.redirect_uri) return bad("code and redirect_uri required.", 400);
         return await pinterest(b);
+      case "reddit":
+        if (!b.code || !b.redirect_uri) return bad("code and redirect_uri required.", 400);
+        return await reddit(b);
       case "bluesky":
         return await bluesky(b);
       default:

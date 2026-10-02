@@ -20,7 +20,7 @@ import { AiLanguage } from './types';
 export type SocialPlatform =
   | 'any' | 'x' | 'bluesky' | 'threads' | 'mastodon'
   | 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest'
-  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'reddit';
 
 /** 'auto' lets the model pick the voice. All voices sit side by side — no hidden rows. */
 export type SocialTone = 'auto' | 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
@@ -53,6 +53,7 @@ export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'hashnode', label: 'Hashnode' },
   { id: 'ghost', label: 'Ghost' },
   { id: 'vk', label: 'VK' },
+  { id: 'reddit', label: 'Reddit' },
 ];
 
 /** How each destination wants to be written — the core message stays identical. */
@@ -75,6 +76,7 @@ export const PLATFORM_ADAPT: Record<SocialPlatform, string> = {
   hashnode: 'technical developer voice, tutorial clarity, markdown-native',
   ghost: 'publication voice, editorial structure, clean scannable prose',
   vk: 'community voice, direct and conversational, native wall-post tone',
+  reddit: 'community voice, title-first, no marketing-speak, subreddit-rule aware',
 };
 
 /** Caption limits for channels that aren't chain-capable (joined text length). */
@@ -92,6 +94,7 @@ const TEXT_CAPS: Partial<Record<SocialPlatform, number>> = {
   hashnode: 100000,
   ghost: 100000,
   vk: 16384,
+  reddit: 40000,
 };
 
 export type SocialStyle =

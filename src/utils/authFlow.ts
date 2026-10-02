@@ -6,7 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * persist which channel is mid-login and replay the return URL on next launch —
  * the Connect screen then finishes the exchange it never got to see.
  */
-export type AuthChannel = 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube';
+export type AuthChannel = 'facebook' | 'instagram' |
+  'threads' | 'tiktok' | 'x' | 'linkedin' | 'mastodon' |
+  'pinterest' | 'youtube' | 'reddit';
 
 export interface PendingAuth {
   channel: AuthChannel;

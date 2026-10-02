@@ -30,6 +30,15 @@ export interface PickState {
     picture?: string;
     ig?: string;
   }[];
+  /** Reddit only: staged subreddit pick (tokens ride along, like Pages). */
+  reddit?: {
+    username: string;
+    access_token: string;
+    refresh_token?: string;
+    expires_at?: string;
+    avatar?: string;
+    subreddits: { name: string; title: string; subscribers?: number }[];
+  };
 }
 
 export const b64e = (o: unknown): string => Buffer.from(JSON.stringify(o)).toString('base64url');
