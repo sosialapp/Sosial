@@ -12,6 +12,7 @@ import {
 } from '@/lib/studio/model';
 import { PatternBackground } from './patterns';
 import { BlockView, ChromeIcon, VERIFIED_SEAL } from './blocks';
+import XHeaderStrip from './XHeaderStrip';
 
 function ff(font: FontId | undefined, bold = false, italic = false): React.CSSProperties {
   return {
@@ -165,19 +166,21 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
   if (style === 'x') {
     return (
       <div style={shell(14)}>
-        <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
+        <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0`, gap: 7 * k }}>
           <AvatarMark page={page} size={22} k={k} />
-          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name} </span>
-          <Check c={c} size={9} k={k} />
-          <span style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.gray }}>{c.firstHandle} · 2h</span>
+          {/* User-supplied X header band (name · verified · handle · date)
+              — avatar replaced by the card's own AvatarMark. */}
+          <span style={{ flex: 1, minWidth: 0, display: 'inline-flex', alignItems: 'center' }}>
+            <XHeaderStrip color={c.gray} width={138 * k} height={13 * k} />
+          </span>
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
           <span style={{ flex: 1 }} />
           <ChromeIcon name="dots" size={11 * k} color={c.gray} />
         </div>
         <div style={bodyStyle}>{children}</div>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
-            action row — full-width, aspect-preserved. */}
-        <div style={{ padding: `0 ${14 * k}px ${10 * k}px` }}>
+            action row — full-width, aspect-preserved, nudged down. */}
+        <div style={{ padding: `2px ${14 * k}px ${10 * k}px`, marginTop: 2 * k }}>
           <svg viewBox="0 0 357 54" style={{ display: 'block', width: '100%', height: 'auto' }} aria-hidden="true">
             <g fill="#6D6D6D">
               <path d="M1.67313 24.8432C1.67313 20.6199 5.09766 17.1992 9.32196 17.1992H13.4937C17.7839 17.1992 21.261 20.6772 21.261 24.9674C21.261 27.7957 19.7255 30.3947 17.2517 31.7611L9.55606 36.0227V32.4968H9.49204C5.20182 32.5924 1.67313 29.143 1.67313 24.8432ZM9.32196 19.1102C6.15254 19.1102 3.58414 21.6805 3.58414 24.8432C3.58414 28.0633 6.2309 30.6527 9.44905 30.5858L9.78443 30.5763H11.4671V32.7739L16.3277 30.089C18.1919 29.057 19.35 27.0982 19.35 24.9674C19.35 21.7283 16.7281 19.1102 13.4937 19.1102H9.32196Z" />
@@ -481,25 +484,25 @@ function AvatarMark({ page, size, k }: { page: PostPage; size: number; k: number
 }
 
 function Watermark(props: { font: FontId; size: number; color: string; k: number }) {
-  // Mirrors the server-side export mark: the Sosial bolt in a translucent
-  // rounded badge, so the preview matches the watermarked PNG exactly.
-  const d = Math.round(18 * props.k);
+  // "Made with sosial.app" text + bolt, no badge background.
   return (
     <span
       style={{
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        width: d,
-        height: d,
-        borderRadius: Math.round(d * 0.3),
-        background: 'rgba(0,0,0,0.42)',
-        border: '1px solid rgba(255,255,255,0.22)',
+        gap: 2 * props.k,
         flexShrink: 0,
+        opacity: 0.9,
       }}
     >
+      <span style={{ ...ff(props.font), fontSize: props.size * props.k, color: props.color, lineHeight: 1 }}>
+        Made with
+      </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/bolt.png" alt="" data-embed width={Math.round(d * 0.62)} height={Math.round(d * 0.62)} />
+      <img src="/bolt.png" alt="" data-embed width={Math.round(props.size * props.k * 1.15)} height={Math.round(props.size * props.k * 1.15)} />
+      <span style={{ ...ff(props.font, true), fontSize: props.size * props.k, color: props.color, lineHeight: 1 }}>
+        sosial.app
+      </span>
     </span>
   );
 }

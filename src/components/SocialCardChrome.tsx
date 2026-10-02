@@ -42,9 +42,9 @@ function Avatar({ page, pad, size }: { page: PostPage; pad: (v: number) => numbe
 function Watermark({ font, pad, size, color }: { font: FontId; pad: (v: number) => number; size: number; color: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(2), flexShrink: 0 }}>
-      <Text style={{ ...F(font), fontSize: pad(size), color }}>made with</Text>
+      <Text style={{ ...F(font), fontSize: pad(size), color }}>Made with</Text>
       <Image source={require('../../assets/watermark.png')} style={{ width: pad(size + 1), height: pad(size + 1), borderRadius: pad(2) }} />
-      <Text style={{ ...F(font, true), fontSize: pad(size), color }}>Sosial</Text>
+      <Text style={{ ...F(font, true), fontSize: pad(size), color }}>sosial.app</Text>
     </View>
   );
 }
@@ -196,7 +196,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
             action row — full-width, aspect-preserved. */}
-        <View style={{ paddingHorizontal: pad(14), paddingBottom: pad(10) }}>
+        <View style={{ paddingHorizontal: pad(14), paddingTop: pad(3), paddingBottom: pad(10) }}>
           <Svg width="100%" height={pad(20)} viewBox="0 0 357 54">
             <Defs>
               <ClipPath id="xstrip-clip">
