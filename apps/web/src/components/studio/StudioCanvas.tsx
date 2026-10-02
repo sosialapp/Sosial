@@ -12,7 +12,6 @@ import {
 } from '@/lib/studio/model';
 import { PatternBackground } from './patterns';
 import { BlockView, ChromeIcon, VERIFIED_SEAL } from './blocks';
-import XHeaderStrip from './XHeaderStrip';
 
 function ff(font: FontId | undefined, bold = false, italic = false): React.CSSProperties {
   return {
@@ -166,13 +165,11 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
   if (style === 'x') {
     return (
       <div style={shell(14)}>
-        <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0`, gap: 7 * k }}>
+        <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
-          {/* User-supplied X header band (name · verified · handle · date)
-              — avatar replaced by the card's own AvatarMark. */}
-          <span style={{ flex: 1, minWidth: 0, display: 'inline-flex', alignItems: 'center' }}>
-            <XHeaderStrip color={c.gray} width={138 * k} height={13 * k} />
-          </span>
+          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name} </span>
+          <Check c={c} size={9} k={k} />
+          <span style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.gray }}>{c.firstHandle} · 2h</span>
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
           <span style={{ flex: 1 }} />
           <ChromeIcon name="dots" size={11 * k} color={c.gray} />
