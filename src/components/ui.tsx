@@ -40,11 +40,11 @@ const GLYPH_SCALE: Record<string, number> = {
   tiktok: 1.08,
   threads: 1,
   x: 0.92,
-  facebook: 1.2,
+  facebook: 1,
   youtube: 0.88,
   whatsapp: 1,
-  linkedin: 1.1,
-  pinterest: 1.15,
+  linkedin: 1,
+  pinterest: 1,
   bluesky: 1.05,
   mastodon: 1,
   telegram: 1.1,
@@ -63,11 +63,6 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
   if (platform === 'telegram') return <FontAwesome6 name="telegram" size={s} color={color} />;
   if (platform === 'discord') return <FontAwesome6 name="discord" size={s} color={color} />;
   if (platform === 'wordpress') return <FontAwesome6 name="wordpress" size={s} color={color} />;
-  // Bare letter glyphs — the boxed/circled variants read as white blobs on
-  // the brand disc (f, in, p only, matching the VK plane treatment).
-  if (platform === 'facebook') return <FontAwesome6 name="facebook-f" size={s} color={color} />;
-  if (platform === 'linkedin') return <FontAwesome6 name="linkedin-in" size={s} color={color} />;
-  if (platform === 'pinterest') return <FontAwesome6 name="pinterest-p" size={s} color={color} />;
   if (platform === 'bluesky') {
     return (
       <Svg width={s} height={s} viewBox="0 0 24 24">
@@ -123,8 +118,11 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
   const map: Record<string, any> = {
     instagram: 'logo-instagram',
     tiktok: 'logo-tiktok',
+    facebook: 'logo-facebook',
     youtube: 'logo-youtube',
     whatsapp: 'logo-whatsapp',
+    linkedin: 'logo-linkedin',
+    pinterest: 'logo-pinterest',
   };
   return <Ionicons name={map[platform] ?? 'ellipse'} size={s} color={color} />;
 }
