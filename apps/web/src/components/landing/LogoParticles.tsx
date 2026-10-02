@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { BRAND_PATHS, brandColor, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/BrandIcon';
+import { BRAND_PATHS, brandColor, brandPath, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/BrandIcon';
 import { planeFromBundledMark } from '../telegramMark';
 import type { ProviderKey } from '@/lib/types';
 
@@ -38,7 +38,7 @@ function spriteSvg(provider: ProviderKey): string {
   const d =
     provider === 'telegram'
       ? planeFromBundledMark(BRAND_PATHS.telegram)
-      : BRAND_PATHS[provider as BrandProvider];
+      : brandPath(provider as BrandProvider);
   const extra =
     provider === 'telegram'
       ? ' transform="translate(12 12) scale(1.5) translate(-12 -12)"'
