@@ -134,16 +134,26 @@ export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { p
   const { C } = useTheme();
   const bg = SOCIAL_META[platform]?.bg ?? C.ink;
   const badgeSize = Math.max(12, Math.round(size * 0.48));
+  // Stored avatar URLs die (fbcdn/TikTok sign theirs with expiries) — a dead
+  // photo falls back to the brand disc, never a blank hole (web parity).
+  const [dead, setDead] = useState(false);
+  useEffect(() => setDead(false), [avatar]);
+  const live = !!avatar && !dead;
   return (
     <View style={{ width: size, height: size }}>
-      {avatar ? (
-        <Image source={{ uri: avatar }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.lineSoft }} resizeMode="cover" />
+      {live ? (
+        <Image
+          source={{ uri: avatar }}
+          style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.lineSoft }}
+          resizeMode="cover"
+          onError={() => setDead(true)}
+        />
       ) : (
         <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
           <SocialGlyph platform={platform} size={Math.round(size * 0.56)} color="#fff" />
         </View>
       )}
-      {avatar && badge ? (
+      {live && badge ? (
         <View style={{ position: 'absolute', right: -2, bottom: -2, width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bone }}>
           <SocialGlyph platform={platform} size={Math.round(badgeSize * 0.62)} color="#fff" />
         </View>
