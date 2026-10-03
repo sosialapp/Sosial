@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createClient } from '@/lib/supabase/client';
 import {
   cloudConnected, loginCloud, getValidCloudToken,
@@ -34,12 +35,15 @@ const SOON = [
   { label: 'Canva', note: 'Coming soon' },
 ];
 
+const PANEL_W = 340;
+const PANEL_H = 560;
+
 /**
  * Add-media dropdown for the web composer (shared by composer + idea editors
- * via PostBox), anchored under the media button. Stock via edge search fns;
- * Drive/Photos/Dropbox via popup OAuth — tokens stay in sessionStorage
- * (device-only). Downloads resolve to Files for onAddFiles; Unsplash items
- * also return a credit line.
+ * via PostBox), anchored under the media button through a portal. Stock via
+ * edge search fns; Drive/Photos/Dropbox via popup OAuth — tokens stay in
+ * sessionStorage (device-only). Downloads resolve to Files for onAddFiles;
+ * Unsplash items also return a credit line.
  */
 export default function MediaSourcesDialog({
   open,
@@ -71,6 +75,9 @@ export default function MediaSourcesDialog({
   const [dbxFolders, setDbxFolders] = useState<CloudDropboxEntry[]>([]);
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
   const [dbxFiles, setDbxFiles] = useState<CloudDropboxEntry[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -81,7 +88,7 @@ export default function MediaSourcesDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const reset = () => {
     setItems([]);
@@ -97,16 +104,21 @@ export default function MediaSourcesDialog({
     setAuthed(false);
   };
 
-  const openSource = async (id: Source) => {
-    reset();
-    setSource(id);
-    if (id === 'unsplash') setType('photo');
-    if (id === 'drive' || id === 'gphotos' || id === 'dropbox') {
-      const provider = id === 'dropbox' ? 'dropbox' : 'google';
-      if (!cloudConnected(provider)) return;
-      setAuthed(true);
-      await loadCloud(id);
+  const loadDriveInto = async (folderId?: string, q?: string) => {
+    const r = await listDriveFiles(folderId, q);
+    setDriveFiles(r.files);
+    if (!q) setFolders(r.folders);
+  };
+
+  const loadDropboxInto = async (path?: string, q?: string) => {
+    if (q) {
+      setDbxFiles(await searchDropbox(q));
+      setDbxFolders([]);
+      return;
     }
+    const r = await listDropboxFolder(path);
+    setDbxFolders(r.folders);
+    setDbxFiles(r.files);
   };
 
   const loadCloud = async (id: Source, q?: string) => {
@@ -114,28 +126,28 @@ export default function MediaSourcesDialog({
     setErr(null);
     try {
       if (id === 'drive') {
-        const r = await listDriveFiles(
-          folderStack.length ? folderStack[folderStack.length - 1].id : undefined,
-          q,
-        );
-        setDriveFiles(r.files);
-        if (!q) setFolders(r.folders);
+        await loadDriveInto(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, q);
       } else if (id === 'gphotos') {
         setPhotos(await listGooglePhotos(q));
       } else if (id === 'dropbox') {
-        if (q) {
-          setDbxFiles(await searchDropbox(q));
-          setDbxFolders([]);
-        } else {
-          const r = await listDropboxFolder(dbxStack.length ? dbxStack[dbxStack.length - 1].path : undefined);
-          setDbxFolders(r.folders);
-          setDbxFiles(r.files);
-        }
+        await loadDropboxInto(dbxStack.length ? dbxStack[dbxStack.length - 1].path : undefined, q);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'That source refused — try again.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const openSource = (id: Source) => {
+    reset();
+    setSource(id);
+    if (id === 'unsplash') setType('photo');
+    if (id === 'drive' || id === 'gphotos' || id === 'dropbox') {
+      const provider = id === 'dropbox' ? 'dropbox' : 'google';
+      if (!cloudConnected(provider)) return;
+      setAuthed(true);
+      void loadCloud(id);
     }
   };
 
@@ -145,7 +157,6 @@ export default function MediaSourcesDialog({
     setConnecting(true);
     setErr(null);
     try {
-      // Touch the token once so a stale refresh surfaces here, not on list.
       const ok = await loginCloud(provider);
       if (!ok) {
         setErr('Sign-in was cancelled.');
@@ -161,20 +172,8 @@ export default function MediaSourcesDialog({
     }
   };
 
-  const search = async () => {
-    if (!source || busy) return;
-    if (source === 'drive' || source === 'gphotos' || source === 'dropbox') {
-      if (!query.trim()) {
-        // Empty search = reload the current folder.
-        if (source === 'drive') await loadCloud(source);
-        else if (source === 'gphotos') await loadCloud(source);
-        else await loadCloud(source);
-        return;
-      }
-      await loadCloud(source, query.trim());
-      return;
-    }
-    if (!query.trim()) return;
+  const searchStock = async () => {
+    if (!source || !query.trim()) return;
     setBusy(true);
     setErr(null);
     try {
@@ -185,7 +184,7 @@ export default function MediaSourcesDialog({
       });
       if (error) throw new Error(error.message);
       const list = (Array.isArray((data as any)?.items) ? (data as any).items : []) as StockItem[];
-      setItems(list.map((x) => ({ ...x, source })));
+      setItems(list.map((x) => ({ ...x, source: source as 'pexels' | 'unsplash' })));
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Search failed.');
     } finally {
@@ -193,7 +192,17 @@ export default function MediaSourcesDialog({
     }
   };
 
+  const search = () => {
+    if (!source || busy) return;
+    if (source === 'drive' || source === 'gphotos' || source === 'dropbox') {
+      void loadCloud(source, query.trim() || undefined);
+      return;
+    }
+    void searchStock();
+  };
+
   const pickStock = async (item: StockItem) => {
+    if (downloading) return;
     setDownloading(item.id);
     try {
       const r = await fetch(item.full);
@@ -215,6 +224,7 @@ export default function MediaSourcesDialog({
   };
 
   const pickDrive = async (f: CloudDriveFile) => {
+    if (downloading) return;
     setDownloading(f.id);
     try {
       onAttach([await downloadDriveFile(f)]);
@@ -227,6 +237,7 @@ export default function MediaSourcesDialog({
   };
 
   const pickPhoto = async (p: CloudPhoto) => {
+    if (downloading) return;
     setDownloading(p.id);
     try {
       onAttach([await downloadGooglePhoto(p)]);
@@ -239,6 +250,7 @@ export default function MediaSourcesDialog({
   };
 
   const pickDropbox = async (f: CloudDropboxEntry) => {
+    if (downloading) return;
     setDownloading(f.path);
     try {
       onAttach([await downloadDropboxFile(f)]);
@@ -266,9 +278,7 @@ export default function MediaSourcesDialog({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={thumb} alt={name} loading="lazy" className="aspect-square w-full object-cover" />
       ) : (
-        <span className="flex aspect-square w-full items-center justify-center text-2xl text-faint">
-          {kind === 'video' ? '▶' : '🖼'}
-        </span>
+        <span className="flex aspect-square w-full items-center justify-center text-2xl text-faint">🖼</span>
       )}
       {kind === 'video' ? (
         <span className="absolute top-1.5 left-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">▶</span>
@@ -280,85 +290,68 @@ export default function MediaSourcesDialog({
     </button>
   );
 
-  // Anchored dropdown: panel hangs under the media button, flips above when
-  // the viewport runs out below. Transparent catcher (no dim) closes it.
-  const PANEL_W = 352;
+  const menuRow = (title: string, note: string, onClick?: () => void, disabled?: boolean) =>
+    disabled ? (
+      <div className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 opacity-55">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-bold">{title}</span>
+          <span className="block text-[11px] text-muted">{note}</span>
+        </span>
+        <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-bold text-faint">Soon</span>
+      </div>
+    ) : (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-paper-dim"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-bold">{title}</span>
+          <span className="block text-[11px] text-muted">{note}</span>
+        </span>
+        <span aria-hidden="true" className="text-faint">›</span>
+      </button>
+    );
+
+  // Anchored dropdown through a portal — ancestors with transforms would
+  // trap position:fixed. Panel hangs under the button, flips above when the
+  // viewport runs out below, clamped to the window edges.
   const left = Math.max(8, Math.min(anchor?.left ?? 8, window.innerWidth - PANEL_W - 8));
   const below = (anchor?.top ?? 0) + 8;
-  const flip = below + 520 > window.innerHeight && (anchor?.top ?? 0) > window.innerHeight / 2;
+  const flip = below + PANEL_H > window.innerHeight && (anchor?.top ?? 0) > window.innerHeight / 2;
 
-  return (
-    <div
-      className="fixed inset-0 z-[100]"
-      role="dialog"
-      aria-label="Add media"
-    >
-      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[90]" onClick={onClose} aria-hidden="true" />
       <div
-        className="absolute max-h-[70vh] w-[352px] overflow-y-auto rounded-2xl border border-line bg-card p-4 shadow-2xl"
-        style={flip ? { left, bottom: window.innerHeight - ((anchor?.top ?? 0) - 8) } : { left, top: below }}
+        role="menu"
+        aria-label="Add media"
+        className="fixed z-[100] max-h-[min(560px,72vh)] w-[340px] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-card p-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
+        style={flip ? { left, bottom: window.innerHeight - (anchor?.top ?? 0) + 8 } : { left, top: below }}
       >
-        <div className="flex items-center justify-between">
-          <p className="font-display text-base font-extrabold">Add media</p>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1 text-muted hover:text-ink">
-            ✕
+        {source ? (
+          <button
+            type="button"
+            onClick={() => { setSource(null); reset(); }}
+            className="mb-1 flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left text-xs font-bold text-accent-ink hover:bg-paper-dim"
+          >
+            ‹ {label}
           </button>
-        </div>
+        ) : (
+          <p className="px-2 pb-1 pt-1 font-display text-sm font-extrabold">Add media</p>
+        )}
 
         {!source ? (
-          <div className="mt-4 space-y-2">
-            {onPickLocal ? (
-              <button
-                type="button"
-                onClick={() => { onClose(); onPickLocal(); }}
-                className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3 text-left transition hover:border-ink"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold">This device</span>
-                  <span className="block text-xs text-muted">Photos and videos on this device</span>
-                </span>
-                <span aria-hidden="true" className="text-faint">›</span>
-              </button>
-            ) : null}
-            {SOURCES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => void openSource(s.id)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3 text-left transition hover:border-ink"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold">{s.label}</span>
-                  <span className="block text-xs text-muted">{s.note}</span>
-                </span>
-                <span aria-hidden="true" className="text-faint">›</span>
-              </button>
-            ))}
-            {SOON.map((s) => (
-              <div
-                key={s.label}
-                className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3 opacity-55"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold">{s.label}</span>
-                  <span className="block text-xs text-muted">{s.note}</span>
-                </span>
-                <span className="rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-faint">Soon</span>
-              </div>
-            ))}
+          <div>
+            {onPickLocal ? menuRow('This device', 'Photos and videos on this device', () => { onClose(); onPickLocal(); }) : null}
+            {SOURCES.map((s) => menuRow(s.label, s.note, () => openSource(s.id)))}
+            <div className="mx-1 my-1 h-px bg-line-soft" aria-hidden="true" />
+            {SOON.map((s) => menuRow(s.label, s.note, undefined, true))}
           </div>
         ) : (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => { setSource(null); reset(); }}
-              className="text-xs font-bold text-accent-ink"
-            >
-              ‹ {label}
-            </button>
-
+          <div>
             {isCloud && !authed ? (
-              <div className="py-7 text-center">
+              <div className="py-6 text-center">
                 <p className="text-sm font-bold">
                   {source === 'drive'
                     ? 'Connect Google Drive to browse your files.'
@@ -371,7 +364,7 @@ export default function MediaSourcesDialog({
                   type="button"
                   onClick={() => void connect()}
                   disabled={connecting}
-                  className="btn btn-primary mx-auto mt-4 !text-sm"
+                  className="btn btn-primary mx-auto mt-3 !py-2 !text-sm"
                 >
                   {connecting ? 'Connecting…' : source === 'dropbox' ? 'Connect Dropbox' : 'Connect Google'}
                 </button>
@@ -379,27 +372,27 @@ export default function MediaSourcesDialog({
               </div>
             ) : (
               <>
-                <div className="mt-2 flex gap-2">
+                <div className="flex gap-1.5">
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void search(); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') search(); }}
                     placeholder={placeholder}
                     aria-label={placeholder}
-                    className="field min-w-0 flex-1 !text-sm"
+                    className="field min-w-0 flex-1 !py-1.5 !text-sm"
                   />
-                  <button type="button" onClick={() => void search()} disabled={busy} className="btn btn-primary !py-2 !text-sm">
+                  <button type="button" onClick={search} disabled={busy} className="btn btn-primary !px-3 !py-1.5 !text-sm">
                     {busy ? '…' : 'Go'}
                   </button>
                 </div>
                 {source === 'pexels' ? (
-                  <div className="mt-2 flex gap-1.5">
+                  <div className="mt-1.5 flex gap-1.5">
                     {(['photo', 'video'] as const).map((t) => (
                       <button
                         key={t}
                         type="button"
                         onClick={() => setType(t)}
-                        className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                        className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
                           type === t ? 'border-ink bg-ink text-paper' : 'border-line text-muted hover:text-ink'
                         }`}
                       >
@@ -409,12 +402,12 @@ export default function MediaSourcesDialog({
                   </div>
                 ) : null}
                 {source === 'unsplash' ? (
-                  <p className="mt-2 text-[11px] text-muted">Photographer credit is added to your caption automatically.</p>
+                  <p className="mt-1.5 text-[11px] text-muted">Photographer credit is added to your caption automatically.</p>
                 ) : null}
-                {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
+                {err ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
 
                 {source === 'drive' && folders.length > 0 && !query.trim() ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {folderStack.length > 0 ? (
                       <button
                         type="button"
@@ -422,13 +415,9 @@ export default function MediaSourcesDialog({
                           const next = folderStack.slice(0, -1);
                           setFolderStack(next);
                           setQuery('');
-                          void (async () => {
-                            const r = await listDriveFiles(next.length ? next[next.length - 1].id : undefined);
-                            setDriveFiles(r.files);
-                            setFolders(r.folders);
-                          })();
+                          void loadDriveInto(next.length ? next[next.length - 1].id : undefined);
                         }}
-                        className="rounded-full border border-line px-3 py-1.5 text-xs font-bold"
+                        className="rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
                       >
                         ↑ Up
                       </button>
@@ -440,22 +429,18 @@ export default function MediaSourcesDialog({
                         onClick={() => {
                           setFolderStack([...folderStack, f]);
                           setQuery('');
-                          void (async () => {
-                            const r = await listDriveFiles(f.id);
-                            setDriveFiles(r.files);
-                            setFolders(r.folders);
-                          })();
+                          void loadDriveInto(f.id);
                         }}
-                        className="max-w-[180px] truncate rounded-full border border-line px-3 py-1.5 text-xs font-bold"
+                        className="max-w-[160px] truncate rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
                       >
-                        📁 {f.name}
+                        {f.name}
                       </button>
                     ))}
                   </div>
                 ) : null}
 
                 {source === 'dropbox' && dbxFolders.length > 0 && !query.trim() ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {dbxStack.length > 0 ? (
                       <button
                         type="button"
@@ -463,13 +448,9 @@ export default function MediaSourcesDialog({
                           const next = dbxStack.slice(0, -1);
                           setDbxStack(next);
                           setQuery('');
-                          void (async () => {
-                            const r = await listDropboxFolder(next.length ? next[next.length - 1].path : undefined);
-                            setDbxFolders(r.folders);
-                            setDbxFiles(r.files);
-                          })();
+                          void loadDropboxInto(next.length ? next[next.length - 1].path : undefined);
                         }}
-                        className="rounded-full border border-line px-3 py-1.5 text-xs font-bold"
+                        className="rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
                       >
                         ↑ Up
                       </button>
@@ -481,21 +462,17 @@ export default function MediaSourcesDialog({
                         onClick={() => {
                           setDbxStack([...dbxStack, { name: f.name, path: f.path }]);
                           setQuery('');
-                          void (async () => {
-                            const r = await listDropboxFolder(f.path);
-                            setDbxFolders(r.folders);
-                            setDbxFiles(r.files);
-                          })();
+                          void loadDropboxInto(f.path);
                         }}
-                        className="max-w-[180px] truncate rounded-full border border-line px-3 py-1.5 text-xs font-bold"
+                        className="max-w-[160px] truncate rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
                       >
-                        📁 {f.name}
+                        {f.name}
                       </button>
                     ))}
                   </div>
                 ) : null}
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="mt-2 grid grid-cols-3 gap-1.5">
                   {source === 'drive'
                     ? driveFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, () => void pickDrive(f)))
                     : source === 'gphotos'
@@ -521,6 +498,7 @@ export default function MediaSourcesDialog({
           </div>
         )}
       </div>
-    </div>
+    </>,
+    document.body,
   );
 }
