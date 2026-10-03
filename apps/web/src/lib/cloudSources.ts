@@ -190,12 +190,19 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
       return;
     }
     const timer = window.setInterval(() => {
-      if (pop.closed) {
+      try {
+        // Cross-origin popups (Google/Dropbox/Canva) make Chrome log a COOP
+        // warning on .closed access — harmless; the postMessage handshake
+        // below is what actually settles the flow.
+        if (pop.closed) {
+          window.clearInterval(timer);
+          window.removeEventListener('message', onMsg);
+          resolve(null);
+        }
+      } catch {
         window.clearInterval(timer);
-        window.removeEventListener('message', onMsg);
-        resolve(null);
       }
-    }, 500);
+    }, 2000);
     window.setTimeout(() => {
       window.clearInterval(timer);
       window.removeEventListener('message', onMsg);
