@@ -56,6 +56,15 @@ async function edgeDetail(err: unknown): Promise<string | null> {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const origin = url.origin;
+  const incomingState = url.searchParams.get('state');
+
+  // Media-source picker flow (composer "add media" dialog): state looks like
+  // `cloud:dropbox:<nonce>`. Nothing is imported or persisted — the code is
+  // swapped for tokens and handed to the opener window, which keeps them in
+  // sessionStorage (device-only). The dialog matches on the nonce.
+  if (incomingState?.startsWith('cloud:')) {
+    return cloudPickerResult(url, origin);
+  }
   const done = (qs: string) => {
     const res = NextResponse.redirect(`${origin}/channels${qs}`);
     res.cookies.delete(FLOW_COOKIE);
@@ -225,4 +234,61 @@ export async function GET(req: Request) {
   });
   if (impErr) return done(`?error=${encodeURIComponent((await edgeDetail(impErr)) ?? impErr.message)}`);
   return done(`?connected=${flow.provider}`);
+}
+
+/**
+ * Media-source picker landing (state `cloud:<provider>:<nonce>` from the
+ * composer's "add media" dialog). Swaps the code for tokens via
+ * cloud-exchange — nothing is imported or stored — and hands the result to
+ * the opener window, which keeps tokens in sessionStorage (device-only).
+ */
+async function cloudPickerResult(url: URL, origin: string) {
+  const page = (payload: Record<string, unknown>) => {
+    const safe = JSON.stringify(payload).replace(/</g, '\\u003c');
+    return new Response(
+      `<!doctype html><html><body><script>` +
+        `try{window.opener&&window.opener.postMessage(${safe},"${origin}");}catch(e){}` +
+        `setTimeout(function(){window.close();},400);` +
+        `document.body.innerHTML="<p style='font-family:sans-serif'>Done — you can close this tab.</p>";` +
+        `</script></body></html>`,
+      { headers: { 'Content-Type': 'text/html' } },
+    );
+  };
+  const fail = (msg: string, nonce: string) =>
+    page({ type: 'sosial-cloud', nonce, ok: false, error: msg });
+
+  const [, provider, nonce] = (url.searchParams.get('state') ?? '').split(':');
+  if ((provider !== 'dropbox' && provider !== 'google') || !nonce) {
+    return fail('That login expired — try connecting again.', '');
+  }
+  const providerErr = url.searchParams.get('error');
+  const code = url.searchParams.get('code');
+  if (providerErr || !code) {
+    return fail(
+      url.searchParams.get('error_description') || 'The provider refused the login.',
+      nonce,
+    );
+  }
+  const sb = await createClient();
+  const {
+    data: { session },
+  } = await sb.auth.getSession();
+  if (!session) return fail('Sign in first.', nonce);
+  const { data, error: fnErr } = await sb.functions.invoke('cloud-exchange', {
+    body: { provider, code, redirect_uri: `${origin}/auth.html` },
+  });
+  const tokens = (data ?? {}) as { access_token?: string; refresh_token?: string; expires_in?: number };
+  const errMsg =
+    (data as { error?: string } | null)?.error ?? (await edgeDetail(fnErr)) ?? fnErr?.message;
+  if (errMsg || !tokens.access_token) {
+    return fail(errMsg || 'The provider hid the login — try again.', nonce);
+  }
+  return page({
+    type: 'sosial-cloud',
+    nonce,
+    ok: true,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token ?? null,
+    expires_in: tokens.expires_in ?? 14400,
+  });
 }

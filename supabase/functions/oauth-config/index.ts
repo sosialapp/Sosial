@@ -61,5 +61,6 @@ serve(async (req: Request): Promise<Response> => {
   put("pinterest", "client_id", get("PIN_CLIENT_ID"));
   put("reddit", "client_id", get("REDDIT_CLIENT_ID"));
   put("gmb", "client_id", get("YT_CLIENT_ID") || get("GOOGLE_CLIENT_ID"));
+  put("dropbox", "client_id", get("DROPBOX_APP_KEY"));
   return Response.json(out, { headers: CORS });
 });
