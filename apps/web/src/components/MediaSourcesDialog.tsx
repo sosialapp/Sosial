@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ImagePlus, FolderOpen, Images, Box, Camera, Aperture, Cloud, Palette } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { THEME_CLASS } from '@/components/ThemeScope';
 import {
   cloudConnected, loginCloud, getValidCloudToken,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
@@ -24,69 +24,22 @@ export interface StockItem {
 type Source = 'drive' | 'gphotos' | 'dropbox' | 'pexels' | 'unsplash';
 
 const SOURCES = [
-  { id: 'drive', label: 'Google Drive', note: 'Your files + shared folders', icon: 'drive' },
-  { id: 'gphotos', label: 'Google Photos', note: 'Your photo library', icon: 'gphotos' },
-  { id: 'dropbox', label: 'Dropbox', note: 'Your Dropbox files', icon: 'dropbox' },
-  { id: 'pexels', label: 'Pexels', note: 'Photos + videos, free to use', icon: 'pexels' },
-  { id: 'unsplash', label: 'Unsplash', note: 'Photos · credit auto-added', icon: 'unsplash' },
+  { id: 'drive', label: 'Google Drive', icon: FolderOpen },
+  { id: 'gphotos', label: 'Google Photos', icon: Images },
+  { id: 'dropbox', label: 'Dropbox', icon: Box },
+  { id: 'pexels', label: 'Pexels', icon: Camera },
+  { id: 'unsplash', label: 'Unsplash', icon: Aperture },
 ] as const;
 
 const SOON = [
-  { label: 'OneDrive', note: 'Coming soon', icon: 'onedrive' },
-  { label: 'Canva', note: 'Coming soon', icon: 'canva' },
+  { label: 'OneDrive', icon: Cloud },
+  { label: 'Canva', icon: Palette },
 ];
 
-/** Row icons — inline SVG, currentColor, sized for the 24px slot. */
-const ROW_ICONS: Record<string, React.ReactNode> = {
-  local: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="4" />
-      <circle cx="9" cy="9" r="1.7" />
-      <path d="M21 15.5 16.5 11 7 20.5" />
-    </svg>
-  ),
-  drive: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M8.31 2.5 15.7 15.25l2.49-4.31L10.79 2.5H8.31ZM2.5 13.17l3.65 6.33h11.19l3.66-6.33h-4.98l-1.6 2.77H7.09L5.48 13.17H2.5Z" transform="scale(0.92) translate(1,1)" />
-    </svg>
-  ),
-  gphotos: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5" />
-      <path d="M12 19.5A7.5 7.5 0 0 1 4.5 12" />
-      <circle cx="12" cy="12" r="2.6" />
-    </svg>
-  ),
-  dropbox: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M6 2 12 5.9 6 9.8 0 5.9 6 2Zm12 0 6 3.9-6 3.9-6-3.9L18 2ZM0 13.7l6-3.9 6 3.9-6 3.9-6-3.9Zm18-3.9 6 3.9-6 3.9-6-3.9 6-3.9ZM6 18.9l6-3.9 6 3.9-6 3.9-6-3.9Z" transform="scale(0.88) translate(1.5,1)" />
-    </svg>
-  ),
-  pexels: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M14 2a8 8 0 0 0-8 8c0 .34.02.67.06 1H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2.06c.04-.33.06-.66.06-1a8 8 0 0 0-4-6.93A8 8 0 0 0 14 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z" />
-    </svg>
-  ),
-  unsplash: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M7.5 5.5h9V0h-9v5.5Zm9 6H24v12.5H0V11.5h7.5v5.5h9v-5.5Z" />
-    </svg>
-  ),
-  onedrive: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M13.4 6.5a5.6 5.6 0 0 1 5.3 3.8A4.9 4.9 0 0 1 18 20H6.3a5.3 5.3 0 0 1-1-10.5A5.6 5.6 0 0 1 13.4 6.5Z" />
-    </svg>
-  ),
-  canva: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 3a9 9 0 0 1 0 18c-1.5 0-2-1.2-1.2-2.2.9-1.1.4-2.8-1.2-2.8H7.5A4.5 4.5 0 0 1 3 11.5C3 6.8 7 3 12 3Z" />
-    </svg>
-  ),
-};
+const LOCAL_ICON = ImagePlus;
 
-const PANEL_W = 340;
-const PANEL_H = 560;
+const PANEL_W = 300;
+const PANEL_H = 480;
 
 /**
  * Add-media dropdown for the web composer (shared by composer + idea editors
@@ -340,27 +293,21 @@ export default function MediaSourcesDialog({
     </button>
   );
 
-  const menuRow = (icon: string, title: string, note: string, onClick?: () => void, disabled?: boolean) =>
+  const menuRow = (Icon: typeof ImagePlus, title: string, onClick?: () => void, disabled?: boolean) =>
     disabled ? (
-      <div className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 opacity-50">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center text-faint [&_svg]:h-[18px] [&_svg]:w-[18px]">{ROW_ICONS[icon] ?? null}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-bold">{title}</span>
-          <span className="block text-[11px] text-muted">{note}</span>
-        </span>
+      <div className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 opacity-45">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-faint"><Icon className="h-4 w-4" aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1 text-[13px] font-bold">{title}</span>
         <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-bold text-faint">Soon</span>
       </div>
     ) : (
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-paper-dim"
+        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-paper-dim"
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-paper-dim text-ink [&_svg]:h-[18px] [&_svg]:w-[18px]">{ROW_ICONS[icon] ?? null}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-bold">{title}</span>
-          <span className="block text-[11px] text-muted">{note}</span>
-        </span>
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-paper-dim text-ink"><Icon className="h-4 w-4" aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1 text-[13px] font-bold">{title}</span>
         <span aria-hidden="true" className="text-faint">›</span>
       </button>
     );
@@ -378,28 +325,26 @@ export default function MediaSourcesDialog({
       <div
         role="menu"
         aria-label="Add media"
-        className="fixed z-[100] flex max-h-[min(560px,72vh)] w-[340px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
+        className="fixed z-[100] flex max-h-[min(480px,70vh)] w-[300px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
         style={flip ? { left, bottom: window.innerHeight - (anchor?.top ?? 0) + 8 } : { left, top: below }}
       >
         {source ? (
           <button
             type="button"
             onClick={() => { setSource(null); reset(); }}
-            className="flex w-full shrink-0 items-center gap-1 border-b border-line-soft px-3 py-2.5 text-left text-xs font-bold text-accent-ink hover:bg-paper-dim"
+            className="flex w-full shrink-0 items-center gap-1 border-b border-line-soft px-3 py-2 text-left text-xs font-bold text-accent-ink hover:bg-paper-dim"
           >
             ‹ {label}
           </button>
-        ) : (
-          <p className="shrink-0 border-b border-line-soft px-3.5 py-2.5 font-display text-sm font-extrabold">Add media</p>
-        )}
+        ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
         {!source ? (
           <div>
-            {onPickLocal ? menuRow('local', 'This device', 'Photos and videos on this device', () => { onClose(); onPickLocal(); }) : null}
-            {SOURCES.map((s) => menuRow(s.icon, s.label, s.note, () => openSource(s.id)))}
+            {onPickLocal ? menuRow(LOCAL_ICON, 'This device', () => { onClose(); onPickLocal(); }) : null}
+            {SOURCES.map((s) => menuRow(s.icon, s.label, () => openSource(s.id)))}
             <div className="mx-1 my-1 h-px bg-line-soft" aria-hidden="true" />
-            {SOON.map((s) => menuRow(s.icon, s.label, s.note, undefined, true))}
+            {SOON.map((s) => menuRow(s.icon, s.label, undefined, true))}
           </div>
         ) : (
           <div>
