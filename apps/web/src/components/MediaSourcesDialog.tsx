@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   cloudConnected, loginCloud, getValidCloudToken,
@@ -35,18 +35,21 @@ const SOON = [
 ];
 
 /**
- * Add-media dialog for the web composer (shared by composer + idea editors
- * via PostBox). Stock via edge search fns; Drive/Photos/Dropbox via popup
- * OAuth — tokens stay in sessionStorage (device-only). Downloads resolve to
- * Files for onAddFiles; Unsplash items also return a credit line.
+ * Add-media dropdown for the web composer (shared by composer + idea editors
+ * via PostBox), anchored under the media button. Stock via edge search fns;
+ * Drive/Photos/Dropbox via popup OAuth — tokens stay in sessionStorage
+ * (device-only). Downloads resolve to Files for onAddFiles; Unsplash items
+ * also return a credit line.
  */
 export default function MediaSourcesDialog({
   open,
+  anchor,
   onClose,
   onAttach,
   onPickLocal,
 }: {
   open: boolean;
+  anchor: { left: number; top: number } | null;
   onClose: () => void;
   onAttach: (files: File[], credit?: string) => void;
   onPickLocal?: () => void;
@@ -68,6 +71,15 @@ export default function MediaSourcesDialog({
   const [dbxFolders, setDbxFolders] = useState<CloudDropboxEntry[]>([]);
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
   const [dbxFiles, setDbxFiles] = useState<CloudDropboxEntry[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -268,15 +280,24 @@ export default function MediaSourcesDialog({
     </button>
   );
 
+  // Anchored dropdown: panel hangs under the media button, flips above when
+  // the viewport runs out below. Transparent catcher (no dim) closes it.
+  const PANEL_W = 352;
+  const left = Math.max(8, Math.min(anchor?.left ?? 8, window.innerWidth - PANEL_W - 8));
+  const below = (anchor?.top ?? 0) + 8;
+  const flip = below + 520 > window.innerHeight && (anchor?.top ?? 0) > window.innerHeight / 2;
+
   return (
     <div
-      className="fixed inset-0 z-[100] overflow-y-auto"
+      className="fixed inset-0 z-[100]"
       role="dialog"
-      aria-modal="true"
       aria-label="Add media"
     >
-      <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
-      <div className="relative mx-auto my-8 w-[calc(100%-2rem)] max-w-lg rounded-3xl border border-line bg-card p-5">
+      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute max-h-[70vh] w-[352px] overflow-y-auto rounded-2xl border border-line bg-card p-4 shadow-2xl"
+        style={flip ? { left, bottom: window.innerHeight - ((anchor?.top ?? 0) - 8) } : { left, top: below }}
+      >
         <div className="flex items-center justify-between">
           <p className="font-display text-base font-extrabold">Add media</p>
           <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1 text-muted hover:text-ink">
