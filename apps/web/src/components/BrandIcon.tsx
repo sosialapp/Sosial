@@ -99,7 +99,7 @@ export const BRAND_NAMES: Record<BrandProvider, string> = {
   ghost: 'Ghost',
   vk: 'VK',
   reddit: 'Reddit',
-  gmb: 'Google Business Profile',
+  gmb: 'Google Business',
   google: 'Google',
 };
 

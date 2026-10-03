@@ -1290,7 +1290,7 @@ export default function ConnectPanel({
                     soon ? (
                     <div className="rounded-xl bg-paper px-3 py-2.5">
                       <p className="text-center text-[11px] leading-relaxed text-muted">
-                        Google Business Profile is coming soon — Google still has to approve
+                        Google Business is coming soon — Google still has to approve
                         the API access. It will light up here the moment it does.
                       </p>
                     </div>

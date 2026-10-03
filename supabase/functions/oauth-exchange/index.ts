@@ -615,7 +615,7 @@ async function gmbList(access: string, url: string): Promise<Record<string, unkn
 async function gmb(b: ExchangeBody): Promise<Response> {
   const id = Deno.env.get("YT_CLIENT_ID") ?? Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
   const secret = Deno.env.get("YT_CLIENT_SECRET") ?? Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
-  if (!id || !secret) return bad("Google Business Profile is not configured yet.", 402);
+  if (!id || !secret) return bad("Google Business is not configured yet.", 402);
   const r = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -669,7 +669,7 @@ async function gmb(b: ExchangeBody): Promise<Response> {
     expires_at: iso(expiresAt),
     // Location pick comes next (staged); these carry over via the stash.
     external_id: "gmb:pending",
-    display_name: "Google Business Profile",
+    display_name: "Google Business",
     locations: out,
   });
 }

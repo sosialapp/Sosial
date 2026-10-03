@@ -707,7 +707,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
 
   const doGmb = async (accountId?: string) => {
     setBusy('Opening Google…');
-    if (!(await loginGmb(accountId))) backedOut('Google Business Profile');
+    if (!(await loginGmb(accountId))) backedOut('Google Business');
   };
 
   /** Stage 2 of the GBP connect: clone account-level tokens into a
@@ -722,7 +722,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         accounts.find((a) => a.provider === 'gmb' && a.fields.gmRefreshToken);
       const f = src?.fields ?? {};
       if (!f.gmRefreshToken) {
-        throw new Error('Google login is missing — connect Google Business Profile first.');
+        throw new Error('Google login is missing — connect Google Business first.');
       }
       await saveProviderFields(
         'gmb',
@@ -736,9 +736,9 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         accountId,
       );
       setAccounts(await loadAccounts());
-      Alert.alert('Connected', `Google Business Profile → ${loc.title}.`);
+      Alert.alert('Connected', `Google Business → ${loc.title}.`);
     } catch (e: any) {
-      Alert.alert('Google Business Profile connect failed', e?.message ?? 'Try again.');
+      Alert.alert('Google Business connect failed', e?.message ?? 'Try again.');
     } finally {
       setBusy(null);
     }
@@ -926,7 +926,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     ghost: { label: 'Ghost', manual: true, configured: true, connect: doGhost },
     vk: { label: 'VK', manual: true, configured: true, connect: doVk },
     reddit: { label: 'Reddit', manual: false, configured: rdConfigured(), connect: doReddit },
-    gmb: { label: 'Google Business Profile', manual: false, configured: true, soon: true, connect: doGmb },
+    gmb: { label: 'Google Business', manual: false, configured: true, soon: true, connect: doGmb },
   };
 
   const accountLabel = (a: ConnectedAccount): string => {
@@ -1299,7 +1299,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       return (
         <>
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Google Business Profile</Text>
+            <Text style={s.helpTitle}>How to connect Google Business</Text>
             {[
               'Sign in with the Google account that manages the profile',
               'Pick your location below (each connects separately)',
@@ -1312,7 +1312,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doGmb(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add another location' : 'Connect Google Business Profile'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? 'Add another location' : 'Connect Google Business'}</Text>
           </TouchableOpacity>
         </>
       );

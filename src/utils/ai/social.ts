@@ -54,7 +54,7 @@ export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'ghost', label: 'Ghost' },
   { id: 'vk', label: 'VK' },
   { id: 'reddit', label: 'Reddit' },
-  { id: 'gmb', label: 'Google Business Profile' },
+  { id: 'gmb', label: 'Google Business' },
 ];
 
 /** How each destination wants to be written — the core message stays identical. */

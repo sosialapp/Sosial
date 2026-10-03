@@ -1244,18 +1244,18 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Reddit');
           } else if (ch === 'gmb') {
             const ggAccts = accountsFor('gmb');
-            if (ggAccts.length === 0) throw new Error('Google Business Profile not connected');
+            if (ggAccts.length === 0) throw new Error('Google Business not connected');
             const ggRes = await Promise.allSettled(ggAccts.map(async (ggAcct) => {
               const ggF = ggAcct.fields;
-              if (!ggF.gmRefreshToken || !ggF.gmLocation) throw new Error('Google Business Profile not connected');
+              if (!ggF.gmRefreshToken || !ggF.gmLocation) throw new Error('Google Business not connected');
               keepAcct(ch, ggAcct.id, await publishGmb({
                 accountId: ggAcct.id,
                 locationExternalId: String(ggF.gmLocation),
                 text: caption,
               }));
             }));
-            throwIfPartial(ch, 'Google Business Profile', ggAccts, ggRes);
-            done.push('Google Business Profile');
+            throwIfPartial(ch, 'Google Business', ggAccts, ggRes);
+            done.push('Google Business');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
             setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });

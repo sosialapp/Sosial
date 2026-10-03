@@ -35,7 +35,7 @@ export const OAUTH_PROVIDERS: { id: OAuthProvider; label: string }[] = [
   { id: 'pinterest', label: 'Pinterest' },
   { id: 'mastodon', label: 'Mastodon' },
   { id: 'reddit', label: 'Reddit' },
-  { id: 'gmb', label: 'Google Business Profile' },
+  { id: 'gmb', label: 'Google Business' },
 ];
 
 export const isOAuthProvider = (v: unknown): v is OAuthProvider =>

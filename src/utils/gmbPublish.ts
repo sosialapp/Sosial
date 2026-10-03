@@ -24,7 +24,7 @@ export async function publishGmb(opts: {
   const token = await getValidGmb(opts.accountId);
   const parent = locationName(opts.locationExternalId);
   const text = (opts.text ?? '').trim();
-  if (!text) throw new Error('Google Business Profile needs post text — this post is empty.');
+  if (!text) throw new Error('Google Business needs post text — this post is empty.');
 
   const res = await fetch(`${API_POSTS}/${parent}/localPosts`, {
     method: 'POST',
@@ -45,7 +45,7 @@ export async function publishGmb(opts: {
     });
     const rj: any = await retry.json().catch(() => ({}));
     if (!retry.ok || !rj?.name) {
-      throw new Error(rj?.error?.message ?? `Google Business Profile refused the post (HTTP ${retry.status}).`);
+      throw new Error(rj?.error?.message ?? `Google Business refused the post (HTTP ${retry.status}).`);
     }
     return String(rj.name);
   }
@@ -54,7 +54,7 @@ export async function publishGmb(opts: {
     if (/403|permission|disabled|not been used/i.test(String(m))) {
       throw new Error(`${m} — the Google Cloud project needs Business Profile API access approved (one-time allow-list).`);
     }
-    throw new Error(`Google Business Profile refused the post: ${String(m).slice(0, 160)}`);
+    throw new Error(`Google Business refused the post: ${String(m).slice(0, 160)}`);
   }
   return String(j.name);
 }

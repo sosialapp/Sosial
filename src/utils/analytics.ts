@@ -808,11 +808,11 @@ async function ytStats(m: MetaState, start: number, end: number): Promise<Channe
 async function gmbStats(m: MetaState, start: number, end: number): Promise<ChannelStats> {
   const base: ChannelStats = {
     channel: 'gmb' as any,
-    label: m.gmLocationTitle ?? 'Google Business Profile',
+    label: m.gmLocationTitle ?? 'Google Business',
     followers: null, posts: 0, reactions: 0, comments: 0, views: null,
     engagementRate: null, perPost: [],
   };
-  if (!m.gmRefreshToken || !m.gmLocation) return { ...base, note: 'Google Business Profile not connected.' };
+  if (!m.gmRefreshToken || !m.gmLocation) return { ...base, note: 'Google Business not connected.' };
   try {
     const token = await getValidGmb();
     const h = { Authorization: `Bearer ${token}` };
@@ -850,7 +850,7 @@ async function gmbStats(m: MetaState, start: number, end: number): Promise<Chann
         ? `Location metrics (last ${Math.max(1, Math.round((end - start) / 86400000))}d): ${clicks} call/website/booking clicks · GBP exposes no per-post stats.`
         : 'GBP exposes no per-post stats — connect the Business Profile Performance & Images APIs on your Google project to see location metrics.';
   } catch (e: any) {
-    base.note = e?.message ?? 'Google Business Profile request failed.';
+    base.note = e?.message ?? 'Google Business request failed.';
   }
   return base;
 }

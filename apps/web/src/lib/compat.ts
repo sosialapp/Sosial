@@ -207,7 +207,7 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     limits: { text: 40000, title: 300 },
   },
   gmb: {
-    label: 'Google Business Profile',
+    label: 'Google Business',
     // Local post (STANDARD topic): 1500-char summary. Offers/events need
     // structured payloads, CTAs need composer fields, media needs the
     // media.startUpload dance — v1 sends text only.

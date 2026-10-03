@@ -76,7 +76,7 @@ export async function refreshGmbToken(refreshToken: string): Promise<GTokens> {
   });
   const j: any = await r.json().catch(() => ({}));
   if (!j?.access_token) {
-    throw new Error(`Google session expired — reconnect Google Business Profile. ${String(j?.error ?? '').slice(0, 80)}`);
+    throw new Error(`Google session expired — reconnect Google Business. ${String(j?.error ?? '').slice(0, 80)}`);
   }
   return {
     access: String(j.access_token),
@@ -93,7 +93,7 @@ export async function getValidGmb(accountId?: string): Promise<string> {
     return f.gmAccessToken;
   }
   const refresh = typeof f.gmRefreshToken === 'string' ? f.gmRefreshToken : '';
-  if (!refresh) throw new Error('Google session expired — reconnect Google Business Profile in Connect.');
+  if (!refresh) throw new Error('Google session expired — reconnect Google Business in Connect.');
   const t = await refreshGmbToken(refresh);
   await saveProviderFields(
     'gmb',

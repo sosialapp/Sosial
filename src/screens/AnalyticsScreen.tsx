@@ -233,7 +233,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
     { id: 'ghost', label: 'Ghost', sub: meta.ghSiteName ?? meta.ghSiteUrl ?? (meta.ghAdminKey ? 'Connected' : 'Not connected'), connected: !!meta.ghAdminKey || sched.has('ghost') },
     { id: 'vk', label: 'VK', sub: meta.vkGroupName ?? (meta.vkToken && meta.vkGroupId ? 'Connected' : 'Not connected'), connected: !!(meta.vkToken && meta.vkGroupId) || sched.has('vk') },
     { id: 'reddit', label: 'Reddit', sub: meta.rdSubreddit ? `r/${meta.rdSubreddit}` : 'Not connected', connected: sched.has('reddit') },
-    { id: 'gmb', label: 'Google Business Profile', sub: meta.gmLocationTitle ?? (meta.gmRefreshToken && meta.gmLocation ? 'Connected' : 'Not connected'), connected: sched.has('gmb'), comingSoon: true },
+    { id: 'gmb', label: 'Google Business', sub: meta.gmLocationTitle ?? (meta.gmRefreshToken && meta.gmLocation ? 'Connected' : 'Not connected'), connected: sched.has('gmb'), comingSoon: true },
   ];
   const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
 

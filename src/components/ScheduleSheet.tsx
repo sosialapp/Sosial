@@ -774,11 +774,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
   // Channel chips: Anywhere first, then connected only — unconnected channels
   // can't publish, so listing them only leads to "isn't connected" dead ends.
-  const orderedChannels = [
-    'any',
-    ...CHANNELS.filter((c) => c !== 'any' && connected.includes(c)),
-    ...(COMING_SOON as string[]).filter((c) => c !== 'any' && !connected.includes(c)),
-  ];
+  const orderedChannels = ['any', ...CHANNELS.filter((c) => c !== 'any' && connected.includes(c))];
 
   const onPick = (_e: any, d?: Date) => {
     if (_e?.type === 'dismissed') {
@@ -990,7 +986,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                         >
                           <Ionicons name="git-branch" size={15} color={C.accentInk} />
-                          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Post as thread</Text>
+                          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Chain post</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -1031,8 +1027,26 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                 />
                 </>
               ) : (
-                <View style={{ marginTop: 8 }}>
-                  <GhostBtn label="Attach photo or video" onPress={media.onPick} />
+                <View style={{ marginTop: 8, flexDirection: 'row' }}>
+                  <TouchableOpacity
+                    onPress={media.onPick}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Attach media"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 2,
+                      borderWidth: 1,
+                      borderColor: C.lineSoft,
+                      borderRadius: 999,
+                      paddingHorizontal: 12,
+                      paddingVertical: 9,
+                      backgroundColor: C.card,
+                    }}
+                  >
+                    <Ionicons name="image-outline" size={18} color={C.muted} />
+                    <Ionicons name="chevron-up" size={13} color={C.muted} />
+                  </TouchableOpacity>
                 </View>
               )}
             </View>

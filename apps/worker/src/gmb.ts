@@ -111,14 +111,14 @@ async function api<T>(access: string, url: string, init?: RequestInit): Promise<
   });
   const json = (await res.json().catch(() => null)) as any;
   if (res.status === 401) throw new Error('__EXPIRED__');
-  if (!res.ok || json === null) throw new Error(gerr(json, `Google Business Profile refused the request (HTTP ${res.status}).`));
+  if (!res.ok || json === null) throw new Error(gerr(json, `Google Business refused the request (HTTP ${res.status}).`));
   return json as T;
 }
 
 function locationName(externalId: string): string {
   const v = String(externalId ?? '');
   if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(v)) {
-    throw new Error('Google Business Profile location is missing — reconnect the channel in Connect.');
+    throw new Error('Google Business location is missing — reconnect the channel in Connect.');
   }
   return v;
 }
@@ -134,7 +134,7 @@ export async function publishGmbTarget(bundle: Bundle): Promise<{ remoteId: stri
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
-  if (!text) throw new Error('Google Business Profile needs post text — this post is empty.');
+  if (!text) throw new Error('Google Business needs post text — this post is empty.');
   // Local post summary caps at 1500 chars; the first body line reads as the
   // headline but GBP has no separate title field.
   const summary = text.slice(0, 1500);

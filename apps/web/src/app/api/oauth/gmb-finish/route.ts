@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const pick = b64d<PickState>(jar.get(PICK_COOKIE)?.value);
   const gg = pick?.gmb;
   if (!pick || !gg?.access_token) {
-    return NextResponse.json({ error: 'That login expired — connect Google Business Profile again.' }, { status: 400 });
+    return NextResponse.json({ error: 'That login expired — connect Google Business again.' }, { status: 400 });
   }
   const known = gg.locations.some((l) => l.name === location);
   if (!known) {
