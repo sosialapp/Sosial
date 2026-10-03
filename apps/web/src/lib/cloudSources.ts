@@ -59,6 +59,30 @@ async function authedInvoke(fn: string, body: Record<string, unknown>) {
   return data as any;
 }
 
+/**
+ * Stock-function invoke that throws the server's own error text instead of
+ * supabase-js's generic "non-2xx" wrapper — otherwise every stock failure
+ * looks identical and nobody can tell rate-limit from misconfiguration.
+ */
+export async function invokeStock(fn: string, body: Record<string, unknown>): Promise<any> {
+  const sb = await createClient();
+  const { data, error } = await sb.functions.invoke(fn, { body });
+  if (!error) {
+    if ((data as any)?.error) throw new Error(String((data as any).error));
+    return data as any;
+  }
+  let msg: string | null = null;
+  try {
+    const ctx: any = (error as any)?.context;
+    const res =
+      ctx && typeof ctx.json === 'function'
+        ? await (typeof ctx.clone === 'function' ? ctx.clone() : ctx).json().catch(() => null)
+        : ctx;
+    if (res && typeof res.error === 'string' && res.error) msg = res.error;
+  } catch {}
+  throw new Error(msg ?? error.message);
+}
+
 /** PKCE pair (WebCrypto S256) for Canva. */
 async function pkcePair(): Promise<{ verifier: string; challenge: string }> {
   const bytes = crypto.getRandomValues(new Uint8Array(48));

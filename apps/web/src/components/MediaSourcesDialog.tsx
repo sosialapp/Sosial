@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { ImagePlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
-  cloudConnected, loginCloud, getValidCloudToken,
+  cloudConnected, loginCloud, getValidCloudToken, invokeStock,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
   listGooglePhotos, downloadGooglePhoto, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
@@ -284,16 +284,15 @@ export default function MediaSourcesDialog({
   };
 
   const searchStock = async () => {
-    if (!source || !query.trim() || source === 'unsplash') return;
+    if (source !== 'unsplash' || !query.trim()) return;
     setBusy(true);
     setErr(null);
     try {
-      const sb = await createClient();
-      const fn = 'unsplash-search';
-      const { data, error } = await sb.functions.invoke(fn, {
-        body: { query: query.trim(), type: 'photo', per_page: 12 },
+      const data = await invokeStock('unsplash-search', {
+        query: query.trim(),
+        type: 'photo',
+        per_page: 12,
       });
-      if (error) throw new Error(error.message);
       const list = (Array.isArray((data as any)?.items) ? (data as any).items : []) as StockItem[];
       setItems(list.map((x) => ({ ...x, source: 'unsplash' })));
     } catch (e) {
