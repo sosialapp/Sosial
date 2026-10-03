@@ -14,6 +14,7 @@ export const PREVIEWABLE = ['facebook', 'instagram', 'threads', 'x', 'bluesky'];
 function Head({
   name,
   handle,
+  network,
   time,
   avatarUrl,
   provider,
@@ -21,20 +22,22 @@ function Head({
 }: {
   name: string;
   handle: string;
+  network: string;
   time?: string;
   avatarUrl?: string;
   provider: string;
   sub?: string;
 }) {
+  const displayName = name.replace(/^@/, '') || network;
   return (
     <div className="flex items-center gap-2.5">
       <ChannelAvatar provider={provider} avatar={avatarUrl} size={34} badge={false} />
       <div className="min-w-0 flex-1 leading-tight">
         <p className="truncate text-[13px] font-bold text-[#111111]">
-          {name}{' '}
+          {displayName}{' '}
           {sub ? <span className="font-medium text-[#65676B]">{sub}</span> : null}
         </p>
-        <p className="truncate text-[11px] text-[#65676B]">{handle}{time ? ` · ${time}` : ''}</p>
+        <p className="truncate text-[11px] text-[#65676B]">{handle} · {network}{time ? ` · ${time}` : ''}</p>
       </div>
     </div>
   );
@@ -128,7 +131,7 @@ export default function PostPreview({
         : ['bsky-comment', 'bsky-repost', 'bsky-heart', 'bsky-share'];
     return (
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
-        <Head name={name} handle={handle} time="now" avatarUrl={avatarUrl} provider={provider} />
+        <Head name={name} handle={handle} network={meta.label} time="now" avatarUrl={avatarUrl} provider={provider} />
         <Body text={body} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} />
         <Actions items={icons.map((icon) => ({ icon, size: 16 }))} />
@@ -139,7 +142,7 @@ export default function PostPreview({
   if (provider === 'threads') {
     return (
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
-        <Head name={name} handle={handle} time="now" avatarUrl={avatarUrl} provider={provider} />
+        <Head name={name} handle={handle} network={meta.label} time="now" avatarUrl={avatarUrl} provider={provider} />
         <Body text={body} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} />
         <Actions items={[{ icon: 'ig-heart' }, { icon: 'ig-comment' }, { icon: 'th-repost' }, { icon: 'th-send' }]} />
@@ -153,6 +156,7 @@ export default function PostPreview({
       <Head
         name={name}
         handle={handle}
+        network={meta.label}
         time="Just now"
         avatarUrl={avatarUrl}
         provider={provider}
