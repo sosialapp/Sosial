@@ -25,14 +25,13 @@ export interface SourceAttachment {
   kind: 'image' | 'video';
 }
 
-type Source = 'pexels' | 'unsplash' | 'drive' | 'gphotos' | 'dropbox' | 'canva';
+type Source = 'unsplash' | 'drive' | 'gphotos' | 'dropbox' | 'canva';
 
 const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
   { id: 'drive', label: 'Google Drive', icon: 'folder-outline', note: 'Your files + shared folders' },
   { id: 'gphotos', label: 'Google Photos', icon: 'images-outline', note: 'Your photo library' },
   { id: 'dropbox', label: 'Dropbox', icon: 'cloud-outline', note: 'Your Dropbox files' },
   { id: 'canva', label: 'Canva', icon: 'color-palette-outline', note: 'Your designs, exported to post' },
-  { id: 'pexels', label: 'Pexels', icon: 'globe-outline', note: 'Photos + videos, free to use' },
   { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', note: 'Photos · credit auto-added' },
 ];
 
@@ -46,7 +45,6 @@ const LABEL: Record<Source, string> = {
   gphotos: 'Google Photos',
   dropbox: 'Dropbox',
   canva: 'Canva',
-  pexels: 'Pexels',
   unsplash: 'Unsplash',
 };
 
@@ -175,7 +173,7 @@ export default function MediaSources({
         await loadCanva(canvaStack.length ? canvaStack[canvaStack.length - 1].id : undefined, query.trim());
         return;
       } else {
-        setItems(await searchStock(source, query.trim(), source === 'pexels' ? type : 'photo'));
+        setItems(await searchStock('unsplash', query.trim(), 'photo'));
       }
     } catch (e: any) {
       Alert.alert('Search failed', e?.message ?? 'Try again.');
@@ -436,7 +434,7 @@ export default function MediaSources({
                 </TouchableOpacity>
               </View>
 
-              {source === 'pexels' || source === 'canva' ? (
+              {source === 'canva' ? (
                 <View style={s.typeRow}>
                   {(['photo', 'video'] as const).map((t) => (
                     <TouchableOpacity

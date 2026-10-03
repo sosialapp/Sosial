@@ -22,14 +22,13 @@ export interface StockItem {
   source: 'pexels' | 'unsplash';
 }
 
-type Source = 'drive' | 'gphotos' | 'dropbox' | 'canva' | 'pexels' | 'unsplash';
+type Source = 'drive' | 'gphotos' | 'dropbox' | 'canva' | 'unsplash';
 
 const SOURCES = [
   { id: 'drive', label: 'Google Drive', icon: 'drive' },
   { id: 'gphotos', label: 'Google Photos', icon: 'gphotos' },
   { id: 'dropbox', label: 'Dropbox', icon: 'dropbox' },
   { id: 'canva', label: 'Canva', icon: 'canva' },
-  { id: 'pexels', label: 'Pexels', icon: 'pexels' },
   { id: 'unsplash', label: 'Unsplash', icon: 'unsplash' },
 ] as const;
 
@@ -74,11 +73,6 @@ const BRAND_MARKS: Record<string, React.ReactNode> = {
   dropbox: (
     <svg viewBox="0 0 24 24" fill="#0061FF" aria-hidden="true">
       <path d="M6 1.807 0 5.629l6 3.822 6.001-3.822L6 1.807zM18 1.807l-6 3.822 6 3.822 6-3.822-6-3.822zM0 13.274l6 3.822 6.001-3.822L6 9.452l-6 3.822zM18 9.452l-6 3.822 6 3.822 6-3.822-6-3.822zM6 18.371l6.001 3.822 6-3.822-6-3.822L6 18.371z" />
-    </svg>
-  ),
-  pexels: (
-    <svg viewBox="0 0 24 24" fill="#05A081" aria-hidden="true">
-      <path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v21A1.5 1.5 0 0 0 1.5 24h21a1.5 1.5 0 0 0 1.5-1.5v-21A1.5 1.5 0 0 0 22.5 0h-21zm6.75 6.75h5.2715a3.843 3.843 0 0 1 .627 7.6348V17.25H8.25V6.75zm1.5 1.5v7.5h2.8984v-2.8145h.873a2.343 2.343 0 1 0 0-4.6855H9.75Z" />
     </svg>
   ),
   unsplash: (
@@ -290,18 +284,18 @@ export default function MediaSourcesDialog({
   };
 
   const searchStock = async () => {
-    if (!source || !query.trim()) return;
+    if (!source || !query.trim() || source === 'unsplash') return;
     setBusy(true);
     setErr(null);
     try {
       const sb = await createClient();
-      const fn = source === 'pexels' ? 'pexels-search' : 'unsplash-search';
+      const fn = 'unsplash-search';
       const { data, error } = await sb.functions.invoke(fn, {
-        body: { query: query.trim(), type: source === 'pexels' ? type : 'photo', per_page: 12 },
+        body: { query: query.trim(), type: 'photo', per_page: 12 },
       });
       if (error) throw new Error(error.message);
       const list = (Array.isArray((data as any)?.items) ? (data as any).items : []) as StockItem[];
-      setItems(list.map((x) => ({ ...x, source: source as 'pexels' | 'unsplash' })));
+      setItems(list.map((x) => ({ ...x, source: 'unsplash' })));
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Search failed.');
     } finally {
@@ -311,7 +305,7 @@ export default function MediaSourcesDialog({
 
   const search = () => {
     if (!source || busy) return;
-    if (source === 'drive' || source === 'gphotos' || source === 'dropbox') {
+    if (source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva') {
       void loadCloud(source, query.trim() || undefined);
       return;
     }
@@ -325,12 +319,8 @@ export default function MediaSourcesDialog({
       const r = await fetch(item.full);
       if (!r.ok) throw new Error('Download failed — try another one.');
       const blob = await r.blob();
-      const ext = item.kind === 'video' ? 'mp4' : 'jpg';
-      const file = new File([blob], `stock-${item.source}-${item.id}.${ext}`, {
-        type: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
-      });
-      const credit =
-        item.source === 'unsplash' ? `📷 ${item.author} on Unsplash (${item.authorUrl})` : undefined;
+      const file = new File([blob], `unsplash-${item.id}.jpg`, { type: 'image/jpeg' });
+      const credit = `📷 ${item.author} on Unsplash (${item.authorUrl})`;
       onAttach([file], credit);
       onClose();
     } catch (e) {
@@ -515,7 +505,7 @@ export default function MediaSourcesDialog({
                     {busy ? '…' : 'Go'}
                   </button>
                 </div>
-                {source === 'pexels' || source === 'canva' ? (
+                {source === 'canva' ? (
                   <div className="mt-2 flex gap-1.5">
                     {(['photo', 'video'] as const).map((t) => (
                       <button
