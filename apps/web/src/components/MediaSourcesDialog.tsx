@@ -131,13 +131,14 @@ const PANEL_H = 420;
  */
 export default function MediaSourcesDialog({
   open,
-  anchor,
+  getAnchor,
   onClose,
   onAttach,
   onPickLocal,
 }: {
   open: boolean;
-  anchor: { left: number; top: number } | null;
+  /** Live anchor — called on every scroll/resize so the panel sticks to the button. */
+  getAnchor: () => { left: number; topEdge: number; bottom: number } | null;
   onClose: () => void;
   onAttach: (files: File[], credit?: string) => void;
   onPickLocal?: () => void;
@@ -163,23 +164,31 @@ export default function MediaSourcesDialog({
 
   useEffect(() => setMounted(true), []);
 
+  // Follow mode: re-anchor the panel to the button on any page scroll or
+  // resize so it never floats away. rAF-throttled; panel-internal scrolls
+  // are contained (overscroll) and don't move the anchor anyway.
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    // The panel is anchored once — a page scroll would strand it floating,
-    // so close instead (scrolls inside the panel itself don't count).
-    const onScroll = (e: Event) => {
-      const t = e.target as HTMLElement | null;
-      if (t && typeof (t as HTMLElement).closest === 'function' && (t as HTMLElement).closest('[role="menu"]')) return;
-      onClose();
+    let queued = false;
+    const onMove = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        setTick((t) => t + 1);
+      });
     };
     window.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('scroll', onMove, true);
+    window.addEventListener('resize', onMove);
     return () => {
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('scroll', onMove, true);
+      window.removeEventListener('resize', onMove);
     };
   }, [open, onClose]);
 
@@ -405,11 +414,14 @@ export default function MediaSourcesDialog({
     );
 
   // Anchored dropdown through a portal — ancestors with transforms would
-  // trap position:fixed. Panel hangs under the button, flips above when the
+  // trap position:fixed. Re-read the live anchor every render (tick bumps on
+  // scroll/resize) so the panel sticks to the button. Flips above when the
   // viewport runs out below, clamped to the window edges.
-  const left = Math.max(8, Math.min(anchor?.left ?? 8, window.innerWidth - PANEL_W - 8));
-  const below = (anchor?.top ?? 0) + 8;
-  const flip = below + PANEL_H > window.innerHeight && (anchor?.top ?? 0) > window.innerHeight / 2;
+  void tick;
+  const a = getAnchor();
+  const left = Math.max(8, Math.min(a?.left ?? 8, window.innerWidth - PANEL_W - 8));
+  const below = a?.bottom ? a.bottom + 8 : (a?.topEdge ?? 0) + 8;
+  const flip = below + PANEL_H > window.innerHeight && (a?.bottom ?? 0) > window.innerHeight / 2;
 
   return createPortal(
     <>
@@ -418,7 +430,7 @@ export default function MediaSourcesDialog({
         role="menu"
         aria-label="Add media"
         className="fixed z-[100] flex max-h-[min(420px,66vh)] w-[264px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
-        style={flip ? { left, bottom: window.innerHeight - (anchor?.top ?? 0) + 8 } : { left, top: below }}
+        style={flip ? { left, bottom: window.innerHeight - (a?.bottom ?? 0) + 8 } : { left, top: below }}
       >
         {source ? (
           <button

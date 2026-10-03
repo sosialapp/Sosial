@@ -45,7 +45,6 @@ export default function PostBox({
 }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [sourcesAnchor, setSourcesAnchor] = useState<{ left: number; top: number } | null>(null);
   const mediaBtnRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragFrom = useRef<number | null>(null);
@@ -134,11 +133,7 @@ export default function PostBox({
         <button
           type="button"
           ref={mediaBtnRef}
-          onClick={() => {
-            const r = mediaBtnRef.current?.getBoundingClientRect();
-            if (r) setSourcesAnchor({ left: r.left, top: r.bottom });
-            setSourcesOpen(true);
-          }}
+          onClick={() => setSourcesOpen(true)}
           aria-label="Add media"
           title="Add media"
           className="flex h-7 items-center gap-0.5 rounded-lg px-1.5 text-muted transition hover:bg-paper-dim hover:text-ink"
@@ -167,7 +162,10 @@ export default function PostBox({
 
       <MediaSourcesDialog
         open={sourcesOpen}
-        anchor={sourcesAnchor}
+        getAnchor={() => {
+          const r = mediaBtnRef.current?.getBoundingClientRect();
+          return r ? { left: r.left, topEdge: r.top, bottom: r.bottom } : null;
+        }}
         onClose={() => setSourcesOpen(false)}
         onPickLocal={() => pick('image/*,video/*')}
         onAttach={(files, credit) => {

@@ -309,20 +309,39 @@ export async function listDropboxFolder(path?: string): Promise<{ folders: Cloud
     }
   }
   folders.sort((a, b) => a.name.localeCompare(b.name));
-  if (files.length) {
+  const images = files.filter((f) => f.kind === 'image');
+  if (images.length) {
     try {
       const tr = await fetch('https://api.dropboxapi.com/2/files/get_thumbnail_batch', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries: files.slice(0, 100).map((f) => ({ '.tag': 'file', path: f.path, format: { '.tag': 'jpeg' }, size: { '.tag': 'w256h256' }, mode: { '.tag': 'strict' } })) }),
+        // No `mode` (server default converts HEIC etc.); videos always error,
+        // so only images go in. Match results by path — order isn't relied on.
+        body: JSON.stringify({
+          entries: images.slice(0, 100).map((f) => ({
+            '.tag': 'file',
+            path: f.path,
+            format: { '.tag': 'jpeg' },
+            size: { '.tag': 'w256h256' },
+          })),
+        }),
       });
       const tj: any = await tr.json().catch(() => ({}));
-      ((tj?.entries ?? []) as any[]).forEach((t, i) => {
-        if (t?.['.tag'] === 'file' && typeof t?.thumbnail === 'string' && files[i]) {
-          files[i].thumb = `data:image/jpeg;base64,${t.thumbnail}`;
+      if (!tr.ok) throw new Error(String(tj?.error_summary ?? tr.status));
+      const byPath = new Map<string, string>();
+      for (const t of ((tj?.entries ?? []) as any[])) {
+        const p = String(t?.metadata?.path_lower ?? '');
+        if (t?.['.tag'] === 'file' && typeof t?.thumbnail === 'string' && p) {
+          byPath.set(p, t.thumbnail);
         }
-      });
-    } catch {}
+      }
+      for (const f of images) {
+        const b64 = byPath.get(f.path);
+        if (b64) f.thumb = `data:image/jpeg;base64,${b64}`;
+      }
+    } catch (e) {
+      console.warn('[dropbox] thumbnail batch failed:', e instanceof Error ? e.message : e);
+    }
   }
   return { folders, files };
 }
