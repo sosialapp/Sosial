@@ -1,3 +1,4 @@
+import ChannelAvatar from '@/components/ChannelAvatar';
 import { ChromeIcon } from '@/components/studio/blocks';
 import { providerMeta } from '@/lib/providers';
 
@@ -9,6 +10,35 @@ import { providerMeta } from '@/lib/providers';
  */
 
 export const PREVIEWABLE = ['facebook', 'instagram', 'threads', 'x', 'bluesky'];
+
+function Head({
+  name,
+  handle,
+  network,
+  time,
+  avatarUrl,
+  provider,
+}: {
+  name: string;
+  handle: string;
+  network: string;
+  time?: string;
+  avatarUrl?: string;
+  provider: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <ChannelAvatar provider={provider} avatar={avatarUrl} size={34} badge={false} />
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-[13px] font-bold text-[#111111]">{name}</p>
+        <p className="truncate text-[11px] text-[#65676B]">
+          {handle} · {network}
+          {time ? ` · ${time}` : ''}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function Body({ text }: { text: string }) {
   if (!text) return null;
@@ -43,11 +73,17 @@ function Actions({ items }: { items: { icon: string; size?: number }[] }) {
 
 export default function PostPreview({
   provider,
+  name,
+  handle,
+  avatarUrl,
   body,
   imageUrl,
   videoUrl,
 }: {
   provider: string;
+  name: string;
+  handle: string;
+  avatarUrl?: string;
   body: string;
   imageUrl?: string;
   videoUrl?: string;
@@ -64,8 +100,15 @@ export default function PostPreview({
 
   if (provider === 'instagram') {
     return (
-      <article className="overflow-hidden rounded-2xl border border-line bg-white">
-        <div className="space-y-2 px-3 py-3">
+      <article className="space-y-2 overflow-hidden rounded-2xl border border-line bg-white p-3">
+        <div className="flex items-center gap-2.5">
+          <ChannelAvatar provider={provider} avatar={avatarUrl} size={30} badge={false} />
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-[13px] font-bold text-[#111111]">{name}</p>
+            <p className="truncate text-[11px] text-[#65676B]">{handle}</p>
+          </div>
+          <span className="text-base leading-none font-bold text-[#111111]">···</span>
+        </div>
           <Body text={body} />
           <Media imageUrl={imageUrl} videoUrl={videoUrl} />
           <div className="flex items-center gap-3.5 pt-0.5 text-[#111111]">
@@ -75,7 +118,6 @@ export default function PostPreview({
             <span className="flex-1" />
             <ChromeIcon name="ig-bookmark" size={21} color="#111111" />
           </div>
-        </div>
       </article>
     );
   }
@@ -87,6 +129,14 @@ export default function PostPreview({
         : ['bsky-comment', 'bsky-repost', 'bsky-heart', 'bsky-share'];
     return (
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
+        <Head
+          name={name}
+          handle={handle}
+          network={meta.label}
+          time="now"
+          avatarUrl={avatarUrl}
+          provider={provider}
+        />
         <Body text={body} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} />
         <Actions items={icons.map((icon) => ({ icon, size: 16 }))} />
@@ -97,6 +147,14 @@ export default function PostPreview({
   if (provider === 'threads') {
     return (
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
+        <Head
+          name={name}
+          handle={handle}
+          network={meta.label}
+          time="now"
+          avatarUrl={avatarUrl}
+          provider={provider}
+        />
         <Body text={body} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} />
         <Actions items={[{ icon: 'ig-heart' }, { icon: 'ig-comment' }, { icon: 'th-repost' }, { icon: 'th-send' }]} />
@@ -107,6 +165,14 @@ export default function PostPreview({
   // facebook
   return (
     <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
+      <Head
+        name={name}
+        handle={handle}
+        network={meta.label}
+        time="Just now"
+        avatarUrl={avatarUrl}
+        provider={provider}
+      />
       <Body text={body} />
       <Media imageUrl={imageUrl} videoUrl={videoUrl} />
       <div className="flex items-center justify-around border-t border-line/70 px-1 pt-2 text-[#65676B]">

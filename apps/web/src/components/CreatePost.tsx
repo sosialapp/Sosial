@@ -225,22 +225,21 @@ function RailPanel({
                 const meta = providerMeta(c.provider);
                 const img = media.find((m) => m.kind === 'image');
                 const vid = !img ? media.find((m) => m.kind === 'video') : undefined;
-                const handle = c.handle
-                  ? `@${String(c.handle).replace(/^@/, '')}`
-                  : `@${(c.display_name ?? meta.label).replace(/^@/, '')}`;
                 return (
-                  <div key={c.id}>
-                    <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-muted">
-                      <BrandIcon provider={c.provider as BrandProvider} className="h-4 w-4 shrink-0" />
-                      {handle}
-                    </p>
-                    <PostPreview
-                      provider={c.provider}
-                      body={body}
-                      imageUrl={img?.url}
-                      videoUrl={vid?.url}
-                    />
-                  </div>
+                  <PostPreview
+                    key={c.id}
+                    provider={c.provider}
+                    name={c.display_name ?? meta.label}
+                    handle={
+                      c.handle
+                        ? `@${String(c.handle).replace(/^@/, '')}`
+                        : `@${(c.display_name ?? meta.label).replace(/^@/, '')}`
+                    }
+                    avatarUrl={channelAvatar(c.metadata) ?? undefined}
+                    body={body}
+                    imageUrl={img?.url}
+                    videoUrl={vid?.url}
+                  />
                 );
               })}
             </div>
