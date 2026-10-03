@@ -14,6 +14,7 @@ import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
 import { providerMeta } from '@/lib/providers';
+import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
@@ -224,18 +225,17 @@ function RailPanel({
                 const meta = providerMeta(c.provider);
                 const img = media.find((m) => m.kind === 'image');
                 const vid = !img ? media.find((m) => m.kind === 'video') : undefined;
+                const handle = c.handle
+                  ? `@${String(c.handle).replace(/^@/, '')}`
+                  : `@${(c.display_name ?? meta.label).replace(/^@/, '')}`;
                 return (
                   <div key={c.id}>
-                    <p className="mb-1.5 text-xs font-bold text-muted">
-                      {c.display_name ?? meta.label}
+                    <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-muted">
+                      <BrandIcon provider={c.provider as BrandProvider} className="h-4 w-4 shrink-0" />
+                      {handle}
                     </p>
                     <PostPreview
                       provider={c.provider}
-                      handle={
-                        c.handle
-                          ? `@${String(c.handle).replace(/^@/, '')}`
-                          : `@${(c.display_name ?? meta.label).replace(/^@/, '')}`
-                      }
                       body={body}
                       imageUrl={img?.url}
                       videoUrl={vid?.url}
