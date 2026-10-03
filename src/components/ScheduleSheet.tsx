@@ -9,6 +9,7 @@ import { SegMediaStrip } from './SegMediaStrip';
 import { useVerticalReorder } from './useVerticalReorder';
 import { PubRow } from './PublishNotice';
 import { SocialGlyph, ChannelAvatar, AccountStack } from './ui';
+import MediaSources, { type SourceAttachment } from './MediaSources';
 import { SOCIAL_META } from '../constants';
 import { MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
@@ -364,6 +365,8 @@ export interface SheetMediaItem {
 export interface SheetMedia {
   items: SheetMediaItem[];
   onPick: () => void;
+  /** Append externally-sourced items (stock, cloud drives) — same cap rules. */
+  onAdd?: (items: SheetMediaItem[]) => void;
   onRemove: (index: number) => void;
   /** Reorder items (drag-and-drop in the strip). Absent = static order. */
   onMove?: (from: number, to: number) => void;
@@ -446,6 +449,14 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   const [mode, setMode] = useState<'date' | 'time'>('date');
   const [pickingTime, setPickingTime] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  /** Stock/cloud attach: same cap rules as the roll, plus credit if owed. */
+  const attachSources = (items: SourceAttachment[], credit?: string) => {
+    media?.onAdd?.(items);
+    if (credit && composer && !(composer.caption ?? '').includes('Unsplash')) {
+      composer.onCaption(`${(composer.caption ?? '').trim()}\n\n${credit}`.trim());
+    }
+  };
   const [, setTick] = useState(0);
   const [segDragging, setSegDragging] = useState(false);
 
@@ -962,7 +973,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
                       {!readOnly && media ? (
                         <TouchableOpacity
-                          onPress={media.onPick}
+                          onPress={() => setSourcesOpen(true)}
                           hitSlop={6}
                           accessibilityLabel="Attach media"
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
@@ -1498,8 +1509,18 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   if (bare) {
     return (
       <View style={{ gap: 10 }}>
-        {content}
-        {viewerModal}
+        {sourcesOpen && media ? (
+          <MediaSources
+            onPickLocal={() => { setSourcesOpen(false); media.onPick(); }}
+            onAttach={(items, credit) => attachSources(items, credit)}
+            onClose={() => setSourcesOpen(false)}
+          />
+        ) : (
+          <>
+            {content}
+            {viewerModal}
+          </>
+        )}
       </View>
     );
   }
@@ -1513,7 +1534,15 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             <TouchableOpacity activeOpacity={1} onPress={() => onClose?.()} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
             <View style={st.sheet}>
               <ScrollView nestedScrollEnabled style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled" scrollEnabled={!segDragging}>
-                {content}
+                {sourcesOpen && media ? (
+                  <MediaSources
+                    onPickLocal={() => { setSourcesOpen(false); media.onPick(); }}
+                    onAttach={(items, credit) => attachSources(items, credit)}
+                    onClose={() => setSourcesOpen(false)}
+                  />
+                ) : (
+                  content
+                )}
               </ScrollView>
             </View>
           </View>

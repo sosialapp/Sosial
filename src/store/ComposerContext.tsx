@@ -280,6 +280,23 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  /** Externally-sourced items (stock, cloud drives) — same cap rules. */
+  const addMedia = (items: { uri: string; kind: 'image' | 'video' }[]) => {
+    const remaining = MAX_ATTACHMENTS - tMedia.length;
+    if (remaining <= 0) {
+      showInfo(`${MAX_ATTACHMENTS} items max`, 'Remove one to add another.');
+      return;
+    }
+    const picked: MediaAttachment[] = items.map((a) => ({
+      uri: a.uri,
+      kind: a.kind === 'video' ? 'video' : 'image',
+    }));
+    setTMedia([...tMedia, ...picked].slice(0, MAX_ATTACHMENTS));
+    if (items.length > remaining) {
+      showInfo(`${MAX_ATTACHMENTS} items max`, `Kept the first ${MAX_ATTACHMENTS}.`);
+    }
+  };
+
   const removeMedia = (index: number) => {
     setTMedia((prev) => prev.filter((_, i) => i !== index));
   };
@@ -1507,7 +1524,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         initialTtPrivacy={sheet?.post?.ttPrivacy}
         initialYtPrivacy={sheet?.post?.ytPrivacy}
         composer={{ title: '', caption: tBody, onCaption: setTBody, thread: tThread, onThread, threadMedia: tThreadMedia, onThreadMedia, onPickThreadMedia: pickThreadMedia, onRemoveThreadMedia: removeThreadMedia, onMoveThreadMedia: moveThreadMedia }}
-        media={{ items: tMedia, onPick: pickMedia, onRemove: removeMedia, onMove: moveMedia }}
+        media={{ items: tMedia, onPick: pickMedia, onAdd: addMedia, onRemove: removeMedia, onMove: moveMedia }}
         onSave={save}
         draftLabel="Save as draft"
         onDraft={saveDraft}

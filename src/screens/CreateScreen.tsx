@@ -7,6 +7,7 @@ import { AvatarButton } from '../components/ProfileMenu';
 import ConnectButton from '../components/ConnectButton';
 import { Txt, PrimaryBtn, GhostBtn, FeedPhoto, FeedVideo } from '../components/ui';
 import AICopySheet from '../components/AICopySheet';
+import MediaSources from '../components/MediaSources';
 import { usePost, defaultPage } from '../store/PostContext';
 import { CardStyle, QuickPost } from '../types';
 import { uid } from '../constants';
@@ -260,6 +261,20 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const [eTitle, setETitle] = useState('');
   const [eBody, setEBody] = useState('');
   const [eMedia, setEMedia] = useState<MediaAttachment | null>(null);
+  /** Which idea editor the sources sheet feeds ('c' create, 'e' edit). */
+  const [sourcesFor, setSourcesFor] = useState<'c' | 'e' | null>(null);
+  /** Stock/cloud attach into the open idea editor (+ credit if owed). */
+  const attachIdeaMedia = (items: { uri: string; kind: 'image' | 'video' }[], credit?: string) => {
+    const first = items[0];
+    if (!first) return;
+    if (sourcesFor === 'e') {
+      setEMedia(first);
+      if (credit && !eBody.includes('Unsplash')) setEBody(`${eBody.trim()}\n\n${credit}`.trim());
+    } else {
+      setCMedia(first);
+      if (credit && !cBody.includes('Unsplash')) setCBody(`${cBody.trim()}\n\n${credit}`.trim());
+    }
+  };
   const [eThread, setEThread] = useState<ThreadSeg[] | null>(null);
   // AI sheet routing (composer AI lives in context; ideas + editor use this one)
   const [ai, setAi] = useState<{ target: 'idea' | 'editor'; prompt: string } | null>(null);
@@ -578,7 +593,15 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <GhostBtn label="Attach photo or video" onPress={async () => setCMedia((await pickMedia())[0] ?? null)} />
+                    <TouchableOpacity
+                      onPress={() => setSourcesFor('c')}
+                      hitSlop={6}
+                      accessibilityLabel="Attach media"
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start' }}
+                    >
+                      <Ionicons name="image-outline" size={18} color={C.muted} />
+                      <Ionicons name="chevron-up" size={13} color={C.muted} />
+                    </TouchableOpacity>
                   )}
                 </>
               ) : null}
@@ -816,7 +839,15 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <GhostBtn label="Attach photo or video" onPress={async () => setEMedia((await pickMedia())[0] ?? null)} />
+                    <TouchableOpacity
+                      onPress={() => setSourcesFor('e')}
+                      hitSlop={6}
+                      accessibilityLabel="Attach media"
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start' }}
+                    >
+                      <Ionicons name="image-outline" size={18} color={C.muted} />
+                      <Ionicons name="chevron-up" size={13} color={C.muted} />
+                    </TouchableOpacity>
                   )}
                 </>
               ) : null}
@@ -882,6 +913,25 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
+      </Modal>
+
+      {/* media sources (stock + cloud drives) for the idea editors */}
+      <Modal visible={sourcesFor !== null} transparent animationType="slide" onRequestClose={() => setSourcesFor(null)}>
+        <View style={[s.sheetBg, { justifyContent: 'flex-end' }]}>
+          <View style={[s.sheet, { maxHeight: '88%', padding: 20 }]}>
+            <MediaSources
+              onPickLocal={async () => {
+                const target = sourcesFor;
+                setSourcesFor(null);
+                const one = (await pickMedia())[0] ?? null;
+                if (target === 'e') setEMedia(one);
+                else setCMedia(one);
+              }}
+              onAttach={(items, credit) => attachIdeaMedia(items, credit)}
+              onClose={() => setSourcesFor(null)}
+            />
+          </View>
+        </View>
       </Modal>
     </View>
   );
