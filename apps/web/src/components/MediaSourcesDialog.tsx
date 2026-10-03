@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ImagePlus, FolderOpen, Images, Box, Camera, Aperture, Cloud, Palette } from 'lucide-react';
+import { ImagePlus, Cloud } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
   cloudConnected, loginCloud, getValidCloudToken,
@@ -24,19 +24,62 @@ export interface StockItem {
 type Source = 'drive' | 'gphotos' | 'dropbox' | 'pexels' | 'unsplash';
 
 const SOURCES = [
-  { id: 'drive', label: 'Google Drive', icon: FolderOpen },
-  { id: 'gphotos', label: 'Google Photos', icon: Images },
-  { id: 'dropbox', label: 'Dropbox', icon: Box },
-  { id: 'pexels', label: 'Pexels', icon: Camera },
-  { id: 'unsplash', label: 'Unsplash', icon: Aperture },
+  { id: 'drive', label: 'Google Drive', icon: 'drive' },
+  { id: 'gphotos', label: 'Google Photos', icon: 'gphotos' },
+  { id: 'dropbox', label: 'Dropbox', icon: 'dropbox' },
+  { id: 'pexels', label: 'Pexels', icon: 'pexels' },
+  { id: 'unsplash', label: 'Unsplash', icon: 'unsplash' },
 ] as const;
 
 const SOON = [
-  { label: 'OneDrive', icon: Cloud },
-  { label: 'Canva', icon: Palette },
+  { label: 'OneDrive', icon: 'onedrive' },
+  { label: 'Canva', icon: 'canva' },
 ];
 
-const LOCAL_ICON = ImagePlus;
+/** Real brand marks (thesvg.org, CC0) — no hand-drawn glyphs. */
+const BRAND_MARKS: Record<string, React.ReactNode> = {
+  drive: (
+    <svg viewBox="0 0 87.3 78" aria-hidden="true">
+      <path fill="#0066da" d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5z" />
+      <path fill="#00ac47" d="M43.65 25 29.9 1.2c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44A9.06 9.06 0 0 0 0 53h27.5z" />
+      <path fill="#ea4335" d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.1 57.5c.8-1.4 1.2-2.95 1.2-4.5H59.798l5.852 11.5z" />
+      <path fill="#00832d" d="M43.65 25 57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" />
+      <path fill="#2684fc" d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" />
+      <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z" />
+    </svg>
+  ),
+  gphotos: (
+    <svg viewBox="0 0 24 24" fill="#4285F4" aria-hidden="true">
+      <path d="M12.678 16.672c0 2.175.002 4.565-.001 6.494-.001.576-.244.814-.817.833-7.045.078-8.927-7.871-4.468-11.334-1.95.016-4.019.007-5.986.007-1.351 0-1.414-.01-1.405-1.351.258-6.583 7.946-8.275 11.323-3.936L11.308.928c-.001-.695.212-.906.906-.925 6.409-.187 9.16 7.308 4.426 11.326l6.131.002c1.097 0 1.241.105 1.228 1.217-.223 6.723-7.802 8.376-11.321 4.124zm.002-15.284-.003 9.972c6.56-.465 6.598-9.532.003-9.972zm-1.36 21.224-.001-9.97c-6.927.598-6.29 9.726.002 9.97zM1.4 11.315l9.95.008c-.527-6.829-9.762-6.367-9.95-.008zm11.238 1.365c.682 6.875 9.67 6.284 9.977.01z" />
+    </svg>
+  ),
+  dropbox: (
+    <svg viewBox="0 0 24 24" fill="#0061FF" aria-hidden="true">
+      <path d="M6 1.807 0 5.629l6 3.822 6.001-3.822L6 1.807zM18 1.807l-6 3.822 6 3.822 6-3.822-6-3.822zM0 13.274l6 3.822 6.001-3.822L6 9.452l-6 3.822zM18 9.452l-6 3.822 6 3.822 6-3.822-6-3.822zM6 18.371l6.001 3.822 6-3.822-6-3.822L6 18.371z" />
+    </svg>
+  ),
+  pexels: (
+    <svg viewBox="0 0 24 24" fill="#05A081" aria-hidden="true">
+      <path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v21A1.5 1.5 0 0 0 1.5 24h21a1.5 1.5 0 0 0 1.5-1.5v-21A1.5 1.5 0 0 0 22.5 0h-21zm6.75 6.75h5.2715a3.843 3.843 0 0 1 .627 7.6348V17.25H8.25V6.75zm1.5 1.5v7.5h2.8984v-2.8145h.873a2.343 2.343 0 1 0 0-4.6855H9.75Z" />
+    </svg>
+  ),
+  unsplash: (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M7.5 6.75V0h9v6.75h-9zm9 3.75H24V24H0V10.5h7.5v6.75h9V10.5z" />
+    </svg>
+  ),
+  onedrive: (
+    <Cloud className="h-4 w-4 text-faint" aria-hidden="true" />
+  ),
+  canva: (
+    <svg viewBox="0 0 80 80" aria-hidden="true">
+      <circle cx="40" cy="40" r="40" fill="#7D2AE7" />
+      <path d="M57.3 48.2c-.3 0-.6.3-.9.9-3.5 6.9-9.4 11.8-16.2 11.8-7.9 0-12.8-7.1-12.8-16.9 0-16.7 9.3-26.3 17.5-26.3 3.8 0 6.1 2.4 6.1 6.2 0 4.5-2.6 6.9-2.6 8.5 0 .7.5 1.1 1.4 1.1 3.5 0 7.7-4.1 7.7-9.8 0-5.6-4.9-9.7-13-9.7-13.5 0-25.5 12.5-25.5 29.8 0 13.4 7.7 22.2 19.5 22.2 12.5 0 19.7-12.4 19.7-16.5 0-.9-.4-1.3-.9-1.3Z" fill="#fff" />
+    </svg>
+  ),
+};
+
+const LOCAL_ICON = <ImagePlus className="h-4 w-4" aria-hidden="true" />;
 
 const PANEL_W = 264;
 const PANEL_H = 420;
@@ -293,10 +336,10 @@ export default function MediaSourcesDialog({
     </button>
   );
 
-  const menuRow = (Icon: typeof ImagePlus, title: string, onClick?: () => void, disabled?: boolean) =>
+  const menuRow = (icon: React.ReactNode, title: string, onClick?: () => void, disabled?: boolean) =>
     disabled ? (
       <div className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 opacity-45">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-faint"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center [&_svg]:h-4 [&_svg]:w-4">{icon}</span>
         <span className="min-w-0 flex-1 text-xs font-bold">{title}</span>
         <span className="rounded-full border border-line px-1.5 py-px text-[9px] font-bold text-faint">Soon</span>
       </div>
@@ -306,7 +349,7 @@ export default function MediaSourcesDialog({
         onClick={onClick}
         className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-paper-dim"
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-paper-dim text-ink"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-ink [&_svg]:h-4 [&_svg]:w-4">{icon}</span>
         <span className="min-w-0 flex-1 text-xs font-bold">{title}</span>
         <span aria-hidden="true" className="text-xs text-faint">›</span>
       </button>
@@ -342,9 +385,9 @@ export default function MediaSourcesDialog({
         {!source ? (
           <div>
             {onPickLocal ? menuRow(LOCAL_ICON, 'This device', () => { onClose(); onPickLocal(); }) : null}
-            {SOURCES.map((s) => menuRow(s.icon, s.label, () => openSource(s.id)))}
+            {SOURCES.map((s) => menuRow(BRAND_MARKS[s.icon], s.label, () => openSource(s.id)))}
             <div className="mx-1 my-1 h-px bg-line-soft" aria-hidden="true" />
-            {SOON.map((s) => menuRow(s.icon, s.label, undefined, true))}
+            {SOON.map((s) => menuRow(BRAND_MARKS[s.icon], s.label, undefined, true))}
           </div>
         ) : (
           <div>
