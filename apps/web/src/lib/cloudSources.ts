@@ -315,14 +315,15 @@ export async function listDropboxFolder(path?: string): Promise<{ folders: Cloud
       const tr = await fetch('https://api.dropboxapi.com/2/files/get_thumbnail_batch', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        // No `mode` (server default converts HEIC etc.); videos always error,
-        // so only images go in. Match results by path — order isn't relied on.
+        // Struct params take no entry-level '.tag' (Dropbox 400s on unknown
+        // fields); format/size are unions so tagged objects or shorthand
+        // both work. No `mode` — server default converts HEIC etc. Videos
+        // always fail thumbnails, so only images go in.
         body: JSON.stringify({
           entries: images.slice(0, 100).map((f) => ({
-            '.tag': 'file',
             path: f.path,
-            format: { '.tag': 'jpeg' },
-            size: { '.tag': 'w256h256' },
+            format: 'jpeg',
+            size: 'w256h256',
           })),
         }),
       });
