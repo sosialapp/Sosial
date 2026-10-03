@@ -1,31 +1,45 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
-  FlatList, Image, ActivityIndicator, Alert,
+  FlatList, Image, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette } from '../theme';
 import { searchStock, downloadStockItem, unsplashCredit, type StockItem } from '../utils/stockMedia';
+import {
+  filesConnected, loginGoogleFiles,
+  listDriveFiles, listDriveFolders, downloadDriveFile, type DriveFile,
+  listGooglePhotos, downloadPhotosItem, type PhotosItem,
+} from '../utils/driveAuth';
 
 export interface SourceAttachment {
   uri: string;
   kind: 'image' | 'video';
 }
 
-type Source = 'pexels' | 'unsplash';
+type Source = 'pexels' | 'unsplash' | 'drive' | 'gphotos';
 
 const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
-  { id: 'pexels', label: 'Pexels', icon: 'images-outline', note: 'Photos + videos, free to use' },
+  { id: 'drive', label: 'Google Drive', icon: 'folder-outline', note: 'Your files + shared folders' },
+  { id: 'gphotos', label: 'Google Photos', icon: 'images-outline', note: 'Your photo library' },
+  { id: 'pexels', label: 'Pexels', icon: 'globe-outline', note: 'Photos + videos, free to use' },
   { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', note: 'Photos · credit auto-added' },
 ];
+
+const LABEL: Record<Source, string> = {
+  drive: 'Google Drive',
+  gphotos: 'Google Photos',
+  pexels: 'Pexels',
+  unsplash: 'Unsplash',
+};
 
 /**
  * Media sources browser (inline view — never a Modal, because iOS cannot
  * reliably present a modal over the composer sheet's Modal). Hosts render it
  * full-screen (a Modal of their own) or swap it into their layout.
- * Cloud drives (Drive/Photos/Dropbox/OneDrive) land as tiles here as they ship.
  * Emits composer-ready attachments; Unsplash items also return a credit line
- * the caller appends to the caption.
+ * the caller appends to the caption. Drive + Photos tokens stay device-side
+ * (SecureStore); Dropbox/OneDrive/Canva land as tiles here as they ship.
  */
 export default function MediaSources({
   onPickLocal,
@@ -44,12 +58,57 @@ export default function MediaSources({
   const [items, setItems] = useState<StockItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  // Drive / Photos
+  const [filesAuthed, setFilesAuthed] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
+  const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([]);
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [driveNext, setDriveNext] = useState<string | undefined>(undefined);
+  const [photos, setPhotos] = useState<PhotosItem[]>([]);
+  const [photosNext, setPhotosNext] = useState<string | undefined>(undefined);
+
+  const loadDrive = async (folderId?: string, q?: string, more?: boolean) => {
+    setBusy(true);
+    try {
+      const [fl, fo] = await Promise.all([
+        listDriveFiles(folderId, q, more ? driveNext : undefined),
+        more ? Promise.resolve(null) : listDriveFolders(folderId),
+      ]);
+      setDriveFiles(more ? [...driveFiles, ...fl.files] : fl.files);
+      setDriveNext(fl.nextPage);
+      if (fo) setFolders(fo);
+    } catch (e: any) {
+      Alert.alert('Drive failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loadPhotos = async (q?: string, more?: boolean) => {
+    setBusy(true);
+    try {
+      const r = await listGooglePhotos(q, more ? photosNext : undefined);
+      setPhotos(more ? [...photos, ...r.items] : r.items);
+      setPhotosNext(r.nextPage);
+    } catch (e: any) {
+      Alert.alert('Photos failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const search = async () => {
     if (!source || !query.trim() || busy) return;
     setBusy(true);
     try {
-      setItems(await searchStock(source, query.trim(), source === 'pexels' ? type : 'photo'));
+      if (source === 'drive') {
+        await loadDrive(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, query.trim());
+      } else if (source === 'gphotos') {
+        await loadPhotos(query.trim());
+      } else {
+        setItems(await searchStock(source, query.trim(), source === 'pexels' ? type : 'photo'));
+      }
     } catch (e: any) {
       Alert.alert('Search failed', e?.message ?? 'Try again.');
     } finally {
@@ -71,12 +130,83 @@ export default function MediaSources({
     }
   };
 
-  const openSource = (id: Source) => {
+  const pickDrive = async (f: DriveFile) => {
+    if (downloading) return;
+    setDownloading(f.id);
+    try {
+      const att = await downloadDriveFile(f);
+      onAttach([att]);
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Could not attach', e?.message ?? 'Try another file.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const pickPhoto = async (p: PhotosItem) => {
+    if (downloading) return;
+    setDownloading(p.id);
+    try {
+      const att = await downloadPhotosItem(p);
+      onAttach([att]);
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Could not attach', e?.message ?? 'Try another one.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const openSource = async (id: Source) => {
     setSource(id);
     setItems([]);
     setQuery('');
+    setDriveFiles([]);
+    setPhotos([]);
+    setFolders([]);
+    setFolderStack([]);
+    setDriveNext(undefined);
+    setPhotosNext(undefined);
     if (id === 'unsplash') setType('photo');
+    if (id === 'drive' || id === 'gphotos') {
+      const ok = await filesConnected();
+      setFilesAuthed(ok);
+      if (ok) {
+        if (id === 'drive') await loadDrive();
+        else await loadPhotos();
+      }
+    }
   };
+
+  const connectFiles = async () => {
+    if (connecting) return;
+    setConnecting(true);
+    try {
+      const ok = await loginGoogleFiles();
+      if (!ok) {
+        Alert.alert('Not connected', 'Google sign-in was cancelled.');
+        return;
+      }
+      setFilesAuthed(true);
+      if (source === 'drive') await loadDrive();
+      else await loadPhotos();
+    } catch (e: any) {
+      Alert.alert('Could not connect', e?.message ?? 'Try again.');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const goBack = () => {
+    setSource(null);
+    setItems([]);
+    setDriveFiles([]);
+    setPhotos([]);
+    setFilesAuthed(false);
+  };
+
+  const isCloud = source === 'drive' || source === 'gphotos';
 
   return (
     <View style={s.wrap}>
@@ -114,69 +244,193 @@ export default function MediaSources({
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={() => { setSource(null); setItems([]); }} style={s.back}>
+          <TouchableOpacity onPress={goBack} style={s.back}>
             <Ionicons name="chevron-back" size={16} color={C.accentInk} />
-            <Text style={s.backT}>{source === 'pexels' ? 'Pexels' : 'Unsplash'}</Text>
+            <Text style={s.backT}>{LABEL[source]}</Text>
           </TouchableOpacity>
-          <View style={s.searchRow}>
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search stock…"
-              placeholderTextColor={C.faint}
-              style={s.search}
-              returnKeyType="search"
-              onSubmitEditing={search}
-            />
-            <TouchableOpacity onPress={search} style={s.go} activeOpacity={0.75}>
-              {busy ? <ActivityIndicator size="small" color={C.onInk} /> : <Text style={s.goT}>Go</Text>}
-            </TouchableOpacity>
-          </View>
-          {source === 'pexels' ? (
-            <View style={s.typeRow}>
-              {(['photo', 'video'] as const).map((t) => (
-                <TouchableOpacity
-                  key={t}
-                  onPress={() => setType(t)}
-                  style={[s.typePill, type === t && { backgroundColor: C.ink }]}
-                >
-                  <Text style={[s.typeT, type === t && { color: C.onInk }]}>
-                    {t === 'photo' ? 'Photos' : 'Videos'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
-          {source === 'unsplash' ? (
-            <Text style={s.creditNote}>Photographer credit is added to your caption automatically.</Text>
-          ) : null}
-          <FlatList
-            data={items}
-            keyExtractor={(x) => x.id}
-            numColumns={3}
-            contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
-            columnWrapperStyle={{ gap: 8 }}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => pick(item)} activeOpacity={0.8} style={s.cell}>
-                <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
-                {item.kind === 'video' ? (
-                  <View style={s.playBadge}>
-                    <Ionicons name="play" size={12} color="#fff" />
-                  </View>
-                ) : null}
-                {downloading === item.id ? (
-                  <View style={s.dlOverlay}>
-                    <ActivityIndicator size="small" color="#fff" />
-                  </View>
-                ) : null}
-                <Text style={s.author} numberOfLines={1}>{item.author}</Text>
+
+          {isCloud && !filesAuthed ? (
+            <View style={s.connectBox}>
+              <Text style={s.connectT}>
+                {source === 'drive'
+                  ? 'Connect Google Drive to browse your files.'
+                  : 'Connect Google Photos to browse your library.'}
+              </Text>
+              <Text style={s.connectS}>Read-only access · tokens stay on this device.</Text>
+              <TouchableOpacity onPress={connectFiles} style={s.connectBtn} activeOpacity={0.8} disabled={connecting}>
+                {connecting ? (
+                  <ActivityIndicator size="small" color={C.onInk} />
+                ) : (
+                  <Text style={s.connectBtnT}>Connect Google</Text>
+                )}
               </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              !busy ? <Text style={s.empty}>Search above to browse stock.</Text> : null
-            }
-          />
+            </View>
+          ) : (
+            <>
+              <View style={s.searchRow}>
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : 'Search stock…'}
+                  placeholderTextColor={C.faint}
+                  style={s.search}
+                  returnKeyType="search"
+                  onSubmitEditing={search}
+                />
+                <TouchableOpacity onPress={search} style={s.go} activeOpacity={0.75}>
+                  {busy ? <ActivityIndicator size="small" color={C.onInk} /> : <Text style={s.goT}>Go</Text>}
+                </TouchableOpacity>
+              </View>
+
+              {source === 'pexels' ? (
+                <View style={s.typeRow}>
+                  {(['photo', 'video'] as const).map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      onPress={() => setType(t)}
+                      style={[s.typePill, type === t && { backgroundColor: C.ink }]}
+                    >
+                      <Text style={[s.typeT, type === t && { color: C.onInk }]}>
+                        {t === 'photo' ? 'Photos' : 'Videos'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+              {source === 'unsplash' ? (
+                <Text style={s.creditNote}>Photographer credit is added to your caption automatically.</Text>
+              ) : null}
+
+              {source === 'drive' && folders.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 8 }}>
+                  {folderStack.length > 0 ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        const next = folderStack.slice(0, -1);
+                        setFolderStack(next);
+                        setQuery('');
+                        void loadDrive(next.length ? next[next.length - 1].id : undefined);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="arrow-up" size={13} color={C.accentInk} />
+                      <Text style={s.folderT}>Up</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {folders.map((f) => (
+                    <TouchableOpacity
+                      key={f.id}
+                      onPress={() => {
+                        const next = [...folderStack, f];
+                        setFolderStack(next);
+                        setQuery('');
+                        void loadDrive(f.id);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="folder" size={13} color={C.accentInk} />
+                      <Text style={s.folderT} numberOfLines={1}>{f.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : null}
+
+              {source === 'drive' ? (
+                <FlatList
+                  data={driveFiles}
+                  keyExtractor={(x) => x.id}
+                  numColumns={3}
+                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
+                  columnWrapperStyle={{ gap: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                  onEndReached={() => { if (driveNext && !busy) void loadDrive(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, query.trim() || undefined, true); }}
+                  onEndReachedThreshold={0.4}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => pickDrive(item)} activeOpacity={0.8} style={s.cell}>
+                      {item.thumb ? (
+                        <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                      ) : (
+                        <View style={[s.thumb, s.fileThumb]}>
+                          <Ionicons name={item.kind === 'video' ? 'videocam' : 'image'} size={24} color={C.muted} />
+                        </View>
+                      )}
+                      {item.kind === 'video' ? (
+                        <View style={s.playBadge}>
+                          <Ionicons name="play" size={12} color="#fff" />
+                        </View>
+                      ) : null}
+                      {downloading === item.id ? (
+                        <View style={s.dlOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      ) : null}
+                      <Text style={s.author} numberOfLines={1}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    !busy ? <Text style={s.empty}>{query ? 'No matches in this folder.' : 'No images or videos here yet.'}</Text> : null
+                  }
+                />
+              ) : source === 'gphotos' ? (
+                <FlatList
+                  data={photos}
+                  keyExtractor={(x) => x.id}
+                  numColumns={3}
+                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
+                  columnWrapperStyle={{ gap: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                  onEndReached={() => { if (photosNext && !busy) void loadPhotos(query.trim() || undefined, true); }}
+                  onEndReachedThreshold={0.4}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => pickPhoto(item)} activeOpacity={0.8} style={s.cell}>
+                      <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                      {item.kind === 'video' ? (
+                        <View style={s.playBadge}>
+                          <Ionicons name="play" size={12} color="#fff" />
+                        </View>
+                      ) : null}
+                      {downloading === item.id ? (
+                        <View style={s.dlOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      ) : null}
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    !busy ? <Text style={s.empty}>{query ? 'No matches.' : 'Your newest photos will appear here.'}</Text> : null
+                  }
+                />
+              ) : (
+                <FlatList
+                  data={items}
+                  keyExtractor={(x) => x.id}
+                  numColumns={3}
+                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
+                  columnWrapperStyle={{ gap: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => pick(item)} activeOpacity={0.8} style={s.cell}>
+                      <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                      {item.kind === 'video' ? (
+                        <View style={s.playBadge}>
+                          <Ionicons name="play" size={12} color="#fff" />
+                        </View>
+                      ) : null}
+                      {downloading === item.id ? (
+                        <View style={s.dlOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      ) : null}
+                      <Text style={s.author} numberOfLines={1}>{item.author}</Text>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    !busy ? <Text style={s.empty}>Search above to browse stock.</Text> : null
+                  }
+                />
+              )}
+            </>
+          )}
         </View>
       )}
     </View>
@@ -192,6 +446,11 @@ const makeS = (C: Palette) => StyleSheet.create({
   tileS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10, alignSelf: 'flex-start' },
   backT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.accentInk },
+  connectBox: { alignItems: 'center', paddingVertical: 28, gap: 6 },
+  connectT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink, textAlign: 'center' },
+  connectS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, textAlign: 'center' },
+  connectBtn: { backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 12, marginTop: 10 },
+  connectBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.onInk },
   searchRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   search: { flex: 1, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 13, paddingVertical: 10, fontSize: 14, color: C.ink, fontFamily: 'PlusJakartaSans_400Regular' },
   go: { backgroundColor: C.ink, borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
@@ -200,8 +459,11 @@ const makeS = (C: Palette) => StyleSheet.create({
   typePill: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
   typeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   creditNote: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted, marginBottom: 8 },
+  folderChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 12, paddingVertical: 8, maxWidth: 180 },
+  folderT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.ink, flexShrink: 1 },
   cell: { flex: 1 },
   thumb: { width: '100%', aspectRatio: 1, borderRadius: 10, backgroundColor: C.lineSoft },
+  fileThumb: { alignItems: 'center', justifyContent: 'center' },
   playBadge: { position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, padding: 4 },
   dlOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   author: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: C.muted, marginTop: 3 },
