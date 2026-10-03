@@ -38,8 +38,8 @@ const SOON = [
 
 const LOCAL_ICON = ImagePlus;
 
-const PANEL_W = 300;
-const PANEL_H = 480;
+const PANEL_W = 264;
+const PANEL_H = 420;
 
 /**
  * Add-media dropdown for the web composer (shared by composer + idea editors
@@ -295,20 +295,20 @@ export default function MediaSourcesDialog({
 
   const menuRow = (Icon: typeof ImagePlus, title: string, onClick?: () => void, disabled?: boolean) =>
     disabled ? (
-      <div className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 opacity-45">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-faint"><Icon className="h-4 w-4" aria-hidden="true" /></span>
-        <span className="min-w-0 flex-1 text-[13px] font-bold">{title}</span>
-        <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-bold text-faint">Soon</span>
+      <div className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 opacity-45">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-faint"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1 text-xs font-bold">{title}</span>
+        <span className="rounded-full border border-line px-1.5 py-px text-[9px] font-bold text-faint">Soon</span>
       </div>
     ) : (
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-paper-dim"
+        className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-paper-dim"
       >
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-paper-dim text-ink"><Icon className="h-4 w-4" aria-hidden="true" /></span>
-        <span className="min-w-0 flex-1 text-[13px] font-bold">{title}</span>
-        <span aria-hidden="true" className="text-faint">›</span>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-paper-dim text-ink"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1 text-xs font-bold">{title}</span>
+        <span aria-hidden="true" className="text-xs text-faint">›</span>
       </button>
     );
 
@@ -325,7 +325,7 @@ export default function MediaSourcesDialog({
       <div
         role="menu"
         aria-label="Add media"
-        className="fixed z-[100] flex max-h-[min(480px,70vh)] w-[300px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
+        className="fixed z-[100] flex max-h-[min(420px,66vh)] w-[264px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
         style={flip ? { left, bottom: window.innerHeight - (anchor?.top ?? 0) + 8 } : { left, top: below }}
       >
         {source ? (
