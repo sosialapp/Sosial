@@ -172,6 +172,15 @@ export const PRIVACY: LegalDoc = {
       ],
     },
     {
+      title: 'Connected media sources',
+      blocks: [
+        {
+          t: 'p',
+          c: 'When you attach photos or videos from a cloud source (Dropbox, Google Drive, Google Photos, OneDrive) or a stock library (Pexels, Unsplash), the app lists your files so you can pick one, downloads only the file you choose, and attaches it to your post. Access is read-only: Sosial never uploads, edits, moves or deletes files in your cloud storage. Cloud access tokens are kept on your device only and are never stored on our servers; disconnecting the source in the app deletes them.',
+        },
+      ],
+    },
+    {
       title: 'How we use it',
       blocks: [
         {
