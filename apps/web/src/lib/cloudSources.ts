@@ -314,7 +314,7 @@ export async function listDropboxFolder(path?: string): Promise<{ folders: Cloud
       const tr = await fetch('https://api.dropboxapi.com/2/files/get_thumbnail_batch', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries: files.slice(0, 100).map((f) => ({ '.tag': 'file', path: f.path, format: 'jpeg', size: 'w256h256' })) }),
+        body: JSON.stringify({ entries: files.slice(0, 100).map((f) => ({ '.tag': 'file', path: f.path, format: { '.tag': 'jpeg' }, size: { '.tag': 'w256h256' }, mode: { '.tag': 'strict' } })) }),
       });
       const tj: any = await tr.json().catch(() => ({}));
       ((tj?.entries ?? []) as any[]).forEach((t, i) => {

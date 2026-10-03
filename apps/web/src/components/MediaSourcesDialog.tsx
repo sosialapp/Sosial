@@ -168,8 +168,19 @@ export default function MediaSourcesDialog({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
+    // The panel is anchored once — a page scroll would strand it floating,
+    // so close instead (scrolls inside the panel itself don't count).
+    const onScroll = (e: Event) => {
+      const t = e.target as HTMLElement | null;
+      if (t && typeof (t as HTMLElement).closest === 'function' && (t as HTMLElement).closest('[role="menu"]')) return;
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+    };
   }, [open, onClose]);
 
   if (!open || !mounted) return null;

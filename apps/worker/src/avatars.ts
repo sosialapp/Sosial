@@ -301,9 +301,21 @@ async function listChannels(): Promise<ChannelRow[]> {
   return Array.isArray(j) ? (j as ChannelRow[]) : [];
 }
 
+/** Cheap liveness probe for a stored avatar URL. Hosts that refuse HEAD
+ *  (405/501) are assumed alive — only clear rot triggers a refetch. */
+async function urlAlive(url: string): Promise<boolean> {
+  try {
+    const r = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+    if (r.status === 405 || r.status === 501) return true;
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Fetch + persist avatars for every connected channel. Safe to call anytime:
- * existing avatars are kept unless `force` is set.
+ * live avatars are kept unless `force` is set; dead ones are refetched.
  */
 export async function syncWorkspaceAvatars(
   workspaceId?: string,
@@ -317,7 +329,12 @@ export async function syncWorkspaceAvatars(
 
   for (const c of rows) {
     const existing = c.metadata?.avatar;
-    if (existing && !force) continue;
+    if (existing && !force) {
+      // Stored URLs rot (IG/TikTok sign theirs with expiries; Telegram file
+      // paths die when the bot token rotates). A dead URL must be refetched,
+      // not kept forever — probe it first.
+      if (await urlAlive(existing)) continue;
+    }
     checked++;
     const t = tokenRow(c);
     try {
