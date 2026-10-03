@@ -10,8 +10,10 @@ import * as WebBrowser from 'expo-web-browser';
 import * as FileSystem from 'expo-file-system/legacy';
 import { BRIDGE_URL, appReturnUrl } from './metaAuth';
 
-const APP_KEY = 'emq623yv061pub5';
-const APP_SECRET = 'rn99za30h2s77hh';
+/** Public identifier (appears in authorize URLs by design). */
+const APP_KEY = process.env.EXPO_PUBLIC_DROPBOX_APP_KEY ?? '';
+/** Confidential half — `.env` / EAS secret, never source (see scan-secrets). */
+const APP_SECRET = process.env.EXPO_PUBLIC_DROPBOX_APP_SECRET ?? '';
 const SCOPES = 'files.metadata.read files.content.read';
 const AUTH_ENDPOINT = 'https://www.dropbox.com/oauth2/authorize';
 const TOKEN_ENDPOINT = 'https://api.dropboxapi.com/oauth2/token';
