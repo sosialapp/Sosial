@@ -31,6 +31,12 @@ const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
   { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', note: 'Photos · credit auto-added' },
 ];
 
+/** Not yet wired — shown greyed so the drawer mirrors the full roadmap. */
+const SOON: { label: string; icon: string; note: string }[] = [
+  { label: 'OneDrive', icon: 'cloud-outline', note: 'Coming soon' },
+  { label: 'Canva', icon: 'color-palette-outline', note: 'Coming soon' },
+];
+
 const LABEL: Record<Source, string> = {
   drive: 'Google Drive',
   gphotos: 'Google Photos',
@@ -310,6 +316,21 @@ export default function MediaSources({
               <Ionicons name="chevron-forward" size={18} color={C.faint} />
             </TouchableOpacity>
           ))}
+          {SOON.map((src) => (
+            <TouchableOpacity
+              key={src.label}
+              onPress={() => Alert.alert(`${src.label} is coming soon`, 'We are wiring it up next — check back shortly.')}
+              activeOpacity={0.75}
+              style={[s.tile, { opacity: 0.55 }]}
+            >
+              <Ionicons name={src.icon as any} size={22} color={C.faint} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.tileT}>{src.label}</Text>
+                <Text style={s.tileS}>{src.note}</Text>
+              </View>
+              <Text style={s.soonBadge}>Soon</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       ) : (
         <View style={{ flex: 1 }}>
@@ -583,6 +604,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   tile: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: C.lineSoft },
   tileT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink },
   tileS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },
+  soonBadge: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.faint, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10, alignSelf: 'flex-start' },
   backT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.accentInk },
   connectBox: { alignItems: 'center', paddingVertical: 28, gap: 6 },

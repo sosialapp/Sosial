@@ -450,8 +450,33 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   const [pickingTime, setPickingTime] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  /** Null = main composer; number = chain segment index the sheet attaches to. */
+  const [sourcesTarget, setSourcesTarget] = useState<number | null>(null);
+  const openSources = (thread: number | null) => {
+    setSourcesTarget(thread);
+    setSourcesOpen(true);
+  };
+  const closeSources = () => {
+    setSourcesOpen(false);
+    setSourcesTarget(null);
+  };
   /** Stock/cloud attach: same cap rules as the roll, plus credit if owed. */
   const attachSources = (items: SourceAttachment[], credit?: string) => {
+    if (sourcesTarget !== null && composer?.threadMedia && composer?.onThreadMedia) {
+      const i = sourcesTarget;
+      const have = composer.threadMedia[i]?.length ?? 0;
+      const room = THREAD_MEDIA_MAX - have;
+      if (room <= 0) return;
+      const next = [...composer.threadMedia];
+      next[i] = [...(next[i] ?? []), ...items.map((a) => ({ uri: a.uri, kind: a.kind }))].slice(0, THREAD_MEDIA_MAX);
+      composer.onThreadMedia(next);
+      if (credit && composer?.thread && composer?.onThread && !(composer.thread[i] ?? '').includes('Unsplash')) {
+        const t = [...composer.thread];
+        t[i] = `${(t[i] ?? '').trim()}\n\n${credit}`.trim();
+        composer.onThread(t);
+      }
+      return;
+    }
     media?.onAdd?.(items);
     if (credit && composer && !(composer.caption ?? '').includes('Unsplash')) {
       composer.onCaption(`${(composer.caption ?? '').trim()}\n\n${credit}`.trim());
@@ -939,7 +964,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                             items={segMed ?? []}
                             max={THREAD_MEDIA_MAX}
                             dark={themeMode === 'dark'}
-                            onPick={() => composer.onPickThreadMedia!(i)}
+                            onPick={() => openSources(i)}
                             onRemove={(mi) => composer.onRemoveThreadMedia!(i, mi)}
                             onMove={(from, to) => composer.onMoveThreadMedia?.(i, from, to)}
                           />
@@ -973,7 +998,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
                       {!readOnly && media ? (
                         <TouchableOpacity
-                          onPress={() => setSourcesOpen(true)}
+                          onPress={() => openSources(null)}
                           hitSlop={6}
                           accessibilityLabel="Attach media"
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
@@ -1042,7 +1067,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                 <>
                 <MediaStrip
                   items={media.items}
-                  onPick={media.onPick}
+                  onPick={() => openSources(null)}
                   onRemove={media.onRemove}
                   onMove={media.onMove}
                   onOpen={setViewer}
@@ -1511,9 +1536,14 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       <View style={{ gap: 10 }}>
         {sourcesOpen && media ? (
           <MediaSources
-            onPickLocal={() => { setSourcesOpen(false); media.onPick(); }}
+            onPickLocal={() => {
+              const t = sourcesTarget;
+              closeSources();
+              if (t !== null) composer?.onPickThreadMedia?.(t);
+              else media.onPick();
+            }}
             onAttach={(items, credit) => attachSources(items, credit)}
-            onClose={() => setSourcesOpen(false)}
+            onClose={closeSources}
           />
         ) : (
           <>
@@ -1536,9 +1566,14 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               <ScrollView nestedScrollEnabled style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled" scrollEnabled={!segDragging}>
                 {sourcesOpen && media ? (
                   <MediaSources
-                    onPickLocal={() => { setSourcesOpen(false); media.onPick(); }}
+                    onPickLocal={() => {
+                      const t = sourcesTarget;
+                      closeSources();
+                      if (t !== null) composer?.onPickThreadMedia?.(t);
+                      else media.onPick();
+                    }}
                     onAttach={(items, credit) => attachSources(items, credit)}
-                    onClose={() => setSourcesOpen(false)}
+                    onClose={closeSources}
                   />
                 ) : (
                   content
