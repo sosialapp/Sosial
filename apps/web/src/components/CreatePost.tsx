@@ -56,21 +56,31 @@ function RailDesignTile({
   if (!page) return null;
   const ratio = POST_SIZES.find((s) => s.id === project.sizeId)?.ratio ?? 1.25;
   return (
-    <article>
-      <div ref={nodeRef} className="overflow-hidden rounded-2xl border border-line">
-        <StudioCanvas page={page} ratio={ratio} width={240} frame={false} />
-      </div>
-      <div className="mt-2 flex items-center gap-2 px-0.5">
-        <p className="min-w-0 flex-1 truncate text-sm font-bold">{project.name}</p>
-        <button
-          type="button"
-          onClick={() => onUse(project, pageIndex, nodeRef.current)}
-          disabled={busy}
-          className="btn btn-primary shrink-0 !px-3 !py-1.5 !text-xs"
-        >
-          {busy ? '…' : 'Use'}
-        </button>
-      </div>
+    <article className="w-[148px] shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-paper">
+      <button
+        type="button"
+        onClick={() => onUse(project, pageIndex, nodeRef.current)}
+        disabled={busy}
+        className="relative block w-full text-left"
+        aria-label={`Use ${project.name} in this post`}
+      >
+        <div ref={nodeRef}>
+          <StudioCanvas page={page} ratio={ratio} width={148} frame={false} />
+        </div>
+        {busy ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-xs font-bold text-white">
+            Rendering…
+          </span>
+        ) : (
+          <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/55 to-transparent px-2 pt-6 pb-2 text-xs font-extrabold text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100">
+            Use design
+          </span>
+        )}
+      </button>
+      <p className="truncate px-2.5 pt-1.5 text-xs font-bold">{project.name}</p>
+      <p className="truncate px-2.5 pb-2 text-[11px] text-muted">
+        {project.pages.length} page{project.pages.length === 1 ? '' : 's'}
+      </p>
     </article>
   );
 }
@@ -175,19 +185,25 @@ function RailPanel({
           ) : designs.length + starterDesigns.length === 0 ? (
             <p className="text-sm text-muted">No designs yet — make one on the Templates tab.</p>
           ) : (
-            <div className="max-h-[480px] space-y-4 overflow-y-auto">
+            <div className="max-h-[480px] space-y-5 overflow-y-auto pb-1">
               {starterDesigns.length > 0 ? (
-                <div className="space-y-3">
-                  {starterDesigns.map((d) => (
-                    <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
-                  ))}
+                <div>
+                  <p className="eyebrow mb-2">Starter templates</p>
+                  <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
+                    {starterDesigns.map((d) => (
+                      <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
+                    ))}
+                  </div>
                 </div>
               ) : null}
               {designs.length > 0 ? (
-                <div className="space-y-3">
-                  {designs.map((d) => (
-                    <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
-                  ))}
+                <div>
+                  <p className="eyebrow mb-2">Your templates</p>
+                  <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
+                    {designs.map((d) => (
+                      <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>
