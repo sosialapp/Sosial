@@ -12,7 +12,7 @@ import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
-import { POST_SIZES, blankPage, type StudioProject, type CardStyle } from '@/lib/studio/model';
+import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
 import { providerMeta } from '@/lib/providers';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
@@ -84,47 +84,7 @@ function RailDesignTile({
   );
 }
 
-/** Providers with a pixel-faithful sealed card — everything else previews
- *  on the neutral minimal chrome. */
-const PREVIEW_STYLE: Record<string, CardStyle> = {
-  facebook: 'facebook',
-  x: 'x',
-  instagram: 'instagram',
-  threads: 'threads',
-  bluesky: 'bluesky',
-};
-
-/** This draft poured into a provider's real post-style card. */
-function PreviewCard({ channel, body, media }: { channel: ConnectedChannel; body: string; media: MediaItem[] }) {
-  const meta = providerMeta(channel.provider);
-  const handle = channel.handle
-    ? `@${String(channel.handle).replace(/^@/, '')}`
-    : `@${(channel.display_name ?? meta.label).replace(/^@/, '')}`;
-  const base = blankPage();
-  const img = media.find((m) => m.kind === 'image');
-  const page = {
-    ...base,
-    cardStyle: PREVIEW_STYLE[channel.provider] ?? 'minimal',
-    title: { ...base.title, text: '', position: 'none' as const },
-    pfp: {
-      ...base.pfp,
-      username: channel.display_name ?? meta.label,
-      customHandle: handle,
-      uri: channelAvatar(channel.metadata) ?? undefined,
-    },
-    socials: [],
-    blocks: [
-      ...(body
-        ? [{ id: 'pv-t', type: 'free' as const, items: [body.slice(0, 400)] }]
-        : []),
-      ...(img?.url ? [{ id: 'pv-i', type: 'image' as const, items: [], imageUri: img.url }] : []),
-    ],
-    verified: true,
-    showWatermark: false,
-    caption: '',
-  };
-  return <StudioCanvas page={page} ratio={1} width={264} frame={false} watermark={false} />;
-}
+import PostPreview from '@/components/studio/PostPreview';
 
 /**
  * Right-rail switch: Template (text captions or canvas designs into the
@@ -260,14 +220,31 @@ function RailPanel({
             <p className="text-sm text-muted">Write something (or attach media) to preview it here.</p>
           ) : (
             <div className="max-h-[520px] space-y-4 overflow-y-auto pb-1">
-              {shown.map((c) => (
-                <div key={c.id}>
-                  <p className="mb-1.5 text-xs font-bold text-muted">
-                    {c.display_name ?? providerMeta(c.provider).label}
-                  </p>
-                  <PreviewCard channel={c} body={body} media={media} />
-                </div>
-              ))}
+              {shown.map((c) => {
+                const meta = providerMeta(c.provider);
+                const img = media.find((m) => m.kind === 'image');
+                const vid = !img ? media.find((m) => m.kind === 'video') : undefined;
+                return (
+                  <div key={c.id}>
+                    <p className="mb-1.5 text-xs font-bold text-muted">
+                      {c.display_name ?? meta.label}
+                    </p>
+                    <PostPreview
+                      provider={c.provider}
+                      name={c.display_name ?? meta.label}
+                      handle={
+                        c.handle
+                          ? `@${String(c.handle).replace(/^@/, '')}`
+                          : `@${(c.display_name ?? meta.label).replace(/^@/, '')}`
+                      }
+                      avatarUrl={channelAvatar(c.metadata) ?? undefined}
+                      body={body}
+                      imageUrl={img?.url}
+                      videoUrl={vid?.url}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
