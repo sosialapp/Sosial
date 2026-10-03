@@ -946,6 +946,9 @@ export default function CreateHub({
             initialMediaParts={draftEdit?.mediaParts}
             editingIds={draftEdit?.postIds}
             onEdited={() => setDraftEdit(null)}
+            libraryCaptions={[...templates, ...STARTERS]}
+            libraryDesigns={projects}
+            libraryStarterDesigns={starterProjects()}
           />
         </div>
       ) : view === 'ideas' ? (

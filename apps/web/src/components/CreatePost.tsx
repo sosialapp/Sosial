@@ -10,7 +10,11 @@ import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
 import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
+import StudioCanvas from '@/components/studio/StudioCanvas';
+import { exportCanvasPng } from '@/lib/studio/exportPng';
+import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
 import { providerMeta } from '@/lib/providers';
+import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
@@ -31,6 +35,217 @@ function deviceZone(): string {
 /** Branch mark, same glyph family as the mobile app's thread icon. */
 function BranchIcon({ className = 'h-3.5 w-3.5' }: { className?: string }) {
   return <GitBranch className={className} aria-hidden="true" />;
+}
+
+type RailTab = 'template' | 'preview' | 'ai';
+
+function RailDesignTile({
+  project,
+  pageIndex,
+  busyKey,
+  onUse,
+}: {
+  project: StudioProject;
+  pageIndex: number;
+  busyKey: string | null;
+  onUse: (project: StudioProject, pageIndex: number, node: HTMLElement | null) => void;
+}) {
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const page = project.pages[pageIndex] ?? project.pages[0];
+  const busy = busyKey === `${project.id}:${pageIndex}`;
+  if (!page) return null;
+  const ratio = POST_SIZES.find((s) => s.id === project.sizeId)?.ratio ?? 1.25;
+  return (
+    <article>
+      <div ref={nodeRef} className="overflow-hidden rounded-2xl border border-line">
+        <StudioCanvas page={page} ratio={ratio} width={240} frame={false} />
+      </div>
+      <div className="mt-2 flex items-center gap-2 px-0.5">
+        <p className="min-w-0 flex-1 truncate text-sm font-bold">{project.name}</p>
+        <button
+          type="button"
+          onClick={() => onUse(project, pageIndex, nodeRef.current)}
+          disabled={busy}
+          className="btn btn-primary shrink-0 !px-3 !py-1.5 !text-xs"
+        >
+          {busy ? '…' : 'Use'}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Right-rail switch: Template (text captions or canvas designs into the
+ * composer) · Preview (this draft as each picked channel shows it) · AI
+ * (the writer, as before).
+ */
+function RailPanel({
+  tab,
+  onTab,
+  tplKind,
+  onTplKind,
+  captions,
+  designs,
+  starterDesigns,
+  onUseCaption,
+  onUseDesign,
+  designBusy,
+  channels,
+  picked,
+  segs,
+  ai,
+}: {
+  tab: RailTab;
+  onTab: (t: RailTab) => void;
+  tplKind: 'text' | 'design';
+  onTplKind: (k: 'text' | 'design') => void;
+  captions: { id: string; name: string; title: string; body: string }[];
+  designs: StudioProject[];
+  starterDesigns: StudioProject[];
+  onUseCaption: (t: { title: string; body: string }) => void;
+  onUseDesign: (project: StudioProject, pageIndex: number, node: HTMLElement | null) => void;
+  designBusy: string | null;
+  channels: ConnectedChannel[];
+  picked: string[];
+  segs: Segment[];
+  ai: React.ReactNode;
+}) {
+  const head = segs[0];
+  const body = (head?.body ?? '').trim();
+  const media = head?.media ?? [];
+  const shown = channels.filter((c) => picked.includes(c.id));
+  return (
+    <div className="card space-y-3 p-4 sm:p-5">
+      <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Studio panel">
+        {(['template', 'preview', 'ai'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => onTab(t)}
+            aria-pressed={tab === t}
+            className={`flex-1 rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
+              tab === t ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
+            }`}
+          >
+            {t === 'ai' ? 'AI' : t}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'ai' ? ai : null}
+
+      {tab === 'template' ? (
+        <div className="space-y-3">
+          <div className="flex gap-1.5" role="group" aria-label="Template kind">
+            {(['text', 'design'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => onTplKind(k)}
+                aria-pressed={tplKind === k}
+                className={`flex-1 rounded-full border px-3 py-1.5 text-xs font-bold capitalize transition ${
+                  tplKind === k ? 'border-ink bg-paper text-ink' : 'border-line text-muted hover:text-ink'
+                }`}
+              >
+                {k === 'text' ? 'Template text' : 'Template design'}
+              </button>
+            ))}
+          </div>
+          {tplKind === 'text' ? (
+            captions.length === 0 ? (
+              <p className="text-sm text-muted">No caption templates yet — save one on the Templates tab.</p>
+            ) : (
+              <div className="max-h-[480px] space-y-2 overflow-y-auto">
+                {captions.map((t) => (
+                  <div key={t.id} className="rounded-2xl border border-line bg-paper p-3">
+                    <p className="truncate text-sm font-bold">{t.name}</p>
+                    {t.body ? <p className="mt-0.5 line-clamp-2 text-xs text-soft">{t.body}</p> : null}
+                    <button
+                      type="button"
+                      onClick={() => onUseCaption(t)}
+                      className="btn btn-ghost mt-2 w-full !py-1.5 !text-xs"
+                    >
+                      Use caption
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : designs.length + starterDesigns.length === 0 ? (
+            <p className="text-sm text-muted">No designs yet — make one on the Templates tab.</p>
+          ) : (
+            <div className="max-h-[480px] space-y-4 overflow-y-auto">
+              {starterDesigns.length > 0 ? (
+                <div className="space-y-3">
+                  {starterDesigns.map((d) => (
+                    <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
+                  ))}
+                </div>
+              ) : null}
+              {designs.length > 0 ? (
+                <div className="space-y-3">
+                  {designs.map((d) => (
+                    <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {tab === 'preview' ? (
+        <div className="space-y-3">
+          {shown.length === 0 ? (
+            <p className="text-sm text-muted">Pick a channel above to preview this post as they will see it.</p>
+          ) : !body && media.length === 0 ? (
+            <p className="text-sm text-muted">Write something (or attach media) to preview it here.</p>
+          ) : (
+            <div className="max-h-[520px] space-y-3 overflow-y-auto">
+              {shown.map((c) => {
+                const meta = providerMeta(c.provider);
+                const img = media.find((m) => m.kind === 'image');
+                const vid = !img ? media.find((m) => m.kind === 'video') : undefined;
+                return (
+                  <article key={c.id} className="overflow-hidden rounded-2xl border border-line bg-paper">
+                    <div className="flex items-center gap-2.5 px-3.5 pt-3">
+                      <ChannelAvatar
+                        provider={c.provider}
+                        avatar={channelAvatar(c.metadata)}
+                        size={30}
+                      />
+                      <div className="min-w-0 flex-1 leading-tight">
+                        <p className="truncate text-[13px] font-bold">
+                          {c.display_name ?? meta.label}
+                        </p>
+                        <p className="truncate text-[11px] text-muted">
+                          {c.handle ? `@${String(c.handle).replace(/^@/, '')}` : meta.label} · {meta.label}
+                        </p>
+                      </div>
+                      <BrandIcon provider={c.provider as BrandProvider} className="h-5 w-5 shrink-0" />
+                    </div>
+                    {body ? (
+                      <p className="px-3.5 pt-2 text-[13px] leading-relaxed whitespace-pre-wrap">
+                        {body.slice(0, 280)}
+                        {body.length > 280 ? '…' : ''}
+                      </p>
+                    ) : null}
+                    {img?.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img.url} alt="" className="mt-2 max-h-56 w-full object-cover" />
+                    ) : vid?.url ? (
+                      <video src={vid.url} muted playsInline className="mt-2 max-h-56 w-full object-cover" />
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function toMediaItems(files: File[]): MediaItem[] {
@@ -61,6 +276,9 @@ export default function CreatePost({
   initialMediaParts,
   editingIds,
   onEdited,
+  libraryCaptions = [],
+  libraryDesigns = [],
+  libraryStarterDesigns = [],
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
@@ -83,6 +301,10 @@ export default function CreatePost({
   editingIds?: string[];
   /** Draft edit: called after the replacement saves. */
   onEdited?: () => void;
+  /** Library for the rail Template tab (passed from the hub — no duplication). */
+  libraryCaptions?: { id: string; name: string; title: string; body: string }[];
+  libraryDesigns?: StudioProject[];
+  libraryStarterDesigns?: StudioProject[];
 }) {
   const router = useRouter();
   const ready = useMemo(() => channels.filter((c) => c.status === 'connected'), [channels]);
@@ -131,6 +353,31 @@ export default function CreatePost({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
+  /** Right-rail switch + template sub-switch + per-design export busy key. */
+  const [rail, setRail] = useState<'template' | 'preview' | 'ai'>('ai');
+  const [tplKind, setTplKind] = useState<'text' | 'design'>('text');
+  const [designBusy, setDesignBusy] = useState<string | null>(null);
+
+  /** Rail Template/text: drop a caption into part 1, keeping its media. */
+  function useRailCaption(t: { title: string; body: string }) {
+    const text = [t.title.trim(), t.body.trim()].filter(Boolean).join('\n\n');
+    setSegs((prev) => [{ body: text, media: prev[0]?.media ?? [] }]);
+  }
+
+  /** Rail Template/design: render the page to PNG and attach it to part 1. */
+  async function useRailDesign(project: StudioProject, pageIndex: number, node: HTMLElement | null) {
+    if (!node) return;
+    const key = `${project.id}:${pageIndex}`;
+    setDesignBusy(key);
+    try {
+      const blob = await exportCanvasPng(node, 1080);
+      const file = new File([blob], `${project.name || 'design'}-p${pageIndex + 1}.png`, { type: 'image/png' });
+      addFilesTo(0, [file]);
+      setRail('preview');
+    } finally {
+      setDesignBusy(null);
+    }
+  }
   /** Post-now confirmation: validations pass first, then the channel list. */
   const [confirmNow, setConfirmNow] = useState(false);
   const nowConfirmed = useRef(false);
@@ -721,22 +968,39 @@ export default function CreatePost({
           </section>
         </div>
 
-        {/* Right rail: AI writer + Picture AI, separate cards */}
+        {/* Right rail: Template / Preview / AI switch */}
         <div className="min-w-0 xl:col-span-2">
-          <AiCard
-            providers={chosenProviders}
-            thread={thread}
-            onThreadChange={setThreadMode}
-            parts={parts}
-            onPartsChange={setPartsCount}
-            onResult={(bodies) => {
-              setSegs((prev) => {
-                const next = bodies.map((b) => ({ body: b, media: [] as MediaItem[] }));
-                if (next[0]) next[0].media = prev[0]?.media ?? [];
-                return next;
-              });
-            }}
-            appliedNote="Applied to the composer — edit freely, then post."
+          <RailPanel
+            tab={rail}
+            onTab={setRail}
+            tplKind={tplKind}
+            onTplKind={setTplKind}
+            captions={libraryCaptions}
+            designs={libraryDesigns}
+            starterDesigns={libraryStarterDesigns}
+            onUseCaption={useRailCaption}
+            onUseDesign={useRailDesign}
+            designBusy={designBusy}
+            channels={ready}
+            picked={picked}
+            segs={segs}
+            ai={
+              <AiCard
+                providers={chosenProviders}
+                thread={thread}
+                onThreadChange={setThreadMode}
+                parts={parts}
+                onPartsChange={setPartsCount}
+                onResult={(bodies) => {
+                  setSegs((prev) => {
+                    const next = bodies.map((b) => ({ body: b, media: [] as MediaItem[] }));
+                    if (next[0]) next[0].media = prev[0]?.media ?? [];
+                    return next;
+                  });
+                }}
+                appliedNote="Applied to the composer — edit freely, then post."
+              />
+            }
           />
         </div>
       </div>
