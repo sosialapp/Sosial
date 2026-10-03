@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Image, Video } from 'lucide-react';
+import { Image, Video, Images } from 'lucide-react';
 import { EmojiButton } from '@/components/Emoji';
+import MediaSourcesDialog from '@/components/MediaSourcesDialog';
 
 export interface MediaItem {
   /** Present for freshly-picked files; absent for data-URL media from storage. */
@@ -43,6 +44,7 @@ export default function PostBox({
   label: string;
 }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragFrom = useRef<number | null>(null);
   const over = seg.body.length > limit;
@@ -145,6 +147,15 @@ export default function PostBox({
         >
           <Video className="h-4 w-4" aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          onClick={() => setSourcesOpen(true)}
+          aria-label="Add from stock or cloud"
+          title="Add from stock or cloud"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
+        >
+          <Images className="h-4 w-4" aria-hidden="true" />
+        </button>
         <span className="mx-1 h-4 w-px bg-line-soft" aria-hidden="true" />
         <EmojiButton align="top" onPick={(emoji) => onChange(seg.body + emoji)} />
         <span className="flex-1" />
@@ -161,6 +172,17 @@ export default function PostBox({
         onChange={(e) => {
           onAddFiles(e.target.files);
           e.target.value = '';
+        }}
+      />
+
+      <MediaSourcesDialog
+        open={sourcesOpen}
+        onClose={() => setSourcesOpen(false)}
+        onAttach={(files, credit) => {
+          onAddFiles(files);
+          if (credit && !seg.body.includes('Unsplash')) {
+            onChange(`${seg.body.trim()}\n\n${credit}`.trim());
+          }
         }}
       />
 
