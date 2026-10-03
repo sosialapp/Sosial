@@ -958,8 +958,19 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     multiline
                     style={{ minHeight: 96, textAlignVertical: 'top' }}
                   />
-                  {onAi || (chainCap && composer.onThread) ? (
+                  {(!readOnly && media) || onAi || (chainCap && composer.onThread) ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+                      {!readOnly && media ? (
+                        <TouchableOpacity
+                          onPress={media.onPick}
+                          hitSlop={6}
+                          accessibilityLabel="Attach media"
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+                        >
+                          <Ionicons name="image-outline" size={15} color={C.accentInk} />
+                          <Ionicons name="chevron-up" size={12} color={C.accentInk} />
+                        </TouchableOpacity>
+                      ) : null}
                       {onAi ? (
                         <TouchableOpacity onPress={onAi} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Ionicons name="sparkles" size={15} color={C.accentInk} />
@@ -1011,12 +1022,12 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                 </View>
               ) : null
             ) : !showSharedStrip ? null : (
+            media.items.length > 0 ? (
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
                 <Text style={st.label}>Photo or video</Text>
-                {media.items.length > 0 ? <Text style={st.countT}>{media.items.length}/{MAX_ATTACHMENTS}</Text> : null}
+                <Text style={st.countT}>{media.items.length}/{MAX_ATTACHMENTS}</Text>
               </View>
-              {media.items.length > 0 ? (
                 <>
                 <MediaStrip
                   items={media.items}
@@ -1026,30 +1037,8 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   onOpen={setViewer}
                 />
                 </>
-              ) : (
-                <View style={{ marginTop: 8, flexDirection: 'row' }}>
-                  <TouchableOpacity
-                    onPress={media.onPick}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Attach media"
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 2,
-                      borderWidth: 1,
-                      borderColor: C.lineSoft,
-                      borderRadius: 999,
-                      paddingHorizontal: 12,
-                      paddingVertical: 9,
-                      backgroundColor: C.card,
-                    }}
-                  >
-                    <Ionicons name="image-outline" size={18} color={C.muted} />
-                    <Ionicons name="chevron-up" size={13} color={C.muted} />
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
+            ) : null
             )
           ) : null}
 
