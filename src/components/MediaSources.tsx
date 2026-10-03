@@ -11,17 +11,22 @@ import {
   listDriveFiles, listDriveFolders, downloadDriveFile, type DriveFile,
   listGooglePhotos, downloadPhotosItem, type PhotosItem,
 } from '../utils/driveAuth';
+import {
+  dropboxConnected, loginDropbox,
+  listDropboxFolder, searchDropbox, downloadDropboxFile, type DropboxEntry,
+} from '../utils/dropboxAuth';
 
 export interface SourceAttachment {
   uri: string;
   kind: 'image' | 'video';
 }
 
-type Source = 'pexels' | 'unsplash' | 'drive' | 'gphotos';
+type Source = 'pexels' | 'unsplash' | 'drive' | 'gphotos' | 'dropbox';
 
 const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
   { id: 'drive', label: 'Google Drive', icon: 'folder-outline', note: 'Your files + shared folders' },
   { id: 'gphotos', label: 'Google Photos', icon: 'images-outline', note: 'Your photo library' },
+  { id: 'dropbox', label: 'Dropbox', icon: 'cloud-outline', note: 'Your Dropbox files' },
   { id: 'pexels', label: 'Pexels', icon: 'globe-outline', note: 'Photos + videos, free to use' },
   { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', note: 'Photos · credit auto-added' },
 ];
@@ -29,6 +34,7 @@ const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
 const LABEL: Record<Source, string> = {
   drive: 'Google Drive',
   gphotos: 'Google Photos',
+  dropbox: 'Dropbox',
   pexels: 'Pexels',
   unsplash: 'Unsplash',
 };
@@ -67,6 +73,11 @@ export default function MediaSources({
   const [driveNext, setDriveNext] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<PhotosItem[]>([]);
   const [photosNext, setPhotosNext] = useState<string | undefined>(undefined);
+  // Dropbox
+  const [dbxAuthed, setDbxAuthed] = useState(false);
+  const [dbxFolders, setDbxFolders] = useState<DropboxEntry[]>([]);
+  const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
+  const [dbxFiles, setDbxFiles] = useState<DropboxEntry[]>([]);
 
   const loadDrive = async (folderId?: string, q?: string, more?: boolean) => {
     setBusy(true);
@@ -98,6 +109,19 @@ export default function MediaSources({
     }
   };
 
+  const loadDropbox = async (path?: string) => {
+    setBusy(true);
+    try {
+      const r = await listDropboxFolder(path);
+      setDbxFolders(r.folders);
+      setDbxFiles(r.files);
+    } catch (e: any) {
+      Alert.alert('Dropbox failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const search = async () => {
     if (!source || !query.trim() || busy) return;
     setBusy(true);
@@ -106,6 +130,17 @@ export default function MediaSources({
         await loadDrive(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, query.trim());
       } else if (source === 'gphotos') {
         await loadPhotos(query.trim());
+      } else if (source === 'dropbox') {
+        setBusy(true);
+        try {
+          setDbxFiles(await searchDropbox(query.trim()));
+          setDbxFolders([]);
+        } catch (e: any) {
+          Alert.alert('Search failed', e?.message ?? 'Try again.');
+        } finally {
+          setBusy(false);
+        }
+        return;
       } else {
         setItems(await searchStock(source, query.trim(), source === 'pexels' ? type : 'photo'));
       }
@@ -158,6 +193,20 @@ export default function MediaSources({
     }
   };
 
+  const pickDropbox = async (f: DropboxEntry) => {
+    if (downloading) return;
+    setDownloading(f.path);
+    try {
+      const att = await downloadDropboxFile(f);
+      onAttach([att]);
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Could not attach', e?.message ?? 'Try another file.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const openSource = async (id: Source) => {
     setSource(id);
     setItems([]);
@@ -168,6 +217,9 @@ export default function MediaSources({
     setFolderStack([]);
     setDriveNext(undefined);
     setPhotosNext(undefined);
+    setDbxFolders([]);
+    setDbxFiles([]);
+    setDbxStack([]);
     if (id === 'unsplash') setType('photo');
     if (id === 'drive' || id === 'gphotos') {
       const ok = await filesConnected();
@@ -177,12 +229,27 @@ export default function MediaSources({
         else await loadPhotos();
       }
     }
+    if (id === 'dropbox') {
+      const ok = await dropboxConnected();
+      setDbxAuthed(ok);
+      if (ok) await loadDropbox();
+    }
   };
 
   const connectFiles = async () => {
     if (connecting) return;
     setConnecting(true);
     try {
+      if (source === 'dropbox') {
+        const ok = await loginDropbox();
+        if (!ok) {
+          Alert.alert('Not connected', 'Dropbox sign-in was cancelled.');
+          return;
+        }
+        setDbxAuthed(true);
+        await loadDropbox();
+        return;
+      }
       const ok = await loginGoogleFiles();
       if (!ok) {
         Alert.alert('Not connected', 'Google sign-in was cancelled.');
@@ -190,7 +257,7 @@ export default function MediaSources({
       }
       setFilesAuthed(true);
       if (source === 'drive') await loadDrive();
-      else await loadPhotos();
+      else if (source === 'gphotos') await loadPhotos();
     } catch (e: any) {
       Alert.alert('Could not connect', e?.message ?? 'Try again.');
     } finally {
@@ -204,9 +271,11 @@ export default function MediaSources({
     setDriveFiles([]);
     setPhotos([]);
     setFilesAuthed(false);
+    setDbxAuthed(false);
   };
 
-  const isCloud = source === 'drive' || source === 'gphotos';
+  const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox';
+  const cloudAuthed = source === 'dropbox' ? dbxAuthed : filesAuthed;
 
   return (
     <View style={s.wrap}>
@@ -249,19 +318,21 @@ export default function MediaSources({
             <Text style={s.backT}>{LABEL[source]}</Text>
           </TouchableOpacity>
 
-          {isCloud && !filesAuthed ? (
+          {isCloud && !cloudAuthed ? (
             <View style={s.connectBox}>
               <Text style={s.connectT}>
                 {source === 'drive'
                   ? 'Connect Google Drive to browse your files.'
-                  : 'Connect Google Photos to browse your library.'}
+                  : source === 'dropbox'
+                    ? 'Connect Dropbox to browse your files.'
+                    : 'Connect Google Photos to browse your library.'}
               </Text>
               <Text style={s.connectS}>Read-only access · tokens stay on this device.</Text>
               <TouchableOpacity onPress={connectFiles} style={s.connectBtn} activeOpacity={0.8} disabled={connecting}>
                 {connecting ? (
                   <ActivityIndicator size="small" color={C.onInk} />
                 ) : (
-                  <Text style={s.connectBtnT}>Connect Google</Text>
+                  <Text style={s.connectBtnT}>{source === 'dropbox' ? 'Connect Dropbox' : 'Connect Google'}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -271,7 +342,7 @@ export default function MediaSources({
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
-                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : 'Search stock…'}
+                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : 'Search stock…'}
                   placeholderTextColor={C.faint}
                   style={s.search}
                   returnKeyType="search"
@@ -325,6 +396,40 @@ export default function MediaSources({
                         setFolderStack(next);
                         setQuery('');
                         void loadDrive(f.id);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="folder" size={13} color={C.accentInk} />
+                      <Text style={s.folderT} numberOfLines={1}>{f.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : null}
+
+              {source === 'dropbox' && dbxFolders.length > 0 && !query.trim() ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 8 }}>
+                  {dbxStack.length > 0 ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        const next = dbxStack.slice(0, -1);
+                        setDbxStack(next);
+                        setQuery('');
+                        void loadDropbox(next.length ? next[next.length - 1].path : undefined);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="arrow-up" size={13} color={C.accentInk} />
+                      <Text style={s.folderT}>Up</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {dbxFolders.map((f) => (
+                    <TouchableOpacity
+                      key={f.path}
+                      onPress={() => {
+                        const next = [...dbxStack, { name: f.name, path: f.path }];
+                        setDbxStack(next);
+                        setQuery('');
+                        void loadDropbox(f.path);
                       }}
                       style={s.folderChip}
                     >
@@ -398,6 +503,40 @@ export default function MediaSources({
                   )}
                   ListEmptyComponent={
                     !busy ? <Text style={s.empty}>{query ? 'No matches.' : 'Your newest photos will appear here.'}</Text> : null
+                  }
+                />
+              ) : source === 'dropbox' ? (
+                <FlatList
+                  data={dbxFiles}
+                  keyExtractor={(x) => x.path}
+                  numColumns={3}
+                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
+                  columnWrapperStyle={{ gap: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => pickDropbox(item)} activeOpacity={0.8} style={s.cell}>
+                      {item.thumb ? (
+                        <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                      ) : (
+                        <View style={[s.thumb, s.fileThumb]}>
+                          <Ionicons name={item.kind === 'video' ? 'videocam' : 'image'} size={24} color={C.muted} />
+                        </View>
+                      )}
+                      {item.kind === 'video' ? (
+                        <View style={s.playBadge}>
+                          <Ionicons name="play" size={12} color="#fff" />
+                        </View>
+                      ) : null}
+                      {downloading === item.path ? (
+                        <View style={s.dlOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      ) : null}
+                      <Text style={s.author} numberOfLines={1}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    !busy ? <Text style={s.empty}>{query ? 'No matches in your Dropbox.' : 'No images or videos in this folder.'}</Text> : null
                   }
                 />
               ) : (
