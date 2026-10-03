@@ -44,10 +44,12 @@ export default function MediaSourcesDialog({
   open,
   onClose,
   onAttach,
+  onPickLocal,
 }: {
   open: boolean;
   onClose: () => void;
   onAttach: (files: File[], credit?: string) => void;
+  onPickLocal?: () => void;
 }) {
   const [source, setSource] = useState<Source | null>(null);
   const [query, setQuery] = useState('');
@@ -284,6 +286,19 @@ export default function MediaSourcesDialog({
 
         {!source ? (
           <div className="mt-4 space-y-2">
+            {onPickLocal ? (
+              <button
+                type="button"
+                onClick={() => { onClose(); onPickLocal(); }}
+                className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3 text-left transition hover:border-ink"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold">This device</span>
+                  <span className="block text-xs text-muted">Photos and videos on this device</span>
+                </span>
+                <span aria-hidden="true" className="text-faint">›</span>
+              </button>
+            ) : null}
             {SOURCES.map((s) => (
               <button
                 key={s.id}

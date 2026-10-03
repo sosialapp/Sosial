@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Image, Video, Images } from 'lucide-react';
+import { Image, ChevronDown } from 'lucide-react';
 import { EmojiButton } from '@/components/Emoji';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
 
@@ -131,30 +131,13 @@ export default function PostBox({
       <div className="flex items-center gap-0.5 border-t border-line-soft px-2 py-1.5">
         <button
           type="button"
-          onClick={() => pick('image/*')}
-          aria-label="Add photo"
-          title="Add photo"
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
+          onClick={() => setSourcesOpen(true)}
+          aria-label="Add media"
+          title="Add media"
+          className="flex h-7 items-center gap-0.5 rounded-lg px-1.5 text-muted transition hover:bg-paper-dim hover:text-ink"
         >
           <Image className="h-4 w-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => pick('video/*')}
-          aria-label="Add video"
-          title="Add video"
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
-        >
-          <Video className="h-4 w-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setSourcesOpen(true)}
-          aria-label="Add from stock or cloud"
-          title="Add from stock or cloud"
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-paper-dim hover:text-ink"
-        >
-          <Images className="h-4 w-4" aria-hidden="true" />
+          <ChevronDown className="h-3 w-3" aria-hidden="true" />
         </button>
         <span className="mx-1 h-4 w-px bg-line-soft" aria-hidden="true" />
         <EmojiButton align="top" onPick={(emoji) => onChange(seg.body + emoji)} />
@@ -178,6 +161,7 @@ export default function PostBox({
       <MediaSourcesDialog
         open={sourcesOpen}
         onClose={() => setSourcesOpen(false)}
+        onPickLocal={() => pick('image/*,video/*')}
         onAttach={(files, credit) => {
           onAddFiles(files);
           if (credit && !seg.body.includes('Unsplash')) {

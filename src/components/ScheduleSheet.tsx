@@ -1004,7 +1004,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
                         >
                           <Ionicons name="image-outline" size={15} color={C.accentInk} />
-                          <Ionicons name="chevron-up" size={12} color={C.accentInk} />
+                          <Ionicons name="chevron-down" size={12} color={C.accentInk} />
                         </TouchableOpacity>
                       ) : null}
                       {onAi ? (
