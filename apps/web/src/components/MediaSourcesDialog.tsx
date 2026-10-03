@@ -114,8 +114,8 @@ const BRAND_MARKS: Record<string, React.ReactNode> = {
 
 const LOCAL_ICON = <ImagePlus className="h-4 w-4" aria-hidden="true" />;
 
-const PANEL_W = 264;
-const PANEL_H = 420;
+const PANEL_W = 384;
+const PANEL_H = 480;
 
 /**
  * Add-media dropdown for the web composer (shared by composer + idea editors
@@ -444,7 +444,7 @@ export default function MediaSourcesDialog({
       <div
         role="menu"
         aria-label="Add media"
-        className="fixed z-[100] flex max-h-[min(420px,66vh)] w-[264px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
+        className="fixed z-[100] flex max-h-[min(480px,70vh)] w-[384px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
         style={flip ? { left, bottom: window.innerHeight - (a?.bottom ?? 0) + 8 } : { left, top: below }}
       >
         {source ? (
