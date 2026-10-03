@@ -12,9 +12,8 @@ import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
-import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
+import { POST_SIZES, blankPage, type StudioProject, type CardStyle } from '@/lib/studio/model';
 import { providerMeta } from '@/lib/providers';
-import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
@@ -83,6 +82,48 @@ function RailDesignTile({
       </p>
     </article>
   );
+}
+
+/** Providers with a pixel-faithful sealed card — everything else previews
+ *  on the neutral minimal chrome. */
+const PREVIEW_STYLE: Record<string, CardStyle> = {
+  facebook: 'facebook',
+  x: 'x',
+  instagram: 'instagram',
+  threads: 'threads',
+  bluesky: 'bluesky',
+};
+
+/** This draft poured into a provider's real post-style card. */
+function PreviewCard({ channel, body, media }: { channel: ConnectedChannel; body: string; media: MediaItem[] }) {
+  const meta = providerMeta(channel.provider);
+  const handle = channel.handle
+    ? `@${String(channel.handle).replace(/^@/, '')}`
+    : `@${(channel.display_name ?? meta.label).replace(/^@/, '')}`;
+  const base = blankPage();
+  const img = media.find((m) => m.kind === 'image');
+  const page = {
+    ...base,
+    cardStyle: PREVIEW_STYLE[channel.provider] ?? 'minimal',
+    title: { ...base.title, text: '', position: 'none' as const },
+    pfp: {
+      ...base.pfp,
+      username: channel.display_name ?? meta.label,
+      customHandle: handle,
+      uri: channelAvatar(channel.metadata) ?? undefined,
+    },
+    socials: [],
+    blocks: [
+      ...(body
+        ? [{ id: 'pv-t', type: 'free' as const, items: [body.slice(0, 400)] }]
+        : []),
+      ...(img?.url ? [{ id: 'pv-i', type: 'image' as const, items: [], imageUri: img.url }] : []),
+    ],
+    verified: true,
+    showWatermark: false,
+    caption: '',
+  };
+  return <StudioCanvas page={page} ratio={1} width={264} frame={false} watermark={false} />;
 }
 
 /**
@@ -218,44 +259,15 @@ function RailPanel({
           ) : !body && media.length === 0 ? (
             <p className="text-sm text-muted">Write something (or attach media) to preview it here.</p>
           ) : (
-            <div className="max-h-[520px] space-y-3 overflow-y-auto">
-              {shown.map((c) => {
-                const meta = providerMeta(c.provider);
-                const img = media.find((m) => m.kind === 'image');
-                const vid = !img ? media.find((m) => m.kind === 'video') : undefined;
-                return (
-                  <article key={c.id} className="overflow-hidden rounded-2xl border border-line bg-paper">
-                    <div className="flex items-center gap-2.5 px-3.5 pt-3">
-                      <ChannelAvatar
-                        provider={c.provider}
-                        avatar={channelAvatar(c.metadata)}
-                        size={30}
-                      />
-                      <div className="min-w-0 flex-1 leading-tight">
-                        <p className="truncate text-[13px] font-bold">
-                          {c.display_name ?? meta.label}
-                        </p>
-                        <p className="truncate text-[11px] text-muted">
-                          {c.handle ? `@${String(c.handle).replace(/^@/, '')}` : meta.label} · {meta.label}
-                        </p>
-                      </div>
-                      <BrandIcon provider={c.provider as BrandProvider} className="h-5 w-5 shrink-0" />
-                    </div>
-                    {body ? (
-                      <p className="px-3.5 pt-2 text-[13px] leading-relaxed whitespace-pre-wrap">
-                        {body.slice(0, 280)}
-                        {body.length > 280 ? '…' : ''}
-                      </p>
-                    ) : null}
-                    {img?.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img.url} alt="" className="mt-2 max-h-56 w-full object-cover" />
-                    ) : vid?.url ? (
-                      <video src={vid.url} muted playsInline className="mt-2 max-h-56 w-full object-cover" />
-                    ) : null}
-                  </article>
-                );
-              })}
+            <div className="max-h-[520px] space-y-4 overflow-y-auto pb-1">
+              {shown.map((c) => (
+                <div key={c.id}>
+                  <p className="mb-1.5 text-xs font-bold text-muted">
+                    {c.display_name ?? providerMeta(c.provider).label}
+                  </p>
+                  <PreviewCard channel={c} body={body} media={media} />
+                </div>
+              ))}
             </div>
           )}
         </div>
