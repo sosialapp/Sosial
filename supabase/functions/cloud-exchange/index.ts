@@ -5,7 +5,7 @@
 // them in sessionStorage (device-only — our DB never sees them). The web
 // dialog then calls Drive/Photos/Dropbox REST directly.
 //
-// POST { provider: 'dropbox'|'google', code?, refresh_token?, redirect_uri? }
+// POST { provider: 'dropbox'|'google'|'canva', code?, refresh_token?, redirect_uri?, code_verifier? }
 // → 200 { access_token, refresh_token?, expires_in }
 //   · 401 unauthenticated
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -45,16 +45,36 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Body must be JSON.");
   }
   const provider = body["provider"];
-  if (provider !== "dropbox" && provider !== "google") return bad("provider must be dropbox|google.");
+  if (provider !== "dropbox" && provider !== "google" && provider !== "canva") {
+    return bad("provider must be dropbox|google|canva.");
+  }
   const code = typeof body["code"] === "string" ? body["code"] : "";
   const refreshToken = typeof body["refresh_token"] === "string" ? body["refresh_token"] : "";
   if (!code && !refreshToken) return bad("code or refresh_token required.");
   const redirectUri = typeof body["redirect_uri"] === "string" ? body["redirect_uri"] : "";
+  const codeVerifier = typeof body["code_verifier"] === "string" ? body["code_verifier"] : "";
 
   try {
     let tokenUrl: string;
     const params: Record<string, string> = {};
-    if (provider === "dropbox") {
+    let basic: string | null = null;
+    if (provider === "canva") {
+      const id = Deno.env.get("CANVA_CLIENT_ID") ?? "";
+      const secret = Deno.env.get("CANVA_CLIENT_SECRET") ?? "";
+      if (!id || !secret) return bad("Canva is not configured yet.", 402);
+      tokenUrl = "https://api.canva.com/rest/v1/oauth/token";
+      basic = btoa(`${id}:${secret}`);
+      if (code) {
+        if (!codeVerifier) return bad("code_verifier required for Canva.");
+        params["grant_type"] = "authorization_code";
+        params["code"] = code;
+        params["code_verifier"] = codeVerifier;
+        if (redirectUri) params["redirect_uri"] = redirectUri;
+      } else {
+        params["grant_type"] = "refresh_token";
+        params["refresh_token"] = refreshToken;
+      }
+    } else if (provider === "dropbox") {
       const key = Deno.env.get("DROPBOX_APP_KEY") ?? "";
       const secret = Deno.env.get("DROPBOX_APP_SECRET") ?? "";
       if (!key || !secret) return bad("Dropbox is not configured yet.", 402);
@@ -87,7 +107,10 @@ serve(async (req: Request): Promise<Response> => {
     }
     const r = await fetch(tokenUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...(basic ? { Authorization: `Basic ${basic}` } : {}),
+      },
       body: new URLSearchParams(params).toString(),
     });
     const j: any = await r.json().catch(() => ({}));

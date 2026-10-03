@@ -10,13 +10,14 @@ import { createClient } from '@/lib/supabase/client';
  * sends no CORS headers); Drive + Dropbox download directly.
  */
 
-export type CloudProvider = 'google' | 'dropbox';
+export type CloudProvider = 'google' | 'dropbox' | 'canva';
 
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/photoslibrary.readonly',
 ].join(' ');
 const DROPBOX_SCOPES = 'files.metadata.read files.content.read';
+const CANVA_SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'folder:read', 'profile:read'].join(' ');
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const PHOTOS_API = 'https://photoslibrary.googleapis.com/v1';
 
@@ -58,6 +59,18 @@ async function authedInvoke(fn: string, body: Record<string, unknown>) {
   return data as any;
 }
 
+/** PKCE pair (WebCrypto S256) for Canva. */
+async function pkcePair(): Promise<{ verifier: string; challenge: string }> {
+  const bytes = crypto.getRandomValues(new Uint8Array(48));
+  const verifier = Array.from(bytes, (b) => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'[b % 64]).join('');
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  return { verifier, challenge };
+}
+
 /** Popup consent via the shared bridge; resolves with fresh tokens. */
 export async function loginCloud(provider: CloudProvider): Promise<boolean> {
   const sb = await createClient();
@@ -65,11 +78,14 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
   const clientId =
     provider === 'dropbox'
       ? String((config as any)?.dropbox?.client_id ?? '')
-      : String((config as any)?.youtube?.client_id ?? (config as any)?.gmb?.client_id ?? '');
+      : provider === 'canva'
+        ? String((config as any)?.canva?.client_id ?? '')
+        : String((config as any)?.youtube?.client_id ?? (config as any)?.gmb?.client_id ?? '');
   if (!clientId) throw new Error('That source is not configured yet.');
   const redirectUri = `${location.origin}/auth.html`;
   const nonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
   const state = `cloud:${provider}:${nonce}`;
+  const pkce = provider === 'canva' ? await pkcePair() : null;
   const authUrl =
     provider === 'dropbox'
       ? `https://www.dropbox.com/oauth2/authorize?${new URLSearchParams({
@@ -80,31 +96,67 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
           scope: DROPBOX_SCOPES,
           state,
         })}`
-      : `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
-          response_type: 'code',
-          client_id: clientId,
-          redirect_uri: redirectUri,
-          scope: GOOGLE_SCOPES,
-          access_type: 'offline',
-          prompt: 'consent',
-          state,
-        })}`;
+      : provider === 'canva'
+        ? `https://www.canva.com/api/oauth/authorize?${new URLSearchParams({
+            response_type: 'code',
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            scope: CANVA_SCOPES,
+            code_challenge: pkce!.challenge,
+            code_challenge_method: 'S256',
+            state,
+          })}`
+        : `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+            response_type: 'code',
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            scope: GOOGLE_SCOPES,
+            access_type: 'offline',
+            prompt: 'consent',
+            state,
+          })}`;
 
   const tokens = await new Promise<Tokens | null>((resolve) => {
+    const finish = async (d: any) => {
+      window.removeEventListener('message', onMsg);
+      if (!d?.ok) {
+        resolve(null);
+        return;
+      }
+      try {
+        if (d.access_token) {
+          resolve({
+            access: String(d.access_token),
+            refresh: typeof d.refresh_token === 'string' ? d.refresh_token : '',
+            expiresAt: Date.now() + Number(d.expires_in ?? 14400) * 1000,
+          });
+        } else if (d.code && provider === 'canva' && pkce) {
+          // Canva hands back the code; the verifier never left this tab, so
+          // finish the exchange here via cloud-exchange (secret stays server-side).
+          const j = await authedInvoke('cloud-exchange', {
+            provider: 'canva',
+            code: String(d.code),
+            redirect_uri: redirectUri,
+            code_verifier: pkce.verifier,
+          });
+          if (!j.access_token) throw new Error('Canva hid the login — try again.');
+          resolve({
+            access: String(j.access_token),
+            refresh: typeof j.refresh_token === 'string' ? j.refresh_token : '',
+            expiresAt: Date.now() + Number(j.expires_in ?? 14400) * 1000,
+          });
+        } else {
+          resolve(null);
+        }
+      } catch {
+        resolve(null);
+      }
+    };
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== location.origin) return;
       const d = e.data as any;
       if (!d || d.type !== 'sosial-cloud' || d.nonce !== nonce) return;
-      window.removeEventListener('message', onMsg);
-      if (d.ok && d.access_token) {
-        resolve({
-          access: String(d.access_token),
-          refresh: typeof d.refresh_token === 'string' ? d.refresh_token : '',
-          expiresAt: Date.now() + Number(d.expires_in ?? 14400) * 1000,
-        });
-      } else {
-        resolve(null);
-      }
+      void finish(d);
     };
     window.addEventListener('message', onMsg);
     const pop = window.open(authUrl, 'sosial-cloud', 'width=520,height=640');
@@ -267,6 +319,104 @@ export async function downloadGooglePhoto(p: CloudPhoto): Promise<File> {
   return new File([blob], `photos-${p.id}.${p.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: blob.type.startsWith('video/') ? blob.type : p.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
+}
+
+/* --------------------------------- Canva --------------------------------- */
+
+const CANVA_API = 'https://api.canva.com/rest/v1';
+
+export interface CloudCanvaDesign {
+  id: string;
+  title: string;
+  thumb?: string;
+}
+
+async function canvaGet(path: string): Promise<any> {
+  const token = await getValidCloudToken('canva');
+  const r = await fetch(`${CANVA_API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.message ?? `Canva refused (HTTP ${r.status}).`);
+  return j;
+}
+
+/** Designs (newest first), optionally inside a folder or matching a query. */
+export async function listCanvaDesigns(folderId?: string, query?: string): Promise<{ designs: CloudCanvaDesign[]; folders: { id: string; name: string }[] }> {
+  let designs: CloudCanvaDesign[] = [];
+  if (folderId && folderId !== 'root') {
+    const j = await canvaGet(`/folders/${encodeURIComponent(folderId)}/items?continuation=&limit=50`);
+    designs = (((j?.items ?? []) as any[])
+      .filter((x: any) => x?.type === 'design')
+      .map((x: any) => ({
+        id: String(x?.design?.id ?? x?.id ?? ''),
+        title: String(x?.design?.title ?? x?.title ?? 'Untitled design'),
+        thumb: typeof x?.design?.thumbnail?.url === 'string' ? x.design.thumbnail.url : undefined,
+      }))
+      .filter((d) => d.id));
+    if (query?.trim()) {
+      const q = query.trim().toLowerCase();
+      designs = designs.filter((d) => d.title.toLowerCase().includes(q));
+    }
+  } else {
+    const params = new URLSearchParams({ limit: '50' });
+    if (query?.trim()) params.set('query', query.trim());
+    const j = await canvaGet(`/designs?${params}`);
+    designs = (((j?.items ?? []) as any[])
+      .map((x: any) => ({
+        id: String(x?.id ?? ''),
+        title: String(x?.title ?? 'Untitled design'),
+        thumb: typeof x?.thumbnail?.url === 'string' ? x.thumbnail.url : undefined,
+      }))
+      .filter((d) => d.id));
+  }
+  let folders: { id: string; name: string }[] = [];
+  if (!query?.trim() && (!folderId || folderId === 'root')) {
+    try {
+      const fj = await canvaGet('/folders?limit=50');
+      folders = (((fj?.items ?? []) as any[])
+        .map((f: any) => ({ id: String(f?.id ?? ''), name: String(f?.name ?? 'Folder') }))
+        .filter((f) => f.id));
+    } catch {
+      /* folders are navigation sugar — designs matter */
+    }
+  }
+  return { designs, folders };
+}
+
+/** Export a design (jpg photo or mp4 video) and resolve it to a File. */
+export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | 'video'): Promise<File> {
+  const token = await getValidCloudToken('canva');
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const start = await fetch(`${CANVA_API}/designs/${encodeURIComponent(d.id)}/exports`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ format: kind === 'video' ? { type: 'mp4' } : { type: 'jpg' } }),
+  });
+  const sj: any = await start.json().catch(() => ({}));
+  if (!start.ok) throw new Error(sj?.message ?? `Canva refused the export (HTTP ${start.status}).`);
+  const jobId = String(sj?.job?.id ?? '');
+  if (!jobId) throw new Error('Canva did not start the export.');
+  const deadline = Date.now() + 90000;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 2500));
+    const pr = await fetch(`${CANVA_API}/designs/${encodeURIComponent(d.id)}/exports/${encodeURIComponent(jobId)}`, { headers });
+    const pj: any = await pr.json().catch(() => ({}));
+    if (!pr.ok) throw new Error(pj?.message ?? `Canva lost the export (HTTP ${pr.status}).`);
+    const status = String(pj?.job?.status ?? '');
+    if (status === 'success') {
+      const url = String(pj?.job?.urls?.[0] ?? '');
+      if (!url) throw new Error('Canva finished with no file.');
+      const fr = await fetch(url);
+      if (!fr.ok) throw new Error('Download failed — try another design.');
+      const blob = await fr.blob();
+      return new File([blob], `canva-${d.id}.${kind === 'video' ? 'mp4' : 'jpg'}`, {
+        type: kind === 'video' ? 'video/mp4' : 'image/jpeg',
+      });
+    }
+    if (status === 'failed') throw new Error(`Canva could not export that design (${String(pj?.job?.error?.message ?? 'unknown error').slice(0, 100)}).`);
+    if (Date.now() > deadline) throw new Error('Canva is taking too long — try again.');
+  }
 }
 
 /* -------------------------------- Dropbox -------------------------------- */

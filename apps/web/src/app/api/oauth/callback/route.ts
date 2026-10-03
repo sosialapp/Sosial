@@ -258,7 +258,7 @@ async function cloudPickerResult(url: URL, origin: string) {
     page({ type: 'sosial-cloud', nonce, ok: false, error: msg });
 
   const [, provider, nonce] = (url.searchParams.get('state') ?? '').split(':');
-  if ((provider !== 'dropbox' && provider !== 'google') || !nonce) {
+  if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva') || !nonce) {
     return fail('That login expired — try connecting again.', '');
   }
   const providerErr = url.searchParams.get('error');
@@ -268,6 +268,12 @@ async function cloudPickerResult(url: URL, origin: string) {
       url.searchParams.get('error_description') || 'The provider refused the login.',
       nonce,
     );
+  }
+  // Canva uses PKCE: the verifier lives in the opener's memory and must
+  // never travel in a URL, so hand the code back and let the dialog finish
+  // the exchange itself via cloud-exchange.
+  if (provider === 'canva') {
+    return page({ type: 'sosial-cloud', nonce, ok: true, code });
   }
   const sb = await createClient();
   const {

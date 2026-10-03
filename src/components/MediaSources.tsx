@@ -15,18 +15,23 @@ import {
   dropboxConnected, loginDropbox,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type DropboxEntry,
 } from '../utils/dropboxAuth';
+import {
+  canvaConnected, loginCanva,
+  listCanvaDesigns, downloadCanvaDesign, type CanvaDesign,
+} from '../utils/canvaAuth';
 
 export interface SourceAttachment {
   uri: string;
   kind: 'image' | 'video';
 }
 
-type Source = 'pexels' | 'unsplash' | 'drive' | 'gphotos' | 'dropbox';
+type Source = 'pexels' | 'unsplash' | 'drive' | 'gphotos' | 'dropbox' | 'canva';
 
 const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
   { id: 'drive', label: 'Google Drive', icon: 'folder-outline', note: 'Your files + shared folders' },
   { id: 'gphotos', label: 'Google Photos', icon: 'images-outline', note: 'Your photo library' },
   { id: 'dropbox', label: 'Dropbox', icon: 'cloud-outline', note: 'Your Dropbox files' },
+  { id: 'canva', label: 'Canva', icon: 'color-palette-outline', note: 'Your designs, exported to post' },
   { id: 'pexels', label: 'Pexels', icon: 'globe-outline', note: 'Photos + videos, free to use' },
   { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', note: 'Photos · credit auto-added' },
 ];
@@ -34,13 +39,13 @@ const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
 /** Not yet wired — shown greyed so the drawer mirrors the full roadmap. */
 const SOON: { label: string; icon: string; note: string }[] = [
   { label: 'OneDrive', icon: 'cloud-outline', note: 'Coming soon' },
-  { label: 'Canva', icon: 'color-palette-outline', note: 'Coming soon' },
 ];
 
 const LABEL: Record<Source, string> = {
   drive: 'Google Drive',
   gphotos: 'Google Photos',
   dropbox: 'Dropbox',
+  canva: 'Canva',
   pexels: 'Pexels',
   unsplash: 'Unsplash',
 };
@@ -84,6 +89,12 @@ export default function MediaSources({
   const [dbxFolders, setDbxFolders] = useState<DropboxEntry[]>([]);
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
   const [dbxFiles, setDbxFiles] = useState<DropboxEntry[]>([]);
+  // Canva
+  const [canvaAuthed, setCanvaAuthed] = useState(false);
+  const [canvaFolders, setCanvaFolders] = useState<{ id: string; name: string }[]>([]);
+  const [canvaStack, setCanvaStack] = useState<{ id: string; name: string }[]>([]);
+  const [canvaDesigns, setCanvaDesigns] = useState<CanvaDesign[]>([]);
+  const [canvaKind, setCanvaKind] = useState<'image' | 'video'>('image');
 
   const loadDrive = async (folderId?: string, q?: string, more?: boolean) => {
     setBusy(true);
@@ -128,6 +139,19 @@ export default function MediaSources({
     }
   };
 
+  const loadCanva = async (folderId?: string, q?: string) => {
+    setBusy(true);
+    try {
+      const r = await listCanvaDesigns(folderId, q);
+      setCanvaDesigns(r.designs);
+      if (!q) setCanvaFolders(r.folders);
+    } catch (e: any) {
+      Alert.alert('Canva failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const search = async () => {
     if (!source || !query.trim() || busy) return;
     setBusy(true);
@@ -146,6 +170,9 @@ export default function MediaSources({
         } finally {
           setBusy(false);
         }
+        return;
+      } else if (source === 'canva') {
+        await loadCanva(canvaStack.length ? canvaStack[canvaStack.length - 1].id : undefined, query.trim());
         return;
       } else {
         setItems(await searchStock(source, query.trim(), source === 'pexels' ? type : 'photo'));
@@ -213,6 +240,20 @@ export default function MediaSources({
     }
   };
 
+  const pickCanva = async (d: CanvaDesign) => {
+    if (downloading) return;
+    setDownloading(d.id);
+    try {
+      const att = await downloadCanvaDesign(d, canvaKind);
+      onAttach([att]);
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Could not attach', e?.message ?? 'Try another design.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const openSource = async (id: Source) => {
     setSource(id);
     setItems([]);
@@ -226,6 +267,9 @@ export default function MediaSources({
     setDbxFolders([]);
     setDbxFiles([]);
     setDbxStack([]);
+    setCanvaFolders([]);
+    setCanvaDesigns([]);
+    setCanvaStack([]);
     if (id === 'unsplash') setType('photo');
     if (id === 'drive' || id === 'gphotos') {
       const ok = await filesConnected();
@@ -239,6 +283,11 @@ export default function MediaSources({
       const ok = await dropboxConnected();
       setDbxAuthed(ok);
       if (ok) await loadDropbox();
+    }
+    if (id === 'canva') {
+      const ok = await canvaConnected();
+      setCanvaAuthed(ok);
+      if (ok) await loadCanva();
     }
   };
 
@@ -254,6 +303,16 @@ export default function MediaSources({
         }
         setDbxAuthed(true);
         await loadDropbox();
+        return;
+      }
+      if (source === 'canva') {
+        const ok = await loginCanva();
+        if (!ok) {
+          Alert.alert('Not connected', 'Canva sign-in was cancelled.');
+          return;
+        }
+        setCanvaAuthed(true);
+        await loadCanva();
         return;
       }
       const ok = await loginGoogleFiles();
@@ -278,10 +337,11 @@ export default function MediaSources({
     setPhotos([]);
     setFilesAuthed(false);
     setDbxAuthed(false);
+    setCanvaAuthed(false);
   };
 
-  const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox';
-  const cloudAuthed = source === 'dropbox' ? dbxAuthed : filesAuthed;
+  const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva';
+  const cloudAuthed = source === 'dropbox' ? dbxAuthed : source === 'canva' ? canvaAuthed : filesAuthed;
 
   return (
     <View style={s.wrap}>
@@ -346,14 +406,16 @@ export default function MediaSources({
                   ? 'Connect Google Drive to browse your files.'
                   : source === 'dropbox'
                     ? 'Connect Dropbox to browse your files.'
-                    : 'Connect Google Photos to browse your library.'}
+                    : source === 'canva'
+                      ? 'Connect Canva to browse your designs.'
+                      : 'Connect Google Photos to browse your library.'}
               </Text>
               <Text style={s.connectS}>Read-only access · tokens stay on this device.</Text>
               <TouchableOpacity onPress={connectFiles} style={s.connectBtn} activeOpacity={0.8} disabled={connecting}>
                 {connecting ? (
                   <ActivityIndicator size="small" color={C.onInk} />
                 ) : (
-                  <Text style={s.connectBtnT}>{source === 'dropbox' ? 'Connect Dropbox' : 'Connect Google'}</Text>
+                  <Text style={s.connectBtnT}>{source === 'dropbox' ? 'Connect Dropbox' : source === 'canva' ? 'Connect Canva' : 'Connect Google'}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -363,7 +425,7 @@ export default function MediaSources({
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
-                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : 'Search stock…'}
+                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'canva' ? 'Search designs…' : 'Search stock…'}
                   placeholderTextColor={C.faint}
                   style={s.search}
                   returnKeyType="search"
@@ -374,15 +436,15 @@ export default function MediaSources({
                 </TouchableOpacity>
               </View>
 
-              {source === 'pexels' ? (
+              {source === 'pexels' || source === 'canva' ? (
                 <View style={s.typeRow}>
                   {(['photo', 'video'] as const).map((t) => (
                     <TouchableOpacity
                       key={t}
-                      onPress={() => setType(t)}
-                      style={[s.typePill, type === t && { backgroundColor: C.ink }]}
+                      onPress={() => (source === 'canva' ? setCanvaKind(t === 'photo' ? 'image' : 'video') : setType(t))}
+                      style={[s.typePill, (source === 'canva' ? canvaKind === (t === 'photo' ? 'image' : 'video') : type === t) && { backgroundColor: C.ink }]}
                     >
-                      <Text style={[s.typeT, type === t && { color: C.onInk }]}>
+                      <Text style={[s.typeT, (source === 'canva' ? canvaKind === (t === 'photo' ? 'image' : 'video') : type === t) && { color: C.onInk }]}>
                         {t === 'photo' ? 'Photos' : 'Videos'}
                       </Text>
                     </TouchableOpacity>
@@ -451,6 +513,40 @@ export default function MediaSources({
                         setDbxStack(next);
                         setQuery('');
                         void loadDropbox(f.path);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="folder" size={13} color={C.accentInk} />
+                      <Text style={s.folderT} numberOfLines={1}>{f.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : null}
+
+              {source === 'canva' && canvaFolders.length > 0 && !query.trim() ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 8 }}>
+                  {canvaStack.length > 0 ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        const next = canvaStack.slice(0, -1);
+                        setCanvaStack(next);
+                        setQuery('');
+                        void loadCanva(next.length ? next[next.length - 1].id : undefined);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="arrow-up" size={13} color={C.accentInk} />
+                      <Text style={s.folderT}>Up</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {canvaFolders.map((f) => (
+                    <TouchableOpacity
+                      key={f.id}
+                      onPress={() => {
+                        const next = [...canvaStack, f];
+                        setCanvaStack(next);
+                        setQuery('');
+                        void loadCanva(f.id);
                       }}
                       style={s.folderChip}
                     >
@@ -558,6 +654,40 @@ export default function MediaSources({
                   )}
                   ListEmptyComponent={
                     !busy ? <Text style={s.empty}>{query ? 'No matches in your Dropbox.' : 'No images or videos in this folder.'}</Text> : null
+                  }
+                />
+              ) : source === 'canva' ? (
+                <FlatList
+                  data={canvaDesigns}
+                  keyExtractor={(x) => x.id}
+                  numColumns={3}
+                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
+                  columnWrapperStyle={{ gap: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => pickCanva(item)} activeOpacity={0.8} style={s.cell}>
+                      {item.thumb ? (
+                        <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                      ) : (
+                        <View style={[s.thumb, s.fileThumb]}>
+                          <Ionicons name="color-palette" size={24} color={C.muted} />
+                        </View>
+                      )}
+                      {canvaKind === 'video' ? (
+                        <View style={s.playBadge}>
+                          <Ionicons name="play" size={12} color="#fff" />
+                        </View>
+                      ) : null}
+                      {downloading === item.id ? (
+                        <View style={s.dlOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      ) : null}
+                      <Text style={s.author} numberOfLines={1}>{item.title}</Text>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    !busy ? <Text style={s.empty}>{query ? 'No matching designs.' : 'Your newest designs will appear here.'}</Text> : null
                   }
                 />
               ) : (
