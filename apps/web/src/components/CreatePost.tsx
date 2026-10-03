@@ -235,6 +235,12 @@ function RailPanel({
                     </p>
                     <PostPreview
                       provider={c.provider}
+                      handle={
+                        c.handle
+                          ? `@${String(c.handle).replace(/^@/, '')}`
+                          : `@${(c.display_name ?? providerMeta(c.provider).label).replace(/^@/, '')}`
+                      }
+                      avatarUrl={channelAvatar(c.metadata) ?? undefined}
                       body={body}
                       imageUrl={img?.url}
                       videoUrl={vid?.url}
