@@ -84,7 +84,14 @@ export async function loginCanva(): Promise<boolean> {
       preferEphemeralSession: false,
     });
     if (res.type !== 'success' || !('url' in res) || !res.url) return false;
-    const m = String(res.url).match(/[?&#]code=([^&]+)/);
+    const urlStr = String(res.url);
+    const errM = urlStr.match(/[?&#]error=([^&]+)/);
+    if (errM?.[1]) {
+      const descM = urlStr.match(/[?&#]error_description=([^&]+)/);
+      const desc = descM?.[1] ? decodeURIComponent(descM[1].replace(/\+/g, ' ')) : decodeURIComponent(errM[1]);
+      throw new Error(`Canva refused: ${desc.slice(0, 160)}`);
+    }
+    const m = urlStr.match(/[?&#]code=([^&]+)/);
     const code = m?.[1] ? decodeURIComponent(m[1]) : '';
     if (!code || !pendingVerifier) return false;
     await exchangeCanvaCode(code, pendingVerifier);

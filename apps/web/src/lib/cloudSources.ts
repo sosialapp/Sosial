@@ -110,7 +110,7 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
   const nonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
   const state = `cloud:${provider}:${nonce}`;
   const pkce = provider === 'canva' ? await pkcePair() : null;
-  const authUrl =
+  let providerError: string | null = null;  const authUrl =
     provider === 'dropbox'
       ? `https://www.dropbox.com/oauth2/authorize?${new URLSearchParams({
           response_type: 'code',
@@ -144,6 +144,9 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
     const finish = async (d: any) => {
       window.removeEventListener('message', onMsg);
       if (!d?.ok) {
+        // Provider refusals (bad redirect URI, scope, etc.) carry the real
+        // reason — stash it so the caller throws it instead of "cancelled".
+        providerError = typeof d?.error === 'string' && d.error ? d.error : null;
         resolve(null);
         return;
       }
@@ -209,7 +212,10 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
       resolve(null);
     }, 5 * 60 * 1000);
   });
-  if (!tokens) return false;
+  if (!tokens) {
+    if (providerError) throw new Error(providerError);
+    return false;
+  }
   writeTokens(provider, tokens);
   return true;
 }
