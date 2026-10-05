@@ -16,7 +16,7 @@ function Head({ handle, avatarUrl, provider, verified, dotsV }: { handle: string
   return (
     <div className="flex items-center gap-2.5">
       <ChannelAvatar provider={provider} avatar={avatarUrl} size={32} badge={false} />
-      <p className="flex min-w-0 flex-1 items-center gap-1 truncate text-[13px] font-bold text-[#111111]">
+      <p className="flex min-w-0 flex-1 items-center gap-[2px] truncate text-[13px] font-bold text-[#111111]">
         <span className="truncate">{handle}</span>
         {verified ? (
           <svg width="15" height="15" viewBox="0 0 24 24" aria-label="Verified" className="shrink-0">

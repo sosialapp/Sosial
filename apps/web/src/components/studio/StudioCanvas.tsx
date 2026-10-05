@@ -167,15 +167,17 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
-          <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name} </span>
-          {c.showCheck ? (
-            <svg width={9 * k} height={9 * k} viewBox="0 0 24 24" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
-              <path d={VERIFIED_SEAL} fill="#1D9BF0" />
-              <path d="m8.5 12.2 2.4 2.4 4.6-5" stroke="#fff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : null}
-          <span style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.gray }}>{c.firstHandle} · 2h</span>
-          {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2 * k, flexShrink: 0 }}>
+            <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name}</span>
+            {c.showCheck ? (
+              <svg width={9 * k} height={9 * k} viewBox="0 0 24 24" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+                <path d={VERIFIED_SEAL} fill="#1D9BF0" />
+                <path d="m8.5 12.2 2.4 2.4 4.6-5" stroke="#fff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : null}
+          </span>
+          <span style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.gray, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flexShrink: 1 }}>{c.firstHandle} · 2h</span>
+          {c.watermark ? <span style={{ marginLeft: 3 * k, flexShrink: 0 }}><Watermark font={c.font} size={8} color={c.gray} k={k} /></span> : null}
           <span style={{ flex: 1 }} />
           <ChromeIcon name="dots-v" size={11 * k} color={c.gray} />
         </div>
