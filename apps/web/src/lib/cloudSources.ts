@@ -410,24 +410,33 @@ export async function listPickedPhotos(sessionId: string): Promise<CloudPhoto[]>
   return out;
 }
 
-/** Picked original → File (single fetch through cloud-fetch). Picker URLs
- *  are single-use signed: the blob is reused for preview + attach, so the
- *  URL is never requested twice. */
+/** Picked original → File. Picker /ppa/ URLs validate the requester, so the
+ *  download goes through cloud-fetch WITH the user's Google token attached;
+ *  if the plain URL refuses, retry once with the =d (original bytes) form. */
 export async function downloadPickedPhoto(p: CloudPhoto): Promise<File> {
   const sb = await createClient();
   const { data: { session } } = await sb.auth.getSession();
   if (!session?.access_token) throw new Error('Sign in first.');
+  const googleToken = await getValidCloudToken('google');
   const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
-  const r = await fetch(`${base}/functions/v1/cloud-fetch`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ url: p.baseUrl }),
-  });
-  if (!r.ok) throw new Error('Photos download failed — try another one.');
+  const call = async (url: string): Promise<Response> =>
+    fetch(`${base}/functions/v1/cloud-fetch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ url, bearer: googleToken }),
+    });
+  let r = await call(p.baseUrl);
+  if (!r.ok && !p.baseUrl.endsWith('=d')) {
+    r = await call(`${p.baseUrl}=d`);
+  }
+  if (!r.ok) {
+    const j: any = await r.json().catch(() => ({}));
+    throw new Error(String(j?.error ?? 'Photos download failed — try again.'));
+  }
   const blob = await r.blob();
   return new File([blob], p.name.includes('.') ? p.name : `photos-${p.id}.${p.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: blob.type.startsWith('video/') ? blob.type : p.kind === 'video' ? 'video/mp4' : 'image/jpeg',

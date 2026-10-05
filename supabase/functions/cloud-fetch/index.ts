@@ -5,9 +5,11 @@
 // streams the bytes through (host-allowlisted, signed-URL only). NOTHING is
 // persisted: bytes pass through to the signed-in caller and are forgotten.
 //
-// POST { url }
-// → 200 <bytes> (content-type + filename preserved)
+// POST { url, bearer? }
+// → 200 <bytes> (content-type preserved)
 //   · 401 unauthenticated · 403 host not allow-listed
+// `bearer` (optional): a provider OAuth token forwarded as Authorization —
+// Google Picker base URLs validate the requester's identity.
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 const CORS: Record<string, string> = {
@@ -58,8 +60,16 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const r = await fetch(u.toString(), { redirect: "follow" });
-    if (!r.ok || !r.body) throw new Error(`The file host refused (HTTP ${r.status}).`);
+    const bearer = typeof body["bearer"] === "string" ? body["bearer"] : "";
+    const r = await fetch(u.toString(), {
+      redirect: "follow",
+      headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+    });
+    if (!r.ok || !r.body) {
+      const detail = await r.text().catch(() => "");
+      const brief = detail.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+      throw new Error(`The file host refused (HTTP ${r.status})${brief ? `: ${brief}` : ""}`);
+    }
     const kind = (r.headers.get("content-type") ?? "application/octet-stream").split(";")[0];
     const headers = new Headers(CORS);
     headers.set("Content-Type", kind);
