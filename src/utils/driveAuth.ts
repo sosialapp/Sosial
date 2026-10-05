@@ -146,13 +146,16 @@ export interface DriveFile {
   thumb?: string;
 }
 
-/** Images + videos in a folder (root when omitted), newest first. */
+/** Images + videos across the whole Drive (no folder context) or one folder,
+ *  newest first. */
 export async function listDriveFiles(folderId?: string, query?: string, pageToken?: string): Promise<{ files: DriveFile[]; nextPage?: string }> {
   const token = await getValidGoogleFilesToken();
   const clauses = [
     'trashed = false',
     `(mimeType contains 'image/' or mimeType contains 'video/')`,
-    folderId && folderId !== 'root' ? `'${folderId.replace(/'/g, '')}' in parents` : null,
+    !folderId || folderId === 'root'
+      ? `'me' in owners`
+      : `'${folderId.replace(/'/g, '')}' in parents`,
     query?.trim() ? `name contains '${query.trim().replace(/'/g, '')}'` : null,
   ].filter(Boolean) as string[];
   const params: Record<string, string> = {

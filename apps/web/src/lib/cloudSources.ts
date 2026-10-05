@@ -286,10 +286,14 @@ export interface CloudDriveFile {
 export async function listDriveFiles(folderId?: string, query?: string): Promise<{ files: CloudDriveFile[]; folders: { id: string; name: string }[] }> {
   const token = await getValidCloudToken('google');
   const auth = { Authorization: `Bearer ${token}` };
+  // No folder context → search the WHOLE Drive (all folders), newest first;
+  // media-only, which is all the composer cares about.
   const clauses = [
     'trashed = false',
     `(mimeType contains 'image/' or mimeType contains 'video/')`,
-    folderId && folderId !== 'root' ? `'${folderId.replace(/'/g, '')}' in parents` : null,
+    !folderId || folderId === 'root'
+      ? `'me' in owners`
+      : `'${folderId.replace(/'/g, '')}' in parents`,
     query?.trim() ? `name contains '${query.trim().replace(/'/g, '')}'` : null,
   ].filter(Boolean) as string[];
   const [filesRes, foldersRes] = await Promise.all([
