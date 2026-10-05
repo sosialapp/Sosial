@@ -295,11 +295,15 @@ export default function MediaSourcesDialog({
       const pop = window.open(session.pickerUri, 'sosial-photos', 'width=640,height=720');
       if (!pop) throw new Error('Allow popups for this site, then try again.');
       const deadline = Date.now() + 5 * 60 * 1000;
+      let done = false;
       for (;;) {
         await new Promise((r) => setTimeout(r, 2500));
         if (pop.closed) break;
         try {
-          if (await photosSessionDone(session.id)) break;
+          if (await photosSessionDone(session.id)) {
+            done = true;
+            break;
+          }
         } catch {
           break;
         }
@@ -308,6 +312,10 @@ export default function MediaSourcesDialog({
       try {
         pop.close();
       } catch {}
+      if (!done) {
+        setErr('Nothing was picked — open the picker and choose at least one photo.');
+        return;
+      }
       const picked = await listPickedPhotos(session.id);
       setPhotos(picked);
       if (!picked.length) setErr('Nothing was picked — try again.');

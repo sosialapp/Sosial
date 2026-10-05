@@ -122,14 +122,22 @@ export default function MediaSources({
         await WebBrowser.openBrowserAsync(session.pickerUri);
       } catch {}
       const deadline = Date.now() + 5 * 60 * 1000;
+      let done = false;
       for (;;) {
         await new Promise((r) => setTimeout(r, 2500));
         try {
-          if (await photosSessionDone(session.id)) break;
+          if (await photosSessionDone(session.id)) {
+            done = true;
+            break;
+          }
         } catch {
           break;
         }
         if (Date.now() > deadline) break;
+      }
+      if (!done) {
+        Alert.alert('Nothing picked', 'Open the picker and choose at least one photo, then come back.');
+        return;
       }
       const picked = await listPickedPhotos(session.id);
       setPhotos(picked);
