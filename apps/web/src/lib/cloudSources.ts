@@ -398,8 +398,9 @@ export async function listPickedPhotos(sessionId: string): Promise<CloudPhoto[]>
       out.push({
         id: String(m.id),
         kind,
-        thumb: `${base}=w256-h256-c`,
-        baseUrl: `${base}=d`,
+        // Picker baseUrls are pre-signed: use byte-for-byte, no =w/=d suffixes.
+        thumb: base,
+        baseUrl: base,
         name: String(m?.filename ?? 'Photo'),
       });
     }
