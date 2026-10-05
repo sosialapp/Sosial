@@ -331,17 +331,31 @@ export default function MediaSourcesDialog({
       }
       const picked = await listPickedPhotos(session.id);
       console.log('[photos] picked', picked.length, 'items');
-      // Picker URLs are single-use — pre-fetch each through the proxy and
-      // keep a local blob URL for the grid. Attach reuses the same blob.
-      const withLocal = await Promise.all(picked.map(async (p) => {
-        try {
-          return { ...p, thumb: await pickerThumbUrl(p) };
-        } catch {
-          return p;
+      if (!picked.length) {
+        setErr('Nothing was picked — try again.');
+        return;
+      }
+      // Auto-attach: fetch each picked item once through the proxy (Picker
+      // URLs are single-use) and land the Files straight in the composer.
+      setDownloading('__batch__');
+      try {
+        const files: File[] = [];
+        for (const p of picked) {
+          try {
+            files.push(await downloadPickedPhoto(p));
+          } catch {
+            /* one bad item must not sink the batch */
+          }
         }
-      }));
-      setPhotos(withLocal);
-      if (!picked.length) setErr('Nothing was picked — try again.');
+        if (!files.length) {
+          setErr('Could not fetch the picked photos — try again.');
+          return;
+        }
+        onAttach(files);
+        onClose();
+      } finally {
+        setDownloading(null);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Photos picker failed to open.');
     } finally {
@@ -629,25 +643,22 @@ export default function MediaSourcesDialog({
                 </div>
                 )}
                 {source === 'gphotos' ? (
-                  <div className="py-2 text-center">
-                    {photos.length > 0 ? (
-                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-left">
-                        {photos.map((p) => cellFor(p.id, p.thumb, p.name, p.kind, () => void pickPhoto(p)))}
-                      </div>
-                    ) : null}
-                    <p className={`text-sm font-bold ${photos.length ? 'mt-3' : ''}`}>
-                      {photos.length ? 'Pick more from Google Photos' : 'Pick from Google Photos'}
-                    </p>
+                  <div className="py-4 text-center">
+                    <p className="text-sm font-bold">Pick from Google Photos</p>
                     <p className="mx-auto mt-1 max-w-[260px] text-xs text-muted">
-                      Google shows its own picker — only the photos you choose are ever shared.
+                      Google shows its own picker — what you choose attaches here automatically.
                     </p>
                     <button
                       type="button"
                       onClick={() => void openPhotosPicker()}
-                      disabled={picking || !!downloading}
+                      disabled={picking || downloading === '__batch__'}
                       className="btn btn-primary mx-auto mt-3 !text-sm"
                     >
-                      {picking ? 'Waiting for Google…' : 'Open Google Picker'}
+                      {downloading === '__batch__'
+                        ? 'Attaching your photos…'
+                        : picking
+                          ? 'Waiting for Google…'
+                          : 'Open Google Picker'}
                     </button>
                     {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
                   </div>
