@@ -5,8 +5,8 @@ import { createPortal } from 'react-dom';
 import { BRAND_MARKS, LOCAL_ICON } from '@/components/SourceMarks';
 import { createClient } from '@/lib/supabase/client';
 import {
-  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud,
-  listDriveFiles, downloadDriveFile, type CloudDriveFile,
+  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud, launchDrivePicker,
+  downloadDriveFile,
   listGooglePhotos, downloadGooglePhoto, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
   listCanvaDesigns, downloadCanvaDesign, type CloudCanvaDesign,
@@ -70,9 +70,6 @@ export default function MediaSourcesDialog({
   // Cloud
   const [authed, setAuthed] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
-  const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([]);
-  const [driveFiles, setDriveFiles] = useState<CloudDriveFile[]>([]);
   const [photos, setPhotos] = useState<CloudPhoto[]>([]);
   const [dbxFolders, setDbxFolders] = useState<CloudDropboxEntry[]>([]);
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
@@ -120,10 +117,7 @@ export default function MediaSourcesDialog({
     setItems([]);
     setQuery('');
     setErr(null);
-    setDriveFiles([]);
     setPhotos([]);
-    setFolders([]);
-    setFolderStack([]);
     setDbxFolders([]);
     setDbxFiles([]);
     setDbxStack([]);
@@ -131,12 +125,6 @@ export default function MediaSourcesDialog({
     setCanvaDesigns([]);
     setCanvaStack([]);
     setAuthed(false);
-  };
-
-  const loadDriveInto = async (folderId?: string, q?: string) => {
-    const r = await listDriveFiles(folderId, q);
-    setDriveFiles(r.files);
-    if (!q) setFolders(r.folders);
   };
 
   const loadDropboxInto = async (path?: string, q?: string) => {
@@ -151,12 +139,11 @@ export default function MediaSourcesDialog({
   };
 
   const loadCloud = async (id: Source, q?: string) => {
+    if (id === 'drive') return; // Drive opens Google's Picker, no in-dialog browser.
     setBusy(true);
     setErr(null);
     try {
-      if (id === 'drive') {
-        await loadDriveInto(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, q);
-      } else if (id === 'gphotos') {
+      if (id === 'gphotos') {
         setPhotos(await listGooglePhotos(q));
       } else if (id === 'dropbox') {
         await loadDropboxInto(dbxStack.length ? dbxStack[dbxStack.length - 1].path : undefined, q);
@@ -260,17 +247,26 @@ export default function MediaSourcesDialog({
     }
   };
 
-  const pickDrive = async (f: CloudDriveFile) => {
+  const pickDrive = async (f: { id: string; name: string; mimeType: string }) => {
     if (downloading) return;
     setDownloading(f.id);
     try {
-      onAttach([await downloadDriveFile(f)]);
+      const kind = (f.mimeType.startsWith('video/') ? 'video' : 'image') as 'image' | 'video';
+      onAttach([await downloadDriveFile({ id: f.id, name: f.name, kind })]);
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach.');
     } finally {
       setDownloading(null);
     }
+  };
+
+  /** Google Picker must open from a real click (popup blockers). */
+  const openDrivePicker = () => {
+    setErr(null);
+    void launchDrivePicker((f) => void pickDrive(f)).catch((e) => {
+      setErr(e instanceof Error ? e.message : 'Google Picker failed to open.');
+    });
   };
 
   const pickPhoto = async (p: CloudPhoto) => {
@@ -413,7 +409,7 @@ export default function MediaSourcesDialog({
               <div className="py-6 text-center">
                 <p className="text-sm font-bold">
                   {source === 'drive'
-                    ? 'Connect Google Drive to browse your files.'
+                    ? 'Connect Google Drive to pick files with Google Picker.'
                     : source === 'dropbox'
                       ? 'Connect Dropbox to browse your files.'
                       : source === 'canva'
@@ -433,6 +429,7 @@ export default function MediaSourcesDialog({
               </div>
             ) : (
               <>
+                {source !== 'drive' ? (
                 <div className="flex gap-1.5">
                   <input
                     value={query}
@@ -446,6 +443,7 @@ export default function MediaSourcesDialog({
                     {busy ? '…' : 'Go'}
                   </button>
                 </div>
+                ) : null}
                 {source === 'canva' ? (
                   <div className="mt-2 flex gap-1.5">
                     {(['photo', 'video'] as const).map((t) => (
@@ -468,39 +466,6 @@ export default function MediaSourcesDialog({
                   <p className="mt-1.5 text-[11px] text-muted">Photographer credit is added to your caption automatically.</p>
                 ) : null}
                 {err ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
-
-                {source === 'drive' && folders.length > 0 && !query.trim() ? (
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {folderStack.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = folderStack.slice(0, -1);
-                          setFolderStack(next);
-                          setQuery('');
-                          void loadDriveInto(next.length ? next[next.length - 1].id : undefined);
-                        }}
-                        className="rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
-                      >
-                        ↑ Up
-                      </button>
-                    ) : null}
-                    {folders.map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => {
-                          setFolderStack([...folderStack, f]);
-                          setQuery('');
-                          void loadDriveInto(f.id);
-                        }}
-                        className="max-w-[160px] truncate rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
-                      >
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
 
                 {source === 'dropbox' && dbxFolders.length > 0 && !query.trim() ? (
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -577,18 +542,30 @@ export default function MediaSourcesDialog({
                 ) : null}
 
                 <div className="mt-2 grid grid-cols-3 gap-1.5">
-                  {source === 'drive'
-                    ? driveFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, () => void pickDrive(f)))
-                    : source === 'gphotos'
-                      ? photos.map((p) => cellFor(p.id, p.thumb, p.kind === 'video' ? 'Video' : 'Photo', p.kind, () => void pickPhoto(p)))
-                      : source === 'dropbox'
-                        ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, () => void pickDropbox(f)))
-                        : source === 'canva'
-                          ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
-                          : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
+                  {source === 'gphotos'
+                    ? photos.map((p) => cellFor(p.id, p.thumb, p.kind === 'video' ? 'Video' : 'Photo', p.kind, () => void pickPhoto(p)))
+                    : source === 'dropbox'
+                      ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, () => void pickDropbox(f)))
+                      : source === 'canva'
+                        ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
+                        : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
                 </div>
-                {!busy && source === 'drive' && driveFiles.length === 0 ? (
-                  <p className="mt-3 text-center text-xs text-faint">{query ? 'No matches in this folder.' : 'No images or videos here yet.'}</p>
+                {source === 'drive' ? (
+                  <div className="py-4 text-center">
+                    <p className="text-sm font-bold">Pick from Google Drive</p>
+                    <p className="mx-auto mt-1 max-w-[260px] text-xs text-muted">
+                      Google shows its own file picker — only the file you choose is ever shared. Sosial never sees the rest of your Drive.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={openDrivePicker}
+                      disabled={busy || !!downloading}
+                      className="btn btn-primary mx-auto mt-3 !text-sm"
+                    >
+                      {downloading ? 'Attaching…' : 'Open Google Picker'}
+                    </button>
+                    {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
+                  </div>
                 ) : null}
                 {!busy && source === 'gphotos' && photos.length === 0 ? (
                   <p className="mt-3 text-center text-xs text-faint">{query ? 'No matches.' : 'Your newest photos will appear here.'}</p>

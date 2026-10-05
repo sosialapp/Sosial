@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/client';
 export type CloudProvider = 'google' | 'dropbox' | 'canva';
 
 const GOOGLE_SCOPES = [
-  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/photoslibrary.readonly',
 ].join(' ');
 const DROPBOX_SCOPES = 'files.metadata.read files.content.read';
@@ -27,7 +27,10 @@ interface Tokens {
   expiresAt: number;
 }
 
-const key = (p: CloudProvider) => `sosial_cloud_${p}`;
+const key = (p: CloudProvider) =>
+  // v2: Drive moved drive.readonly → drive.file, so every stored Google token
+  // predates the new scope and must be re-consented. One-time forced logout.
+  p === 'google' ? 'sosial_cloud_google_v2' : `sosial_cloud_${p}`;
 
 function readTokens(p: CloudProvider): Tokens | null {
   try {
@@ -281,44 +284,59 @@ export interface CloudDriveFile {
   path?: string;
 }
 
-export async function listDriveFiles(folderId?: string, query?: string): Promise<{ files: CloudDriveFile[]; folders: { id: string; name: string }[] }> {
-  const token = await getValidCloudToken('google');
-  const auth = { Authorization: `Bearer ${token}` };
-  const clauses = [
-    'trashed = false',
-    `(mimeType contains 'image/' or mimeType contains 'video/')`,
-    folderId && folderId !== 'root' ? `'${folderId.replace(/'/g, '')}' in parents` : null,
-    query?.trim() ? `name contains '${query.trim().replace(/'/g, '')}'` : null,
-  ].filter(Boolean) as string[];
-  const [filesRes, foldersRes] = await Promise.all([
-    fetch(`${DRIVE_API}/files?${new URLSearchParams({ q: clauses.join(' and '), pageSize: '50', orderBy: 'modifiedTime desc', fields: 'files(id,name,mimeType,thumbnailLink)' })}`, { headers: auth }),
-    query?.trim()
-      ? null
-      : fetch(
-          `${DRIVE_API}/files?${new URLSearchParams({ q: `trashed = false and mimeType = 'application/vnd.google-apps.folder'${folderId && folderId !== 'root' ? ` and '${folderId.replace(/'/g, '')}' in parents` : ''}`, pageSize: '50', orderBy: 'name', fields: 'files(id,name)' })}`,
-          { headers: auth },
-        ),
-  ]);
-  const fj: any = await filesRes.json().catch(() => ({}));
-  if (!filesRes.ok) throw new Error(fj?.error?.message ?? `Drive refused the list (HTTP ${filesRes.status}).`);
-  const files: CloudDriveFile[] = ((fj?.files ?? []) as any[])
-    .map((f: any) => ({
-      id: String(f?.id ?? ''),
-      name: String(f?.name ?? 'File'),
-      kind: (String(f?.mimeType ?? '').startsWith('video/') ? 'video' : 'image') as 'image' | 'video',
-      thumb: typeof f?.thumbnailLink === 'string' ? f.thumbnailLink : undefined,
-    }))
-    .filter((f) => f.id);
-  let folders: { id: string; name: string }[] = [];
-  if (foldersRes) {
-    const oj: any = await foldersRes.json().catch(() => ({}));
-    if (foldersRes.ok) {
-      folders = ((oj?.files ?? []) as any[])
-        .map((f: any) => ({ id: String(f?.id ?? ''), name: String(f?.name ?? 'Folder') }))
-        .filter((f) => f.id);
-    }
+declare global {
+  interface Window {
+    gapi?: any;
   }
-  return { files, folders };
+}
+
+function loadGapi(): Promise<void> {
+  if (window.gapi?.load) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://apis.google.com/js/api.js';
+    s.onload = () => res();
+    s.onerror = () => rej(new Error('Could not load Google Picker — check your connection.'));
+    document.head.appendChild(s);
+  });
+}
+
+/**
+ * Google's own Picker widget (drive.file scope: per-file access — the app
+ * only ever sees what the user picks). Needs the Picker API key + app ID
+ * from oauth-config (Supabase secrets GOOGLE_API_KEY / GOOGLE_APP_ID).
+ * Must be called from a click handler or popup blockers eat the widget.
+ */
+export async function launchDrivePicker(onPicked: (f: { id: string; name: string; mimeType: string }) => void): Promise<void> {
+  const sb = await createClient();
+  const { data: config } = await sb.functions.invoke('oauth-config', { method: 'GET' });
+  const apiKey = String((config as any)?.drive?.api_key ?? '');
+  const appId = String((config as any)?.drive?.app_id ?? '');
+  if (!apiKey || !appId) throw new Error('Google Picker is not configured yet.');
+  const token = await getValidCloudToken('google');
+  await loadGapi();
+  await new Promise<void>((resolve) => {
+    window.gapi.load('picker', { callback: () => resolve() });
+  });
+  const g = window.gapi.picker;
+  const view = new g.DocsView()
+    .setMimeTypes('image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm')
+    .setMode(g.DocsViewMode.GRID);
+  new g.PickerBuilder()
+    .addView(view)
+    .setOAuthToken(token)
+    .setDeveloperKey(apiKey)
+    .setAppId(appId)
+    .setCallback((data: any) => {
+      if (data?.action === g.Action.PICKED) {
+        const doc = data?.docs?.[0];
+        if (doc?.id) {
+          onPicked({ id: String(doc.id), name: String(doc.name ?? 'Drive file'), mimeType: String(doc.mimeType ?? '') });
+        }
+      }
+    })
+    .build()
+    .setVisible(true);
 }
 
 export async function downloadDriveFile(f: CloudDriveFile): Promise<File> {
