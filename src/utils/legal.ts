@@ -36,6 +36,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     body: 'If you connect a Facebook, Instagram or Threads account in the future, login tokens are kept in your device’s secure storage and used only to publish posts you explicitly approve. You can disconnect at any time from the connected app’s settings, which revokes access immediately.',
   },
   {
+    title: 'Connected media sources',
+    body: 'When you attach photos or videos from Google Drive, Dropbox, Canva or Unsplash, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it to your post. For Google Photos, picking happens inside Google\u2019s own picker interface, and only the photos you select are ever shared with the app. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos automatically carry the photographer\u2019s name and profile link in your caption, as their license requires. Access tokens for these sources are kept in your device\u2019s secure storage only and are never sent to our servers; disconnecting a source in the app deletes its tokens immediately.',
+  },
+  {
     title: 'Analytics & tracking',
     body: 'Sosial collects no analytics, shows no ads, and embeds no third-party trackers.',
   },

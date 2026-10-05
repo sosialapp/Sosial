@@ -176,7 +176,11 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'When you attach photos or videos from a cloud source (Dropbox, Google Drive, Google Photos, OneDrive) or a stock library (Pexels, Unsplash), the app lists your files so you can pick one, downloads only the file you choose, and attaches it to your post. Access is read-only: Sosial never uploads, edits, moves or deletes files in your cloud storage. Cloud access tokens are kept on your device only and are never stored on our servers; disconnecting the source in the app deletes them.',
+          c: 'When you attach photos or videos from Google Drive, Dropbox, Canva or Unsplash, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it to your post. For Google Photos, picking happens inside Google\u2019s own picker interface, and only the photos you select are ever shared with the app. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos automatically carry the photographer\u2019s name and profile link in your caption, as their license requires.',
+        },
+        {
+          t: 'p',
+          c: 'Access tokens for these sources are kept on your own device (your phone\u2019s secure storage, or your browser\u2019s local storage on the web) and are never stored on our servers. Secrets used for login live server-side and are never shipped to the app. Disconnecting a source in the app deletes its tokens from your device immediately.',
         },
       ],
     },
