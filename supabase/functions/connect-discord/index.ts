@@ -97,17 +97,40 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  // Stage 2: list text channels in the chosen server.
+  // Stage 2: list text channels + active threads in the chosen server.
+  // Active-only is deliberate: archived threads reject new messages, so
+  // offering them would schedule into a dead end.
   if (typeof channel_id !== "string" || !channel_id) {
     try {
-      const channels = await callDiscord<{ id: string; name: string; type: number }[]>(
-        token,
-        `/guilds/${guild_id}/channels`,
+      const [channels, active] = await Promise.all([
+        callDiscord<{ id: string; name: string; type: number }[]>(
+          token,
+          `/guilds/${guild_id}/channels`,
+        ),
+        callDiscord<{ threads?: { id: string; name: string; parent_id?: string }[] }>(
+          token,
+          `/guilds/${guild_id}/threads/active`,
+        ).catch(() => ({ threads: [] as { id: string; name: string; parent_id?: string }[] })),
+      ]);
+      const parents = new Map(
+        ((channels ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]),
       );
-      const text = (channels ?? [])
+      const text = ((channels ?? []) as { id: string; name: string; type: number }[])
         .filter((c) => c.type === 0 || c.type === 5)
         .map((c) => ({ id: c.id, name: c.name }));
-      return Response.json({ channels: text });
+      const threads = (((active as { threads?: unknown }).threads ?? []) as {
+        id: string;
+        name: string;
+        parent_id?: string;
+      }[])
+        .filter((t) => t && typeof t.id === "string")
+        .map((t) => ({
+          id: t.id,
+          name: String(t.name ?? "thread"),
+          parent_id: typeof t.parent_id === "string" ? t.parent_id : "",
+          parent_name: parents.get(typeof t.parent_id === "string" ? t.parent_id : "") ?? "",
+        }));
+      return Response.json({ channels: text, threads });
     } catch (e) {
       return bad(
         `Could not list channels: ${e instanceof Error ? e.message : "unknown error"}. ` +
@@ -116,10 +139,12 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  // Stage 3: validate the channel, then store through the import path.
-  let channel: { id: string; name: string; guild_id?: string };
+  // Stage 3: validate the channel (or thread — /channels/{id} resolves both),
+  // then store through the import path. Publishing posts to the stored id,
+  // which Discord accepts for threads unchanged.
+  let channel: { id: string; name: string; guild_id?: string; parent_id?: string; thread_metadata?: unknown };
   try {
-    channel = await callDiscord<{ id: string; name: string; guild_id?: string }>(
+    channel = await callDiscord<{ id: string; name: string; guild_id?: string; parent_id?: string; thread_metadata?: unknown }>(
       token,
       `/channels/${channel_id}`,
     );
@@ -128,6 +153,18 @@ serve(async (req: Request): Promise<Response> => {
       `Discord rejected that channel: ${e instanceof Error ? e.message : "unknown error"}. ` +
         "The bot needs access to post there.",
     );
+  }
+
+  // Threads show as `#parent › thread` so the destination is unambiguous.
+  let destName = `#${channel.name}`;
+  if (channel.thread_metadata !== undefined || channel.parent_id) {
+    try {
+      const all = await callDiscord<{ id: string; name: string }[]>(token, `/guilds/${guild_id}/channels`);
+      const parent = (all ?? []).find((c) => c.id === channel.parent_id);
+      destName = `#${parent?.name ?? "thread"} › ${channel.name}`;
+    } catch {
+      /* best-effort label only */
+    }
   }
 
   let guildName = "";
@@ -145,7 +182,7 @@ serve(async (req: Request): Promise<Response> => {
       workspace_id,
       provider: "discord",
       external_id: channel.id,
-      display_name: `#${channel.name}`,
+      display_name: destName,
       handle: guildName || (me.username ? `@${me.username}` : null),
       metadata: {
         guildId: guild_id,
@@ -163,5 +200,5 @@ serve(async (req: Request): Promise<Response> => {
     return bad(importJson.error ?? "Could not save the Discord channel.", 500);
   }
 
-  return Response.json({ ok: true, channel_id: importJson.channel_id, title: `#${channel.name}` });
+  return Response.json({ ok: true, channel_id: importJson.channel_id, title: destName });
 });

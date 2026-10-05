@@ -21,7 +21,7 @@ import { loginGmb, fetchGmbLocations, completeGmbLogin, type GmbLocation } from 
 import { X_CLIENT_ID } from '../utils/xConfig';
 import { completeBskyLogin } from '../utils/bskyAuth';
 import { validateTelegramBot, resolveTelegramChat } from '../utils/telegramAuth';
-import { validateDiscordBot, listDiscordGuilds, listDiscordChannels, type DiscordGuild, type DiscordChannel } from '../utils/discordAuth';
+import { validateDiscordBot, listDiscordGuilds, listDiscordChannels, listDiscordThreads, type DiscordGuild, type DiscordChannel, type DiscordThread } from '../utils/discordAuth';
 import { validateWordPress } from '../utils/wordpressAuth';
 import { validateDevto } from '../utils/devtoAuth';
 import { validateHashnode, type HashnodePublication } from '../utils/hashnodeAuth';
@@ -72,6 +72,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [dcGuilds, setDcGuilds] = useState<DiscordGuild[]>([]);
   const [dcGuild, setDcGuild] = useState('');
   const [dcChannels, setDcChannels] = useState<DiscordChannel[]>([]);
+  const [dcThreads, setDcThreads] = useState<DiscordThread[]>([]);
   const [dcChannel, setDcChannel] = useState('');
   const [wpSite, setWpSite] = useState('');
   const [wpUser, setWpUser] = useState('');
@@ -494,6 +495,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       setDcGuilds(guilds);
       setDcGuild('');
       setDcChannels([]);
+      setDcThreads([]);
       setDcChannel('');
       if (!guilds.length) Alert.alert('No servers', 'That bot is in no servers — invite it first.');
     } catch (e: any) {
@@ -506,13 +508,18 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const loadDcChannels = async (guildId: string) => {
     setDcGuild(guildId);
     setDcChannels([]);
+    setDcThreads([]);
     setDcChannel('');
     if (!guildId) return;
     setBusy('Loading channels…');
     try {
-      const channels = await listDiscordChannels(dcToken.trim(), guildId);
+      const [channels, threads] = await Promise.all([
+        listDiscordChannels(dcToken.trim(), guildId),
+        listDiscordThreads(dcToken.trim(), guildId),
+      ]);
       setDcChannels(channels);
-      if (!channels.length) Alert.alert('No text channels', 'Check the bot can see one.');
+      setDcThreads(threads);
+      if (!channels.length && !threads.length) Alert.alert('No text channels', 'Check the bot can see one.');
     } catch (e: any) {
       Alert.alert('Discord failed', e?.message ?? 'Try again.');
     } finally {
@@ -529,6 +536,10 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     try {
       const guild = dcGuilds.find((g) => g.id === dcGuild);
       const channel = dcChannels.find((c) => c.id === dcChannel);
+      const thread = dcThreads.find((t) => t.id === dcChannel);
+      const destName = thread
+        ? `#${thread.parent_name || 'thread'} › ${thread.name}`
+        : channel?.name ?? '';
       await saveProviderFields(
         'discord',
         {
@@ -536,7 +547,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           dcGuildId: dcGuild,
           dcGuildName: guild?.name ?? '',
           dcChannelId: dcChannel,
-          dcChannelName: channel?.name ?? '',
+          dcChannelName: destName,
         },
         accountId,
       );
@@ -544,10 +555,11 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
       setDcGuilds([]);
       setDcGuild('');
       setDcChannels([]);
+      setDcThreads([]);
       setDcChannel('');
       setAccounts(await loadAccounts());
       setOpenProvider('discord');
-      Alert.alert('Connected', `Discord → #${channel?.name ?? dcChannel}.`);
+      Alert.alert('Connected', `Discord → ${destName || `#${dcChannel}`}.`);
     } catch (e: any) {
       Alert.alert('Discord connect failed', e?.message ?? 'Try again.');
     } finally {
@@ -1097,7 +1109,7 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
     if (p === 'discord') {
       return (
         <>
-          <Txt value={dcToken} onChangeText={(v) => { setDcToken(v); setDcGuilds([]); setDcGuild(''); setDcChannels([]); setDcChannel(''); }} placeholder="Bot token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <Txt value={dcToken} onChangeText={(v) => { setDcToken(v); setDcGuilds([]); setDcGuild(''); setDcChannels([]); setDcThreads([]); setDcChannel(''); }} placeholder="Bot token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={s.helpCard}>
             <Text style={s.helpTitle}>How to connect Discord</Text>
             {[
@@ -1130,6 +1142,17 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     {dcChannel === c.id ? <Ionicons name="checkmark-circle" size={15} color={C.accent} /> : null}
                     <Text style={s.pageT}>#{c.name}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {dcThreads.length > 0 ? (
+                <Text style={[s.pageT, { marginTop: 8, color: C.muted }]}>Threads</Text>
+              ) : null}
+              {dcThreads.map((t) => (
+                <TouchableOpacity key={t.id} onPress={() => setDcChannel(t.id)} activeOpacity={0.7} style={s.pageRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {dcChannel === t.id ? <Ionicons name="checkmark-circle" size={15} color={C.accent} /> : null}
+                    <Text style={s.pageT}>#{t.parent_name || 'thread'} › {t.name}</Text>
                   </View>
                 </TouchableOpacity>
               ))}

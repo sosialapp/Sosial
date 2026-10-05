@@ -123,6 +123,7 @@ export default function ConnectPanel({
   const [dcGuilds, setDcGuilds] = useState<{ id: string; name: string }[]>([]);
   const [dcGuild, setDcGuild] = useState('');
   const [dcChannels, setDcChannels] = useState<{ id: string; name: string }[]>([]);
+  const [dcThreads, setDcThreads] = useState<{ id: string; name: string; parent_id: string; parent_name: string }[]>([]);
   const [dcChannel, setDcChannel] = useState('');
   const [query, setQuery] = useState('');
   const [syncing, setSyncing] = useState(false);
@@ -270,7 +271,12 @@ export default function ConnectPanel({
     }
   }
 
-  type DcList = { guilds?: { id: string; name: string }[]; channels?: { id: string; name: string }[]; error?: string };
+  type DcList = {
+    guilds?: { id: string; name: string }[];
+    channels?: { id: string; name: string }[];
+    threads?: { id: string; name: string; parent_id: string; parent_name: string }[];
+    error?: string;
+  };
 
   async function dcCall(stage: { guild_id?: string; channel_id?: string }): Promise<DcList> {
     const r = await fetch('/api/oauth/discord', {
@@ -313,13 +319,15 @@ export default function ConnectPanel({
   async function loadDcChannels(guildId: string) {
     setDcGuild(guildId);
     setDcChannels([]);
+    setDcThreads([]);
     setDcChannel('');
     if (!guildId) return;
     setBusy(true);
     try {
       const j = await dcCall({ guild_id: guildId });
       setDcChannels(j.channels ?? []);
-      if (!(j.channels ?? []).length) setErr('No text channels there — check the bot can see one.');
+      setDcThreads(j.threads ?? []);
+      if (!(j.channels ?? []).length && !(j.threads ?? []).length) setErr('No text channels there — check the bot can see one.');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not list channels.');
     } finally {
@@ -953,7 +961,7 @@ export default function ConnectPanel({
                               </option>
                             ))}
                           </select>
-                          {dcChannels.length > 0 ? (
+                          {dcChannels.length > 0 || dcThreads.length > 0 ? (
                             <select
                               value={dcChannel}
                               onChange={(e) => setDcChannel(e.target.value)}
@@ -961,11 +969,24 @@ export default function ConnectPanel({
                               className="field !text-xs"
                             >
                               <option value="">Pick a channel…</option>
-                              {dcChannels.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  #{c.name}
-                                </option>
-                              ))}
+                              {dcChannels.length > 0 ? (
+                                <optgroup label="Channels">
+                                  {dcChannels.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      #{c.name}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ) : null}
+                              {dcThreads.length > 0 ? (
+                                <optgroup label="Threads">
+                                  {dcThreads.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                      #{t.parent_name || 'thread'} › {t.name}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ) : null}
                             </select>
                           ) : null}
                           <button type="button" onClick={connectDiscord} disabled={busy || !dcChannel} className="btn btn-primary w-full !py-2 !text-xs">

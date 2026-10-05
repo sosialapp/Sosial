@@ -15,6 +15,13 @@ export interface DiscordChannel {
   name: string;
 }
 
+export interface DiscordThread {
+  id: string;
+  name: string;
+  parent_id: string;
+  parent_name: string;
+}
+
 async function botGet<T>(token: string, path: string): Promise<T> {
   const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bot ${token}` } });
   if (res.status === 401 || res.status === 403) {
@@ -47,4 +54,28 @@ export async function listDiscordChannels(token: string, guildId: string): Promi
   return (Array.isArray(channels) ? channels : [])
     .filter((c) => c.type === 0 || c.type === 5)
     .map((c) => ({ id: c.id, name: c.name }));
+}
+
+/**
+ * Active threads in a server (archived threads reject messages, so they are
+ * never offered). Thread ids post exactly like channel ids.
+ */
+export async function listDiscordThreads(token: string, guildId: string): Promise<DiscordThread[]> {
+  const channels = await botGet<{ id: string; name: string; type: number }[]>(
+    token,
+    `/guilds/${guildId}/channels`,
+  ).catch(() => [] as { id: string; name: string; type: number }[]);
+  const parents = new Map(channels.map((c) => [c.id, c.name]));
+  const active = await botGet<{ threads?: { id: string; name: string; parent_id?: string }[] }>(
+    token,
+    `/guilds/${guildId}/threads/active`,
+  ).catch(() => ({ threads: [] as { id: string; name: string; parent_id?: string }[] }));
+  return ((active?.threads ?? []) as { id: string; name: string; parent_id?: string }[])
+    .filter((t) => t && typeof t.id === "string")
+    .map((t) => ({
+      id: t.id,
+      name: String(t.name ?? "thread"),
+      parent_id: typeof t.parent_id === "string" ? t.parent_id : "",
+      parent_name: parents.get(typeof t.parent_id === "string" ? t.parent_id : "") ?? "",
+    }));
 }

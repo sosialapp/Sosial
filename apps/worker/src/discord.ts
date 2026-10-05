@@ -7,13 +7,13 @@ import { info } from './logger';
  *
  * Verified against the official docs (message resource):
  * - POST /channels/{id}/messages, auth `Bot <token>`
+ * - Thread ids post exactly like channel ids — no special-casing needed.
  * - content caps at 2000 chars (backend validates — no silent truncation)
  * - file uploads via multipart files[n] (25 MB safe cap; boosted guilds
  *   allow more and the API error surfaces if we ever exceed it)
  * - links auto-embed on Discord's side — no embed payload needed
  *
  * The bot token is long-lived (no refresh endpoint): plain vault read.
- * No threads in v1 — plain channel messages only.
  */
 
 const API = 'https://discord.com/api/v10';
