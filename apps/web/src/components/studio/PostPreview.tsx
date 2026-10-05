@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ChannelAvatar from '@/components/ChannelAvatar';
-import { ChromeIcon } from '@/components/studio/blocks';
+import { ChromeIcon, VERIFIED_SEAL } from '@/components/studio/blocks';
 import { providerMeta } from '@/lib/providers';
 
 /**
@@ -12,19 +12,20 @@ import { providerMeta } from '@/lib/providers';
 
 export const PREVIEWABLE = ['facebook', 'instagram', 'threads', 'x', 'bluesky'];
 
-function Head({ handle, avatarUrl, provider, verified }: { handle: string; avatarUrl?: string; provider: string; verified?: boolean }) {
+function Head({ handle, avatarUrl, provider, verified, dotsV }: { handle: string; avatarUrl?: string; provider: string; verified?: boolean; dotsV?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <ChannelAvatar provider={provider} avatar={avatarUrl} size={32} badge={false} />
-      <p className="flex min-w-0 items-center gap-1 truncate text-[13px] font-bold text-[#111111]">
+      <p className="flex min-w-0 flex-1 items-center gap-1 truncate text-[13px] font-bold text-[#111111]">
         <span className="truncate">{handle}</span>
         {verified ? (
           <svg width="15" height="15" viewBox="0 0 24 24" aria-label="Verified" className="shrink-0">
-            <circle cx="12" cy="12" r="10" fill="#1D9BF0" />
-            <path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={VERIFIED_SEAL} fill="#1D9BF0" />
+            <path d="m8.5 12.2 2.4 2.4 4.6-5" stroke="#fff" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         ) : null}
       </p>
+      {dotsV ? <ChromeIcon name="dots-v" size={15} color="#111111" /> : null}
     </div>
   );
 }
@@ -224,7 +225,7 @@ export default function PostPreview({
         : ['bsky-comment', 'bsky-repost', 'bsky-heart', 'bsky-share'];
     return (
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
-        <Head handle={handle} avatarUrl={avatarUrl} provider={provider} verified={verified ?? provider === 'x'} />
+        <Head handle={handle} avatarUrl={avatarUrl} provider={provider} verified={verified ?? provider === 'x'} dotsV={provider === 'x'} />
         <Body text={body} hashtagColor={provider === 'x' ? '#1D9BF0' : undefined} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
         <Actions items={icons.map((icon) => ({ icon, size: 16 }))} />
