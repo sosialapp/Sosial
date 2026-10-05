@@ -14,12 +14,11 @@ export type CloudProvider = 'google' | 'dropbox' | 'canva';
 
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/drive.readonly',
-  'https://www.googleapis.com/auth/photoslibrary.readonly',
+  'https://www.googleapis.com/auth/photospicker.mediaitems.readonly',
 ].join(' ');
 const DROPBOX_SCOPES = 'files.metadata.read files.content.read';
 const CANVA_SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'folder:read', 'profile:read'].join(' ');
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
-const PHOTOS_API = 'https://photoslibrary.googleapis.com/v1';
 
 interface Tokens {
   access: string;
@@ -27,7 +26,10 @@ interface Tokens {
   expiresAt: number;
 }
 
-const key = (p: CloudProvider) => `sosial_cloud_${p}`;
+const key = (p: CloudProvider) =>
+  // v3: Photos moved Library API → Picker API, so every stored Google token
+  // predates the new scope and must be re-consented. One-time forced logout.
+  p === 'google' ? 'sosial_cloud_google_v3' : `sosial_cloud_${p}`;
 
 function readTokens(p: CloudProvider): Tokens | null {
   try {
@@ -333,48 +335,83 @@ export async function downloadDriveFile(f: CloudDriveFile): Promise<File> {
   });
 }
 
-/* --------------------------------- Photos -------------------------------- */
+/* --------------------------- Photos (Picker API) --------------------------- */
+// The Library API no longer lists a user's library (Google removed those
+// scopes April 2025) — selection goes through the Picker API instead: create
+// a session, the user picks in Google's UI, then we read back only what was
+// picked. Scope: photospicker.mediaitems.readonly (non-sensitive by design).
+
+const PICKER_API = 'https://photospicker.googleapis.com/v1';
 
 export interface CloudPhoto {
   id: string;
   kind: 'image' | 'video';
   thumb: string;
   baseUrl: string;
+  name: string;
 }
 
-export async function listGooglePhotos(query?: string): Promise<CloudPhoto[]> {
+export interface PhotosPickerSession {
+  id: string;
+  pickerUri: string;
+}
+
+async function pickerAuthed(path: string, init?: RequestInit): Promise<any> {
   const token = await getValidCloudToken('google');
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-  let j: any;
-  if (query?.trim()) {
-    const r = await fetch(`${PHOTOS_API}/mediaItems:search`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ q: query.trim(), pageSize: 50, filters: { mediaTypeFilter: { mediaTypes: ['ALL_MEDIA'] } } }),
-    });
-    j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j?.error?.message ?? `Photos refused the search (HTTP ${r.status}).`);
-  } else {
-    const r = await fetch(`${PHOTOS_API}/mediaItems?${new URLSearchParams({ pageSize: '50' })}`, { headers });
-    j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j?.error?.message ?? `Photos refused the list (HTTP ${r.status}).`);
-  }
-  return ((j?.mediaItems ?? []) as any[])
-    .map((m: any) => {
-      const base = String(m?.baseUrl ?? '');
-      return {
-        id: String(m?.id ?? ''),
-        kind: (m?.mediaMetadata?.video !== undefined ? 'video' : 'image') as 'image' | 'video',
-        thumb: base ? `${base}=w256-h256-c` : '',
-        baseUrl: base,
-      };
-    })
-    .filter((x) => x.id && x.baseUrl);
+  const r = await fetch(`${PICKER_API}${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error?.message ?? `Photos picker refused (HTTP ${r.status}).`);
+  return j;
 }
 
-export async function downloadGooglePhoto(p: CloudPhoto): Promise<File> {
-  // googleusercontent sends no CORS headers — stream the bytes through
-  // cloud-fetch (persisted nowhere), then wrap as a File for the composer.
+/** New picking session → open pickerUri for the user. */
+export async function createPhotosSession(): Promise<PhotosPickerSession> {
+  const j = await pickerAuthed('/sessions', { method: 'POST', body: '{}' });
+  const id = String(j?.id ?? '');
+  const pickerUri = String(j?.pickerUri ?? '');
+  if (!id || !pickerUri) throw new Error('Photos picker did not start — try again.');
+  return { id, pickerUri };
+}
+
+/** True once the user finished picking in the Google UI. */
+export async function photosSessionDone(sessionId: string): Promise<boolean> {
+  const j = await pickerAuthed(`/sessions/${encodeURIComponent(sessionId)}`);
+  return j?.mediaItemsSet === true;
+}
+
+/** Media the user picked in a finished session. */
+export async function listPickedPhotos(sessionId: string): Promise<CloudPhoto[]> {
+  const out: CloudPhoto[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 4; page++) {
+    const params = new URLSearchParams({ sessionId, pageSize: '50' });
+    if (pageToken) params.set('pageToken', pageToken);
+    const j = await pickerAuthed(`/mediaItems?${params}`);
+    for (const m of ((j?.mediaItems ?? []) as any[])) {
+      const base = String(m?.mediaFile?.baseUrl ?? '');
+      if (!String(m?.id ?? '') || !base) continue;
+      const mime = String(m?.mimeType ?? '');
+      const kind = (mime.startsWith('video/') || String(m?.type ?? '') === 'video' ? 'video' : 'image') as 'image' | 'video';
+      out.push({
+        id: String(m.id),
+        kind,
+        thumb: `${base}=w256-h256-c`,
+        baseUrl: `${base}=d`,
+        name: String(m?.filename ?? 'Photo'),
+      });
+    }
+    pageToken = typeof j?.nextPageToken === 'string' ? j.nextPageToken : undefined;
+    if (!pageToken) break;
+  }
+  return out;
+}
+
+/** Picked original → File (streams through cloud-fetch: the CDN host sends
+ *  no CORS headers, bytes are never stored). */
+export async function downloadPickedPhoto(p: CloudPhoto): Promise<File> {
   const sb = await createClient();
   const { data: { session } } = await sb.auth.getSession();
   if (!session?.access_token) throw new Error('Sign in first.');
@@ -386,11 +423,11 @@ export async function downloadGooglePhoto(p: CloudPhoto): Promise<File> {
       apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ url: `${p.baseUrl}=d` }),
+    body: JSON.stringify({ url: p.baseUrl }),
   });
   if (!r.ok) throw new Error('Photos download failed — try another one.');
   const blob = await r.blob();
-  return new File([blob], `photos-${p.id}.${p.kind === 'video' ? 'mp4' : 'jpg'}`, {
+  return new File([blob], p.name.includes('.') ? p.name : `photos-${p.id}.${p.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: blob.type.startsWith('video/') ? blob.type : p.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
 }

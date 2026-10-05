@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   FlatList, Image, ActivityIndicator, Alert, ScrollView,
@@ -9,7 +10,7 @@ import { searchStock, downloadStockItem, unsplashCredit, type StockItem } from '
 import {
   filesConnected, loginGoogleFiles, disconnectGoogleFiles,
   listDriveFiles, listDriveFolders, downloadDriveFile, type DriveFile,
-  listGooglePhotos, downloadPhotosItem, type PhotosItem,
+  createPhotosSession, photosSessionDone, listPickedPhotos, downloadPhotosItem, type PhotosItem,
 } from '../utils/driveAuth';
 import {
   dropboxConnected, loginDropbox, disconnectDropbox,
@@ -81,7 +82,6 @@ export default function MediaSources({
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [driveNext, setDriveNext] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<PhotosItem[]>([]);
-  const [photosNext, setPhotosNext] = useState<string | undefined>(undefined);
   // Dropbox
   const [dbxAuthed, setDbxAuthed] = useState(false);
   const [dbxFolders, setDbxFolders] = useState<DropboxEntry[]>([]);
@@ -111,16 +111,33 @@ export default function MediaSources({
     }
   };
 
-  const loadPhotos = async (q?: string, more?: boolean) => {
-    setBusy(true);
+  /** Photos picker session: system browser Google UI → poll → show picked. */
+  const [picking, setPicking] = useState(false);
+  const openPhotosPicker = async () => {
+    if (picking) return;
+    setPicking(true);
     try {
-      const r = await listGooglePhotos(q, more ? photosNext : undefined);
-      setPhotos(more ? [...photos, ...r.items] : r.items);
-      setPhotosNext(r.nextPage);
+      const session = await createPhotosSession();
+      try {
+        await WebBrowser.openBrowserAsync(session.pickerUri);
+      } catch {}
+      const deadline = Date.now() + 5 * 60 * 1000;
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          if (await photosSessionDone(session.id)) break;
+        } catch {
+          break;
+        }
+        if (Date.now() > deadline) break;
+      }
+      const picked = await listPickedPhotos(session.id);
+      setPhotos(picked);
+      if (!picked.length) Alert.alert('Nothing picked', 'Pick at least one photo in the Google UI, then come back.');
     } catch (e: any) {
-      Alert.alert('Photos failed', e?.message ?? 'Try again.');
+      Alert.alert('Photos picker failed', e?.message ?? 'Try again.');
     } finally {
-      setBusy(false);
+      setPicking(false);
     }
   };
 
@@ -157,7 +174,8 @@ export default function MediaSources({
       if (source === 'drive') {
         await loadDrive(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, query.trim());
       } else if (source === 'gphotos') {
-        await loadPhotos(query.trim());
+        // Picker has its own search UI — the dialog search box is hidden.
+        return;
       } else if (source === 'dropbox') {
         setBusy(true);
         try {
@@ -261,7 +279,6 @@ export default function MediaSources({
     setFolders([]);
     setFolderStack([]);
     setDriveNext(undefined);
-    setPhotosNext(undefined);
     setDbxFolders([]);
     setDbxFiles([]);
     setDbxStack([]);
@@ -272,10 +289,8 @@ export default function MediaSources({
     if (id === 'drive' || id === 'gphotos') {
       const ok = await filesConnected();
       setFilesAuthed(ok);
-      if (ok) {
-        if (id === 'drive') await loadDrive();
-        else await loadPhotos();
-      }
+      if (ok && id === 'drive') await loadDrive();
+      // gphotos needs no preload — the picker button opens Google's UI.
     }
     if (id === 'dropbox') {
       const ok = await dropboxConnected();
@@ -320,7 +335,7 @@ export default function MediaSources({
       }
       setFilesAuthed(true);
       if (source === 'drive') await loadDrive();
-      else if (source === 'gphotos') await loadPhotos();
+      // gphotos needs no preload — the picker button opens Google's UI.
     } catch (e: any) {
       Alert.alert('Could not connect', e?.message ?? 'Try again.');
     } finally {
@@ -452,11 +467,12 @@ export default function MediaSources({
             </View>
           ) : (
             <>
+              {source !== 'gphotos' ? (
               <View style={s.searchRow}>
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
-                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'canva' ? 'Search designs…' : 'Search stock…'}
+                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'canva' ? 'Search designs…' : 'Search stock…'}
                   placeholderTextColor={C.faint}
                   style={s.search}
                   returnKeyType="search"
@@ -466,6 +482,7 @@ export default function MediaSources({
                   {busy ? <ActivityIndicator size="small" color={C.onInk} /> : <Text style={s.goT}>Go</Text>}
                 </TouchableOpacity>
               </View>
+              ) : null}
 
               {source === 'canva' ? (
                 <View style={s.typeRow}>
@@ -625,34 +642,54 @@ export default function MediaSources({
                   }
                 />
               ) : source === 'gphotos' ? (
-                <FlatList
-                  data={photos}
-                  keyExtractor={(x) => x.id}
-                  numColumns={3}
-                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
-                  columnWrapperStyle={{ gap: 8 }}
-                  keyboardShouldPersistTaps="handled"
-                  onEndReached={() => { if (photosNext && !busy) void loadPhotos(query.trim() || undefined, true); }}
-                  onEndReachedThreshold={0.4}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity onPress={() => pickPhoto(item)} activeOpacity={0.8} style={s.cell}>
-                      <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
-                      {item.kind === 'video' ? (
-                        <View style={s.playBadge}>
-                          <Ionicons name="play" size={12} color="#fff" />
-                        </View>
-                      ) : null}
-                      {downloading === item.id ? (
-                        <View style={s.dlOverlay}>
-                          <ActivityIndicator size="small" color="#fff" />
-                        </View>
-                      ) : null}
-                    </TouchableOpacity>
-                  )}
-                  ListEmptyComponent={
-                    !busy ? <Text style={s.empty}>{query ? 'No matches.' : 'Your newest photos will appear here.'}</Text> : null
-                  }
-                />
+                <View>
+                  {photos.length > 0 ? (
+                    <FlatList
+                      data={photos}
+                      keyExtractor={(x) => x.id}
+                      numColumns={3}
+                      contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 12 }}
+                      columnWrapperStyle={{ gap: 8 }}
+                      keyboardShouldPersistTaps="handled"
+                      scrollEnabled={false}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity onPress={() => pickPhoto(item)} activeOpacity={0.8} style={s.cell}>
+                          {item.thumb ? (
+                            <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                          ) : (
+                            <View style={[s.thumb, s.fileThumb]}>
+                              <Ionicons name={item.kind === 'video' ? 'videocam' : 'image'} size={24} color={C.muted} />
+                            </View>
+                          )}
+                          {item.kind === 'video' ? (
+                            <View style={s.playBadge}>
+                              <Ionicons name="play" size={12} color="#fff" />
+                            </View>
+                          ) : null}
+                          {downloading === item.id ? (
+                            <View style={s.dlOverlay}>
+                              <ActivityIndicator size="small" color="#fff" />
+                            </View>
+                          ) : null}
+                          <Text style={s.author} numberOfLines={1}>{item.name}</Text>
+                        </TouchableOpacity>
+                      )}
+                    />
+                  ) : null}
+                  <TouchableOpacity
+                    onPress={() => void openPhotosPicker()}
+                    disabled={picking}
+                    activeOpacity={0.8}
+                    style={[s.connectBtn, { alignSelf: 'center', marginTop: photos.length ? 4 : 12 }]}
+                  >
+                    {picking ? (
+                      <ActivityIndicator size="small" color={C.onInk} />
+                    ) : (
+                      <Text style={s.connectBtnT}>{photos.length ? 'Pick more' : 'Open Google Picker'}</Text>
+                    )}
+                  </TouchableOpacity>
+                  <Text style={s.creditNote}>Only the photos you choose are ever shared.</Text>
+                </View>
               ) : source === 'dropbox' ? (
                 <FlatList
                   data={dbxFiles}

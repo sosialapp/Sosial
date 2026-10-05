@@ -13,10 +13,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { YT_CLIENT_ID, YT_CLIENT_SECRET, YT_AUTH_ENDPOINT, YT_TOKEN_ENDPOINT } from './ytConfig';
 import { BRIDGE_URL, appReturnUrl } from './metaAuth';
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/photoslibrary.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly'];
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
-const PHOTOS_API = 'https://photoslibrary.googleapis.com/v1';
-const STORE_KEY = 'sosial_src_google_files_v1';
+const STORE_KEY = 'sosial_src_google_files_v3';
 
 interface StoredTokens {
   accessToken: string;
@@ -200,43 +199,68 @@ export interface PhotosItem {
   kind: 'image' | 'video';
   thumb: string;
   baseUrl: string;
+  name: string;
 }
-/** Google Photos library, newest first (search when query given). */
-export async function listGooglePhotos(query?: string, pageToken?: string): Promise<{ items: PhotosItem[]; nextPage?: string }> {
+
+const PICKER_API = 'https://photospicker.googleapis.com/v1';
+
+/** New picking session → open pickerUri for the user. */
+export async function createPhotosSession(): Promise<{ id: string; pickerUri: string }> {
   const token = await getValidGoogleFilesToken();
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-  let j: any;
-  if (query?.trim()) {
-    const r = await fetch(`${PHOTOS_API}/mediaItems:search`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        q: query.trim(),
-        pageSize: 50,
-        ...(pageToken ? { pageToken } : {}),
-        filters: { mediaTypeFilter: { mediaTypes: ['ALL_MEDIA'] } },
-      }),
+  const r = await fetch(`${PICKER_API}/sessions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error?.message ?? `Photos picker refused (HTTP ${r.status}).`);
+  const id = String(j?.id ?? '');
+  const pickerUri = String(j?.pickerUri ?? '');
+  if (!id || !pickerUri) throw new Error('Photos picker did not start — try again.');
+  return { id, pickerUri };
+}
+
+/** True once the user finished picking in the Google UI. */
+export async function photosSessionDone(sessionId: string): Promise<boolean> {
+  const token = await getValidGoogleFilesToken();
+  const r = await fetch(`${PICKER_API}/sessions/${encodeURIComponent(sessionId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error?.message ?? `Photos picker refused (HTTP ${r.status}).`);
+  return j?.mediaItemsSet === true;
+}
+
+/** Media the user picked in a finished session. */
+export async function listPickedPhotos(sessionId: string): Promise<PhotosItem[]> {
+  const token = await getValidGoogleFilesToken();
+  const out: PhotosItem[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 4; page++) {
+    const params: Record<string, string> = { sessionId, pageSize: '50' };
+    if (pageToken) params.pageToken = pageToken;
+    const r = await fetch(`${PICKER_API}/mediaItems?${qs(params)}`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j?.error?.message ?? `Photos refused the search (HTTP ${r.status}).`);
-  } else {
-    const params: Record<string, string> = { pageSize: '50', ...(pageToken ? { pageToken } : {}) };
-    const r = await fetch(`${PHOTOS_API}/mediaItems?${qs(params)}`, { headers });
-    j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j?.error?.message ?? `Photos refused the list (HTTP ${r.status}).`);
+    const j: any = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j?.error?.message ?? `Photos picker refused (HTTP ${r.status}).`);
+    for (const m of ((j?.mediaItems ?? []) as any[])) {
+      const base = String(m?.mediaFile?.baseUrl ?? '');
+      if (!String(m?.id ?? '') || !base) continue;
+      const mime = String(m?.mimeType ?? '');
+      const kind = (mime.startsWith('video/') || String(m?.type ?? '') === 'video' ? 'video' : 'image') as 'image' | 'video';
+      out.push({
+        id: String(m.id),
+        kind,
+        thumb: `${base}=w256-h256-c`,
+        baseUrl: `${base}=d`,
+        name: String(m?.filename ?? 'Photo'),
+      });
+    }
+    pageToken = typeof j?.nextPageToken === 'string' ? j.nextPageToken : undefined;
+    if (!pageToken) break;
   }
-  const items: PhotosItem[] = ((j?.mediaItems ?? []) as any[]).map((m: any) => {
-    const md = m?.mediaMetadata ?? {};
-    const isVideo = md?.video !== undefined;
-    const base = String(m?.baseUrl ?? '');
-    return {
-      id: String(m?.id ?? ''),
-      kind: (isVideo ? 'video' : 'image') as 'image' | 'video',
-      thumb: base ? `${base}=w256-h256-c` : '',
-      baseUrl: base,
-    };
-  }).filter((x) => x.id && x.baseUrl);
-  return { items, nextPage: typeof j?.nextPageToken === 'string' ? j.nextPageToken : undefined };
+  return out;
 }
 
 /* ------------------------------- downloads ------------------------------ */
@@ -258,14 +282,14 @@ export async function downloadDriveFile(file: DriveFile): Promise<{ uri: string;
   return { uri: dl.uri, kind: file.kind };
 }
 
-/** Photos item → sandbox file (baseUrl +=d serves the original bytes). */
+/** Picked original → sandbox file (baseUrl already carries the download suffix). */
 export async function downloadPhotosItem(item: PhotosItem): Promise<{ uri: string; kind: 'image' | 'video' }> {
   const ext = item.kind === 'video' ? 'mp4' : 'jpg';
   const dest = `${FileSystem.documentDirectory}photos/${item.id}.${ext}`;
   try {
     await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}photos/`, { intermediates: true });
   } catch {}
-  const dl = await FileSystem.downloadAsync(`${item.baseUrl}=d`, dest);
+  const dl = await FileSystem.downloadAsync(item.baseUrl, dest);
   if (dl.status !== 200) throw new Error('Photos download failed — try another one.');
   return { uri: dl.uri, kind: item.kind };
 }

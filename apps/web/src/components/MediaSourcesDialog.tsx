@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
-  listGooglePhotos, downloadGooglePhoto, type CloudPhoto,
+  createPhotosSession, photosSessionDone, listPickedPhotos, downloadPickedPhoto, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
   listCanvaDesigns, downloadCanvaDesign, type CloudCanvaDesign,
 } from '@/lib/cloudSources';
@@ -74,6 +74,7 @@ export default function MediaSourcesDialog({
   const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([]);
   const [driveFiles, setDriveFiles] = useState<CloudDriveFile[]>([]);
   const [photos, setPhotos] = useState<CloudPhoto[]>([]);
+  const [picking, setPicking] = useState(false);
   const [dbxFolders, setDbxFolders] = useState<CloudDropboxEntry[]>([]);
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
   const [dbxFiles, setDbxFiles] = useState<CloudDropboxEntry[]>([]);
@@ -120,8 +121,8 @@ export default function MediaSourcesDialog({
     setItems([]);
     setQuery('');
     setErr(null);
-    setDriveFiles([]);
     setPhotos([]);
+    setPicking(false);
     setFolders([]);
     setFolderStack([]);
     setDbxFolders([]);
@@ -151,14 +152,12 @@ export default function MediaSourcesDialog({
   };
 
   const loadCloud = async (id: Source, q?: string) => {
+    // Drive + Photos open Google picker widgets from a button — no in-dialog browser.
+    if (id === 'drive' || id === 'gphotos') return;
     setBusy(true);
     setErr(null);
     try {
-      if (id === 'drive') {
-        await loadDriveInto(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, q);
-      } else if (id === 'gphotos') {
-        setPhotos(await listGooglePhotos(q));
-      } else if (id === 'dropbox') {
+      if (id === 'dropbox') {
         await loadDropboxInto(dbxStack.length ? dbxStack[dbxStack.length - 1].path : undefined, q);
       } else if (id === 'canva') {
         const r = await listCanvaDesigns(canvaStack.length ? canvaStack[canvaStack.length - 1].id : undefined, q);
@@ -277,12 +276,45 @@ export default function MediaSourcesDialog({
     if (downloading) return;
     setDownloading(p.id);
     try {
-      onAttach([await downloadGooglePhoto(p)]);
+      onAttach([await downloadPickedPhoto(p)]);
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach.');
     } finally {
       setDownloading(null);
+    }
+  };
+
+  /** Photos picker session: popup Google UI → poll → show what was picked. */
+  const openPhotosPicker = async () => {
+    if (picking) return;
+    setPicking(true);
+    setErr(null);
+    try {
+      const session = await createPhotosSession();
+      const pop = window.open(session.pickerUri, 'sosial-photos', 'width=640,height=720');
+      if (!pop) throw new Error('Allow popups for this site, then try again.');
+      const deadline = Date.now() + 5 * 60 * 1000;
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2500));
+        if (pop.closed) break;
+        try {
+          if (await photosSessionDone(session.id)) break;
+        } catch {
+          break;
+        }
+        if (Date.now() > deadline) break;
+      }
+      try {
+        pop.close();
+      } catch {}
+      const picked = await listPickedPhotos(session.id);
+      setPhotos(picked);
+      if (!picked.length) setErr('Nothing was picked — try again.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Photos picker failed to open.');
+    } finally {
+      setPicking(false);
     }
   };
 
@@ -433,6 +465,7 @@ export default function MediaSourcesDialog({
               </div>
             ) : (
               <>
+                {source !== 'drive' && source !== 'gphotos' ? (
                 <div className="flex gap-1.5">
                   <input
                     value={query}
@@ -446,6 +479,7 @@ export default function MediaSourcesDialog({
                     {busy ? '…' : 'Go'}
                   </button>
                 </div>
+                ) : null}
                 {source === 'canva' ? (
                   <div className="mt-2 flex gap-1.5">
                     {(['photo', 'video'] as const).map((t) => (
@@ -554,19 +588,38 @@ export default function MediaSourcesDialog({
                   </div>
                 ) : null}
 
-                {source === 'drive' ? null : (
+                {source === 'drive' || source === 'gphotos' ? null : (
                 <div className="mt-2 grid grid-cols-3 gap-1.5">
-                  {source === 'gphotos'
-                    ? photos.map((p) => cellFor(p.id, p.thumb, p.kind === 'video' ? 'Video' : 'Photo', p.kind, () => void pickPhoto(p)))
-                    : source === 'dropbox'
-                      ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, () => void pickDropbox(f)))
-                      : source === 'canva'
-                        ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
-                        : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
+                  {source === 'dropbox'
+                    ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, () => void pickDropbox(f)))
+                    : source === 'canva'
+                      ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
+                      : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
                 </div>
                 )}
-                {!busy && source === 'gphotos' && photos.length === 0 ? (
-                  <p className="mt-3 text-center text-xs text-faint">{query ? 'No matches.' : 'Your newest photos will appear here.'}</p>
+                {source === 'gphotos' ? (
+                  <div className="py-2 text-center">
+                    {photos.length > 0 ? (
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-left">
+                        {photos.map((p) => cellFor(p.id, p.thumb, p.name, p.kind, () => void pickPhoto(p)))}
+                      </div>
+                    ) : null}
+                    <p className={`text-sm font-bold ${photos.length ? 'mt-3' : ''}`}>
+                      {photos.length ? 'Pick more from Google Photos' : 'Pick from Google Photos'}
+                    </p>
+                    <p className="mx-auto mt-1 max-w-[260px] text-xs text-muted">
+                      Google shows its own picker — only the photos you choose are ever shared.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void openPhotosPicker()}
+                      disabled={picking || !!downloading}
+                      className="btn btn-primary mx-auto mt-3 !text-sm"
+                    >
+                      {picking ? 'Waiting for Google…' : 'Open Google Picker'}
+                    </button>
+                    {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
+                  </div>
                 ) : null}
                 {!busy && source === 'dropbox' && dbxFiles.length === 0 ? (
                   <p className="mt-3 text-center text-xs text-faint">{query ? 'No matches in your Dropbox.' : 'No images or videos in this folder.'}</p>
