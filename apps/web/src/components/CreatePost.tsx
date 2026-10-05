@@ -350,7 +350,8 @@ export default function CreatePost({
         return live;
       }
     }
-    return ready.map((c) => c.id);
+    // Fresh composer: nothing pre-picked — the user chooses destinations.
+    return [];
   });
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
   /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
@@ -364,6 +365,8 @@ export default function CreatePost({
   const [busy, setBusy] = useState(false);
   /** Live publish monitor (post-now): watches these post ids settle. */
   const [monitorIds, setMonitorIds] = useState<string[]>([]);
+  /** Shown the instant Post-now is pressed — ids land once saving finishes. */
+  const [monitorOpen, setMonitorOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   /** Errors ride above the textbox: X to dismiss, auto-gone in 3s. */
@@ -631,6 +634,12 @@ export default function CreatePost({
       return;
     }
     nowConfirmed.current = false;
+    // Post-now shows the monitor instantly (mobile parity) — it starts in
+    // "saving" mode and flips to per-channel progress once ids land.
+    if (submitMode === 'now') {
+      setMonitorIds([]);
+      setMonitorOpen(true);
+    }
     setBusy(true);
     let newIds: string[] = [];
     try {
@@ -678,8 +687,7 @@ export default function CreatePost({
         onEdited?.();
       }
       if (submitMode === 'now') {
-        // Stay on the composer under the live publish monitor (mobile parity);
-        // it navigates to the queue once every channel settles.
+        // Monitor is already open — hand it the ids so it flips to progress.
         setBusy(false);
         setMonitorIds(newIds);
         return;
@@ -688,16 +696,19 @@ export default function CreatePost({
       router.refresh();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : 'Could not save the post.');
+      setMonitorOpen(false);
+      setMonitorIds([]);
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={(e) => submit(e, mode)}>
-      {monitorIds.length ? (
+      {monitorOpen ? (
         <PublishMonitor
           postIds={monitorIds}
           onDone={() => {
+            setMonitorOpen(false);
             setMonitorIds([]);
             router.push('/queue');
             router.refresh();

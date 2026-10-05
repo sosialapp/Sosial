@@ -60,8 +60,34 @@ export function disconnectCloud(p: CloudProvider): void {
   } catch {}
 }
 
-async function authedInvoke(fn: string, body: Record<string, unknown>) {
-  const sb = await createClient();
+/**
+ * Fetch → Blob with download progress (0–100). When the server hides the
+ * total, onProgress stays silent and callers show an indeterminate spinner.
+ */
+export async function fetchProgressBlob(
+  url: string,
+  init: RequestInit,
+  onProgress?: (pct: number) => void,
+): Promise<Blob> {
+  const r = await fetch(url, init);
+  if (!r.ok || !r.body) throw new Error(`Download failed (HTTP ${r.status}).`);
+  const total = Number(r.headers.get('content-length') ?? 0);
+  if (!total || !onProgress) return r.blob();
+  const reader = r.body.getReader();
+  const chunks: BlobPart[] = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    got += value.length;
+    onProgress(Math.min(99, Math.round((got / total) * 100)));
+  }
+  onProgress(100);
+  return new Blob(chunks);
+}
+
+async function authedInvoke(fn: string, body: Record<string, unknown>) {  const sb = await createClient();
   const { data, error } = await sb.functions.invoke(fn, { body });
   if (error) throw new Error(error.message);
   if ((data as any)?.error) throw new Error(String((data as any).error));
@@ -327,13 +353,14 @@ export async function listDriveFiles(folderId?: string, query?: string): Promise
   return { files, folders };
 }
 
-export async function downloadDriveFile(f: CloudDriveFile): Promise<File> {
+export async function downloadDriveFile(f: CloudDriveFile, onProgress?: (pct: number) => void): Promise<File> {
   const token = await getValidCloudToken('google');
-  const r = await fetch(`${DRIVE_API}/files/${encodeURIComponent(f.id)}?alt=media`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!r.ok) throw new Error('Drive download failed — try another file.');
-  const blob = await r.blob();
+  const blob = await fetchProgressBlob(
+    `${DRIVE_API}/files/${encodeURIComponent(f.id)}?alt=media`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    onProgress,
+  ).catch(() => null);
+  if (!blob) throw new Error('Drive download failed — try another file.');
   return new File([blob], f.name || `drive-${f.id}.${f.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: f.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
@@ -518,7 +545,7 @@ export async function listCanvaDesigns(folderId?: string, query?: string): Promi
 }
 
 /** Export a design (jpg photo or mp4 video) and resolve it to a File. */
-export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | 'video'): Promise<File> {
+export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | 'video', onProgress?: (pct: number) => void): Promise<File> {
   const token = await getValidCloudToken('canva');
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const start = await fetch(`${CANVA_API}/designs/${encodeURIComponent(d.id)}/exports`, {
@@ -540,9 +567,8 @@ export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | '
     if (status === 'success') {
       const url = String(pj?.job?.urls?.[0] ?? '');
       if (!url) throw new Error('Canva finished with no file.');
-      const fr = await fetch(url);
-      if (!fr.ok) throw new Error('Download failed — try another design.');
-      const blob = await fr.blob();
+      const blob = await fetchProgressBlob(url, {}, onProgress).catch(() => null);
+      if (!blob) throw new Error('Download failed — try another design.');
       return new File([blob], `canva-${d.id}.${kind === 'video' ? 'mp4' : 'jpg'}`, {
         type: kind === 'video' ? 'video/mp4' : 'image/jpeg',
       });
@@ -649,14 +675,17 @@ export async function searchDropbox(query: string): Promise<CloudDropboxEntry[]>
   return out;
 }
 
-export async function downloadDropboxFile(e: CloudDropboxEntry): Promise<File> {
+export async function downloadDropboxFile(e: CloudDropboxEntry, onProgress?: (pct: number) => void): Promise<File> {
   const token = await getValidCloudToken('dropbox');
-  const r = await fetch('https://content.dropboxapi.com/2/files/download', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({ path: e.path }) },
-  });
-  if (!r.ok) throw new Error('Dropbox download failed — try another file.');
-  const blob = await r.blob();
+  const blob = await fetchProgressBlob(
+    'https://content.dropboxapi.com/2/files/download',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({ path: e.path }) },
+    },
+    onProgress,
+  ).catch(() => null);
+  if (!blob) throw new Error('Dropbox download failed — try another file.');
   return new File([blob], e.name || `dropbox.${e.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: e.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });

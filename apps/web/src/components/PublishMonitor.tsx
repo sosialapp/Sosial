@@ -25,6 +25,7 @@ export default function PublishMonitor({
   const autoClosed = useRef(false);
 
   useEffect(() => {
+    if (!postIds.length) return; // Still saving — nothing to watch yet.
     const sb = createClient();
     let alive = true;
     async function poll() {
@@ -103,17 +104,21 @@ export default function PublishMonitor({
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EDF3EC] text-sm font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">✓</span>
           )}
           <p className="font-display text-base font-extrabold">
-            {!settled
-              ? `Publishing to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}…`
-              : failed > 0
-                ? `Posted — ${failed} failed`
-                : 'Posted to all channels'}
+            {!postIds.length
+              ? 'Saving your post…'
+              : !settled
+                ? `Publishing to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}…`
+                : failed > 0
+                  ? `Posted — ${failed} failed`
+                  : 'Posted to all channels'}
           </p>
         </div>
 
         <div className="mt-4 space-y-1.5">
           {rows.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted">{note ?? 'Reading targets…'}</p>
+            <p className="py-3 text-center text-xs text-muted">
+              {!postIds.length ? 'Uploading media…' : (note ?? 'Reading targets…')}
+            </p>
           ) : (
             rows.map((r) => (
               <div key={r.provider + (r.url ?? '')} className="flex items-center gap-2.5 rounded-xl bg-paper px-3 py-2">

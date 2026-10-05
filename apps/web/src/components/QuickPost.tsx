@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import PublishMonitor from '@/components/PublishMonitor';
 import { providerMeta, postTypeOptions } from '@/lib/providers';
+import { CAPABILITIES } from '@/lib/compat';
 import { channelAvatar } from '@/lib/channelAvatar';
 import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiTextarea } from '@/components/Emoji';
@@ -38,9 +39,13 @@ export default function QuickPost({
   role: WorkspaceInfo['role'];
 }) {
   const router = useRouter();
-  const ready = channels.filter((c) => c.status === 'connected');
+  // Quick post is text-only: media-mandatory channels (IG/TikTok/YouTube/
+  // Pinterest) are hidden here — they live in the full composer.
+  const ready = channels.filter(
+    (c) => c.status === 'connected' && !CAPABILITIES[c.provider]?.requiresMedia,
+  );
   const [body, setBody] = useState('');
-  const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
+  const [picked, setPicked] = useState<string[]>([]);
   const [mode, setMode] = useState<'now' | 'schedule'>('now');
   const [when, setWhen] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
@@ -49,6 +54,7 @@ export default function QuickPost({
   const chosenNow = ready.filter((c) => picked.includes(c.id));
   /** Live publish monitor (post-now). */
   const [monitorId, setMonitorId] = useState<string | null>(null);
+  const [monitorOpen, setMonitorOpen] = useState(false);
   /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
   const [types, setTypes] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -94,6 +100,10 @@ export default function QuickPost({
       return;
     }
     nowConfirmed.current = false;
+    if (mode === 'now') {
+      setMonitorId(null);
+      setMonitorOpen(true);
+    }
     setBusy(true);
     try {
       const sb = createClient();
@@ -123,6 +133,8 @@ export default function QuickPost({
       router.refresh();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : 'Could not save the post.');
+      setMonitorOpen(false);
+      setMonitorId(null);
     } finally {
       setBusy(false);
     }
@@ -130,10 +142,11 @@ export default function QuickPost({
 
   return (
     <>
-      {monitorId ? (
+      {monitorOpen ? (
         <PublishMonitor
-          postIds={[monitorId]}
+          postIds={monitorId ? [monitorId] : []}
           onDone={() => {
+            setMonitorOpen(false);
             setMonitorId(null);
             router.refresh();
           }}

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { BRAND_MARKS, LOCAL_ICON } from '@/components/SourceMarks';
 import { createClient } from '@/lib/supabase/client';
 import {
-  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud,
+  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud, fetchProgressBlob,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
   createPhotosSession, photosSessionDone, listPickedPhotos, downloadPickedPhoto, pickerThumbUrl, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
@@ -36,7 +36,6 @@ const SOON = [
   { label: 'OneDrive', icon: 'onedrive' },
 ];
 
-const PANEL_W = 384;
 const PANEL_H = 480;
 
 /**
@@ -65,7 +64,8 @@ export default function MediaSourcesDialog({
   const [type, setType] = useState<'photo' | 'video'>('photo');
   const [items, setItems] = useState<StockItem[]>([]);
   const [busy, setBusy] = useState(false);
-  const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<{ id: string; progress: number | null } | null>(null);
+  const track = (id: string) => (pct: number) => setDownloading((d) => (d?.id === id ? { id, progress: pct } : d));
   const [err, setErr] = useState<string | null>(null);
   // Cloud
   const [authed, setAuthed] = useState(false);
@@ -245,11 +245,10 @@ export default function MediaSourcesDialog({
 
   const pickStock = async (item: StockItem) => {
     if (downloading) return;
-    setDownloading(item.id);
+    setDownloading({ id: item.id, progress: null });
     try {
-      const r = await fetch(item.full);
-      if (!r.ok) throw new Error('Download failed — try another one.');
-      const blob = await r.blob();
+      const blob = await fetchProgressBlob(item.full, {}, track(item.id)).catch(() => null);
+      if (!blob) throw new Error('Download failed — try another one.');
       const file = new File([blob], `unsplash-${item.id}.jpg`, { type: 'image/jpeg' });
       const credit = `📷 ${item.author} on Unsplash (${item.authorUrl})`;
       onAttach([file], credit);
@@ -263,9 +262,9 @@ export default function MediaSourcesDialog({
 
   const pickDrive = async (f: CloudDriveFile) => {
     if (downloading) return;
-    setDownloading(f.id);
+    setDownloading({ id: f.id, progress: null });
     try {
-      onAttach([await downloadDriveFile(f)]);
+      onAttach([await downloadDriveFile(f, track(f.id))]);
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach.');
@@ -276,7 +275,7 @@ export default function MediaSourcesDialog({
 
   const pickPhoto = async (p: CloudPhoto) => {
     if (downloading) return;
-    setDownloading(p.id);
+    setDownloading({ id: p.id, progress: null });
     try {
       onAttach([await downloadPickedPhoto(p)]);
       onClose();
@@ -339,7 +338,8 @@ export default function MediaSourcesDialog({
       }
       // Auto-attach: fetch each picked item once through the proxy (Picker
       // URLs are single-use) and land the Files straight in the composer.
-      setDownloading('__batch__');
+      // Proxy streams carry no total, so the batch shows indeterminate text.
+      setDownloading({ id: '__batch__', progress: null });
       try {
         const files: File[] = [];
         for (const p of picked) {
@@ -367,9 +367,9 @@ export default function MediaSourcesDialog({
 
   const pickDropbox = async (f: CloudDropboxEntry) => {
     if (downloading) return;
-    setDownloading(f.path);
+    setDownloading({ id: f.path, progress: null });
     try {
-      onAttach([await downloadDropboxFile(f)]);
+      onAttach([await downloadDropboxFile(f, track(f.path))]);
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach.');
@@ -380,9 +380,9 @@ export default function MediaSourcesDialog({
 
   const pickCanva = async (d: CloudCanvaDesign) => {
     if (downloading) return;
-    setDownloading(d.id);
+    setDownloading({ id: d.id, progress: null });
     try {
-      onAttach([await downloadCanvaDesign(d, canvaKind)]);
+      onAttach([await downloadCanvaDesign(d, canvaKind, track(d.id))]);
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach.');
@@ -412,8 +412,22 @@ export default function MediaSourcesDialog({
       {kind === 'video' ? (
         <span className="absolute top-1.5 left-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">▶</span>
       ) : null}
-      {downloading === cellId ? (
-        <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-bold text-white">…</span>
+      {downloading?.id === cellId ? (
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/45 px-2 text-white">
+          {downloading.progress === null ? (
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+          ) : (
+            <>
+              <span className="text-xs font-extrabold tabular-nums">{downloading.progress}%</span>
+              <span className="h-1 w-full overflow-hidden rounded-full bg-white/25" aria-hidden="true">
+                <span
+                  className="block h-full rounded-full bg-white transition-[width]"
+                  style={{ width: `${downloading.progress}%` }}
+                />
+              </span>
+            </>
+          )}
+        </span>
       ) : null}
       <span className="block truncate px-1.5 py-1 text-[10px] text-muted">{name}</span>
     </button>
@@ -441,10 +455,12 @@ export default function MediaSourcesDialog({
   // Anchored dropdown through a portal — ancestors with transforms would
   // trap position:fixed. Re-read the live anchor every render (tick bumps on
   // scroll/resize) so the panel sticks to the button. Flips above when the
-  // viewport runs out below, clamped to the window edges.
+  // viewport runs out below, clamped to the window edges. The source list is
+  // a compact menu; each source's browser gets the wide panel.
   void tick;
+  const panelW = source ? 560 : 320;
   const a = getAnchor();
-  const left = Math.max(8, Math.min(a?.left ?? 8, window.innerWidth - PANEL_W - 8));
+  const left = Math.max(8, Math.min(a?.left ?? 8, window.innerWidth - panelW - 8));
   const below = a?.bottom ? a.bottom + 8 : (a?.topEdge ?? 0) + 8;
   const flip = below + PANEL_H > window.innerHeight && (a?.bottom ?? 0) > window.innerHeight / 2;
 
@@ -454,7 +470,7 @@ export default function MediaSourcesDialog({
       <div
         role="menu"
         aria-label="Add media"
-        className="fixed z-[100] flex max-h-[min(480px,70vh)] w-[384px] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"
+        className={`fixed z-[100] flex max-h-[min(480px,70vh)] ${source ? 'w-[560px]' : 'w-[320px]'} flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]`}
         style={flip ? { left, bottom: window.innerHeight - (a?.bottom ?? 0) + 8 } : { left, top: below }}
       >
         {source ? (
@@ -653,11 +669,11 @@ export default function MediaSourcesDialog({
                     <button
                       type="button"
                       onClick={() => void openPhotosPicker()}
-                      disabled={picking || downloading === '__batch__'}
+                      disabled={picking || downloading?.id === '__batch__'}
                       className="btn btn-primary mx-auto mt-3 !text-sm"
                     >
-                      {downloading === '__batch__'
-                        ? 'Attaching your photos…'
+                      {downloading?.id === '__batch__'
+                        ? `Attaching your photos…${downloading.progress === null ? '' : ` ${downloading.progress}%`}`
                         : picking
                           ? 'Waiting for Google…'
                           : 'Open Google Picker'}

@@ -134,7 +134,7 @@ export default async function DashboardPage() {
       .map((p) => ({ p, t: p.created_at ?? '' })),
   ]
     .sort((a, b) => b.t.localeCompare(a.t))
-    .slice(0, 6);
+    .slice(0, 4);
 
   const delta =
     sentPrevWeek.length > 0
