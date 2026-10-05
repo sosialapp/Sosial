@@ -141,8 +141,16 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
           })}`;
 
   const tokens = await new Promise<Tokens | null>((resolve) => {
+    let settled = false;
     const finish = async (d: any) => {
-      window.removeEventListener('message', onMsg);
+      if (settled) return;
+      settled = true;
+      try {
+        window.removeEventListener('message', onMsg);
+      } catch {}
+      try {
+        bc?.close();
+      } catch {}
       if (!d?.ok) {
         // Provider refusals (bad redirect URI, scope, etc.) carry the real
         // reason — stash it so the caller throws it instead of "cancelled".
@@ -186,9 +194,25 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
       void finish(d);
     };
     window.addEventListener('message', onMsg);
+    // Same-origin broadcast fallback — works even when the provider severs
+    // window.opener on the way back (Canva's COOP headers do exactly that).
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('sosial-cloud');
+      bc.onmessage = (e: MessageEvent) => {
+        const d = e.data as any;
+        if (!d || d.type !== 'sosial-cloud' || d.nonce !== nonce) return;
+        void finish(d);
+      };
+    } catch {
+      bc = null;
+    }
     const pop = window.open(authUrl, 'sosial-cloud', 'width=520,height=640');
     if (!pop) {
       window.removeEventListener('message', onMsg);
+      try {
+        bc?.close();
+      } catch {}
       resolve(null);
       return;
     }
@@ -200,6 +224,9 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
         if (pop.closed) {
           window.clearInterval(timer);
           window.removeEventListener('message', onMsg);
+          try {
+            bc?.close();
+          } catch {}
           resolve(null);
         }
       } catch {
@@ -209,6 +236,9 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
     window.setTimeout(() => {
       window.clearInterval(timer);
       window.removeEventListener('message', onMsg);
+      try {
+        bc?.close();
+      } catch {}
       resolve(null);
     }, 5 * 60 * 1000);
   });

@@ -247,6 +247,10 @@ async function cloudPickerResult(url: URL, origin: string) {
     const safe = JSON.stringify(payload).replace(/</g, '\\u003c');
     return new Response(
       `<!doctype html><html><body><script>` +
+        // BroadcastChannel first: survives severed window.opener (provider
+        // COOP headers can null it on the way back). Opener postMessage kept
+        // as the fallback for older browsers.
+        `try{var bc=new BroadcastChannel("sosial-cloud");bc.postMessage(${safe});bc.close();}catch(e){}` +
         `try{window.opener&&window.opener.postMessage(${safe},"${origin}");}catch(e){}` +
         `setTimeout(function(){window.close();},400);` +
         `document.body.innerHTML="<p style='font-family:sans-serif'>Done — you can close this tab.</p>";` +
