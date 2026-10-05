@@ -111,7 +111,7 @@ export default function MediaSources({
     }
   };
 
-  /** Photos picker session: system browser Google UI → poll → show picked. */
+  /** Photos picker session: system browser Google UI → poll → auto-attach. */
   const [picking, setPicking] = useState(false);
   const openPhotosPicker = async () => {
     if (picking) return;
@@ -121,11 +121,11 @@ export default function MediaSources({
       try {
         await WebBrowser.openBrowserAsync(session.pickerUri);
       } catch {}
-      const deadline = Date.now() + 5 * 60 * 1000;
+      const deadline = Date.now() + 8 * 60 * 1000;
       let done = false;
       let lastPollErr: string | null = null;
       for (;;) {
-        await new Promise((r) => setTimeout(r, 2500));
+        await new Promise((r) => setTimeout(r, 2000));
         try {
           if (await photosSessionDone(session.id)) {
             done = true;
@@ -137,23 +137,31 @@ export default function MediaSources({
         }
         if (Date.now() > deadline) break;
       }
-      // Grace: Done sometimes lands a beat after the UI closes.
-      if (!done) {
-        await new Promise((r) => setTimeout(r, 3000));
-        try {
-          done = await photosSessionDone(session.id);
-        } catch (e: any) {
-          lastPollErr = e?.message ?? 'Poll failed.';
-        }
-      }
       if (!done) {
         if (lastPollErr) throw new Error(lastPollErr);
         Alert.alert('Nothing picked', 'Open the picker and choose at least one photo, then come back.');
         return;
       }
       const picked = await listPickedPhotos(session.id);
-      setPhotos(picked);
-      if (!picked.length) Alert.alert('Nothing picked', 'Pick at least one photo in the Google UI, then come back.');
+      if (!picked.length) {
+        Alert.alert('Nothing picked', 'Try again — pick at least one photo.');
+        return;
+      }
+      // Auto-attach: download each picked item straight into the composer.
+      const items: SourceAttachment[] = [];
+      for (const p of picked) {
+        try {
+          items.push(await downloadPhotosItem(p));
+        } catch {
+          /* one bad item must not sink the batch */
+        }
+      }
+      if (!items.length) {
+        Alert.alert('Could not fetch', 'The picked photos would not download — try again.');
+        return;
+      }
+      onAttach(items);
+      onClose();
     } catch (e: any) {
       Alert.alert('Photos picker failed', e?.message ?? 'Try again.');
     } finally {
@@ -662,50 +670,19 @@ export default function MediaSources({
                   }
                 />
               ) : source === 'gphotos' ? (
-                <View>
-                  {photos.length > 0 ? (
-                    <FlatList
-                      data={photos}
-                      keyExtractor={(x) => x.id}
-                      numColumns={3}
-                      contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 12 }}
-                      columnWrapperStyle={{ gap: 8 }}
-                      keyboardShouldPersistTaps="handled"
-                      scrollEnabled={false}
-                      renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => pickPhoto(item)} activeOpacity={0.8} style={s.cell}>
-                          {item.thumb ? (
-                            <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
-                          ) : (
-                            <View style={[s.thumb, s.fileThumb]}>
-                              <Ionicons name={item.kind === 'video' ? 'videocam' : 'image'} size={24} color={C.muted} />
-                            </View>
-                          )}
-                          {item.kind === 'video' ? (
-                            <View style={s.playBadge}>
-                              <Ionicons name="play" size={12} color="#fff" />
-                            </View>
-                          ) : null}
-                          {downloading === item.id ? (
-                            <View style={s.dlOverlay}>
-                              <ActivityIndicator size="small" color="#fff" />
-                            </View>
-                          ) : null}
-                          <Text style={s.author} numberOfLines={1}>{item.name}</Text>
-                        </TouchableOpacity>
-                      )}
-                    />
-                  ) : null}
+                <View style={{ alignItems: 'center', paddingVertical: 18 }}>
+                  <Text style={[s.connectT, { marginTop: 0 }]}>Pick from Google Photos</Text>
+                  <Text style={s.connectS}>Google shows its own picker — what you choose attaches here automatically.</Text>
                   <TouchableOpacity
                     onPress={() => void openPhotosPicker()}
                     disabled={picking}
                     activeOpacity={0.8}
-                    style={[s.connectBtn, { alignSelf: 'center', marginTop: photos.length ? 4 : 12 }]}
+                    style={s.connectBtn}
                   >
                     {picking ? (
                       <ActivityIndicator size="small" color={C.onInk} />
                     ) : (
-                      <Text style={s.connectBtnT}>{photos.length ? 'Pick more' : 'Open Google Picker'}</Text>
+                      <Text style={s.connectBtnT}>Open Google Picker</Text>
                     )}
                   </TouchableOpacity>
                   <Text style={s.creditNote}>Only the photos you choose are ever shared.</Text>

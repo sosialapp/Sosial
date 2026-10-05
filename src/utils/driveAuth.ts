@@ -283,14 +283,24 @@ export async function downloadDriveFile(file: DriveFile): Promise<{ uri: string;
   return { uri: dl.uri, kind: file.kind };
 }
 
-/** Picked original → sandbox file (baseUrl already carries the download suffix). */
+/** Picked original → sandbox file. Picker /ppa/ URLs validate the requester,
+ *  so the download carries the Google token; on 403, retry with the =d
+ *  (original bytes) form before giving up. */
 export async function downloadPhotosItem(item: PhotosItem): Promise<{ uri: string; kind: 'image' | 'video' }> {
+  const token = await getValidGoogleFilesToken();
   const ext = item.kind === 'video' ? 'mp4' : 'jpg';
   const dest = `${FileSystem.documentDirectory}photos/${item.id}.${ext}`;
   try {
     await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}photos/`, { intermediates: true });
   } catch {}
-  const dl = await FileSystem.downloadAsync(item.baseUrl, dest);
+  let dl = await FileSystem.downloadAsync(item.baseUrl, dest, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (dl.status !== 200 && !item.baseUrl.endsWith('=d')) {
+    dl = await FileSystem.downloadAsync(`${item.baseUrl}=d`, dest, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
   if (dl.status !== 200) throw new Error('Photos download failed — try another one.');
   return { uri: dl.uri, kind: item.kind };
 }
