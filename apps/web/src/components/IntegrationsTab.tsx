@@ -76,7 +76,16 @@ export default function IntegrationsTab() {
           const on = !!status[r.id];
           return (
             <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i !== 0 ? 'border-t border-line-soft' : ''} ${r.soon ? 'opacity-55' : ''}`}>
-              <SourceMark id={r.mark} className="flex h-6 w-6 shrink-0 items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
+              {r.id === 'google' ? (
+                <span className="relative flex h-6 w-8 shrink-0 items-center">
+                  <SourceMark id="drive" className="flex h-[22px] w-[22px] items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
+                  <span className="absolute left-[10px] top-1/2 -translate-y-1/2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-card pl-0.5 [&_svg]:h-full [&_svg]:w-full">
+                    <SourceMark id="gphotos" />
+                  </span>
+                </span>
+              ) : (
+                <SourceMark id={r.mark} className="flex h-6 w-6 shrink-0 items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
+              )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold">{r.label}</p>
                 <p className="text-xs text-muted">{r.soon ? 'Coming soon' : on ? 'Connected in this browser' : r.sub}</p>

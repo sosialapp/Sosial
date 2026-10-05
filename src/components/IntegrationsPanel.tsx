@@ -2,6 +2,32 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useTheme, Palette } from '../theme';
 import SourceMark, { type SourceMarkId } from './SourceMarks';
+
+/** Drive + Photos stacked — the Google row carries both logos. */
+function GoogleStacked({ size }: { size: number }) {
+  return (
+    <View style={{ width: size * 1.45, height: size, justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', left: 0 }}>
+        <SourceMark id="drive" size={size} />
+      </View>
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.55,
+          top: size * 0.2,
+          width: size * 0.78,
+          height: size * 0.78,
+          borderRadius: 999,
+          backgroundColor: '#FFF',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <SourceMark id="gphotos" size={size * 0.62} />
+      </View>
+    </View>
+  );
+}
 import { filesConnected, loginGoogleFiles, disconnectGoogleFiles } from '../utils/driveAuth';
 import { dropboxConnected, loginDropbox, disconnectDropbox } from '../utils/dropboxAuth';
 import { canvaConnected, loginCanva, disconnectCanva } from '../utils/canvaAuth';
@@ -83,7 +109,11 @@ export default function IntegrationsPanel() {
         const loading = busy === r.id;
         return (
           <View key={r.id} style={[s.row, !on && { opacity: r.soon ? 0.55 : 1 }]}>
-            <SourceMark id={r.mark} size={22} color={C.ink} />
+            {r.id === 'google' ? (
+              <GoogleStacked size={22} />
+            ) : (
+              <SourceMark id={r.mark} size={22} color={C.ink} />
+            )}
             <View style={{ flex: 1 }}>
               <Text style={s.rowT}>{r.label}</Text>
               <Text style={s.rowS}>{r.soon ? 'Coming soon' : on ? 'Connected on this device' : r.sub}</Text>
