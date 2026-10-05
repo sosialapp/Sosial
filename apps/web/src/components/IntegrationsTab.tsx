@@ -77,11 +77,9 @@ export default function IntegrationsTab() {
           return (
             <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i !== 0 ? 'border-t border-line-soft' : ''} ${r.soon ? 'opacity-55' : ''}`}>
               {r.id === 'google' ? (
-                <span className="relative flex h-6 w-8 shrink-0 items-center">
-                  <SourceMark id="drive" className="flex h-[22px] w-[22px] items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
-                  <span className="absolute left-[10px] top-1/2 -translate-y-1/2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-card pl-0.5 [&_svg]:h-full [&_svg]:w-full">
-                    <SourceMark id="gphotos" />
-                  </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <SourceMark id="drive" className="flex h-6 w-6 items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
+                  <SourceMark id="gphotos" className="flex h-6 w-6 items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
                 </span>
               ) : (
                 <SourceMark id={r.mark} className="flex h-6 w-6 shrink-0 items-center justify-center [&_svg]:h-full [&_svg]:w-full" />

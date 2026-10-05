@@ -3,28 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } fr
 import { useTheme, Palette } from '../theme';
 import SourceMark, { type SourceMarkId } from './SourceMarks';
 
-/** Drive + Photos stacked — the Google row carries both logos. */
+/** Drive + Photos side by side — the Google row carries both logos. */
 function GoogleStacked({ size }: { size: number }) {
   return (
-    <View style={{ width: size * 1.45, height: size, justifyContent: 'center' }}>
-      <View style={{ position: 'absolute', left: 0 }}>
-        <SourceMark id="drive" size={size} />
-      </View>
-      <View
-        style={{
-          position: 'absolute',
-          left: size * 0.55,
-          top: size * 0.2,
-          width: size * 0.78,
-          height: size * 0.78,
-          borderRadius: 999,
-          backgroundColor: '#FFF',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <SourceMark id="gphotos" size={size * 0.62} />
-      </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <SourceMark id="drive" size={size} />
+      <SourceMark id="gphotos" size={size} />
     </View>
   );
 }
