@@ -72,9 +72,37 @@ export const BRAND_MARKS: Record<string, React.ReactNode> = {
     </svg>
   ),
   canva: (
-    <svg viewBox="0 0 80 80" aria-hidden="true">
-      <circle cx="40" cy="40" r="40" fill="#7D2AE7" />
-      <path d="M57.3 48.2c-.3 0-.6.3-.9.9-3.5 6.9-9.4 11.8-16.2 11.8-7.9 0-12.8-7.1-12.8-16.9 0-16.7 9.3-26.3 17.5-26.3 3.8 0 6.1 2.4 6.1 6.2 0 4.5-2.6 6.9-2.6 8.5 0 .7.5 1.1 1.4 1.1 3.5 0 7.7-4.1 7.7-9.8 0-5.6-4.9-9.7-13-9.7-13.5 0-25.5 12.5-25.5 29.8 0 13.4 7.7 22.2 19.5 22.2 12.5 0 19.7-12.4 19.7-16.5 0-.9-.4-1.3-.9-1.3Z" fill="#fff" />
+    <svg viewBox="0 0 80 80" fill="none" aria-hidden="true">
+      <g clipPath="url(#cv-clip)">
+        <path d="M40 80C62.0914 80 80 62.0914 80 40C80 17.9086 62.0914 0 40 0C17.9086 0 0 17.9086 0 40C0 62.0914 17.9086 80 40 80Z" fill="#7D2AE7" />
+        <path d="M40 80C62.0914 80 80 62.0914 80 40C80 17.9086 62.0914 0 40 0C17.9086 0 0 17.9086 0 40C0 62.0914 17.9086 80 40 80Z" fill="url(#cv-p0)" />
+        <path d="M40 80C62.0914 80 80 62.0914 80 40C80 17.9086 62.0914 0 40 0C17.9086 0 0 17.9086 0 40C0 62.0914 17.9086 80 40 80Z" fill="url(#cv-p1)" />
+        <path d="M40 80C62.0914 80 80 62.0914 80 40C80 17.9086 62.0914 0 40 0C17.9086 0 0 17.9086 0 40C0 62.0914 17.9086 80 40 80Z" fill="url(#cv-p2)" />
+        <path d="M40 80C62.0914 80 80 62.0914 80 40C80 17.9086 62.0914 0 40 0C17.9086 0 0 17.9086 0 40C0 62.0914 17.9086 80 40 80Z" fill="url(#cv-p3)" />
+        <path d="M57.2691 48.2052C56.939 48.2052 56.6485 48.484 56.3462 49.0928C52.9323 56.0153 47.0358 60.9134 40.2125 60.9134C32.3228 60.9134 27.437 53.7913 27.437 43.9522C27.437 27.2855 36.7232 17.6491 44.8796 17.6491C48.691 17.6491 51.0186 20.0443 51.0186 23.8559C51.0186 28.3796 48.4485 30.7748 48.4485 32.3702C48.4485 33.0864 48.8939 33.5201 49.7773 33.5201C53.3264 33.5201 57.4918 29.4419 57.4918 23.6808C57.4918 18.0947 52.63 13.9888 44.4737 13.9888C30.994 13.9888 19.0142 26.4858 19.0142 43.777C19.0142 57.1614 26.6572 66.0061 38.45 66.0061C50.9668 66.0061 58.2043 53.5526 58.2043 49.5105C58.2043 48.6153 57.7466 48.2052 57.2691 48.2052Z" fill="white" />
+      </g>
+      <defs>
+        <radialGradient id="cv-p0" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(15.453 70.9057) rotate(-49.416) scale(61.8733)">
+          <stop stopColor="#6420FF" />
+          <stop offset="1" stopColor="#6420FF" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="cv-p1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(21.1788 9.09457) rotate(54.703) scale(69.7735)">
+          <stop stopColor="#00C4CC" />
+          <stop offset="1" stopColor="#00C4CC" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="cv-p2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(15.4526 70.9053) rotate(-45.1954) scale(61.1242 28.1118)">
+          <stop stopColor="#6420FF" />
+          <stop offset="1" stopColor="#6420FF" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="cv-p3" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(32.7158 10.7789) rotate(66.5198) scale(62.9836 105.512)">
+          <stop stopColor="#00C4CC" stopOpacity="0.725916" />
+          <stop offset="0.0001" stopColor="#00C4CC" />
+          <stop offset="1" stopColor="#00C4CC" stopOpacity="0" />
+        </radialGradient>
+        <clipPath id="cv-clip">
+          <rect width="80" height="80" fill="white" />
+        </clipPath>
+      </defs>
     </svg>
   ),
 };
