@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import PublishMonitor from '@/components/PublishMonitor';
@@ -53,6 +53,12 @@ export default function QuickPost({
   const [types, setTypes] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /** Errors ride above the textbox: X to dismiss, auto-gone in 3s. */
+  useEffect(() => {
+    if (!err) return;
+    const t = setTimeout(() => setErr(null), 3000);
+    return () => clearTimeout(t);
+  }, [err]);
   const [confirmNow, setConfirmNow] = useState(false);
   const nowConfirmed = useRef(false);
 
@@ -263,6 +269,21 @@ export default function QuickPost({
             </div>
           ) : null}
 
+          {err ? (
+            <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDEBEC] px-3 py-2 dark:bg-[#2c1b1b]" role="alert">
+              <p className="min-w-0 flex-1 whitespace-pre-line text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">
+                {err}
+              </p>
+              <button
+                type="button"
+                onClick={() => setErr(null)}
+                aria-label="Dismiss error"
+                className="shrink-0 rounded-full p-0.5 text-[#9F2F2D] transition hover:opacity-70 dark:text-[#f2a8a8]"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+          ) : null}
           <EmojiTextarea
             value={body}
             onChange={(v) => {
@@ -275,7 +296,6 @@ export default function QuickPost({
             className="field mt-3 min-h-[84px] resize-y"
           />
 
-          {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
           {done ? <p className="mt-2 text-xs font-bold text-[#346538]">{done}</p> : null}
 
           {confirmNow ? (

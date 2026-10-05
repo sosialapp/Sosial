@@ -366,6 +366,12 @@ export default function CreatePost({
   const [monitorIds, setMonitorIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
+  /** Errors ride above the textbox: X to dismiss, auto-gone in 3s. */
+  useEffect(() => {
+    if (!err) return;
+    const t = setTimeout(() => setErr(null), 3000);
+    return () => clearTimeout(t);
+  }, [err]);
   /** Right-rail switch + template sub-switch + per-design export busy key. */
   const [rail, setRail] = useState<'template' | 'preview' | 'ai'>('ai');
   const [tplKind, setTplKind] = useState<'text' | 'design'>('text');
@@ -838,6 +844,21 @@ export default function CreatePost({
 
             {/* Part 1 — same box as every other part */}
             <div className="mt-3">
+              {err ? (
+                <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDEBEC] px-3 py-2 dark:bg-[#2c1b1b]" role="alert">
+                  <p className="min-w-0 flex-1 whitespace-pre-line text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">
+                    {err}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setErr(null)}
+                    aria-label="Dismiss error"
+                    className="shrink-0 rounded-full p-0.5 text-[#9F2F2D] transition hover:opacity-70 dark:text-[#f2a8a8]"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                  </button>
+                </div>
+              ) : null}
               <PostBox
                 seg={segs[0] ?? { body: '', media: [] }}
                 onChange={(body) => setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, body } : s)))}
@@ -899,8 +920,6 @@ export default function CreatePost({
                 ) : null}
               </div>
             ) : null}
-
-            {err ? <p className="mt-3 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
 
             {chipNote ? (
               <p className="mt-3 rounded-xl bg-[#FDF6E7] px-3 py-2 text-xs font-bold text-amber-700">
