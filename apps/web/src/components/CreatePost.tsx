@@ -513,6 +513,12 @@ export default function CreatePost({
 
   /** Reasons for chips the user STILL tried to pick (grey + blocked). */
   const [chipNote, setChipNote] = useState<string | null>(null);
+  /** Blocked-chip notes ride the same top banner: X to dismiss, gone in 3s. */
+  useEffect(() => {
+    if (!chipNote) return;
+    const t = setTimeout(() => setChipNote(null), 3000);
+    return () => clearTimeout(t);
+  }, [chipNote]);
   const chipMeta = useMemo(() => new Map(allReady.map((x) => [x.id, x])), [allReady]);
 
   function toggle(id: string) {
@@ -870,6 +876,21 @@ export default function CreatePost({
                   </button>
                 </div>
               ) : null}
+              {chipNote ? (
+                <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDF6E7] px-3 py-2 dark:bg-[#2b2417]" role="status">
+                  <p className="min-w-0 flex-1 whitespace-pre-line text-xs font-bold text-amber-700 dark:text-amber-300">
+                    {chipNote}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setChipNote(null)}
+                    aria-label="Dismiss notice"
+                    className="shrink-0 rounded-full p-0.5 text-amber-700 transition hover:opacity-70 dark:text-amber-300"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                  </button>
+                </div>
+              ) : null}
               <PostBox
                 seg={segs[0] ?? { body: '', media: [] }}
                 onChange={(body) => setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, body } : s)))}
@@ -930,12 +951,6 @@ export default function CreatePost({
                   </button>
                 ) : null}
               </div>
-            ) : null}
-
-            {chipNote ? (
-              <p className="mt-3 rounded-xl bg-[#FDF6E7] px-3 py-2 text-xs font-bold text-amber-700">
-                {chipNote}
-              </p>
             ) : null}
 
             {confirmNow ? (
