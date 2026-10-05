@@ -12,21 +12,46 @@ import { providerMeta } from '@/lib/providers';
 
 export const PREVIEWABLE = ['facebook', 'instagram', 'threads', 'x', 'bluesky'];
 
-function Head({ handle, avatarUrl, provider }: { handle: string; avatarUrl?: string; provider: string }) {
+function Head({ handle, avatarUrl, provider, verified }: { handle: string; avatarUrl?: string; provider: string; verified?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <ChannelAvatar provider={provider} avatar={avatarUrl} size={32} badge={false} />
-      <p className="truncate text-[13px] font-bold text-[#111111]">{handle}</p>
+      <p className="flex min-w-0 items-center gap-1 truncate text-[13px] font-bold text-[#111111]">
+        <span className="truncate">{handle}</span>
+        {verified ? (
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-label="Verified" className="shrink-0">
+            <circle cx="12" cy="12" r="10" fill="#1D9BF0" />
+            <path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : null}
+      </p>
     </div>
   );
 }
 
-function Body({ text }: { text: string }) {
+function Body({ text, hashtagColor }: { text: string; hashtagColor?: string }) {
   if (!text) return null;
+  const body = text.slice(0, 400) + (text.length > 400 ? '…' : '');
+  if (!hashtagColor) {
+    return (
+      <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-[#111111] [overflow-wrap:anywhere]">
+        {body}
+      </p>
+    );
+  }
+  // Hashtags ride blue, exactly like the network renders them.
+  const parts = body.split(/(#[A-Za-z0-9_]+)/g);
   return (
     <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-[#111111] [overflow-wrap:anywhere]">
-      {text.slice(0, 400)}
-      {text.length > 400 ? '…' : ''}
+      {parts.map((part, i) =>
+        /^#[A-Za-z0-9_]+$/.test(part) ? (
+          <span key={i} style={{ color: hashtagColor }}>
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
     </p>
   );
 }
@@ -145,6 +170,7 @@ export default function PostPreview({
   body,
   imageUrl,
   videoUrl,
+  verified,
 }: {
   provider: string;
   handle: string;
@@ -152,6 +178,13 @@ export default function PostPreview({
   body: string;
   imageUrl?: string;
   videoUrl?: string;
+  /**
+   * Verified badge glued right after the handle (short names pull it left
+   * with them — never a fixed offset). True when the channel metadata says
+   * verified; X also defaults on because the preview mocks the connected
+   * account itself — tighten per-account once connect flows record status.
+   */
+  verified?: boolean;
 }) {
   const meta = providerMeta(provider);
   if (!PREVIEWABLE.includes(provider)) {
@@ -191,8 +224,8 @@ export default function PostPreview({
         : ['bsky-comment', 'bsky-repost', 'bsky-heart', 'bsky-share'];
     return (
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
-        <Head handle={handle} avatarUrl={avatarUrl} provider={provider} />
-        <Body text={body} />
+        <Head handle={handle} avatarUrl={avatarUrl} provider={provider} verified={verified ?? provider === 'x'} />
+        <Body text={body} hashtagColor={provider === 'x' ? '#1D9BF0' : undefined} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
         <Actions items={icons.map((icon) => ({ icon, size: 16 }))} />
       </article>
@@ -213,8 +246,8 @@ export default function PostPreview({
   // facebook
   return (
     <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
-      <Head handle={handle} avatarUrl={avatarUrl} provider={provider} />
-      <Body text={body} />
+      <Head handle={handle} avatarUrl={avatarUrl} provider={provider} verified={verified} />
+      <Body text={body} hashtagColor="#0866FF" />
       <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
       <div className="flex items-center justify-around border-t border-line/70 px-1 pt-2 text-[#65676B]">
         <span className="flex items-center gap-1.5 text-xs font-semibold">

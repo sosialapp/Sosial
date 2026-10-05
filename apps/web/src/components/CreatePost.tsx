@@ -245,6 +245,7 @@ function RailPanel({
                       body={body}
                       imageUrl={img?.url}
                       videoUrl={vid?.url}
+                      verified={(c.metadata as { verified?: boolean } | null)?.verified}
                     />
                   </div>
                 );
