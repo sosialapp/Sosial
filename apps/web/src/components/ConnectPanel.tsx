@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import IntegrationsTab from '@/components/IntegrationsTab';
 import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
@@ -126,6 +127,8 @@ export default function ConnectPanel({
   const [query, setQuery] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncedNote, setSyncedNote] = useState<string | null>(null);
+  /** Channels publish; integrations feed the composer. Separate tabs. */
+  const [tab, setTab] = useState<'channels' | 'integrations'>('channels');
 
   /** On-demand health check: worker revalidates every token, avatars refresh,
    *  then we poll a few times while statuses land. */
@@ -735,6 +738,27 @@ export default function ConnectPanel({
         </p>
       ) : null}
 
+      <div className="flex gap-2" role="tablist" aria-label="Connect sections">
+        {(['channels', 'integrations'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+              tab === t ? 'bg-ink text-paper' : 'border border-line bg-card text-muted hover:text-ink'
+            }`}
+          >
+            {t === 'channels' ? 'Channels' : 'Integrations'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'integrations' ? (
+        <IntegrationsTab />
+      ) : (
+      <>
       <div className="mb-3 flex gap-2">
         <input
           value={query}
@@ -1330,6 +1354,8 @@ export default function ConnectPanel({
           );
         })}
       </section>
+      </>
+      )}
     </div>
   );
 }

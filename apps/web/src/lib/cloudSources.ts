@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 
 /**
  * Cloud media sources for the web composer (Drive / Photos / Dropbox).
- * Tokens live in sessionStorage (device-only — the DB never sees them);
+ * Tokens live in localStorage (this browser only — the DB never sees them);
  * code↔token swaps run through the cloud-exchange edge fn, which persists
  * nothing. Google Photos originals stream through cloud-fetch (its CDN host
  * sends no CORS headers); Drive + Dropbox download directly.
@@ -31,7 +31,7 @@ const key = (p: CloudProvider) => `sosial_cloud_${p}`;
 
 function readTokens(p: CloudProvider): Tokens | null {
   try {
-    const raw = sessionStorage.getItem(key(p));
+    const raw = localStorage.getItem(key(p));
     if (!raw) return null;
     const j = JSON.parse(raw) as Partial<Tokens>;
     if (typeof j.access !== 'string') return null;
@@ -43,7 +43,7 @@ function readTokens(p: CloudProvider): Tokens | null {
 
 function writeTokens(p: CloudProvider, t: Tokens) {
   try {
-    sessionStorage.setItem(key(p), JSON.stringify(t));
+    localStorage.setItem(key(p), JSON.stringify(t));
   } catch {}
 }
 
@@ -54,7 +54,7 @@ export function cloudConnected(p: CloudProvider): boolean {
 /** Forget a source's tokens in this browser (files untouched). */
 export function disconnectCloud(p: CloudProvider): void {
   try {
-    sessionStorage.removeItem(key(p));
+    localStorage.removeItem(key(p));
   } catch {}
 }
 

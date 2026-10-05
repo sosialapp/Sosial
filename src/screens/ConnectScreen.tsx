@@ -40,6 +40,7 @@ import { currentSession, callEdgeFunction } from '../utils/supabase';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
+import IntegrationsPanel from '../components/IntegrationsPanel';
 
 const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
 
@@ -94,6 +95,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const [syncing, setSyncing] = useState(false);
   const [selId, setSelId] = useState<Partial<Record<ProviderKey, string>>>({});
   const [acctsLoading, setAcctsLoading] = useState(true);
+  /** Channels publish; integrations feed the composer. Separate tabs. */
+  const [tab, setTab] = useState<'channels' | 'integrations'>('channels');
 
   useEffect(() => {
     // Backfill first so the push below already carries fresh pictures, then
@@ -1569,8 +1572,30 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
         <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn}>
           <Ionicons name="chevron-back" size={20} color={C.ink} />
         </TouchableOpacity>
-        <Text style={s.kicker}>Channels</Text>
+        <Text style={s.kicker}>{tab === 'channels' ? 'Channels' : 'Integrations'}</Text>
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Connect</Text>
+
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+          {(['channels', 'integrations'] as const).map((t) => (
+            <TouchableOpacity
+              key={t}
+              onPress={() => setTab(t)}
+              activeOpacity={0.75}
+              style={{
+                borderRadius: 999,
+                paddingHorizontal: 18,
+                paddingVertical: 9,
+                backgroundColor: tab === t ? C.ink : C.card,
+                borderWidth: 1,
+                borderColor: C.lineSoft,
+              }}
+            >
+              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: tab === t ? C.onInk : C.muted }}>
+                {t === 'channels' ? 'Channels' : 'Integrations'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {!isManager && cloudUser ? (
           <View style={[s.warn, { marginTop: 12 }]}>
@@ -1595,6 +1620,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           <Ionicons name="chevron-forward" size={18} color={C.faint} />
         </TouchableOpacity>
 
+        {tab === 'channels' ? (
+        <>
         {!configured ? (
           <View style={s.warn}>
             <Text style={s.warnT}>Add your Meta App ID in .env first, then reload.</Text>
@@ -1761,6 +1788,12 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
             );
           })}
         </View>
+        </>
+        ) : (
+          <View style={{ marginTop: 16 }}>
+            <IntegrationsPanel />
+          </View>
+        )}
       </ScrollView>
     </View>
   );

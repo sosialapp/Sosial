@@ -121,7 +121,7 @@ const PANEL_H = 480;
  * Add-media dropdown for the web composer (shared by composer + idea editors
  * via PostBox), anchored under the media button through a portal. Stock via
  * edge search fns; Drive/Photos/Dropbox via popup OAuth — tokens stay in
- * sessionStorage (device-only). Downloads resolve to Files for onAddFiles;
+ * localStorage (this browser only). Downloads resolve to Files for onAddFiles;
  * Unsplash items also return a credit line.
  */
 export default function MediaSourcesDialog({
