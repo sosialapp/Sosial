@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui';
@@ -1113,15 +1113,18 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
           <View style={s.helpCard}>
             <Text style={s.helpTitle}>How to connect Discord</Text>
             {[
-              'Developer Portal → app → Bot → copy token',
-              'OAuth2 URL Generator → bot scope + Send/Attach/Embed + View + History',
-              'Invite it to your server, then list servers below',
+              'Developer Portal → new app → Bot → copy token',
+              'Invite it: Guild Install + Send Messages + Read Message History',
+              'Paste token below → list servers → pick a channel or thread',
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
                 <Text style={s.helpText}>{step}</Text>
               </View>
             ))}
+            <TouchableOpacity onPress={() => Linking.openURL('https://discord.com/developers/home')} activeOpacity={0.7}>
+              <Text style={[s.helpText, { color: C.accentInk, fontWeight: '700' }]}>Open Discord Developer Portal ›</Text>
+            </TouchableOpacity>
           </View>
           {dcGuilds.length === 0 ? (
             <TouchableOpacity onPress={() => { if (needManager()) void loadDcGuilds(); }} activeOpacity={0.7} style={s.pageRow}>

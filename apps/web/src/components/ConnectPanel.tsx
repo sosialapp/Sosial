@@ -923,10 +923,17 @@ export default function ConnectPanel({
 
                   {p === 'discord' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
-                      <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth — create an app in the Developer Portal, enable the bot,
-                        invite it to your server, then paste the token.
-                      </p>
+                      <ol className="list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-muted">
+                        <li>
+                          Create an app in the{' '}
+                          <a href="https://discord.com/developers/home" target="_blank" rel="noopener" className="font-bold text-accent-ink hover:underline">
+                            Discord Developer Portal
+                          </a>{' '}
+                          → Bot → copy the token.
+                        </li>
+                        <li>Invite the bot to your server (Guild Install, Send Messages + Read Message History).</li>
+                        <li>Paste the token below, list servers, pick a channel or thread, connect.</li>
+                      </ol>
                       <input
                         value={dcToken}
                         onChange={(e) => {
