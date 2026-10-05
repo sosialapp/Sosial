@@ -143,6 +143,12 @@ export interface ComposeArgs {
    */
   targetOptions?: Record<string, Record<string, unknown>>;
   /**
+   * Per-provider format (mobile parity): 'reel'/'story' on facebook/instagram,
+   * 'ghost' on threads, etc. Written to post_targets.format; the worker picks
+   * the right publisher from it.
+   */
+  formats?: Record<string, string>;
+  /**
    * Queue lead-time check for schedule mode (mobile parity: >= 5 min).
    * createChain sets this false for 'now' chains, whose parts queue from
    * this instant by design. Defaults to true.
@@ -282,6 +288,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
         channel_id: ch.id,
         provider: ch.provider,
         caption: body.trim(),
+        format: args.formats?.[ch.provider] ?? null,
         options: { ...(args.targetOptions?.[ch.provider] ?? {}) },
         status: targetStatus,
         scheduled_at: scheduledIso,
@@ -323,6 +330,8 @@ export interface ChainArgs {
   channels: ConnectedChannel[];
   /** IANA zone the start was chosen in; defaults to the server's device zone. */
   timezone?: string;
+  /** Per-provider format for the head targets (see ComposeArgs.formats). */
+  formats?: Record<string, string>;
 }
 
 /**
@@ -379,6 +388,7 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
       // 'now' chains queue from this instant by design — no lead check.
       leadCheck: args.mode !== 'now',
       targetOptions,
+      formats: args.formats,
       channels: partChannels,
       files: seg.files,
       chainId,

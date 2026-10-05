@@ -5,10 +5,10 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import PublishMonitor from '@/components/PublishMonitor';
+import { providerMeta, postTypeOptions } from '@/lib/providers';
 import { channelAvatar } from '@/lib/channelAvatar';
 import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiTextarea } from '@/components/Emoji';
-import { providerMeta } from '@/lib/providers';
 import { createPost } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
@@ -45,8 +45,12 @@ export default function QuickPost({
   const [when, setWhen] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
+  /** Channels currently picked — drives the format pills. */
+  const chosenNow = ready.filter((c) => picked.includes(c.id));
   /** Live publish monitor (post-now). */
   const [monitorId, setMonitorId] = useState<string | null>(null);
+  /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
+  const [types, setTypes] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [confirmNow, setConfirmNow] = useState(false);
@@ -97,6 +101,7 @@ export default function QuickPost({
         mode,
         scheduleIso: mode === 'schedule' ? when : null,
         channels: chosen,
+        formats: types,
         files: [],
         timezone: tz,
       });
@@ -225,6 +230,38 @@ export default function QuickPost({
               );
             })}
           </div>
+
+          {/* Per-channel format pills (post/reel/story/ghost…) */}
+          {chosenNow.some((c) => postTypeOptions(c.provider).length > 1) ? (
+            <div className="mt-3 space-y-1.5">
+              {chosenNow
+                .filter((c) => postTypeOptions(c.provider).length > 1)
+                .map((c) => (
+                  <div key={c.id} className="flex items-center gap-2">
+                    <span className="w-20 shrink-0 truncate text-[11px] font-bold text-muted">
+                      {providerMeta(c.provider).label}
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {postTypeOptions(c.provider).map((o) => {
+                        const active = (types[c.provider] ?? postTypeOptions(c.provider)[0].id) === o.id;
+                        return (
+                          <button
+                            key={o.id}
+                            type="button"
+                            onClick={() => setTypes((prev) => ({ ...prev, [c.provider]: o.id }))}
+                            className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${
+                              active ? 'bg-ink text-paper' : 'border border-line text-muted hover:text-ink'
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : null}
 
           <EmojiTextarea
             value={body}

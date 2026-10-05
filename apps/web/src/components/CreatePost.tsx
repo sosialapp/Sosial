@@ -14,7 +14,7 @@ import DateTimePicker from '@/components/DateTimePicker';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
-import { providerMeta } from '@/lib/providers';
+import { providerMeta, postTypeOptions } from '@/lib/providers';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
@@ -353,6 +353,8 @@ export default function CreatePost({
     return ready.map((c) => c.id);
   });
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
+  /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
+  const [types, setTypes] = useState<Record<string, string>>({});
   const [parts, setParts] = useState(() => Math.max(3, initParts?.length ?? 3));
   const [mode, setMode] = useState<'now' | 'schedule'>('now');
   const [whenIso, setWhenIso] = useState<string | null>(
@@ -446,6 +448,8 @@ export default function CreatePost({
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
     [ready, picked],
   );
+  /** Channels currently picked — drives the format pills. */
+  const chosenNow = useMemo(() => ready.filter((c) => picked.includes(c.id)), [ready, picked]);
   const limit = useMemo(() => {
     const ls = ready.filter((c) => picked.includes(c.id)).map((c) => providerMeta(c.provider).limit);
     return ls.length ? Math.min(...ls) : 2200;
@@ -637,6 +641,7 @@ export default function CreatePost({
           mode: submitMode,
           scheduleIso: submitMode === 'schedule' ? whenIso : null,
           channels: chosen,
+          formats: types,
           files: s0.media
             .filter((m): m is MediaItem & { file: File } => Boolean(m.file))
             .map(({ file, kind }) => ({ file, kind })),
@@ -657,6 +662,7 @@ export default function CreatePost({
           startIso: submitMode === 'schedule' ? whenIso : null,
           gapMinutes: 0,
           channels: chosen,
+          formats: types,
         });
       }
       // Draft edit: the replacement saved — retire the original rows, then
@@ -796,6 +802,38 @@ export default function CreatePost({
                 <BranchIcon className="h-3 w-3" />
                 Thread posts go to X, Threads, Mastodon and Bluesky — parts publish as one reply chain.
               </p>
+            ) : null}
+
+            {/* Per-channel format pills (post/reel/story/ghost…) */}
+            {chosenNow.some((c) => postTypeOptions(c.provider).length > 1) ? (
+              <div className="mt-3 space-y-1.5">
+                {chosenNow
+                  .filter((c) => postTypeOptions(c.provider).length > 1)
+                  .map((c) => (
+                    <div key={c.id} className="flex items-center gap-2">
+                      <span className="w-24 shrink-0 truncate text-[11px] font-bold text-muted">
+                        {providerMeta(c.provider).label}
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {postTypeOptions(c.provider).map((o) => {
+                          const active = (types[c.provider] ?? postTypeOptions(c.provider)[0].id) === o.id;
+                          return (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => setTypes((prev) => ({ ...prev, [c.provider]: o.id }))}
+                              className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${
+                                active ? 'bg-ink text-paper' : 'border border-line text-muted hover:text-ink'
+                              }`}
+                            >
+                              {o.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             ) : null}
 
             {/* Part 1 — same box as every other part */}

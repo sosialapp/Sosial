@@ -49,6 +49,40 @@ export function providerMeta(p: string): ProviderInfo {
 /** Every channel Sosial publishes to, in marketing order. */
 export const ALL_PROVIDERS = Object.keys(PROVIDER_META) as ProviderKey[];
 
+/**
+ * Per-channel post formats (mobile parity — managed.ts POST_TYPE_OPTIONS).
+ * Channels with more than one option get a picker in the composer; the choice
+ * lands in post_targets.format and the worker picks the publisher from it.
+ */
+export const POST_TYPE_OPTIONS: Partial<Record<ProviderKey, { id: string; label: string }[]>> = {
+  facebook: [
+    { id: 'post', label: 'Post' },
+    { id: 'reel', label: 'Reel' },
+    { id: 'story', label: 'Story' },
+  ],
+  instagram: [
+    { id: 'post', label: 'Post' },
+    { id: 'reel', label: 'Reel' },
+    { id: 'story', label: 'Story' },
+  ],
+  threads: [
+    { id: 'post', label: 'Post' },
+    { id: 'ghost', label: 'Ghost post' },
+  ],
+  tiktok: [
+    { id: 'video', label: 'Video' },
+    { id: 'photo', label: 'Photo' },
+  ],
+  youtube: [
+    { id: 'video', label: 'Video' },
+    { id: 'short', label: 'Short' },
+  ],
+};
+
+export function postTypeOptions(p: string): { id: string; label: string }[] {
+  return (POST_TYPE_OPTIONS as Record<string, { id: string; label: string }[]>)[p] ?? [{ id: 'post', label: 'Post' }];
+}
+
 export const POST_STATUS_META: Record<PostStatus, { label: string; className: string }> = {
   draft: { label: 'Draft', className: 'bg-surface text-soft' },
   approval: { label: 'Needs approval', className: 'bg-accent-soft text-accent-ink' },
