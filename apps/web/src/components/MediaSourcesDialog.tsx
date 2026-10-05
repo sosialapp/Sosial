@@ -296,23 +296,38 @@ export default function MediaSourcesDialog({
       if (!pop) throw new Error('Allow popups for this site, then try again.');
       const deadline = Date.now() + 5 * 60 * 1000;
       let done = false;
+      let lastPollErr: string | null = null;
       for (;;) {
         await new Promise((r) => setTimeout(r, 2500));
-        if (pop.closed) break;
+        let closed = false;
+        try {
+          closed = pop.closed;
+        } catch {}
         try {
           if (await photosSessionDone(session.id)) {
             done = true;
             break;
           }
-        } catch {
-          break;
+          lastPollErr = null;
+        } catch (e) {
+          lastPollErr = e instanceof Error ? e.message : 'Poll failed.';
         }
-        if (Date.now() > deadline) break;
+        if (closed || Date.now() > deadline) break;
       }
       try {
         pop.close();
       } catch {}
+      // Grace: Done sometimes lands a beat after the popup closes.
       if (!done) {
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          done = await photosSessionDone(session.id);
+        } catch (e) {
+          lastPollErr = e instanceof Error ? e.message : 'Poll failed.';
+        }
+      }
+      if (!done) {
+        if (lastPollErr) throw new Error(lastPollErr);
         setErr('Nothing was picked — open the picker and choose at least one photo.');
         return;
       }

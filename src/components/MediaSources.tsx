@@ -123,6 +123,7 @@ export default function MediaSources({
       } catch {}
       const deadline = Date.now() + 5 * 60 * 1000;
       let done = false;
+      let lastPollErr: string | null = null;
       for (;;) {
         await new Promise((r) => setTimeout(r, 2500));
         try {
@@ -130,12 +131,23 @@ export default function MediaSources({
             done = true;
             break;
           }
-        } catch {
-          break;
+          lastPollErr = null;
+        } catch (e: any) {
+          lastPollErr = e?.message ?? 'Poll failed.';
         }
         if (Date.now() > deadline) break;
       }
+      // Grace: Done sometimes lands a beat after the UI closes.
       if (!done) {
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          done = await photosSessionDone(session.id);
+        } catch (e: any) {
+          lastPollErr = e?.message ?? 'Poll failed.';
+        }
+      }
+      if (!done) {
+        if (lastPollErr) throw new Error(lastPollErr);
         Alert.alert('Nothing picked', 'Open the picker and choose at least one photo, then come back.');
         return;
       }
