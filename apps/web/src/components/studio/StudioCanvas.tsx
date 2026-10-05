@@ -251,7 +251,10 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           {c.watermark ? <Watermark font={c.font} size={8} color={c.faint} k={k} /> : null}
           <span style={{ flex: 1 }} />
           {/* Official Threads wordmark (1922×375.61 art normalized into a
-              wide box) — currentColor, theme-aware. */}
+              wide box) — currentColor, theme-aware. The glyphs ride high in
+              their viewBox, so nudge down into optical alignment with the
+              handle baseline. */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, transform: `translateY(${1.1 * k}px)` }}>
           <svg width={40 * k} height={8 * k} viewBox="0 0 1922 375.61" style={{ display: 'block', flexShrink: 0 }} aria-hidden="true">
             <g fill={c.ink}>
               <path d="M267.15,173.74c-.47-54.26-29.88-86.96-79.57-86.96-33.17,0-61.06,15-75.71,38.91l32.11,22.38c8.32-13.13,19.81-24.03,40.9-24.03,23.79,0,36.1,13.24,39.61,37.85-11.49-1.76-22.97-2.7-34.81-2.7-64.22,0-94.46,29.06-94.46,67.5s30.24,62.11,74.77,62.11c48.87,0,78.05-32.93,90.01-73.71,12.42,5.62,20.98,18.75,20.98,38.44,0,52.74-60.82,81.45-112.39,81.45-76.06,0-125.75-49.92-125.75-131.14,0-99.5,65.75-163.25,154.11-163.25,59.3,0,88.6,26.02,108.52,60.94l32.82-22.97C316.61,33.34,268.2,1,195.54,1,79.75,1,1,83.15,1,202.34c0,108.99,77.11,172.28,168.99,172.28,75.94,0,152.71-44.3,152.71-120.12,0-39.61-22.74-65.86-55.55-80.75h0ZM168.59,249.33c-16.76,0-31.52-7.97-31.52-22.62,0-23.09,28.36-30.12,56.14-30.12,10.55,0,20.86.7,30,2.7-6.56,30-26.02,50.04-54.61,50.04h0Z" />
@@ -264,6 +267,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
               <path d="M1700.56,40.49l-19.22,109.23c-5.51-27.89-29.42-53.68-74.18-53.68-69.38,0-119.89,60.94-119.89,137,0,63.4,37.85,105.71,91.3,105.71,28.13,0,43.95-12.77,54.96-25.2l23.67-26.84-8.44,48.4h56.84l51.68-294.63h-56.72ZM1601.65,292.23c-30.24,0-55.55-18.99-55.55-63.4,0-40.2,19.92-88.83,68.68-88.83,31.17,0,55.55,19.1,55.55,63.4s-23.56,88.83-68.68,88.83Z" />
             </g>
           </svg>
+          </span>
         </div>
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
@@ -496,7 +500,7 @@ function Watermark(props: { font: FontId; size: number; color: string; k: number
         Made with
       </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/bolt.png" alt="" data-embed width={Math.round(props.size * props.k * 1.15)} height={Math.round(props.size * props.k * 1.15)} />
+      <img src="/bolt.png" alt="" data-embed style={{ display: 'block' }} width={Math.round(props.size * props.k * 1.15)} height={Math.round(props.size * props.k * 1.15)} />
       <span style={{ ...ff(props.font, true), fontSize: props.size * props.k, color: props.color, lineHeight: 1 }}>
         sosial.app
       </span>
