@@ -601,10 +601,10 @@ export async function listCanvaDesigns(folderId?: string, query?: string): Promi
 export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | 'video', onProgress?: (pct: number) => void): Promise<File> {
   const token = await getValidCloudToken('canva');
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-  const start = await fetch(`${CANVA_API}/designs/${encodeURIComponent(d.id)}/exports`, {
+  const start = await fetch(`${CANVA_API}/exports`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ format: kind === 'video' ? { type: 'mp4' } : { type: 'jpg' } }),
+    body: JSON.stringify({ design_id: d.id, format: { type: kind === 'video' ? 'mp4' : 'jpg' } }),
   });
   const sj: any = await start.json().catch(() => ({}));
   if (!start.ok) throw new Error(sj?.message ?? `Canva refused the export (HTTP ${start.status}).`);
@@ -613,7 +613,7 @@ export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | '
   const deadline = Date.now() + 90000;
   for (;;) {
     await new Promise((r) => setTimeout(r, 2500));
-    const pr = await fetch(`${CANVA_API}/designs/${encodeURIComponent(d.id)}/exports/${encodeURIComponent(jobId)}`, { headers });
+    const pr = await fetch(`${CANVA_API}/exports/${encodeURIComponent(jobId)}`, { headers });
     const pj: any = await pr.json().catch(() => ({}));
     if (!pr.ok) throw new Error(pj?.message ?? `Canva lost the export (HTTP ${pr.status}).`);
     const status = String(pj?.job?.status ?? '');
