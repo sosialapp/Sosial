@@ -577,7 +577,7 @@ export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | '
   const start = await fetch(`${CANVA_API}/exports`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ design_id: d.id, format: kind === 'video' ? { type: 'mp4' } : { type: 'jpg', quality: 90 } }),
+    body: JSON.stringify({ design_id: d.id, format: kind === 'video' ? { type: 'mp4' } : { type: 'jpg', quality: 100 } }),
   });
   const sj: any = await start.json().catch(() => ({}));
   if (!start.ok) throw new Error(sj?.message ?? `Canva refused the export (HTTP ${start.status}).`);
