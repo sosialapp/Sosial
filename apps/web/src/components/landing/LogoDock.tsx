@@ -84,45 +84,47 @@ export default function LogoDock() {
   return (
     <section aria-label="Channels and integrations" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-12 md:pt-16">
-        <div className="flex flex-col items-stretch justify-center gap-4 md:flex-row md:items-stretch">
-          {/* Integrate — media sources that feed the composer */}
-          <div className="flex flex-col rounded-[28px] border border-line bg-white/70 px-8 py-5 backdrop-blur-sm">
-            <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
-              Integrate
-            </p>
-            <div
-              ref={toolsRef}
-              className="flex flex-1 flex-wrap items-end justify-center gap-3 sm:gap-4"
-            >
-              {INTEGRATIONS.map((t) => (
-                <span key={t} className="block shrink-0 will-change-transform" title={t}>
-                  <SourceMark id={t} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Divider: vertical on desktop, horizontal on mobile */}
-          <div className="mx-auto h-px w-24 bg-line md:mx-0 md:h-auto md:w-px md:self-stretch" aria-hidden="true" />
-
-          {/* Channels — where posts land */}
-          <div className="flex flex-col rounded-[28px] border border-line bg-white/70 px-8 py-5 backdrop-blur-sm">
-            <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
-              Channels
-            </p>
-            {/* Two centered rows everywhere (10 + 9 on desktop): a single strip of
-                19 never fit gracefully. The hover dock still works on wrapped
-                rows; touch and reduced-motion stay static. */}
-            <div className="flex justify-center">
+        <div className="flex justify-center">
+          <div className="flex flex-col items-stretch gap-4 rounded-[28px] border border-line bg-white/70 px-8 py-5 backdrop-blur-sm md:flex-row md:items-center">
+            {/* Integrate — media sources that feed the composer */}
+            <div className="flex flex-col">
+              <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
+                Integrate
+              </p>
               <div
-                ref={channelsRef}
-                className="flex max-w-[688px] flex-wrap items-end justify-center gap-3 sm:gap-4"
+                ref={toolsRef}
+                className="flex flex-wrap items-end justify-center gap-3 sm:gap-4"
               >
-                {CHANNELS.map((c) => (
-                  <span key={c} className="block shrink-0 will-change-transform">
-                    <BrandIcon provider={c} className="h-9 w-9 sm:h-12 sm:w-12" />
+                {INTEGRATIONS.map((t) => (
+                  <span key={t} className="block shrink-0 will-change-transform" title={t}>
+                    <SourceMark id={t} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
+              </div>
+            </div>
+
+            {/* Divider: vertical on desktop, horizontal on mobile */}
+            <div className="mx-auto h-px w-24 shrink-0 bg-line md:mx-0 md:h-24 md:w-px md:self-center" aria-hidden="true" />
+
+            {/* Channels — where posts land */}
+            <div className="flex flex-col">
+              <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
+                Channels
+              </p>
+              {/* Two centered rows everywhere (10 + 9 on desktop): a single strip of
+                  19 never fit gracefully. The hover dock still works on wrapped
+                  rows; touch and reduced-motion stay static. */}
+              <div className="flex justify-center">
+                <div
+                  ref={channelsRef}
+                  className="flex max-w-[688px] flex-wrap items-end justify-center gap-3 sm:gap-4"
+                >
+                  {CHANNELS.map((c) => (
+                    <span key={c} className="block shrink-0 will-change-transform">
+                      <BrandIcon provider={c} className="h-9 w-9 sm:h-12 sm:w-12" />
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
