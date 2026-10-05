@@ -531,40 +531,6 @@ export default function MediaSources({
                 <Text style={s.creditNote}>Photographer credit is added to your caption automatically.</Text>
               ) : null}
 
-              {source === 'drive' && folders.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 8 }}>
-                  {folderStack.length > 0 ? (
-                    <TouchableOpacity
-                      onPress={() => {
-                        const next = folderStack.slice(0, -1);
-                        setFolderStack(next);
-                        setQuery('');
-                        void loadDrive(next.length ? next[next.length - 1].id : undefined);
-                      }}
-                      style={s.folderChip}
-                    >
-                      <Ionicons name="arrow-up" size={13} color={C.accentInk} />
-                      <Text style={s.folderT}>Up</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  {folders.map((f) => (
-                    <TouchableOpacity
-                      key={f.id}
-                      onPress={() => {
-                        const next = [...folderStack, f];
-                        setFolderStack(next);
-                        setQuery('');
-                        void loadDrive(f.id);
-                      }}
-                      style={s.folderChip}
-                    >
-                      <Ionicons name="folder" size={13} color={C.accentInk} />
-                      <Text style={s.folderT} numberOfLines={1}>{f.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              ) : null}
-
               {source === 'dropbox' && dbxFolders.length > 0 && !query.trim() ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 8 }}>
                   {dbxStack.length > 0 ? (
