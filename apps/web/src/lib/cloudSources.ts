@@ -51,6 +51,13 @@ export function cloudConnected(p: CloudProvider): boolean {
   return !!readTokens(p)?.access;
 }
 
+/** Forget a source's tokens in this browser (files untouched). */
+export function disconnectCloud(p: CloudProvider): void {
+  try {
+    sessionStorage.removeItem(key(p));
+  } catch {}
+}
+
 async function authedInvoke(fn: string, body: Record<string, unknown>) {
   const sb = await createClient();
   const { data, error } = await sb.functions.invoke(fn, { body });

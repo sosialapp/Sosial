@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { ImagePlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
-  cloudConnected, loginCloud, getValidCloudToken, invokeStock,
+  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
   listGooglePhotos, downloadGooglePhoto, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
@@ -262,6 +262,15 @@ export default function MediaSourcesDialog({
     }
   };
 
+  const disconnectSource = () => {
+    if (!source || !isCloud) return;
+    const provider = source === 'dropbox' ? 'dropbox' : source === 'canva' ? 'canva' : 'google';
+    if (!window.confirm(`Disconnect ${label}? This forgets the login in this browser. Your files stay untouched.`)) return;
+    disconnectCloud(provider);
+    setAuthed(false);
+    reset();
+  };
+
   const connect = async () => {
     if (!source || connecting) return;
     const provider = source === 'dropbox' ? 'dropbox' : source === 'canva' ? 'canva' : 'google';
@@ -448,13 +457,24 @@ export default function MediaSourcesDialog({
         style={flip ? { left, bottom: window.innerHeight - (a?.bottom ?? 0) + 8 } : { left, top: below }}
       >
         {source ? (
-          <button
-            type="button"
-            onClick={() => { setSource(null); reset(); }}
-            className="flex w-full shrink-0 items-center gap-1 border-b border-line-soft px-3 py-2 text-left text-xs font-bold text-accent-ink hover:bg-paper-dim"
-          >
-            ‹ {label}
-          </button>
+          <div className="flex shrink-0 items-center justify-between border-b border-line-soft">
+            <button
+              type="button"
+              onClick={() => { setSource(null); reset(); }}
+              className="flex items-center gap-1 px-3 py-2 text-left text-xs font-bold text-accent-ink hover:bg-paper-dim"
+            >
+              ‹ {label}
+            </button>
+            {isCloud && authed ? (
+              <button
+                type="button"
+                onClick={disconnectSource}
+                className="px-3 py-2 text-xs font-bold text-muted hover:text-ink"
+              >
+                Disconnect
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">

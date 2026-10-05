@@ -56,6 +56,13 @@ export async function dropboxConnected(): Promise<boolean> {
   return !!t?.refreshToken;
 }
 
+/** Forget Dropbox tokens on this device. */
+export async function disconnectDropbox(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(STORE_KEY);
+  } catch {}
+}
+
 /** System-browser consent; returns true when Dropbox redirected back. */
 export async function loginDropbox(): Promise<boolean> {
   const url =

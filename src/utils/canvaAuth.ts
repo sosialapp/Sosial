@@ -63,6 +63,13 @@ export async function canvaConnected(): Promise<boolean> {
   return !!t?.refreshToken;
 }
 
+/** Forget Canva tokens on this device. */
+export async function disconnectCanva(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(STORE_KEY);
+  } catch {}
+}
+
 /** System-browser consent; returns true when Canva redirected back. */
 export async function loginCanva(): Promise<boolean> {
   const clientId = CLIENT_ID;

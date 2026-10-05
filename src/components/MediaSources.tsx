@@ -7,16 +7,16 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette } from '../theme';
 import { searchStock, downloadStockItem, unsplashCredit, type StockItem } from '../utils/stockMedia';
 import {
-  filesConnected, loginGoogleFiles,
+  filesConnected, loginGoogleFiles, disconnectGoogleFiles,
   listDriveFiles, listDriveFolders, downloadDriveFile, type DriveFile,
   listGooglePhotos, downloadPhotosItem, type PhotosItem,
 } from '../utils/driveAuth';
 import {
-  dropboxConnected, loginDropbox,
+  dropboxConnected, loginDropbox, disconnectDropbox,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type DropboxEntry,
 } from '../utils/dropboxAuth';
 import {
-  canvaConnected, loginCanva,
+  canvaConnected, loginCanva, disconnectCanva,
   listCanvaDesigns, downloadCanvaDesign, type CanvaDesign,
 } from '../utils/canvaAuth';
 
@@ -338,6 +338,32 @@ export default function MediaSources({
     setCanvaAuthed(false);
   };
 
+  const disconnectSource = () => {
+    if (!source) return;
+    const name = LABEL[source];
+    Alert.alert(`Disconnect ${name}?`, 'This forgets the login on this device. Your files stay untouched.', [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Disconnect',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            if (source === 'dropbox') {
+              await disconnectDropbox();
+              setDbxAuthed(false);
+            } else if (source === 'canva') {
+              await disconnectCanva();
+              setCanvaAuthed(false);
+            } else {
+              await disconnectGoogleFiles();
+              setFilesAuthed(false);
+            }
+          } catch {}
+        },
+      },
+    ]);
+  };
+
   const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva';
   const cloudAuthed = source === 'dropbox' ? dbxAuthed : source === 'canva' ? canvaAuthed : filesAuthed;
 
@@ -392,10 +418,17 @@ export default function MediaSources({
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={goBack} style={s.back}>
-            <Ionicons name="chevron-back" size={16} color={C.accentInk} />
-            <Text style={s.backT}>{LABEL[source]}</Text>
-          </TouchableOpacity>
+          <View style={s.sourceHead}>
+            <TouchableOpacity onPress={goBack} style={s.back}>
+              <Ionicons name="chevron-back" size={16} color={C.accentInk} />
+              <Text style={s.backT}>{LABEL[source]}</Text>
+            </TouchableOpacity>
+            {isCloud && cloudAuthed ? (
+              <TouchableOpacity onPress={disconnectSource} hitSlop={8}>
+                <Text style={s.disconnectT}>Disconnect</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
           {isCloud && !cloudAuthed ? (
             <View style={s.connectBox}>
@@ -733,7 +766,9 @@ const makeS = (C: Palette) => StyleSheet.create({
   tileT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink },
   tileS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 },
   soonBadge: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.faint, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10, alignSelf: 'flex-start' },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  sourceHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  disconnectT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   backT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.accentInk },
   connectBox: { alignItems: 'center', paddingVertical: 28, gap: 6 },
   connectT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink, textAlign: 'center' },

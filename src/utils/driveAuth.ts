@@ -53,6 +53,13 @@ export async function filesConnected(): Promise<boolean> {
   return !!t?.refreshToken;
 }
 
+/** Forget Google Drive/Photos tokens on this device. */
+export async function disconnectGoogleFiles(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(STORE_KEY);
+  } catch {}
+}
+
 /** System-browser consent; returns true when the provider redirected back. */
 export async function loginGoogleFiles(): Promise<boolean> {
   const url =
