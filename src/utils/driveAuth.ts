@@ -12,6 +12,7 @@ import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system/legacy';
 import { YT_CLIENT_ID, YT_CLIENT_SECRET, YT_AUTH_ENDPOINT, YT_TOKEN_ENDPOINT } from './ytConfig';
 import { BRIDGE_URL, appReturnUrl } from './metaAuth';
+import { callEdgeFunction } from './supabase';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly'];
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -52,10 +53,25 @@ export async function filesConnected(): Promise<boolean> {
   return !!t?.refreshToken;
 }
 
-/** Forget Google Drive/Photos tokens on this device. */
+/** Push tokens to the cloud so the connection follows the user's account. */
+async function syncCloud(provider: string, t: StoredTokens): Promise<void> {
+  try {
+    await callEdgeFunction('media-integration', {
+      provider,
+      access_token: t.accessToken,
+      refresh_token: t.refreshToken,
+      expires_in: Math.max(60, Math.round((t.expiresAt - Date.now()) / 1000)),
+    });
+  } catch {}
+}
+
+/** Forget Google Drive/Photos tokens here + in the cloud. */
 export async function disconnectGoogleFiles(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(STORE_KEY);
+  } catch {}
+  try {
+    await callEdgeFunction('media-integration', { provider: 'google', remove: true });
   } catch {}
 }
 
@@ -109,6 +125,7 @@ async function exchangeGoogleFilesCode(code: string): Promise<StoredTokens> {
     expiresAt: Date.now() + Number(j.expires_in ?? 3600) * 1000,
   };
   await writeStored(t);
+  void syncCloud('google', t);
   return t;
 }
 
@@ -116,9 +133,23 @@ async function exchangeGoogleFilesCode(code: string): Promise<StoredTokens> {
 export async function getValidGoogleFilesToken(): Promise<string> {
   const t = await readStored();
   if (t && t.expiresAt > Date.now() + 60000 && t.accessToken) return t.accessToken;
-  if (!t?.refreshToken) throw new Error('Connect Google Drive / Photos first.');
+  if (!t?.refreshToken) {
+    // Cloud fallback: another device may have connected this source.
+    try {
+      const j: any = await callEdgeFunction('media-integration', { provider: 'google', status: true });
+      if (j?.connected && j.access_token && j.refresh_token) {
+        const restored: StoredTokens = {
+          accessToken: String(j.access_token),
+          refreshToken: String(j.refresh_token),
+          expiresAt: Date.now() + 60_000,
+        };
+        await writeStored(restored);
+        return restored.accessToken;
+      }
+    } catch {}
+    throw new Error('Connect Google Drive / Photos first.');
+  }
   const r = await fetch(YT_TOKEN_ENDPOINT, {
-    method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: qs({
       grant_type: 'refresh_token',

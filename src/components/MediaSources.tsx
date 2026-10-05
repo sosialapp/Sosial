@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette } from '../theme';
+import SourceMark, { type SourceMarkId } from './SourceMarks';
 import { searchStock, downloadStockItem, unsplashCredit, type StockItem } from '../utils/stockMedia';
 import {
   filesConnected, loginGoogleFiles, disconnectGoogleFiles,
@@ -28,12 +29,12 @@ export interface SourceAttachment {
 
 type Source = 'unsplash' | 'drive' | 'gphotos' | 'dropbox' | 'canva';
 
-const SOURCES: { id: Source; label: string; icon: string; note: string }[] = [
-  { id: 'drive', label: 'Google Drive', icon: 'folder-outline', note: 'Your files + shared folders' },
-  { id: 'gphotos', label: 'Google Photos', icon: 'images-outline', note: 'Your photo library' },
-  { id: 'dropbox', label: 'Dropbox', icon: 'cloud-outline', note: 'Your Dropbox files' },
-  { id: 'canva', label: 'Canva', icon: 'color-palette-outline', note: 'Your designs, exported to post' },
-  { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', note: 'Photos · credit auto-added' },
+const SOURCES: { id: Source; label: string; icon: string; mark: SourceMarkId; note: string }[] = [
+  { id: 'drive', label: 'Google Drive', icon: 'folder-outline', mark: 'drive', note: 'Your files + shared folders' },
+  { id: 'gphotos', label: 'Google Photos', icon: 'images-outline', mark: 'gphotos', note: 'Your photo library' },
+  { id: 'dropbox', label: 'Dropbox', icon: 'cloud-outline', mark: 'dropbox', note: 'Your Dropbox files' },
+  { id: 'canva', label: 'Canva', icon: 'color-palette-outline', mark: 'canva', note: 'Your designs, exported to post' },
+  { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', mark: 'unsplash', note: 'Photos · credit auto-added' },
 ];
 
 /** Not yet wired — shown greyed so the drawer mirrors the full roadmap. */
@@ -435,7 +436,7 @@ export default function MediaSources({
           </TouchableOpacity>
           {SOURCES.map((src) => (
             <TouchableOpacity key={src.id} onPress={() => openSource(src.id)} activeOpacity={0.75} style={s.tile}>
-              <Ionicons name={src.icon as any} size={22} color={C.accentInk} />
+              <SourceMark id={src.mark} size={22} color={C.ink} />
               <View style={{ flex: 1 }}>
                 <Text style={s.tileT}>{src.label}</Text>
                 <Text style={s.tileS}>{src.note}</Text>

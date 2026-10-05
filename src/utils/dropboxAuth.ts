@@ -9,6 +9,19 @@ import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import * as FileSystem from 'expo-file-system/legacy';
 import { BRIDGE_URL, appReturnUrl } from './metaAuth';
+import { callEdgeFunction } from './supabase';
+
+/** Push tokens to the cloud so the connection follows the user's account. */
+async function syncCloud(provider: string, t: { accessToken: string; refreshToken: string; expiresAt: number }): Promise<void> {
+  try {
+    await callEdgeFunction('media-integration', {
+      provider,
+      access_token: t.accessToken,
+      refresh_token: t.refreshToken,
+      expires_in: Math.max(60, Math.round((t.expiresAt - Date.now()) / 1000)),
+    });
+  } catch {}
+}
 
 /** Public identifier (appears in authorize URLs by design). */
 const APP_KEY = process.env.EXPO_PUBLIC_DROPBOX_APP_KEY ?? '';
@@ -56,10 +69,13 @@ export async function dropboxConnected(): Promise<boolean> {
   return !!t?.refreshToken;
 }
 
-/** Forget Dropbox tokens on this device. */
+/** Forget Dropbox tokens here + in the cloud. */
 export async function disconnectDropbox(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(STORE_KEY);
+  } catch {}
+  try {
+    await callEdgeFunction('media-integration', { provider: 'dropbox', remove: true });
   } catch {}
 }
 
@@ -112,6 +128,7 @@ async function exchangeDropboxCode(code: string): Promise<StoredTokens> {
     expiresAt: Date.now() + Number(j.expires_in ?? 14400) * 1000,
   };
   await writeStored(t);
+  void syncCloud('dropbox', t);
   return t;
 }
 
@@ -119,7 +136,21 @@ async function exchangeDropboxCode(code: string): Promise<StoredTokens> {
 export async function getValidDropboxToken(): Promise<string> {
   const t = await readStored();
   if (t && t.expiresAt > Date.now() + 60000 && t.accessToken) return t.accessToken;
-  if (!t?.refreshToken) throw new Error('Connect Dropbox first.');
+  if (!t?.refreshToken) {
+    try {
+      const j: any = await callEdgeFunction('media-integration', { provider: 'dropbox', status: true });
+      if (j?.connected && j.access_token && j.refresh_token) {
+        const restored: StoredTokens = {
+          accessToken: String(j.access_token),
+          refreshToken: String(j.refresh_token),
+          expiresAt: Date.now() + 60_000,
+        };
+        await writeStored(restored);
+        return restored.accessToken;
+      }
+    } catch {}
+    throw new Error('Connect Dropbox first.');
+  }
   const r = await fetch(TOKEN_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

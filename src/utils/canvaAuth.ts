@@ -63,10 +63,25 @@ export async function canvaConnected(): Promise<boolean> {
   return !!t?.refreshToken;
 }
 
-/** Forget Canva tokens on this device. */
+/** Push tokens to the cloud so the connection follows the user's account. */
+async function syncCloud(t: { accessToken: string; refreshToken: string; expiresAt: number }): Promise<void> {
+  try {
+    await callEdgeFunction('media-integration', {
+      provider: 'canva',
+      access_token: t.accessToken,
+      refresh_token: t.refreshToken,
+      expires_in: Math.max(60, Math.round((t.expiresAt - Date.now()) / 1000)),
+    });
+  } catch {}
+}
+
+/** Forget Canva tokens here + in the cloud. */
 export async function disconnectCanva(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(STORE_KEY);
+  } catch {}
+  try {
+    await callEdgeFunction('media-integration', { provider: 'canva', remove: true });
   } catch {}
 }
 
@@ -133,6 +148,7 @@ async function exchangeCanvaCode(code: string, verifier: string): Promise<Stored
   const t = toTokens(j, '');
   if (!t.refreshToken) throw new Error('Canva did not return a lasting login — try again.');
   await writeStored(t);
+  void syncCloud(t);
   return t;
 }
 
@@ -140,7 +156,21 @@ async function exchangeCanvaCode(code: string, verifier: string): Promise<Stored
 export async function getValidCanvaToken(): Promise<string> {
   const t = await readStored();
   if (t && t.expiresAt > Date.now() + 60000 && t.accessToken) return t.accessToken;
-  if (!t?.refreshToken) throw new Error('Connect Canva first.');
+  if (!t?.refreshToken) {
+    try {
+      const j: any = await callEdgeFunction('media-integration', { provider: 'canva', status: true });
+      if (j?.connected && j.access_token && j.refresh_token) {
+        const restored: { accessToken: string; refreshToken: string; expiresAt: number } = {
+          accessToken: String(j.access_token),
+          refreshToken: String(j.refresh_token),
+          expiresAt: Date.now() + 60_000,
+        };
+        await writeStored(restored);
+        return restored.accessToken;
+      }
+    } catch {}
+    throw new Error('Connect Canva first.');
+  }
   const j: any = await callEdgeFunction('cloud-exchange', {
     provider: 'canva',
     refresh_token: t.refreshToken,

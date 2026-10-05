@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { BRAND_MARKS, LOCAL_ICON } from '@/components/SourceMarks';
 import { createClient } from '@/lib/supabase/client';
 import {
-  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud, fetchProgressBlob,
+  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud, ensureCloudSynced, disconnectCloudEverywhere, fetchProgressBlob,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
   createPhotosSession, photosSessionDone, listPickedPhotos, downloadPickedPhoto, pickerThumbUrl, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
@@ -173,13 +173,17 @@ export default function MediaSourcesDialog({
     }
   };
 
-  const openSource = (id: Source) => {
+  const openSource = async (id: Source) => {
     reset();
     setSource(id);
     if (id === 'unsplash') setType('photo');
     if (id === 'drive' || id === 'gphotos' || id === 'dropbox' || id === 'canva') {
       const provider = id === 'dropbox' ? 'dropbox' : id === 'canva' ? 'canva' : 'google';
-      if (!cloudConnected(provider)) return;
+      // Local first, then the user's cloud connection (connect-once-anywhere).
+      if (!cloudConnected(provider)) {
+        const synced = await ensureCloudSynced(provider).catch(() => false);
+        if (!synced) return;
+      }
       setAuthed(true);
       void loadCloud(id);
     }
@@ -188,8 +192,8 @@ export default function MediaSourcesDialog({
   const disconnectSource = () => {
     if (!source || !isCloud) return;
     const provider = source === 'dropbox' ? 'dropbox' : source === 'canva' ? 'canva' : 'google';
-    if (!window.confirm(`Disconnect ${label}? This forgets the login in this browser. Your files stay untouched.`)) return;
-    disconnectCloud(provider);
+    if (!window.confirm(`Disconnect ${label}? This forgets the login here and in the cloud. Your files stay untouched.`)) return;
+    void disconnectCloudEverywhere(provider);
     setAuthed(false);
     reset();
   };

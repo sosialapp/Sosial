@@ -282,7 +282,60 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
     return false;
   }
   writeTokens(provider, tokens);
+  // Cloud sync: the connection follows the user across devices/browsers.
+  try {
+    await authedInvoke('media-integration', {
+      provider,
+      access_token: tokens.access,
+      refresh_token: tokens.refresh,
+      expires_in: Math.max(60, Math.round((tokens.expiresAt - Date.now()) / 1000)),
+    });
+  } catch {
+    /* local session still works; sync retries on next connect/refresh */
+  }
   return true;
+}
+
+/** Pull the cloud connection for this user into local storage (fallback when
+ *  this browser has no local token). Returns true when connected. */
+export async function ensureCloudSynced(provider: CloudProvider): Promise<boolean> {
+  if (cloudConnected(provider)) return true;
+  const sb = await createClient();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.access_token) return false;
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
+  const r = await fetch(`${base}/functions/v1/media-integration?provider=${provider}`, {
+    headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '', Authorization: `Bearer ${session.access_token}` },
+  }).catch(() => null);
+  if (!r?.ok) return false;
+  const j: any = await r.json().catch(() => ({}));
+  if (!j?.connected) return false;
+  writeTokens(provider, {
+    access: String(j.access_token),
+    refresh: String(j.refresh_token),
+    expiresAt: Date.now() + 60_000, // unknown server expiry — refresh-first
+  });
+  return true;
+}
+
+/** Forget everywhere: local cache + the cloud row. */
+export async function disconnectCloudEverywhere(provider: CloudProvider): Promise<void> {
+  disconnectCloud(provider);
+  try {
+    const sb = await createClient();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.access_token) return;
+    const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
+    await fetch(`${base}/functions/v1/media-integration`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ provider, remove: true }),
+    });
+  } catch {}
 }
 
 export async function getValidCloudToken(provider: CloudProvider): Promise<string> {
