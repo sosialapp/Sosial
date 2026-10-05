@@ -279,8 +279,8 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
-            <ChromeIcon name="ig-heart" size={14 * k} color={c.ink} />
-            <ChromeIcon name="ig-comment" size={14 * k} color={c.ink} />
+            <ChromeIcon name="th-heart" size={14 * k} color={c.ink} />
+            <ChromeIcon name="th-comment" size={14 * k} color={c.ink} />
             <ChromeIcon name="th-repost" size={14 * k} color={c.ink} />
             <ChromeIcon name="th-send" size={14 * k} color={c.ink} />
           </div>

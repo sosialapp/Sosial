@@ -239,7 +239,7 @@ export default function PostPreview({
         <Head handle={handle} avatarUrl={avatarUrl} provider={provider} />
         <Body text={body} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
-        <Actions items={[{ icon: 'ig-heart' }, { icon: 'ig-comment' }, { icon: 'th-repost' }, { icon: 'th-send' }]} />
+        <Actions items={[{ icon: 'th-heart' }, { icon: 'th-comment' }, { icon: 'th-repost' }, { icon: 'th-send' }]} />
       </article>
     );
   }
