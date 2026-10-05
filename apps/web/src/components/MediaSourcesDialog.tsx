@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
-  createPhotosSession, photosSessionDone, listPickedPhotos, downloadPickedPhoto, type CloudPhoto,
+  createPhotosSession, photosSessionDone, listPickedPhotos, downloadPickedPhoto, pickerThumbUrl, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
   listCanvaDesigns, downloadCanvaDesign, type CloudCanvaDesign,
 } from '@/lib/cloudSources';
@@ -331,7 +331,16 @@ export default function MediaSourcesDialog({
       }
       const picked = await listPickedPhotos(session.id);
       console.log('[photos] picked', picked.length, 'items');
-      setPhotos(picked);
+      // Picker URLs are single-use — pre-fetch each through the proxy and
+      // keep a local blob URL for the grid. Attach reuses the same blob.
+      const withLocal = await Promise.all(picked.map(async (p) => {
+        try {
+          return { ...p, thumb: await pickerThumbUrl(p) };
+        } catch {
+          return p;
+        }
+      }));
+      setPhotos(withLocal);
       if (!picked.length) setErr('Nothing was picked — try again.');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Photos picker failed to open.');

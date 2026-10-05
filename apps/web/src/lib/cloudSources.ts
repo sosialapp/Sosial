@@ -410,8 +410,9 @@ export async function listPickedPhotos(sessionId: string): Promise<CloudPhoto[]>
   return out;
 }
 
-/** Picked original → File (streams through cloud-fetch: the CDN host sends
- *  no CORS headers, bytes are never stored). */
+/** Picked original → File (single fetch through cloud-fetch). Picker URLs
+ *  are single-use signed: the blob is reused for preview + attach, so the
+ *  URL is never requested twice. */
 export async function downloadPickedPhoto(p: CloudPhoto): Promise<File> {
   const sb = await createClient();
   const { data: { session } } = await sb.auth.getSession();
@@ -431,6 +432,13 @@ export async function downloadPickedPhoto(p: CloudPhoto): Promise<File> {
   return new File([blob], p.name.includes('.') ? p.name : `photos-${p.id}.${p.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: blob.type.startsWith('video/') ? blob.type : p.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
+}
+
+/** Fetch once through cloud-fetch and hand back a local object URL for
+ *  previews — Picker thumbnails 403 when the browser loads them directly. */
+export async function pickerThumbUrl(p: CloudPhoto): Promise<string> {
+  const file = await downloadPickedPhoto(p);
+  return URL.createObjectURL(file);
 }
 
 /* --------------------------------- Canva --------------------------------- */
