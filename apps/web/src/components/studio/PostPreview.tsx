@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { ChromeIcon } from '@/components/studio/blocks';
 import { providerMeta } from '@/lib/providers';
@@ -30,15 +31,101 @@ function Body({ text }: { text: string }) {
   );
 }
 
-function Media({ imageUrl, videoUrl }: { imageUrl?: string; videoUrl?: string }) {
+function Media({ imageUrl, videoUrl, provider }: { imageUrl?: string; videoUrl?: string; provider: string }) {
+  const url = imageUrl ?? videoUrl;
+  const kind = imageUrl ? 'image' : 'video';
+  const natural = useNaturalSize(url, kind);
+  if (!url) return null;
+  const ratio = frameRatio(provider, kind, natural);
   if (imageUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={imageUrl} alt="" className="max-h-64 w-full rounded-xl object-cover" />;
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className="w-full rounded-xl object-cover"
+        style={{ aspectRatio: ratio }}
+      />
+    );
   }
-  if (videoUrl) {
-    return <video src={videoUrl} muted playsInline className="max-h-64 w-full rounded-xl object-cover" />;
+  return (
+    <video
+      src={videoUrl}
+      muted
+      playsInline
+      className="w-full rounded-xl object-cover"
+      style={{ aspectRatio: ratio }}
+    />
+  );
+}
+
+/**
+ * Natural dimensions of the attached file (measured in-browser, never
+ * uploaded). Null while loading — callers fall back to a provider default.
+ */
+function useNaturalSize(url: string | undefined, kind: 'image' | 'video'): { w: number; h: number } | null {
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!url) {
+      setSize(null);
+      return;
+    }
+    let live = true;
+    setSize(null);
+    if (kind === 'image') {
+      const img = new Image();
+      img.onload = () => {
+        if (live && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          setSize({ w: img.naturalWidth, h: img.naturalHeight });
+        }
+      };
+      img.src = url;
+    } else {
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => {
+        if (live && v.videoWidth > 0 && v.videoHeight > 0) {
+          setSize({ w: v.videoWidth, h: v.videoHeight });
+        }
+      };
+      v.src = url;
+    }
+    return () => {
+      live = false;
+    };
+  }, [url, kind]);
+  return size;
+}
+
+/**
+ * Provider-true frame: the attachment's real ratio clamped into what the
+ * network actually renders (w/h). Approximations of public layout behavior:
+ * Instagram feed crops to 4:5–1.91:1 (Reels 9:16), X to a wide timeline
+ * crop, Threads/Facebook/Bluesky stay close to native within sane extremes.
+ * object-cover then crops exactly like the network does.
+ */
+function frameRatio(
+  provider: string,
+  kind: 'image' | 'video',
+  natural: { w: number; h: number } | null,
+): string {
+  const raw = natural && natural.h > 0 ? natural.w / natural.h : null;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  if (provider === 'instagram') {
+    if (kind === 'video') return `${(raw === null ? 9 / 16 : clamp(raw, 9 / 16, 1.91)).toFixed(4)} / 1`;
+    return `${(raw === null ? 1 : clamp(raw, 0.8, 1.91)).toFixed(4)} / 1`;
   }
-  return null;
+  if (provider === 'x') {
+    return `${(raw === null ? 16 / 9 : clamp(raw, 0.75, 2)).toFixed(4)} / 1`;
+  }
+  if (provider === 'threads') {
+    return `${(raw === null ? 1 : clamp(raw, 9 / 16, 1.91)).toFixed(4)} / 1`;
+  }
+  if (provider === 'facebook') {
+    return `${(raw === null ? 1 : clamp(raw, 0.5, 1.91)).toFixed(4)} / 1`;
+  }
+  // bluesky
+  return `${(raw === null ? 1 : clamp(raw, 0.5, 2)).toFixed(4)} / 1`;
 }
 
 function Actions({ items }: { items: { icon: string; size?: number }[] }) {
@@ -85,7 +172,7 @@ export default function PostPreview({
           <span className="text-base leading-none font-bold text-[#111111]">···</span>
         </div>
           <Body text={body} />
-          <Media imageUrl={imageUrl} videoUrl={videoUrl} />
+          <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
           <div className="flex items-center gap-3.5 pt-0.5 text-[#111111]">
             <ChromeIcon name="ig-heart" size={22} color="#111111" />
             <ChromeIcon name="ig-comment" size={21} color="#111111" />
@@ -106,7 +193,7 @@ export default function PostPreview({
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
         <Head handle={handle} avatarUrl={avatarUrl} provider={provider} />
         <Body text={body} />
-        <Media imageUrl={imageUrl} videoUrl={videoUrl} />
+        <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
         <Actions items={icons.map((icon) => ({ icon, size: 16 }))} />
       </article>
     );
@@ -117,7 +204,7 @@ export default function PostPreview({
       <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
         <Head handle={handle} avatarUrl={avatarUrl} provider={provider} />
         <Body text={body} />
-        <Media imageUrl={imageUrl} videoUrl={videoUrl} />
+        <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
         <Actions items={[{ icon: 'ig-heart' }, { icon: 'ig-comment' }, { icon: 'th-repost' }, { icon: 'th-send' }]} />
       </article>
     );
@@ -128,7 +215,7 @@ export default function PostPreview({
     <article className="space-y-2 rounded-2xl border border-line bg-white p-3.5">
       <Head handle={handle} avatarUrl={avatarUrl} provider={provider} />
       <Body text={body} />
-      <Media imageUrl={imageUrl} videoUrl={videoUrl} />
+      <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
       <div className="flex items-center justify-around border-t border-line/70 px-1 pt-2 text-[#65676B]">
         <span className="flex items-center gap-1.5 text-xs font-semibold">
           <ChromeIcon name="fb-like" size={16} color="#65676B" /> Like
