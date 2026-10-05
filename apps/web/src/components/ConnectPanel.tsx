@@ -167,9 +167,15 @@ export default function ConnectPanel({
   const router = useRouter();
 
   // Consent happens in a new tab; this tab goes stale while the user is
-  // away, so refresh the list whenever they come back to it.
+  // away, so refresh the list whenever they come back to it. A return also
+  // means any in-flight connect navigation was abandoned (cancelled in the
+  // other tab) or completed elsewhere — either way the tap-lock must reset
+  // or every connect button stays dead.
   useEffect(() => {
-    const refresh = () => router.refresh();
+    const refresh = () => {
+      setLeaving(null);
+      router.refresh();
+    };
     const onVis = () => {
       if (document.visibilityState === 'visible') refresh();
     };
