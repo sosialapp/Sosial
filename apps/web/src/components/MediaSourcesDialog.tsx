@@ -477,38 +477,6 @@ export default function MediaSourcesDialog({
                     {!busy && driveFiles.length === 0 ? (
                       <p className="mt-3 text-center text-xs text-faint">{query ? 'No matches in this folder.' : 'No images or videos here yet.'}</p>
                     ) : null}
-                    {folders.length > 0 && !query.trim() ? (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {folderStack.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = folderStack.slice(0, -1);
-                              setFolderStack(next);
-                              setQuery('');
-                              void loadDriveInto(next.length ? next[next.length - 1].id : undefined);
-                            }}
-                            className="rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
-                          >
-                            ↑ Up
-                          </button>
-                        ) : null}
-                        {folders.map((f) => (
-                          <button
-                            key={f.id}
-                            type="button"
-                            onClick={() => {
-                              setFolderStack([...folderStack, f]);
-                              setQuery('');
-                              void loadDriveInto(f.id);
-                            }}
-                            className="max-w-[160px] truncate rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
-                          >
-                            {f.name}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
                   </>
                 ) : null}
 
