@@ -152,12 +152,14 @@ export default function MediaSourcesDialog({
   };
 
   const loadCloud = async (id: Source, q?: string) => {
-    // Drive + Photos open Google picker widgets from a button — no in-dialog browser.
-    if (id === 'drive' || id === 'gphotos') return;
+    // Photos opens Google's picker widget from a button — no in-dialog browser.
+    if (id === 'gphotos') return;
     setBusy(true);
     setErr(null);
     try {
-      if (id === 'dropbox') {
+      if (id === 'drive') {
+        await loadDriveInto(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, q);
+      } else if (id === 'dropbox') {
         await loadDropboxInto(dbxStack.length ? dbxStack[dbxStack.length - 1].path : undefined, q);
       } else if (id === 'canva') {
         const r = await listCanvaDesigns(canvaStack.length ? canvaStack[canvaStack.length - 1].id : undefined, q);
