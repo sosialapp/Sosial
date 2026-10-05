@@ -186,55 +186,25 @@ export interface CanvaDesign {
   thumb?: string;
 }
 
-/** Designs (newest first), optionally inside a folder or matching a query. */
-export async function listCanvaDesigns(folderId?: string, query?: string): Promise<{ designs: CanvaDesign[]; folders: { id: string; name: string }[] }> {
+/** Designs (newest first), optionally matching a query. Note: Canva has no
+ *  list-folders endpoint, so there is no folder navigation — designs only. */
+export async function listCanvaDesigns(query?: string): Promise<{ designs: CanvaDesign[]; folders: { id: string; name: string }[] }> {
   const token = await getValidCanvaToken();
   const headers = { Authorization: `Bearer ${token}` };
   const q = (p: string) => `${API}${p}`;
-  let designs: CanvaDesign[] = [];
-  if (folderId && folderId !== 'root') {
-    const r = await fetch(q(`/folders/${encodeURIComponent(folderId)}/items?limit=50`), { headers });
-    const j: any = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j?.message ?? `Canva refused the list (HTTP ${r.status}).`);
-    designs = (((j?.items ?? []) as any[])
-      .filter((x: any) => x?.type === 'design')
-      .map((x: any) => ({
-        id: String(x?.design?.id ?? x?.id ?? ''),
-        title: String(x?.design?.title ?? x?.title ?? 'Untitled design'),
-        thumb: typeof x?.design?.thumbnail?.url === 'string' ? x.design.thumbnail.url : undefined,
-      }))
-      .filter((d) => d.id));
-    if (query?.trim()) {
-      const needle = query.trim().toLowerCase();
-      designs = designs.filter((d) => d.title.toLowerCase().includes(needle));
-    }
-  } else {
-    const params = new URLSearchParams({ limit: '50' });
-    if (query?.trim()) params.set('query', query.trim());
-    const r = await fetch(q(`/designs?${params}`), { headers });
-    const j: any = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j?.message ?? `Canva refused the list (HTTP ${r.status}).`);
-    designs = (((j?.items ?? []) as any[])
-      .map((x: any) => ({
-        id: String(x?.id ?? ''),
-        title: String(x?.title ?? 'Untitled design'),
-        thumb: typeof x?.thumbnail?.url === 'string' ? x.thumbnail.url : undefined,
-      }))
-      .filter((d) => d.id));
-  }
-  let folders: { id: string; name: string }[] = [];
-  if (!query?.trim() && (!folderId || folderId === 'root')) {
-    try {
-      const fr = await fetch(q('/folders?limit=50'), { headers });
-      const fj: any = await fr.json().catch(() => ({}));
-      if (fr.ok) {
-        folders = (((fj?.items ?? []) as any[])
-          .map((f: any) => ({ id: String(f?.id ?? ''), name: String(f?.name ?? 'Folder') }))
-          .filter((f) => f.id));
-      }
-    } catch {}
-  }
-  return { designs, folders };
+  const params = new URLSearchParams({ limit: '50' });
+  if (query?.trim()) params.set('query', query.trim());
+  const r = await fetch(q(`/designs?${params}`), { headers });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.message ?? `Canva refused the list (HTTP ${r.status}).`);
+  const designs = (((j?.items ?? []) as any[])
+    .map((x: any) => ({
+      id: String(x?.id ?? ''),
+      title: String(x?.title ?? 'Untitled design'),
+      thumb: typeof x?.thumbnail?.url === 'string' ? x.thumbnail.url : undefined,
+    }))
+    .filter((d) => d.id));
+  return { designs, folders: [] };
 }
 
 /** Export a design (jpg photo or mp4 video) → sandbox file. */
@@ -244,7 +214,7 @@ export async function downloadCanvaDesign(d: CanvaDesign, kind: 'image' | 'video
   const start = await fetch(`${API}/exports`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ design_id: d.id, format: { type: kind === 'video' ? 'mp4' : 'jpg' } }),
+    body: JSON.stringify({ design_id: d.id, format: kind === 'video' ? { type: 'mp4' } : { type: 'jpg', quality: 90 } }),
   });
   const sj: any = await start.json().catch(() => ({}));
   if (!start.ok) throw new Error(sj?.message ?? `Canva refused the export (HTTP ${start.status}).`);

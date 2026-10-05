@@ -90,8 +90,6 @@ export default function MediaSources({
   const [dbxFiles, setDbxFiles] = useState<DropboxEntry[]>([]);
   // Canva
   const [canvaAuthed, setCanvaAuthed] = useState(false);
-  const [canvaFolders, setCanvaFolders] = useState<{ id: string; name: string }[]>([]);
-  const [canvaStack, setCanvaStack] = useState<{ id: string; name: string }[]>([]);
   const [canvaDesigns, setCanvaDesigns] = useState<CanvaDesign[]>([]);
   const [canvaKind, setCanvaKind] = useState<'image' | 'video'>('image');
 
@@ -183,12 +181,11 @@ export default function MediaSources({
     }
   };
 
-  const loadCanva = async (folderId?: string, q?: string) => {
+  const loadCanva = async (q?: string) => {
     setBusy(true);
     try {
-      const r = await listCanvaDesigns(folderId, q);
+      const r = await listCanvaDesigns(q);
       setCanvaDesigns(r.designs);
-      if (!q) setCanvaFolders(r.folders);
     } catch (e: any) {
       Alert.alert('Canva failed', e?.message ?? 'Try again.');
     } finally {
@@ -217,7 +214,7 @@ export default function MediaSources({
         }
         return;
       } else if (source === 'canva') {
-        await loadCanva(canvaStack.length ? canvaStack[canvaStack.length - 1].id : undefined, query.trim());
+        await loadCanva(query.trim());
         return;
       } else {
         setItems(await searchStock('unsplash', query.trim(), 'photo'));
@@ -311,9 +308,7 @@ export default function MediaSources({
     setDbxFolders([]);
     setDbxFiles([]);
     setDbxStack([]);
-    setCanvaFolders([]);
     setCanvaDesigns([]);
-    setCanvaStack([]);
     if (id === 'unsplash') setType('photo');
     if (id === 'drive' || id === 'gphotos') {
       const ok = await filesConnected();
@@ -556,40 +551,6 @@ export default function MediaSources({
                         setDbxStack(next);
                         setQuery('');
                         void loadDropbox(f.path);
-                      }}
-                      style={s.folderChip}
-                    >
-                      <Ionicons name="folder" size={13} color={C.accentInk} />
-                      <Text style={s.folderT} numberOfLines={1}>{f.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              ) : null}
-
-              {source === 'canva' && canvaFolders.length > 0 && !query.trim() ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 8 }}>
-                  {canvaStack.length > 0 ? (
-                    <TouchableOpacity
-                      onPress={() => {
-                        const next = canvaStack.slice(0, -1);
-                        setCanvaStack(next);
-                        setQuery('');
-                        void loadCanva(next.length ? next[next.length - 1].id : undefined);
-                      }}
-                      style={s.folderChip}
-                    >
-                      <Ionicons name="arrow-up" size={13} color={C.accentInk} />
-                      <Text style={s.folderT}>Up</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  {canvaFolders.map((f) => (
-                    <TouchableOpacity
-                      key={f.id}
-                      onPress={() => {
-                        const next = [...canvaStack, f];
-                        setCanvaStack(next);
-                        setQuery('');
-                        void loadCanva(f.id);
                       }}
                       style={s.folderChip}
                     >

@@ -79,8 +79,6 @@ export default function MediaSourcesDialog({
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
   const [dbxFiles, setDbxFiles] = useState<CloudDropboxEntry[]>([]);
   // Canva
-  const [canvaFolders, setCanvaFolders] = useState<{ id: string; name: string }[]>([]);
-  const [canvaStack, setCanvaStack] = useState<{ id: string; name: string }[]>([]);
   const [canvaDesigns, setCanvaDesigns] = useState<CloudCanvaDesign[]>([]);
   const [canvaKind, setCanvaKind] = useState<'image' | 'video'>('image');
   const [mounted, setMounted] = useState(false);
@@ -128,9 +126,7 @@ export default function MediaSourcesDialog({
     setDbxFolders([]);
     setDbxFiles([]);
     setDbxStack([]);
-    setCanvaFolders([]);
     setCanvaDesigns([]);
-    setCanvaStack([]);
     setAuthed(false);
   };
 
@@ -162,9 +158,8 @@ export default function MediaSourcesDialog({
       } else if (id === 'dropbox') {
         await loadDropboxInto(dbxStack.length ? dbxStack[dbxStack.length - 1].path : undefined, q);
       } else if (id === 'canva') {
-        const r = await listCanvaDesigns(canvaStack.length ? canvaStack[canvaStack.length - 1].id : undefined, q);
+        const r = await listCanvaDesigns(q);
         setCanvaDesigns(r.designs);
-        if (!q) setCanvaFolders(r.folders);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'That source refused — try again.');
@@ -608,47 +603,6 @@ export default function MediaSourcesDialog({
                           setDbxStack([...dbxStack, { name: f.name, path: f.path }]);
                           setQuery('');
                           void loadDropboxInto(f.path);
-                        }}
-                        className="max-w-[160px] truncate rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
-                      >
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-
-                {source === 'canva' && canvaFolders.length > 0 && !query.trim() ? (
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {canvaStack.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = canvaStack.slice(0, -1);
-                          setCanvaStack(next);
-                          setQuery('');
-                          void (async () => {
-                            const r = await listCanvaDesigns(next.length ? next[next.length - 1].id : undefined);
-                            setCanvaDesigns(r.designs);
-                            setCanvaFolders(r.folders);
-                          })();
-                        }}
-                        className="rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
-                      >
-                        ↑ Up
-                      </button>
-                    ) : null}
-                    {canvaFolders.map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => {
-                          setCanvaStack([...canvaStack, f]);
-                          setQuery('');
-                          void (async () => {
-                            const r = await listCanvaDesigns(f.id);
-                            setCanvaDesigns(r.designs);
-                            setCanvaFolders(r.folders);
-                          })();
                         }}
                         className="max-w-[160px] truncate rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
                       >
