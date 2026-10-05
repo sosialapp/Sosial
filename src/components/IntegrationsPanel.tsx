@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette } from '../theme';
+import SourceMark, { type SourceMarkId } from './SourceMarks';
 import { filesConnected, loginGoogleFiles, disconnectGoogleFiles } from '../utils/driveAuth';
 import { dropboxConnected, loginDropbox, disconnectDropbox } from '../utils/dropboxAuth';
 import { canvaConnected, loginCanva, disconnectCanva } from '../utils/canvaAuth';
 
 type RowId = 'google' | 'dropbox' | 'canva' | 'onedrive';
 
-const ROWS: { id: RowId; label: string; sub: string; icon: string; soon?: boolean }[] = [
-  { id: 'google', label: 'Google Drive & Photos', sub: 'Your files and photo library', icon: 'folder-outline' },
-  { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files', icon: 'cloud-outline' },
-  { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post', icon: 'color-palette-outline' },
-  { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', icon: 'cloud-outline', soon: true },
+const ROWS: { id: RowId; label: string; sub: string; mark: SourceMarkId; soon?: boolean }[] = [
+  { id: 'google', label: 'Google Drive & Photos', sub: 'Your files and photo library', mark: 'drive' },
+  { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files', mark: 'dropbox' },
+  { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post', mark: 'canva' },
+  { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', mark: 'onedrive', soon: true },
 ];
 
 /**
@@ -83,7 +83,7 @@ export default function IntegrationsPanel() {
         const loading = busy === r.id;
         return (
           <View key={r.id} style={[s.row, !on && { opacity: r.soon ? 0.55 : 1 }]}>
-            <Ionicons name={r.icon as any} size={22} color={on ? C.accentInk : C.muted} />
+            <SourceMark id={r.mark} size={22} color={C.ink} />
             <View style={{ flex: 1 }}>
               <Text style={s.rowT}>{r.label}</Text>
               <Text style={s.rowS}>{r.soon ? 'Coming soon' : on ? 'Connected on this device' : r.sub}</Text>

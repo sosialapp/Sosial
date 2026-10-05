@@ -1,15 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { SourceMark } from '@/components/SourceMarks';
 import {
   cloudConnected, loginCloud, disconnectCloud, type CloudProvider,
 } from '@/lib/cloudSources';
 
-const ROWS: { id: CloudProvider | 'onedrive'; label: string; sub: string; soon?: boolean }[] = [
-  { id: 'google', label: 'Google Drive & Photos', sub: 'Your files and photo library' },
-  { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files' },
-  { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post' },
-  { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', soon: true },
+const ROWS: { id: CloudProvider | 'onedrive'; label: string; sub: string; mark: string; soon?: boolean }[] = [
+  { id: 'google', label: 'Google Drive & Photos', sub: 'Your files and photo library', mark: 'drive' },
+  { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files', mark: 'dropbox' },
+  { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post', mark: 'canva' },
+  { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', mark: 'onedrive', soon: true },
 ];
 
 /**
@@ -75,6 +76,7 @@ export default function IntegrationsTab() {
           const on = !!status[r.id];
           return (
             <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i !== 0 ? 'border-t border-line-soft' : ''} ${r.soon ? 'opacity-55' : ''}`}>
+              <SourceMark id={r.mark} className="flex h-6 w-6 shrink-0 items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold">{r.label}</p>
                 <p className="text-xs text-muted">{r.soon ? 'Coming soon' : on ? 'Connected in this browser' : r.sub}</p>
