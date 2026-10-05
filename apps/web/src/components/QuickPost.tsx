@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import PublishMonitor from '@/components/PublishMonitor';
 import { channelAvatar } from '@/lib/channelAvatar';
 import DateTimePicker from '@/components/DateTimePicker';
 import { EmojiTextarea } from '@/components/Emoji';
@@ -44,6 +45,8 @@ export default function QuickPost({
   const [when, setWhen] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
+  /** Live publish monitor (post-now). */
+  const [monitorId, setMonitorId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [confirmNow, setConfirmNow] = useState(false);
@@ -85,7 +88,7 @@ export default function QuickPost({
     try {
       const sb = createClient();
       const text = body.trim();
-      await createPost(sb, {
+      const postId = await createPost(sb, {
         workspaceId,
         userId,
         role,
@@ -97,8 +100,15 @@ export default function QuickPost({
         files: [],
         timezone: tz,
       });
+      if (mode === 'now') {
+        // Live publish monitor over the composer (mobile parity).
+        setBusy(false);
+        setMonitorId(postId);
+        setBody('');
+        return;
+      }
       setBody('');
-      setDone(mode === 'now' ? 'Posted. Watch the queue.' : 'Scheduled.');
+      setDone('Scheduled.');
       router.refresh();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : 'Could not save the post.');
@@ -108,7 +118,17 @@ export default function QuickPost({
   }
 
   return (
-    <section className="card border border-line p-5" aria-label="Quick post">
+    <>
+      {monitorId ? (
+        <PublishMonitor
+          postIds={[monitorId]}
+          onDone={() => {
+            setMonitorId(null);
+            router.refresh();
+          }}
+        />
+      ) : null}
+      <section className="card border border-line p-5" aria-label="Quick post">
       <div className="flex flex-wrap items-center gap-2">
         <div>
           <p className="font-display text-base font-extrabold tracking-tight">Quick post</p>
@@ -318,5 +338,6 @@ export default function QuickPost({
         </form>
       )}
     </section>
+    </>
   );
 }

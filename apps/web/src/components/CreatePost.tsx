@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import PublishMonitor from '@/components/PublishMonitor';
 import { channelAvatar } from '@/lib/channelAvatar';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import AiCard from '@/components/AiCard';
@@ -359,6 +360,8 @@ export default function CreatePost({
   );
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
+  /** Live publish monitor (post-now): watches these post ids settle. */
+  const [monitorIds, setMonitorIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   /** Right-rail switch + template sub-switch + per-design export busy key. */
@@ -619,11 +622,13 @@ export default function CreatePost({
     }
     nowConfirmed.current = false;
     setBusy(true);
+    let newIds: string[] = [];
     try {
       const sb = createClient();
       if (!thread) {
         const s0 = segs[0];
-        await createPost(sb, {
+        newIds = [
+          await createPost(sb, {
           workspaceId,
           userId,
           role,
@@ -636,9 +641,9 @@ export default function CreatePost({
             .filter((m): m is MediaItem & { file: File } => Boolean(m.file))
             .map(({ file, kind }) => ({ file, kind })),
           timezone: tz,
-        });
+        })];
       } else {
-        await createChain(sb, {
+        newIds = await createChain(sb, {
           workspaceId,
           userId,
           role,
@@ -660,6 +665,13 @@ export default function CreatePost({
         await Promise.allSettled(editingIds.map((id) => deletePost(sb, id)));
         onEdited?.();
       }
+      if (submitMode === 'now') {
+        // Stay on the composer under the live publish monitor (mobile parity);
+        // it navigates to the queue once every channel settles.
+        setBusy(false);
+        setMonitorIds(newIds);
+        return;
+      }
       router.push('/queue');
       router.refresh();
     } catch (e2) {
@@ -670,6 +682,16 @@ export default function CreatePost({
 
   return (
     <form onSubmit={(e) => submit(e, mode)}>
+      {monitorIds.length ? (
+        <PublishMonitor
+          postIds={monitorIds}
+          onDone={() => {
+            setMonitorIds([]);
+            router.push('/queue');
+            router.refresh();
+          }}
+        />
+      ) : null}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         {/* Left: composer */}
         <div className="min-w-0 xl:col-span-3">
