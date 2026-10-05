@@ -294,25 +294,22 @@ export default function MediaSourcesDialog({
       const session = await createPhotosSession();
       const pop = window.open(session.pickerUri, 'sosial-photos', 'width=640,height=720');
       if (!pop) throw new Error('Allow popups for this site, then try again.');
-      const deadline = Date.now() + 5 * 60 * 1000;
+      console.log('[photos] session', session.id, 'popup opened');
+      const deadline = Date.now() + 8 * 60 * 1000;
       let done = false;
       let lastPollErr: string | null = null;
       for (;;) {
-        await new Promise((r) => setTimeout(r, 2500));
-        let closed = false;
+        await new Promise((r) => setTimeout(r, 2000));
         try {
-          closed = pop.closed;
-        } catch {}
-        try {
-          if (await photosSessionDone(session.id)) {
-            done = true;
-            break;
-          }
+          done = await photosSessionDone(session.id);
+          console.log('[photos] poll', session.id.slice(0, 8), done ? 'SET' : 'not set');
+          if (done) break;
           lastPollErr = null;
         } catch (e) {
           lastPollErr = e instanceof Error ? e.message : 'Poll failed.';
+          console.warn('[photos] poll error:', lastPollErr);
         }
-        if (closed || Date.now() > deadline) break;
+        if (Date.now() > deadline) break;
       }
       try {
         pop.close();
@@ -322,6 +319,7 @@ export default function MediaSourcesDialog({
         await new Promise((r) => setTimeout(r, 3000));
         try {
           done = await photosSessionDone(session.id);
+          console.log('[photos] grace poll', done ? 'SET' : 'not set');
         } catch (e) {
           lastPollErr = e instanceof Error ? e.message : 'Poll failed.';
         }
@@ -332,6 +330,7 @@ export default function MediaSourcesDialog({
         return;
       }
       const picked = await listPickedPhotos(session.id);
+      console.log('[photos] picked', picked.length, 'items');
       setPhotos(picked);
       if (!picked.length) setErr('Nothing was picked — try again.');
     } catch (e) {
