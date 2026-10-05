@@ -32,9 +32,18 @@ export async function searchStock(
   return items.map((x: any) => ({ ...x, source }));
 }
 
-/** Unsplash license credit line — auto-appended to captions, non-optional. */
+/** Unsplash license credit line — auto-appended to captions, non-optional.
+ *  Format matches Unsplash's own attribution example. */
 export function unsplashCredit(item: StockItem): string {
-  return `📷 ${item.author} on Unsplash (${item.authorUrl})`;
+  return `Photo by ${item.author} on Unsplash (${item.authorUrl})`;
+}
+
+/** Unsplash production requirement: firing a download event when a photo is
+ *  used. Fire-and-forget — the attach never waits on it. */
+async function trackUnsplashDownload(id: string): Promise<void> {
+  try {
+    await callEdgeFunction('unsplash-download', { id });
+  } catch {}
 }
 
 /**
@@ -42,6 +51,7 @@ export function unsplashCredit(item: StockItem): string {
  * attachment (same shape as the camera roll produces).
  */
 export async function downloadStockItem(item: StockItem): Promise<{ uri: string; kind: 'image' | 'video' }> {
+  if (item.source === 'unsplash') void trackUnsplashDownload(item.id);
   const ext = item.kind === 'video' ? 'mp4' : 'jpg';
   const dest = `${FileSystem.documentDirectory}stock/${item.source}_${item.id}.${ext}`;
   try {

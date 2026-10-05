@@ -254,7 +254,10 @@ export default function MediaSourcesDialog({
       const blob = await fetchProgressBlob(item.full, {}, track(item.id)).catch(() => null);
       if (!blob) throw new Error('Download failed — try another one.');
       const file = new File([blob], `unsplash-${item.id}.jpg`, { type: 'image/jpeg' });
-      const credit = `📷 ${item.author} on Unsplash (${item.authorUrl})`;
+      const credit = `Photo by ${item.author} on Unsplash (${item.authorUrl})`;
+      // Unsplash production requirement: a download event fires when a photo
+      // is used. Fire-and-forget — the attach never waits on it.
+      void invokeStock('unsplash-download', { id: item.id }).catch(() => {});
       onAttach([file], credit);
       onClose();
     } catch (e) {
