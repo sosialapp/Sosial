@@ -165,3 +165,32 @@ export async function saveAllImages(refs: any[], post: QuickPost, _sizeRatio: nu
   if (uris.length === 0) throw new Error('Could not capture pages.');
   return uris;
 }
+
+/** Save captured tmp files to the gallery. Returns how many landed.
+ *  Reports failures itself (alert) unless { silent } — callers only mark
+ *  pages saved when the count matches. Falls back to a SAF folder pick on
+ *  Android when the gallery native module is missing. */
+export async function saveUrisToGallery(uris: string[], opts?: { silent?: boolean }): Promise<number> {
+  const silent = opts?.silent ?? false;
+  if (uris.length === 0) return 0;
+  const ML = await getMediaLibrary();
+  const perm = await requestPermission(ML);
+  if (perm === 'granted' && ML) {
+    let saved = 0;
+    for (const uri of uris) {
+      try {
+        await saveOne(ML, uri);
+        saved++;
+      } catch (e) {
+        console.warn('gallery save failed', e);
+      }
+    }
+    if (saved < uris.length && !silent) {
+      Alert.alert('Save incomplete', `Saved ${saved}/${uris.length} image(s) to your gallery.`);
+    }
+    return saved;
+  }
+  if (perm === 'unavailable' && Platform.OS === 'android') return saveViaSAF(uris);
+  if (!silent) Alert.alert('Save failed', 'Could not save to your gallery.');
+  return 0;
+}
