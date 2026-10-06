@@ -93,7 +93,7 @@ export default function LogoDock() {
               </p>
               <div
                 ref={toolsRef}
-                className="flex flex-wrap items-end justify-center gap-3 px-1 pt-3 sm:gap-4"
+                className="flex flex-wrap items-end justify-center gap-3 overflow-visible px-1 sm:gap-4"
               >
                 {INTEGRATIONS.map((t) => (
                   <span key={t} className="block shrink-0 will-change-transform" title={t}>
@@ -116,7 +116,7 @@ export default function LogoDock() {
               <div className="relative">
                 <div
                   ref={channelsRef}
-                  className="no-scrollbar -mx-4 flex items-end justify-start gap-3 overflow-x-auto px-4 pt-4 pb-1 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] md:mx-0 md:max-w-[688px] md:flex-wrap md:justify-center md:px-1 md:[mask-image:none]"
+                  className="no-scrollbar -mx-4 flex items-end justify-start gap-3 overflow-x-auto px-4 pt-4 pb-1 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] md:mx-0 md:max-w-[688px] md:flex-wrap md:justify-center md:overflow-visible md:px-1 md:pt-1 md:[mask-image:none]"
                 >
                   {CHANNELS.map((c) => (
                     <span key={c} className="block shrink-0 will-change-transform">
