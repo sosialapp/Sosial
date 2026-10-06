@@ -221,7 +221,7 @@ export default function StudioEditor({
     if (!host) return null;
     const node = host.querySelector<HTMLElement>(`[data-export-page="${i}"] [data-studio-canvas]`);
     if (!node) return null;
-    return watermarkBlob(await exportCanvasPng(node, 1080));
+    return watermarkBlob(await exportCanvasPng(node, 2160));
   };
 
   const downloadBlob = (blob: Blob, name: string) => {
@@ -251,7 +251,7 @@ export default function StudioEditor({
       const node =
         canvasHostRef.current?.querySelector<HTMLElement>('[data-studio-canvas]') ?? null;
       const blob = node
-        ? await watermarkBlob(await exportCanvasPng(node, 1080))
+        ? await watermarkBlob(await exportCanvasPng(node, 2160))
         : await exportPagePng(pageIndex);
       if (blob) downloadBlob(blob, fileName(pageIndex));
       else setExportErr('Could not render that page. Try again.');

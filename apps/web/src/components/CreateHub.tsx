@@ -770,7 +770,7 @@ export default function CreateHub({
     if (!node) return;
     setRenderingKey(key);
     try {
-      const blob = await watermarkBlob(await exportCanvasPng(node, 1080));
+      const blob = await watermarkBlob(await exportCanvasPng(node, 2160));
       const page = project.pages[pageIndex] ?? project.pages[0];
       const file = new File([blob], `${project.name || 'design'}-p${pageIndex + 1}.png`, { type: 'image/png' });
       hubHandoff = {

@@ -40,11 +40,11 @@ export async function applyWatermark(png: Buffer): Promise<Buffer> {
     .png()
     .toBuffer();
 
-  return sharp(png)
+  return sharp(png, { failOn: 'none' })
     .composite([
       { input: logo, left: left + Math.round(fs * 0.15), top: top + Math.round((pillH - bolt) / 2) },
       { input: pillSvg, left, top },
     ])
-    .png()
+    .png({ compressionLevel: 9 })
     .toBuffer();
 }

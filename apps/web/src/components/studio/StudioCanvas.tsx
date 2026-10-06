@@ -492,9 +492,12 @@ function AvatarMark({ page, size, k }: { page: PostPage; size: number; k: number
 }
 
 function Watermark(props: { font: FontId; size: number; color: string; k: number }) {
-  // "Made with sosial.app" text + bolt, no badge background.
+  // "Made with sosial.app" text + bolt, no badge background. data-watermark
+  // lets the export pipeline strip this DOM copy — the server composites its
+  // own on the downloaded file, so preview and download stay consistent.
   return (
     <span
+      data-watermark=""
       style={{
         display: 'inline-flex',
         alignItems: 'center',
