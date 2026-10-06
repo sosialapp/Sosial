@@ -24,5 +24,5 @@ export function oauthErrorMessage(code: string | null | undefined): string | nul
 /** Only allow same-origin relative paths — blocks open-redirect via ?next=. */
 export function safeNextPath(next: string | null | undefined): string {
   if (next && next.startsWith('/') && !next.startsWith('//')) return next;
-  return '/calendar';
+  return '/dashboard';
 }

@@ -83,7 +83,7 @@ export default function LoginForm({
         const { data, error } = await sb.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${redirectTo}?next=${encodeURIComponent('/calendar')}&mode=confirm` },
+          options: { emailRedirectTo: `${redirectTo}?next=${encodeURIComponent('/dashboard')}&mode=confirm` },
         });
         if (error) throw error;
         if (!data.session) {
@@ -116,7 +116,7 @@ export default function LoginForm({
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: target === '/calendar' ? redirectTo : `${redirectTo}?next=${encodeURIComponent(target)}`,
+          redirectTo: target === '/dashboard' ? redirectTo : `${redirectTo}?next=${encodeURIComponent(target)}`,
         },
       });
       if (error) throw error;

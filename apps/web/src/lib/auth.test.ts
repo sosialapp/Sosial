@@ -56,10 +56,14 @@ describe('safeNextPath', () => {
   });
 
   it('rejects absolute URLs, protocol-relative URLs and junk', () => {
-    expect(safeNextPath('https://evil.example')).toBe('/calendar');
-    expect(safeNextPath('//evil.example/x')).toBe('/calendar');
-    expect(safeNextPath('')).toBe('/calendar');
-    expect(safeNextPath(null)).toBe('/calendar');
-    expect(safeNextPath(undefined)).toBe('/calendar');
+    expect(safeNextPath('https://evil.example')).toBe('/dashboard');
+    expect(safeNextPath('//evil.example/x')).toBe('/dashboard');
+    expect(safeNextPath('')).toBe('/dashboard');
+    expect(safeNextPath(null)).toBe('/dashboard');
+    expect(safeNextPath(undefined)).toBe('/dashboard');
+  });
+
+  it('defaults post-login landing to the dashboard', () => {
+    expect(safeNextPath(null)).toBe('/dashboard');
   });
 });
