@@ -7,6 +7,7 @@ import WorkspaceSwitcher, { type WorkspaceOption } from '@/components/WorkspaceS
 import Dock from '@/components/Dock';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
+import NotificationBell from '@/components/NotificationBell';
 import { providerMeta } from '@/lib/providers';
 import { fetchLiveChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext, hasSupabaseEnv } from '@/lib/supabase/server';
@@ -113,6 +114,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             Team
           </Link>
           <ThemeToggle />
+          <NotificationBell />
         </header>
       </div>
       {/* Left clearance for the fixed rail on every breakpoint; no bottom dock anymore. */}

@@ -41,6 +41,15 @@ function snippet(p: PostWithTargets): string {
   return text.length > 120 ? `${text.slice(0, 120)}…` : text;
 }
 
+/** Compact age label for a stats snapshot ("2h ago"). */
+function agoShort(iso: string): string {
+  const m = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
 function mediaOf(p: PostWithTargets): MediaAssetRow[] {
   return [...(p.post_media ?? [])]
     .sort((a, b) => a.position - b.position)
@@ -53,6 +62,26 @@ function lastComment(p: PostWithTargets): string | null {
     .filter((a) => a.status === 'changes_requested' && a.comment)
     .sort((a, b) => (b.decided_at ?? b.created_at).localeCompare(a.decided_at ?? a.created_at));
   return decided[0]?.comment ?? null;
+}
+
+/** One channel's numbers inside the sent-post performance panel. */
+interface StatRow {
+  post_target_id: string;
+  likes: number;
+  comments: number;
+  shares: number;
+  views: number | null;
+  fetched_at: string;
+}
+
+function StatCell({ icon, value }: { icon: string; value: number | null }) {
+  if (value === null) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-paper-dim px-2.5 py-1 text-[11px] font-bold text-soft">
+      <span aria-hidden="true">{icon}</span>
+      {value >= 10000 ? `${(value / 1000).toFixed(1)}k` : value}
+    </span>
+  );
 }
 
 /** Unique target channels across a card's parts (chain parts share targets). */
@@ -70,20 +99,30 @@ function uniqueTargets(parts: PostWithTargets[]): { provider: string; channel_id
 /**
  * Full-post preview dialog. Read-only except an Edit shortcut for drafts —
  * actions (approve, publish, delete) stay on the card behind it.
+ *
+ * Sent posts additionally render a per-target performance panel: publish
+ * status, "Go to post" links (post_targets.remote_url) and live stats from
+ * post_stats (likes / comments / shares / views, refreshed daily per channel
+ * by the worker's snapshot job).
  */
 function PreviewDialog({
   parts,
   avatars,
   draftish,
+  sent,
+  workspaceId,
   onClose,
   onEdit,
 }: {
   parts: PostWithTargets[];
   avatars: Record<string, string>;
   draftish: boolean;
+  sent: boolean;
+  workspaceId: string;
   onClose: () => void;
   onEdit: (() => void) | null;
 }) {
+  const [stats, setStats] = useState<Record<string, StatRow>>({});
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -95,6 +134,32 @@ function PreviewDialog({
       document.body.style.overflow = '';
     };
   }, [onClose]);
+
+  useEffect(() => {
+    if (!sent) return;
+    let live = true;
+    void (async () => {
+      try {
+        const sb = createClient();
+        const ids = parts.flatMap((p) => p.post_targets.map((t) => t.id));
+        if (!ids.length) return;
+        const { data } = await sb
+          .from('post_stats')
+          .select('post_target_id,likes,comments,shares,views,fetched_at')
+          .eq('workspace_id', workspaceId)
+          .in('post_target_id', ids);
+        if (!live) return;
+        const map: Record<string, StatRow> = {};
+        for (const row of (data ?? []) as StatRow[]) map[row.post_target_id] = row;
+        setStats(map);
+      } catch {
+        // stats are best-effort; the panel shows zeros without them
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [sent, parts, workspaceId]);
 
   const head = parts[0];
   const meta = POST_STATUS_META[head.status];
@@ -131,6 +196,50 @@ function PreviewDialog({
                   <span className="text-xs font-bold">{providerMeta(t.provider).label}</span>
                 </span>
               ))}
+            </div>
+          ) : null}
+          {sent ? (
+            <div className="mt-4 space-y-2 rounded-2xl border border-line-soft bg-bone/60 p-3">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">Performance</p>
+              {parts.flatMap((p) =>
+                p.post_targets
+                  .filter((t) => t.status === 'sent')
+                  .map((t) => {
+                    const s = stats[t.id];
+                    return (
+                      <div
+                        key={t.id}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-card px-3 py-2"
+                      >
+                        <ChannelAvatar provider={t.provider} avatar={avatars[t.channel_id]} size={22} />
+                        <span className="text-xs font-bold">{providerMeta(t.provider).label}</span>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <StatCell icon="❤️" value={s?.likes ?? 0} />
+                          <StatCell icon="💬" value={s?.comments ?? 0} />
+                          <StatCell icon="🔁" value={s?.shares ?? 0} />
+                          {s?.views != null ? <StatCell icon="👁️" value={s.views} /> : null}
+                        </span>
+                        {s ? (
+                          <span className="text-[10px] text-faint" title={`Fetched ${formatDateTime(s.fetched_at)}`}>
+                            {agoShort(s.fetched_at)}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-faint">First snapshot lands within a day</span>
+                        )}
+                        {t.remote_url ? (
+                          <a
+                            href={t.remote_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-auto inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-bone"
+                          >
+                            Go to post ↗
+                          </a>
+                        ) : null}
+                      </div>
+                    );
+                  }),
+              )}
             </div>
           ) : null}
           <p className="mt-3 font-display text-base font-extrabold tracking-tight">
@@ -512,6 +621,8 @@ export default function PostList({
                 parts={g.parts}
                 avatars={avatars}
                 draftish={draftish}
+                sent={g.parts.some((p) => p.status === 'sent' || p.status === 'partial')}
+                workspaceId={workspaceId}
                 onClose={() => setPreviewKey(null)}
                 onEdit={
                   draftish
