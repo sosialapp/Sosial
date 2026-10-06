@@ -237,12 +237,12 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(12), paddingBottom: pad(11), gap: pad(6) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(10) }}>
-            <ActionIcon name="ig-heart" size={pad(14)} color={ink} />
-            <ActionIcon name="ig-comment" size={pad(14)} color={ink} />
-            <ActionIcon name="ig-repost" size={pad(17)} color={ink} />
-            <ActionIcon name="ig-plane" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-heart" size={pad(20)} color={ink} />
+            <ActionIcon name="ig-comment" size={pad(19)} color={ink} />
+            <ActionIcon name="ig-repost" size={pad(20)} color={ink} />
+            <ActionIcon name="ig-plane" size={pad(19)} color={ink} />
             <View style={{ flex: 1 }} />
-            <ActionIcon name="ig-bookmark" size={pad(14)} color={ink} />
+            <ActionIcon name="ig-bookmark" size={pad(19)} color={ink} />
           </View>
           <Text style={{ ...F(font), fontSize: pad(8.5), color: ink }}>
             <Text style={{ ...F(font, true) }}>Liked by you</Text> and 1,234 others
@@ -285,10 +285,10 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(13), paddingBottom: pad(11), gap: pad(6) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(11) }}>
-            <ActionIcon name="ig-heart" size={pad(14)} color={ink} />
-            <ActionIcon name="ig-comment" size={pad(14)} color={ink} />
-            <ActionIcon name="th-repost" size={pad(14)} color={ink} />
-            <ActionIcon name="th-send" size={pad(14)} color={ink} />
+            <ActionIcon name="th-heart" size={pad(20)} color={ink} />
+            <ActionIcon name="th-comment" size={pad(19)} color={ink} />
+            <ActionIcon name="th-repost" size={pad(20)} color={ink} />
+            <ActionIcon name="th-send" size={pad(20)} color={ink} />
           </View>
           <Text style={{ ...F(font), fontSize: pad(8), color: faint }}>12 replies</Text>
         </View>

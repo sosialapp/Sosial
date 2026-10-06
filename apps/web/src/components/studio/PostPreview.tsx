@@ -209,7 +209,9 @@ export default function PostPreview({
           <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
           <div className="flex items-center gap-3.5 pt-0.5 text-[#111111]">
             <ChromeIcon name="ig-heart" size={22} color="#111111" />
-            <ChromeIcon name="ig-comment" size={21} color="#111111" />            <ChromeIcon name="ig-plane" size={21} color="#111111" />
+            <ChromeIcon name="ig-comment" size={21} color="#111111" />
+            <ChromeIcon name="ig-repost" size={22} color="#111111" />
+            <ChromeIcon name="ig-plane" size={21} color="#111111" />
             <span className="flex-1" />
             <ChromeIcon name="ig-bookmark" size={21} color="#111111" />
           </div>
