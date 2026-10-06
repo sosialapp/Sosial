@@ -184,7 +184,7 @@ export default async function DashboardPage() {
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatTile
-          label="Total Posts"
+          label="Total posts"
           value={String(posts.length)}
           sub={delta !== null ? `${delta >= 0 ? '+' : ''}${delta}% vs. last 7 days` : 'vs. last 7 days'}
           tint="#1d7fe0"
@@ -227,7 +227,7 @@ export default async function DashboardPage() {
           {/* Week calendar */}
           <section className="card overflow-hidden border border-line p-5" aria-label="Content calendar">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-display text-base font-extrabold tracking-tight">Content Calendar</p>
+              <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>
               <p className="text-xs text-muted">{rangeLabel}</p>
               <span className="flex-1" />
               <Link
@@ -325,7 +325,7 @@ export default async function DashboardPage() {
           {/* Recent activity */}
           <section className="card border border-line p-5" aria-label="Recent activity">
             <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Recent Activity</p>
+              <p className="font-display text-base font-extrabold tracking-tight">Recent activity</p>
               <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
                 View all
               </Link>
@@ -373,7 +373,7 @@ export default async function DashboardPage() {
           {/* Upcoming */}
           <section className="card border border-line p-5" aria-label="Upcoming posts">
             <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Upcoming Posts</p>
+              <p className="font-display text-base font-extrabold tracking-tight">Upcoming posts</p>
               <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
                 View all
               </Link>

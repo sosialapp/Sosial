@@ -74,7 +74,7 @@ export default function AnalyticsCard({ sentAt }: { sentAt: string[] }) {
   return (
     <section className="card border border-line p-5" aria-label="Analytics overview">
       <div className="flex items-center justify-between">
-        <p className="font-display text-base font-extrabold tracking-tight">Analytics Overview</p>
+        <p className="font-display text-base font-extrabold tracking-tight">Analytics overview</p>
         <Link href="/analytics" className="text-xs font-bold text-ink hover:underline">
           View all
         </Link>
