@@ -209,8 +209,7 @@ export default function PostPreview({
           <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
           <div className="flex items-center gap-3.5 pt-0.5 text-[#111111]">
             <ChromeIcon name="ig-heart" size={22} color="#111111" />
-            <ChromeIcon name="ig-comment" size={21} color="#111111" />
-            <ChromeIcon name="ig-plane" size={21} color="#111111" />
+            <ChromeIcon name="ig-comment" size={21} color="#111111" />            <ChromeIcon name="ig-plane" size={21} color="#111111" />
             <span className="flex-1" />
             <ChromeIcon name="ig-bookmark" size={21} color="#111111" />
           </div>
@@ -239,7 +238,7 @@ export default function PostPreview({
         <Head handle={handle} avatarUrl={avatarUrl} provider={provider} />
         <Body text={body} />
         <Media imageUrl={imageUrl} videoUrl={videoUrl} provider={provider} />
-        <Actions items={[{ icon: 'th-heart' }, { icon: 'th-comment' }, { icon: 'th-repost' }, { icon: 'th-send' }]} />
+        <Actions items={[{ icon: 'th-heart', size: 22 }, { icon: 'th-comment', size: 21 }, { icon: 'th-repost', size: 22 }, { icon: 'th-send', size: 22 }]} />
       </article>
     );
   }

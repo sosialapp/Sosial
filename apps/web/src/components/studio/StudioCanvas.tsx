@@ -227,12 +227,12 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${12 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 * k }}>
-            <ChromeIcon name="ig-heart" size={14 * k} color={c.ink} />
-            <ChromeIcon name="ig-comment" size={14 * k} color={c.ink} />
-            <ChromeIcon name="ig-repost" size={17 * k} color={c.ink} />
-            <ChromeIcon name="ig-plane" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-heart" size={20 * k} color={c.ink} />
+            <ChromeIcon name="ig-comment" size={19 * k} color={c.ink} />
+            <ChromeIcon name="ig-repost" size={20 * k} color={c.ink} />
+            <ChromeIcon name="ig-plane" size={19 * k} color={c.ink} />
             <span style={{ flex: 1 }} />
-            <ChromeIcon name="ig-bookmark" size={14 * k} color={c.ink} />
+            <ChromeIcon name="ig-bookmark" size={19 * k} color={c.ink} />
           </div>
           <p style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.ink, margin: 0 }}>
             <span style={{ ...ff(c.font, true) }}>Liked by you</span> and 1,234 others
@@ -279,10 +279,10 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
-            <ChromeIcon name="th-heart" size={14 * k} color={c.ink} />
-            <ChromeIcon name="th-comment" size={14 * k} color={c.ink} />
-            <ChromeIcon name="th-repost" size={14 * k} color={c.ink} />
-            <ChromeIcon name="th-send" size={14 * k} color={c.ink} />
+            <ChromeIcon name="th-heart" size={20 * k} color={c.ink} />
+            <ChromeIcon name="th-comment" size={19 * k} color={c.ink} />
+            <ChromeIcon name="th-repost" size={20 * k} color={c.ink} />
+            <ChromeIcon name="th-send" size={20 * k} color={c.ink} />
           </div>
           <p style={{ ...ff(c.font), fontSize: 8 * k, color: c.faint, margin: 0 }}>12 replies</p>
         </div>
