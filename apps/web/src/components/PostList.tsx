@@ -330,16 +330,20 @@ export default function PostList({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
+  const [sortNewest, setSortNewest] = useState(true);
+  const [perPage, setPerPage] = useState(15);
+  const [page, setPage] = useState(1);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   /** Chain parts render as ONE card — a thread draft is a single post. */
   const groups = useMemo(() => {
+    const dateOf = (p: PostWithTargets) => p.sent_at ?? p.scheduled_at ?? p.created_at ?? '';
     const filtered = posts
       .filter((p) => TAB_MATCH[tab](p.status))
       .sort((a, b) => {
-        const at = a.scheduled_at ?? a.created_at;
-        const bt = b.scheduled_at ?? b.created_at;
-        return bt.localeCompare(at);
+        const c = dateOf(a).localeCompare(dateOf(b));
+        return sortNewest ? -c : c;
       });
     const out: { key: string; parts: PostWithTargets[] }[] = [];
     const seen = new Set<string>();
@@ -358,7 +362,15 @@ export default function PostList({
       }
     }
     return out;
-  }, [posts, tab]);
+  }, [posts, tab, sortNewest]);
+
+  // Pagination: 15 rows per page by default, page resets on filter/sort/data.
+  useEffect(() => {
+    setPage(1);
+  }, [tab, sortNewest, perPage, posts.length]);
+  const totalPages = Math.max(1, Math.ceil(groups.length / perPage));
+  const safePage = Math.min(page, totalPages);
+  const pageGroups = groups.slice((safePage - 1) * perPage, safePage * perPage);
 
   async function run(id: string, fn: (sb: SupabaseClient) => Promise<void>) {
     setBusyId(id);
@@ -429,91 +441,91 @@ export default function PostList({
         </p>
       )}
 
-      <div className="flex-1 space-y-2 p-6">
+      <div className="flex-1 space-y-4 p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">
+            {groups.length === 0
+              ? 'No posts'
+              : `Showing ${(safePage - 1) * perPage + 1}–${Math.min(safePage * perPage, groups.length)} of ${groups.length}`}
+          </span>
+          <span className="flex-1" />
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            Rows
+            <select
+              value={perPage}
+              onChange={(e) => setPerPage(Number(e.target.value))}
+              aria-label="Rows per page"
+              className="rounded-full border border-line bg-card px-2 py-1 text-xs font-bold text-ink"
+            >
+              {[15, 30, 50].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => setSortNewest((v) => !v)}
+            aria-label={sortNewest ? 'Sort oldest first' : 'Sort newest first'}
+            className="rounded-full border border-line bg-card px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone"
+          >
+            {sortNewest ? '↓ Newest first' : '↑ Oldest first'}
+          </button>
+        </div>
         {groups.length === 0 && <p className="text-sm text-muted">Nothing here yet.</p>}
-        {groups.map((g) => {
+        {pageGroups.map((g) => {
           const head = g.parts[0];
           const isChain = g.parts.length > 1;
           const meta = POST_STATUS_META[head.status];
-          const media = g.parts.flatMap((p) => mediaOf(p)).slice(0, 3);
-          const mediaTotal = g.parts.reduce((n, p) => n + mediaOf(p).length, 0);
           const comment = lastComment(head);
+          const mediaTotal = g.parts.reduce((n, p) => n + mediaOf(p).length, 0);
           const draftish = g.parts.every((p) => p.status === 'draft' || p.status === 'failed');
           const inApproval = g.parts.every((p) => p.status === 'approval');
           const busy = busyId === g.key;
           const ids = g.parts.map((p) => p.id);
           const targetErr = g.parts.flatMap((p) => p.post_targets).find((t) => t.last_error)?.last_error;
           const targets = uniqueTargets(g.parts);
-          const shownTargets = targets.slice(0, 4);
           const openPreview = () => setPreviewKey(g.key);
+          const cardMedia = g.parts.flatMap((p) => mediaOf(p));
+          const expanded = expandedKey === g.key;
+          const fullText = isChain ? g.parts.map((p) => p.body).filter(Boolean).join('\n\n') : (head.body || '');
           return (
             <>
-              <div
+              <article
                 key={g.key}
-                className="flex flex-wrap items-start gap-4 rounded-2xl border border-line bg-card p-4"
+                className="overflow-hidden rounded-3xl border border-line bg-card"
               >
-              {media.length > 0 && (
-                <div className="flex shrink-0 gap-1.5">
-                  {media.slice(0, 3).map((m) =>
-                    m.kind === 'video' ? (
-                      <video
-                        key={m.id}
-                        src={m.signed_url}
-                        muted
-                        playsInline
-                        className="h-16 w-16 rounded-lg border border-line bg-bone object-cover"
-                      />
-                    ) : m.signed_url ? (
-                      <img
-                        key={m.id}
-                        src={m.signed_url}
-                        alt=""
-                        className="h-16 w-16 rounded-lg border border-line object-cover"
-                      />
-                    ) : (
-                      <span
-                        key={m.id}
-                        className="flex h-16 w-16 items-center justify-center rounded-lg border border-line bg-bone text-[10px] text-faint"
-                      >
-                        {m.kind}
-                      </span>
-                    ),
-                  )}
-                  {mediaTotal > 3 && (
-                    <span className="self-end text-xs text-faint">+{mediaTotal - 3}</span>
-                  )}
-                </div>
-              )}
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`pill ${meta.className}`}>{meta.label}</span>
-                  {isChain ? (
-                    <span className="pill bg-paper-dim text-ink" title="One threaded chain">
-                      Chain · {g.parts.length} parts
-                    </span>
-                  ) : head.chain_id ? (
-                    <span className="pill bg-paper-dim text-ink" title="Part of a threaded chain">
-                      Chain · {head.chain_position + 1}
-                    </span>
-                  ) : null}
-                  <span className="flex items-center gap-1">
-                    {shownTargets.map((t) => (
+                {/* Header: channels + time + status, like a social post head */}
+                <div className="flex items-center gap-2.5 px-4 pt-3.5">
+                  <span className="flex -space-x-1.5">
+                    {targets.slice(0, 5).map((t) => (
                       <ChannelAvatar
                         key={t.channel_id ?? t.provider}
                         provider={t.provider}
                         avatar={avatars[t.channel_id]}
-                        size={24}
+                        size={32}
                       />
                     ))}
-                    {targets.length > shownTargets.length ? (
-                      <span className="text-[11px] font-bold text-faint">+{targets.length - shownTargets.length}</span>
-                    ) : null}
                   </span>
-                  <span className="text-xs text-faint">
-                    {head.sent_at ? `Sent ${formatDateTime(head.sent_at)}` : formatDateTime(head.scheduled_at)}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-extrabold">
+                      {targets.slice(0, 3).map((t) => providerMeta(t.provider).label).join(' · ')}
+                      {targets.length > 3 ? ` +${targets.length - 3}` : ''}
+                    </span>
+                    <span className="block text-xs text-faint">
+                      {head.sent_at ? `Sent ${formatDateTime(head.sent_at)}` : formatDateTime(head.scheduled_at)}
+                    </span>
                   </span>
+                  <span className={`pill ${meta.className}`}>{meta.label}</span>
+                  {isChain ? (
+                    <span className="pill bg-paper-dim text-ink" title="One threaded chain">
+                      Chain · {g.parts.length}
+                    </span>
+                  ) : null}
                 </div>
+
+                {/* Body: full text, expandable */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -526,24 +538,92 @@ export default function PostList({
                   }}
                   aria-label={`Preview ${head.title || 'post'}`}
                   title="Preview"
-                  className="mt-2 cursor-pointer rounded-lg text-left"
+                  className="cursor-pointer px-4 pt-2 text-left"
                 >
-                  <p className="text-sm text-ink">{snippet(head)}</p>
-                  {isChain && g.parts[1] ? (
-                    <p className="mt-1 text-xs text-muted">+ {g.parts.length - 1} more part{g.parts.length - 1 === 1 ? '' : 's'}: “{snippet(g.parts[1]).slice(0, 60)}…”</p>
+                  {head.title ? (
+                    <p className="text-[15px] font-extrabold leading-snug">{head.title}</p>
                   ) : null}
+                  {fullText ? (
+                    <>
+                      <p className={`mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-soft ${expanded ? '' : 'line-clamp-4'}`}>
+                        {fullText}
+                      </p>
+                      {fullText.length > 220 ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedKey(expanded ? null : g.key);
+                          }}
+                          className="mt-1 text-xs font-bold text-muted hover:text-ink"
+                        >
+                          {expanded ? 'Show less' : 'Show more'}
+                        </button>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="mt-0.5 text-sm italic text-faint">No text — media only.</p>
+                  )}
+                  {comment && (
+                    <p className="mt-1.5 text-xs text-ink">Changes requested: “{comment}”</p>
+                  )}
+                  {targetErr && (
+                    <p className="mt-1.5 text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">
+                      {targetErr}
+                    </p>
+                  )}
                 </div>
-                {comment && (
-                  <p className="mt-1 text-xs text-ink">Changes requested: “{comment}”</p>
-                )}
-                {targetErr && (
-                  <p className="mt-1 text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">
-                    {targetErr}
-                  </p>
-                )}
-              </div>
 
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {/* Media: natural aspect ratio, never cropped */}
+                {cardMedia.length > 0 && (
+                  <div className={`mt-2.5 gap-1 px-4 ${cardMedia.length > 1 ? 'grid grid-cols-2' : ''}`}>
+                    {cardMedia.slice(0, 4).map((m) =>
+                      m.kind === 'video' ? (
+                        <video
+                          key={m.id}
+                          src={m.signed_url}
+                          muted
+                          playsInline
+                          controls
+                          className="h-auto max-h-[420px] w-full rounded-2xl border border-line bg-bone object-contain"
+                        />
+                      ) : m.signed_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={m.id}
+                          src={m.signed_url}
+                          alt=""
+                          loading="lazy"
+                          className="h-auto max-h-[420px] w-full rounded-2xl border border-line bg-bone object-contain"
+                        />
+                      ) : (
+                        <span
+                          key={m.id}
+                          className="flex h-24 items-center justify-center rounded-2xl border border-line bg-bone text-[10px] text-faint"
+                        >
+                          {m.kind}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                )}
+                {mediaTotal > 4 && (
+                  <p className="px-4 pt-1 text-xs font-bold text-faint">+{mediaTotal - 4} more attachments</p>
+                )}
+
+                {/* Footer: channel logos + actions */}
+                <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                  <span className="flex items-center gap-1" title={targets.map((t) => providerMeta(t.provider).label).join(', ')}>
+                    {targets.map((t) => (
+                      <ChannelAvatar
+                        key={t.channel_id ?? t.provider}
+                        provider={t.provider}
+                        avatar={avatars[t.channel_id]}
+                        size={22}
+                      />
+                    ))}
+                  </span>
+                  <span className="flex-1" />
                 <button
                   className="btn btn-ghost"
                   type="button"
@@ -614,8 +694,8 @@ export default function PostList({
                 >
                   Delete{isChain ? ` (${ids.length})` : ''}
                 </button>
-              </div>
-            </div>
+                </div>
+              </article>
             {previewKey === g.key ? (
               <PreviewDialog
                 parts={g.parts}
@@ -638,6 +718,53 @@ export default function PostList({
           </>
           );
         })}
+        {totalPages > 1 ? (
+          <nav aria-label="Post pages" className="flex items-center justify-center gap-1.5 pt-2">
+            <button
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-bone disabled:opacity-40"
+            >
+              ← Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((n) => n === 1 || n === totalPages || Math.abs(n - safePage) <= 1)
+              .reduce<number[]>((acc, n, _, arr) => {
+                const prev = acc[acc.length - 1];
+                if (prev !== undefined && n - prev > 1) acc.push(-1);
+                acc.push(n);
+                return acc;
+              }, [])
+              .map((n, i) =>
+                n === -1 ? (
+                  <span key={`gap-${i}`} className="px-1 text-xs text-faint">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPage(n)}
+                    aria-current={n === safePage ? 'page' : undefined}
+                    className={`h-8 w-8 rounded-full text-xs font-bold transition ${
+                      n === safePage ? 'bg-accent text-white' : 'border border-line bg-card text-soft hover:bg-bone'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ),
+              )}
+            <button
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-bone disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </nav>
+        ) : null}
       </div>
     </div>
   );
