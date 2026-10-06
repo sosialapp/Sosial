@@ -1,4 +1,4 @@
-'use client';
+ï»¿'use client';
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
@@ -22,7 +22,7 @@ import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
-/** Native reply-chains exist on these four channels only — same as the app. */
+/** Native reply-chains exist on these four channels only â€” same as the app. */
 const THREAD_PROVIDERS = ['x', 'threads', 'mastodon', 'bluesky'];
 
 function deviceZone(): string {
@@ -70,7 +70,7 @@ function RailDesignTile({
         </div>
         {busy ? (
           <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-xs font-bold text-white">
-            Rendering…
+            Renderingâ€¦
           </span>
         ) : (
           <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/55 to-transparent px-2 pt-6 pb-2 text-xs font-extrabold text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100">
@@ -90,7 +90,7 @@ import PostPreview from '@/components/studio/PostPreview';
 
 /**
  * Right-rail switch: Template (text captions or canvas designs into the
- * composer) · Preview (this draft as each picked channel shows it) · AI
+ * composer) Â· Preview (this draft as each picked channel shows it) Â· AI
  * (the writer, as before).
  */
 function RailPanel({
@@ -167,7 +167,7 @@ function RailPanel({
           </div>
           {tplKind === 'text' ? (
             captions.length === 0 ? (
-              <p className="text-sm text-muted">No caption templates yet — save one on the Templates tab.</p>
+              <p className="text-sm text-muted">No caption templates yet â€” save one on the Templates tab.</p>
             ) : (
               <div className="max-h-[480px] space-y-2 overflow-y-auto">
                 {captions.map((t) => (
@@ -186,7 +186,7 @@ function RailPanel({
               </div>
             )
           ) : designs.length + starterDesigns.length === 0 ? (
-            <p className="text-sm text-muted">No designs yet — make one on the Templates tab.</p>
+            <p className="text-sm text-muted">No designs yet â€” make one on the Templates tab.</p>
           ) : (
             <div className="max-h-[480px] space-y-5 overflow-y-auto pb-1">
               {starterDesigns.length > 0 ? (
@@ -311,7 +311,7 @@ export default function CreatePost({
   editingIds?: string[];
   /** Draft edit: called after the replacement saves. */
   onEdited?: () => void;
-  /** Library for the rail Template tab (passed from the hub — no duplication). */
+  /** Library for the rail Template tab (passed from the hub â€” no duplication). */
   libraryCaptions?: { id: string; name: string; title: string; body: string }[];
   libraryDesigns?: StudioProject[];
   libraryStarterDesigns?: StudioProject[];
@@ -351,11 +351,11 @@ export default function CreatePost({
         return live;
       }
     }
-    // Fresh composer: nothing pre-picked — the user chooses destinations.
+    // Fresh composer: nothing pre-picked â€” the user chooses destinations.
     return [];
   });
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
-  /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
+  /** Per-channel post format (post/reel/story/ghostâ€¦) â€” mobile parity. */
   const [types, setTypes] = useState<Record<string, string>>({});
   const [parts, setParts] = useState(() => Math.max(3, initParts?.length ?? 3));
   const [mode, setMode] = useState<'now' | 'schedule'>('now');
@@ -366,7 +366,7 @@ export default function CreatePost({
   const [busy, setBusy] = useState(false);
   /** Live publish monitor (post-now): watches these post ids settle. */
   const [monitorIds, setMonitorIds] = useState<string[]>([]);
-  /** Shown the instant Post-now is pressed — ids land once saving finishes. */
+  /** Shown the instant Post-now is pressed â€” ids land once saving finishes. */
   const [monitorOpen, setMonitorOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
@@ -444,7 +444,7 @@ export default function CreatePost({
           prev.map((s, i) => ({ ...s, media: [...s.media, ...(loaded[i] ?? [])].slice(0, 10) })),
         );
       } else {
-        setErr('Draft media could not be reloaded — re-attach it before saving.');
+        setErr('Draft media could not be reloaded â€” re-attach it before saving.');
       }
       setMediaLoading(false);
     })();
@@ -458,14 +458,14 @@ export default function CreatePost({
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
     [ready, picked],
   );
-  /** Channels currently picked — drives the format pills. */
+  /** Channels currently picked â€” drives the format pills. */
   const chosenNow = useMemo(() => ready.filter((c) => picked.includes(c.id)), [ready, picked]);
   const limit = useMemo(() => {
     const ls = ready.filter((c) => picked.includes(c.id)).map((c) => providerMeta(c.provider).limit);
     return ls.length ? Math.min(...ls) : 2200;
   }, [ready, picked]);
 
-  /** Live per-channel verdicts — powers the grey pills + tap messages. */
+  /** Live per-channel verdicts â€” powers the grey pills + tap messages. */
   const compat = useMemo(() => {
     const chs = ready.filter((c) => picked.includes(c.id));
     return {
@@ -483,7 +483,7 @@ export default function CreatePost({
   /**
    * Inline gating: a channel the draft can't satisfy renders grey with its
    * reason on tap (instead of a separate panel below). "Unselected" chips
-   * judge the CURRENT draft — picking them mid-compose is allowed so the
+   * judge the CURRENT draft â€” picking them mid-compose is allowed so the
    * user sees exactly what's missing and fixes it in place.
    */
   const allReady = useMemo(() => {
@@ -497,16 +497,16 @@ export default function CreatePost({
       if (!base.chainOk) return { ...base, blocked: true, reason: 'Thread posts go to X, Threads, Mastodon and Bluesky only' };
       if (!cap) return { ...base, blocked: false, reason: '' };
       if (cap.requiresVideo && !hasVideo) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a video — this post has none attached.` };
+        return { ...base, blocked: true, reason: `${cap.label} needs a video â€” this post has none attached.` };
       }
       if (cap.requiresMedia && totalMedia === 0) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video — text alone can't go there.` };
+        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video â€” text alone can't go there.` };
       }
       if (hasVideo && cap.supports.video === false) {
-        return { ...base, blocked: true, reason: `${cap.label} doesn't take video — remove the video or drop the channel.` };
+        return { ...base, blocked: true, reason: `${cap.label} doesn't take video â€” remove the video or drop the channel.` };
       }
       if (hasImage && cap.supports.image === false) {
-        return { ...base, blocked: true, reason: `${cap.label} takes text and links only — remove the image or drop the channel.` };
+        return { ...base, blocked: true, reason: `${cap.label} takes text and links only â€” remove the image or drop the channel.` };
       }
       return { ...base, blocked: false, reason: '' };
     });
@@ -627,7 +627,7 @@ export default function CreatePost({
       return;
     }
     // Capability gate: per-channel blockers (limits, media, threads,
-    // destinations). Drafts save freely — the panel still shows the issues.
+    // destinations). Drafts save freely â€” the panel still shows the issues.
     if (submitMode !== 'draft') {
       const blockers = compat.issues.filter((i) => i.level === 'error');
       if (blockers.length) {
@@ -641,7 +641,7 @@ export default function CreatePost({
       return;
     }
     nowConfirmed.current = false;
-    // Post-now shows the monitor instantly (mobile parity) — it starts in
+    // Post-now shows the monitor instantly (mobile parity) â€” it starts in
     // "saving" mode and flips to per-channel progress once ids land.
     if (submitMode === 'now') {
       setMonitorIds([]);
@@ -687,14 +687,14 @@ export default function CreatePost({
           formats: types,
         });
       }
-      // Draft edit: the replacement saved — retire the original rows, then
+      // Draft edit: the replacement saved â€” retire the original rows, then
       // hand back to a fresh composer.
       if (editingIds?.length) {
         await Promise.allSettled(editingIds.map((id) => deletePost(sb, id)));
         onEdited?.();
       }
       if (submitMode === 'now') {
-        // Monitor is already open — hand it the ids so it flips to progress.
+        // Monitor is already open â€” hand it the ids so it flips to progress.
         setBusy(false);
         setMonitorIds(newIds);
         return;
@@ -730,11 +730,11 @@ export default function CreatePost({
               <p className="font-display text-base font-extrabold tracking-tight">Create your post</p>
               {editingIds?.length ? (
                 <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">
-                  Editing draft{mediaLoading ? ' · loading media…' : ''}
+                  Editing draft{mediaLoading ? ' Â· loading mediaâ€¦' : ''}
                 </span>
               ) : null}
               <span className="flex-1" />
-              {/* Mode pill — top, dashboard style */}
+              {/* Mode pill â€” top, dashboard style */}
               <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Post mode">
                 {(['now', 'schedule'] as const).map((m) => (
                   <button
@@ -757,7 +757,7 @@ export default function CreatePost({
               </div>
             </div>
 
-            {/* Schedule row — top, next to the title */}
+            {/* Schedule row â€” top, next to the title */}
             {mode === 'schedule' ? (
               <div className="mt-3">
                 <DateTimePicker
@@ -769,7 +769,7 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* Channel pills — dashboard style; thread narrows the cast */}
+            {/* Channel pills â€” dashboard style; thread narrows the cast */}
             <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Channels">
               {ready.length === 0 ? (
                 <p className="text-xs text-muted">
@@ -824,11 +824,11 @@ export default function CreatePost({
             {thread ? (
               <p className="mt-2 flex items-center gap-1.5 text-[11px] text-faint">
                 <BranchIcon className="h-3 w-3" />
-                Thread posts go to X, Threads, Mastodon and Bluesky — parts publish as one reply chain.
+                Thread posts go to X, Threads, Mastodon and Bluesky â€” parts publish as one reply chain.
               </p>
             ) : null}
 
-            {/* Per-channel format pills (post/reel/story/ghost…) */}
+            {/* Per-channel format pills (post/reel/story/ghostâ€¦) */}
             {chosenNow.some((c) => postTypeOptions(c.provider).length > 1) ? (
               <div className="mt-3 space-y-1.5">
                 {chosenNow
@@ -860,7 +860,7 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* Part 1 — same box as every other part */}
+            {/* Part 1 â€” same box as every other part */}
             <div className="mt-3">
               {err ? (
                 <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDEBEC] px-3 py-2 dark:bg-[#2c1b1b]" role="alert">
@@ -934,7 +934,7 @@ export default function CreatePost({
                         onAddFiles={(list) => addFilesTo(idx, list)}
                         onRemoveMedia={(mi) => removeMediaFrom(idx, mi)}
                         onReorderMedia={(from, to) => reorderMediaIn(idx, from, to)}
-                        placeholder={`Part ${idx + 1}…`}
+                        placeholder={`Part ${idx + 1}â€¦`}
                         rows={3}
                         limit={limit}
                         label={`Thread part ${idx + 1}`}
@@ -1013,8 +1013,8 @@ export default function CreatePost({
                       if (!snippet) return null;
                       return (
                         <p className="mt-3 rounded-xl bg-paper-dim px-3 py-2 text-xs text-soft">
-                          “{snippet.slice(0, 140)}
-                          {snippet.length > 140 ? '…' : ''}”
+                          â€œ{snippet.slice(0, 140)}
+                          {snippet.length > 140 ? 'â€¦' : ''}â€
                           {thread && parts > 1 ? ` (+${parts - 1} more parts)` : ''}
                         </p>
                       );
@@ -1048,7 +1048,7 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* One row: thread link · save draft · post — aligned */}
+            {/* One row: thread link Â· save draft Â· post â€” aligned */}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -1070,7 +1070,7 @@ export default function CreatePost({
               </button>
               <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
                 {busy ? (
-                  'Sending…'
+                  'Sendingâ€¦'
                 ) : (
                   <>
                     <SendIcon className="h-3.5 w-3.5" />
@@ -1112,7 +1112,7 @@ export default function CreatePost({
                     return next;
                   });
                 }}
-                appliedNote="Applied to the composer — edit freely, then post."
+                appliedNote="Applied to the composer â€” edit freely, then post."
               />
             }
           />
