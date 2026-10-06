@@ -154,7 +154,7 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
   const W = fullWidth;
   const H = Math.round(rect.height * (fullWidth / rect.width));
 
-  const rasterise = async (styleCss: string, stripWatermark = false): Promise<Blob> => {
+  const rasterise = async (styleCss: string): Promise<Blob> => {
     const clone = node.cloneNode(true) as HTMLElement;
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     if (document.documentElement.classList.contains('dark')) clone.classList.add('dark');
@@ -163,12 +163,9 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
     clone.style.margin = '0';
     clone.style.transform = 'none';
 
-    // Watermark policy: the server composites the mark on watermarked paths.
-    // Strip the DOM copy here so the file carries exactly one, styled the
-    // same as every other export.
-    if (stripWatermark) {
-      for (const el of Array.from(clone.querySelectorAll('[data-watermark]'))) el.remove();
-    }
+    // The DOM watermark (data-watermark) is KEPT: the downloaded file must be
+    // pixel-identical to the live preview, mark included. The server route is
+    // a pass-through and must not composite a second mark.
 
     await inlineImages(clone);
 
@@ -238,13 +235,11 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
 
   // First attempt embeds the real webfonts; if the SVG refuses to load
   // (a poisoned font face or a serializer hiccup), retry with system fonts.
-  // Watermark is always stripped here — the server decides whether the file
-  // leaves with one, so downloaded bytes match the policy on every path.
   const pageCss = collectPageCss();
   try {
-    return await rasterise(`${pageCss}\n${await embeddedFontCss()}`, true);
+    return await rasterise(`${pageCss}\n${await embeddedFontCss()}`);
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith('[raster]')) return rasterise(pageCss, true);
+    if (e instanceof Error && e.message.startsWith('[raster]')) return rasterise(pageCss);
     throw e;
   }
 }
