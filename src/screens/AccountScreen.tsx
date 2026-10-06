@@ -7,14 +7,14 @@ import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import { wipeAllData } from '../utils/account';
 import { TERMS_TEXT } from '../utils/legal';
-import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, WorkspaceInfo } from '../utils/supabase';
+import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, callEdgeFunction, WorkspaceInfo } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
 
 WebBrowser.maybeCompleteAuthSession();
 
-type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'changelog' | 'terms' | 'legal' | 'report';
+type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'changelog' | 'terms' | 'legal' | 'report' | 'delete';
 
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
 
@@ -49,6 +49,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [repSubject, setRepSubject] = useState('');
   const [repBody, setRepBody] = useState('');
   const [repBusy, setRepBusy] = useState(false);
+
+  /* Self-serve erasure: server wipe (delete-account fn) + local wipe. */
+  const [delArmed, setDelArmed] = useState(false);
+  const [delWord, setDelWord] = useState('');
+  const [delBusy, setDelBusy] = useState(false);
 
   /* Sosial Cloud (Supabase staging) — real accounts live alongside the legacy
    * on-device profile until the profile/team migration lands. */
@@ -311,17 +316,24 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     </View>
   );
 
-  const deleteAccount = () => {
-    Alert.alert('Delete Sosial account?', 'This wipes everything on this device: designs, templates, ideas, posts, channels and settings. This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete everything', style: 'destructive',
-        onPress: () => Alert.alert('Last chance', 'Really delete all Sosial data?', [
-          { text: 'Keep it', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: async () => { await wipeAllData(); onLoggedOut(); } },
-        ]),
-      },
-    ]);
+  /** Self-serve erasure: typed “confirm” → server wipe → local wipe → signed out. */
+  const deleteAccount = async () => {
+    if (delWord.trim().toLowerCase() !== 'confirm') {
+      Alert.alert('Type “confirm”', 'Type the word “confirm” to delete your data.');
+      return;
+    }
+    setDelBusy(true);
+    try {
+      const json: any = await callEdgeFunction('delete-account', { confirmation: 'confirm' });
+      if (json?.error) throw new Error(String(json.error));
+      await wipeAllData();
+      await signOutCloud().catch(() => {});
+      onLoggedOut();
+    } catch (e: any) {
+      Alert.alert('Couldn’t delete', e?.message ?? 'Try again.');
+    } finally {
+      setDelBusy(false);
+    }
   };
 
   const rateApp = () => {
@@ -483,7 +495,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {row('shield-checkmark-outline', 'Privacy policy', undefined, onPrivacy)}
               {row('document-text-outline', 'Terms of use', undefined, () => setView('terms'))}
               {row('scale-outline', 'Legal', undefined, () => setView('legal'))}
-              {row('trash-outline', 'Delete Sosial account', 'Wipe everything on-device', deleteAccount, true)}
+              {row('trash-outline', 'Delete my data', 'Erase your account everywhere', () => { setDelArmed(false); setDelWord(''); setView('delete'); }, true)}
             </View>
           </>
         ) : null}
@@ -527,6 +539,34 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             >
               <Text style={s.saveT}>Save</Text>
             </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {view === 'delete' ? (
+          <View style={{ gap: 12, marginTop: 16 }}>
+            <Text style={[s.rowT, { color: C.redText }]}>This permanently erases your account.</Text>
+            <Text style={s.note}>
+              {'\u2022'} Workspaces you own are deleted whole — posts, drafts, media, channels and tokens.{'\n'}
+              {'\u2022'} Teammates in those workspaces lose access too.{'\n'}
+              {'\u2022'} Memberships in other people's workspaces are removed.{'\n'}
+              {'\u2022'} Media-source tokens (Drive, Photos, Dropbox, Canva) are revoked.{'\n'}
+              {'\u2022'} Cancel any paid subscription first.
+            </Text>
+            {!delArmed ? (
+              <GhostBtn label="I understand — continue" danger onPress={() => setDelArmed(true)} />
+            ) : (
+              <>
+                <View>
+                  <Text style={s.label}>Type “confirm” to delete everything</Text>
+                  <Txt value={delWord} onChangeText={setDelWord} placeholder="confirm" autoCapitalize="none" autoCorrect={false} />
+                </View>
+                <GhostBtn
+                  label={delBusy ? 'Deleting…' : 'Delete my data forever'}
+                  danger
+                  onPress={() => { if (!delBusy) void deleteAccount(); }}
+                />
+              </>
+            )}
           </View>
         ) : null}
 

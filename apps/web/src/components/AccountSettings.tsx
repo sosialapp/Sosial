@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Trash2,
   Users,
 } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -34,7 +35,7 @@ import { Card } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
 import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 
-type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal';
+type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal' | 'delete';
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
 
 const CHANGELOG = [
@@ -140,12 +141,16 @@ export default function AccountSettings({
   const [repBody, setRepBody] = useState('');
   const [repBusy, setRepBusy] = useState(false);
   const [cloudInfo, setCloudInfo] = useState(false);
+  const [delArmed, setDelArmed] = useState(false);
+  const [delWord, setDelWord] = useState('');
+  const [delBusy, setDelBusy] = useState(false);
 
   const initial = (email || workspaceName || 'S')[0].toUpperCase();
   const title =
     view === 'main' ? 'Account' : view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings'
     : view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription'
-    : view === 'changelog' ? "What's new" : view === 'report' ? 'Report a problem' : 'Legal';
+    : view === 'changelog' ? "What's new" : view === 'report' ? 'Report a problem'
+    : view === 'delete' ? 'Delete my data' : 'Legal';
 
   async function flipNotif(key: 'posts' | 'comments' | 'weekly') {
     const col = key === 'posts' ? 'notif_posts' : key === 'comments' ? 'notif_comments' : 'notif_weekly';
@@ -179,6 +184,39 @@ export default function AccountSettings({
       setErr(e instanceof Error ? e.message : 'Could not save the name.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function deleteMyData() {
+    if (delWord.trim().toLowerCase() !== 'confirm') {
+      setErr('Type the word “confirm” to delete your data.');
+      return;
+    }
+    setDelBusy(true);
+    setErr(null);
+    setNote(null);
+    try {
+      const sb = createClient();
+      const { data, error } = await sb.functions.invoke('delete-account', {
+        body: { confirmation: 'confirm' },
+      });
+      if (error) throw new Error(error.message);
+      const msg = (data as { error?: string } | null)?.error;
+      if (msg) throw new Error(msg);
+      // Server data is gone — drop this browser's cloud tokens, then sign out.
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k?.startsWith('sosial_cloud_')) localStorage.removeItem(k);
+        }
+      } catch {}
+      await fetch('/auth/signout', { method: 'POST' });
+      router.replace('/');
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not delete your data.');
+    } finally {
+      setDelBusy(false);
     }
   }
 
@@ -329,6 +367,21 @@ export default function AccountSettings({
               </span>
               <ThemeToggle />
             </div>
+          </Card>
+
+          <Card className="mt-3 overflow-hidden border-red-500/40">
+            <button
+              type="button"
+              onClick={() => { setDelArmed(false); setDelWord(''); setErr(null); setNote(null); setView('delete'); }}
+              className="flex w-full items-center gap-3 px-5 py-4 text-left"
+            >
+              <Trash2 className="h-5 w-5 shrink-0 text-red-500" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-red-500">Delete my data</span>
+                <span className="block text-xs text-muted">Erase your account and everything in it</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+            </button>
           </Card>
         </>
       ) : null}
@@ -517,6 +570,53 @@ export default function AccountSettings({
             </Card>
           ))}
         </div>
+      ) : null}
+
+      {view === 'delete' ? (
+        <Card className="mt-4 border-red-500/40 p-5">
+          <p className="flex items-center gap-2 text-sm font-extrabold text-red-500">
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            This permanently erases your account.
+          </p>
+          <ul className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
+            <li>• Workspaces you own are deleted whole — posts, drafts, media, channels and tokens.</li>
+            <li>• Teammates in those workspaces lose access to them too.</li>
+            <li>• Your memberships in other people's workspaces are removed.</li>
+            <li>• Media-source tokens (Drive, Photos, Dropbox, Canva) are revoked.</li>
+            <li>• Cancel any paid subscription first (Subscription plan above).</li>
+          </ul>
+          {!delArmed ? (
+            <Button
+              variant="outline"
+              className="mt-4 w-full border-red-500/50 text-red-500 hover:bg-red-500/10"
+              onClick={() => { setDelArmed(true); setErr(null); }}
+            >
+              I understand — continue
+            </Button>
+          ) : (
+            <>
+              <p className="mt-4 text-xs font-bold text-soft">
+                Type <span className="rounded bg-paper-dim px-1.5 py-0.5 font-mono">confirm</span> to delete everything:
+              </p>
+              <input
+                value={delWord}
+                onChange={(e) => setDelWord(e.target.value)}
+                placeholder="confirm"
+                autoComplete="off"
+                aria-label="Type confirm to delete"
+                className="field mt-2 !text-xs"
+              />
+              <Button
+                className="mt-3 w-full bg-red-600 text-white hover:bg-red-700"
+                disabled={delBusy || delWord.trim().toLowerCase() !== 'confirm'}
+                onClick={() => void deleteMyData()}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                {delBusy ? 'Deleting…' : 'Delete my data forever'}
+              </Button>
+            </>
+          )}
+        </Card>
       ) : null}
 
       {view === 'legal' ? (

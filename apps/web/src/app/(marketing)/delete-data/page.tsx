@@ -26,7 +26,23 @@ export default function DeleteDataPage() {
 
       <div className="space-y-10">
         <section>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">How to ask</h2>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Delete it yourself, instantly</h2>
+          <div className="prose-sosial mt-3">
+            <p>
+              No email needed: open{' '}
+              <Link href="/profile" className="font-bold text-accent-ink underline underline-offset-2">
+                Profile settings
+              </Link>{' '}
+              (or Account on the mobile app), tap <strong>Delete my data</strong>, confirm you
+              understand what goes away, then type <strong>confirm</strong>. Your account,
+              workspaces, posts, media, channels and tokens are erased immediately and you are
+              signed out.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Prefer email?</h2>
           <div className="prose-sosial mt-3">
             <p>
               Email{' '}
@@ -58,7 +74,8 @@ export default function DeleteDataPage() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">How long it takes</h2>
           <div className="prose-sosial mt-3">
             <p>
-              Exports go out within 7 days. Deletions complete within 30 days of your confirmed
+              Self-serve deletions in Profile settings complete immediately. Email requests:
+              exports go out within 7 days, deletions within 30 days of your confirmed
               request. A few records may be kept briefly where the law requires it (tax, fraud
               prevention, security logs) — never your content.
             </p>
