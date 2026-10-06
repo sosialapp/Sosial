@@ -83,9 +83,9 @@ export default function LogoDock() {
 
   return (
     <section aria-label="Channels and integrations" className="bg-paper">
-      <div className="mx-auto max-w-6xl px-4 pt-12 md:pt-16">
+      <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:pt-16">
         <div className="flex justify-center">
-          <div className="flex flex-col items-stretch gap-4 rounded-[28px] border border-line bg-white/70 px-8 py-5 backdrop-blur-sm md:flex-row md:items-center">
+          <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">
             {/* Integrate — media sources that feed the composer */}
             <div className="flex flex-col">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
@@ -106,18 +106,17 @@ export default function LogoDock() {
             {/* Divider: vertical on desktop, horizontal on mobile */}
             <div className="mx-auto h-px w-24 shrink-0 bg-line md:mx-0 md:h-24 md:w-px md:self-center" aria-hidden="true" />
 
-            {/* Channels — where posts land */}
-            <div className="flex flex-col">
+            {/* Channels — where posts land. One swipeable row on mobile
+                (no-wrap + scroll, edge-fade mask) so 19 logos never stack
+                into a tall wrapped block; two centered wrapped rows on sm+. */}
+            <div className="flex min-w-0 flex-1 flex-col">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
                 Channels
               </p>
-              {/* Two centered rows everywhere (10 + 9 on desktop): a single strip of
-                  19 never fit gracefully. The hover dock still works on wrapped
-                  rows; touch and reduced-motion stay static. */}
-              <div className="flex justify-center">
+              <div className="relative">
                 <div
                   ref={channelsRef}
-                  className="flex max-w-[688px] flex-wrap items-end justify-center gap-3 sm:gap-4"
+                  className="no-scrollbar -mx-4 flex items-end justify-start gap-3 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] md:mx-0 md:max-w-[688px] md:flex-wrap md:justify-center md:px-0 md:[mask-image:none]"
                 >
                   {CHANNELS.map((c) => (
                     <span key={c} className="block shrink-0 will-change-transform">

@@ -37,7 +37,7 @@ export default function Hero() {
   const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
 
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-clip [touch-action:pan-y]">
       <GridPulse
         cell={26}
         logos={HERO_LOGOS.map((p) => BRAND_PATHS[p])}
@@ -45,11 +45,11 @@ export default function Hero() {
         ambient={3}
       />
 
-      <div className="relative z-[2] mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[0.85fr_1.15fr]">
+      <div className="relative z-[2] mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-6 px-4 py-8 sm:gap-10 sm:py-10 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">
           <h1
             data-grid-avoid
-            className="animate-rise-1 font-display text-4xl leading-[1.02] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
+            className="animate-rise-1 font-display text-[2rem] leading-[1.04] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
           >
             Sosial. Made for{' '}
             <span className="underline decoration-bolt decoration-[0.14em] underline-offset-[0.18em]">
@@ -59,19 +59,19 @@ export default function Hero() {
           </h1>
           <p
             data-grid-avoid
-            className="animate-rise-1 mx-auto mt-5 max-w-xl text-base leading-relaxed md:text-lg lg:mx-0"
+            className="animate-rise-1 mx-auto mt-4 max-w-xl text-[15px] leading-relaxed sm:text-base md:text-lg lg:mx-0"
           >
             Creators, founders, marketers, agencies, affiliate marketers and
             everyone in between.
           </p>
-          <div className="animate-rise-2 mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-            <button type="button" onClick={() => setAuth('up')} className={`${btn} bg-ink text-paper`}>
+          <div className="animate-rise-2 mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-7 lg:justify-start">
+            <button type="button" onClick={() => setAuth('up')} className={`${btn} w-full max-w-xs bg-ink text-paper sm:w-auto sm:max-w-none`}>
               Start scheduling free
               <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </div>
         </div>
-        <div className="animate-rise-2 relative">
+        <div className="animate-rise-2 relative -mx-4 sm:mx-0">
           <Image
             src="/hero-devices.png"
             alt="Sosial composer on a laptop beside the Sosial home screen on a phone"

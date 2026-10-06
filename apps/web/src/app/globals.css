@@ -69,6 +69,11 @@ html {
   scroll-padding-top: 5rem;
   overscroll-behavior: none;
   background-color: var(--color-paper);
+  /* No page-level horizontal pan on touch devices: a single wide descendant
+     (canvas, entrance transform, edge-bleed strip) otherwise lets the whole
+     viewport drag sideways. `clip` — not `hidden` — so sticky headers keep
+     working. */
+  overflow-x: clip;
 }
 
 ::selection {
@@ -83,6 +88,7 @@ body {
   font-weight: 300;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+  overflow-x: clip;
 }
 
 /* ------------------------------- motion ------------------------------- */
