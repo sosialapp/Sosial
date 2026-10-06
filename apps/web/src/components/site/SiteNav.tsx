@@ -205,7 +205,7 @@ export default function SiteNav() {
                 Log in
               </button>
               <button type="button" onClick={() => setAuth('up')} className="btn btn-bolt" disabled={signedIn === null}>
-                Get started free
+                Create account
               </button>
             </>
           )}
@@ -288,7 +288,7 @@ export default function SiteNav() {
                       setAuth('up');
                     }}
                   >
-                    Get started free
+                    Create account
                   </button>
                 </>
               )}

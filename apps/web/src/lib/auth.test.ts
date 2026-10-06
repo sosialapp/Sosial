@@ -38,6 +38,12 @@ describe('oauthErrorMessage', () => {
     expect(msg).toMatch(/interrupted/i);
   });
 
+  it('explains a stale email-confirmation link', () => {
+    const msg = oauthErrorMessage('confirm');
+    expect(msg).toMatch(/already used|expired/i);
+    expect(msg).toMatch(/just sign in/i);
+  });
+
   it('falls back to a generic message for unknown codes', () => {
     expect(oauthErrorMessage('weird')).toMatch(/went wrong/i);
   });

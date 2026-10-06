@@ -17,6 +17,7 @@ export function callbackUrl(origin: string): string {
 export function oauthErrorMessage(code: string | null | undefined): string | null {
   if (!code) return null;
   if (code === 'oauth') return 'Google sign-in was interrupted before it finished. Please try again.';
+  if (code === 'confirm') return 'That confirmation link expired or was already used. If you already confirmed, just sign in.';
   return 'Something went wrong signing you in. Please try again.';
 }
 

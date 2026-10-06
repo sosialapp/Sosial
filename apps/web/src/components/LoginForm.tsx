@@ -76,7 +76,15 @@ export default function LoginForm({
     try {
       const sb = createClient();
       if (mode === 'up') {
-        const { data, error } = await sb.auth.signUp({ email: email.trim(), password });
+        // emailRedirectTo routes the inbox "Confirm email address" link
+        // through /auth/callback, which swaps the code for a session and
+        // drops the user straight into the app (not a dead landing page).
+        const redirectTo = callbackUrl(window.location.origin);
+        const { data, error } = await sb.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: `${redirectTo}?next=${encodeURIComponent('/calendar')}&mode=confirm` },
+        });
         if (error) throw error;
         if (!data.session) {
           // Email confirmation is on — there is no dashboard to travel to yet.
@@ -134,12 +142,7 @@ export default function LoginForm({
       )}
 
       <div className={`relative ${compact ? '' : 'card p-6'}`}>
-        <p className="eyebrow mb-1">{signingUp ? 'Create account' : 'Sign in'}</p>
-        <p className="mb-4 text-xs leading-relaxed text-muted">
-          {signingUp
-            ? 'Set up a workspace in a few seconds. Free forever, no card.'
-            : 'Welcome back. Pick up your calendar where you left it.'}
-        </p>
+        <p className="eyebrow mb-4">{signingUp ? 'Create account' : 'Sign in'}</p>
 
         <form onSubmit={submit} className="space-y-3">
           <input

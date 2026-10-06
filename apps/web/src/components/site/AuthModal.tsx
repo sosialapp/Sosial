@@ -85,14 +85,6 @@ export default function AuthModal({
         >
           ✕
         </button>
-        <div className="mb-5">
-          <p className="font-display text-lg font-extrabold tracking-tight">
-            {mode === 'in' ? 'Welcome back' : 'Get started free'}
-          </p>
-          <p className="text-xs text-muted">
-            {mode === 'in' ? 'Sign in to your workspace' : 'Free forever plan · No credit card'}
-          </p>
-        </div>
         <LoginForm key={mode} initialMode={mode} compact />
         </div>
       </div>
