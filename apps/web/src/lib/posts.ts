@@ -280,8 +280,13 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
     }
   }
 
-  // Targets last (atomicity — see cloudPosts.ts).
+  // Targets last (atomicity — see cloudPosts.ts). Dedupe by channel id: a
+  // duplicate entry would insert the same idempotency_key twice and trip
+  // post_targets' unique constraint on it.
+  const seen = new Set<string>();
   for (const ch of channels) {
+    if (seen.has(ch.id)) continue;
+    seen.add(ch.id);
     const { error: tErr } = await sb.from('post_targets').upsert(
       {
         post_id: postId,

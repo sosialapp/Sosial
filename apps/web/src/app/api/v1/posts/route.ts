@@ -134,7 +134,7 @@ export async function POST(req: Request) {
   }
 
   const providers = Array.isArray(b.channels)
-    ? b.channels.filter((p): p is string => typeof p === 'string')
+    ? [...new Set(b.channels.filter((p): p is string => typeof p === 'string'))]
     : [];
   if (!providers.length) return bad('`channels` is required, e.g. ["instagram", "tiktok"].');
   const unknown = providers.filter((p) => !(ALL_PROVIDERS as string[]).includes(p));
