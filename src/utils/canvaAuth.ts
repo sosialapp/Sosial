@@ -17,7 +17,7 @@ const AUTH_ENDPOINT = 'https://www.canva.com/api/oauth/authorize';
 /** Public identifier (appears in authorize URLs by design); the secret
  *  never leaves the cloud-exchange edge fn. */
 const CLIENT_ID = 'OC-AaECdza1N_BQ';
-const SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'folder:read', 'profile:read'];
+const SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'profile:read'];
 const API = 'https://api.canva.com/rest/v1';
 const STORE_KEY = 'sosial_src_canva_v1';
 

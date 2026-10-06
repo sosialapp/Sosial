@@ -17,7 +17,7 @@ const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/photospicker.mediaitems.readonly',
 ].join(' ');
 const DROPBOX_SCOPES = 'files.metadata.read files.content.read';
-const CANVA_SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'folder:read', 'profile:read'].join(' ');
+const CANVA_SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'profile:read'].join(' ');
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 
 interface Tokens {
