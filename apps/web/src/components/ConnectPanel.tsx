@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import IntegrationsTab from '@/components/IntegrationsTab';
 import { useRouter } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
 import ChannelAvatar from './ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -199,9 +199,15 @@ export default function ConnectPanel({
       )
     );
   };
-  const ordered: ProviderId[] = [...ORDER].sort(
-    (a, b) => Number(byProvider(b).length > 0) - Number(byProvider(a).length > 0),
-  );
+  const ordered: ProviderId[] = [...ORDER].sort((a, b) => {
+    const rank = (p: ProviderId): number => {
+      const n = byProvider(p).length;
+      if (n > 0) return 0; // connected (or expanded) providers
+      if (COMING_SOON.includes(p)) return 2; // Soon rows last
+      return 1; // pure Connect rows first
+    };
+    return rank(a) - rank(b) || ORDER.indexOf(a) - ORDER.indexOf(b);
+  });
   const visible = ordered.filter(matchesQuery);
 
   const startHref = (p: OAuthProvider): string =>
@@ -851,7 +857,10 @@ export default function ConnectPanel({
                 ) : soon ? (
                   <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">Soon</span>
                 ) : (
-                  <span className="shrink-0 text-[13px] font-bold text-accent-ink">Connect</span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-accent-ink" title="Opens the provider's connect page in a new tab">
+                    Connect
+                    <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                  </span>
                 )}
               </button>
 
