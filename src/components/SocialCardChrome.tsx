@@ -180,18 +180,24 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
   if (style === 'x') {
     return (
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(14), borderWidth: pad(1), borderColor: hairline, overflow: 'hidden' }}>
-        {/* author header */}
+        {/* author header — identity reads as one tight unit; the handle
+            truncates, the name never does. Watermark rides with the dots. */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(13), paddingTop: pad(11) }}>
           <Avatar page={page} pad={pad} size={22} />
-          <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>
-            {name} {check(9)}
-          </Text>
-          <Text style={{ ...F(font), fontSize: pad(8.5), color: gray, flexShrink: 1 }} numberOfLines={1}>
-            {firstHandle} · 2h
-          </Text>
-          {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(3), flexShrink: 1, minWidth: 0 }}>
+            <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 0 }} numberOfLines={1}>
+              {name}
+            </Text>
+            {check(9)}
+            <Text style={{ ...F(font), fontSize: pad(8.5), color: gray, flexShrink: 1, minWidth: 0 }} numberOfLines={1}>
+              {firstHandle} · 2h
+            </Text>
+          </View>
           <View style={{ flex: 1 }} />
-          <Ionicons name="ellipsis-horizontal" size={pad(11)} color={gray} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(5), flexShrink: 0 }}>
+            {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
+            <Ionicons name="ellipsis-horizontal" size={pad(11)} color={gray} />
+          </View>
         </View>
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
@@ -227,12 +233,16 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(6), borderWidth: pad(1), borderColor: '#11111112', overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(12), paddingTop: pad(10) }}>
           <Avatar page={page} pad={pad} size={20} />
-          <Text style={{ ...F(font, true), fontSize: pad(9), color: ink }} numberOfLines={1}>{name}</Text>
+          <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 0 }} numberOfLines={1}>{name}</Text>
           {check(9)}
           {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
           <View style={{ flex: 1 }} />
-          <SocialGlyph platform="instagram" size={pad(11)} color="#E1306C" />
-          <Ionicons name="ellipsis-horizontal" size={pad(12)} color={ink} />
+          {/* Trailing cluster shares one box so the logo mark and the dots
+              center on the same axis as the watermark text. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(8), flexShrink: 0 }}>
+            <SocialGlyph platform="instagram" size={pad(11)} color="#E1306C" />
+            <Ionicons name="ellipsis-horizontal" size={pad(12)} color={ink} />
+          </View>
         </View>
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(12), paddingBottom: pad(11), gap: pad(6) }}>
@@ -258,13 +268,14 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(14), borderWidth: pad(1), borderColor: hairline, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(13), paddingTop: pad(11) }}>
           <Avatar page={page} pad={pad} size={20} />
+          {/* Identity reads as one unit — handle, seal and time glued tight. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(3), flexShrink: 1, minWidth: 0 }}>
             <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>
               {firstHandle}
             </Text>
             {check(8)}
+            <Text style={{ ...F(font), fontSize: pad(8), color: faint, flexShrink: 0 }}>· 2h</Text>
           </View>
-          <Text style={{ ...F(font), fontSize: pad(8), color: faint }}>· 2h</Text>
           {watermark ? <Watermark font={font} pad={pad} size={8} color={faint} /> : null}
           <View style={{ flex: 1 }} />
           {/* Official Threads wordmark — currentColor via the ink color
