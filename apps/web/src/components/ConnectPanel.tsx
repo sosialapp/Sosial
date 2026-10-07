@@ -199,9 +199,12 @@ export default function ConnectPanel({
       )
     );
   };
-  const ordered: ProviderId[] = [...ORDER].sort(
-    (a, b) => Number(byProvider(b).length > 0) - Number(byProvider(a).length > 0),
-  );
+  const ordered: ProviderId[] = [...ORDER].sort((a, b) => {
+    // Soon rows always sink to the very bottom, connected next.
+    const soonOf = (p: ProviderId) => (COMING_SOON.includes(p) ? 1 : 0);
+    const rank = (p: ProviderId) => (byProvider(p).length > 0 ? 1 : 0);
+    return soonOf(a) - soonOf(b) || rank(b) - rank(a);
+  });
   const visible = ordered.filter(matchesQuery);
 
   const startHref = (p: OAuthProvider): string =>
