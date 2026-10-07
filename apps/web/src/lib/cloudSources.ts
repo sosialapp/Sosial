@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client';
  * sends no CORS headers); Drive + Dropbox download directly.
  */
 
-export type CloudProvider = 'google' | 'dropbox' | 'canva';
+export type CloudProvider = 'google' | 'dropbox' | 'canva' | 'onedrive';
 
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/drive.readonly',
@@ -27,7 +27,9 @@ const GOOGLE_SCOPES = [
 export const GOOGLE_MEDIA_DISABLED = true;
 const DROPBOX_SCOPES = 'files.metadata.read files.content.read';
 const CANVA_SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'profile:read'].join(' ');
+const ONEDRIVE_SCOPES = 'offline_access Files.Read.All User.Read';
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const GRAPH_API = 'https://graph.microsoft.com/v1.0';
 
 interface Tokens {
   access: string;
@@ -151,7 +153,9 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
       ? String((config as any)?.dropbox?.client_id ?? '')
       : provider === 'canva'
         ? String((config as any)?.canva?.client_id ?? '')
-        : String((config as any)?.youtube?.client_id ?? (config as any)?.gmb?.client_id ?? '');
+        : provider === 'onedrive'
+          ? String((config as any)?.onedrive?.client_id ?? '')
+          : String((config as any)?.youtube?.client_id ?? (config as any)?.gmb?.client_id ?? '');
   if (!clientId) throw new Error('That source is not configured yet.');
   const redirectUri = `${location.origin}/auth.html`;
   const nonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
@@ -177,7 +181,16 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
             code_challenge_method: 'S256',
             state,
           })}`
-        : `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+        : provider === 'onedrive'
+          ? `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${new URLSearchParams({
+              response_type: 'code',
+              client_id: clientId,
+              redirect_uri: redirectUri,
+              scope: ONEDRIVE_SCOPES,
+              response_mode: 'query',
+              state,
+            })}`
+          : `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
             response_type: 'code',
             client_id: clientId,
             redirect_uri: redirectUri,
@@ -226,6 +239,20 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
             access: String(j.access_token),
             refresh: typeof j.refresh_token === 'string' ? j.refresh_token : '',
             expiresAt: Date.now() + Number(j.expires_in ?? 14400) * 1000,
+          });
+        } else if (d.code && provider === 'onedrive') {
+          // Microsoft: same shape as Canva — the client secret stays in the
+          // edge fn; this tab only relays the code.
+          const j = await authedInvoke('cloud-exchange', {
+            provider: 'onedrive',
+            code: String(d.code),
+            redirect_uri: redirectUri,
+          });
+          if (!j.access_token) throw new Error('Microsoft hid the login — try again.');
+          resolve({
+            access: String(j.access_token),
+            refresh: typeof j.refresh_token === 'string' ? j.refresh_token : '',
+            expiresAt: Date.now() + Number(j.expires_in ?? 3600) * 1000,
           });
         } else {
           resolve(null);
@@ -726,5 +753,124 @@ export async function downloadDropboxFile(e: CloudDropboxEntry, onProgress?: (pc
   if (!blob) throw new Error('Dropbox download failed — try another file.');
   return new File([blob], e.name || `dropbox.${e.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: e.kind === 'video' ? 'video/mp4' : 'image/jpeg',
+  });
+}
+/* -------------------------------- OneDrive -------------------------------- */
+
+export interface CloudOneDriveItem {
+  id: string;
+  name: string;
+  kind: 'image' | 'video';
+  thumb?: string;
+  parent?: string;
+}
+
+const OD_MEDIA = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'bmp', 'mp4', 'mov', 'webm', 'm4v'];
+
+function odKind(name: string): 'image' | 'video' | null {
+  const ext = name.toLowerCase().split('.').pop() ?? '';
+  if (['mp4', 'mov', 'webm', 'm4v'].includes(ext)) return 'video';
+  if (OD_MEDIA.includes(ext)) return 'image';
+  return null;
+}
+
+interface OdItem {
+  id: string;
+  name: string;
+  folder?: unknown;
+  file?: unknown;
+  image?: unknown;
+  video?: unknown;
+  parentReference?: { id?: string };
+  '@microsoft.graph.downloadUrl'?: string;
+  thumbnails?: { small?: { url?: string } };
+}
+
+function toOdItem(it: OdItem): CloudOneDriveItem | null {
+  const kind = odKind(String(it.name ?? ''));
+  if (!kind || it.folder) return null;
+  const thumb = (it as any)?.thumbnails?.small?.url;
+  return {
+    id: String(it.id),
+    name: String(it.name ?? 'file'),
+    kind,
+    ...(thumb ? { thumb: String(thumb) } : {}),
+    ...(it.parentReference?.id ? { parent: String(it.parentReference.id) } : {}),
+  };
+}
+
+/** Browse OneDrive: a folder's children, or a whole-drive media search. */
+export async function listOneDriveFiles(
+  folderId?: string,
+  query?: string,
+): Promise<{ files: CloudOneDriveItem[]; folders: { id: string; name: string }[] }> {
+  const token = await getValidCloudToken('onedrive');
+  const auth = { Authorization: `Bearer ${token}` };
+
+  if (query && query.trim()) {
+    // Graph search across the drive; media types only.
+    const q = encodeURIComponent(`${query.trim().replace(/"/g, '')}`);
+    const res = await fetch(`${GRAPH_API}/me/drive/root/search(q='${q}')?$top=50`, { headers: auth, signal: AbortSignal.timeout(20000) });
+    if (res.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
+    if (!res.ok) throw new Error('OneDrive search failed — try again.');
+    const j: any = await res.json().catch(() => ({}));
+    const items: CloudOneDriveItem[] = [];
+    const folders: { id: string; name: string }[] = [];
+    for (const it of (j?.value ?? []) as OdItem[]) {
+      if (it.folder) {
+        folders.push({ id: String(it.id), name: String(it.name ?? 'Folder') });
+        continue;
+      }
+      const mapped = toOdItem(it);
+      if (mapped) items.push(mapped);
+    }
+    return { files: items, folders };
+  }
+
+  const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
+  const res = await fetch(`${path}?$top=100`, { headers: auth, signal: AbortSignal.timeout(20000) });
+  if (res.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
+  if (!res.ok) throw new Error('OneDrive browse failed — try again.');
+  const j: any = await res.json().catch(() => ({}));
+  const items: CloudOneDriveItem[] = [];
+  const folders: { id: string; name: string }[] = [];
+  for (const it of (j?.value ?? []) as OdItem[]) {
+    if (it.folder) {
+      folders.push({ id: String(it.id), name: String(it.name ?? 'Folder') });
+      continue;
+    }
+    const mapped = toOdItem(it);
+    if (mapped) items.push(mapped);
+  }
+  // Media-first ordering, mirroring the Drive browser.
+  items.sort((a, b) => a.name.localeCompare(b.name));
+  return { files: items, folders };
+}
+
+/** Download one OneDrive item as a composer-ready File. */
+export async function downloadOneDriveFile(
+  item: CloudOneDriveItem,
+  onProgress?: (pct: number) => void,
+): Promise<File> {
+  const token = await getValidCloudToken('onedrive');
+  // @microsoft.graph.downloadUrl (pre-authed) is included when we ask for it;
+  // falling back to the plain content endpoint when absent.
+  const metaRes = await fetch(`${GRAPH_API}/me/drive/items/${item.id}?select=@microsoft.graph.downloadUrl,name`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  let url = `${GRAPH_API}/me/drive/items/${item.id}/content`;
+  if (metaRes.ok) {
+    const j: any = await metaRes.json().catch(() => ({}));
+    if (j?.['@microsoft.graph.downloadUrl']) url = String(j['@microsoft.graph.downloadUrl']);
+  }
+  const blob = await fetchProgressBlob(
+    url,
+    { headers: { Authorization: `Bearer ${token}` } },
+    onProgress,
+  ).catch(() => null);
+  if (!blob) throw new Error('OneDrive download failed — try another file.');
+  return new File([blob], item.name || `onedrive.${item.kind === 'video' ? 'mp4' : 'jpg'}`, {
+    type: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
 }

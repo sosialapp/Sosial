@@ -45,8 +45,8 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Body must be JSON.");
   }
   const provider = body["provider"];
-  if (provider !== "dropbox" && provider !== "google" && provider !== "canva") {
-    return bad("provider must be dropbox|google|canva.");
+  if (provider !== "dropbox" && provider !== "google" && provider !== "canva" && provider !== "onedrive") {
+    return bad("provider must be dropbox|google|canva|onedrive.");
   }
   const code = typeof body["code"] === "string" ? body["code"] : "";
   const refreshToken = typeof body["refresh_token"] === "string" ? body["refresh_token"] : "";
@@ -73,6 +73,25 @@ serve(async (req: Request): Promise<Response> => {
       } else {
         params["grant_type"] = "refresh_token";
         params["refresh_token"] = refreshToken;
+      }
+    } else if (provider === "onedrive") {
+      // Microsoft identity platform: client-credential pair in the body,
+      // refresh grants a NEW access token (refresh tokens are rotatable).
+      const id = Deno.env.get("MS_CLIENT_ID") ?? "";
+      const secret = Deno.env.get("MS_CLIENT_SECRET") ?? "";
+      if (!id || !secret) return bad("OneDrive is not configured yet.", 402);
+      const tenant = Deno.env.get("MS_TENANT_ID") ?? "common";
+      tokenUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+      params["client_id"] = id;
+      params["client_secret"] = secret;
+      if (code) {
+        params["code"] = code;
+        params["grant_type"] = "authorization_code";
+        if (redirectUri) params["redirect_uri"] = redirectUri;
+      } else {
+        params["refresh_token"] = refreshToken;
+        params["grant_type"] = "refresh_token";
+        params["scope"] = "offline_access Files.Read.All User.Read";
       }
     } else if (provider === "dropbox") {
       const key = Deno.env.get("DROPBOX_APP_KEY") ?? "";

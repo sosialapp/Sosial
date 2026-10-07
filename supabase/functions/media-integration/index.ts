@@ -17,7 +17,7 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
 };
 
-const PROVIDERS = new Set(["google", "dropbox", "canva"]);
+const PROVIDERS = new Set(["google", "dropbox", "canva", "onedrive"]);
 
 function bad(msg: string, status = 400): Response {
   return Response.json({ error: msg }, { status, headers: CORS });

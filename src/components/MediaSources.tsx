@@ -18,6 +18,10 @@ import {
   listDropboxFolder, searchDropbox, downloadDropboxFile, type DropboxEntry,
 } from '../utils/dropboxAuth';
 import {
+  oneDriveConnected, loginOneDrive, disconnectOneDrive,
+  listOneDriveItems, downloadOneDriveItem, type OneDriveItem,
+} from '../utils/onedriveAuth';
+import {
   canvaConnected, loginCanva, disconnectCanva,
   listCanvaDesigns, downloadCanvaDesign, type CanvaDesign,
 } from '../utils/canvaAuth';
@@ -27,20 +31,20 @@ export interface SourceAttachment {
   kind: 'image' | 'video';
 }
 
-type Source = 'unsplash' | 'drive' | 'gphotos' | 'dropbox' | 'canva';
+type Source = 'unsplash' | 'drive' | 'gphotos' | 'dropbox' | 'canva' | 'onedrive';
 
 const SOURCES: { id: Source; label: string; icon: string; mark: SourceMarkId; note: string }[] = [
   { id: 'dropbox', label: 'Dropbox', icon: 'cloud-outline', mark: 'dropbox', note: 'Your Dropbox files' },
   { id: 'canva', label: 'Canva', icon: 'color-palette-outline', mark: 'canva', note: 'Your designs, exported to post' },
   { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', mark: 'unsplash', note: 'Photos · credit auto-added' },
+  { id: 'onedrive', label: 'OneDrive', icon: 'cloud-outline', mark: 'onedrive', note: 'Your Microsoft cloud files' },
 ];
 
 /** Not yet wired — Google media awaits Google OAuth verification (restricted
- *  scopes + CASA); OneDrive awaits the Azure app. Shown greyed as roadmap. */
+ *  scopes + CASA). Shown greyed as roadmap. */
 const SOON: { label: string; icon: string; note: string }[] = [
   { label: 'Google Drive', icon: 'folder-outline', note: 'Coming soon' },
   { label: 'Google Photos', icon: 'images-outline', note: 'Coming soon' },
-  { label: 'OneDrive', icon: 'cloud-outline', note: 'Coming soon' },
 ];
 
 const LABEL: Record<Source, string> = {
@@ -48,6 +52,7 @@ const LABEL: Record<Source, string> = {
   gphotos: 'Google Photos',
   dropbox: 'Dropbox',
   canva: 'Canva',
+  onedrive: 'OneDrive',
   unsplash: 'Unsplash',
 };
 
@@ -89,6 +94,11 @@ export default function MediaSources({
   const [dbxFolders, setDbxFolders] = useState<DropboxEntry[]>([]);
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
   const [dbxFiles, setDbxFiles] = useState<DropboxEntry[]>([]);
+  // OneDrive
+  const [odAuthed, setOdAuthed] = useState(false);
+  const [odFolders, setOdFolders] = useState<{ id: string; name: string }[]>([]);
+  const [odStack, setOdStack] = useState<{ id: string; name: string }[]>([]);
+  const [odFiles, setOdFiles] = useState<OneDriveItem[]>([]);
   // Canva
   const [canvaAuthed, setCanvaAuthed] = useState(false);
   const [canvaDesigns, setCanvaDesigns] = useState<CanvaDesign[]>([]);
@@ -182,6 +192,19 @@ export default function MediaSources({
     }
   };
 
+  const loadOneDrive = async (folderId?: string, q?: string) => {
+    setBusy(true);
+    try {
+      const r = await listOneDriveItems(folderId, q);
+      setOdFiles(r.files);
+      if (!q) setOdFolders(r.folders);
+    } catch (e: any) {
+      Alert.alert('OneDrive failed', e?.message ?? 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const loadCanva = async (q?: string) => {
     setBusy(true);
     try {
@@ -213,6 +236,9 @@ export default function MediaSources({
         } finally {
           setBusy(false);
         }
+        return;
+      } else if (source === 'onedrive') {
+        await loadOneDrive(odStack.length ? odStack[odStack.length - 1].id : undefined, query.trim());
         return;
       } else if (source === 'canva') {
         await loadCanva(query.trim());
@@ -283,6 +309,20 @@ export default function MediaSources({
     }
   };
 
+  const pickOneDrive = async (f: OneDriveItem) => {
+    if (downloading) return;
+    setDownloading(f.id);
+    try {
+      const att = await downloadOneDriveItem(f);
+      onAttach([att]);
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Could not attach', e?.message ?? 'Try another file.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const pickCanva = async (d: CanvaDesign) => {
     if (downloading) return;
     setDownloading(d.id);
@@ -309,6 +349,9 @@ export default function MediaSources({
     setDbxFolders([]);
     setDbxFiles([]);
     setDbxStack([]);
+    setOdFolders([]);
+    setOdFiles([]);
+    setOdStack([]);
     setCanvaDesigns([]);
     if (id === 'unsplash') setType('photo');
     if (id === 'drive' || id === 'gphotos') {
@@ -321,6 +364,11 @@ export default function MediaSources({
       const ok = await dropboxConnected();
       setDbxAuthed(ok);
       if (ok) await loadDropbox();
+    }
+    if (id === 'onedrive') {
+      const ok = await oneDriveConnected();
+      setOdAuthed(ok);
+      if (ok) await loadOneDrive();
     }
     if (id === 'canva') {
       const ok = await canvaConnected();
@@ -341,6 +389,16 @@ export default function MediaSources({
         }
         setDbxAuthed(true);
         await loadDropbox();
+        return;
+      }
+      if (source === 'onedrive') {
+        const ok = await loginOneDrive();
+        if (!ok) {
+          Alert.alert('Not connected', 'Microsoft sign-in was cancelled.');
+          return;
+        }
+        setOdAuthed(true);
+        await loadOneDrive();
         return;
       }
       if (source === 'canva') {
@@ -375,6 +433,7 @@ export default function MediaSources({
     setPhotos([]);
     setFilesAuthed(false);
     setDbxAuthed(false);
+    setOdAuthed(false);
     setCanvaAuthed(false);
   };
 
@@ -391,6 +450,9 @@ export default function MediaSources({
             if (source === 'dropbox') {
               await disconnectDropbox();
               setDbxAuthed(false);
+            } else if (source === 'onedrive') {
+              await disconnectOneDrive();
+              setOdAuthed(false);
             } else if (source === 'canva') {
               await disconnectCanva();
               setCanvaAuthed(false);
@@ -404,8 +466,12 @@ export default function MediaSources({
     ]);
   };
 
-  const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva';
-  const cloudAuthed = source === 'dropbox' ? dbxAuthed : source === 'canva' ? canvaAuthed : filesAuthed;
+  const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva' || source === 'onedrive';
+  const cloudAuthed =
+    source === 'dropbox' ? dbxAuthed
+    : source === 'canva' ? canvaAuthed
+    : source === 'onedrive' ? odAuthed
+    : filesAuthed;
 
   return (
     <View style={s.wrap}>
@@ -562,6 +628,40 @@ export default function MediaSources({
                 </ScrollView>
               ) : null}
 
+              {source === 'onedrive' && odFolders.length > 0 && !query.trim() ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 8 }}>
+                  {odStack.length > 0 ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        const next = odStack.slice(0, -1);
+                        setOdStack(next);
+                        setQuery('');
+                        void loadOneDrive(next.length ? next[next.length - 1].id : undefined);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="arrow-up" size={13} color={C.accentInk} />
+                      <Text style={s.folderT}>Up</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {odFolders.map((f) => (
+                    <TouchableOpacity
+                      key={f.id}
+                      onPress={() => {
+                        const next = [...odStack, { id: f.id, name: f.name }];
+                        setOdStack(next);
+                        setQuery('');
+                        void loadOneDrive(f.id);
+                      }}
+                      style={s.folderChip}
+                    >
+                      <Ionicons name="folder" size={13} color={C.accentInk} />
+                      <Text style={s.folderT} numberOfLines={1}>{f.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : null}
+
               {source === 'drive' ? (
                 <FlatList
                   data={driveFiles}
@@ -648,6 +748,40 @@ export default function MediaSources({
                   )}
                   ListEmptyComponent={
                     !busy ? <Text style={s.empty}>{query ? 'No matches in your Dropbox.' : 'No images or videos in this folder.'}</Text> : null
+                  }
+                />
+              ) : source === 'onedrive' ? (
+                <FlatList
+                  data={odFiles}
+                  keyExtractor={(x) => x.id}
+                  numColumns={3}
+                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
+                  columnWrapperStyle={{ gap: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => pickOneDrive(item)} activeOpacity={0.8} style={s.cell}>
+                      {item.thumb ? (
+                        <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                      ) : (
+                        <View style={[s.thumb, s.fileThumb]}>
+                          <Ionicons name={item.kind === 'video' ? 'videocam' : 'image'} size={24} color={C.muted} />
+                        </View>
+                      )}
+                      {item.kind === 'video' ? (
+                        <View style={s.playBadge}>
+                          <Ionicons name="play" size={12} color="#fff" />
+                        </View>
+                      ) : null}
+                      {downloading === item.id ? (
+                        <View style={s.dlOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      ) : null}
+                      <Text style={s.author} numberOfLines={1}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    !busy ? <Text style={s.empty}>{query ? 'No matches in your OneDrive.' : 'No images or videos in this folder.'}</Text> : null
                   }
                 />
               ) : source === 'canva' ? (

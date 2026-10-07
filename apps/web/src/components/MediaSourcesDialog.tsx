@@ -5,8 +5,9 @@ import { createPortal } from 'react-dom';
 import { BRAND_MARKS, LOCAL_ICON } from '@/components/SourceMarks';
 import { createClient } from '@/lib/supabase/client';
 import {
-  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud, ensureCloudSynced, disconnectCloudEverywhere, fetchProgressBlob,
+  cloudConnected, loginCloud, getValidCloudToken, invokeStock, disconnectCloud, ensureCloudSynced, disconnectCloudEverywhere, fetchProgressBlob, type CloudProvider,
   listDriveFiles, downloadDriveFile, type CloudDriveFile,
+  listOneDriveFiles, downloadOneDriveFile, type CloudOneDriveItem,
   createPhotosSession, photosSessionDone, listPickedPhotos, downloadPickedPhoto, pickerThumbUrl, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
   listCanvaDesigns, downloadCanvaDesign, type CloudCanvaDesign,
@@ -22,12 +23,13 @@ export interface StockItem {
   source: 'pexels' | 'unsplash';
 }
 
-type Source = 'drive' | 'gphotos' | 'dropbox' | 'canva' | 'unsplash';
+type Source = 'drive' | 'gphotos' | 'dropbox' | 'canva' | 'unsplash' | 'onedrive';
 
 const SOURCES = [
   { id: 'dropbox', label: 'Dropbox', icon: 'dropbox' },
   { id: 'canva', label: 'Canva', icon: 'canva' },
   { id: 'unsplash', label: 'Unsplash', icon: 'unsplash' },
+  { id: 'onedrive', label: 'OneDrive', icon: 'onedrive' },
 ] as const;
 
 // Google media (Drive + Photos) is pending Google OAuth verification — the
@@ -36,7 +38,6 @@ const SOURCES = [
 const SOON = [
   { label: 'Google Drive', icon: 'drive' },
   { label: 'Google Photos', icon: 'gphotos' },
-  { label: 'OneDrive', icon: 'onedrive' },
 ];
 
 const PANEL_H = 480;
@@ -81,6 +82,9 @@ export default function MediaSourcesDialog({
   const [dbxFolders, setDbxFolders] = useState<CloudDropboxEntry[]>([]);
   const [dbxStack, setDbxStack] = useState<{ name: string; path: string }[]>([]);
   const [dbxFiles, setDbxFiles] = useState<CloudDropboxEntry[]>([]);
+  // OneDrive
+  const [odFiles, setOdFiles] = useState<CloudOneDriveItem[]>([]);
+  const [odStack, setOdStack] = useState<{ id: string; name: string }[]>([]);
   // Canva
   const [canvaDesigns, setCanvaDesigns] = useState<CloudCanvaDesign[]>([]);
   const [canvaKind, setCanvaKind] = useState<'image' | 'video'>('image');
@@ -129,6 +133,8 @@ export default function MediaSourcesDialog({
     setDbxFolders([]);
     setDbxFiles([]);
     setDbxStack([]);
+    setOdFiles([]);
+    setOdStack([]);
     setCanvaDesigns([]);
     setAuthed(false);
   };
@@ -150,6 +156,12 @@ export default function MediaSourcesDialog({
     setDbxFiles(r.files);
   };
 
+  const loadOneDriveInto = async (folderId?: string, q?: string) => {
+    const r = await listOneDriveFiles(folderId, q);
+    setOdFiles(r.files);
+    if (!q) setFolders(r.folders);
+  };
+
   const loadCloud = async (id: Source, q?: string) => {
     // Photos opens Google's picker widget from a button — no in-dialog browser.
     if (id === 'gphotos') return;
@@ -160,6 +172,8 @@ export default function MediaSourcesDialog({
         await loadDriveInto(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, q);
       } else if (id === 'dropbox') {
         await loadDropboxInto(dbxStack.length ? dbxStack[dbxStack.length - 1].path : undefined, q);
+      } else if (id === 'onedrive') {
+        await loadOneDriveInto(odStack.length ? odStack[odStack.length - 1].id : undefined, q);
       } else if (id === 'canva') {
         const r = await listCanvaDesigns(q);
         setCanvaDesigns(r.designs);
@@ -175,8 +189,9 @@ export default function MediaSourcesDialog({
     reset();
     setSource(id);
     if (id === 'unsplash') setType('photo');
-    if (id === 'drive' || id === 'gphotos' || id === 'dropbox' || id === 'canva') {
-      const provider = id === 'dropbox' ? 'dropbox' : id === 'canva' ? 'canva' : 'google';
+    if (id === 'drive' || id === 'gphotos' || id === 'dropbox' || id === 'canva' || id === 'onedrive') {
+      const provider: CloudProvider =
+        id === 'dropbox' ? 'dropbox' : id === 'canva' ? 'canva' : id === 'onedrive' ? 'onedrive' : 'google';
       // Local first, then the user's cloud connection (connect-once-anywhere).
       if (!cloudConnected(provider)) {
         const synced = await ensureCloudSynced(provider).catch(() => false);
@@ -189,7 +204,8 @@ export default function MediaSourcesDialog({
 
   const disconnectSource = () => {
     if (!source || !isCloud) return;
-    const provider = source === 'dropbox' ? 'dropbox' : source === 'canva' ? 'canva' : 'google';
+    const provider: CloudProvider =
+      source === 'dropbox' ? 'dropbox' : source === 'canva' ? 'canva' : source === 'onedrive' ? 'onedrive' : 'google';
     if (!window.confirm(`Disconnect ${label}? This forgets the login here and in the cloud. Your files stay untouched.`)) return;
     void disconnectCloudEverywhere(provider);
     setAuthed(false);
@@ -198,7 +214,8 @@ export default function MediaSourcesDialog({
 
   const connect = async () => {
     if (!source || connecting) return;
-    const provider = source === 'dropbox' ? 'dropbox' : source === 'canva' ? 'canva' : 'google';
+    const provider: CloudProvider =
+      source === 'dropbox' ? 'dropbox' : source === 'canva' ? 'canva' : source === 'onedrive' ? 'onedrive' : 'google';
     setConnecting(true);
     setErr(null);
     try {
@@ -238,7 +255,7 @@ export default function MediaSourcesDialog({
 
   const search = () => {
     if (!source || busy) return;
-    if (source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva') {
+    if (source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva' || source === 'onedrive') {
       void loadCloud(source, query.trim() || undefined);
       return;
     }
@@ -257,6 +274,19 @@ export default function MediaSourcesDialog({
       // is used. Fire-and-forget — the attach never waits on it.
       void invokeStock('unsplash-download', { id: item.id }).catch(() => {});
       onAttach([file], credit);
+      onClose();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not attach.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const pickOneDrive = async (f: CloudOneDriveItem) => {
+    if (downloading) return;
+    setDownloading({ id: f.id, progress: null });
+    try {
+      onAttach([await downloadOneDriveFile(f, track(f.id))]);
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach.');
@@ -396,7 +426,7 @@ export default function MediaSourcesDialog({
     }
   };
 
-  const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva';
+  const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva' || source === 'onedrive';
   const label = SOURCES.find((s) => s.id === source)?.label ?? '';
   const placeholder =
     source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'canva' ? 'Search designs…' : 'Search stock…';
@@ -615,13 +645,48 @@ export default function MediaSourcesDialog({
                   </div>
                 ) : null}
 
+                {source === 'onedrive' && folders.length > 0 && !query.trim() ? (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {odStack.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = odStack.slice(0, -1);
+                          setOdStack(next);
+                          setQuery('');
+                          void loadOneDriveInto(next.length ? next[next.length - 1].id : undefined);
+                        }}
+                        className="rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
+                      >
+                        ↑ Up
+                      </button>
+                    ) : null}
+                    {folders.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => {
+                          setOdStack([...odStack, { id: f.id, name: f.name }]);
+                          setQuery('');
+                          void loadOneDriveInto(f.id);
+                        }}
+                        className="max-w-[160px] truncate rounded-full border border-line px-2.5 py-1 text-xs font-bold hover:bg-paper-dim"
+                      >
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
                 {source === 'drive' || source === 'gphotos' ? null : (
                 <div className="mt-2 grid grid-cols-3 gap-1.5">
                   {source === 'dropbox'
                     ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, () => void pickDropbox(f)))
-                    : source === 'canva'
-                      ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
-                      : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
+                    : source === 'onedrive'
+                      ? odFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, () => void pickOneDrive(f)))
+                      : source === 'canva'
+                        ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
+                        : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
                 </div>
                 )}
                 {source === 'gphotos' ? (

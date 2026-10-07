@@ -63,5 +63,6 @@ serve(async (req: Request): Promise<Response> => {
   put("gmb", "client_id", get("YT_CLIENT_ID") || get("GOOGLE_CLIENT_ID"));
   put("dropbox", "client_id", get("DROPBOX_APP_KEY"));
   put("canva", "client_id", get("CANVA_CLIENT_ID"));
+  put("onedrive", "client_id", get("MS_CLIENT_ID"));
   return Response.json(out, { headers: CORS });
 });
