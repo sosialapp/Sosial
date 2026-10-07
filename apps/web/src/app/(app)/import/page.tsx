@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
-import ImportNotion from '@/components/ImportNotion';
+import ImportTabs from '@/components/ImportTabs';
 import { getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-/** Content → Import (Notion). Connections, mapping, preview, import. */
+/** Content → Import (Notion · Google Sheets). */
 export default async function ImportPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
@@ -15,9 +15,8 @@ export default async function ImportPage() {
       <p className="mt-1 text-sm text-muted">
         Bring content in from your tools, then schedule it like any other post.
       </p>
-      <ImportNotion
+      <ImportTabs
         workspaceId={ctx.workspace.id}
-        canImport={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin' || ctx.workspace.role === 'member'}
       />
     </div>
   );

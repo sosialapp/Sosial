@@ -262,7 +262,7 @@ async function cloudPickerResult(url: URL, origin: string) {
     page({ type: 'sosial-cloud', nonce, ok: false, error: msg });
 
   const [, provider, nonce] = (url.searchParams.get('state') ?? '').split(':');
-  if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva' && provider !== 'notion') || !nonce) {
+  if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva' && provider !== 'notion' && provider !== 'sheets') || !nonce) {
     return fail('That login expired — try connecting again.', '');
   }
   const providerErr = url.searchParams.get('error');
@@ -277,7 +277,8 @@ async function cloudPickerResult(url: URL, origin: string) {
   // never travel in a URL, so hand the code back and let the dialog finish
   // the exchange itself via cloud-exchange. Notion connect posts the code to
   // /api/notion (which exchanges it server-side through notion-connect).
-  if (provider === 'canva' || provider === 'notion') {
+  // Sheets connect posts the code to /api/sheets (sheets-auth edge fn).
+  if (provider === 'canva' || provider === 'notion' || provider === 'sheets') {
     return page({ type: 'sosial-cloud', nonce, ok: true, code });
   }
   const sb = await createClient();
