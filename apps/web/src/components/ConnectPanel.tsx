@@ -35,8 +35,10 @@ const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'te
 
 const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true, vk: true };
 
-/** Listed but not connectable yet — shows a Soon tag instead of Connect. */
-const COMING_SOON: ProviderId[] = ['gmb'];
+/** Listed but not connectable yet — shows a Soon tag instead of Connect.
+ *  gmb: allowlist pending. linkedin/pinterest/reddit: production approval
+ *  pending (dev-mode connects still work via direct URL for testing). */
+const COMING_SOON: ProviderId[] = ['gmb', 'linkedin', 'pinterest', 'reddit'];
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
@@ -1354,8 +1356,9 @@ export default function ConnectPanel({
                     soon ? (
                     <div className="rounded-xl bg-paper px-3 py-2.5">
                       <p className="text-center text-[11px] leading-relaxed text-muted">
-                        Google Business is coming soon — Google still has to approve
-                        the API access. It will light up here the moment it does.
+                        {p === 'gmb'
+                          ? 'Google Business is coming soon - Google still has to approve the API access. It will light up here the moment it does.'
+                          : `${providerLabel(p)} is in review for production access - connecting is temporarily paused. It will light up here the moment approval lands.`}
                       </p>
                     </div>
                     ) : canManage ? (
