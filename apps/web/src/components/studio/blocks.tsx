@@ -114,8 +114,12 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
 };
 
 export function ChromeIcon({ name, size, color }: { name: string; size: number; color: string }) {
+  // display:block: an inline svg sits on the text baseline with descender
+  // space under the glyph, so the visible mark rides high inside its box and
+  // no parent alignItems:center can truly center it. Block + no-shrink keeps
+  // every header/footer row optically aligned.
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color }} aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color, display: 'block', flexShrink: 0 }} aria-hidden="true">
       {ICON_PATHS[name] ?? null}
     </svg>
   );

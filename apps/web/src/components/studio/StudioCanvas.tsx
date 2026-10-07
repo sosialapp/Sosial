@@ -86,14 +86,14 @@ function Check({ c, size, k }: { c: ChromeCtx; size: number; k: number }) {
   const sealed = c.page.cardStyle === 'facebook' || c.page.cardStyle === 'instagram' || c.page.cardStyle === 'threads';
   if (!sealed) {
     return (
-      <svg width={size * k} height={size * k} viewBox="0 0 24 24" aria-hidden="true">
+      <svg width={size * k} height={size * k} viewBox="0 0 24 24" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
         <circle cx="12" cy="12" r="10" fill="#1D9BF0" />
         <path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
   return (
-    <svg width={size * k} height={size * k} viewBox="0 0 24 24" aria-hidden="true">
+    <svg width={size * k} height={size * k} viewBox="0 0 24 24" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
       <path d={VERIFIED_SEAL} fill="#1D9BF0" />
       <path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -167,19 +167,24 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
-          <span style={{ display: 'flex', alignItems: 'center', gap: 2 * k, flexShrink: 0 }}>
-            <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink }}>{c.name}</span>
+          {/* Identity reads as one unit — name, seal and handle glued tight
+              (the handle truncates, the name never does, like the real app). */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3 * k, minWidth: 0, flexShrink: 1 }}>
+            <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, whiteSpace: 'nowrap', flexShrink: 0 }}>{c.name}</span>
             {c.showCheck ? (
               <svg width={9 * k} height={9 * k} viewBox="0 0 24 24" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
                 <path d={VERIFIED_SEAL} fill="#1D9BF0" />
                 <path d="m8.5 12.2 2.4 2.4 4.6-5" stroke="#fff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             ) : null}
+            <span style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.gray, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flexShrink: 1 }}>{c.firstHandle} · 2h</span>
           </span>
-          <span style={{ ...ff(c.font), fontSize: 8.5 * k, color: c.gray, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flexShrink: 1 }}>{c.firstHandle} · 2h</span>
-          {c.watermark ? <span style={{ marginLeft: 3 * k, flexShrink: 0 }}><Watermark font={c.font} size={8} color={c.gray} k={k} /></span> : null}
           <span style={{ flex: 1 }} />
-          <ChromeIcon name="dots-v" size={11 * k} color={c.gray} />
+          {/* Watermark rides with the dots as one trailing cluster. */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 * k, flexShrink: 0 }}>
+            {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
+            <ChromeIcon name="dots-v" size={11 * k} color={c.gray} />
+          </span>
         </div>
         <div style={bodyStyle}>{children}</div>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
@@ -219,10 +224,14 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           <Check c={c} size={9} k={k} />
           {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
           <span style={{ flex: 1 }} />
-          <span style={{ width: 16 * k, height: 16 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-            <BrandIcon provider="instagram" badge={false} className="h-[68%] w-[68%]" />
+          {/* Trailing cluster shares one box so the logo mark and the dots
+              center on the same axis as the watermark text. */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 * k, flexShrink: 0 }}>
+            <span style={{ width: 16 * k, height: 16 * k, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+              <BrandIcon provider="instagram" badge={false} className="h-[68%] w-[68%]" />
+            </span>
+            <ChromeIcon name="dots" size={12 * k} color={c.ink} />
           </span>
-          <ChromeIcon name="dots" size={12 * k} color={c.ink} />
         </div>
         <div style={bodyStyle}>{children}</div>
         <div style={{ padding: `0 ${12 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
@@ -248,13 +257,15 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
+          {/* Identity reads as one unit — handle, seal and time glued tight
+              like the real app, instead of the time floating a row-gap away. */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 3 * k, minWidth: 0, flexShrink: 1 }}>
             <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {c.firstHandle}
             </span>
             <Check c={c} size={8} k={k} />
+            <span style={{ ...ff(c.font), fontSize: 9 * k, color: c.faint, flexShrink: 0 }}>· 2h</span>
           </span>
-          <span style={{ ...ff(c.font), fontSize: 9 * k, color: c.faint, flexShrink: 0 }}>· 2h</span>
           {c.watermark ? <Watermark font={c.font} size={8} color={c.faint} k={k} /> : null}
           <span style={{ flex: 1 }} />
           {/* Official Threads wordmark (1922×375.61 art normalized into a
@@ -476,14 +487,14 @@ function AvatarMark({ page, size, k }: { page: PostPage; size: number; k: number
   const d = size * k;
   if (page.pfp.uri) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={page.pfp.uri} alt="" style={{ width: d, height: d, borderRadius: d / 2, objectFit: 'cover' }} />;
+    return <img src={page.pfp.uri} alt="" style={{ width: d, height: d, borderRadius: d / 2, objectFit: 'cover', flexShrink: 0 }} />;
   }
   return (
     <span
       style={{
         width: d, height: d, borderRadius: d / 2, backgroundColor: '#111111',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontWeight: 800, fontSize: d * 0.38,
+        color: '#fff', fontWeight: 800, fontSize: d * 0.38, flexShrink: 0,
       }}
     >
       Y
