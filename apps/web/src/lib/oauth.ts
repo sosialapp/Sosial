@@ -33,8 +33,8 @@ export const OAUTH_PROVIDERS: { id: OAuthProvider; label: string }[] = [
   { id: 'youtube', label: 'YouTube' },
   { id: 'linkedin', label: 'LinkedIn' },
   { id: 'pinterest', label: 'Pinterest' },
-  { id: 'mastodon', label: 'Mastodon' },
   { id: 'reddit', label: 'Reddit' },
+  { id: 'mastodon', label: 'Mastodon' },
   { id: 'gmb', label: 'Google Business' },
 ];
 
