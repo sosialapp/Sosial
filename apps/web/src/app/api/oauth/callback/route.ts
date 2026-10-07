@@ -58,10 +58,10 @@ export async function GET(req: Request) {
   const origin = url.origin;
   const incomingState = url.searchParams.get('state');
 
-  // Media-source picker flow (composer "add media" dialog): state looks like
-  // `cloud:dropbox:<nonce>`. Nothing is imported or persisted — the code is
-  // swapped for tokens and handed to the opener window, which keeps them in
-  // sessionStorage (device-only). The dialog matches on the nonce.
+  // Media-source picker landing (state `cloud:<provider>:<nonce>` from the
+  // composer's add-media dialog) and the Notion content-source connect popup.
+  // Nothing is imported or persisted here — the code is posted to the opener,
+  // which swaps it through the matching route. The opener matches on nonce.
   if (incomingState?.startsWith('cloud:')) {
     return cloudPickerResult(url, origin);
   }
@@ -262,7 +262,7 @@ async function cloudPickerResult(url: URL, origin: string) {
     page({ type: 'sosial-cloud', nonce, ok: false, error: msg });
 
   const [, provider, nonce] = (url.searchParams.get('state') ?? '').split(':');
-  if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva') || !nonce) {
+  if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva' && provider !== 'notion') || !nonce) {
     return fail('That login expired — try connecting again.', '');
   }
   const providerErr = url.searchParams.get('error');
@@ -275,8 +275,9 @@ async function cloudPickerResult(url: URL, origin: string) {
   }
   // Canva uses PKCE: the verifier lives in the opener's memory and must
   // never travel in a URL, so hand the code back and let the dialog finish
-  // the exchange itself via cloud-exchange.
-  if (provider === 'canva') {
+  // the exchange itself via cloud-exchange. Notion connect posts the code to
+  // /api/notion (which exchanges it server-side through notion-connect).
+  if (provider === 'canva' || provider === 'notion') {
     return page({ type: 'sosial-cloud', nonce, ok: true, code });
   }
   const sb = await createClient();
