@@ -541,18 +541,20 @@ export default function MediaSources({
               <Text style={s.connectT}>
                 {source === 'drive'
                   ? 'Connect Google Drive to browse your files.'
-                  : source === 'dropbox'
-                    ? 'Connect Dropbox to browse your files.'
-                    : source === 'canva'
-                      ? 'Connect Canva to browse your designs.'
-                      : 'Connect Google Photos to browse your library.'}
+                  : source === 'onedrive'
+                    ? 'Connect OneDrive to browse your files.'
+                    : source === 'dropbox'
+                      ? 'Connect Dropbox to browse your files.'
+                      : source === 'canva'
+                        ? 'Connect Canva to browse your designs.'
+                        : 'Connect Google Photos to browse your library.'}
               </Text>
               <Text style={s.connectS}>Read-only access · tokens stay on this device.</Text>
               <TouchableOpacity onPress={connectFiles} style={s.connectBtn} activeOpacity={0.8} disabled={connecting}>
                 {connecting ? (
                   <ActivityIndicator size="small" color={C.onInk} />
                 ) : (
-                  <Text style={s.connectBtnT}>{source === 'dropbox' ? 'Connect Dropbox' : source === 'canva' ? 'Connect Canva' : 'Connect Google'}</Text>
+                  <Text style={s.connectBtnT}>{source === 'dropbox' ? 'Connect Dropbox' : source === 'canva' ? 'Connect Canva' : source === 'onedrive' ? 'Connect OneDrive' : 'Connect Google'}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -563,7 +565,7 @@ export default function MediaSources({
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
-                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'canva' ? 'Search designs…' : 'Search stock…'}
+                  placeholder={source === 'drive' ? 'Search Drive…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'onedrive' ? 'Search OneDrive…' : source === 'canva' ? 'Search designs…' : 'Search stock…'}
                   placeholderTextColor={C.faint}
                   style={s.search}
                   returnKeyType="search"

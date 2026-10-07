@@ -429,7 +429,7 @@ export default function MediaSourcesDialog({
   const isCloud = source === 'drive' || source === 'gphotos' || source === 'dropbox' || source === 'canva' || source === 'onedrive';
   const label = SOURCES.find((s) => s.id === source)?.label ?? '';
   const placeholder =
-    source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'canva' ? 'Search designs…' : 'Search stock…';
+    source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'onedrive' ? 'Search OneDrive…' : source === 'canva' ? 'Search designs…' : 'Search stock…';
 
   const cellFor = (cellId: string, thumb: string | undefined, name: string, kind: 'image' | 'video', onPick: () => void) => (
     <button
@@ -544,11 +544,13 @@ export default function MediaSourcesDialog({
                 <p className="text-sm font-bold">
                   {source === 'drive'
                     ? 'Connect Google Drive to browse your files.'
-                    : source === 'dropbox'
-                      ? 'Connect Dropbox to browse your files.'
-                      : source === 'canva'
-                        ? 'Connect Canva to browse your designs.'
-                        : 'Connect Google Photos to browse your library.'}
+                    : source === 'onedrive'
+                      ? 'Connect OneDrive to browse your files.'
+                      : source === 'dropbox'
+                        ? 'Connect Dropbox to browse your files.'
+                        : source === 'canva'
+                          ? 'Connect Canva to browse your designs.'
+                          : 'Connect Google Photos to browse your library.'}
                 </p>
                 <p className="mt-1 text-xs text-muted">Read-only access · tokens stay in this browser.</p>
                 <button
@@ -557,7 +559,7 @@ export default function MediaSourcesDialog({
                   disabled={connecting}
                   className="btn btn-primary mx-auto mt-4 !text-sm"
                 >
-                  {connecting ? 'Connecting…' : source === 'dropbox' ? 'Connect Dropbox' : source === 'canva' ? 'Connect Canva' : 'Connect Google'}
+                  {connecting ? 'Connecting…' : source === 'dropbox' ? 'Connect Dropbox' : source === 'canva' ? 'Connect Canva' : source === 'onedrive' ? 'Connect OneDrive' : 'Connect Google'}
                 </button>
                 {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
               </div>
