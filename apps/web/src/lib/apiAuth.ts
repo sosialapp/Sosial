@@ -5,6 +5,10 @@ export interface ApiKeyContext {
   keyId: string;
   workspaceId: string;
   createdBy: string | null;
+  /** Scope strings from the key row (Zapier keys default to posts:write). */
+  scopes: string[];
+  /** ISO expiry or null. */
+  expiresAt: string | null;
 }
 
 /**
@@ -18,12 +22,17 @@ export async function verifyApiKey(req: Request): Promise<ApiKeyContext | null> 
   const admin = supabaseAdmin();
   const { data, error } = await admin
     .from('workspace_api_keys')
-    .select('id, workspace_id, created_by')
+    .select('id, workspace_id, created_by, scopes, expires_at')
     .eq('key_hash', hashApiKey(key))
     .is('revoked_at', null)
     .maybeSingle();
   if (error || !data) return null;
-  const row = data as { id: string; workspace_id: string; created_by: string | null };
+  const row = data as {
+    id: string; workspace_id: string; created_by: string | null;
+    scopes?: string[] | null; expires_at?: string | null;
+  };
+  // Expired keys fail closed (null = never expires; Zapier keys are null).
+  if (row.expires_at && Date.parse(row.expires_at) < Date.now()) return null;
   // Awaited: serverless runtimes freeze after the response, so fire-and-
   // forget writes get dropped (and an untracked key is undebuggable).
   try {
@@ -34,7 +43,13 @@ export async function verifyApiKey(req: Request): Promise<ApiKeyContext | null> 
   } catch {
     /* usage tracking must never fail the call */
   }
-  return { keyId: row.id, workspaceId: row.workspace_id, createdBy: row.created_by };
+  return {
+    keyId: row.id,
+    workspaceId: row.workspace_id,
+    createdBy: row.created_by,
+    scopes: row.scopes ?? [],
+    expiresAt: row.expires_at ?? null,
+  };
 }
 
 export function unauthorized(): Response {

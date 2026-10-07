@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import ApiKeysManager from '@/components/ApiKeysManager';
+import McpSection from '@/components/McpSection';
 import TeamManager from '@/components/TeamManager';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
@@ -55,6 +56,9 @@ export default async function TeamPage() {
             handle: string | null;
             metadata: Record<string, unknown> | null;
           }[]}
+        />
+        <McpSection
+          canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
         />
         <ApiKeysManager
           canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}

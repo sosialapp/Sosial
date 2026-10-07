@@ -29,11 +29,25 @@ export async function POST(req: Request) {
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });
   if (ctx.workspace.role !== 'owner' && ctx.workspace.role !== 'admin') return forbidden();
   let name = 'Zapier';
+  let scopes: string[] = ['posts:write'];
+  let expiresAt: string | null = null;
   try {
-    const b = (await req.json()) as { name?: unknown };
+    const b = (await req.json()) as { name?: unknown; scopes?: unknown; expires_at?: unknown };
     if (typeof b.name === 'string' && b.name.trim()) name = b.name.trim().slice(0, 60);
+    if (Array.isArray(b.scopes)) {
+      const allowed = new Set([
+        'posts:read', 'posts:write', 'posts:schedule', 'posts:delete',
+        'channels:read', 'media:read', 'analytics:read',
+      ]);
+      const picked = b.scopes.filter((s): s is string => typeof s === 'string' && allowed.has(s));
+      if (picked.length > 0) scopes = [...new Set(picked)];
+    }
+    if (typeof b.expires_at === 'string' && b.expires_at) {
+      const t = Date.parse(b.expires_at);
+      if (Number.isFinite(t) && t > Date.now()) expiresAt = new Date(t).toISOString();
+    }
   } catch {
-    /* default name */
+    /* defaults */
   }
   const { key, hash, prefix } = generateApiKey();
   const admin = supabaseAdmin();
@@ -45,6 +59,8 @@ export async function POST(req: Request) {
       key_hash: hash,
       key_prefix: prefix,
       created_by: ctx.user.id,
+      scopes,
+      expires_at: expiresAt,
     })
     .select('id, name, key_prefix, created_at')
     .single();
