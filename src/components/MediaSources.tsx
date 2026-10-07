@@ -30,15 +30,16 @@ export interface SourceAttachment {
 type Source = 'unsplash' | 'drive' | 'gphotos' | 'dropbox' | 'canva';
 
 const SOURCES: { id: Source; label: string; icon: string; mark: SourceMarkId; note: string }[] = [
-  { id: 'drive', label: 'Google Drive', icon: 'folder-outline', mark: 'drive', note: 'Your files + shared folders' },
-  { id: 'gphotos', label: 'Google Photos', icon: 'images-outline', mark: 'gphotos', note: 'Your photo library' },
   { id: 'dropbox', label: 'Dropbox', icon: 'cloud-outline', mark: 'dropbox', note: 'Your Dropbox files' },
   { id: 'canva', label: 'Canva', icon: 'color-palette-outline', mark: 'canva', note: 'Your designs, exported to post' },
   { id: 'unsplash', label: 'Unsplash', icon: 'camera-outline', mark: 'unsplash', note: 'Photos · credit auto-added' },
 ];
 
-/** Not yet wired — shown greyed so the drawer mirrors the full roadmap. */
+/** Not yet wired — Google media awaits Google OAuth verification (restricted
+ *  scopes + CASA); OneDrive awaits the Azure app. Shown greyed as roadmap. */
 const SOON: { label: string; icon: string; note: string }[] = [
+  { label: 'Google Drive', icon: 'folder-outline', note: 'Coming soon' },
+  { label: 'Google Photos', icon: 'images-outline', note: 'Coming soon' },
   { label: 'OneDrive', icon: 'cloud-outline', note: 'Coming soon' },
 ];
 

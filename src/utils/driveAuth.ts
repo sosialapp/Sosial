@@ -18,6 +18,14 @@ const SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.g
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const STORE_KEY = 'sosial_src_google_files_v3';
 
+/**
+ * Google media (Drive + Photos Picker) is pending Google OAuth verification:
+ * restricted scopes cannot be granted until CASA completes. UI greys the
+ * tiles behind "Soon"; this guard backs it up so no code path requests the
+ * unverified scopes. Flip to false (one line) once verification lands.
+ */
+export const GOOGLE_MEDIA_DISABLED = true;
+
 interface StoredTokens {
   accessToken: string;
   refreshToken: string;
@@ -77,6 +85,9 @@ export async function disconnectGoogleFiles(): Promise<void> {
 
 /** System-browser consent; returns true when the provider redirected back. */
 export async function loginGoogleFiles(): Promise<boolean> {
+  if (GOOGLE_MEDIA_DISABLED) {
+    throw new Error('Google Drive and Photos are coming soon — pending Google verification.');
+  }
   const url =
     `${YT_AUTH_ENDPOINT}?response_type=code` +
     `&client_id=${encodeURIComponent(YT_CLIENT_ID)}` +

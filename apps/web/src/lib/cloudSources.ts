@@ -16,6 +16,15 @@ const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/photospicker.mediaitems.readonly',
 ].join(' ');
+
+/**
+ * Google media (Drive + Photos Picker) is pending Google OAuth verification:
+ * the restricted scopes above cannot be granted to production traffic until
+ * the CASA assessment completes. UI gates the tiles behind "Soon"; this guard
+ * backs it up so no code path can request the unverified scopes. Flip to
+ * false (one line) once verification lands.
+ */
+export const GOOGLE_MEDIA_DISABLED = true;
 const DROPBOX_SCOPES = 'files.metadata.read files.content.read';
 const CANVA_SCOPES = ['design:content:read', 'design:meta:read', 'asset:read', 'profile:read'].join(' ');
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -132,6 +141,9 @@ async function pkcePair(): Promise<{ verifier: string; challenge: string }> {
 
 /** Popup consent via the shared bridge; resolves with fresh tokens. */
 export async function loginCloud(provider: CloudProvider): Promise<boolean> {
+  if (GOOGLE_MEDIA_DISABLED && provider === 'google') {
+    throw new Error('Google Drive and Photos are coming soon — pending Google verification.');
+  }
   const sb = await createClient();
   const { data: config } = await sb.functions.invoke('oauth-config', { method: 'GET' });
   const clientId =

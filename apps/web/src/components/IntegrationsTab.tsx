@@ -7,9 +7,9 @@ import {
 } from '@/lib/cloudSources';
 
 const ROWS: { id: CloudProvider | 'onedrive'; label: string; sub: string; mark: string; soon?: boolean }[] = [
-  { id: 'google', label: 'Google Drive & Photos', sub: 'Your files and photo library', mark: 'drive' },
   { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files', mark: 'dropbox' },
   { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post', mark: 'canva' },
+  { id: 'google', label: 'Google Drive & Photos', sub: 'Pending Google verification', mark: 'drive', soon: true },
   { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', mark: 'onedrive', soon: true },
 ];
 

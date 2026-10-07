@@ -25,14 +25,17 @@ export interface StockItem {
 type Source = 'drive' | 'gphotos' | 'dropbox' | 'canva' | 'unsplash';
 
 const SOURCES = [
-  { id: 'drive', label: 'Google Drive', icon: 'drive' },
-  { id: 'gphotos', label: 'Google Photos', icon: 'gphotos' },
   { id: 'dropbox', label: 'Dropbox', icon: 'dropbox' },
   { id: 'canva', label: 'Canva', icon: 'canva' },
   { id: 'unsplash', label: 'Unsplash', icon: 'unsplash' },
 ] as const;
 
+// Google media (Drive + Photos) is pending Google OAuth verification — the
+// restricted scopes cannot be granted until CASA completes. Greyed "Soon"
+// until then; connect code stays intact for instant re-enable.
 const SOON = [
+  { label: 'Google Drive', icon: 'drive' },
+  { label: 'Google Photos', icon: 'gphotos' },
   { label: 'OneDrive', icon: 'onedrive' },
 ];
 

@@ -19,9 +19,9 @@ import { canvaConnected, loginCanva, disconnectCanva } from '../utils/canvaAuth'
 type RowId = 'google' | 'dropbox' | 'canva' | 'onedrive';
 
 const ROWS: { id: RowId; label: string; sub: string; mark: SourceMarkId; soon?: boolean }[] = [
-  { id: 'google', label: 'Google Drive & Photos', sub: 'Your files and photo library', mark: 'drive' },
   { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files', mark: 'dropbox' },
   { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post', mark: 'canva' },
+  { id: 'google', label: 'Google Drive & Photos', sub: 'Pending Google verification', mark: 'drive', soon: true },
   { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', mark: 'onedrive', soon: true },
 ];
 
