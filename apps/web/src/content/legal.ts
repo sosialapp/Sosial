@@ -23,7 +23,7 @@ export interface LegalDoc {
 export const TERMS: LegalDoc = {
   slug: 'terms',
   title: 'Terms of Use',
-  updated: '2026-09-01',
+  updated: '2026-10-08',
   summary:
     'The agreement between you and Sosial for using the service: accounts, content, publishing and liability.',
   sections: [
@@ -58,11 +58,19 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Your use of each connected platform, X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest, remains governed by that platform\'s own terms and policies. Sosial accesses these accounts only to publish the content you schedule and to read the limited profile information needed to display them.',
+          c: 'Sosial publishes to 18 channels: X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile. Your use of each connected platform remains governed by that platform\'s own terms and policies. Sosial accesses these accounts only to publish the content you schedule and to read the limited profile information needed to display them.',
         },
         {
           t: 'p',
-          c: 'Concretely, "publishing on your behalf" means posting your scheduled text, photos and video; uploading media where a platform requires it before posting; and reading the minimum profile, delivery-status and statistics fields needed to confirm a post went out and to show you results. The exact permissions for each platform, for example posting and media upload on X, content publishing on Instagram and Threads, video upload and publishing on TikTok, Page posting on Facebook, member and Company Page posting on LinkedIn, video uploads on YouTube, board and Pin writes on Pinterest, and read-write access on your chosen Mastodon instance, are shown by that platform on its own connect screen before you approve them. Bluesky uses a handle plus an app password instead of OAuth; the password is never stored.',
+          c: 'Some channels are shown as "Soon" and cannot yet be connected: Google Business Profile, LinkedIn and Pinterest. They are displayed for information only, and no account is accessed for them until they go live.',
+        },
+        {
+          t: 'p',
+          c: 'Concretely, "publishing on your behalf" means posting your scheduled text, photos and video; uploading media where a platform requires it before posting; and reading the minimum profile, delivery-status and statistics fields needed to confirm a post went out and to show you results. The exact permissions for each platform, for example posting and media upload on X, content publishing on Instagram and Threads, video upload and publishing on TikTok, Page posting on Facebook, member and Company Page posting on LinkedIn, video uploads on YouTube, board and Pin writes on Pinterest, application-password publishing on WordPress, API publishing on Dev.to and Hashnode, Admin API publishing on Ghost, and bot-based posting on Telegram and Discord, are shown by that platform on its own connect screen before you approve them. Bluesky uses a handle plus an app password instead of OAuth; the password is never stored. X requires a paid plan because its posting API is metered.',
+        },
+        {
+          t: 'p',
+          c: 'You can also connect content sources that feed the composer rather than publish to it: media from Dropbox, Canva, Unsplash and OneDrive, imports from Notion and Google Sheets, and automation tools and AI agents via Zapier and MCP using an API key you generate. These are read-only or one-way into Sosial except where you explicitly ask an agent to create a post. Google Drive and Google Photos are shown as "Soon" and are not yet connectable, pending Google\'s own verification.',
         },
         {
           t: 'p',
@@ -138,6 +146,7 @@ export const PRIVACY: LegalDoc = {
             'Account details: your email address and an encrypted password, or your OAuth identity if you signed in with a provider.',
             'Workspace data: your posts, captions, schedules, media and templates.',
             'Connected channel data: the account handle, display name and the access token needed to publish.',
+            'Connected source data: for imports from Notion and Google Sheets, the page or sheet reference and the content you import; for automation tools and AI agents, an API key you generate.',
             'Billing: handled by our payment provider. We store only a customer reference, not your card number.',
           ],
         },
@@ -148,12 +157,12 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'When you connect a social account, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We do not store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored. Only short-lived session tokens are kept. We do not read your private messages on any platform.',
+          c: 'Sosial publishes to 18 channels. When you connect one, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We do not store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored. Only short-lived session tokens are kept. We do not read your private messages on any platform.',
         },
         {
           t: 'ul',
           c: [
-            'X: read your profile, publish and read posts, and upload media, only for the posts you schedule. A refresh token keeps you signed in so scheduled posts can publish on time.',
+            'X: read your profile, publish and read posts, and upload media, only for the posts you schedule. A refresh token keeps you signed in so scheduled posts can publish on time. X requires a paid plan because its posting API is metered.',
             'Instagram: read your Business or Creator profile, and publish the photos, videos and reels you schedule. We deliberately do not request insights access.',
             'TikTok: read your basic profile and video statistics, upload and publish the videos and photos you schedule, and list posted videos to confirm delivery.',
             'Facebook: list the Pages you manage, read their engagement and content, and publish the posts, photos and videos you schedule to them. Personal timelines are never touched.',
@@ -163,7 +172,19 @@ export const PRIVACY: LegalDoc = {
             'LinkedIn: identify you via OpenID, publish posts as you, and read your own posts and their statistics. If you connect a Company Page you administer, the same applies to that Page.',
             'YouTube: upload videos to your channel, read the channel and video list to confirm delivery and show status, and manage comments on uploads published through Sosial.',
             'Pinterest: read your account, and read and write boards and Pins, publishing scheduled Pins to the boards you choose.',
+            'WordPress: connect a self-hosted or WordPress.com site with an application password, and publish the posts you schedule to it as drafts or live.',
+            'Dev.to: publish your scheduled articles and upload their cover images through the Dev.to API.',
+            'Hashnode: publish your scheduled articles to a publication you own through Hashnode.',
+            'Ghost: publish your scheduled posts to a Ghost site through its Admin API.',
+            'Telegram: send your scheduled messages and media to a channel or group you administer through a bot you authorise.',
+            'Discord: post your scheduled messages and media to a server channel through a bot you authorise.',
+            'VK: publish your scheduled posts and media to your VK profile or community.',
+            'Google Business Profile: publish your scheduled posts to a location you manage. This channel is listed as "Soon" and is not yet connectable.',
           ],
+        },
+        {
+          t: 'p',
+          c: 'A small number of the channels we list are shown as "Soon" and cannot be connected yet: Google Business Profile, LinkedIn and Pinterest. They appear in the product so you can see what is coming, but no data is collected for them until they go live.',
         },
         {
           t: 'p',
@@ -176,11 +197,31 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'When you attach photos or videos from Google Drive, Dropbox, Canva or Unsplash, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it to your post. For Google Photos, picking happens inside Google\u2019s own picker interface, and only the photos you select are ever shared with the app. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos automatically carry the photographer\u2019s name and profile link in your caption, as their license requires.',
+          c: 'When you attach photos or videos from a connected source, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it to your post. For Google Photos, picking happens inside Google\u2019s own picker interface, and only the photos you select are ever shared with the app. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos automatically carry the photographer\u2019s name and profile link in your caption, as their license requires.',
         },
         {
           t: 'p',
-          c: 'Access tokens for these sources are kept on your own device (your phone\u2019s secure storage, or your browser\u2019s local storage on the web) and are never stored on our servers. Secrets used for login live server-side and are never shipped to the app. Disconnecting a source in the app deletes its tokens from your device immediately.',
+          c: 'These media and content sources are live today:',
+        },
+        {
+          t: 'ul',
+          c: [
+            'Dropbox: list your folders and files and download only the file you choose.',
+            'Canva: list your designs and download the export you choose.',
+            'Unsplash: search the photo library and attach the photo you choose, with its required credit.',
+            'OneDrive: list your folders and files and download only the file you choose.',
+            'Notion: import pages you have shared with the Sosial integration and turn them into drafts. Import is one-way, from Notion into Sosial.',
+            'Google Sheets: import rows from a sheet you share with Sosial and turn them into scheduled posts. Import is one-way, from Sheets into Sosial.',
+            'Zapier and MCP: connect automation tools and AI agents that create posts in your workspace through the Sosial API and Model Context Protocol, using an API key you generate and can revoke at any time.',
+          ],
+        },
+        {
+          t: 'p',
+          c: 'Google Drive and Google Photos are listed as "Soon" and are not yet connectable, because the restricted Google scopes they need are pending Google\'s verification and CASA assessment. No Google Drive or Google Photos data is accessed until they go live.',
+        },
+        {
+          t: 'p',
+          c: 'Access tokens for cloud drive sources are kept on your own device (your phone\u2019s secure storage, or your browser\u2019s local storage on the web) and are never stored on our servers. Sosial-side secrets and service credentials used for imports live server-side and are never shipped to the app. Disconnecting a source in the app deletes its tokens from your device immediately.',
         },
       ],
     },
