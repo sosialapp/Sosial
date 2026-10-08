@@ -22,34 +22,6 @@ const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, { plan: string; tile: st
   business: { plan: '#6d4fd6', tile: '#ddd6fb' },
 };
 
-function PlanGlyph({ plan }: { plan: PlanKey }) {
-  const stroke = { fill: 'none', stroke: '#1C1A14', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
-  return (
-    <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
-      {plan === 'free' ? (
-        <path d="M12 3c.9 5.6 3.4 8.1 9 9-5.6.9-8.1 3.4-9 9-.9-5.6-3.4-8.1-9-9 5.6-.9 8.1-3.4 9-9Z" {...stroke} />
-      ) : plan === 'solo' ? (
-        <>
-          <circle cx="12" cy="8" r="3.5" {...stroke} />
-          <path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5" {...stroke} />
-        </>
-      ) : plan === 'team' ? (
-        <>
-          <circle cx="9" cy="8.5" r="3" {...stroke} />
-          <path d="M3.5 19c1.2-3 3.2-4.3 5.5-4.3s4.3 1.3 5.5 4.3" {...stroke} />
-          <circle cx="16.5" cy="9.5" r="2.4" {...stroke} />
-          <path d="M15.5 14.6c2.3.2 4 1.5 5 4.4" {...stroke} />
-        </>
-      ) : (
-        <>
-          <rect x="4" y="7.5" width="16" height="12.5" rx="2" {...stroke} />
-          <path d="M9 7.5V6a3 3 0 0 1 6 0v1.5M4 12.5h16" {...stroke} />
-        </>
-      )}
-    </svg>
-  );
-}
-
 function fmt(n: number): string {
   return n.toLocaleString('en-US');
 }
@@ -128,7 +100,7 @@ export default function PricingPlans({
         </div>
 
         {/* Cards — pt-4 leaves room for the icon tiles poking above headers. */}
-        <div className="mt-10 grid grid-cols-1 items-stretch gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {PLAN_ORDER.map((key, idx) => {
             const p = PLANS[key];
             const featured = !!p.featured;
@@ -141,17 +113,10 @@ export default function PricingPlans({
               <article key={key} className="relative flex flex-col rounded-[28px] bg-[#f9f8f6] pb-7">
                 {/* Colored header */}
                 <header
-                  className="relative min-h-[136px] rounded-[28px_28px_20px_20px] px-4 pb-5 pt-[68px] text-white"
+                  className="relative min-h-[120px] rounded-[28px_28px_20px_20px] px-4 pb-5 pt-5 text-white"
                   style={{ backgroundColor: colors.plan }}
                 >
-                  {/* Icon tile poking above */}
-                  <span
-                    aria-hidden="true"
-                    className="absolute -top-4 left-4 grid h-14 w-14 place-items-center rounded-[14px]"
-                    style={{ backgroundColor: colors.tile }}
-                  >
-                    <PlanGlyph plan={key} />
-                  </span>
+                  {/* Icon tile removed per user request */}
                   {featured ? (
                     <span className="absolute right-3.5 top-3.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0d0d0d]">
                       Most popular
