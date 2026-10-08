@@ -124,24 +124,20 @@ export default function LogoDock() {
             {/* Divider: vertical on desktop, horizontal on mobile */}
             <div className="mx-auto h-px w-24 shrink-0 bg-line md:mx-0 md:h-24 md:w-px md:self-center" aria-hidden="true" />
 
-            {/* Channels — where posts land. One swipeable row on mobile
-                (no-wrap + scroll, edge-fade mask) so 19 logos never stack
-                into a tall wrapped block; two centered wrapped rows on sm+. */}
+            {/* Channels — where posts land: one tight 9×2 grid like Integrate. */}
             <div className="flex min-w-0 flex-1 flex-col">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
                 Channels
               </p>
-              <div className="relative">
-                <div
-                  ref={channelsRef}
-                  className="no-scrollbar -mx-4 flex items-end justify-start gap-3 overflow-x-auto px-4 pt-4 pb-1 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] md:mx-0 md:max-w-[688px] md:flex-wrap md:justify-center md:overflow-visible md:px-1 md:pt-1 md:[mask-image:none]"
-                >
-                  {CHANNELS.map((c) => (
-                    <span key={c} className="block shrink-0 will-change-transform">
-                      <BrandIcon provider={c} className="h-9 w-9 sm:h-12 sm:w-12" />
-                    </span>
-                  ))}
-                </div>
+              <div
+                ref={channelsRef}
+                className="grid grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
+              >
+                {CHANNELS.map((c) => (
+                  <span key={c} className="block shrink-0 will-change-transform">
+                    <BrandIcon provider={c} className="h-7 w-7 sm:h-8 sm:w-8" />
+                  </span>
+                ))}
               </div>
             </div>
           </div>
