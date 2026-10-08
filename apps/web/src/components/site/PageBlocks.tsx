@@ -113,7 +113,7 @@ export function FaqList({ items, title = 'Questions, answered' }: { items: { q: 
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.035)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_20%,transparent_75%)]"
       />
-      <div className="relative mx-auto max-w-3xl px-4 py-20 md:py-28">
+      <div className="relative mx-auto max-w-3xl px-4 pt-8 pb-20 md:pt-10 md:pb-28">
         <p className="eyebrow text-center">FAQ</p>
         <h2 className="mt-3 text-center font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
           {title}
