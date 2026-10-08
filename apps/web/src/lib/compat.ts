@@ -156,8 +156,9 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
   devto: {
     label: 'Dev.to',
     // Forem article: title + markdown body. Tags cap at 4 (backend trims);
-    // covers ship as absolute URLs only, so v1 sends none.
-    supports: { text: true, image: false, video: false, carousel: false, document: false, poll: false, link: true },
+    // the first attached image ships as the cover (main_image) via a
+    // publish-time signed URL the worker mints. Videos stay unsupported.
+    supports: { text: true, image: true, video: false, carousel: false, document: false, poll: false, link: true },
     thread: false, replyChain: false, article: true,
     requiresMedia: false, requiresVideo: false,
     boardRequired: false, titleRequired: false,

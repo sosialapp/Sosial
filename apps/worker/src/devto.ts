@@ -1,4 +1,5 @@
 import { readSecret } from './db';
+import { storageSign } from './rest';
 import { info } from './logger';
 
 /**
@@ -11,8 +12,9 @@ import { info } from './logger';
  * - tags is a comma-separated string, max 4 (backend rejects more).
  * - published=true at publish time — Sosial's worker owns the clock.
  * - main_image needs an absolute public URL. Our media lives in private
- *   storage with expiring signed URLs, so v1 ships without covers rather
- *   than a broken image (documented omission, not a fake).
+ *   storage, so the worker mints a 7-day signed URL at publish time and
+ *   hands that to Forem (which fetches + caches it on creation). Any
+ *   failure → text-only publish, never a broken image.
  */
 
 const API = 'https://dev.to/api';
@@ -73,6 +75,17 @@ export async function publishDevtoTarget(bundle: Bundle): Promise<{ remoteId: st
   if (typeof opts.series === 'string' && opts.series.trim()) article.series = opts.series.trim();
   if (typeof opts.canonical_url === 'string' && opts.canonical_url.trim()) {
     article.canonical_url = opts.canonical_url.trim();
+  }
+
+  // Cover: first attached image, via a week-long signed URL minted now.
+  // Forem fetches + caches it at creation; any failure → text-only publish.
+  const cover = (b.media ?? []).find((m) => m.kind !== 'video' && m.storage_path);
+  if (cover?.storage_path) {
+    try {
+      article.main_image = await storageSign('post-media', cover.storage_path, 7 * 24 * 3600);
+    } catch (e) {
+      info('devto cover skipped', { target: b.target.id, reason: e instanceof Error ? e.message : 'sign failed' });
+    }
   }
 
   const created = await callDev<{ id: number; url: string }>(apiKey, '/articles', {
