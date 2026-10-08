@@ -108,21 +108,35 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
 
 export function FaqList({ items, title = 'Questions, answered' }: { items: { q: string; a: string }[]; title?: string }) {
   return (
-    <section aria-label="Frequently asked questions" className="border-t border-line bg-card/60">
-      <div className="mx-auto max-w-3xl px-4 py-20 md:py-28">
-        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+    <section aria-label="Frequently asked questions" className="relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.035)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_20%,transparent_75%)]"
+      />
+      <div className="relative mx-auto max-w-3xl px-4 py-20 md:py-28">
+        <p className="eyebrow text-center">FAQ</p>
+        <h2 className="mt-3 text-center font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
           {title}
         </h2>
-        <div className="mt-10">
-          {items.map((f) => (
-            <details key={f.q} className="border-t-[1.5px] border-ink last:border-b-[1.5px]">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-5 py-[18px] font-display text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
-                {f.q}
-                <span aria-hidden="true" className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full border-[1.5px] border-ink text-xl leading-none transition-transform [[open]_&]:rotate-45 [[open]_&]:bg-bolt">
-                  +
+        <div className="mt-10 overflow-hidden rounded-3xl border border-line bg-white/80 backdrop-blur-sm">
+          {items.map((f, i) => (
+            <details key={f.q} className={`group ${i > 0 ? 'border-t border-line/70' : ''}`}>
+              <summary className="flex cursor-pointer list-none items-center gap-4 px-5 py-5 transition-colors hover:bg-bone/60 [&::-webkit-details-marker]:hidden md:px-7 md:py-6">
+                <span className="flex-1 font-display text-[16px] font-semibold tracking-tight text-ink md:text-[17px]">
+                  {f.q}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="grid h-8 w-8 flex-none place-items-center rounded-full bg-ink/[0.06] text-ink transition-transform duration-300 group-open:rotate-180"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                    <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </span>
               </summary>
-              <p className="max-w-[60ch] pb-5 text-[15px] leading-relaxed text-muted md:text-base">{f.a}</p>
+              <div className="px-5 pb-6 md:px-7 md:pb-7">
+                <p className="max-w-[62ch] text-[15px] leading-relaxed text-muted">{f.a}</p>
+              </div>
             </details>
           ))}
         </div>
