@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import {
-  PLANS, formatUsd, monthlyEquivalent, priceFor,
-  type BillingInterval, type PlanKey,
+  PLANS,
+  type PlanKey,
 } from '@/lib/billing/plans';
 import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
 import { CheckIcon } from '@/components/StatusIcons';
@@ -54,21 +53,7 @@ function Cell({ value, featured }: { value: string | boolean; featured?: boolean
   );
 }
 
-function headerPrice(key: PlanKey, interval: BillingInterval): string {
-  if (key === 'free') return 'Free';
-  return interval === 'monthly'
-    ? `${formatUsd(priceFor(key, 'monthly'))}/mo`
-    : `${formatUsd(Math.round(monthlyEquivalent(key)))}/mo`;
-}
-
-function headerSub(key: PlanKey, interval: BillingInterval): string {
-  if (key === 'free') return 'forever';
-  return interval === 'monthly' ? 'per month' : `per month · billed ${formatUsd(priceFor(key, 'annual'))} yearly`;
-}
-
 export default function PlanComparison() {
-  const [interval, setInterval] = useState<BillingInterval>('annual');
-
   return (
     <section aria-label="Plan comparison" id="compare" className="relative scroll-mt-20 overflow-hidden">
       <div
@@ -88,28 +73,6 @@ export default function PlanComparison() {
           </p>
         </div>
 
-        <div className="mt-10 flex justify-center">
-          <div
-            className="inline-flex items-center gap-1 rounded-full border border-line bg-white p-1 shadow-[0_2px_10px_rgba(28,26,20,0.06)]"
-            role="group"
-            aria-label="Billing interval"
-          >
-            {(['monthly', 'annual'] as const).map((i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setInterval(i)}
-                aria-pressed={interval === i}
-                className={`rounded-full px-5 py-2 text-sm font-semibold transition-all ${
-                  interval === i ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
-                }`}
-              >
-                {i === 'monthly' ? 'Monthly' : 'Annual'}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="mt-12 overflow-x-auto pb-4 [scrollbar-width:thin]">
           <table className="w-full min-w-[920px] border-separate border-spacing-0">
             <thead>
@@ -117,39 +80,9 @@ export default function PlanComparison() {
                 <th scope="col" className="w-[210px] min-w-[210px] p-2 align-bottom" />
                 {FEATURE_PLAN_ORDER.map((key) => {
                   const p = PLANS[key];
-                  const featured = !!p.featured;
                   return (
-                    <th key={key} scope="col" className="min-w-[160px] p-2 align-bottom">
-                      <div
-                        className={`relative rounded-3xl p-5 text-center transition-all duration-200 ${
-                          featured
-                            ? 'border-2 border-ink bg-ink text-paper shadow-[0_24px_60px_-24px_rgba(28,26,20,0.55)]'
-                            : 'border border-line bg-white'
-                        }`}
-                      >
-                        {featured ? (
-                          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-[10px] font-bold tracking-wide whitespace-nowrap text-accent-ink uppercase">
-                            Most popular
-                          </span>
-                        ) : null}
-                        <p className={`text-sm font-bold ${featured ? 'text-paper/70' : 'text-muted'}`}>{p.label}</p>
-                        <p className={`mt-2 font-display text-3xl font-extrabold tracking-tight ${featured ? 'text-paper' : 'text-ink'}`}>
-                          {headerPrice(key, interval)}
-                        </p>
-                        <p className={`mt-1 min-h-8 text-[11px] leading-snug ${featured ? 'text-paper/60' : 'text-faint'}`}>
-                          {headerSub(key, interval)}
-                        </p>
-                        <Link
-                          href={key === 'free' ? '/login' : '/billing'}
-                          className={`mt-4 inline-flex w-full items-center justify-center rounded-full py-2.5 text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_0_-2px_rgba(28,26,20,0.22)] active:translate-y-0 ${
-                            featured
-                              ? 'bg-accent text-accent-ink hover:bg-accent-bright'
-                              : 'bg-ink/[0.05] text-ink hover:bg-ink hover:text-paper'
-                          }`}
-                        >
-                          {key === 'free' ? 'Start free' : `Choose ${p.label}`}
-                        </Link>
-                      </div>
+                    <th key={key} scope="col" className="min-w-[160px] p-2 pb-4 align-bottom">
+                      <p className="text-center text-sm font-bold text-ink">{p.label}</p>
                     </th>
                   );
                 })}
