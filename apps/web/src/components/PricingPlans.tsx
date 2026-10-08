@@ -3,23 +3,21 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import {
-  PLANS, PLAN_ORDER, priceFor, formatUsd, monthlyEquivalent, annualSavingsPct,
+  PLANS, PLAN_ORDER, priceFor, formatUsd,
   type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 
 /**
- * Pricing band, Clay-style colored-header cards: each plan gets its own
- * header colour with a tinted icon tile poking above, a white Recommended
- * pill on the featured plan, quota "fields" (channels + AI credits) pulled
- * straight from enforced limits, dot-bullet features and a full-width CTA.
- * All numbers come from the canonical PLANS config.
+ * Pricing band — colored-header cards with quota fields, dot-bullet
+ * features and Sosial-style CTAs. Prices respond to the monthly/annual
+ * toggle. All numbers come from the canonical PLANS config.
  */
 
-const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, { plan: string; tile: string }> = {
-  free: { plan: '#3a5bff', tile: '#c9defa' },
-  solo: { plan: '#006b3b', tile: '#86e6a6' },
-  team: { plan: '#cc0aa2', tile: '#f7bce6' },
-  business: { plan: '#6d4fd6', tile: '#ddd6fb' },
+const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, string> = {
+  free: '#3a5bff',
+  solo: '#006b3b',
+  team: '#cc0aa2',
+  business: '#6d4fd6',
 };
 
 function fmt(n: number): string {
@@ -49,7 +47,6 @@ export default function PricingPlans({
 
   return (
     <section aria-label="Plans" className="relative overflow-hidden">
-      {/* Faint grid wash, same family as the hero. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.045)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_30%,transparent_75%)]"
@@ -85,38 +82,30 @@ export default function PricingPlans({
                 }`}
               >
                 {i === 'monthly' ? 'Monthly' : 'Annual'}
-                {i === 'annual' ? (
-                  <span
-                    className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      interval === i ? 'bg-accent text-accent-ink' : 'bg-accent-soft text-accent-ink'
-                    }`}
-                  >
-                    −17%
-                  </span>
-                ) : null}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Cards — pt-4 leaves room for the icon tiles poking above headers. */}
+        {/* Cards */}
         <div className="mt-10 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {PLAN_ORDER.map((key, idx) => {
             const p = PLANS[key];
             const featured = !!p.featured;
-            const colors = CARD_COLORS[key as Exclude<PlanKey, 'ultimate'>];
+            const color = CARD_COLORS[key as Exclude<PlanKey, 'ultimate'>];
             const ctaHref = key === 'free' ? '/login' : '/billing';
             const ctaLabel = key === 'free' ? 'Start free' : `Choose ${p.label}`;
-            const perMonth = key === 'free' ? null : Math.round(monthlyEquivalent(key));
+            const displayPrice = key === 'free'
+              ? 'Free'
+              : formatUsd(priceFor(key, interval));
             const prevLabel = idx > 0 ? PLANS[PLAN_ORDER[idx - 1]].label : null;
             return (
               <article key={key} className="relative flex flex-col rounded-[28px] bg-[#f9f8f6] pb-7">
                 {/* Colored header */}
                 <header
                   className="relative min-h-[120px] rounded-[28px_28px_20px_20px] px-4 pb-5 pt-5 text-white"
-                  style={{ backgroundColor: colors.plan }}
+                  style={{ backgroundColor: color }}
                 >
-                  {/* Icon tile removed per user request */}
                   {featured ? (
                     <span className="absolute right-3.5 top-3.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0d0d0d]">
                       Most popular
@@ -129,14 +118,14 @@ export default function PricingPlans({
                 {/* Body */}
                 <div className="flex flex-1 flex-col px-4 pt-6">
                   <p className="m-0 font-display text-[28px] font-medium leading-none tracking-tight text-ink">
-                    {key === 'free' ? 'Free' : `${formatUsd(perMonth ?? 0)}/mo`}
+                    {key === 'free' ? 'Free' : `${displayPrice}/mo`}
                   </p>
-                  <p className="mb-5 mt-1.5 flex items-center gap-1 text-xs text-ink">
+                  <p className="mb-5 mt-1.5 text-xs text-ink">
                     {key === 'free'
                       ? 'Free forever. No card needed.'
                       : interval === 'annual'
-                        ? `Billed ${formatUsd(priceFor(key, 'annual'))} yearly · save ${annualSavingsPct(key)}%`
-                        : `Billed monthly · or ${formatUsd(Math.round(monthlyEquivalent(key)))}/mo yearly (save ${annualSavingsPct(key)}%)`}
+                        ? `Billed ${formatUsd(priceFor(key, 'annual'))} yearly`
+                        : 'Billed monthly'}
                   </p>
 
                   {/* Quota fields */}
@@ -170,19 +159,12 @@ export default function PricingPlans({
                     ))}
                   </ul>
 
-                  <div className="mt-auto flex flex-col items-center gap-3">
+                  <div className="mt-auto">
                     <Link
                       href={ctaHref}
-                      className={`inline-flex h-11 w-full items-center justify-center rounded-[10px] border text-sm font-medium transition-colors ${
-                        featured
-                          ? 'border-[#0d0d0d] bg-[#0d0d0d] text-white hover:bg-[#2a2a2a]'
-                          : 'border-[#0d0d0d] bg-white text-ink hover:bg-[#f1f0ed]'
-                      }`}
+                      className={`btn w-full ${featured ? 'btn-primary' : 'btn-ghost'}`}
                     >
                       {ctaLabel}
-                    </Link>
-                    <Link href="#compare" className="text-sm text-ink underline underline-offset-[3px]">
-                      See full comparison
                     </Link>
                   </div>
                 </div>
