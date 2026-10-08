@@ -108,22 +108,33 @@ export const BRAND_MARKS: Record<string, React.ReactNode> = {
       </defs>
     </svg>
   ),
+  notion: (
+    <svg viewBox="0 0 24 24" fill="#000000" aria-hidden="true">
+      <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z" />
+    </svg>
+  ),
+  sheets: (
+    <svg viewBox="0 0 24 24" fill="#34A853" aria-hidden="true">
+      <path d="M11.318 12.545H7.91v-1.909h3.41v1.91zM14.728 0v6h6l-6-6zm1.363 10.636h-3.41v1.91h3.41v-1.91zm0 3.273h-3.41v1.91h3.41v-1.91zM20.727 6.5v15.864c0 .904-.732 1.636-1.636 1.636H4.909a1.636 1.636 0 0 1-1.636-1.636V1.636C3.273.732 4.005 0 4.909 0h9.318v6.5h6.5zm-3.273 2.773H6.545v7.909h10.91v-7.91zm-6.136 4.636H7.91v1.91h3.41v-1.91z" />
+    </svg>
+  ),
+  zapier: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect width="24" height="24" rx="5.5" fill="#FF4F00" />
+      <text x="12" y="17" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" fontWeight={800} fontSize="13" fill="#fff">Z</text>
+    </svg>
+  ),
 };
 
 export const LOCAL_ICON = <ImagePlus className="h-4 w-4" aria-hidden="true" />;
 
 /**
- * AI-agent marks for the landing dock's "AI agents" panel (agents that can
- * operate Sosial through MCP). Real CC0 brand marks where one exists
- * (Claude, Gemini, Copilot, Cursor, Meta/Muse via simple-icons); honest
- * monogram tiles where no redistributable mark exists (ChatGPT, Dots,
- * Codex, Hermes, Clawbot) — never a fake lookalike logo.
+ * AI-agent marks for the landing dock (agents that can operate Sosial
+ * through MCP). Real brand marks from redistributable sources (simple-icons
+ * CC0, thesvg.org, selfh.st CC BY 4.0 — credited at the entry); one honest
+ * monogram tile (Dots •••) where no standalone mark exists — never a fake
+ * lookalike logo.
  */
-const MONO_TILE = (
-  <rect width="24" height="24" rx="5.5" fill="#111111" />
-);
-const MONO_TEXT = 'system-ui, -apple-system, sans-serif';
-
 export const AI_MARKS: Record<string, React.ReactNode> = {
   claude: (
     <svg viewBox="0 0 24 24" fill="#D97757" aria-hidden="true">
@@ -131,8 +142,28 @@ export const AI_MARKS: Record<string, React.ReactNode> = {
     </svg>
   ),
   gemini: (
-    <svg viewBox="0 0 24 24" fill="#8E75B2" aria-hidden="true">
-      <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" />
+    <svg viewBox="0 0 296 298" aria-hidden="true">
+      <mask id="gem-a" width="296" height="298" x="0" y="0" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }}>
+        <path fill="#3186FF" d="M141.201 4.886c2.282-6.17 11.042-6.071 13.184.148l5.985 17.37a184.004 184.004 0 0 0 111.257 113.049l19.304 6.997c6.143 2.227 6.156 10.91.02 13.155l-19.35 7.082a184.001 184.001 0 0 0-109.495 109.385l-7.573 20.629c-2.241 6.105-10.869 6.121-13.133.025l-7.908-21.296a184 184 0 0 0-109.02-108.658l-19.698-7.239c-6.102-2.243-6.118-10.867-.025-13.132l20.083-7.467A183.998 183.998 0 0 0 133.291 26.28l7.91-21.394Z" />
+      </mask>
+      <g mask="url(#gem-a)">
+        <g filter="url(#gem-b)"><ellipse cx="163" cy="149" fill="#3689FF" rx="196" ry="159" /></g>
+        <g filter="url(#gem-c)"><ellipse cx="33.5" cy="142.5" fill="#F6C013" rx="68.5" ry="72.5" /></g>
+        <g filter="url(#gem-d)"><ellipse cx="19.5" cy="148.5" fill="#F6C013" rx="68.5" ry="72.5" /></g>
+        <g filter="url(#gem-e)"><path fill="#FA4340" d="M194 10.5C172 82.5 65.5 134.333 22.5 135L144-66l50 76.5Z" /></g>
+        <g filter="url(#gem-f)"><path fill="#FA4340" d="M190.5-12.5C168.5 59.5 62 111.333 19 112L140.5-89l50 76.5Z" /></g>
+        <g filter="url(#gem-g)"><path fill="#14BB69" d="M194.5 279.5C172.5 207.5 66 155.667 23 155l121.5 201 50-76.5Z" /></g>
+        <g filter="url(#gem-h)"><path fill="#14BB69" d="M196.5 320.5C174.5 248.5 68 196.667 25 196l121.5 201 50-76.5Z" /></g>
+      </g>
+      <defs>
+        <filter id="gem-b" width="464" height="390" x="-69" y="-46" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="18" /></filter>
+        <filter id="gem-c" width="265" height="273" x="-99" y="6" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="32" /></filter>
+        <filter id="gem-d" width="265" height="273" x="-113" y="12" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="32" /></filter>
+        <filter id="gem-e" width="299.5" height="329" x="-41.5" y="-130" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="32" /></filter>
+        <filter id="gem-f" width="299.5" height="329" x="-45" y="-153" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="32" /></filter>
+        <filter id="gem-g" width="299.5" height="329" x="-41" y="91" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="32" /></filter>
+        <filter id="gem-h" width="299.5" height="329" x="-39" y="132" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="32" /></filter>
+      </defs>
     </svg>
   ),
   copilot: (
@@ -151,35 +182,46 @@ export const AI_MARKS: Record<string, React.ReactNode> = {
     </svg>
   ),
   chatgpt: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      {MONO_TILE}
-      <text x="12" y="16.2" textAnchor="middle" fontFamily={MONO_TEXT} fontWeight={800} fontSize="7" fill="#fff" letterSpacing="-0.3">GPT</text>
+    <svg viewBox="0 0 24 24" fill="#111111" fillRule="evenodd" aria-hidden="true">
+      <path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 0 0-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 0 1 .476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 0 1 4.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 0 1-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 0 0 5.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0 0 10.205 0a5.947 5.947 0 0 0-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 0 0 4.162 1.713z" />
     </svg>
   ),
   dots: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      {MONO_TILE}
+      <rect width="24" height="24" rx="5.5" fill="#111111" />
       <circle cx="5.5" cy="12" r="2.4" fill="#fff" />
       <circle cx="12" cy="12" r="2.4" fill="#fff" />
       <circle cx="18.5" cy="12" r="2.4" fill="#fff" />
     </svg>
   ),
   codex: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      {MONO_TILE}
-      <text x="12" y="16.5" textAnchor="middle" fontFamily="ui-monospace, monospace" fontWeight={700} fontSize="8.5" fill="#fff">{'</>'}</text>
+    <svg viewBox="0 0 24 24" fill="#111111" fillRule="evenodd" clipRule="evenodd" aria-hidden="true">
+      <path d="M8.086.457a6.105 6.105 0 0 1 3.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 0 0 .107.029c1.408-.346 2.762-.224 4.061.366l.063.03.154.076c1.357.703 2.33 1.77 2.918 3.198.278.679.418 1.388.421 2.126a5.655 5.655 0 0 1-.18 1.631.167.167 0 0 0 .04.155 5.982 5.982 0 0 1 1.578 2.891c.385 1.901-.01 3.615-1.183 5.14l-.182.22a6.063 6.063 0 0 1-2.934 1.851.162.162 0 0 0-.108.102c-.255.736-.511 1.364-.987 1.992-1.199 1.582-2.962 2.462-4.948 2.451-1.583-.008-2.986-.587-4.21-1.736a.145.145 0 0 0-.14-.032c-.518.167-1.04.191-1.604.185a5.924 5.924 0 0 1-2.595-.622 6.058 6.058 0 0 1-2.146-1.781c-.203-.269-.404-.522-.551-.821a7.74 7.74 0 0 1-.495-1.283 6.11 6.11 0 0 1-.017-3.064.166.166 0 0 0 .008-.074.115.115 0 0 0-.037-.064 5.958 5.958 0 0 1-1.38-2.202 5.196 5.196 0 0 1-.333-1.589 6.915 6.915 0 0 1 .188-2.132c.45-1.484 1.309-2.648 2.577-3.493.282-.188.55-.334.802-.438.286-.12.573-.22.861-.304a.129.129 0 0 0 .087-.087A6.016 6.016 0 0 1 5.635 2.31C6.315 1.464 7.132.846 8.086.457zm-.804 7.85a.848.848 0 0 0-1.473.842l1.694 2.965-1.688 2.848a.849.849 0 0 0 1.46.864l1.94-3.272a.849.849 0 0 0 .007-.854l-1.94-3.393zm5.446 6.24a.849.849 0 0 0 0 1.695h4.848a.849.849 0 0 0 0-1.696h-4.848z" />
     </svg>
   ),
+  // Hermes Agent mark by selfh.st, licensed CC BY 4.0.
   hermes: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      {MONO_TILE}
-      <text x="12" y="17.5" textAnchor="middle" fontFamily={MONO_TEXT} fontWeight={800} fontSize="13" fill="#fff">H</text>
+    <svg viewBox="0 0 512 512" fillRule="evenodd" clipRule="evenodd" aria-hidden="true">
+      <path d="M192.3 243.4c-1.4-.8-2.7-1.2-4.2.1-.4.4-1.3.3-2 .2-.6-.1-1.1-.6-1.5-.9-2.3 2-2.3 2-4.4.1-1.2 1-2.6 1.6-4 .2-1.3.6-2.6-.4-3.8-.3-1.5.1-2.1-.7-2.8-1.5l-2.8.7c-.3-5-4.1-4.1-7.3-4.3.1-1.5 1.1-2 2-2 1.2 0 2.3.1 3.4.5 3.5 1.1 6.8 2.6 10.6 2.9 4.3.4 8.6.6 12.8-.3 5.7-1.3 11.1-3.2 15.1-7.8 1-1.2 1.8-2.7 2.5-4.2.4-.8.4-1.8-.4-2.5-2.5-2-5.2-3.5-8.1-4.6.5 2.6-.7 3.9-2.5 4.7 0 .3-.1.5 0 .6 1.7 2.5 1.8 3.4-.1 5.7-1.4 1.7-2.9 3.2-4.7 4.5-4.1 3.2-10.1 2.8-13.7-1.1-1-1-2-2.1-2.8-3.2-1.7-2.3-1.6-2.3-.7-5-3.5-1.7-2.7-4.8-2.2-7.8.2-1.1.6-2 1-3.5-.9.3-1.4.4-1.9.7-2.9 1.9-5.2 4.5-6.7 7.6-.1.3-.2.7-.4 1-.3.3-.7.8-1 .7-.4-.1-.8-.6-1.1-1-.2-.3-.1-.7-.3-1.2h-2.7l1.1-3.7c-.3-.3-.6-.7-.8-1l2.3-6.1c-1.3.6-1.9.9-2.6 1.1-.6.1-1.4 0-2 0 0-.7-.2-1.5.1-2 3.2-4.7 6.5-9.1 12.7-10.2 4.2-.7 8.3-1.3 12.5-1.1 1.1 0 2.1.2 3.2.6 4.3 1.5 8.6 3.1 12.8 4.8.6.2 1.1.8 1.6 1.2l-.3.6c-1.9-.6-3.7-1.2-5.5-1.9-2.5-.8-4.5-1.6-6.7-2.1-5.3-1.1-5.3-1-6.2-.3l12.2 3.1c5.9 3 11.7 5.9 17.6 8.9.9.5 1.9 1.2 2.3 2.1.6 1.3 1.3 1.6 2.5 1.5 1.4-.1 2.8-.4 4.5-.6l-.9 1.8c1.1 1.7 3 .4 4.6 1.4-1.6 2.8-5.3 1.9-7.1 4.2l1.3 1.6-2.6 1.9c0 2.3-.8 3.6-6.5 5.2l.6 1.8-4.2.9 1.5 2.6h-5.3l-.1 2.9c-1.7-.2-3.4-.4-5.2-.6l-1.1 2.6c-.6.2-1.2.1-1.6-.2M116 273.8c.2.3.3.7.5.9 2.4 2.1 4.9 4.1 7.6 6.2.4-.4.9-.8.9-1.1-.2-1-.4-2.2-1-3-1.9-2.6-5.3-3.8-8-3m46.7-43.6c.1-.4-.3-1.3-.6-1.4-.9-.3-.9.5-.8 1.3.6.8 1.2 1 1.4.1" />
     </svg>
   ),
-  clawbot: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      {MONO_TILE}
-      <text x="12" y="16.5" textAnchor="middle" fontFamily={MONO_TEXT} fontWeight={800} fontSize="10" fill="#fff">Cl</text>
+  openclaw: (
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <linearGradient id="odc-lobster" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ff4d4d" />
+          <stop offset="100%" stopColor="#991b1b" />
+        </linearGradient>
+      </defs>
+      <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill="url(#odc-lobster)" />
+      <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill="url(#odc-lobster)" />
+      <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill="url(#odc-lobster)" />
+      <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" strokeWidth="3" strokeLinecap="round" fill="none" />
+      <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" strokeWidth="3" strokeLinecap="round" fill="none" />
+      <circle cx="45" cy="35" r="6" fill="#050810" />
+      <circle cx="75" cy="35" r="6" fill="#050810" />
+      <circle cx="46" cy="34" r="2.5" fill="#00e5cc" />
+      <circle cx="76" cy="34" r="2.5" fill="#00e5cc" />
     </svg>
   ),
 };

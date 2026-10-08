@@ -34,7 +34,7 @@ const CHANNELS: BrandProvider[] = [
   'gmb',
 ];
 
-const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive'] as const;
+const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
 
 /** AI agents that can operate Sosial through MCP (Team → AI & Developer). */
 const AGENTS = [
@@ -47,7 +47,7 @@ const AGENTS = [
   { id: 'dots', label: 'Dots' },
   { id: 'codex', label: 'Codex' },
   { id: 'hermes', label: 'Hermes' },
-  { id: 'clawbot', label: 'Clawbot' },
+  { id: 'openclaw', label: 'OpenClaw' },
 ] as const;
 
 const RANGE = 180;
@@ -88,10 +88,10 @@ function magnify(track: HTMLDivElement | null): () => void {
 export default function LogoDock() {
   const channelsRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
-  const agentsRef = useRef<HTMLDivElement>(null);
+  const aiRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const cleanups = [magnify(channelsRef.current), magnify(toolsRef.current), magnify(agentsRef.current)];
+    const cleanups = [magnify(channelsRef.current), magnify(toolsRef.current), magnify(aiRef.current)];
     return () => cleanups.forEach((fn) => fn());
   }, []);
 
@@ -100,8 +100,9 @@ export default function LogoDock() {
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:pt-16">
         <div className="flex justify-center">
           <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">
-            {/* Integrate — media sources that feed the composer */}
-            <div className="flex flex-col">
+            {/* Integrate — tools that feed the composer, plus the AI agents
+                that can operate Sosial through MCP, in one panel. */}
+            <div className="flex flex-col md:max-w-[360px]">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
                 Integrate
               </p>
@@ -112,6 +113,19 @@ export default function LogoDock() {
                 {INTEGRATIONS.map((t) => (
                   <span key={t} className="block shrink-0 will-change-transform" title={t}>
                     <SourceMark id={t} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
+                  </span>
+                ))}
+              </div>
+              <p className="mt-4 mb-3 text-center text-[10px] font-extrabold tracking-[0.18em] text-faint uppercase">
+                AI agents · via MCP
+              </p>
+              <div
+                ref={aiRef}
+                className="flex flex-wrap items-end justify-center gap-3 overflow-visible px-1 sm:gap-4"
+              >
+                {AGENTS.map((a) => (
+                  <span key={a.id} className="block shrink-0 will-change-transform" title={`${a.label} — via MCP`}>
+                    <AiMark id={a.id} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
               </div>
@@ -138,26 +152,6 @@ export default function LogoDock() {
                     </span>
                   ))}
                 </div>
-              </div>
-            </div>
-
-            {/* Divider: vertical on desktop, horizontal on mobile */}
-            <div className="mx-auto h-px w-24 shrink-0 bg-line md:mx-0 md:h-24 md:w-px md:self-center" aria-hidden="true" />
-
-            {/* AI agents — assistants that can operate Sosial through MCP */}
-            <div className="flex min-w-0 flex-col md:max-w-[300px]">
-              <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
-                AI agents
-              </p>
-              <div
-                ref={agentsRef}
-                className="flex flex-wrap items-end justify-center gap-3 overflow-visible px-1 sm:gap-4"
-              >
-                {AGENTS.map((a) => (
-                  <span key={a.id} className="block shrink-0 will-change-transform" title={`${a.label} — via MCP`}>
-                    <AiMark id={a.id} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
-                  </span>
-                ))}
               </div>
             </div>
           </div>
