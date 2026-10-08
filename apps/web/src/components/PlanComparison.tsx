@@ -70,7 +70,7 @@ export default function PlanComparison() {
   const [interval, setInterval] = useState<BillingInterval>('annual');
 
   return (
-    <section aria-label="Plan comparison" className="relative overflow-hidden">
+    <section aria-label="Plan comparison" id="compare" className="relative scroll-mt-20 overflow-hidden">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.04)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_30%,#000_20%,transparent_75%)]"
