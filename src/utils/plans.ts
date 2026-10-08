@@ -134,10 +134,11 @@ export function priceFor(key: PlanKey, interval: BillingInterval): number {
   return interval === 'monthly' ? PLANS[key].monthly : PLANS[key].annual;
 }
 
-/** What the annual price works out to per month (display only — billed yearly). */
+/** What the annual price works out to per month (display only — billed yearly).
+ *  Rounds UP to the next whole dollar so the shown figure is never below the
+ *  actual charge (e.g. $290/yr → $25, not $24.17). */
 export function monthlyEquivalent(key: PlanKey): string {
-  const v = (PLANS[key].annual / 12) * 100;
-  return `$${(Math.round(v) / 100).toFixed(2)}`;
+  return `$${Math.ceil(PLANS[key].annual / 12)}`;
 }
 
 export function annualSavingsPct(key: PlanKey): number {

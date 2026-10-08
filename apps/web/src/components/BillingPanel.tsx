@@ -25,7 +25,7 @@ function fmtDate(iso: string | null): string {
 
 /**
  * Billing panel. Shows the REAL price for the REAL interval (an annual
- * subscriber sees "$290/year · ≈ $24.17/month", never "$29/month"), the
+ * subscriber sees "$290/year · ≈ $25/month", never "$29/month"), the
  * usage period vs billing period distinction, and plan changes that always
  * respect the selected billing interval.
  */

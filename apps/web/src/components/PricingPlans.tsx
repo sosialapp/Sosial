@@ -43,10 +43,12 @@ const GRID_LOGOS: BrandProvider[] = [
 /** Listed but not connectable yet — mirrors ConnectPanel's COMING_SOON. */
 const COMING_SOON: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
 
-/** Per-month display price at the given interval (annual is billed yearly). */
+/** Per-month display price at the given interval (annual is billed yearly).
+ *  Annual equivalent rounds UP to the next whole dollar so the headline is
+ *  never lower than the true charge (e.g. $290/yr shows $25/mo). */
 function perMonth(plan: PlanKey, interval: BillingInterval): number {
   const billed = priceFor(plan, interval);
-  return interval === 'annual' ? Math.round((billed / 12) * 100) / 100 : billed;
+  return interval === 'annual' ? Math.ceil(billed / 12) : billed;
 }
 
 function fmt(n: number): string {

@@ -670,7 +670,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Solo"
               current={plan === 'pro'}
               price={soloTotal}
-              sub={yearly ? '≈ $10.00/mo equivalent — billed yearly' : 'Billed monthly'}
+              sub={yearly ? '≈ $10/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Free, plus:"
               features={[
                 { text: '6 connected channels' },
@@ -690,7 +690,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Team"
               current={plan === 'team'}
               price={teamTotal}
-              sub={yearly ? '≈ $24.17/mo equivalent — billed yearly' : 'Billed monthly'}
+              sub={yearly ? '≈ $25/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Solo, plus:"
               features={[
                 { text: '25 connected channels' },
@@ -710,7 +710,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Business"
               current={false}
               price={businessTotal}
-              sub={yearly ? '≈ $65.83/mo equivalent — billed yearly' : 'Billed monthly'}
+              sub={yearly ? '≈ $66/mo equivalent — billed yearly' : 'Billed monthly'}
               also="Everything in Team, plus:"
               features={[
                 { text: '100 connected channels' },

@@ -73,10 +73,10 @@ describe('canonical pricing', () => {
     expect(PLANS.free.limits.channels).not.toBeNull();
   });
 
-  it('computes monthly equivalents for annual display', () => {
+  it('computes monthly equivalents for annual display (rounded up to whole dollars)', () => {
     expect(monthlyEquivalent('solo')).toBe(10);
-    expect(monthlyEquivalent('team')).toBeCloseTo(24.17, 2);
-    expect(monthlyEquivalent('business')).toBeCloseTo(65.83, 2);
+    expect(monthlyEquivalent('team')).toBe(25); // 290/12 = 24.17 → 25
+    expect(monthlyEquivalent('business')).toBe(66); // 790/12 = 65.83 → 66
   });
 
   it('computes annual savings as 2 of 12 months', () => {

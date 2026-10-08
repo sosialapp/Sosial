@@ -202,10 +202,12 @@ export function priceFor(plan: PlanKey, interval: BillingInterval): number {
   return PLANS[plan][interval].price;
 }
 
-/** What the annual price works out to per month (display only — the charge is annual). */
+/** What the annual price works out to per month (display only — the charge is
+ *  annual). Rounded UP to the next whole dollar so the shown per-month is never
+ *  lower than what is actually charged (e.g. $290/yr → $25/mo, not $24.17). */
 export function monthlyEquivalent(plan: PlanKey): number {
   if (plan === 'ultimate') return 1;
-  return Math.round((PLANS[plan].annual.price / 12) * 100) / 100;
+  return Math.ceil(PLANS[plan].annual.price / 12);
 }
 
 /** Percent saved on annual vs paying monthly for 12 months. */
