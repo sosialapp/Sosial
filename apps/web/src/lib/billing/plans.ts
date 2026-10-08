@@ -82,6 +82,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       '20 AI credits a month',
       'Calendar, queue and auto-publishing',
       'Basic analytics',
+      'X (Twitter) needs a paid plan',
     ],
   },
   solo: {
@@ -243,4 +244,15 @@ export function nextPlan(plan: PlanKey): Exclude<PlanKey, 'free' | 'ultimate'> |
 /** Limits for a plan (interval-independent). */
 export function limitsFor(plan: PlanKey): PlanLimits {
   return PLANS[plan].limits;
+}
+
+/** Providers whose API bills Sosial per connected account — X's posting API
+ *  is paywalled, so free plans cannot connect it. Existing connections keep
+ *  working; only new connects are gated. */
+export const PAID_ONLY_PROVIDERS: string[] = ['x'];
+
+/** Whether a plan may start a new connection to a provider. */
+export function canConnectProvider(plan: PlanKey, provider: string): boolean {
+  if (plan !== 'free') return true;
+  return !PAID_ONLY_PROVIDERS.includes(provider);
 }

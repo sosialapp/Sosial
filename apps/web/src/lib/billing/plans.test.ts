@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PLANS, PLAN_ORDER, priceFor, monthlyEquivalent, annualSavingsPct,
   isPlanKey, isBillingInterval, priceLabel, formatUsd, nextPlan,
+  canConnectProvider, PAID_ONLY_PROVIDERS,
   type BillingInterval,
 } from './plans';
 
@@ -150,5 +151,15 @@ describe('canonical pricing', () => {
   it('keeps Ultimate off every public plan list', () => {
     expect(PLAN_ORDER).toEqual(['free', 'solo', 'team', 'business']);
     expect(PLAN_ORDER).not.toContain('ultimate');
+  });
+
+  it('gates paywalled providers (X) to paid plans', () => {
+    expect(PAID_ONLY_PROVIDERS).toContain('x');
+    expect(canConnectProvider('free', 'x')).toBe(false);
+    expect(canConnectProvider('free', 'instagram')).toBe(true);
+    expect(canConnectProvider('solo', 'x')).toBe(true);
+    expect(canConnectProvider('team', 'x')).toBe(true);
+    expect(canConnectProvider('business', 'x')).toBe(true);
+    expect(canConnectProvider('ultimate', 'x')).toBe(true);
   });
 });

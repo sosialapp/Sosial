@@ -38,6 +38,7 @@ export const FEATURE_MATRIX: FeatureCategory[] = [
       },
       { label: 'Calendar, queue & auto-publishing', value: () => true },
       { label: 'Content library', value: () => true },
+      { label: 'X (Twitter) connect', value: paid },
     ],
   },
   {

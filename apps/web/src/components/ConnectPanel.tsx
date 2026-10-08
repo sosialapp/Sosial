@@ -9,6 +9,7 @@ import ChannelAvatar from './ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
 import DisconnectChannel from './DisconnectChannel';
 import { OAUTH_PROVIDERS, oauthLabel, type OAuthProvider } from '@/lib/oauth';
+import { canConnectProvider, type PlanKey } from '@/lib/billing/plans';
 import type { ConnectedChannel } from '@/lib/types';
 
 export interface FbPickPage {
@@ -86,6 +87,7 @@ export default function ConnectPanel({
   gmbPick,
   status,
   canManage,
+  plan,
 }: {
   workspaceId: string;
   channels: ConnectedChannel[];
@@ -100,6 +102,8 @@ export default function ConnectPanel({
   /** Owners and admins — they see Remove/disconnect and every connect
    *  action. Ordinary members get a read-only list plus a note. */
   canManage: boolean;
+  /** Workspace plan — paywalled providers (X) show an upgrade nudge on free. */
+  plan: PlanKey;
 }) {
   const [open, setOpen] = useState<ProviderId | null>(
     fbPick ? 'facebook' : redditPick ? 'reddit' : gmbPick ? 'gmb' : null,
@@ -820,6 +824,12 @@ export default function ConnectPanel({
               setOpen(expanded ? null : p);
               return;
             }
+            // Paywalled providers on free: explain instead of opening OAuth
+            // (the server route enforces the same rule — this just says it first).
+            if (!manual && !hasAny && !canConnectProvider(plan, p)) {
+              setErr('X needs a paid plan — its posting API is paywalled. Upgrade in Billing to connect it.');
+              return;
+            }
             // No accounts yet on an OAuth provider: consent opens in a new
             // tab so this page keeps its place. Members can't start connects.
             if (!manual && !hasAny) {
@@ -855,6 +865,8 @@ export default function ConnectPanel({
                   />
                 ) : soon ? (
                   <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">Soon</span>
+                ) : !canConnectProvider(plan, p) ? (
+                  <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[11px] font-bold text-paper" title="Needs a paid plan">Pro</span>
                 ) : (
                   <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-accent-ink" title="Opens the provider's connect page in a new tab">
                     Connect

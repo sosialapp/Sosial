@@ -401,7 +401,7 @@ function Shell() {
             />
           ) : null}
           {route === 'privacy' ? <PrivacyScreen onBack={() => setRoute(privacyFrom)} /> : null}
-          {route === 'connect' ? <ConnectScreen onBack={() => setRoute(connectFrom)} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
+          {route === 'connect' ? <ConnectScreen onBack={() => setRoute(connectFrom)} plan={account.plan} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
           {route === 'team' ? (
             <TeamScreen
               plan={account.plan}

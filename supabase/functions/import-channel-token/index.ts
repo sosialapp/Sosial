@@ -82,6 +82,35 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Only owners and admins can connect channels.", 403);
   }
 
+  // Paywalled providers (X's posting API bills per account): free plans
+  // can't import NEW channels. Re-imports of an already-connected account
+  // always pass (refresh/reconnect must never strand a live channel).
+  if (provider === "x") {
+    const { data: existing } = await admin
+      .from("connected_channels")
+      .select("id")
+      .eq("workspace_id", workspace_id)
+      .eq("provider", "x")
+      .eq("external_id", external_id)
+      .eq("status", "connected")
+      .limit(1);
+    if (!existing || existing.length === 0) {
+      const { data: sub } = await admin
+        .from("subscriptions")
+        .select("plan, status, current_period_end")
+        .eq("workspace_id", workspace_id)
+        .maybeSingle();
+      const paidStatuses = new Set(["active", "trialing", "past_due"]);
+      const s = sub as { plan?: string; status?: string; current_period_end?: string } | null;
+      const periodEnded = s?.current_period_end ? Date.parse(s.current_period_end) <= Date.now() : false;
+      const isPaid =
+        !!s && s.plan !== "free" && paidStatuses.has(s.status ?? "") && !periodEnded;
+      if (!isPaid) {
+        return bad("X needs a paid plan — its posting API is paywalled. Upgrade to connect it.", 402);
+      }
+    }
+  }
+
   // Re-import hygiene: clear canonical names FIRST (Vault enforces unique
   // names). By-name (not by previous row) so orphan secrets from any failed
   // removal can never collide. If creation fails after this, the channel is

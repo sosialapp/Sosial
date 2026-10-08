@@ -52,6 +52,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       '20 AI credits a month',
       'Calendar, queue and auto-publishing',
       'Basic analytics',
+      'X (Twitter) needs a paid plan',
     ],
   },
   solo: {
@@ -176,3 +177,12 @@ export const AI_CREDIT_COSTS: Record<string, number> = {
 };
 
 export const AI_MODEL_LABEL = 'GPT-5.6 Luna';
+
+/** Providers whose API bills Sosial per account — mirror of web's
+ *  PAID_ONLY_PROVIDERS. X's posting API is paywalled: free can't connect it. */
+export const PAID_ONLY_PROVIDERS: string[] = ['x'];
+
+export function canConnectProvider(plan: string, provider: string): boolean {
+  if (plan !== 'free') return true;
+  return !PAID_ONLY_PROVIDERS.includes(provider);
+}

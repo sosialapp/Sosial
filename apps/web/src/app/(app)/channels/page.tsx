@@ -4,6 +4,7 @@ import AvatarSync from '@/components/AvatarSync';
 import { channelAvatar } from '@/lib/channelAvatar';
 import ConnectPanel, { type FbPickPage, type RedditPickSub, type GmbPickLocation } from '@/components/ConnectPanel';
 import { fetchChannels } from '@/lib/posts';
+import { getEntitlement } from '@/lib/billing/entitlement';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export default async function ChannelsPage({
   if (!ctx) redirect('/login');
   const sb = await createClient();
   const channels = await fetchChannels(sb, ctx.workspace.id);
+  const entitlement = await getEntitlement(ctx.workspace.id);
   const params = await searchParams;
 
   // Facebook Page pick pending from the OAuth callback (httpOnly cookie).
@@ -100,6 +102,7 @@ export default async function ChannelsPage({
           gmbPick={gmbPick}
           status={{ connected: params.connected, already: params.already, error: params.error }}
           canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
+          plan={entitlement.plan}
         />
       </div>
 

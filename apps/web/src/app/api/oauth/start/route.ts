@@ -5,7 +5,7 @@ import { authorizeUrl, isOAuthProvider, redirectUri, type OAuthConfig } from '@/
 import { FLOW_COOKIE, b64e, cookieOpts, type FlowState } from '@/lib/oauthServer';
 import { channelManageError } from '@/lib/channelAccess';
 import { getEntitlement } from '@/lib/billing/entitlement';
-import { PLANS } from '@/lib/billing/plans';
+import { PLANS, canConnectProvider } from '@/lib/billing/plans';
 
 /** X's verifier alphabet (43–128 chars) — plain base64url can contain `_`,
  *  which X rejects, so draw from the allowed set like the mobile app. */
@@ -46,19 +46,26 @@ export async function GET(req: Request) {
   // Reconnecting an already-connected provider is always allowed.
   const entitlement = await getEntitlement(workspaceId);
   const cap = PLANS[entitlement.plan].limits.channels;
+  const already = await sb
+    .from('connected_channels')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('provider', provider)
+    .eq('status', 'connected')
+    .limit(1);
+  // Paywalled providers (X): free plans can't start NEW connects, but
+  // reconnecting an existing account always works.
+  if (!canConnectProvider(entitlement.plan, provider) && !(already.data ?? []).length) {
+    return back(
+      'X needs a paid plan — its posting API is paywalled. Upgrade in Billing to connect it.',
+    );
+  }
   if (cap !== null) {
     const { count } = await sb
       .from('connected_channels')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .eq('status', 'connected');
-    const already = await sb
-      .from('connected_channels')
-      .select('id')
-      .eq('workspace_id', workspaceId)
-      .eq('provider', provider)
-      .eq('status', 'connected')
-      .limit(1);
     if ((count ?? 0) >= cap && !(already.data ?? []).length) {
       return back(
         `Your plan connects up to ${cap} channels — you're at the cap. Disconnect one or upgrade in Billing.`,

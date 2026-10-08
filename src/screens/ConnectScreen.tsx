@@ -6,6 +6,7 @@ import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui'
 import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount } from '../utils/metaStore';
+import { canConnectProvider } from '../utils/plans';
 import { accountName, accountAvatar, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
 import {
   loginFacebook, exchangeFacebookCode, fetchPages, pickPage, FbPage,
@@ -49,7 +50,7 @@ function ChannelIcon({ platform }: { platform: string }) {
 }
 
 /** One compact row per provider — tap to connect, tap again to manage its accounts. */
-export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; onTeam: () => void }) {
+export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => void; onTeam: () => void; plan?: 'free' | 'pro' | 'team' }) {
   const { C } = useTheme();
   const s = makeS(C);
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
@@ -418,6 +419,12 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
   const doX = async (accountId?: string) => {
     if (!xConfigured) {
       Alert.alert('Keys missing', 'Paste the X Client ID into .env first, then reload.');
+      return;
+    }
+    // Paywalled provider: free plans can't start NEW X connects (reconnects
+    // of existing accounts always work). Server enforces the same rule.
+    if (!accountId && !canConnectProvider(plan ?? 'free', 'x')) {
+      Alert.alert('X needs a paid plan', 'Its posting API is paywalled. Upgrade to connect X.');
       return;
     }
     setBusy('Opening X…');
@@ -1746,6 +1753,8 @@ export default function ConnectScreen({ onBack, onTeam }: { onBack: () => void; 
                   </View>
                   {hasAny ? (
                     <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
+                  ) : p === 'x' && !canConnectProvider(plan ?? 'free', 'x') ? (
+                    <View style={s.soonBadge}><Text style={s.soonBadgeT}>Pro</Text></View>
                   ) : (
                     <Text style={s.go}>Connect</Text>
                   )}
