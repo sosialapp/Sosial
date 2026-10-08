@@ -13,6 +13,7 @@ import {
   submitForApproval,
 } from '@/lib/posts';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
+import { gridThumb, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
 
@@ -277,8 +278,9 @@ function PreviewDialog({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={m.id}
-                    src={m.signed_url}
+                    src={gridThumb(m.signed_url)}
                     alt=""
+                    loading="lazy"
                     className="h-20 w-20 rounded-lg border border-line object-cover"
                   />
                 ) : null,
@@ -591,7 +593,7 @@ export default function PostList({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           key={m.id}
-                          src={m.signed_url}
+                          src={imageThumb(m.signed_url, THUMB_WIDTHS.lg)}
                           alt=""
                           loading="lazy"
                           className="h-auto max-h-[420px] w-full rounded-2xl border border-line bg-bone object-contain"

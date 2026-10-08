@@ -21,6 +21,7 @@ import {
   type StudioProject,
 } from '@/lib/studio/model';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets, WorkspaceInfo } from '@/lib/types';
+import { gridThumb } from '@/lib/media';
 import { createClient } from '@/lib/supabase/client';
 import {
   pushLibraryItem, tombstoneLibraryItem, pullLibraryRows,
@@ -1066,7 +1067,7 @@ export default function CreateHub({
                         <span className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-paper-dim">
                           {cover.kind === 'image' ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={cover.url} alt="" className="h-full w-full object-cover" />
+                            <img src={gridThumb(cover.url)} alt="" className="h-full w-full object-cover" />
                           ) : (
                             <video src={cover.url} muted playsInline className="h-full w-full object-cover" />
                           )}

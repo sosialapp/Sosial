@@ -58,6 +58,26 @@ export function completeJob(jobId: number, ok: boolean, error?: string): Promise
   return callRpc<void>('complete_job', { job_id: jobId, ok, err: error ?? null });
 }
 
+/** Return a running job to the queue at a chosen time without burning an
+ *  attempt — the daily-limit Gate B parks a job until its window reopens. */
+export function deferJob(jobId: number, runAt: string): Promise<void> {
+  return callRpc<void>('defer_job', { p_job_id: jobId, p_run_at: runAt });
+}
+
+/** Remaining posts this channel may send in its rolling 24h window
+ *  (provider's cap minus already-sent; <= 0 means full). */
+export function channelDailyRemaining(channelId: string, provider: string): Promise<number> {
+  return callRpc<number>('channel_daily_remaining', {
+    p_channel_id: channelId,
+    p_provider: provider,
+  });
+}
+
+/** When the channel's 24h window next frees up (oldest send + 24h), or null. */
+export function channelDailyNextSlot(channelId: string): Promise<string | null> {
+  return callRpc<string | null>('channel_daily_next_slot', { p_channel_id: channelId });
+}
+
 /** Read one secret's plaintext (ids from get_publish_bundle). */
 export function readSecret(secretId: string): Promise<string | null> {
   return callRpc<string | null>('vault_read_secret', { secret_id: secretId });

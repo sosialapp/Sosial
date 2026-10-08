@@ -7,7 +7,7 @@
 import { env, required } from './env';
 import { initDb, claimJob, completeJob } from './db';
 import { dispatch } from './dispatch';
-import { info, warn, err } from './logger';
+import { info, warn, err, debug } from './logger';
 
 declare const process: any;
 
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   // Fail fast when pointed at the wrong project — service key is per-project.
   required('WORKER_SERVICE_ROLE_KEY');
   const workerId = `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  const idleMs = Number(env('WORKER_IDLE_MS', '5000')) || 5000;
+  const idleMs = Number(env('WORKER_IDLE_MS', '30000')) || 30000;
   const errorMs = Number(env('WORKER_ERROR_MS', '15000')) || 15000;
   let stopped = false;
   try {
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
       try {
         await dispatch(job);
         await completeJob(job.id, true);
-        info(`job ${job.id} done`);
+        debug(`job ${job.id} done`);
       } catch (e: any) {
         const msg = String(e?.message ?? e ?? 'job failed');
         warn(`job ${job.id} failed: ${msg}`);
