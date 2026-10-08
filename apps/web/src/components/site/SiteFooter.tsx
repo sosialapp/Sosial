@@ -88,7 +88,7 @@ export default async function SiteFooter() {
 
         <nav aria-label="Channels">
           <p className="eyebrow text-paper/50">Channels</p>
-          <ul className="mt-4 space-y-2.5 text-sm font-semibold text-paper/80">
+          <ul className="mt-4 grid grid-cols-3 gap-x-4 gap-y-2.5 text-sm font-semibold text-paper/80">
             {CHANNEL_GUIDES.map((c) => (
               <li key={c.key}>
                 <Link href={`/integrations/${c.key}`} className="flex items-center gap-2 hover:text-paper">
