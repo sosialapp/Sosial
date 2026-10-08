@@ -6,11 +6,14 @@ import {
   PLANS, PLAN_ORDER, priceFor, formatUsd,
   type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
+import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import { SourceMark } from '@/components/SourceMarks';
 
 /**
- * Pricing band — colored-header cards with quota fields, dot-bullet
- * features and Sosial-style CTAs. Prices respond to the monthly/annual
- * toggle. All numbers come from the canonical PLANS config.
+ * Pricing band — colored-header cards with quota fields, a channel/integration
+ * logo strip, dot-bullet features and Sosial-style CTAs. Prices respond to the
+ * monthly/annual toggle (annual shown per month). Everything comes from the
+ * canonical PLANS config.
  */
 
 const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, string> = {
@@ -19,6 +22,20 @@ const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, string> = {
   team: '#cc0aa2',
   business: '#6d4fd6',
 };
+
+const CHANNELS: BrandProvider[] = [
+  'instagram', 'tiktok', 'x', 'facebook', 'threads', 'youtube',
+  'linkedin', 'bluesky', 'mastodon', 'pinterest', 'telegram', 'discord',
+  'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb',
+];
+
+const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
+
+/** Per-month display price at the given interval (annual is billed yearly). */
+function perMonth(plan: PlanKey, interval: BillingInterval): number {
+  const billed = priceFor(plan, interval);
+  return interval === 'annual' ? Math.round((billed / 12) * 100) / 100 : billed;
+}
 
 function fmt(n: number): string {
   return n.toLocaleString('en-US');
@@ -32,6 +49,39 @@ function channelsLine(key: PlanKey): string {
 function creditsLine(key: PlanKey): string {
   const c = PLANS[key].limits.aiCredits;
   return c === null ? 'Unlimited AI credits' : `${fmt(c)} AI credits/mo`;
+}
+
+/** X requires a paid plan (its posting API is paywalled). */
+function xLocked(key: PlanKey): boolean {
+  return key === 'free';
+}
+
+function LogoStrip({ locked }: { locked: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {CHANNELS.map((c) => (
+        <span
+          key={c}
+          title={c === 'x' && locked ? 'X needs a paid plan' : undefined}
+          className={`flex h-[18px] w-[18px] items-center justify-center ${c === 'x' && locked ? 'opacity-25' : ''}`}
+        >
+          <BrandIcon provider={c} className="h-full w-full" />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ToolStrip() {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {INTEGRATIONS.map((t) => (
+        <span key={t} className="flex h-[18px] w-[18px] items-center justify-center" title={t}>
+          <SourceMark id={t} className="flex h-full w-full items-center justify-center [&_svg]:h-full [&_svg]:w-full" />
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export default function PricingPlans({
@@ -76,9 +126,7 @@ export default function PricingPlans({
                 onClick={() => setInterval(i)}
                 aria-pressed={interval === i}
                 className={`rounded-full px-5 py-2 text-sm font-semibold transition-all ${
-                  interval === i
-                    ? 'bg-ink text-paper shadow-sm'
-                    : 'text-muted hover:text-ink'
+                  interval === i ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
                 }`}
               >
                 {i === 'monthly' ? 'Monthly' : 'Annual'}
@@ -95,9 +143,7 @@ export default function PricingPlans({
             const color = CARD_COLORS[key as Exclude<PlanKey, 'ultimate'>];
             const ctaHref = key === 'free' ? '/login' : '/billing';
             const ctaLabel = key === 'free' ? 'Start free' : `Choose ${p.label}`;
-            const displayPrice = key === 'free'
-              ? 'Free'
-              : formatUsd(priceFor(key, interval));
+            const locked = xLocked(key);
             const prevLabel = idx > 0 ? PLANS[PLAN_ORDER[idx - 1]].label : null;
             return (
               <article key={key} className="relative flex flex-col rounded-[28px] bg-[#f9f8f6] pb-7">
@@ -118,7 +164,7 @@ export default function PricingPlans({
                 {/* Body */}
                 <div className="flex flex-1 flex-col px-4 pt-6">
                   <p className="m-0 font-display text-[28px] font-medium leading-none tracking-tight text-ink">
-                    {key === 'free' ? 'Free' : `${displayPrice}/mo`}
+                    {key === 'free' ? 'Free' : `${formatUsd(perMonth(key, interval))}/mo`}
                   </p>
                   <p className="mb-5 mt-1.5 text-xs text-ink">
                     {key === 'free'
@@ -129,7 +175,7 @@ export default function PricingPlans({
                   </p>
 
                   {/* Quota fields */}
-                  <div className="mb-6 grid gap-2">
+                  <div className="mb-4 grid gap-2">
                     <div className="flex h-11 items-center gap-2.5 rounded-[10px] border border-[#dedcd7] bg-white px-3 text-sm text-ink">
                       <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-[#3b82f6]" fill="currentColor" aria-hidden="true">
                         <path d="M8 1c.4 3.6 1.9 5.6 6 7-4.1 1.4-5.6 3.4-6 7-.4-3.6-1.9-5.6-6-7 4.1-1.4 5.6-3.4 6-7Z" />
@@ -143,6 +189,18 @@ export default function PricingPlans({
                         <path d="M6 10v1c0 1.1 1.8 2 4 2s4-.9 4-2V8c0-1.1-1.8-2-4-2" />
                       </svg>
                       {creditsLine(key)}
+                    </div>
+                  </div>
+
+                  {/* Channel + integration logo rows */}
+                  <div className="mb-5 grid gap-3">
+                    <div>
+                      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-faint">Channels</p>
+                      <LogoStrip locked={locked} />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-faint">Integrations</p>
+                      <ToolStrip />
                     </div>
                   </div>
 
@@ -160,10 +218,7 @@ export default function PricingPlans({
                   </ul>
 
                   <div className="mt-auto">
-                    <Link
-                      href={ctaHref}
-                      className={`btn w-full ${featured ? 'btn-primary' : 'btn-ghost'}`}
-                    >
+                    <Link href={ctaHref} className={`btn w-full ${featured ? 'btn-primary' : 'btn-ghost'}`}>
                       {ctaLabel}
                     </Link>
                   </div>
