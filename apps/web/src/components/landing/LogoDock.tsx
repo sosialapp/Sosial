@@ -13,6 +13,7 @@ import { SourceMark, AiMark } from '@/components/SourceMarks';
  * desktop (Integrate | Channels), stacked on mobile.
  */
 
+/** Live channels — the coming-soon ones are listed after these. */
 const CHANNELS: BrandProvider[] = [
   'instagram',
   'tiktok',
@@ -20,10 +21,8 @@ const CHANNELS: BrandProvider[] = [
   'facebook',
   'threads',
   'youtube',
-  'linkedin',
   'bluesky',
   'mastodon',
-  'pinterest',
   'telegram',
   'discord',
   'wordpress',
@@ -31,10 +30,15 @@ const CHANNELS: BrandProvider[] = [
   'hashnode',
   'ghost',
   'vk',
-  'gmb',
 ];
 
-const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
+/** Listed but not connectable yet — mirrors ConnectPanel's COMING_SOON. */
+const SOON_CHANNELS: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
+
+const INTEGRATIONS = ['canva', 'unsplash', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
+
+/** Media sources still pending Google's verification (GOOGLE_MEDIA_DISABLED). */
+const SOON_TOOLS = ['drive', 'gphotos'] as const;
 
 /** AI agents that can operate Sosial through MCP (Team → AI & Developer). */
 const AGENTS = [
@@ -51,6 +55,15 @@ const AGENTS = [
 
 const RANGE = 180;
 const BOOST = 0.35;
+
+/** Tiny tag pinned under a logo that isn't connectable yet. */
+function SoonBadge() {
+  return (
+    <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 -translate-x-1/2 rounded-full border border-line bg-white px-1 py-px text-[8px] font-bold uppercase leading-none tracking-wide text-faint">
+      Soon
+    </span>
+  );
+}
 
 function magnify(track: HTMLDivElement | null): () => void {
   if (!track) return () => {};
@@ -119,6 +132,12 @@ export default function LogoDock() {
                     <AiMark id={a.id} className="block h-6 w-6 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
+                {SOON_TOOLS.map((t) => (
+                  <span key={t} className="relative block shrink-0 will-change-transform" title={`${t} — coming soon`}>
+                    <SourceMark id={t} className="block h-6 w-6 opacity-55 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
+                    <SoonBadge />
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -135,8 +154,14 @@ export default function LogoDock() {
                 className="grid w-full max-w-[400px] grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1 sm:gap-3"
               >
                 {CHANNELS.map((c) => (
-                  <span key={c} className="block shrink-0 will-change-transform">
+                  <span key={c} className="block shrink-0 will-change-transform" title={c}>
                     <BrandIcon provider={c} className="h-6 w-6 sm:h-8 sm:w-8" />
+                  </span>
+                ))}
+                {SOON_CHANNELS.map((c) => (
+                  <span key={c} className="relative block shrink-0 will-change-transform" title={`${c} — coming soon`}>
+                    <BrandIcon provider={c} className="h-6 w-6 opacity-55 sm:h-8 sm:w-8" />
+                    <SoonBadge />
                   </span>
                 ))}
               </div>
