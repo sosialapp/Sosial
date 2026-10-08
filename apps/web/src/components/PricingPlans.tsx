@@ -6,21 +6,23 @@ import {
   PLANS, PLAN_ORDER, priceFor, formatUsd,
   type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
-import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import { BrandIcon, BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
 import { SourceMark } from '@/components/SourceMarks';
+import { GridPulse } from '@/components/ui/grid-pulse';
 
 /**
- * Pricing band — colored-header cards with quota fields, a channel/integration
- * logo strip, dot-bullet features and Sosial-style CTAs. Prices respond to the
- * monthly/annual toggle (annual shown per month). Everything comes from the
- * canonical PLANS config.
+ * Pricing band — pastel-header cards with quota fields, a channel/integration
+ * logo strip, dot-bullet features and Sosial-style CTAs, sitting on the same
+ * interactive GridPulse field as the landing hero (channel + tool marks ride
+ * inside the lit cells). Prices respond to the monthly/annual toggle.
  */
 
-const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, string> = {
-  free: '#3a5bff',
-  solo: '#006b3b',
-  team: '#cc0aa2',
-  business: '#6d4fd6',
+/** Soft pastel header tints — dark ink reads on all four. */
+const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, { bg: string; ink: string; sub: string }> = {
+  free: { bg: '#DCE6FF', ink: '#1E2B5C', sub: '#42507E' },
+  solo: { bg: '#D6EFE0', ink: '#16452C', sub: '#2F5C42' },
+  team: { bg: '#F9DCEF', ink: '#5E1147', sub: '#7E3B68' },
+  business: { bg: '#E6DEFB', ink: '#3A2A66', sub: '#5A4B86' },
 };
 
 const CHANNELS: BrandProvider[] = [
@@ -30,6 +32,13 @@ const CHANNELS: BrandProvider[] = [
 ];
 
 const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
+
+/** Channel marks offered to the background field (matches the hero). */
+const GRID_LOGOS: BrandProvider[] = [
+  'x', 'instagram', 'tiktok', 'facebook', 'threads', 'youtube', 'linkedin',
+  'bluesky', 'mastodon', 'pinterest', 'telegram', 'discord', 'wordpress',
+  'devto', 'hashnode', 'ghost', 'vk', 'gmb',
+];
 
 /** Listed but not connectable yet — mirrors ConnectPanel's COMING_SOON. */
 const COMING_SOON: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
@@ -52,11 +61,6 @@ function channelsLine(key: PlanKey): string {
 function creditsLine(key: PlanKey): string {
   const c = PLANS[key].limits.aiCredits;
   return c === null ? 'Unlimited AI credits' : `${fmt(c)} AI credits/mo`;
-}
-
-/** X requires a paid plan (its posting API is paywalled). */
-function xLocked(key: PlanKey): boolean {
-  return key === 'free';
 }
 
 function LogoStrip({ locked }: { locked: boolean }) {
@@ -105,19 +109,20 @@ export default function PricingPlans({
   const [interval, setInterval] = useState<BillingInterval>('annual');
 
   return (
-    <section aria-label="Plans" className="relative overflow-hidden">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.045)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_30%,transparent_75%)]"
+    <section aria-label="Plans" className="relative overflow-clip [touch-action:pan-y]">
+      <GridPulse
+        cell={26}
+        logos={GRID_LOGOS.map((p) => BRAND_PATHS[p])}
+        logoChance={0.22}
+        ambient={3}
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
+      <div className="relative z-[2] mx-auto max-w-6xl px-4 py-16 md:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="eyebrow">Pricing</p>
-          <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-balance sm:text-5xl md:text-6xl">
+          <h1 data-grid-avoid className="font-display text-4xl font-extrabold tracking-tight text-balance sm:text-5xl md:text-6xl">
             {title}
           </h1>
-          <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">{lede}</p>
+          <p data-grid-avoid className="mt-4 text-base leading-relaxed text-muted md:text-lg">{lede}</p>
           {updated ? <p className="mt-3 text-xs text-faint">Updated {updated}</p> : null}
         </div>
 
@@ -149,25 +154,25 @@ export default function PricingPlans({
           {PLAN_ORDER.map((key, idx) => {
             const p = PLANS[key];
             const featured = !!p.featured;
-            const color = CARD_COLORS[key as Exclude<PlanKey, 'ultimate'>];
+            const c = CARD_COLORS[key as Exclude<PlanKey, 'ultimate'>];
             const ctaHref = key === 'free' ? '/login' : '/billing';
             const ctaLabel = key === 'free' ? 'Start free' : `Choose ${p.label}`;
-            const locked = xLocked(key);
+            const locked = key === 'free';
             const prevLabel = idx > 0 ? PLANS[PLAN_ORDER[idx - 1]].label : null;
             return (
               <article key={key} className="relative flex flex-col rounded-[28px] bg-[#f9f8f6] pb-7">
-                {/* Colored header */}
+                {/* Pastel header */}
                 <header
-                  className="relative min-h-[120px] rounded-[28px_28px_20px_20px] px-4 pb-5 pt-5 text-white"
-                  style={{ backgroundColor: color }}
+                  className="relative min-h-[120px] rounded-[28px_28px_20px_20px] px-4 pb-5 pt-5"
+                  style={{ backgroundColor: c.bg, color: c.ink }}
                 >
                   {featured ? (
-                    <span className="absolute right-3.5 top-3.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0d0d0d]">
+                    <span className="absolute right-3.5 top-3.5 rounded-full bg-white/80 px-3 py-1 text-xs font-medium" style={{ color: c.ink }}>
                       Most popular
                     </span>
                   ) : null}
                   <p className="m-0 text-lg font-semibold leading-tight">{p.label}</p>
-                  <p className="m-0 mt-1 max-w-[30ch] text-sm leading-snug text-white/85">{p.blurb}</p>
+                  <p className="m-0 mt-1 max-w-[30ch] text-sm leading-snug" style={{ color: c.sub }}>{p.blurb}</p>
                 </header>
 
                 {/* Body */}
@@ -237,7 +242,7 @@ export default function PricingPlans({
           })}
         </div>
 
-        <p className="mt-8 text-center text-xs text-faint">
+        <p data-grid-avoid className="mt-8 text-center text-xs text-faint">
           Prices in USD. Annual plans are billed once a year and give you two months free.
           Cancel any time, keep your data.
         </p>

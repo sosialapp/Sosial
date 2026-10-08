@@ -25,8 +25,8 @@ export default async function PricingPage() {
   return (
     <>
       <PricingPlans
-        title={meta?.title ?? 'Simple plans, published prices.'}
-        lede="Start free and stay free if that is enough. Upgrade for more channels, more AI credits and team approvals. Monthly or annual — annual gives you two months free."
+        title={meta?.title ?? 'Pick a plan. Change it whenever.'}
+        lede="Start on Free and stay there if it does the job. Pay when you want more channels, more AI credits or approvals for your team. Annual billing works out two months cheaper."
         updated={date ?? undefined}
       />
 
