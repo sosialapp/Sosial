@@ -1145,6 +1145,10 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
       return (
         <>
           <Txt value={hnToken} onChangeText={(v) => { setHnToken(v); setHnPubs([]); setHnPub(''); }} placeholder="Personal access token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <View style={[s.helpCard, { borderColor: C.accent, borderWidth: 1 }]}>
+            <Text style={[s.helpTitle, { color: C.accentInk }]}>Hashnode Pro required</Text>
+            <Text style={s.helpText}>Only Pro publications can connect — upgrade at your blog dashboard → Billing first.</Text>
+          </View>
           <View style={s.helpCard}>
             <Text style={s.helpTitle}>How to connect Hashnode</Text>
             {[

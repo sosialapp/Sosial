@@ -1073,6 +1073,9 @@ export default function ConnectPanel({
                         No OAuth — generate a token at hashnode.com → Settings →
                         Developer, then pick the publication below.
                       </p>
+                      <p className="rounded-lg bg-accent-soft px-2.5 py-1.5 text-[11px] font-bold leading-relaxed text-accent-ink">
+                        Only Hashnode Pro publications can connect — upgrade at your blog dashboard → Billing first.
+                      </p>
                       <input
                         value={hnToken}
                         onChange={(e) => {
