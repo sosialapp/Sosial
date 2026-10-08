@@ -21,7 +21,6 @@ export type OAuthProvider =
   | 'linkedin'
   | 'pinterest'
   | 'mastodon'
-  | 'reddit'
   | 'gmb';
 
 export const OAUTH_PROVIDERS: { id: OAuthProvider; label: string }[] = [
@@ -33,7 +32,6 @@ export const OAUTH_PROVIDERS: { id: OAuthProvider; label: string }[] = [
   { id: 'youtube', label: 'YouTube' },
   { id: 'linkedin', label: 'LinkedIn' },
   { id: 'pinterest', label: 'Pinterest' },
-  { id: 'reddit', label: 'Reddit' },
   { id: 'mastodon', label: 'Mastodon' },
   { id: 'gmb', label: 'Google Business' },
 ];
@@ -71,10 +69,6 @@ const LI_SCOPES = [
   'w_organization_social', 'r_organization_social',
 ];
 const PIN_SCOPES = ['boards:read', 'boards:write', 'pins:read', 'pins:write', 'user_accounts:read'];
-// duration=permanent mints a never-expiring refresh token — the worker
-// refreshes the hourly access token from it. Commercial use needs Reddit's
-// app review + paid tier; personal/dev testing rides the free tier.
-const REDDIT_SCOPES = ['identity', 'mysubreddits', 'submit', 'read'];
 // business.manage — same Google client as YouTube, so one consent can cover
 // both (YT_SCOPES + this when connecting GBP).
 const GMB_SCOPES = ['https://www.googleapis.com/auth/business.manage'];
@@ -94,7 +88,6 @@ export interface OAuthConfig {
   youtube?: { client_id?: string };
   linkedin?: { client_id?: string };
   pinterest?: { client_id?: string };
-  reddit?: { client_id?: string };
   gmb?: { client_id?: string };
 }
 
@@ -117,8 +110,6 @@ export function clientIdFor(provider: OAuthProvider, config: OAuthConfig): strin
       return config.linkedin?.client_id ?? '';
     case 'pinterest':
       return config.pinterest?.client_id ?? '';
-    case 'reddit':
-      return config.reddit?.client_id ?? '';
     case 'gmb':
       return config.gmb?.client_id ?? '';
     case 'mastodon':
@@ -192,13 +183,6 @@ export function authorizeUrl({ provider, config, redirectUri: redir, state, chal
       return (
         'https://www.pinterest.com/oauth/' +
         `?${q({ response_type: 'code', client_id: id, redirect_uri: redir, scope: PIN_SCOPES.join(','), state })}`
-      );
-    case 'reddit':
-      // duration=permanent: the refresh token never expires (until revoked),
-      // so the worker can publish while the app is closed, forever.
-      return (
-        'https://www.reddit.com/api/v1/authorize' +
-        `?${q({ response_type: 'code', client_id: id, redirect_uri: redir, duration: 'permanent', scope: REDDIT_SCOPES.join(' '), state })}`
       );
     case 'gmb':
       // access_type=offline + prompt=consent so Google always returns a

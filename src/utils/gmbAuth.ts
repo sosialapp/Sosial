@@ -1,8 +1,7 @@
 /**
  * Google Business Profile OAuth (same Google client as YouTube — one consent
  * covers both, business.manage added on top). Tokens persist per-account;
- * each Business Profile location becomes its own channel row staged like
- * Reddit subreddits.
+ * each Business Profile location becomes its own channel row.
  */
 
 import { YT_CLIENT_ID, YT_CLIENT_SECRET, YT_AUTH_ENDPOINT, YT_TOKEN_ENDPOINT } from './ytConfig';

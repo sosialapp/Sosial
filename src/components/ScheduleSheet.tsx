@@ -25,7 +25,7 @@ import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
 import { fetchPostStats, SentPostStats } from '../utils/postStats';
 import { fbComments, igComments, thComments, mastodonComments, bskyComments, ytComments, PerPost, FeedComment } from '../utils/analytics';
 
-const CHANNELS = ['any', 'facebook', 'instagram', 'tiktok', 'threads', 'linkedin', 'bluesky', 'youtube', 'mastodon', 'pinterest', 'x', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'reddit', 'gmb'];
+const CHANNELS = ['any', 'facebook', 'instagram', 'tiktok', 'threads', 'linkedin', 'bluesky', 'youtube', 'mastodon', 'pinterest', 'x', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb'];
 const COMING_SOON: string[] = ['gmb'];
 /** Media gating per channel (mirrors web CAPABILITIES.requiresMedia/Video +
  *  supports.video): 'any' = needs photo or video, 'video' = needs a video,
@@ -36,8 +36,8 @@ const MEDIA_RULES: Record<string, 'any' | 'video' | 'no-video'> = {
   youtube: 'video',
   pinterest: 'any',
 };
-type TypeChannel = 'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'reddit' | 'gmb';
-const TYPE_CHANNELS: TypeChannel[] = ['facebook', 'instagram', 'threads', 'x', 'linkedin', 'youtube', 'bluesky', 'mastodon', 'pinterest', 'tiktok', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'reddit', 'gmb'];
+type TypeChannel = 'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'gmb';
+const TYPE_CHANNELS: TypeChannel[] = ['facebook', 'instagram', 'threads', 'x', 'linkedin', 'youtube', 'bluesky', 'mastodon', 'pinterest', 'tiktok', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb'];
 
 /** YouTube listing options — static, no fetch needed. */
 const YT_LISTING = [

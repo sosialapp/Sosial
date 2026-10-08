@@ -19,12 +19,6 @@ export interface FbPickPage {
   ig?: string;
 }
 
-export interface RedditPickSub {
-  name: string;
-  title: string;
-  subscribers?: number;
-}
-
 export interface GmbPickLocation {
   name: string;
   title: string;
@@ -37,9 +31,9 @@ const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'te
 const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true, vk: true };
 
 /** Listed but not connectable yet — shows a Soon tag instead of Connect.
- *  gmb: allowlist pending. linkedin/pinterest/reddit: production approval
- *  pending (dev-mode connects still work via direct URL for testing). */
-const COMING_SOON: ProviderId[] = ['gmb', 'linkedin', 'pinterest', 'reddit'];
+ *  gmb: allowlist pending. linkedin/pinterest: production approval pending
+ *  (dev-mode connects still work via direct URL for testing). */
+const COMING_SOON: ProviderId[] = ['gmb', 'linkedin', 'pinterest'];
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
@@ -83,7 +77,6 @@ export default function ConnectPanel({
   workspaceId,
   channels,
   fbPick,
-  redditPick,
   gmbPick,
   status,
   canManage,
@@ -93,8 +86,6 @@ export default function ConnectPanel({
   channels: ConnectedChannel[];
   /** Facebook Pages waiting for a pick (from ?connect=facebook). */
   fbPick: FbPickPage[] | null;
-  /** Reddit subreddits waiting for a pick (from ?connect=reddit). */
-  redditPick: { username: string; subreddits: RedditPickSub[] } | null;
   /** GBP locations waiting for a pick (from ?connect=gmb). */
   gmbPick: GmbPickLocation[] | null;
   /** Result banners (from ?connected= / ?error=). */
@@ -106,9 +97,8 @@ export default function ConnectPanel({
   plan: PlanKey;
 }) {
   const [open, setOpen] = useState<ProviderId | null>(
-    fbPick ? 'facebook' : redditPick ? 'reddit' : gmbPick ? 'gmb' : null,
+    fbPick ? 'facebook' : gmbPick ? 'gmb' : null,
   );
-  const [srFilter, setSrFilter] = useState('');
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   const [mastodonInstance, setMastodonInstance] = useState('');
@@ -624,33 +614,6 @@ export default function ConnectPanel({
     }
   }
 
-  async function pickSubreddit(name: string) {    const sr = name.trim().replace(/^r\//i, '').toLowerCase();
-    if (!sr) {
-      setErr('Type a subreddit name first.');
-      return;
-    }
-    setErr(null);
-    setPicking(sr);
-    try {
-      const r = await fetch('/api/oauth/reddit-finish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subreddit: sr }),
-      });
-      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; already?: boolean; error?: string };
-      if (j.already) {
-        window.location.href = '/channels?already=reddit';
-        return;
-      }
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect that subreddit.');
-      window.location.href = '/channels?connected=reddit';
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect that subreddit.');
-    } finally {
-      setPicking(null);
-    }
-  }
-
   async function pickLocation(name: string) {
     setErr(null);
     setPicking(name);
@@ -685,7 +648,6 @@ export default function ConnectPanel({
       if (p === 'ghost') return 'Site + Admin key';
       if (p === 'vk') return 'Community + access key';
       if (p === 'gmb') return 'Account + location';
-      if (p === 'reddit') return 'Account + subreddit';
       return 'Tap to connect';
     }
     if (list.length === 1) return accountName(list[0]);
@@ -1284,60 +1246,6 @@ export default function ConnectPanel({
                           </button>
                         </div>
                       ))}
-                    </div>
-                  ) : null}
-
-                  {p === 'reddit' && redditPick ? (
-                    <div className="space-y-1.5 rounded-xl border border-accent bg-accent-soft/40 p-3">
-                      <p className="text-xs font-bold">Post to r/… as u/{redditPick.username}</p>
-                      <p className="-mt-1 text-[11px] text-muted">
-                        Each subreddit connects separately. Its rules and karma minimums still
-                        apply — Reddit may hold posts for mod review.
-                      </p>
-                      <input
-                        value={srFilter}
-                        onChange={(e) => setSrFilter(e.target.value)}
-                        placeholder="Filter subreddits…"
-                        aria-label="Filter subreddits"
-                        className="field !text-xs"
-                      />
-                      {redditPick.subreddits
-                        .filter((s) => !srFilter.trim() || s.name.toLowerCase().includes(srFilter.trim().toLowerCase()))
-                        .slice(0, 30)
-                        .map((s) => (
-                          <div key={s.name} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
-                            <BrandIcon provider="reddit" className="h-8 w-8" />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-bold">r/{s.name}</span>
-                              <span className="block truncate text-[11px] text-muted">
-                                {s.title}
-                                {typeof s.subscribers === 'number' && s.subscribers > 0
-                                  ? ` · ${s.subscribers.toLocaleString()} members`
-                                  : ''}
-                              </span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => pickSubreddit(s.name)}
-                              disabled={picking !== null || !canManage}
-                              className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
-                            >
-                              {picking === s.name.toLowerCase() ? 'Connecting…' : 'Connect'}
-                            </button>
-                          </div>
-                        ))}
-                      {srFilter.trim() ? (
-                        <button
-                          type="button"
-                          onClick={() => pickSubreddit(srFilter.trim())}
-                          disabled={picking !== null || !canManage}
-                          className="btn btn-ghost w-full !py-2 !text-xs"
-                        >
-                          {picking === srFilter.trim().replace(/^r\//i, '').toLowerCase()
-                            ? 'Connecting…'
-                            : `Connect r/${srFilter.trim().replace(/^r\//i, '')} anyway`}
-                        </button>
-                      ) : null}
                     </div>
                   ) : null}
 

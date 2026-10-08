@@ -194,18 +194,6 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     boardRequired: false, titleRequired: false,
     limits: { text: 16384, media: 10 },
   },
-  reddit: {
-    label: 'Reddit',
-    // Subreddit self post: title (required, 300) + markdown body (40000).
-    // Images need Reddit's hosted-upload dance, link posts need composer URL
-    // fields, flair needs per-sub templates — v1 sends text only. Karma
-    // minimums and mod queues can still hold a post; submit errors surface.
-    supports: { text: true, image: false, video: false, carousel: false, document: false, poll: false, link: true },
-    thread: false, replyChain: false, article: false,
-    requiresMedia: false, requiresVideo: false,
-    boardRequired: false, titleRequired: true,
-    limits: { text: 40000, title: 300 },
-  },
   gmb: {
     label: 'Google Business',
     // Local post (STANDARD topic): 1500-char summary. Offers/events need

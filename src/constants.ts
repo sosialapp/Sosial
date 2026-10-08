@@ -42,7 +42,6 @@ export const SOCIAL_META: Record<string, { label: string; bg: string; glyph: str
   hashnode: { label: 'Hashnode', bg: '#2962FF', glyph: 'HN' },
   ghost: { label: 'Ghost', bg: '#15171A', glyph: 'GH' },
   vk: { label: 'VK', bg: '#0077FF', glyph: 'VK' },
-  reddit: { label: 'Reddit', bg: '#FF4500', glyph: 'r/' },
   gmb: { label: 'Google Business', bg: '#4285F4', glyph: 'G' },
 };
 

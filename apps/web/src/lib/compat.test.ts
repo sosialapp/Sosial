@@ -22,7 +22,6 @@ describe('compat profiles', () => {
       'linkedin',
       'mastodon',
       'pinterest',
-      'reddit',
       'telegram',
       'threads',
       'tiktok',

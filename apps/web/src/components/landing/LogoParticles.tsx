@@ -39,8 +39,6 @@ function spriteSvg(provider: ProviderKey): string {
     GLYPH_TRANSFORMS[provider as BrandProvider]
       ? ` transform="${GLYPH_TRANSFORMS[provider as BrandProvider]}"`
       : '';
-  // Official Snoo carries eye/mouth holes — needs the even-odd rule.
-  const rule = provider === 'reddit' ? ' fill-rule="evenodd" clip-rule="evenodd"' : '';
   const fill =
     provider === 'instagram'
       ? 'url(#socig)'
@@ -49,7 +47,7 @@ function spriteSvg(provider: ProviderKey): string {
     provider === 'instagram'
       ? `<defs><radialGradient id="socig" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FDF497"/><stop offset="5%" stop-color="#FDF497"/><stop offset="45%" stop-color="#FD5949"/><stop offset="60%" stop-color="#D6249F"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs>`
       : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">${defs}<g transform="translate(2 2) scale(0.8333)"><path d="${d}" fill="${fill}"${extra}${rule}/></g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24">${defs}<g transform="translate(2 2) scale(0.8333)"><path d="${d}" fill="${fill}"${extra}/></g></svg>`;
 }
 
 function rasterize(svg: string): Promise<HTMLCanvasElement> {

@@ -30,15 +30,6 @@ export interface PickState {
     picture?: string;
     ig?: string;
   }[];
-  /** Reddit only: staged subreddit pick (tokens ride along, like Pages). */
-  reddit?: {
-    username: string;
-    access_token: string;
-    refresh_token?: string;
-    expires_at?: string;
-    avatar?: string;
-    subreddits: { name: string; title: string; subscribers?: number }[];
-  };
   /** Google Business Profile only: staged location pick. */
   gmb?: {
     access_token: string;

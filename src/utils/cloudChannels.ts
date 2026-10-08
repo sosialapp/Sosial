@@ -18,7 +18,7 @@ const KEY = 'sosial_cloud_channels_v1';
 export type CloudChannelKey =
   | 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x'
   | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube'
-  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'reddit' | 'gmb';
+  | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'gmb';
 
 export async function loadCloudChannels(): Promise<string[]> {
   try {
@@ -252,22 +252,6 @@ export async function buildImportPayload(
         metadata: withAvatar({ screen_name: String(f.vkScreenName ?? '') }),
       };
     }
-    case 'reddit': {
-      if (!f.rdAccessToken || !f.rdSubreddit || !f.rdUserName) return null;
-      return {
-        provider: 'reddit',
-        external_id: `u/${String(f.rdUserName).toLowerCase()}/r/${String(f.rdSubreddit).toLowerCase()}`,
-        display_name: `r/${f.rdSubreddit}`,
-        handle: `@${f.rdUserName}`,
-        access_token: String(f.rdAccessToken),
-        refresh_token: typeof f.rdRefreshToken === 'string' ? f.rdRefreshToken : undefined,
-        expires_at: typeof f.rdExpiresAt === 'number' ? new Date(f.rdExpiresAt).toISOString() : undefined,
-        metadata: withAvatar({
-          redditUser: String(f.rdUserName),
-          subreddit: String(f.rdSubreddit),
-        }),
-      };
-    }
     case 'gmb': {
       if (!f.gmRefreshToken || !f.gmLocation) return null;
       return {
@@ -377,7 +361,6 @@ const NAME_FIELD: Record<string, string> = {
   hashnode: 'hnPublicationTitle',
   ghost: 'ghSiteName',
   vk: 'vkGroupName',
-  reddit: 'rdSubreddit',
   gmb: 'gmLocationTitle',
 };
 
@@ -404,7 +387,6 @@ const IDENTITY_FIELD: Record<string, string> = {
   hashnode: 'hnPublicationId',
   ghost: 'ghSiteUrl',
   vk: 'vkGroupId',
-  reddit: 'rdSubreddit',
   gmb: 'gmLocation',
 };
 
@@ -552,15 +534,6 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
           const md = row.metadata as Record<string, unknown>;
           if (typeof md.screen_name === 'string' && md.screen_name) {
             fields.vkScreenName = md.screen_name;
-          }
-        }
-        if (provider === 'reddit' && row.metadata) {
-          const md = row.metadata as Record<string, unknown>;
-          if (typeof md.redditUser === 'string' && md.redditUser) {
-            fields.rdUserName = md.redditUser;
-          }
-          if (typeof md.subreddit === 'string' && md.subreddit) {
-            fields.rdSubreddit = md.subreddit;
           }
         }
         if (provider === 'gmb' && row.display_name && row.external_id) {

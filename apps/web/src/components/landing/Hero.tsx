@@ -26,7 +26,6 @@ const HERO_LOGOS: BrandProvider[] = [
   'pinterest',
   'telegram',
   'discord',
-  'reddit',
   'vk',
 ];
 

@@ -22,7 +22,6 @@ import { publishDevtoTarget } from './devto';
 import { publishHashnodeTarget } from './hashnode';
 import { publishGhostTarget } from './ghost';
 import { publishVkTarget } from './vk';
-import { publishRedditTarget } from './reddit';
 import { publishGmbTarget } from './gmb';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
@@ -151,12 +150,6 @@ async function handlePublishTarget(job: Job): Promise<void> {
     }
     if (provider === 'vk') {
       const { remoteId, remoteUrl } = await publishVkTarget(bundle);
-      await markTargetSent(targetId, remoteId, remoteUrl);
-      info(`target ${targetId} sent → ${remoteId}`);
-      return;
-    }
-    if (provider === 'reddit') {
-      const { remoteId, remoteUrl } = await publishRedditTarget(bundle);
       await markTargetSent(targetId, remoteId, remoteUrl);
       info(`target ${targetId} sent → ${remoteId}`);
       return;

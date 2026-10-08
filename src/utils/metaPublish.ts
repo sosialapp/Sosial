@@ -26,7 +26,6 @@ export const ATTACH_LIMITS: Record<string, { images: number; videos: number }> =
   hashnode: { images: 0, videos: 0 },
   ghost: { images: 1, videos: 0 },
   vk: { images: 10, videos: 0 },
-  reddit: { images: 0, videos: 0 },
   gmb: { images: 0, videos: 0 },
 };
 

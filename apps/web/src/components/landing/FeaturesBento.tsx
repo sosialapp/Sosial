@@ -180,7 +180,7 @@ export default function FeaturesBento() {
             <p className={`${sub} relative text-[rgba(11,10,10,0.6)]`}>
               Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon,
               YouTube, X, TikTok, Pinterest, Telegram, Discord, WordPress, Dev.to,
-              Hashnode, Ghost, VK, Reddit and Google Business. Up to 100 accounts.
+              Hashnode, Ghost, VK and Google Business. Up to 100 accounts.
             </p>
             {/* Illustration: account avatars + channel logo grid, centered */}
             <div className="relative flex flex-1 flex-col items-center justify-center pt-4">
@@ -250,7 +250,6 @@ export default function FeaturesBento() {
                   'hashnode',
                   'ghost',
                   'vk',
-                  'reddit',
                   'gmb',
                 ] as BrandProvider[]
               ).map((p) => (

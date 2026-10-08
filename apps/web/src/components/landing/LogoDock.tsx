@@ -31,7 +31,6 @@ const CHANNELS: BrandProvider[] = [
   'hashnode',
   'ghost',
   'vk',
-  'reddit',
   'gmb',
 ];
 
