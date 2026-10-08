@@ -371,7 +371,21 @@ export default function CreateHub({
   };
   // /post hosts the composer plus the status lists (?filter=) — the URL is
   // the source of truth. ?edit= always means the composer.
-  const rawFilter = searchParams.get('filter');
+  // Filter switches stay fully client-side: the server already sent every
+  // post, so pushing a route (full server refetch ≈2s) for a view change is
+  // pure waste. replaceState keeps the URL shareable with zero round-trips;
+  // a popstate listener re-syncs when the user goes back/forward.
+  const [filterSel, setFilterSel] = useState<string | null>(null); // null = follow URL
+  useEffect(() => {
+    const onPop = () => setFilterSel(null);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const goFilter = (s: StatusTab | null) => {
+    window.history.replaceState(null, '', s ? `/post?filter=${s}` : '/post');
+    setFilterSel(s ?? '');
+  };
+  const rawFilter = filterSel ?? searchParams.get('filter');
   const filterView: StatusTab | null =
     rawFilter === 'all' ||
     rawFilter === 'queue' ||
@@ -893,7 +907,7 @@ export default function CreateHub({
             type="button"
             role="tab"
             aria-selected={view === 'create'}
-            onClick={() => router.push('/post', { scroll: false })}
+            onClick={() => goFilter(null)}
             className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
               view === 'create'
                 ? 'border-accent bg-accent text-ink'
@@ -910,7 +924,7 @@ export default function CreateHub({
                 type="button"
                 role="tab"
                 aria-selected={statusView === s}
-                onClick={() => router.push(`/post?filter=${s}`, { scroll: false })}
+                onClick={() => goFilter(s)}
                 className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
                   statusView === s
                     ? 'border-accent bg-accent text-ink'
