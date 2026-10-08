@@ -98,11 +98,25 @@ export async function fetchProgressBlob(
   return new Blob(chunks);
 }
 
-async function authedInvoke(fn: string, body: Record<string, unknown>) {  const sb = await createClient();
+async function authedInvoke(fn: string, body: Record<string, unknown>) {
+  const sb = await createClient();
   const { data, error } = await sb.functions.invoke(fn, { body });
-  if (error) throw new Error(error.message);
-  if ((data as any)?.error) throw new Error(String((data as any).error));
-  return data as any;
+  if (!error) {
+    if ((data as any)?.error) throw new Error(String((data as any).error));
+    return data as any;
+  }
+  // Non-2xx: supabase-js only gives a generic message, so read the function's
+  // own `{ error }` body (e.g. "The provider refused the login (invalid_client…)").
+  let msg: string | null = null;
+  try {
+    const ctx: any = (error as any)?.context;
+    const res =
+      ctx && typeof ctx.json === 'function'
+        ? await (typeof ctx.clone === 'function' ? ctx.clone() : ctx).json().catch(() => null)
+        : ctx;
+    if (res && typeof res.error === 'string' && res.error) msg = res.error;
+  } catch {}
+  throw new Error(msg ?? error.message);
 }
 
 /**
@@ -257,7 +271,10 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
         } else {
           resolve(null);
         }
-      } catch {
+      } catch (e) {
+        // Surface the real reason (bad client secret, redirect URI, scope…)
+        // instead of letting the caller report a generic "cancelled".
+        providerError = e instanceof Error && e.message ? e.message : 'Could not finish sign-in — try again.';
         resolve(null);
       }
     };

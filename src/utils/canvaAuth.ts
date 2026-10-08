@@ -100,6 +100,7 @@ export async function loginCanva(): Promise<boolean> {
     `&state=${encodeURIComponent(appReturnUrl())}`;
   try {
     await (WebBrowser as any).dismissBrowser?.();
+    await (WebBrowser as any).dismissAuthSession?.();
   } catch {}
   try {
     const res = await WebBrowser.openAuthSessionAsync(url, appReturnUrl(), {
@@ -119,9 +120,9 @@ export async function loginCanva(): Promise<boolean> {
     await exchangeCanvaCode(code, pendingVerifier);
     pendingVerifier = null;
     return true;
-  } catch {
+  } catch (e) {
     pendingVerifier = null;
-    return false;
+    throw e instanceof Error ? e : new Error('Canva sign-in failed.');
   } finally {
     pendingVerifier = null;
   }
