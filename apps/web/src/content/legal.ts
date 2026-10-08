@@ -125,9 +125,9 @@ export const TERMS: LegalDoc = {
 export const PRIVACY: LegalDoc = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: '2026-09-01',
+  updated: '2026-10-08',
   summary:
-    'What we store, why we store it, and how to get it out, written in plain language.',
+    'What we store, why we store it, how it is protected, who we share it with, and how to get it out, written in plain language.',
   sections: [
     {
       title: 'What we store',
@@ -198,7 +198,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'We do not sell your data and we do not use your content to train AI models.',
+          c: 'We do not sell your data, we do not use your content to train AI models, and we do not use Google user data to serve advertisements. Sosial\'s use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.',
         },
       ],
     },
@@ -217,6 +217,56 @@ export const PRIVACY: LegalDoc = {
         {
           t: 'p',
           c: 'Your data is stored in our database and object storage providers, encrypted in transit and at rest. Access is restricted to the systems that need it to run the service.',
+        },
+      ],
+    },
+    {
+      title: 'How we protect it',
+      blocks: [
+        {
+          t: 'p',
+          c: 'We apply technical and organisational safeguards to Google user data and to all other personal data we handle:',
+        },
+        {
+          t: 'ul',
+          c: [
+            'Encryption in transit: every connection between your device, our servers and Google uses TLS/HTTPS. Google API traffic uses Google\'s required TLS (minimum 1.2).',
+            'Encryption at rest: data is encrypted at rest in our database, object storage and backups, using AES-256 or the provider\'s equivalent.',
+            'Access tokens: OAuth access and refresh tokens for connected accounts are encrypted before storage (AES-256-GCM with a server-held key held in our secrets manager). They are decrypted only by the publishing worker, only at publish time, and are never shown in the app or written to logs.',
+            'Least privilege: we request only the Google scopes a feature needs, we employ the narrowest practical scope, and we do not request access you do not use.',
+            'Access control: internal access to production systems is limited to the personnel who operate the service, is protected by multi-factor authentication, and is logged. There is no public or unauthenticated access to user data.',
+            'Token minimization: Google Photos are accessed through Google\'s own picker and only the photos you select are read; Google Drive is read-only. We never store your Google password, and we store no Google data beyond the fields needed to publish and display your account.',
+            'Key management: encryption keys are stored in a managed secrets service, are not committed to source control, and are rotated on a schedule and on staff departure.',
+            'Retention and secure deletion: tokens are deleted when you disconnect a channel; your data is deleted when you delete your workspace, and residual copies in backups expire on a rolling schedule.',
+            'Incident response: we monitor for anomalies, restrict and revoke compromised credentials, and will notify affected users and Google without undue delay if a breach affects their data.',
+          ],
+        },
+      ],
+    },
+    {
+      title: 'Who we share it with',
+      blocks: [
+        {
+          t: 'p',
+          c: 'We do not sell Google user data, and we do not use or transfer Google user data for advertising, for serving ads, or for training or improving generalised AI or machine-learning models. We do not allow humans to read your Google data unless you ask us to for support, it is necessary for security or to comply with law, or the data has been aggregated and anonymised.',
+        },
+        {
+          t: 'p',
+          c: 'We share data only with the parties needed to run the service you asked for, under contract and only as described here:',
+        },
+        {
+          t: 'ul',
+          c: [
+            'The social platforms you connect: we send your post content and media to each platform\'s official API so it can publish on your behalf. This is the whole point of the feature and happens only for the posts you schedule and the channels you choose.',
+            'Cloud infrastructure and storage subprocessors: our database, object storage, hosting and email providers, which host the service and hold data under our instructions. They are contractually bound to protect it and may not use it for their own purposes.',
+            'AI writer provider: when you use the AI writer, the brief you submit is sent to the configured AI provider to generate a draft. Google user data is never included unless you put it in the brief yourself.',
+            'Payment provider: our billing provider processes your subscription. We share a customer and subscription reference; we never receive or store your full card number.',
+            'Legal and safety: we may disclose data if required by law, to enforce our terms, or to protect the rights, safety and security of our users and the public. Where lawful, we will tell you first.',
+          ],
+        },
+        {
+          t: 'p',
+          c: 'We do not transfer Google user data to third parties for purposes other than those listed above.',
         },
       ],
     },
