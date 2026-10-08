@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
-import { SourceMark } from '@/components/SourceMarks';
+import { SourceMark, AiMark } from '@/components/SourceMarks';
 
 /**
  * Logo dock (GreenSock macOS-dock pen, calmed down): channel + integration
@@ -35,6 +35,20 @@ const CHANNELS: BrandProvider[] = [
 ];
 
 const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive'] as const;
+
+/** AI agents that can operate Sosial through MCP (Team → AI & Developer). */
+const AGENTS = [
+  { id: 'claude', label: 'Claude' },
+  { id: 'gemini', label: 'Gemini' },
+  { id: 'chatgpt', label: 'ChatGPT' },
+  { id: 'copilot', label: 'Copilot' },
+  { id: 'cursor', label: 'Cursor' },
+  { id: 'muse', label: 'Muse' },
+  { id: 'dots', label: 'Dots' },
+  { id: 'codex', label: 'Codex' },
+  { id: 'hermes', label: 'Hermes' },
+  { id: 'clawbot', label: 'Clawbot' },
+] as const;
 
 const RANGE = 180;
 const BOOST = 0.35;
@@ -74,14 +88,15 @@ function magnify(track: HTMLDivElement | null): () => void {
 export default function LogoDock() {
   const channelsRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
+  const agentsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const cleanups = [magnify(channelsRef.current), magnify(toolsRef.current)];
+    const cleanups = [magnify(channelsRef.current), magnify(toolsRef.current), magnify(agentsRef.current)];
     return () => cleanups.forEach((fn) => fn());
   }, []);
 
   return (
-    <section aria-label="Channels and integrations" className="bg-paper">
+    <section aria-label="Channels, integrations and AI agents" className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:pt-16">
         <div className="flex justify-center">
           <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">
@@ -123,6 +138,26 @@ export default function LogoDock() {
                     </span>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* Divider: vertical on desktop, horizontal on mobile */}
+            <div className="mx-auto h-px w-24 shrink-0 bg-line md:mx-0 md:h-24 md:w-px md:self-center" aria-hidden="true" />
+
+            {/* AI agents — assistants that can operate Sosial through MCP */}
+            <div className="flex min-w-0 flex-col md:max-w-[300px]">
+              <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
+                AI agents
+              </p>
+              <div
+                ref={agentsRef}
+                className="flex flex-wrap items-end justify-center gap-3 overflow-visible px-1 sm:gap-4"
+              >
+                {AGENTS.map((a) => (
+                  <span key={a.id} className="block shrink-0 will-change-transform" title={`${a.label} — via MCP`}>
+                    <AiMark id={a.id} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
+                  </span>
+                ))}
               </div>
             </div>
           </div>
