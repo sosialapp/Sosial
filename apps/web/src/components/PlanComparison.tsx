@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import {
   PLANS,
   type PlanKey,
@@ -54,6 +55,14 @@ function Cell({ value, featured }: { value: string | boolean; featured?: boolean
 }
 
 export default function PlanComparison() {
+  const [open, setOpen] = useState(false);
+
+  // Deep-linking from the cards ("See full plan comparison" → #compare)
+  // opens the table on arrival.
+  useEffect(() => {
+    if (window.location.hash === '#compare') setOpen(true);
+  }, []);
+
   return (
     <section aria-label="Plan comparison" id="compare" className="relative scroll-mt-20 overflow-hidden">
       <div
@@ -61,18 +70,28 @@ export default function PlanComparison() {
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.04)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_30%,#000_20%,transparent_75%)]"
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="eyebrow">Compare plans</p>
-          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
-            Every limit, side by side.
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted md:text-base">
-            Scheduled posts are counted per connected channel and free up the moment a post
-            publishes. AI credits reset on the 1st of every month, on every plan.
-          </p>
+      <div className="relative mx-auto max-w-6xl px-4 py-14 md:py-20">
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className="group inline-flex items-center gap-2.5 rounded-full border border-line bg-white/80 py-3 pr-4 pl-6 text-sm font-bold text-ink shadow-[0_2px_10px_rgba(28,26,20,0.06)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.18)]"
+          >
+            See full plan comparison
+            <span
+              aria-hidden="true"
+              className={`grid h-7 w-7 place-items-center rounded-full bg-ink/[0.06] transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5">
+                <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </button>
         </div>
 
+        {open ? (
+        <>
         <div className="mt-12 overflow-x-auto pb-4 [scrollbar-width:thin]">
           <table className="w-full min-w-[920px] border-separate border-spacing-0">
             <thead>
@@ -132,6 +151,8 @@ export default function PlanComparison() {
           </Link>{' '}
           — upgrade when you outgrow it.
         </p>
+        </>
+        ) : null}
       </div>
     </section>
   );
