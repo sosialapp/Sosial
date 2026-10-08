@@ -105,7 +105,7 @@ export default function PricingPlans({
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.045)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_30%,transparent_75%)]"
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
+      <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-8 md:pt-28 md:pb-10">
         <div className="mx-auto max-w-2xl text-center">
           <p className="eyebrow">Pricing</p>
           <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-balance sm:text-5xl md:text-6xl">
