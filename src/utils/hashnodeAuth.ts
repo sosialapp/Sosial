@@ -12,20 +12,39 @@ export interface HashnodePublication {
 }
 
 async function gql<T>(pat: string, query: string, variables: Record<string, unknown>): Promise<T> {
-  const res = await fetch(API, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: pat },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = (await res.json().catch(() => null)) as {
-    data?: T | null;
-    errors?: { message?: string }[];
-  } | null;
-  const err = json?.errors?.[0]?.message;
-  if (!res.ok || err || !json?.data) {
-    throw new Error(err ?? `HTTP ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: pat },
+      body: JSON.stringify({ query, variables }),
+    });
+  } catch {
+    throw new Error('Could not reach Hashnode — check your connection.');
   }
-  return json.data as T;
+  const text = await res.text().catch(() => '');
+  let json: { data?: T | null; errors?: { message?: string }[] };
+  try {
+    json = (text ? JSON.parse(text) : {}) as typeof json;
+  } catch {
+    json = {};
+  }
+  const gqlMsg = (json?.errors ?? [])
+    .map((e) => e?.message)
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, 200);
+  if (gqlMsg) throw new Error(gqlMsg);
+  if (!res.ok) {
+    throw new Error(`Hashnode answered HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ' with an empty body'}.`);
+  }
+  if (!json.data) {
+    throw new Error(
+      `Hashnode answered 200 with no data${text ? `: ${text.slice(0, 120)}` : ' (empty body)'}. ` +
+        'The token looks invalid — generate a fresh one at hashnode.com → Settings → Developer.',
+    );
+  }
+  return json.data;
 }
 
 export interface HashnodeIdentity {
@@ -36,7 +55,9 @@ export interface HashnodeIdentity {
 }
 
 export async function validateHashnode(pat: string): Promise<HashnodeIdentity> {
-  const token = pat.trim();
+  // Strip ALL whitespace (copy-paste from the dashboard often smuggles in
+  // line breaks, which Hashnode silently rejects with an empty 200).
+  const token = pat.replace(/\s+/g, '');
   if (!token) throw new Error('Paste the personal access token first.');
   let me: { id: string; username?: string; name?: string };
   try {
