@@ -8,13 +8,13 @@ export type GridPulseProps = Omit<
   React.ComponentPropsWithoutRef<"div">,
   "children"
 > & {
-  /** Cell size in px. The hairlines and the lit cells share it. */
+  /** Cell size in px. The hairlines and the lit boxes share it. */
   cell?: number;
   /** How far from the pointer a cell can still catch light, in cells. */
   reach?: number;
-  /** How many cells light on their own each beat, so the grid is never dead. */
+  /** How many blocks light on their own each beat, so the grid is never dead. */
   ambient?: number;
-  /** A lid, so a fast sweep cannot light the whole field at once. */
+  /** A lid on lit area (in base cells), so a fast sweep cannot flood the field. */
   maxLit?: number;
   /**
    * Elements whose lines of text the light holds back from, looked up
@@ -22,12 +22,21 @@ export type GridPulseProps = Omit<
    */
   avoid?: string;
   /**
-   * Channel marks that occasionally ride inside a lit cell, drawn as vector
-   * paths on the same canvas. Empty = plain cells.
+   * Channel marks that occasionally ride inside a lit block, drawn as vector
+   * paths on the same canvas. Empty = plain boxes.
    */
   logos?: string[];
-  /** Chance any given lit cell carries a mark, 0 to 1. */
+  /** Chance any given lit block carries a mark, 0 to 1. */
   logoChance?: number;
+  /**
+   * Lit blocks can come in several sizes, measured in cells. `[1]` (default)
+   * keeps the fine uniform grid; `[1, 2, 3]` mixes small, medium and large
+   * filled boxes on the same lattice. Size is chosen per grid position, so a
+   * given area keeps its scale instead of flickering.
+   */
+  blockSizes?: number[];
+  /** How often each size in `blockSizes` is picked — aligned by index. */
+  blockWeights?: number[];
 };
 
 /** Hue at the top of the field and how far it turns by the bottom: yellow,
@@ -50,11 +59,13 @@ const PAD = 5;
 const FADE_IN = 160;
 const FADE_OUT = 750;
 
-type Cell = {
+type Block = {
   col: number;
   row: number;
+  /** Side length in cells: 1 = single cell, 2/3 = merged medium/large box. */
+  span: number;
   colour: string;
-  /** How much of its colour the cell is allowed, 0 to 1. */
+  /** How much of its colour the block is allowed, 0 to 1. */
   dim: number;
   born: number;
   /** When it starts to fade out. */
@@ -65,6 +76,14 @@ type Cell = {
 
 const easeOut = (t: number) => 1 - (1 - t) ** 2;
 const easeIn = (t: number) => t * t;
+
+/** Stable 0–1 value for a grid position — same cell always asks for the same
+ *  block size, so the field settles into a readable mix instead of jittering. */
+const jitter = (col: number, row: number) => {
+  let h = (Math.imul(col + 1, 73856093) ^ Math.imul(row + 1, 19349663)) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return (h % 1000) / 1000;
+};
 
 /**
  * A fine grid that takes colour where the pointer passes and lets it go a
@@ -85,12 +104,16 @@ export function GridPulse({
   avoid = "[data-grid-avoid]",
   logos,
   logoChance = 0.14,
+  blockSizes,
+  blockWeights,
   className,
   style,
   ...props
 }: GridPulseProps) {
   const box = React.useRef<HTMLDivElement>(null);
   const canvas = React.useRef<HTMLCanvasElement>(null);
+  const sizesKey = (blockSizes ?? []).join(",");
+  const weightsKey = (blockWeights ?? []).join(",");
 
   React.useEffect(() => {
     const el = box.current;
@@ -105,7 +128,27 @@ export function GridPulse({
     let height = 0;
     let clear: DOMRect[] = [];
     let tints = TINTS;
-    const cells = new Map<string, Cell>();
+    const blocks = new Map<string, Block>();
+
+    // Sizes a lit block may take, largest first, with the cutoff each one
+    // needs to be chosen. `[1]` keeps the original uniform grid.
+    const sizes = (blockSizes && blockSizes.length > 0 ? blockSizes : [1])
+      .map((s) => Math.max(1, Math.round(s)))
+      .sort((a, b) => b - a);
+    const weights = sizes.map((_, i) => blockWeights?.[i] ?? 1);
+    const weightSum = weights.reduce((a, b) => a + b, 0) || 1;
+    const cuts: number[] = [];
+    let acc = 0;
+    for (const w of weights) {
+      acc += w / weightSum;
+      cuts.push(acc);
+    }
+    /** Block side (in cells) a position asks for. Stable per position. */
+    const spanAt = (col: number, row: number) => {
+      const r = jitter(col, row);
+      for (let i = 0; i < cuts.length; i++) if (r <= cuts[i]) return sizes[i];
+      return sizes[sizes.length - 1];
+    };
 
     // Channel marks, compiled once to Path2D so the canvas can stroke them
     // like any other path. A missing path simply never draws.
@@ -199,36 +242,39 @@ export function GridPulse({
       return `hsl(${Math.round(hue)} 94% ${tint}%)`;
     };
 
-    // One loop draws every cell; it runs only while something is lit.
+    // One loop draws every block; it runs only while something is lit.
     let frame = 0;
     const draw = (now: number) => {
       frame = 0;
       ctx.clearRect(0, 0, width, height);
-      for (const [key, c] of cells) {
+      for (const [key, b] of blocks) {
         let alpha: number;
-        if (now < c.until) {
-          alpha = easeOut(Math.min(1, (now - c.born) / FADE_IN));
+        if (now < b.until) {
+          alpha = easeOut(Math.min(1, (now - b.born) / FADE_IN));
         } else {
-          const t = (now - c.until) / FADE_OUT;
+          const t = (now - b.until) / FADE_OUT;
           if (t >= 1) {
-            cells.delete(key);
+            blocks.delete(key);
             continue;
           }
           alpha = 1 - easeIn(t);
         }
-        const a = alpha * c.dim;
+        const a = alpha * b.dim;
+        const x = b.col * cell;
+        const y = b.row * cell;
+        const side = b.span * cell;
         ctx.globalAlpha = a;
-        ctx.fillStyle = c.colour;
-        // Inset by the hairline, so the grid still shows between lit cells.
-        ctx.fillRect(c.col * cell + 1, c.row * cell + 1, cell - 1, cell - 1);
-        // Channel mark riding in the cell, in ink so it reads on the tint.
-        const p = c.logo >= 0 ? paths[c.logo] : null;
+        ctx.fillStyle = b.colour;
+        // Inset by the hairline, so the lattice still shows between blocks.
+        ctx.fillRect(x + 1, y + 1, side - 1, side - 1);
+        // Channel mark riding in the block, in ink so it reads on the tint.
+        const p = b.logo >= 0 ? paths[b.logo] : null;
         if (p) {
-          const inset = Math.max(4, cell * 0.18);
-          const size = cell - inset * 2;
+          const inset = side * 0.28;
+          const size = side - inset * 2;
           ctx.save();
           ctx.globalAlpha = Math.min(1, a * 1.6);
-          ctx.translate(c.col * cell + inset, c.row * cell + inset);
+          ctx.translate(x + inset, y + inset);
           ctx.scale(size / 24, size / 24);
           ctx.fillStyle = getComputedStyle(el).color;
           ctx.fill(p);
@@ -236,39 +282,62 @@ export function GridPulse({
         }
       }
       ctx.globalAlpha = 1;
-      if (cells.size > 0) frame = requestAnimationFrame(draw);
+      if (blocks.size > 0) frame = requestAnimationFrame(draw);
     };
     const wake = () => {
       if (!frame) frame = requestAnimationFrame(draw);
     };
 
-    /** Lights one cell, unless it is off the grid or already lit. */
+    const lit = (col: number, row: number) => {
+      for (const b of blocks.values()) {
+        if (
+          col >= b.col &&
+          col < b.col + b.span &&
+          row >= b.row &&
+          row < b.row + b.span
+        )
+          return true;
+      }
+      return false;
+    };
+    const area = (col: number, row: number, span: number) => {
+      for (let dy = 0; dy < span; dy++)
+        for (let dx = 0; dx < span; dx++)
+          if (lit(col + dx, row + dy)) return false;
+      return true;
+    };
+    const covered = () => {
+      let n = 0;
+      for (const b of blocks.values()) n += b.span * b.span;
+      return n;
+    };
+
+    /** Lights one block, unless it is off the grid or already covered. */
     const light = (col: number, row: number, hold: number) => {
       if (col < 0 || row < 0 || col >= cols || row >= rows) return;
-      if (cells.size >= maxLit) return;
-      const key = `${col},${row}`;
-      const now = performance.now();
-      const lit = cells.get(key);
-      if (lit && now < lit.until) return;
-      // A cell caught again while fading picks up from where it had got to,
-      // instead of blinking out and back in.
-      let born = now;
-      if (lit) {
-        const faded = 1 - easeIn(Math.min(1, (now - lit.until) / FADE_OUT));
-        born = now - (1 - Math.sqrt(1 - faded)) * FADE_IN;
+      if (covered() >= maxLit) return;
+      if (lit(col, row)) return;
+      // The size this position asks for, shrunk until it fits the grid and
+      // the free space around it — so a big box never clips or overlaps.
+      let span = spanAt(col, row);
+      while (span > 1 && !area(col, row, span)) span--;
+      if (span > 1 && (col + span > cols || row + span > rows)) {
+        span = Math.min(span, cols - col, rows - row);
       }
-      cells.set(key, {
+      if (span < 1 || !area(col, row, span)) return;
+      const now = performance.now();
+      blocks.set(`${col},${row},${span}`, {
         col,
         row,
-        colour: lit?.colour ?? ink(row),
-        dim: brightness(col, row),
-        born,
+        span,
+        colour: ink(row),
+        dim: brightness(col + (span - 1) / 2, row + (span - 1) / 2),
+        born: now,
         until: now + hold,
         logo:
-          lit?.logo ??
-          (paths.length > 0 && Math.random() < logoChance
+          paths.length > 0 && Math.random() < logoChance
             ? Math.floor(Math.random() * paths.length)
-            : -1),
+            : -1,
       });
       wake();
     };
@@ -282,9 +351,9 @@ export function GridPulse({
       if (!at) return;
       const cx = Math.floor(at.x / cell);
       const cy = Math.floor(at.y / cell);
-      const span = Math.ceil(reach);
-      for (let dy = -span; dy <= span; dy++) {
-        for (let dx = -span; dx <= span; dx++) {
+      const radius = Math.ceil(reach);
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
           const away = Math.hypot(dx, dy);
           if (away > reach) continue;
           if (Math.random() > 1 - away / (reach + 0.6)) continue;
@@ -362,7 +431,7 @@ export function GridPulse({
       clearTimeout(beat);
       window.removeEventListener("pointermove", onMove);
     };
-  }, [cell, reach, ambient, maxLit, avoid, logos, logoChance]);
+  }, [cell, reach, ambient, maxLit, avoid, logos, logoChance, sizesKey, weightsKey]);
 
   return (
     <div

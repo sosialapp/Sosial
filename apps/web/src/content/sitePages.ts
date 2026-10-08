@@ -31,6 +31,13 @@ const CHANNEL_SLUGS = [
   { slug: 'integrations/linkedin', label: 'LinkedIn', route: '/integrations/linkedin' },
   { slug: 'integrations/youtube', label: 'YouTube', route: '/integrations/youtube' },
   { slug: 'integrations/pinterest', label: 'Pinterest', route: '/integrations/pinterest' },
+  { slug: 'integrations/telegram', label: 'Telegram', route: '/integrations/telegram' },
+  { slug: 'integrations/discord', label: 'Discord', route: '/integrations/discord' },
+  { slug: 'integrations/wordpress', label: 'WordPress', route: '/integrations/wordpress' },
+  { slug: 'integrations/devto', label: 'Dev.to', route: '/integrations/devto' },
+  { slug: 'integrations/hashnode', label: 'Hashnode', route: '/integrations/hashnode' },
+  { slug: 'integrations/ghost', label: 'Ghost', route: '/integrations/ghost' },
+  { slug: 'integrations/vk', label: 'VK', route: '/integrations/vk' },
 ];
 
 const RESOURCE_SLUGS = [

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BrandIcon } from '@/components/BrandIcon';
+import { BRAND_PATHS, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import ChannelDock from '@/components/site/ChannelDock';
 import PageCms from '@/components/site/PageCms';
+import { GridPulse } from '@/components/ui/grid-pulse';
 import { CHANNEL_GUIDES, channelGuide, relatedChannels } from '@/content/channels';
 import { channelHref } from '@/content/types';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
@@ -42,15 +43,26 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
   const meta = await sitePageMeta(`integrations/${slug}`);
   const date = formatPageDate(meta?.publishedAt ?? null);
   const related = relatedChannels(slug);
+  const mark = BRAND_PATHS[c.key as BrandProvider];
 
   return (
     <>
-      <section className="border-b border-line bg-card/60">
-        <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
-          <Link href="/integrations" className="text-xs font-bold text-muted hover:text-ink">
+      <section className="relative overflow-clip border-b border-line bg-card/60">
+        <GridPulse
+          cell={26}
+          ambient={3}
+          reach={3}
+          maxLit={220}
+          logos={mark ? [mark] : undefined}
+          logoChance={0.5}
+          blockSizes={[1, 2, 3]}
+          blockWeights={[0.6, 0.28, 0.12]}
+        />
+        <div className="relative z-[2] mx-auto max-w-3xl px-4 py-16 md:py-24">
+          <Link href="/integrations" className="text-xs font-bold text-muted hover:text-ink" data-grid-avoid>
             ← All integrations
           </Link>
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-6 flex items-center gap-3" data-grid-avoid>
             <BrandIcon provider={c.key} className="h-12 w-12 shrink-0" />
             <div>
               <p className="eyebrow">Integration</p>
@@ -59,8 +71,14 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
               </h1>
             </div>
           </div>
-          <p className="mt-5 text-lg leading-relaxed text-muted">{meta?.metaDescription ?? c.tagline}</p>
-          {date ? <p className="mt-3 text-xs font-bold text-faint">Updated {date}</p> : null}
+          <p className="mt-5 text-lg leading-relaxed text-muted" data-grid-avoid>
+            {meta?.metaDescription ?? c.tagline}
+          </p>
+          {date ? (
+            <p className="mt-3 text-xs font-bold text-faint" data-grid-avoid>
+              Updated {date}
+            </p>
+          ) : null}
           <Link href="/login" className="btn btn-primary mt-6">
             Connect {c.name}
           </Link>
@@ -162,18 +180,6 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
             </div>
           </section>
         )}
-
-        <div className="reveal mt-12 rounded-3xl bg-accent px-6 py-10 text-center">
-          <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">
-            Schedule your next {c.name} post.
-          </h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-white/85">
-            Draft with the AI writer, then let the queue publish on time.
-          </p>
-          <Link href="/login" className="btn mt-6 bg-white font-bold text-accent hover:bg-bone">
-            Start scheduling free
-          </Link>
-        </div>
       </div>
     </>
   );

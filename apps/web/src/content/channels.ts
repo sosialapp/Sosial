@@ -490,6 +490,342 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
     ],
   },
+  {
+    key: 'telegram',
+    name: 'Telegram',
+    tagline: 'Channels and groups that reach subscribers without an algorithm in the way.',
+    intro:
+      'Telegram delivers to everyone who opted in — no ranking, no reach throttling. Sosial connects your bot to a channel or group and queues messages with formatting and media intact, so an announcement lands the moment you schedule it.',
+    limit: 1024,
+    bestFor: ['Product and release announcements', 'Community updates for a channel', 'Time-sensitive drops'],
+    facts: [
+      { label: 'Message limit', value: '1,024 characters' },
+      { label: 'Media', value: 'Photos, video, documents and albums' },
+      { label: 'Formatting', value: 'Bold, italic, links and monospace via Markdown' },
+      { label: 'Delivery', value: 'Chronological — no feed algorithm' },
+    ],
+    tips: [
+      {
+        title: 'Write for the notification, not the archive',
+        body: 'The first line is what shows in a push. Lead with the news, not the preamble.',
+      },
+      {
+        title: 'Use formatting to make it scannable',
+        body: 'Bold the key line and put details on their own lines. A wall of plain text gets skimmed and closed.',
+      },
+      {
+        title: 'Keep the cadence predictable',
+        body: 'Subscribers stay for a reason. A steady rhythm of useful posts beats occasional bursts nobody expected.',
+      },
+    ],
+    pitfalls: [
+      'Treating a channel like a broadcast billboard and posting every hour.',
+      'Long blocks of text with no line breaks on mobile.',
+      'Broken links that Telegram previews but the reader cannot open.',
+    ],
+    faqs: [
+      {
+        q: 'Can Sosial post to a Telegram channel?',
+        a: 'Yes. Connect a bot to your channel and scheduled messages publish to it on time, with formatting preserved.',
+      },
+      {
+        q: 'Does it work for groups too?',
+        a: 'Yes. Point the bot at a group and Sosial posts there exactly as it does for a channel.',
+      },
+      {
+        q: 'Is there a character limit I should worry about?',
+        a: '1,024 characters per message. The composer counts against it and can split long copy across messages.',
+      },
+    ],
+  },
+  {
+    key: 'discord',
+    name: 'Discord',
+    tagline: 'Announcements and updates that land in the right server channel.',
+    intro:
+      'Discord is where communities talk in real time, and announcements work best when they read like they came from a member, not a machine. Sosial posts scheduled updates to the channel you pick, so launches, changelogs and events arrive on cue.',
+    limit: 2000,
+    bestFor: ['Server announcements', 'Events and changelogs', 'Community engagement prompts'],
+    facts: [
+      { label: 'Message limit', value: '2,000 characters per message' },
+      { label: 'Media', value: 'Images, video and files in a post' },
+      { label: 'Markdown', value: 'Bold, italics, code blocks and links' },
+      { label: 'Where it posts', value: 'The specific channel the bot is set to' },
+    ],
+    tips: [
+      {
+        title: 'Post to the right channel',
+        body: 'An announcement belongs in #announcements, not #general. Route each message to the channel that fits.',
+      },
+      {
+        title: 'Use code blocks for updates',
+        body: 'A short changelog in a code block stays aligned and reads as a clear list of what changed.',
+      },
+      {
+        title: 'Tag roles sparingly',
+        body: 'A role ping pulls attention once. Reaching for it every post teaches the server to mute you.',
+      },
+    ],
+    pitfalls: [
+      'Posting to the wrong channel and burying the message in conversation.',
+      'Overusing @everyone until members mute the server.',
+      'Walls of text where a short bold headline plus a link would do.',
+    ],
+    faqs: [
+      {
+        q: 'Can Sosial post to a specific Discord channel?',
+        a: 'Yes. When you connect the bot you choose the server and channel, and scheduled posts go there.',
+      },
+      {
+        q: 'Does it support media?',
+        a: 'Yes. Attach images or video in the composer and they publish with the message.',
+      },
+      {
+        q: 'Will it ping a role?',
+        a: 'Only if you include the mention in the message text — Sosial sends exactly what you write.',
+      },
+    ],
+  },
+  {
+    key: 'wordpress',
+    name: 'WordPress',
+    tagline: 'Push posts from the calendar straight to your self-hosted site.',
+    intro:
+      'Your blog is still the home base your social posts point back to. Sosial connects to a WordPress site over its REST API and publishes scheduled posts with their title, body and featured image, so the article ships when you planned it.',
+    limit: 100000,
+    bestFor: ['Long-form articles', 'SEO-driven content', 'Scheduled publishing without logging in'],
+    facts: [
+      { label: 'Content limit', value: 'Effectively unlimited (100k+ characters)' },
+      { label: 'Auth', value: 'Application password over the WordPress REST API' },
+      { label: 'Media', value: 'Featured image and inline images' },
+      { label: 'Status', value: 'Publish now, or schedule from Sosial' },
+    ],
+    tips: [
+      {
+        title: 'Set a featured image every time',
+        body: 'It becomes the thumbnail on the blog and the preview card when the post is shared.',
+      },
+      {
+        title: 'Write the excerpt yourself',
+        body: 'A hand-written excerpt controls how the post reads in search results and social previews.',
+      },
+      {
+        title: 'Cross-post the summary, not the article',
+        body: 'Send a short teaser to social channels and link back, rather than pasting the whole piece.',
+      },
+    ],
+    pitfalls: [
+      'Revoking the application password so the connection silently fails.',
+      'Publishing without a featured image and getting a blank preview card.',
+      'Using a draft that is still half-written as a scheduled post.',
+    ],
+    faqs: [
+      {
+        q: 'How does Sosial connect to WordPress?',
+        a: 'With an application password created in your WordPress user profile — no plugin required on recent versions.',
+      },
+      {
+        q: 'Can I schedule a post for the future?',
+        a: 'Yes. The post goes live at the time you set in Sosial, with an optional review before it publishes.',
+      },
+      {
+        q: 'Does it support featured images?',
+        a: 'Yes. Attach an image and Sosial sets it as the post featured image.',
+      },
+    ],
+  },
+  {
+    key: 'devto',
+    name: 'Dev.to',
+    tagline: 'Developer articles, published where engineers actually read.',
+    intro:
+      'Dev.to is a blogging community built for technical writing. Sosial connects through the Dev.to API to publish your scheduled articles with tags, a cover image and canonical links, so the post appears in feeds and search on schedule.',
+    limit: 100000,
+    bestFor: ['Tutorials and deep dives', 'Release notes for developer tools', 'Technical opinion pieces'],
+    facts: [
+      { label: 'Content limit', value: 'Effectively unlimited (100k+ characters)' },
+      { label: 'Auth', value: 'Dev.to API key' },
+      { label: 'Tags', value: 'Up to 4 tags per post' },
+      { label: 'Canonical', value: 'Point back to your own blog to avoid duplicate SEO' },
+    ],
+    tips: [
+      {
+        title: 'Pick four precise tags',
+        body: 'Tags drive discovery on Dev.to. Choose the ones a developer would actually follow over broad vanity tags.',
+      },
+      {
+        title: 'Set the canonical URL',
+        body: 'If the piece also lives on your blog, set the canonical link so search engines credit the original.',
+      },
+      {
+        title: 'Lead with the problem',
+        body: 'Open with the bug or the goal, not the backstory. Developers skim until they find the part that helps.',
+      },
+    ],
+    pitfalls: [
+      'Tag stuffing with unrelated tags that bury the post.',
+      'Publishing without a canonical URL and splitting SEO across two copies.',
+      'Code samples without language hints, which render flat.',
+    ],
+    faqs: [
+      {
+        q: 'How do I connect Dev.to?',
+        a: 'Generate an API key in your Dev.to settings and paste it into Sosial once; scheduled articles publish through it.',
+      },
+      {
+        q: 'Can I set tags and a cover image?',
+        a: 'Yes. Add tags and a cover image in the composer and they carry through to the published article.',
+      },
+      {
+        q: 'Does it support canonical links?',
+        a: 'Yes. Set the canonical URL so cross-posted articles point search engines back to your original.',
+      },
+    ],
+  },
+  {
+    key: 'hashnode',
+    name: 'Hashnode',
+    tagline: 'Cross-post engineering writing to your own Hashnode blog.',
+    intro:
+      'Hashnode gives developers a personal blog with a strong built-in community. Sosial publishes through the Hashnode GraphQL API, so a scheduled article lands on your publication with its tags and cover image at the time you set.',
+    limit: 100000,
+    bestFor: ['Personal engineering blogs', 'Cross-posting from your own site', 'Community-led technical writing'],
+    facts: [
+      { label: 'Content limit', value: 'Effectively unlimited (100k+ characters)' },
+      { label: 'Auth', value: 'Hashnode API token (Pro accounts)' },
+      { label: 'Tags', value: 'Up to 5 tags per post' },
+      { label: 'Canonical', value: 'Supported, for republished pieces' },
+    ],
+    tips: [
+      {
+        title: 'Choose a focused publication',
+        body: 'Posting to a themed publication beats a personal blog with no through-line for discovery.',
+      },
+      {
+        title: 'Reuse your canonical URL',
+        body: 'Republishing from your own blog? Set the original URL so credit stays where it belongs.',
+      },
+      {
+        title: 'Front-load a real example',
+        body: 'A short, concrete code snippet early beats an abstract introduction every time.',
+      },
+    ],
+    pitfalls: [
+      'Using an API token from a free account, where publishing is not available.',
+      'Forgetting tags and losing the discovery that comes with them.',
+      'Republishing without a canonical URL and confusing search.',
+    ],
+    faqs: [
+      {
+        q: 'Do I need a paid Hashnode plan?',
+        a: 'Publishing through the API needs a Hashnode Pro account, which is where the write API is available.',
+      },
+      {
+        q: 'Can I cross-post from my own blog?',
+        a: 'Yes. Set the canonical URL to the original and the republished piece credits your site.',
+      },
+      {
+        q: 'How many tags can I use?',
+        a: 'Up to five. A few specific tags outperform a long list of broad ones.',
+      },
+    ],
+  },
+  {
+    key: 'ghost',
+    name: 'Ghost',
+    tagline: 'Newsletters and blog posts published from the same calendar.',
+    intro:
+      'Ghost pairs a clean blog with a newsletter. Sosial connects over the Ghost Admin API to create and schedule posts — title, body, tags and feature image — and can send them to your subscribers as an email at the same moment.',
+    limit: 100000,
+    bestFor: ['Newsletters', 'Membership blogs', 'Long-form publishing with email delivery'],
+    facts: [
+      { label: 'Content limit', value: 'Effectively unlimited (100k+ characters)' },
+      { label: 'Auth', value: 'Ghost Admin API key' },
+      { label: 'Delivery', value: 'Web post, email to subscribers, or both' },
+      { label: 'Media', value: 'Feature image and inline images' },
+    ],
+    tips: [
+      {
+        title: 'Decide web, email or both',
+        body: 'Not every post deserves an inbox. Send to email when it matters, publish quietly to the web when it does not.',
+      },
+      {
+        title: 'Write a subject-line-first headline',
+        body: 'The headline is the email subject, so write it to earn the open, not just the click.',
+      },
+      {
+        title: 'One idea per send',
+        body: 'Focused emails hold attention. Save the roundups for a recurring digest.',
+      },
+    ],
+    pitfalls: [
+      'Blasting every update to email and burning out subscribers.',
+      'Publishing without a feature image and getting a plain link card.',
+      'Rotating the Admin API key without updating the connection.',
+    ],
+    faqs: [
+      {
+        q: 'Does Sosial send Ghost newsletters?',
+        a: 'Yes. A scheduled post can publish to the web and email your subscribers in the same action.',
+      },
+      {
+        q: 'How does the connection work?',
+        a: 'With a Ghost Admin API key from your site Integrations settings — no plugin required.',
+      },
+      {
+        q: 'Can I schedule posts ahead?',
+        a: 'Yes. Sosial publishes or sends the post at the time you set in the calendar.',
+      },
+    ],
+  },
+  {
+    key: 'vk',
+    name: 'VK',
+    tagline: 'Reach Russian-speaking audiences on the network they use daily.',
+    intro:
+      'VK is one of the largest social networks in the Russian-speaking world. Sosial posts to your community or profile through the VK API, so scheduled updates, links and media publish exactly when you plan them.',
+    limit: 16384,
+    bestFor: ['Russian-speaking audiences', 'Community updates', 'Links and media posts'],
+    facts: [
+      { label: 'Post limit', value: '16,384 characters' },
+      { label: 'Media', value: 'Photos, video and links with previews' },
+      { label: 'Where it posts', value: 'A community (group or public page) or your profile' },
+      { label: 'Auth', value: 'VK OAuth access token' },
+    ],
+    tips: [
+      {
+        title: 'Post from the community, not your profile',
+        body: 'Community posts carry the page identity and build a following rather than a personal timeline.',
+      },
+      {
+        title: 'Let the link make its own preview',
+        body: 'VK renders a rich card for shared links. Paste the URL on its own line so it expands cleanly.',
+      },
+      {
+        title: 'Attach media for reach',
+        body: 'Posts with an image stop the scroll in a way plain text cannot.',
+      },
+    ],
+    pitfalls: [
+      'Publishing from a personal profile when you meant the community.',
+      'Expired access tokens after a password change on the VK account.',
+      'Pasting a raw URL inside a sentence, which stops it previewing.',
+    ],
+    faqs: [
+      {
+        q: 'Can Sosial post to a VK community?',
+        a: 'Yes. Connect your account and choose the community; scheduled posts publish there on time.',
+      },
+      {
+        q: 'Does it support photos?',
+        a: 'Yes. Attach an image and it publishes with the post, complete with a preview.',
+      },
+      {
+        q: 'What about the character limit?',
+        a: 'VK allows up to 16,384 characters — plenty for a full update, with counters in the composer.',
+      },
+    ],
+  },
 ];
 
 export function channelGuide(key: string): ChannelGuide | undefined {

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BrandIcon } from '@/components/BrandIcon';
+import { BRAND_PATHS, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import { GridPulse } from '@/components/ui/grid-pulse';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { channelHref } from '@/content/types';
 
@@ -12,15 +13,32 @@ export const metadata: Metadata = {
 };
 
 export default function IntegrationsIndex() {
+  const logos = CHANNEL_GUIDES.map((c) => BRAND_PATHS[c.key as BrandProvider]).filter(Boolean);
+
   return (
     <>
-      <section className="border-b border-line bg-card/60">
-        <div className="mx-auto max-w-5xl px-4 py-20 md:py-28">
-          <p className="eyebrow">Integrations</p>
-          <h1 className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl">
+      <section className="relative overflow-clip border-b border-line bg-card/60">
+        <GridPulse
+          cell={26}
+          ambient={3}
+          reach={3}
+          maxLit={220}
+          logos={logos}
+          logoChance={0.28}
+          blockSizes={[1, 2, 3]}
+          blockWeights={[0.6, 0.28, 0.12]}
+        />
+        <div className="relative z-[2] mx-auto max-w-5xl px-4 py-20 md:py-28">
+          <p className="eyebrow" data-grid-avoid>
+            Integrations
+          </p>
+          <h1
+            className="mt-2 max-w-2xl font-display text-4xl font-extrabold tracking-tight md:text-5xl"
+            data-grid-avoid
+          >
             Sosial × every channel you use.
           </h1>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-muted" data-grid-avoid>
             Real API publishing, per-channel limits handled for you, and honest notes on what each
             network actually rewards.
           </p>
