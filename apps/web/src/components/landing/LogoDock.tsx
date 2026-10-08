@@ -44,7 +44,6 @@ const AGENTS = [
   { id: 'copilot', label: 'Copilot' },
   { id: 'cursor', label: 'Cursor' },
   { id: 'muse', label: 'Muse' },
-  { id: 'dots', label: 'Dots' },
   { id: 'codex', label: 'Codex' },
   { id: 'hermes', label: 'Hermes' },
   { id: 'openclaw', label: 'OpenClaw' },
@@ -88,10 +87,9 @@ function magnify(track: HTMLDivElement | null): () => void {
 export default function LogoDock() {
   const channelsRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
-  const aiRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const cleanups = [magnify(channelsRef.current), magnify(toolsRef.current), magnify(aiRef.current)];
+    const cleanups = [magnify(channelsRef.current), magnify(toolsRef.current)];
     return () => cleanups.forEach((fn) => fn());
   }, []);
 
@@ -100,32 +98,24 @@ export default function LogoDock() {
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:pt-16">
         <div className="flex justify-center">
           <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">
-            {/* Integrate — tools that feed the composer, plus the AI agents
-                that can operate Sosial through MCP, in one panel. */}
-            <div className="flex flex-col md:max-w-[360px]">
+            {/* Integrate — tools that feed the composer plus the AI agents
+                that can operate Sosial through MCP: one tight 9×2 grid. */}
+            <div className="flex flex-col md:max-w-[340px]">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
                 Integrate
               </p>
               <div
                 ref={toolsRef}
-                className="flex flex-wrap items-end justify-center gap-3 overflow-visible px-1 sm:gap-4"
+                className="grid grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
               >
                 {INTEGRATIONS.map((t) => (
                   <span key={t} className="block shrink-0 will-change-transform" title={t}>
-                    <SourceMark id={t} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
+                    <SourceMark id={t} className="block h-7 w-7 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
-              </div>
-              <p className="mt-4 mb-3 text-center text-[10px] font-extrabold tracking-[0.18em] text-faint uppercase">
-                AI agents · via MCP
-              </p>
-              <div
-                ref={aiRef}
-                className="flex flex-wrap items-end justify-center gap-3 overflow-visible px-1 sm:gap-4"
-              >
                 {AGENTS.map((a) => (
                   <span key={a.id} className="block shrink-0 will-change-transform" title={`${a.label} — via MCP`}>
-                    <AiMark id={a.id} className="block h-9 w-9 sm:h-12 sm:w-12 [&_svg]:h-full [&_svg]:w-full" />
+                    <AiMark id={a.id} className="block h-7 w-7 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
               </div>
