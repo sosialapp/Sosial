@@ -28,7 +28,7 @@ export default function IntegrationsIndex() {
           blockSizes={[1, 2, 3]}
           blockWeights={[0.6, 0.28, 0.12]}
         />
-        <div className="relative z-[2] mx-auto max-w-5xl px-4 py-20 md:py-28">
+        <div className="relative z-[2] mx-auto max-w-5xl px-4 py-12 md:py-16">
           <p className="eyebrow" data-grid-avoid>
             Integrations
           </p>

@@ -58,7 +58,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
           blockSizes={[1, 2, 3]}
           blockWeights={[0.6, 0.28, 0.12]}
         />
-        <div className="relative z-[2] mx-auto max-w-3xl px-4 py-16 md:py-24">
+        <div className="relative z-[2] mx-auto max-w-3xl px-4 py-10 md:py-14">
           <Link href="/integrations" className="text-xs font-bold text-muted hover:text-ink" data-grid-avoid>
             ← All integrations
           </Link>
