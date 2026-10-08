@@ -60,7 +60,8 @@ function xLocked(key: PlanKey): boolean {
 }
 
 function LogoStrip({ locked }: { locked: boolean }) {
-  const shown = locked ? CHANNELS.filter((c) => c !== 'x') : CHANNELS;
+  const base = locked ? CHANNELS.filter((c) => c !== 'x') : CHANNELS;
+  const shown = [...base.filter((c) => !COMING_SOON.includes(c)), ...base.filter((c) => COMING_SOON.includes(c))];
   return (
     <div className="flex flex-wrap items-center gap-1.5 pb-3">
       {shown.map((c) => {
