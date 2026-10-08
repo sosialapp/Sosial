@@ -31,6 +31,9 @@ const CHANNELS: BrandProvider[] = [
 
 const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
 
+/** Listed but not connectable yet — mirrors ConnectPanel's COMING_SOON. */
+const COMING_SOON: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
+
 /** Per-month display price at the given interval (annual is billed yearly). */
 function perMonth(plan: PlanKey, interval: BillingInterval): number {
   const billed = priceFor(plan, interval);
@@ -57,17 +60,22 @@ function xLocked(key: PlanKey): boolean {
 }
 
 function LogoStrip({ locked }: { locked: boolean }) {
+  const shown = locked ? CHANNELS.filter((c) => c !== 'x') : CHANNELS;
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {CHANNELS.map((c) => (
-        <span
-          key={c}
-          title={c === 'x' && locked ? 'X needs a paid plan' : undefined}
-          className={`flex h-[18px] w-[18px] items-center justify-center ${c === 'x' && locked ? 'opacity-25' : ''}`}
-        >
-          <BrandIcon provider={c} className="h-full w-full" />
-        </span>
-      ))}
+    <div className="flex flex-wrap items-center gap-1.5 pb-3">
+      {shown.map((c) => {
+        const soon = COMING_SOON.includes(c);
+        return (
+          <span key={c} className="relative flex h-[18px] w-[18px] items-center justify-center">
+            <BrandIcon provider={c} className="h-full w-full" />
+            {soon ? (
+              <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-line bg-white px-1 py-px text-[6px] font-bold uppercase leading-none tracking-wide text-faint">
+                Soon
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
     </div>
   );
 }
