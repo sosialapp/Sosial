@@ -8,69 +8,45 @@ import {
 } from '@/lib/billing/plans';
 
 /**
- * Pricing band, Clay-style: icon + name + blurb per plan, one big price,
- * a quota headline straight from enforced limits, then an incremental
- * "Everything in X, plus…" bullet list (each tier strictly dominates the
- * previous one, so the framing is honest). Featured plan rides dark.
- * Card content (prices, limits, points, CTAs) comes from the canonical
- * PLANS config — the numbers here are exactly what billing enforces.
+ * Pricing band, Clay-style colored-header cards: each plan gets its own
+ * header colour with a tinted icon tile poking above, a white Recommended
+ * pill on the featured plan, quota "fields" (channels + AI credits) pulled
+ * straight from enforced limits, dot-bullet features and a full-width CTA.
+ * All numbers come from the canonical PLANS config.
  */
 
-function Check({ featured }: { featured?: boolean }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-      className="mt-[1px] shrink-0"
-    >
-      <circle cx="10" cy="10" r="9" fill={featured ? 'rgba(255,198,46,0.35)' : 'rgba(28,26,20,0.07)'} />
-      <path
-        d="M6.4 10.2 8.9 12.7 13.6 7.4"
-        stroke="#1C1A14"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, { plan: string; tile: string }> = {
+  free: { plan: '#3a5bff', tile: '#c9defa' },
+  solo: { plan: '#006b3b', tile: '#86e6a6' },
+  team: { plan: '#cc0aa2', tile: '#f7bce6' },
+  business: { plan: '#6d4fd6', tile: '#ddd6fb' },
+};
 
-function PlanIcon({ plan, featured }: { plan: PlanKey; featured?: boolean }) {
-  const cls = `h-6 w-6 ${featured ? 'text-paper' : 'text-ink'}`;
-  const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+function PlanGlyph({ plan }: { plan: PlanKey }) {
+  const stroke = { fill: 'none', stroke: '#1C1A14', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
   return (
-    <span
-      aria-hidden="true"
-      className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
-        featured ? 'bg-paper/10' : 'bg-ink/[0.06]'
-      }`}
-    >
+    <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
       {plan === 'free' ? (
-        <svg viewBox="0 0 24 24" className={cls} {...stroke}>
-          <path d="M12 2c1 6.5 4 9.5 10 10.5-6 1-9 4-10 10.5-1-6.5-4-9.5-10-10.5 6-1 9-4 10-10.5Z" />
-        </svg>
+        <path d="M12 3c.9 5.6 3.4 8.1 9 9-5.6.9-8.1 3.4-9 9-.9-5.6-3.4-8.1-9-9 5.6-.9 8.1-3.4 9-9Z" {...stroke} />
       ) : plan === 'solo' ? (
-        <svg viewBox="0 0 24 24" className={cls} {...stroke}>
-          <circle cx="12" cy="8" r="3.5" />
-          <path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5" />
-        </svg>
+        <>
+          <circle cx="12" cy="8" r="3.5" {...stroke} />
+          <path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5" {...stroke} />
+        </>
       ) : plan === 'team' ? (
-        <svg viewBox="0 0 24 24" className={cls} {...stroke}>
-          <circle cx="9" cy="8.5" r="3" />
-          <path d="M3.5 19c1.2-3 3.2-4.3 5.5-4.3s4.3 1.3 5.5 4.3" />
-          <circle cx="16.5" cy="9.5" r="2.4" />
-          <path d="M15.5 14.6c2.3.2 4 1.5 5 4.4" />
-        </svg>
+        <>
+          <circle cx="9" cy="8.5" r="3" {...stroke} />
+          <path d="M3.5 19c1.2-3 3.2-4.3 5.5-4.3s4.3 1.3 5.5 4.3" {...stroke} />
+          <circle cx="16.5" cy="9.5" r="2.4" {...stroke} />
+          <path d="M15.5 14.6c2.3.2 4 1.5 5 4.4" {...stroke} />
+        </>
       ) : (
-        <svg viewBox="0 0 24 24" className={cls} {...stroke}>
-          <rect x="4" y="7.5" width="16" height="12.5" rx="2" />
-          <path d="M9 7.5V6a3 3 0 0 1 3-3v0a3 3 0 0 1 3 3v1.5M4 12.5h16" />
-        </svg>
+        <>
+          <rect x="4" y="7.5" width="16" height="12.5" rx="2" {...stroke} />
+          <path d="M9 7.5V6a3 3 0 0 1 6 0v1.5M4 12.5h16" {...stroke} />
+        </>
       )}
-    </span>
+    </svg>
   );
 }
 
@@ -78,12 +54,14 @@ function fmt(n: number): string {
   return n.toLocaleString('en-US');
 }
 
-/** "Up to 6 channels · 500 AI credits/mo" — null limits read as Unlimited. */
-function quotaLine(key: PlanKey): string {
-  const l = PLANS[key].limits;
-  const channels = l.channels === null ? 'Unlimited channels' : `Up to ${fmt(l.channels)} channels`;
-  const credits = l.aiCredits === null ? 'Unlimited AI credits' : `${fmt(l.aiCredits)} AI credits/mo`;
-  return `${channels} · ${credits}`;
+function channelsLine(key: PlanKey): string {
+  const c = PLANS[key].limits.channels;
+  return c === null ? 'Unlimited channels' : `Up to ${fmt(c)} channels`;
+}
+
+function creditsLine(key: PlanKey): string {
+  const c = PLANS[key].limits.aiCredits;
+  return c === null ? 'Unlimited AI credits' : `${fmt(c)} AI credits/mo`;
 }
 
 export default function PricingPlans({
@@ -105,7 +83,7 @@ export default function PricingPlans({
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.045)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_30%,transparent_75%)]"
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-8 md:pt-28 md:pb-10">
+      <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <p className="eyebrow">Pricing</p>
           <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-balance sm:text-5xl md:text-6xl">
@@ -149,106 +127,108 @@ export default function PricingPlans({
           </div>
         </div>
 
-        {/* Cards */}
-        <div className="mt-12 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Cards — pt-4 leaves room for the icon tiles poking above headers. */}
+        <div className="mt-10 grid grid-cols-1 items-stretch gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-4">
           {PLAN_ORDER.map((key, idx) => {
             const p = PLANS[key];
             const featured = !!p.featured;
+            const colors = CARD_COLORS[key as Exclude<PlanKey, 'ultimate'>];
             const ctaHref = key === 'free' ? '/login' : '/billing';
             const ctaLabel = key === 'free' ? 'Start free' : `Choose ${p.label}`;
-            const perMonth =
-              key === 'free' ? null : Math.round(monthlyEquivalent(key));
+            const perMonth = key === 'free' ? null : Math.round(monthlyEquivalent(key));
             const prevLabel = idx > 0 ? PLANS[PLAN_ORDER[idx - 1]].label : null;
             return (
-              <div
-                key={key}
-                className={`relative flex flex-col rounded-3xl p-6 transition-all duration-200 ${
-                  featured
-                    ? 'bg-ink text-paper shadow-[0_24px_60px_-24px_rgba(28,26,20,0.5)] lg:-my-3 lg:py-9'
-                    : 'border border-line bg-white/80 backdrop-blur-sm'
-                }`}
-              >
-                {featured ? (
-                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3.5 py-1.5 text-[11px] font-bold tracking-wide text-accent-ink uppercase">
-                    Most popular
-                  </span>
-                ) : null}
-
-                <PlanIcon plan={key} featured={featured} />
-
-                <p className={`mt-4 text-sm font-bold ${featured ? 'text-paper/70' : 'text-muted'}`}>
-                  {p.label}
-                </p>
-                <p className={`mt-1 text-[13px] leading-snug ${featured ? 'text-paper/60' : 'text-faint'}`}>
-                  {p.blurb}
-                </p>
-
-                <div className="mt-4 flex items-baseline gap-1.5">
-                  <span className={`font-display text-[44px] leading-none font-extrabold tracking-tight ${featured ? 'text-paper' : 'text-ink'}`}>
-                    {key === 'free' ? 'Free' : formatUsd(perMonth ?? 0)}
-                  </span>
-                  {perMonth !== null ? (
-                    <span className={`text-sm font-medium ${featured ? 'text-paper/60' : 'text-faint'}`}>/mo</span>
-                  ) : null}
-                </div>
-
-                {key === 'free' ? (
-                  <p className={`mt-2 text-xs ${featured ? 'text-paper/60' : 'text-faint'}`}>
-                    Free forever. No card needed.
-                  </p>
-                ) : interval === 'annual' ? (
-                  <p className={`mt-2 text-xs ${featured ? 'text-paper/60' : 'text-faint'}`}>
-                    Billed {formatUsd(priceFor(key, 'annual'))} yearly · save {annualSavingsPct(key)}%
-                  </p>
-                ) : (
-                  <p className={`mt-2 text-xs ${featured ? 'text-paper/60' : 'text-faint'}`}>
-                    Or {formatUsd(Math.round(monthlyEquivalent(key)))}/mo billed yearly (save {annualSavingsPct(key)}%)
-                  </p>
-                )}
-
-                <p className={`mt-4 border-t pt-4 text-[13px] font-bold ${featured ? 'border-paper/15 text-paper' : 'border-line text-ink'}`}>
-                  {quotaLine(key)}
-                </p>
-
-                {prevLabel ? (
-                  <p className={`mt-4 text-xs font-semibold ${featured ? 'text-paper/60' : 'text-faint'}`}>
-                    Everything in {prevLabel}, plus…
-                  </p>
-                ) : null}
-
-                <ul className="mt-3 flex-1 space-y-3">
-                  {p.points.map((pt) => (
-                    <li key={pt} className={`flex items-start gap-2.5 text-sm leading-relaxed ${featured ? 'text-paper/90' : 'text-soft'}`}>
-                      <Check featured={featured} />
-                      <span>{pt}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={ctaHref}
-                  className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.25)] active:translate-y-0 ${
-                    featured
-                      ? 'bg-accent text-accent-ink hover:bg-accent-bright'
-                      : 'border-2 border-ink/10 text-ink hover:border-ink'
-                  }`}
+              <article key={key} className="relative flex flex-col rounded-[28px] bg-[#f9f8f6] pb-7">
+                {/* Colored header */}
+                <header
+                  className="relative min-h-[136px] rounded-[28px_28px_20px_20px] px-4 pb-5 pt-[68px] text-white"
+                  style={{ backgroundColor: colors.plan }}
                 >
-                  {ctaLabel}
-                  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </Link>
-              </div>
+                  {/* Icon tile poking above */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-4 left-4 grid h-14 w-14 place-items-center rounded-[14px]"
+                    style={{ backgroundColor: colors.tile }}
+                  >
+                    <PlanGlyph plan={key} />
+                  </span>
+                  {featured ? (
+                    <span className="absolute right-3.5 top-3.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0d0d0d]">
+                      Most popular
+                    </span>
+                  ) : null}
+                  <p className="m-0 text-lg font-semibold leading-tight">{p.label}</p>
+                  <p className="m-0 mt-1 max-w-[30ch] text-sm leading-snug text-white/85">{p.blurb}</p>
+                </header>
+
+                {/* Body */}
+                <div className="flex flex-1 flex-col px-4 pt-6">
+                  <p className="m-0 font-display text-[28px] font-medium leading-none tracking-tight text-ink">
+                    {key === 'free' ? 'Free' : `${formatUsd(perMonth ?? 0)}/mo`}
+                  </p>
+                  <p className="mb-5 mt-1.5 flex items-center gap-1 text-xs text-ink">
+                    {key === 'free'
+                      ? 'Free forever. No card needed.'
+                      : interval === 'annual'
+                        ? `Billed ${formatUsd(priceFor(key, 'annual'))} yearly · save ${annualSavingsPct(key)}%`
+                        : `Billed monthly · or ${formatUsd(Math.round(monthlyEquivalent(key)))}/mo yearly (save ${annualSavingsPct(key)}%)`}
+                  </p>
+
+                  {/* Quota fields */}
+                  <div className="mb-6 grid gap-2">
+                    <div className="flex h-11 items-center gap-2.5 rounded-[10px] border border-[#dedcd7] bg-white px-3 text-sm text-ink">
+                      <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-[#3b82f6]" fill="currentColor" aria-hidden="true">
+                        <path d="M8 1c.4 3.6 1.9 5.6 6 7-4.1 1.4-5.6 3.4-6 7-.4-3.6-1.9-5.6-6-7 4.1-1.4 5.6-3.4 6-7Z" />
+                      </svg>
+                      {channelsLine(key)}
+                    </div>
+                    <div className="flex h-11 items-center gap-2.5 rounded-[10px] border border-[#dedcd7] bg-white px-3 text-sm text-ink">
+                      <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-[#3f9e6b]" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+                        <ellipse cx="6" cy="5" rx="4" ry="2" />
+                        <path d="M2 5v3c0 1.1 1.8 2 4 2s4-.9 4-2V5" />
+                        <path d="M6 10v1c0 1.1 1.8 2 4 2s4-.9 4-2V8c0-1.1-1.8-2-4-2" />
+                      </svg>
+                      {creditsLine(key)}
+                    </div>
+                  </div>
+
+                  {prevLabel ? (
+                    <p className="mb-2 text-xs italic text-[#5d5b57]">Everything in {prevLabel}, plus…</p>
+                  ) : null}
+
+                  <ul className="m-0 mb-8 grid list-none gap-1.5 p-0">
+                    {p.points.map((pt) => (
+                      <li key={pt} className="relative pl-3 text-xs leading-relaxed text-ink">
+                        <span aria-hidden="true" className="absolute left-0.5 top-[0.55em] h-[3px] w-[3px] rounded-full bg-[#8a8883]" />
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-auto flex flex-col items-center gap-3">
+                    <Link
+                      href={ctaHref}
+                      className={`inline-flex h-11 w-full items-center justify-center rounded-[10px] border text-sm font-medium transition-colors ${
+                        featured
+                          ? 'border-[#0d0d0d] bg-[#0d0d0d] text-white hover:bg-[#2a2a2a]'
+                          : 'border-[#0d0d0d] bg-white text-ink hover:bg-[#f1f0ed]'
+                      }`}
+                    >
+                      {ctaLabel}
+                    </Link>
+                    <Link href="#compare" className="text-sm text-ink underline underline-offset-[3px]">
+                      See full comparison
+                    </Link>
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
 
         <p className="mt-8 text-center text-xs text-faint">
           Prices in USD. Annual plans are billed once a year and give you two months free.
-          Cancel any time, keep your data.{' '}
-          <a href="#compare" className="font-bold text-ink hover:underline">
-            See full plan comparison
-          </a>
+          Cancel any time, keep your data.
         </p>
       </div>
     </section>
