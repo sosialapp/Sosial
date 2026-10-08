@@ -23,9 +23,15 @@ export default function PublishMonitor({
   >([]);
   const [note, setNote] = useState<string | null>(null);
   const autoClosed = useRef(false);
+  // The dialog opens early in "saving" state (postIds=[]) and receives the
+  // real ids a beat later WITHOUT remounting — so the poller must restart
+  // when the id set changes, or it watches [] forever ("Reading targets…").
+  const idsKey = postIds.join(',');
 
   useEffect(() => {
     if (!postIds.length) return; // Still saving — nothing to watch yet.
+    autoClosed.current = false;
+    setRows([]);
     const sb = createClient();
     let alive = true;
     async function poll() {
@@ -72,7 +78,7 @@ export default function PublishMonitor({
       clearInterval(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idsKey]);
 
   const pending = rows.filter((r) => ['pending', 'queued', 'publishing'].includes(r.status)).length;
   const sent = rows.filter((r) => r.status === 'sent').length;
