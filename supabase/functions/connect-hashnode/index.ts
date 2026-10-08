@@ -27,6 +27,16 @@ async function gql<T>(pat: string, query: string, variables: Record<string, unkn
     throw new Error("Could not reach Hashnode — check the connection and retry.");
   }
   const text = await res.text().catch(() => "");
+  // Since May 2026 Hashnode retired free API access: the endpoint 301s to an
+  // announcements page unless the publication is on a Pro plan. Detect the
+  // HTML redirect (fetch follows it to a 200) and say so plainly.
+  const ct = res.headers.get("content-type") ?? "";
+  if (!/json/i.test(ct) || /<!doctype html|<html/i.test(text.slice(0, 200))) {
+    throw new Error(
+      "Hashnode now requires a Pro plan on your publication for API access. " +
+        "Upgrade at your blog dashboard → Billing, then reconnect.",
+    );
+  }
   let json: { data?: T | null; errors?: { message?: string }[] } | null = null;
   try {
     json = text ? (JSON.parse(text) as typeof json) : null;
