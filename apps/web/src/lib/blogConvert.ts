@@ -39,7 +39,7 @@ export type DocBlock = {
 /** Minimal inline-md → rich text: **bold**, *italic*, [label](url). */
 export function parseInlineMd(text: string): RichInline[] {
   const out: RichInline[] = [];
-  const linkRe = /\[([^\]]+)\]\((https?:[^)\s]+)\)/g;
+  const linkRe = /\[([^\]]+)\]\(((?:https?:[^)\s]+)|(?:\/[^)\s]*))\)/g;
   const emph = (chunk: string): RichInline[] => {
     const nodes: RichInline[] = [];
     const re = /(\*\*.+?\*\*|\*[^*\n]+?\*)/g;

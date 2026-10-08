@@ -39,6 +39,16 @@ describe('legacyToTipTap', () => {
     expect(table.content?.[1].content?.[0].type).toBe('tableCell');
   });
 
+  it('internal links become link marks', () => {
+    const doc = legacyToTipTap([
+      { t: 'p', c: 'Delete it at [Request deletion](/delete-data).' },
+    ]);
+    expect(doc.content[0].content?.[1]?.marks?.[0]).toMatchObject({
+      type: 'link',
+      attrs: { href: '/delete-data' },
+    });
+  });
+
   it('images and videos map to image and embed nodes', () => {
     const doc = legacyToTipTap([
       { t: 'img', c: 'https://x/y.jpg', caption: 'Cap' },
