@@ -107,16 +107,16 @@ export default function LogoDock() {
               </p>
               <div
                 ref={toolsRef}
-                className="grid w-full max-w-[340px] grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
+                className="grid w-full max-w-[400px] grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1 sm:gap-3"
               >
                 {INTEGRATIONS.map((t) => (
                   <span key={t} className="block shrink-0 will-change-transform" title={t}>
-                    <SourceMark id={t} className="block h-7 w-7 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
+                    <SourceMark id={t} className="block h-6 w-6 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
                 {AGENTS.map((a) => (
                   <span key={a.id} className="block shrink-0 will-change-transform" title={`${a.label} — via MCP`}>
-                    <AiMark id={a.id} className="block h-7 w-7 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
+                    <AiMark id={a.id} className="block h-6 w-6 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
               </div>
@@ -132,11 +132,11 @@ export default function LogoDock() {
               </p>
               <div
                 ref={channelsRef}
-                className="grid w-full max-w-[340px] grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
+                className="grid w-full max-w-[400px] grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1 sm:gap-3"
               >
                 {CHANNELS.map((c) => (
                   <span key={c} className="block shrink-0 will-change-transform">
-                    <BrandIcon provider={c} className="h-7 w-7 sm:h-8 sm:w-8" />
+                    <BrandIcon provider={c} className="h-6 w-6 sm:h-8 sm:w-8" />
                   </span>
                 ))}
               </div>
