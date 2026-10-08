@@ -70,7 +70,7 @@ export default function PlanComparison() {
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.04)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_30%,#000_20%,transparent_75%)]"
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-14 md:py-20">
+      <div className="relative mx-auto max-w-6xl px-4 pt-2 pb-14 md:pb-20">
         <div className="flex justify-center">
           <button
             type="button"
