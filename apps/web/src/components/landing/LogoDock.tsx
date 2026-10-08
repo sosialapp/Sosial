@@ -99,14 +99,15 @@ export default function LogoDock() {
         <div className="flex justify-center">
           <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">
             {/* Integrate — tools that feed the composer plus the AI agents
-                that can operate Sosial through MCP: one tight 9×2 grid. */}
-            <div className="flex flex-col md:max-w-[340px]">
+                that can operate Sosial through MCP: one tight 9×2 grid.
+                Same flex footprint as Channels so the wall reads symmetric. */}
+            <div className="flex min-w-0 flex-1 flex-col items-center">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
                 Integrate
               </p>
               <div
                 ref={toolsRef}
-                className="grid grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
+                className="grid w-full max-w-[340px] grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
               >
                 {INTEGRATIONS.map((t) => (
                   <span key={t} className="block shrink-0 will-change-transform" title={t}>
@@ -124,14 +125,14 @@ export default function LogoDock() {
             {/* Divider: vertical on desktop, horizontal on mobile */}
             <div className="mx-auto h-px w-24 shrink-0 bg-line md:mx-0 md:h-24 md:w-px md:self-center" aria-hidden="true" />
 
-            {/* Channels — where posts land: one tight 9×2 grid like Integrate. */}
-            <div className="flex min-w-0 flex-1 flex-col">
+            {/* Channels — where posts land: same 9×2 footprint as Integrate. */}
+            <div className="flex min-w-0 flex-1 flex-col items-center">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
                 Channels
               </p>
               <div
                 ref={channelsRef}
-                className="grid grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
+                className="grid w-full max-w-[340px] grid-cols-9 items-end justify-items-center gap-2 overflow-visible px-1"
               >
                 {CHANNELS.map((c) => (
                   <span key={c} className="block shrink-0 will-change-transform">

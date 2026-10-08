@@ -283,7 +283,7 @@ export default function QuickPost({
           ) : null}
 
           {err ? (
-            <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDEBEC] px-3 py-2 dark:bg-[#2c1b1b]" role="alert">
+            <div className="mt-3 mb-2 flex items-start gap-2 rounded-xl bg-[#FDEBEC] px-3 py-2 dark:bg-[#2c1b1b]" role="alert">
               <p className="min-w-0 flex-1 whitespace-pre-line text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">
                 {err}
               </p>
