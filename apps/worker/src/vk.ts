@@ -38,6 +38,8 @@ async function vk<T>(token: string, method: string, params: Record<string, strin
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body,
+    // VK upload/API hosts occasionally stall; never hang a job forever.
+    signal: AbortSignal.timeout(30000),
   });
   const json = (await res.json().catch(() => null)) as (T & VkError) | null;
   const err = json?.error?.error_msg;
@@ -69,7 +71,11 @@ async function uploadWallPhoto(
   const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
   const form = new FormData();
   form.append('photo', new Blob([bytes as BlobPart], { type: mime }), `sosial.${ext}`);
-  const upRes = await fetch(uploadUrl, { method: 'POST', body: form });
+  const upRes = await fetch(uploadUrl, {
+    method: 'POST',
+    body: form,
+    signal: AbortSignal.timeout(60000), // photo bytes can take a while
+  });
   const up = (await upRes.json().catch(() => null)) as {
     server?: number;
     photo?: string;
