@@ -300,6 +300,11 @@ body {
     background: var(--color-bolt);
     color: var(--color-ink);
   }
+  /* Compact card-list actions — same pill language, small footprint. */
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.875rem;
+  }
   .btn-bolt:hover:not(:disabled) {
     background: var(--color-bolt-deep);
   }

@@ -290,11 +290,11 @@ function PreviewDialog({
           ) : null}
           <div className="mt-5 flex gap-2">
             {draftish && onEdit ? (
-              <button type="button" onClick={onEdit} className="btn btn-bolt">
+              <button type="button" onClick={onEdit} className="btn btn-sm btn-bolt">
                 Edit
               </button>
             ) : null}
-            <button type="button" onClick={onClose} className="btn btn-ghost">
+            <button type="button" onClick={onClose} className="btn btn-sm btn-ghost">
               Close
             </button>
           </div>
@@ -791,7 +791,7 @@ export default function PostList({
                   </span>
                   <span className="flex-1" />
                 <button
-                  className="btn btn-ghost"
+                  className="btn btn-sm btn-ghost"
                   type="button"
                   onClick={openPreview}
                 >
@@ -800,7 +800,7 @@ export default function PostList({
                 {canApprove && inApproval && (
                   <>
                     <button
-                      className="btn btn-bolt"
+                      className="btn btn-sm btn-bolt"
                       type="button"
                       disabled={busy}
                       onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
@@ -808,7 +808,7 @@ export default function PostList({
                       Approve{isChain ? ` (${ids.length})` : ''}
                     </button>
                     <button
-                      className="btn btn-ghost"
+                      className="btn btn-sm btn-ghost"
                       type="button"
                       disabled={busy}
                       onClick={() => askChanges(head)}
@@ -819,7 +819,7 @@ export default function PostList({
                 )}
                 {draftish && (
                   <button
-                    className="btn btn-ghost"
+                    className="btn btn-sm btn-ghost"
                     type="button"
                     disabled={busy}
                     onClick={() => {
@@ -832,7 +832,7 @@ export default function PostList({
                 )}
                 {canApprove && draftish && (
                   <button
-                    className="btn btn-ghost"
+                    className="btn btn-sm btn-ghost"
                     type="button"
                     disabled={busy}
                     onClick={() => runMany(g.key, ids, (sb, id) => publishPostNow(sb, id))}
@@ -842,7 +842,7 @@ export default function PostList({
                 )}
                 {!canApprove && draftish && (
                   <button
-                    className="btn btn-ghost"
+                    className="btn btn-sm btn-ghost"
                     type="button"
                     disabled={busy}
                     onClick={() =>
@@ -853,7 +853,7 @@ export default function PostList({
                   </button>
                 )}
                 <button
-                  className="btn btn-ghost"
+                  className="btn btn-sm btn-ghost"
                   type="button"
                   disabled={busy}
                   onClick={() => runMany(g.key, ids, (sb, id) => deletePost(sb, id))}
