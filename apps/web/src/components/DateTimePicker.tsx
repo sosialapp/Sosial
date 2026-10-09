@@ -259,7 +259,7 @@ function TimeField({
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto rounded-full bg-accent px-3 py-1 text-[11px] font-extrabold text-ink transition hover:bg-accent-bright"
+          className="ml-auto rounded-full bg-accent px-3 py-1 text-[11px] font-extrabold text-on-accent transition hover:bg-accent-bright"
         >
           Done
         </button>

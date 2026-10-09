@@ -183,7 +183,7 @@ export default function Dock() {
               <span
                 data-dock-icon
                 className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-colors duration-150 ${
-                  item.hero ? 'bg-accent text-ink shadow-[0_8px_20px_-8px_rgba(255,198,46,0.8)]' : ''
+                  item.hero ? 'bg-accent text-on-accent shadow-[0_8px_20px_-8px_rgba(255,198,46,0.8)]' : ''
                 } ${
                   item.hero
                     ? 'opacity-100'

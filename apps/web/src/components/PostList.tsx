@@ -596,7 +596,7 @@ export default function PostList({
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  tab === t.id ? 'bg-accent text-white' : 'bg-surface text-soft hover:bg-line'
+                  tab === t.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
                 }`}
               >
                 {t.label}
@@ -672,7 +672,7 @@ export default function PostList({
                           setChanSel((prev) => (on ? prev.filter((x) => x !== p) : [...prev, p]))
                         }
                         className={`flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold transition ${
-                          on ? 'bg-accent text-ink' : 'text-soft hover:bg-paper'
+                          on ? 'bg-accent text-on-accent' : 'text-soft hover:bg-paper'
                         }`}
                       >
                         <ChannelAvatar provider={p} size={20} />
@@ -712,7 +712,7 @@ export default function PostList({
                     aria-pressed={mediaSel === m}
                     onClick={() => setMediaSel(m)}
                     className={`rounded-xl px-2 py-1.5 text-xs font-bold capitalize transition ${
-                      mediaSel === m ? 'bg-accent text-ink' : 'text-soft hover:bg-paper'
+                      mediaSel === m ? 'bg-accent text-on-accent' : 'text-soft hover:bg-paper'
                     }`}
                   >
                     {m}
@@ -1045,7 +1045,7 @@ export default function PostList({
                     onClick={() => setPage(n)}
                     aria-current={n === safePage ? 'page' : undefined}
                     className={`h-8 w-8 rounded-full text-xs font-bold transition ${
-                      n === safePage ? 'bg-accent text-white' : 'border border-line bg-card text-soft hover:bg-bone'
+                      n === safePage ? 'bg-accent text-on-accent' : 'border border-line bg-card text-soft hover:bg-bone'
                     }`}
                   >
                     {n}

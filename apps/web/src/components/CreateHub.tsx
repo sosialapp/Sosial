@@ -872,7 +872,7 @@ export default function CreateHub({
           onClick={() => router.push('/post', { scroll: false })}
           className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
             view === 'create' || statusView !== null
-              ? 'border-accent bg-accent text-ink'
+              ? 'border-accent bg-accent text-on-accent'
               : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
@@ -884,7 +884,7 @@ export default function CreateHub({
           aria-selected={view === 'templates'}
           onClick={() => router.push('/post-templates', { scroll: false })}
           className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-            view === 'templates' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+            view === 'templates' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
           Templates
@@ -895,7 +895,7 @@ export default function CreateHub({
           aria-selected={view === 'ideas'}
           onClick={() => router.push('/post-ideas', { scroll: false })}
           className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-            view === 'ideas' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+            view === 'ideas' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
           Ideas
@@ -911,7 +911,7 @@ export default function CreateHub({
             onClick={() => goFilter(null)}
             className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
               view === 'create'
-                ? 'border-accent bg-accent text-ink'
+                ? 'border-accent bg-accent text-on-accent'
                 : 'border-line bg-card text-muted hover:bg-paper'
             }`}
           >
@@ -928,7 +928,7 @@ export default function CreateHub({
                 onClick={() => goFilter(s)}
                 className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
                   statusView === s
-                    ? 'border-accent bg-accent text-ink'
+                    ? 'border-accent bg-accent text-on-accent'
                     : 'border-line bg-card text-muted hover:bg-paper'
                 }`}
               >

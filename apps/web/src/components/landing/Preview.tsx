@@ -81,7 +81,7 @@ export function CalendarPreview() {
             <div key={key} className={`min-h-[84px] bg-card p-1.5 ${inMonth ? '' : 'bg-bone/40'}`}>
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
-                  isToday ? 'bg-accent text-white' : inMonth ? 'text-soft' : 'text-faint'
+                  isToday ? 'bg-accent text-on-accent' : inMonth ? 'text-soft' : 'text-faint'
                 }`}
               >
                 {day.getDate()}

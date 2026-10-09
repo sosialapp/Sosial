@@ -393,7 +393,7 @@ export default function Composer({
                 aria-selected={kind === k}
                 onClick={() => setKind(k)}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                  kind === k ? 'bg-accent text-white' : 'text-muted hover:text-ink'
+                  kind === k ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
                 }`}
               >
                 {k === 'single' ? 'Single' : 'Chain'}
@@ -659,7 +659,7 @@ export default function Composer({
                     setMode(m.id);
                   }}
                   className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    mode === m.id ? 'bg-accent text-white' : 'bg-surface text-soft hover:bg-line'
+                    mode === m.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
                   }`}
                 >
                   {m.label}

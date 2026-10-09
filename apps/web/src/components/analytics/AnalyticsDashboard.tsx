@@ -505,7 +505,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             aria-pressed={preset === p.id}
             onClick={() => setPreset(p.id)}
             className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-              preset === p.id ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+              preset === p.id ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
             }`}
           >
             {p.label}
@@ -518,7 +518,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               aria-pressed={preset === 'custom'}
               onClick={() => setPreset('custom')}
               className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition ${
-                preset === 'custom' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+                preset === 'custom' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
               }`}
             >
               <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
@@ -547,7 +547,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                   setPreset('custom');
                   setCalOpen(false);
                 }}
-                className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-ink transition hover:bg-accent-bright"
+                className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-on-accent transition hover:bg-accent-bright"
               >
                 Apply
               </button>
@@ -563,7 +563,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           aria-pressed={chanSel.length === 0}
           onClick={() => setChanSel([])}
           className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-            chanSel.length === 0 ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+            chanSel.length === 0 ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
           All channels
@@ -585,9 +585,9 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             >
               <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
               <span className="flex min-w-0 max-w-40 flex-col leading-tight">
-                <span className={`truncate text-xs font-bold ${on ? 'text-ink' : 'text-soft'}`}>{name}</span>
+                <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
                 {handle ? (
-                  <span className={`truncate text-[10px] ${on ? 'text-ink/70' : 'text-faint'}`}>{handle}</span>
+                  <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
                 ) : null}
               </span>
             </button>

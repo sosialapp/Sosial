@@ -547,7 +547,7 @@ export default function CalendarBoard({
                       <div className="mb-1 flex items-center justify-between">
                         <span
                           className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                            isDayToday ? 'bg-accent text-white' : 'text-muted'
+                            isDayToday ? 'bg-accent text-on-accent' : 'text-muted'
                           }`}
                         >
                           {day.getDate()}
@@ -624,7 +624,7 @@ export default function CalendarBoard({
                             </span>
                             <span
                               className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                                isDayToday ? 'bg-accent text-white' : 'text-ink'
+                                isDayToday ? 'bg-accent text-on-accent' : 'text-ink'
                               }`}
                             >
                               {day.getDate()}
@@ -771,7 +771,7 @@ export default function CalendarBoard({
                             }}
                             aria-label={`Select ${day.key}`}
                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition hover:ring-2 hover:ring-accent ${
-                              isT ? 'bg-accent text-white' : 'bg-paper-dim text-ink'
+                              isT ? 'bg-accent text-on-accent' : 'bg-paper-dim text-ink'
                             }`}
                           >
                             {day.date.getDate()}

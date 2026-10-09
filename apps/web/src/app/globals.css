@@ -29,6 +29,10 @@ html {
   --color-accent-bright: #F2A400;
   --color-accent-ink: #1C1A14;
   --color-accent-soft: #FDF3D7;
+  /* Text on top of bolt/accent fills — pinned dark in BOTH themes (unlike
+   * --color-ink, which flips to near-white in .theme-dark and would vanish
+   * on the bright yellow). Never override this inside .theme-dark. */
+  --color-on-accent: #1C1A14;
 
   /* Dashboard dark surfaces. */
   --color-night: #141210;
@@ -298,7 +302,7 @@ body {
   }
   .btn-bolt {
     background: var(--color-bolt);
-    color: var(--color-ink);
+    color: var(--color-on-accent);
   }
   /* Compact card-list actions — same pill language, small footprint. */
   .btn-sm {

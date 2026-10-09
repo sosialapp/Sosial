@@ -268,7 +268,7 @@ export default async function DashboardPage() {
                       </span>
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full font-display text-xs font-extrabold ${
-                          isToday ? 'bg-accent text-white' : 'text-ink'
+                          isToday ? 'bg-accent text-on-accent' : 'text-ink'
                         }`}
                       >
                         {d.getDate()}

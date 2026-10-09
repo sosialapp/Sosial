@@ -38,9 +38,9 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         day: 'p-0 text-center align-middle',
         day_button:
           'mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-ink transition hover:bg-bone focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-        range_start: 'rounded-l-full bg-accent-soft [&_button]:bg-accent [&_button]:text-ink [&_button:hover]:bg-accent',
+        range_start: 'rounded-l-full bg-accent-soft [&_button]:bg-accent [&_button]:text-on-accent [&_button:hover]:bg-accent',
         range_middle: 'bg-accent-soft [&_button:hover]:bg-bone',
-        range_end: 'rounded-r-full bg-accent-soft [&_button]:bg-accent [&_button]:text-ink [&_button:hover]:bg-accent',
+        range_end: 'rounded-r-full bg-accent-soft [&_button]:bg-accent [&_button]:text-on-accent [&_button:hover]:bg-accent',
         today: '[&_button]:ring-1 [&_button]:ring-line',
         outside: 'text-faint opacity-40',
         disabled: 'text-faint opacity-40',
