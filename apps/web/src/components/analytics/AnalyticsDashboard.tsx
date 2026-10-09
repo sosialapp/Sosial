@@ -9,7 +9,6 @@ import ChannelAvatar from '@/components/ChannelAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { Drawer } from '@/components/ui/drawer';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip } from '@/components/ui/tooltip';
 import { HBarList } from '@/components/ui/chart';
@@ -453,14 +452,48 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             How you&apos;re doing
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={() => setExportOpen(true)}
-          className="btn btn-sm btn-bolt"
-        >
-          <Download className="h-3.5 w-3.5" aria-hidden="true" />
-          Export
-        </button>
+        <Popover open={exportOpen} onOpenChange={setExportOpen}>
+          <PopoverTrigger asChild>
+            <button type="button" className="btn btn-sm btn-bolt">
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              Export
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2" align="end">
+            <p className="px-2 pt-1 pb-2 text-[11px] font-extrabold uppercase tracking-wide text-faint">
+              Export report
+            </p>
+            <div className="space-y-1">
+              <ExportOption
+                icon={<FileText className="h-4 w-4" aria-hidden="true" />}
+                title="CSV"
+                subtitle="Channel + top-post tables"
+                onClick={() => {
+                  exportCsv();
+                  setExportOpen(false);
+                }}
+              />
+              <ExportOption
+                icon={<Download className="h-4 w-4" aria-hidden="true" />}
+                title="Markdown"
+                subtitle="Full report with tables"
+                onClick={() => {
+                  exportMarkdown();
+                  setExportOpen(false);
+                }}
+              />
+              <ExportOption
+                icon={<FileDown className="h-4 w-4" aria-hidden="true" />}
+                title="PDF"
+                subtitle="Print-ready — save as PDF"
+                onClick={() => {
+                  exportPdf();
+                  setExportOpen(false);
+                }}
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Range + channel controls */}
@@ -822,43 +855,6 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           Create a post
         </Link>
       </Card>
-
-      <Drawer
-        open={exportOpen}
-        onOpenChange={setExportOpen}
-        title="Export report"
-        description={`${range.label}${chanSel.length ? ` · ${chanSelLabels().join(', ')}` : ' · all channels'}`}
-      >
-        <div className="space-y-2.5">
-          <ExportOption
-            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
-            title="CSV"
-            subtitle="Channel + top-post tables as a spreadsheet"
-            onClick={() => {
-              exportCsv();
-              setExportOpen(false);
-            }}
-          />
-          <ExportOption
-            icon={<Download className="h-5 w-5" aria-hidden="true" />}
-            title="Markdown"
-            subtitle="Full report with summary and tables"
-            onClick={() => {
-              exportMarkdown();
-              setExportOpen(false);
-            }}
-          />
-          <ExportOption
-            icon={<FileDown className="h-5 w-5" aria-hidden="true" />}
-            title="PDF"
-            subtitle="Opens a print-ready report — save as PDF"
-            onClick={() => {
-              exportPdf();
-              setExportOpen(false);
-            }}
-          />
-        </div>
-      </Drawer>
     </div>
   );
 }
@@ -878,12 +874,12 @@ function ExportOption({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper-dim p-4 text-left transition hover:border-accent hover:bg-accent-soft"
+      className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-paper-dim"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card text-ink">{icon}</span>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper-dim text-ink">{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-extrabold text-ink">{title}</span>
-        <span className="block text-xs text-muted">{subtitle}</span>
+        <span className="block text-xs font-extrabold text-ink">{title}</span>
+        <span className="block truncate text-[11px] text-muted">{subtitle}</span>
       </span>
     </button>
   );
