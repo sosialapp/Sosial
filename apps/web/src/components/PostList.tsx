@@ -860,7 +860,7 @@ export default function PostList({
                 {cardMedia.length > 0 && (
                   <div
                     className={`mt-2.5 gap-1 px-4 ${
-                      cardMedia.length === 1 ? '' : cardMedia.length === 2 ? 'grid grid-cols-2' : 'grid grid-cols-2'
+                      cardMedia.length === 1 ? 'max-w-[380px]' : 'grid max-w-[380px] grid-cols-2'
                     }`}
                   >
                     {cardMedia.slice(0, 4).map((m) =>
@@ -871,27 +871,25 @@ export default function PostList({
                           muted
                           playsInline
                           controls
-                          className={`w-full rounded-2xl border border-line bg-bone object-cover ${
-                            cardMedia.length === 1 ? 'max-h-[520px]' : 'aspect-square'
+                          className={`w-full rounded-xl border border-line bg-bone object-cover ${
+                            cardMedia.length === 1 ? 'aspect-square' : 'aspect-square'
                           }`}
                         />
                       ) : m.signed_url || m.thumb_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           key={m.id}
-                          src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.lg) : m.thumb_url ?? undefined}
+                          src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.sm) : m.thumb_url ?? undefined}
                           alt=""
                           loading="lazy"
-                          className={`w-full rounded-2xl border border-line bg-bone object-cover ${
-                            cardMedia.length === 1 ? 'max-h-[520px]' : 'aspect-square'
+                          className={`w-full rounded-xl border border-line bg-bone object-cover ${
+                            cardMedia.length === 1 ? 'aspect-square' : 'aspect-square'
                           }`}
                         />
                       ) : (
                         <span
                           key={m.id}
-                          className={`flex items-center justify-center rounded-2xl border border-line bg-bone text-[10px] text-faint ${
-                            cardMedia.length === 1 ? 'h-40' : 'aspect-square'
-                          }`}
+                          className="flex aspect-square items-center justify-center rounded-xl border border-line bg-bone text-[10px] text-faint"
                         >
                           {m.kind}
                         </span>
