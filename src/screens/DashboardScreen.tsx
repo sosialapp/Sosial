@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIn
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T, R } from '../theme';
 import { AvatarButton } from '../components/ProfileMenu';
+import { Card, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui-kit';
 import ConnectButton from '../components/ConnectButton';
 import { loadManagedPosts, ManagedPost } from '../utils/managed';
 import { loadMetaState, connectedChannelIds, loadAccounts } from '../utils/metaStore';
@@ -149,13 +150,13 @@ export default function DashboardScreen({ team, email, onProfile, onConnect, onP
         {/* stat tiles */}
         <View style={s.tiles}>
           {tiles.map((t) => (
-            <View key={t.label} style={s.tile}>
+            <Card key={t.label} style={s.tile}>
               <View style={[s.tileIcon, { backgroundColor: `${t.tint}1A` }]}>
                 <Ionicons name={t.icon as any} size={16} color={t.tint} />
               </View>
               <Text style={s.tileV}>{t.value}</Text>
               <Text style={s.tileL}>{t.label}</Text>
-            </View>
+            </Card>
           ))}
         </View>
 
@@ -195,19 +196,27 @@ export default function DashboardScreen({ team, email, onProfile, onConnect, onP
               <Text style={s.secT}>Up next</Text>
               <Text style={s.secCount}>{String(queued.length).padStart(2, '0')}</Text>
             </View>
-            <View>
-              {upcoming.map((u) => (
-                <TouchableOpacity key={u.id} onPress={onPost} style={s.row} activeOpacity={0.7}>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={s.rowT} numberOfLines={1}>{u.title || 'Untitled'}</Text>
-                    <Text style={s.rowS} numberOfLines={1}>
-                      {u.scheduledAt ? fmtDateTime(u.scheduledAt) : ''} · {platformsLabel(u.platforms ?? ['any'])}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={C.faint} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Card style={{ marginTop: 12, padding: 0 }} padded={false}>
+              <Table>
+                <TableHeader>
+                  <TableHead flex={3}>Post</TableHead>
+                  <TableHead flex={2} align="right">When</TableHead>
+                </TableHeader>
+                <TableBody>
+                  {upcoming.map((u, i) => (
+                    <TableRow key={u.id} last={i === upcoming.length - 1} onPress={onPost}>
+                      <TableCell flex={3}>
+                        <Text style={s.rowT} numberOfLines={1}>{u.title || 'Untitled'}</Text>
+                        <Text style={s.rowS} numberOfLines={1}>{platformsLabel(u.platforms ?? ['any'])}</Text>
+                      </TableCell>
+                      <TableCell flex={2} align="right">
+                        <Text style={s.rowS} numberOfLines={1}>{u.scheduledAt ? fmtDateTime(u.scheduledAt) : '—'}</Text>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
           </View>
         ) : null}
 
@@ -217,22 +226,27 @@ export default function DashboardScreen({ team, email, onProfile, onConnect, onP
             <View style={s.secHead}>
               <Text style={s.secT}>Recent activity</Text>
             </View>
-            <View>
-              {recent.map((p) => (
-                <TouchableOpacity key={p.id} onPress={onPost} style={s.row} activeOpacity={0.7}>
-                  <View style={[s.sentDot, { backgroundColor: '#12914a' }]}>
-                    <Ionicons name="checkmark" size={12} color="#fff" />
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={s.rowT} numberOfLines={1}>{p.title || 'Untitled'}</Text>
-                    <Text style={s.rowS} numberOfLines={1}>
-                      Posted {p.sentAt ? timeAgo(p.sentAt) : ''} · {platformsLabel(p.platforms ?? ['any'])}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={C.faint} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Card style={{ marginTop: 12, padding: 0 }} padded={false}>
+              <Table>
+                <TableHeader>
+                  <TableHead flex={3}>Post</TableHead>
+                  <TableHead flex={2} align="right">Sent</TableHead>
+                </TableHeader>
+                <TableBody>
+                  {recent.map((p, i) => (
+                    <TableRow key={p.id} last={i === recent.length - 1} onPress={onPost}>
+                      <TableCell flex={3}>
+                        <Text style={s.rowT} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+                        <Text style={s.rowS} numberOfLines={1}>{platformsLabel(p.platforms ?? ['any'])}</Text>
+                      </TableCell>
+                      <TableCell flex={2} align="right">
+                        <Text style={s.rowS} numberOfLines={1}>{p.sentAt ? timeAgo(p.sentAt) : '—'}</Text>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
           </View>
         ) : null}
       </ScrollView>
@@ -258,8 +272,6 @@ const makeS = (C: Palette) => StyleSheet.create({
   secHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', borderBottomWidth: 1.5, borderBottomColor: C.ink, paddingBottom: 10 },
   secT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, letterSpacing: -0.4, color: C.ink },
   secCount: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accent },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.line },
   rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, letterSpacing: -0.2, color: C.ink },
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
-  sentDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

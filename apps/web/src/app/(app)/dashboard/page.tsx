@@ -7,6 +7,15 @@ import { channelAvatar } from '@/lib/channelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
 import QuickPost from '@/components/QuickPost';
 import PostPeek from '@/components/PostPeek';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { providerMeta } from '@/lib/providers';
 import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
@@ -68,7 +77,7 @@ function StatTile({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="card border border-line p-4 sm:p-5">
+    <Card className="p-4 sm:p-5">
       <div className="flex items-center gap-2.5">
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
@@ -81,7 +90,7 @@ function StatTile({
       </div>
       <p className="mt-3 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{value}</p>
       <p className="mt-1 text-[11px] text-faint">{sub}</p>
-    </div>
+    </Card>
   );
 }
 
@@ -225,7 +234,7 @@ export default async function DashboardPage() {
           />
 
           {/* Week calendar */}
-          <section className="card overflow-hidden border border-line p-5" aria-label="Content calendar">
+          <Card className="overflow-hidden p-5" aria-label="Content calendar">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>
               <p className="text-xs text-muted">{rangeLabel}</p>
@@ -317,13 +326,13 @@ export default async function DashboardPage() {
                 ))}
               </div>
             </div>
-          </section>
+          </Card>
         </div>
 
         {/* Right rail */}
         <div className="flex flex-col gap-4">
           {/* Recent activity */}
-          <section className="card border border-line p-5" aria-label="Recent activity">
+          <Card className="p-5" aria-label="Recent activity">
             <div className="flex items-center justify-between">
               <p className="font-display text-base font-extrabold tracking-tight">Recent activity</p>
               <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
@@ -368,46 +377,59 @@ export default async function DashboardPage() {
                 })}
               </ul>
             )}
-          </section>
+          </Card>
 
           {/* Upcoming */}
-          <section className="card border border-line p-5" aria-label="Upcoming posts">
-            <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Upcoming posts</p>
-              <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
-                View all
-              </Link>
-            </div>
-            {upcoming.length === 0 ? (
-              <p className="mt-4 text-sm text-muted">Nothing scheduled right now.</p>
-            ) : (
-              <ul className="mt-3 divide-y divide-line-soft">
-                {upcoming.map((p) => {
-                  const t0 = p.post_targets?.[0];
-                  const pv = t0?.provider ?? 'instagram';
-                  const meta = providerMeta(pv);
-                  return (
-                    <li key={p.id} className="flex items-center gap-3 py-2.5">
-                      <ChannelAvatar
-                        provider={pv}
-                        avatar={t0 ? avatarOf(t0.channel_id) : undefined}
-                        size={40}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[11px] font-bold text-ink">
-                          {meta.label}
-                        </span>
-                        <span className="mt-0.5 block truncate text-xs font-bold">{p.title || 'Untitled post'}</span>
-                        <span className="block text-[11px] text-faint">
-                          {fmtDay(p.scheduled_at)}, {fmtTime(p.scheduled_at)}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+          <Card aria-label="Upcoming posts">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Upcoming posts</CardTitle>
+                <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
+                  View all
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              {upcoming.length === 0 ? (
+                <p className="text-sm text-muted">Nothing scheduled right now.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-0" />
+                      <TableHead>Post</TableHead>
+                      <TableHead className="text-right">When</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {upcoming.map((p) => {
+                      const t0 = p.post_targets?.[0];
+                      const pv = t0?.provider ?? 'instagram';
+                      const meta = providerMeta(pv);
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="w-0 pr-0">
+                            <ChannelAvatar
+                              provider={pv}
+                              avatar={t0 ? avatarOf(t0.channel_id) : undefined}
+                              size={32}
+                            />
+                          </TableCell>
+                          <TableCell className="min-w-0">
+                            <span className="block truncate text-[11px] font-bold text-muted">{meta.label}</span>
+                            <span className="block truncate text-xs font-bold">{p.title || 'Untitled post'}</span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-right text-[11px] text-faint">
+                            {fmtDay(p.scheduled_at)}, {fmtTime(p.scheduled_at)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Analytics snapshot */}
           <AnalyticsCard
@@ -427,7 +449,7 @@ export default async function DashboardPage() {
             const total = failed.length + approvals.length + sick.length;
             if (total === 0) return null;
             return (
-              <section className="card border border-line p-5" aria-label="Needs attention">
+              <Card className="p-5" aria-label="Needs attention">
                 <p className="font-display text-base font-extrabold tracking-tight">Needs attention</p>
                 <ul className="mt-3 space-y-2 text-sm">
                   {failed.slice(0, 2).map((p) => (
@@ -454,7 +476,7 @@ export default async function DashboardPage() {
                     </li>
                   ))}
                 </ul>
-              </section>
+              </Card>
             );
           })()}
         </div>

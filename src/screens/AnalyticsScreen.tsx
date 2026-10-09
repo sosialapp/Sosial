@@ -6,7 +6,8 @@ import { AvatarButton } from '../components/ProfileMenu';
 import { SocialGlyph } from '../components/ui';
 import ChannelDrawer from '../components/ChannelDrawer';
 import CommunityScreen from './CommunityScreen';
-import { AreaChart, BarsChart } from '../components/charts';
+import { AreaChart, BarsChart, HBarList } from '../components/charts';
+import { Card, CardTitle, CardDescription, Tabs } from '../components/ui-kit';
 import { SOCIAL_META } from '../constants';
 import { loadMetaState, loadAccounts, MetaState } from '../utils/metaStore';
 import { schedulableProviders } from '../utils/socialAccounts';
@@ -290,15 +291,15 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
           <AvatarButton email={email} team={team} onPress={onProfile} />
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 24, marginTop: 14 }}>
-          {(['analytics', 'community'] as const).map((v) => {
-            const on = view === v;
-            return (
-              <TouchableOpacity key={v} onPress={() => setView(v)} style={[s.range, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                <Text style={[s.rangeT, on && { color: C.onInk }]}>{v === 'analytics' ? 'Analytics' : 'Community'}</Text>
-              </TouchableOpacity>
-            );
-          })}
+        <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
+          <Tabs
+            options={[
+              { value: 'analytics', label: 'Analytics' },
+              { value: 'community', label: 'Community' },
+            ]}
+            value={view}
+            onChange={setView}
+          />
         </View>
 
         {view === 'analytics' ? (
@@ -356,7 +357,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
             {/* KPI grid */}
             <View style={[s.kpiWrap, { paddingHorizontal: 24 }]}>
               {kpis.map((k) => (
-                <View key={k.label} style={s.kpi}>
+                <Card key={k.label} style={s.kpi}>
                   <Text style={s.kpiLabel}>{k.label}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                     <Text style={s.kpiVal}>{k.value}</Text>
@@ -365,16 +366,16 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
                     ) : null}
                   </View>
                   <Text style={[s.kpiSub, k.tone === 'up' && { color: C.greenText }, k.tone === 'down' && { color: C.redText }]} numberOfLines={2}>{k.sub}</Text>
-                </View>
+                </Card>
               ))}
             </View>
 
             {/* follower growth */}
             {combined.length >= 2 ? (
               <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
-                <View style={s.card}>
+                <Card>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={s.cardT}>Follower growth</Text>
+                    <CardTitle>Follower growth</CardTitle>
                     {hasDelta ? (
                       <Text style={[s.deltaT, { color: followerDelta >= 0 ? C.greenText : C.redText }]}>
                         {followerDelta >= 0 ? '+' : ''}{compact(followerDelta)}
@@ -382,78 +383,89 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
                     ) : null}
                   </View>
                   <View style={{ marginTop: 14 }}>
-                    <AreaChart data={combined.map((p) => p.value)} color={C.accent} height={96} />
+                    <AreaChart
+                      data={combined.map((p) => p.value)}
+                      color={C.accent}
+                      height={96}
+                      gridLines={3}
+                      interactive
+                      labels={combined.map((p) => new Date(p.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}
+                      formatValue={full}
+                    />
                   </View>
-                  <Text style={s.cardS}>{rangeLabel} · total across connected channels</Text>
-                </View>
+                  <CardDescription>{rangeLabel} · total across connected channels</CardDescription>
+                </Card>
               </View>
             ) : null}
 
             {/* engagement over time */}
             <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-              <View style={s.card}>
-                <Text style={s.cardT}>Engagement over time</Text>
+              <Card>
+                <CardTitle>Engagement over time</CardTitle>
                 <View style={{ marginTop: 14 }}>
-                  <BarsChart data={eng.values} color={C.accent} height={84} />
+                  <BarsChart
+                    data={eng.values}
+                    color={C.accent}
+                    height={84}
+                    gridLines={3}
+                    interactive
+                    labels={eng.labels}
+                    highlightIndex={eng.values.reduce((best, v, i) => (v > eng.values[best] ? i : best), 0)}
+                    formatValue={compact}
+                  />
                 </View>
-                <Text style={s.cardS}>
-                  Likes, comments & shares per {rbEnd - rbStart > 31 * 86400000 ? 'week' : 'day'} · {compact(eng.values.reduce((a, b) => a + b, 0))} total
+                <CardDescription>
+                  Likes, comments &amp; shares per {rbEnd - rbStart > 31 * 86400000 ? 'week' : 'day'} · {compact(eng.values.reduce((a, b) => a + b, 0))} total
                   {eng.bestLabel ? ` · peak ${eng.bestLabel} (${compact(eng.bestValue)})` : ''}
-                </Text>
-              </View>
+                </CardDescription>
+              </Card>
             </View>
 
             {/* channel leaderboard */}
             {rank.length >= 2 ? (
               <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <View style={s.card}>
-                  <Text style={s.cardT}>Channel leaderboard</Text>
-                  <Text style={[s.cardS, { marginTop: 2, marginBottom: 10 }]}>Average interactions per post</Text>
-                  {rank.map((r, i) => {
-                    const brand = SOCIAL_META[r.channel]?.bg ?? C.ink;
-                    const name = SOCIAL_META[r.channel]?.label ?? r.channel;
-                    return (
-                      <View key={r.channel} style={s.rankRow}>
-                        <Text style={s.rankNo}>{String(i + 1).padStart(2, '0')}</Text>
-                        <View style={{ flex: 1, gap: 6 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <View style={[s.leadTile, { backgroundColor: brand }]}>
-                              <SocialGlyph platform={r.channel} size={11} color="#fff" />
-                            </View>
-                            <Text style={s.barT} numberOfLines={1}>{name}</Text>
-                            <Text style={s.microT}>{r.posts} post{r.posts === 1 ? '' : 's'}</Text>
-                          </View>
-                          <View style={s.track}>
-                            <View style={[s.trackFill, { width: `${Math.max(4, (r.avg / maxAvg) * 100)}%`, backgroundColor: brand }]} />
-                          </View>
-                        </View>
-                        <Text style={s.barV}>{compact(Math.round(r.avg * 10) / 10)}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
+                <Card>
+                  <CardTitle>Channel leaderboard</CardTitle>
+                  <CardDescription>Average interactions per post</CardDescription>
+                  <View style={{ marginTop: 12 }}>
+                    <HBarList
+                      rows={rank.map((r) => ({
+                        label: SOCIAL_META[r.channel]?.label ?? r.channel,
+                        value: Math.round(r.avg * 10) / 10,
+                        color: SOCIAL_META[r.channel]?.bg ?? C.ink,
+                        sub: `${r.posts} post${r.posts === 1 ? '' : 's'}`,
+                      }))}
+                      max={maxAvg}
+                      formatValue={compact}
+                    />
+                  </View>
+                </Card>
               </View>
             ) : null}
 
             {/* best time to post */}
             {posts.length >= 3 ? (
               <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <View style={s.card}>
-                  <Text style={s.cardT}>Best time to post</Text>
-                  <Text style={[s.cardS, { marginTop: 2 }]}>
+                <Card>
+                  <CardTitle>Best time to post</CardTitle>
+                  <CardDescription>
                     {week.bestIdx >= 0
                       ? `Posts land best on ${DAY_FULL[week.bestIdx]}s — ${compact(Math.round(week.avgs[week.bestIdx] * 10) / 10)} avg interactions`
                       : 'No posted days in this range.'}
-                  </Text>
+                  </CardDescription>
                   <View style={{ marginTop: 14 }}>
-                    <BarsChart data={week.avgs} color={C.soft} height={64} barGap={10} />
+                    <BarsChart
+                      data={week.avgs}
+                      color={C.soft}
+                      height={64}
+                      barGap={10}
+                      labels={DAY_NAMES}
+                      highlightIndex={week.bestIdx}
+                      interactive
+                      formatValue={compact}
+                    />
                   </View>
-                  <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                    {DAY_NAMES.map((d, i) => (
-                      <Text key={d} style={[s.dayLab, i === week.bestIdx && { color: C.accent, fontFamily: 'PlusJakartaSans_700Bold' }]}>{d[0]}</Text>
-                    ))}
-                  </View>
-                </View>
+                </Card>
               </View>
             ) : null}
 
@@ -469,6 +481,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
               if (c.posts > 0) bits.push(`${compact(Math.round((channelScore(c) / c.posts) * 10) / 10)} avg/post`);
               return (
                 <View key={c.channel} style={{ paddingHorizontal: 24, marginTop: 30 }}>
+                  <Card>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <View style={[s.tile, { backgroundColor: brand }]}>
                       <SocialGlyph platform={c.channel} size={17} color="#fff" />
@@ -509,15 +522,16 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
 
                   {c.followerSeries && c.followerSeries.length >= 2 ? (
                     <View style={{ marginTop: 14 }}>
-                      <AreaChart data={c.followerSeries.map((p) => p.value)} color={brand} height={60} />
+                      <AreaChart data={c.followerSeries.map((p) => p.value)} color={brand} height={60} gridLines={2} interactive formatValue={full} />
                     </View>
                   ) : scores.length > 0 ? (
                     <View style={{ marginTop: 14 }}>
-                      <BarsChart data={scores.slice(0, 14)} color={brand} height={48} />
+                      <BarsChart data={scores.slice(0, 14)} color={brand} height={48} gridLines={2} interactive formatValue={compact} />
                     </View>
                   ) : null}
                   {bits.length ? <Text style={s.statStrip}>{bits.join('  ·  ')}</Text> : null}
                   {c.note ? <Text style={s.note}>{c.note}</Text> : null}
+                  </Card>
                 </View>
               );
             })}
@@ -528,31 +542,22 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
               {bars.length === 0 ? (
                 <Text style={s.hint}>No posts in this range yet.</Text>
               ) : (
-                <View style={{ marginTop: 4 }}>
-                  {bars.map((b, i) => {
-                    const brand = SOCIAL_META[b.channel]?.bg ?? C.ink;
-                    const metaBits = [`${compact(b.likes)} likes`, `${compact(b.comments)} comments`];
-                    if ((b.shares ?? 0) > 0) metaBits.push(`${compact(b.shares ?? 0)} shares`);
-                    if (b.views !== null) metaBits.push(`${compact(b.views)} views`);
-                    return (
-                      <View key={`${b.channel}-${b.id}`} style={s.rankRow}>
-                        <Text style={s.rankNo}>{String(i + 1).padStart(2, '0')}</Text>
-                        <View style={{ flex: 1, gap: 5 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                            <View style={[s.dot, { backgroundColor: brand }]} />
-                            <Text style={s.barT} numberOfLines={1}>{b.title}</Text>
-                          </View>
-                          <View style={s.track}>
-                            <View style={[s.trackFill, { width: `${Math.max(4, (b.score / maxScore) * 100)}%`, backgroundColor: brand }]} />
-                          </View>
-                          <Text style={s.metaLine} numberOfLines={1}>
-                            {metaBits.join(' · ')} · {b.ts ? timeAgo(b.ts) : ''}
-                          </Text>
-                        </View>
-                        <Text style={s.barV}>{compact(b.score)}</Text>
-                      </View>
-                    );
-                  })}
+                <View style={{ marginTop: 8 }}>
+                  <HBarList
+                    rows={bars.map((b) => {
+                      const metaBits = [`${compact(b.likes)} likes`, `${compact(b.comments)} comments`];
+                      if ((b.shares ?? 0) > 0) metaBits.push(`${compact(b.shares ?? 0)} shares`);
+                      if (b.views !== null) metaBits.push(`${compact(b.views)} views`);
+                      return {
+                        label: b.title,
+                        value: b.score,
+                        color: SOCIAL_META[b.channel]?.bg ?? C.ink,
+                        sub: `${metaBits.join(' · ')} · ${b.ts ? timeAgo(b.ts) : ''}`,
+                      };
+                    })}
+                    max={maxScore}
+                    formatValue={compact}
+                  />
                 </View>
               )}
             </View>

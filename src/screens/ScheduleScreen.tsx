@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, PrimaryBtn, GhostBtn } from '../components/ui';
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, Tabs } from '../components/ui-kit';
 import { uid } from '../constants';
 import ScheduleSheet from '../components/ScheduleSheet';
 import { loadManagedPosts, saveManagedPost, deleteManagedPost, ManagedPost, queueTooSoon, minQueueLabel, MAX_AUTO_TRIES } from '../utils/managed';
@@ -258,7 +259,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
     else groups.push({ day, rows: [p] });
   }
 
-  const row = (p: ManagedPost) => {
+  const row = (p: ManagedPost, last: boolean) => {
     const plats = p.platforms?.length ? p.platforms : ['any'];
     const lead = plats.includes('any') ? 'any' : plats[0];
     const overdue = !!p.scheduledAt && p.scheduledAt <= Date.now();
@@ -267,9 +268,11 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
     const legErr = Object.values(p.channelErr ?? {})[0] as string | undefined;
     const parked = (p.autoTries ?? 0) >= MAX_AUTO_TRIES;
     return (
-      <TouchableOpacity key={p.id} onPress={() => openSheet(p)} style={s.card} activeOpacity={0.75}>
-        <Cover uri={p.imageUri ?? p.videoUri} kind={p.videoUri ? 'video' : 'image'} />
-        <View style={{ flex: 1, gap: 2 }}>
+      <TableRow key={p.id} last={last} onPress={() => openSheet(p)}>
+        <TableCell flex={0} style={{ width: 56 }}>
+          <Cover uri={p.imageUri ?? p.videoUri} kind={p.videoUri ? 'video' : 'image'} />
+        </TableCell>
+        <TableCell flex={1}>
           <Text style={s.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
           <Text style={s.meta} numberOfLines={1}>{p.body || 'No description'}</Text>
           {p.scheduledAt ? (
@@ -281,13 +284,15 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
           )}
           {legErr ? <Text style={s.errT} numberOfLines={2}>⚠ {legErr}</Text> : null}
           {!legErr && parked ? <Text style={s.errT} numberOfLines={2}>Auto-retry stopped — open to retry manually</Text> : null}
-        </View>
-        {lead === 'any' ? (
-          <Ionicons name="globe-outline" size={18} color={C.muted} />
-        ) : (
-          <SocialGlyph platform={lead} size={18} color="#fff" />
-        )}
-      </TouchableOpacity>
+        </TableCell>
+        <TableCell flex={0} style={{ width: 28 }} align="right">
+          {lead === 'any' ? (
+            <Ionicons name="globe-outline" size={18} color={C.muted} />
+          ) : (
+            <SocialGlyph platform={lead} size={18} color="#fff" />
+          )}
+        </TableCell>
+      </TableRow>
     );
   };
 
@@ -311,16 +316,18 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
             <Text style={s.qBtnT}>Connect</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 14 }}>
-          {['all', 'facebook', 'instagram', 'threads'].map((c) => {
-            const on = filter === c;
-            return (
-              <TouchableOpacity key={c} onPress={() => setFilter(c)} style={[s.chip, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                <Text style={[s.chipT, on && { color: C.onInk }]}>{c === 'all' ? 'All' : c[0].toUpperCase() + c.slice(1)}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View style={{ marginTop: 14 }}>
+          <Tabs
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'facebook', label: 'Facebook' },
+              { value: 'instagram', label: 'Instagram' },
+              { value: 'threads', label: 'Threads' },
+            ]}
+            value={filter}
+            onChange={setFilter}
+          />
+        </View>
         <View style={{ marginTop: 16 }}>
           <PrimaryBtn label="+ New post" onPress={() => openSheet(null)} />
         </View>
@@ -328,7 +335,18 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
         {groups.map((g) => (
           <View key={g.day} style={{ marginTop: 22 }}>
             <Text style={s.day}>{g.day}</Text>
-            <View style={{ gap: 10, marginTop: 10 }}>{g.rows.map(row)}</View>
+            <View style={{ marginTop: 10 }}>
+              <Table>
+                <TableHeader>
+                  <TableHead flex={0} style={{ width: 56 }}> </TableHead>
+                  <TableHead flex={1}>Post</TableHead>
+                  <TableHead flex={0} style={{ width: 28 }}> </TableHead>
+                </TableHeader>
+                <TableBody>
+                  {g.rows.map((p, i) => row(p, i === g.rows.length - 1))}
+                </TableBody>
+              </Table>
+            </View>
           </View>
         ))}
 
@@ -362,15 +380,12 @@ const makeS = (C: Palette) => StyleSheet.create({
   kicker: { ...T.tag, color: C.accent, marginTop: 24 },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6 },
   day: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14, letterSpacing: 0.4, textTransform: 'uppercase', color: C.accentInk },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: R.lg, padding: 12 },
   cover: { width: 56, height: 56, borderRadius: 12 },
   coverEmpty: { backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' },
   coverT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, color: C.accentInk },
   t: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, letterSpacing: -0.2, color: C.ink },
   meta: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
   errT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.redText },
-  chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
-  chipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   qBtn: { backgroundColor: C.ink, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9 },
   qBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.onInk },
   empty: { backgroundColor: C.card, borderRadius: R.lg, padding: 28, alignItems: 'center', marginTop: 22 },
