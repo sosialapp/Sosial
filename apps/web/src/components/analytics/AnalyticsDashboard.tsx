@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowUpDown, CalendarDays, Download, Eye, FileDown, FileText, Heart, Info, MessageCircle, Percent, Send, Users } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { BrandIcon } from '@/components/BrandIcon';
+import ChannelAvatar from '@/components/ChannelAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
@@ -13,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip } from '@/components/ui/tooltip';
 import { HBarList } from '@/components/ui/chart';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
+import { channelAvatar } from '@/lib/channelAvatar';
 import {
   Table,
   TableBody,
@@ -46,7 +48,6 @@ type TopSortKey = 'interactions' | 'sent_at';
 
 const DAY = 24 * 3600_000;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const ACTIVE_TARGET = new Set(['pending', 'needs_approval', 'queued', 'publishing']);
 
 const PRESETS: { id: RangePreset; label: string }[] = [
   { id: 'last7', label: '7 days' },
@@ -134,16 +135,23 @@ export default function AnalyticsDashboard({
     return { from, to, label: `${fmt(from)} – ${fmt(to)}` };
   }, [preset, custom, now]);
 
-  /** Connected channels on the account (filter chips). */
+  /** Connected channels on the account — one filter pill per account. */
   const connectedChannels = useMemo(
-    () => channels.filter((c) => c.status === 'connected'),
+    () =>
+      channels
+        .filter((c) => c.status === 'connected')
+        .sort((a, b) =>
+          (a.display_name ?? providerMeta(a.provider).label).localeCompare(
+            b.display_name ?? providerMeta(b.provider).label,
+          ),
+        ),
     [channels],
   );
-  const providersPresent = useMemo(() => {
-    const set = new Set<ProviderKey>();
-    for (const c of connectedChannels) set.add(c.provider);
-    return [...set].sort((a, b) => providerMeta(a).label.localeCompare(providerMeta(b).label));
-  }, [connectedChannels]);
+  const chanLabel = (id: string): string => {
+    const c = channels.find((x) => x.id === id);
+    return c?.display_name || (c ? providerMeta(c.provider).label : id);
+  };
+  const chanSelLabels = (): string[] => chanSel.map(chanLabel);
 
   const inRange = (iso: string | null | undefined): boolean => {
     if (!iso) return false;
@@ -154,7 +162,7 @@ export default function AnalyticsDashboard({
   const postInScope = (p: PostWithTargets): boolean => {
     if (!inRange(postDate(p))) return false;
     if (chanSel.length === 0) return true;
-    return (p.post_targets ?? []).some((t) => chanSel.includes(t.provider));
+    return (p.post_targets ?? []).some((t) => chanSel.includes(t.channel_id));
   };
 
   const scoped = useMemo(() => posts.filter(postInScope), [posts, range, chanSel]);
@@ -166,9 +174,9 @@ export default function AnalyticsDashboard({
   const funnelMax = Math.max(1, drafts, queued, sent.length, failed);
 
   // ---- engagement aggregates (latest snapshots; not date-bound) ----
-  const chanOk = (provider: string): boolean => chanSel.length === 0 || chanSel.includes(provider);
+  const chanOk = (channelId: string): boolean => chanSel.length === 0 || chanSel.includes(channelId);
   const statsScoped = useMemo(
-    () => postStats.filter((r) => chanOk(r.provider)),
+    () => postStats.filter((r) => chanOk(r.channel_id)),
     [postStats, chanSel],
   );
   const likes = statsScoped.reduce((a, r) => a + (r.likes ?? 0), 0);
@@ -177,7 +185,7 @@ export default function AnalyticsDashboard({
   const views = statsScoped.reduce((a, r) => a + (r.views == null ? 0 : Number(r.views)), 0);
   const hasViews = statsScoped.some((r) => r.views != null);
   const chanStatsScoped = useMemo(
-    () => channelStats.filter((r) => chanOk(r.provider)),
+    () => channelStats.filter((r) => chanOk(r.channel_id)),
     [channelStats, chanSel],
   );
   const followers = chanStatsScoped.reduce((a, r) => a + (r.followers ?? 0), 0);
@@ -226,22 +234,6 @@ export default function AnalyticsDashboard({
       hint: 'Latest view totals where the platform exposes them (— where it does not).',
     },
   ];
-
-  // ---- per-channel delivery (range + channel scoped) ----
-  const perChannel = new Map<ProviderKey, { sent: number; active: number; failed: number }>();
-  for (const p of scoped) {
-    for (const t of p.post_targets ?? []) {
-      if (chanSel.length > 0 && !chanSel.includes(t.provider)) continue;
-      const row = perChannel.get(t.provider) ?? { sent: 0, active: 0, failed: 0 };
-      if (t.status === 'sent') row.sent += 1;
-      else if (t.status === 'failed' || t.status === 'skipped') row.failed += 1;
-      else if (ACTIVE_TARGET.has(t.status)) row.active += 1;
-      perChannel.set(t.provider, row);
-    }
-  }
-  const channelRows = [...perChannel.entries()]
-    .map(([provider, r]) => ({ provider, ...r, total: r.sent + r.active + r.failed }))
-    .sort((a, b) => b.sent - a.sent || b.total - a.total);
 
   // ---- weekly + weekday rhythm (range scoped) ----
   const weeks: { label: string; count: number }[] = [];
@@ -330,7 +322,7 @@ export default function AnalyticsDashboard({
   }
   const perfRows = channels
     .filter((c) => c.status === 'connected' || c.status === 'expired')
-    .filter((c) => chanSel.length === 0 || chanSel.includes(c.provider))
+    .filter((c) => chanSel.length === 0 || chanSel.includes(c.id))
     .map((c) => {
       const tot = totalsBy.get(c.id);
       const snap = chanStatsScoped.find((s) => s.channel_id === c.id);
@@ -424,7 +416,7 @@ export default function AnalyticsDashboard({
       `<tr>${cells.map((c, i) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;${i > 0 ? 'text-align:right;' : ''}font-size:12px;">${c}</td>`).join('')}</tr>`;
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Sosial analytics — ${range.label}</title></head><body style="font-family:system-ui,sans-serif;color:#1C1A14;max-width:900px;margin:32px auto;padding:0 24px;">
 <h1 style="font-size:22px;">Sosial analytics — ${range.label}</h1>
-<p style="color:#666;font-size:12px;">Exported ${stamp}${chanSel.length ? ` · Channels: ${chanSel.map((p) => providerMeta(p).label).join(', ')}` : ''}</p>
+<p style="color:#666;font-size:12px;">Exported ${stamp}${chanSel.length ? ` · Channels: ${chanSelLabels().join(', ')}` : ''}</p>
 <p style="font-size:13px;"><b>Posts:</b> ${sent.length} · <b>Followers:</b> ${hasFollowers ? followers.toLocaleString('en-US') : '—'} · <b>Reactions:</b> ${likes.toLocaleString('en-US')} · <b>Comments:</b> ${comments.toLocaleString('en-US')} · <b>Eng. rate:</b> ${eng ?? '—'} · <b>Views:</b> ${hasViews ? views.toLocaleString('en-US') : '—'}</p>
 <h2 style="font-size:16px;margin-top:28px;">Channels</h2>
 <table style="border-collapse:collapse;width:100%;"><thead><tr>${['Channel', 'Followers', 'Likes', 'Comments', 'Shares', 'Views', 'Engagement', 'Sent'].map((h, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
@@ -543,20 +535,28 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         >
           All channels
         </button>
-        {providersPresent.map((p) => {
-          const on = chanSel.includes(p);
+        {connectedChannels.map((c) => {
+          const on = chanSel.includes(c.id);
+          const name = c.display_name || providerMeta(c.provider).label;
+          const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
           return (
             <button
-              key={p}
+              key={c.id}
               type="button"
               aria-pressed={on}
-              onClick={() => toggleChan(p)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                on ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
+              onClick={() => toggleChan(c.id)}
+              title={`${name}${handle ? ` ${handle}` : ''} · ${providerMeta(c.provider).label}`}
+              className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
+                on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
               }`}
             >
-              <BrandIcon provider={p} className="h-4 w-4" />
-              {providerMeta(p).label}
+              <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
+              <span className="flex min-w-0 max-w-40 flex-col leading-tight">
+                <span className={`truncate text-xs font-bold ${on ? 'text-ink' : 'text-soft'}`}>{name}</span>
+                {handle ? (
+                  <span className={`truncate text-[10px] ${on ? 'text-ink/70' : 'text-faint'}`}>{handle}</span>
+                ) : null}
+              </span>
             </button>
           );
         })}
@@ -827,7 +827,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         open={exportOpen}
         onOpenChange={setExportOpen}
         title="Export report"
-        description={`${range.label}${chanSel.length ? ` · ${chanSel.map((p) => providerMeta(p).label).join(', ')}` : ' · all channels'}`}
+        description={`${range.label}${chanSel.length ? ` · ${chanSelLabels().join(', ')}` : ' · all channels'}`}
       >
         <div className="space-y-2.5">
           <ExportOption
