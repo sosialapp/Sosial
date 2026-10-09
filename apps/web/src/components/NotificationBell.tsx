@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Bell, CheckCheck, FileText, PenLine, ShieldCheck, UserPlus } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCheck, FileText, PenLine, ShieldCheck, Unplug, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -49,6 +49,7 @@ const KIND_ICON: Record<string, typeof Bell> = {
   approval_approved: CheckCheck,
   approval_changes: PenLine,
   target_failed: AlertTriangle,
+  channel_expired: Unplug,
 };
 
 function ago(iso: string): string {

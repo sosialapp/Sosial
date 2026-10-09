@@ -15,9 +15,8 @@
  * - anything else (network, provider 5xx, rate limit) → throw, so the job
  *   backs off and retries.
  */
-import { rest } from './db';
-import { readSecret } from './db';
-import { restPatch } from './rest';
+import { rest, callRpc } from './db';
+import { readSecret } from './db';import { restPatch } from './rest';
 import { info, warn } from './logger';
 import {
   tokenRow,
@@ -101,12 +100,23 @@ export async function refreshChannelToken(
   if (!c || c.status !== 'connected') return 'skipped';
   if (!(REFRESHABLE_PROVIDERS as readonly string[]).includes(c.provider)) return 'skipped';
 
+  /** Bell-notify owner+admins that this channel's auth is dead (p62). The DB
+   *  function dedupes per channel/day; failures never break the refresh. */
+  const notifyExpired = (reason: string) =>
+    callRpc('notify_channel_expired', {
+      p_workspace_id: c.workspace_id,
+      p_channel_id: c.id,
+      p_provider: c.provider,
+      p_reason: reason,
+    }).catch(() => {});
+
   const t = tokenRow(c);
   if (!t.access_token_secret_id && !t.refresh_token_secret_id) {
     await restPatch('connected_channels', c.id, {
       status: 'expired',
       last_error: 'Token secrets missing — reconnect the channel.',
     });
+    await notifyExpired('Token secrets missing — reconnect the channel.');
     warn(`refresh ${c.provider}/${c.external_id}: no secrets, marked expired`);
     return 'skipped';
   }
@@ -159,6 +169,7 @@ export async function refreshChannelToken(
         status: 'expired',
         last_error: msg.slice(0, 300),
       });
+      await notifyExpired(msg.slice(0, 300));
       warn(`refresh ${c.provider}/${c.external_id}: auth-dead, marked expired (${msg.slice(0, 120)})`);
       return 'skipped';
     }
