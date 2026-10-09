@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { PROVIDER_META, providerMeta } from '@/lib/providers';
+import { Progress } from '@/components/ui/progress';
 import type { TargetStatus } from '@/lib/types';
 
 /**
  * Post-now status popup (mobile parity): watches post_targets for the freshly
- * created post(s) and shows per-channel publish progress — spinner while
- * queued/publishing, ✓ with link when sent, ✗ with the worker's error when
- * failed. Polls every 2.5s; done-state auto-closes into the queue view.
+ * created post(s) and shows per-channel publish progress — a full bar means
+ * sent, with a link out when the channel returns one. Polls every 2.5s;
+ * done-state auto-closes into the queue view.
  */
 export default function PublishMonitor({
   postIds,
@@ -84,17 +85,21 @@ export default function PublishMonitor({
   const sent = rows.filter((r) => r.status === 'sent').length;
   const failed = rows.filter((r) => r.status === 'failed').length;
   const settled = rows.length > 0 && pending === 0;
+  const pct = rows.length ? ((sent + failed) / rows.length) * 100 : !postIds.length ? 8 : 15;
+
+  const bar = (s: TargetStatus) => {
+    if (s === 'sent') return 100;
+    if (s === 'failed' || s === 'skipped') return 100;
+    // Indeterminate crawl: keep the bar moving between polls so it reads as
+    // active rather than stuck.
+    return 55;
+  };
 
   const icon = (s: TargetStatus) => {
     if (s === 'sent') return <span className="text-[#346538] dark:text-[#8fd0a0]">✓</span>;
     if (s === 'failed') return <span className="text-[#9F2F2D] dark:text-[#f2a8a8]">✕</span>;
     if (s === 'skipped') return <span className="text-faint">—</span>;
-    return (
-      <span
-        className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-ink"
-        aria-hidden="true"
-      />
-    );
+    return null;
   };
 
   return (
@@ -120,6 +125,10 @@ export default function PublishMonitor({
           </p>
         </div>
 
+        <div className="mt-4">
+          <Progress value={pct} />
+        </div>
+
         <div className="mt-4 space-y-1.5">
           {rows.length === 0 ? (
             <p className="py-3 text-center text-xs text-muted">
@@ -127,17 +136,24 @@ export default function PublishMonitor({
             </p>
           ) : (
             rows.map((r) => (
-              <div key={r.provider + (r.url ?? '')} className="flex items-center gap-2.5 rounded-xl bg-paper px-3 py-2">
-                <span className="flex w-4 shrink-0 items-center justify-center text-xs font-bold">{icon(r.status)}</span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{r.label}</span>
-                {r.status === 'sent' && r.url ? (
-                  <a href={r.url} target="_blank" rel="noopener" className="shrink-0 text-[11px] font-bold text-accent-ink">
-                    View
-                  </a>
-                ) : r.status === 'failed' && r.error ? (
-                  <span className="max-w-[55%] truncate text-[11px] text-[#9F2F2D] dark:text-[#f2a8a8]" title={r.error}>
-                    {r.error}
-                  </span>
+              <div key={r.provider + (r.url ?? '')} className="rounded-xl bg-paper px-3 py-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex w-4 shrink-0 items-center justify-center text-xs font-bold">{icon(r.status)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{r.label}</span>
+                  {r.status === 'sent' && r.url ? (
+                    <a href={r.url} target="_blank" rel="noopener" className="shrink-0 text-[11px] font-bold text-accent-ink">
+                      View
+                    </a>
+                  ) : r.status === 'failed' && r.error ? (
+                    <span className="max-w-[55%] truncate text-[11px] text-[#9F2F2D] dark:text-[#f2a8a8]" title={r.error}>
+                      {r.error}
+                    </span>
+                  ) : null}
+                </div>
+                {!['sent', 'failed', 'skipped'].includes(r.status) ? (
+                  <div className="mt-1.5">
+                    <Progress value={bar(r.status)} className="h-1" />
+                  </div>
                 ) : null}
               </div>
             ))

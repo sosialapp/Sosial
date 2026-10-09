@@ -5,7 +5,8 @@
  * (INIT/APPEND/FINALIZE/STATUS), POST /tweets.
  */
 import { readSecret, updateSecret } from './db';
-import { storageSign, storageDownload } from './rest';
+import { storageSign, storageDownload, storageChunks, storageHeadSize } from './rest';
+import { assertMediaAllowed } from './mediaLimits';
 import { info } from './logger';
 
 const X_TOKEN_ENDPOINT = 'https://api.x.com/2/oauth2/token';
@@ -19,7 +20,14 @@ const X_CHUNK_BYTES = 4 * 1024 * 1024; // APPEND segments must stay under 5 MB
 interface Bundle {
   target: { id: string; provider: string; caption: string | null; options: any; status: string };
   post: { id: string; title: string; body: string };
-  media: { storage_path: string; kind: string; mime_type: string | null; position: number }[];
+  media: {
+    storage_path: string;
+    kind: string;
+    mime_type: string | null;
+    position: number;
+    byte_size: number | null;
+    duration_ms: number | null;
+  }[];
   channel: { id: string; external_id: string; instance_url: string | null; metadata: any };
   secrets: { access_secret_id: string | null; refresh_secret_id: string | null; expires_at: string | null };
 }
@@ -148,15 +156,21 @@ async function waitVideoReady(mediaId: string, token: string, timeoutMs = 15 * 6
 
 /**
  * Video needs the v2 chunked flow: INIT (JSON) → APPEND (one multipart POST
- * per ≤4 MB segment) → FINALIZE → STATUS poll.
+ * per ≤4 MB segment streamed from storage) → FINALIZE → STATUS poll. Only one
+ * segment is in memory at a time.
  */
-async function uploadVideo(buf: Buffer, mime: string, token: string): Promise<string> {
+async function uploadVideo(
+  totalBytes: number,
+  chunks: AsyncGenerator<Buffer>,
+  mime: string,
+  token: string,
+): Promise<string> {
   const init = await xjson(
     `${X_MEDIA_UPLOAD}/initialize`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ media_type: mime, total_bytes: buf.length, media_category: 'tweet_video' }),
+      body: JSON.stringify({ media_type: mime, total_bytes: totalBytes, media_category: 'tweet_video' }),
     },
     'X video upload failed.',
   );
@@ -164,8 +178,7 @@ async function uploadVideo(buf: Buffer, mime: string, token: string): Promise<st
   if (!mediaId) throw new Error(xerr(init, 'X video upload failed.'));
 
   let segment = 0;
-  for (let start = 0; start < buf.length; start += X_CHUNK_BYTES) {
-    const chunk = buf.subarray(start, Math.min(start + X_CHUNK_BYTES, buf.length));
+  for await (const chunk of chunks) {
     const form = new FormData();
     form.append('segment_index', String(segment));
     form.append('media', new Blob([Uint8Array.from(chunk)], { type: 'application/octet-stream' }), `chunk${segment}`);
@@ -250,6 +263,13 @@ export async function publishXTarget(bundle: Bundle): Promise<{ tweetId: string;
   }
   const media = video ? [] : all.slice(0, X_MAX_IMAGES);
 
+  await assertMediaAllowed('x', all, async (m) => {
+    if (m.byte_size) return m.byte_size;
+    const head = await storageHeadSize('post-media', m.storage_path);
+    if (head === null) throw new Error('Media: could not read its size from storage.');
+    return head;
+  });
+
   // Manual/auto thread segments from the app. Media rides the head only;
   // replies are text-only and chain via in_reply_to_tweet_id.
   const segments = ((b.target.options?.thread as string[] | undefined) ?? [])
@@ -264,14 +284,15 @@ export async function publishXTarget(bundle: Bundle): Promise<{ tweetId: string;
     const token = await ensureToken(b, force);
     const mediaIds: string[] = [];
     if (video) {
-      let raw: Buffer;
       try {
-        raw = await storageDownload(await storageSign('post-media', video.storage_path));
-      } catch (e: any) {
-        throw new Error(`Video: download failed — ${e?.message ?? 'storage error'}`);
-      }
-      try {
-        mediaIds.push(await uploadVideo(raw, videoMimeFor(video.storage_path, video.mime_type), token));
+        let size = video.byte_size ?? 0;
+        if (!size) {
+          const head = await storageHeadSize('post-media', video.storage_path);
+          if (head === null) throw new Error('Video: could not read its size from storage.');
+          size = head;
+        }
+        const chunks = storageChunks('post-media', video.storage_path, X_CHUNK_BYTES);
+        mediaIds.push(await uploadVideo(size, chunks, videoMimeFor(video.storage_path, video.mime_type), token));
       } catch (e: any) {
         if (String(e?.message ?? '') === '__EXPIRED__' && !force) return attempt(true);
         throw new Error(`Video: ${e?.message ?? 'upload failed'}`);

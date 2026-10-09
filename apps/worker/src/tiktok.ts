@@ -6,15 +6,14 @@
  * into channel metadata — TikTok rejects any host the user hasn't verified).
  */
 import { readSecret, updateSecret } from './db';
-import { storageSign, storageDownload } from './rest';
+import { storageChunks, storageHeadSize, storageSign, storageDownload } from './rest';
+import { assertMediaAllowed } from './mediaLimits';
 import { env } from './env';
 import { info } from './logger';
 
 const TT_TOKEN_ENDPOINT = 'https://open.tiktokapis.com/v2/oauth/token/';
 const TT_API = 'https://open.tiktokapis.com';
 const CHUNK = 8 * 1024 * 1024;
-/** Same single-file cap as the YouTube adapter — Buffers are held whole. */
-const TT_MAX_BYTES = 128 * 1024 * 1024;
 /** Worker poll ceiling: a retry after init would double-post, so wait out
  *  processing instead of failing fast like the app (60s) does. */
 const POLL_MS = 5 * 60 * 1000;
@@ -22,7 +21,14 @@ const POLL_MS = 5 * 60 * 1000;
 interface Bundle {
   target: { id: string; provider: string; caption: string | null; options: any; status: string };
   post: { id: string; title: string; body: string };
-  media: { storage_path: string; kind: string; mime_type: string | null; position: number }[];
+  media: {
+    storage_path: string;
+    kind: string;
+    mime_type: string | null;
+    position: number;
+    byte_size: number | null;
+    duration_ms: number | null;
+  }[];
   channel: { id: string; external_id: string; instance_url: string | null; metadata: any };
   secrets: { access_secret_id: string | null; refresh_secret_id: string | null; expires_at: string | null };
 }
@@ -173,11 +179,22 @@ async function pollStatus(publishId: string, token: string, kind: string): Promi
   }
 }
 
-async function publishVideo(token: string, buf: Buffer, mime: string, title: string, privacy: string): Promise<string> {
-  const size = buf.length;
-  if (!size) throw new Error('Downloaded video is empty — re-attach it and re-queue.');
-  const totalChunks = Math.max(1, Math.ceil(size / CHUNK));
-  const chunkSize = Math.min(CHUNK, size);
+/**
+ * FILE_UPLOAD flow: init (JSON) → sequential 8 MB PUTs streamed from storage →
+ * poll. Only one chunk is in memory at a time, so multi-GB videos work.
+ * `totalBytes` must be exact — it drives chunk math and TikTok's own check.
+ */
+async function publishVideo(
+  token: string,
+  totalBytes: number,
+  chunks: AsyncGenerator<Buffer>,
+  mime: string,
+  title: string,
+  privacy: string,
+): Promise<string> {
+  if (!totalBytes) throw new Error('Video is empty — re-attach it and re-queue.');
+  const totalChunks = Math.max(1, Math.ceil(totalBytes / CHUNK));
+  const chunkSize = Math.min(CHUNK, totalBytes);
   const init = await fetch(`${TT_API}/v2/post/publish/video/init/`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
@@ -189,7 +206,7 @@ async function publishVideo(token: string, buf: Buffer, mime: string, title: str
         disable_comment: false,
         disable_stitch: false,
       },
-      source_info: { source: 'FILE_UPLOAD', video_size: size, chunk_size: chunkSize, total_chunk_count: totalChunks },
+      source_info: { source: 'FILE_UPLOAD', video_size: totalBytes, chunk_size: chunkSize, total_chunk_count: totalChunks },
     }),
   });
   const initJ: any = await init.json().catch(() => ({}));
@@ -198,18 +215,23 @@ async function publishVideo(token: string, buf: Buffer, mime: string, title: str
   if (!ok(initJ) || !publishId || !uploadUrl) {
     throw new Error(friendly(String(initJ?.error?.code ?? ''), 'TikTok upload init failed.'));
   }
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * chunkSize;
-    const end = Math.min(size, start + chunkSize);
+  let sent = 0;
+  for await (const chunk of chunks) {
+    const start = sent;
+    const end = start + chunk.length;
     const put = await fetch(uploadUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': mime, 'Content-Range': `bytes ${start}-${end - 1}/${size}` },
-      body: Uint8Array.from(buf.subarray(start, end)),
+      headers: { 'Content-Type': mime, 'Content-Range': `bytes ${start}-${end - 1}/${totalBytes}` },
+      body: Uint8Array.from(chunk),
     });
     await put.arrayBuffer().catch(() => null);
     if (put.status !== 200 && put.status !== 201 && put.status !== 206) {
-      throw new Error(`TikTok upload stalled on part ${i + 1}/${totalChunks} — the job will retry shortly.`);
+      throw new Error(`TikTok upload stalled on part ${start / chunkSize + 1}/${totalChunks} — the job will retry shortly.`);
     }
+    sent = end;
+  }
+  if (sent !== totalBytes) {
+    throw new Error(`TikTok upload delivered ${sent}/${totalBytes} bytes — the job will retry shortly.`);
   }
   await pollStatus(publishId, token, 'video');
   return publishId;
@@ -282,14 +304,24 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   }
 
   if (videos.length > 0) {
-    info(`tiktok target ${b.target.id}: VIDEO (${privacy})`);
-    let raw: Buffer;
-    try {
-      raw = await storageDownload(await storageSign('post-media', videos[0].storage_path), TT_MAX_BYTES);
-    } catch (e: any) {
-      throw new Error(`Video: download failed — ${e?.message ?? 'storage error'}`);
-    }
-    const publishId = await publishVideo(token, raw, videoMimeFor(videos[0].storage_path, videos[0].mime_type), title, privacy);
+    info(`tiktok target ${b.target.id}: VIDEO (${privacy}), streaming`);
+    await assertMediaAllowed('tiktok', [videos[0]], async () => {
+      if (videos[0].byte_size) return videos[0].byte_size;
+      const head = await storageHeadSize('post-media', videos[0].storage_path);
+      if (head === null) throw new Error('Video: could not read its size from storage.');
+      return head;
+    });
+    const size = videos[0].byte_size ?? (await storageHeadSize('post-media', videos[0].storage_path));
+    if (!size) throw new Error('Video is empty — re-attach it and re-queue.');
+    const chunks = storageChunks('post-media', videos[0].storage_path, CHUNK);
+    const publishId = await publishVideo(
+      token,
+      size,
+      chunks,
+      videoMimeFor(videos[0].storage_path, videos[0].mime_type),
+      title,
+      privacy,
+    );
     return { publishId };
   }
   if (images.length > 0) {

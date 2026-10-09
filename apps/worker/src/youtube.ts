@@ -6,7 +6,8 @@
  * silently skipping the channel.
  */
 import { readSecret, updateSecret } from './db';
-import { storageSign, storageDownload } from './rest';
+import { storageStream, storageHeadSize } from './rest';
+import { assertMediaAllowed } from './mediaLimits';
 import { env } from './env';
 import { info } from './logger';
 
@@ -14,15 +15,20 @@ const YT_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const YT_UPLOAD_API = 'https://www.googleapis.com/upload/youtube/v3';
 const YT_MAX_TITLE = 100;
 const YT_MAX_DESC = 5000;
-/** Same single-PUT cap as the app — Buffers are held whole in memory. */
-const YT_MAX_BYTES = 128 * 1024 * 1024;
 
 type Privacy = 'public' | 'unlisted' | 'private';
 
 interface Bundle {
   target: { id: string; provider: string; caption: string | null; options: any; status: string };
   post: { id: string; title: string; body: string };
-  media: { storage_path: string; kind: string; mime_type: string | null; position: number }[];
+  media: {
+    storage_path: string;
+    kind: string;
+    mime_type: string | null;
+    position: number;
+    byte_size: number | null;
+    duration_ms: number | null;
+  }[];
   channel: { id: string; external_id: string; instance_url: string | null; metadata: any };
   secrets: { access_secret_id: string | null; refresh_secret_id: string | null; expires_at: string | null };
 }
@@ -126,14 +132,21 @@ function fit(s: string, max: number): string {
   return t.slice(0, max - 1) + '…';
 }
 
-/** Resumable upload: init POST → PUT the whole file to the session URL. */
+/**
+ * Resumable upload: init POST → PUT the bytes to the session URL. The body
+ * streams straight from storage — a multi-GB video never sits in memory.
+ * `totalBytes` must be exact (drives X-Upload-Content-Length and retry
+ * accounting); `open` re-opens the stream so a retry after an auth refresh
+ * can replay from byte 0.
+ */
 async function uploadVideo(
   token: string,
-  buf: Buffer,
+  totalBytes: number,
   mime: string,
   title: string,
   description: string,
   privacy: Privacy,
+  open: () => Promise<ReadableStream<Uint8Array> | null>,
 ): Promise<string> {
   const init = await fetch(`${YT_UPLOAD_API}/videos?uploadType=resumable&part=snippet,status`, {
     method: 'POST',
@@ -141,7 +154,7 @@ async function uploadVideo(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       'X-Upload-Content-Type': mime,
-      'X-Upload-Content-Length': String(buf.length),
+      'X-Upload-Content-Length': String(totalBytes),
     },
     body: JSON.stringify({
       snippet: { title: fit(title, YT_MAX_TITLE), description: fit(description, YT_MAX_DESC), categoryId: '22' },
@@ -153,18 +166,22 @@ async function uploadVideo(
     const j: any = await init.json().catch(() => ({}));
     throw new Error(yerr(j, init.status, 'YouTube upload init failed.'));
   }
+  const body = await open();
+  if (!body) throw new Error('Video: object vanished from storage mid-upload.');
   const put = await fetch(sessionUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': mime, 'Content-Length': String(buf.length) },
-    body: Uint8Array.from(buf),
-  });
+    headers: { 'Content-Type': mime, 'Content-Length': String(totalBytes) },
+    body: body as any,
+    // Node's undici requires duplex:'half' for stream request bodies.
+    duplex: 'half',
+  } as any);
   const j: any = await put.json().catch(() => ({}));
   if (put.status === 401) throw new Error('__EXPIRED__');
   if (!put.ok || !j?.id) throw new Error(yerr(j, put.status, 'YouTube upload failed.'));
   return String(j.id);
 }
 
-/** Full target publish: token → media → resumable upload. Returns the video id. */
+/** Full target publish: token → stream from storage → resumable upload. */
 export async function publishYouTubeTarget(bundle: Bundle): Promise<{ videoId: string; videoUrl: string }> {
   const b = bundle as Bundle;
   const video = (b.media ?? [])
@@ -174,20 +191,39 @@ export async function publishYouTubeTarget(bundle: Bundle): Promise<{ videoId: s
   const caption = (b.target.caption ?? b.post.body ?? '').trim();
   const title = caption.split('\n')[0];
   const privacy = (String(b.target.options?.ytPrivacy ?? 'public') as Privacy) ?? 'public';
-  info(`youtube target ${b.target.id}: 1 video (${privacy})`);
 
-  let raw: Buffer;
-  try {
-    raw = await storageDownload(await storageSign('post-media', video.storage_path), YT_MAX_BYTES);
-  } catch (e: any) {
-    throw new Error(`Video: download failed — ${e?.message ?? 'storage error'}`);
-  }
+  await assertMediaAllowed('youtube', [video], async () => {
+    if (video.byte_size) return video.byte_size;
+    const head = await storageHeadSize('post-media', video.storage_path);
+    if (head === null) throw new Error('Video: could not read its size from storage.');
+    return head;
+  });
+
   const mime = videoMimeFor(video.storage_path, video.mime_type);
+  const open = async (): Promise<ReadableStream<Uint8Array> | null> => {
+    const s = await storageStream('post-media', video.storage_path);
+    return s?.body ?? null;
+  };
+  const total = async (): Promise<number> => {
+    if (video.byte_size) return video.byte_size;
+    const head = await storageHeadSize('post-media', video.storage_path);
+    if (head === null) throw new Error('Video: could not read its size from storage.');
+    return head;
+  };
+  info(`youtube target ${b.target.id}: 1 video (${privacy}), streaming`);
 
   const attempt = async (force: boolean): Promise<{ videoId: string; videoUrl: string }> => {
     const token = await ensureToken(b, force);
     try {
-      const videoId = await uploadVideo(token, raw, mime, title || 'Sosial video', caption, privacy);
+      const videoId = await uploadVideo(
+        token,
+        await total(),
+        mime,
+        title || 'Sosial video',
+        caption,
+        privacy,
+        open,
+      );
       return { videoId, videoUrl: `https://youtu.be/${videoId}` };
     } catch (e: any) {
       if (String(e?.message ?? '') === '__EXPIRED__' && !force) return attempt(true);

@@ -38,6 +38,7 @@ import PublishNotice, { PubRow } from '../components/PublishNotice';
 import AICopySheet from '../components/AICopySheet';
 import { SocialResult } from '../utils/ai/social';
 import { pullCloudStatus, pullCloudPosts, pushPendingPosts, markCloudLegSent, markCloudPostSent } from '../utils/cloudPosts';
+import { validateUpload, targetWarnings, statSize } from '../utils/mediaLimits';
 
 /** Minimum gap between automatic retries of a failed/overdue queued post. */
 const RETRY_MS = 5 * 60 * 1000;
@@ -152,6 +153,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
    *  run sheetless (the modal stays shut; only one composer is ever live). */
   const inlineRef = useRef(false);
   const publishingRef = useRef(false);
+  /** Two-tap confirm for size warnings: first tap shows them, second proceeds. */
+  const sizeWarnRef = useRef(false);
   const attemptTimesRef = useRef<Record<string, number>>({});
 
   const showInfo = useCallback((title: string, message?: string, channels?: string[]) => {
@@ -166,6 +169,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const openComposer = useCallback((p: ManagedPost | null) => {
     setNotice(null);
+    sizeWarnRef.current = false;
     setTBody(p?.body ?? '');
     setTThread(p?.thread && p.thread.length > 1 ? [...p.thread] : null);
     setTThreadMedia(p?.thread && p.thread.length > 1 ? postThreadMedia(p) : []);
@@ -199,7 +203,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: remaining, orderedSelection: true, quality: 0.9 });
     if (res.canceled || !res.assets?.length) return;
-    const picked: ThreadSegmentMedia[] = res.assets.map((a) => ({ uri: a.uri, kind: a.type === 'video' ? 'video' : 'image' }));
+    // Same size gate as the shared strip — chain segments upload too.
+    const rejected: string[] = [];
+    const picked: ThreadSegmentMedia[] = [];
+    for (const a of res.assets) {
+      const kind: 'image' | 'video' = a.type === 'video' ? 'video' : 'image';
+      const name = a.fileName ?? (kind === 'video' ? 'Video' : 'Photo');
+      const problem = validateUpload({ name, size: a.fileSize ?? 0, kind });
+      if (problem) {
+        rejected.push(problem);
+        continue;
+      }
+      picked.push({ uri: a.uri, kind });
+    }
+    if (rejected.length) showInfo('Some files were skipped', rejected.join('\n'));
+    if (!picked.length) return;
     setTThreadMedia((prev) => {
       const next = [...prev];
       next[index] = [...(next[index] ?? []), ...picked].slice(0, THREAD_MEDIA_MAX);
@@ -267,11 +285,23 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: remaining, orderedSelection: true, quality: 0.9 });
     if (res.canceled || !res.assets?.length) return;
-    const picked: MediaAttachment[] = res.assets.map((a) => ({
-      uri: a.uri,
-      kind: a.type === 'video' ? 'video' : 'image',
-    }));
+    // Size gate before anything attaches — oversized files can never upload.
+    const rejected: string[] = [];
+    const picked: MediaAttachment[] = [];
+    for (const a of res.assets) {
+      const kind: 'image' | 'video' = a.type === 'video' ? 'video' : 'image';
+      const name = a.fileName ?? (kind === 'video' ? 'Video' : 'Photo');
+      const problem = validateUpload({ name, size: a.fileSize ?? 0, kind });
+      if (problem) {
+        rejected.push(problem);
+        continue;
+      }
+      picked.push({ uri: a.uri, kind, size: a.fileSize ?? undefined, durationMs: kind === 'video' && a.duration ? a.duration : undefined });
+    }
+    if (rejected.length) showInfo('Some files were skipped', rejected.join('\n'));
+    if (!picked.length) return;
     const next = [...tMedia, ...picked].slice(0, MAX_ATTACHMENTS);
+    sizeWarnRef.current = false;
     setTMedia(next);
     if (res.assets.length > remaining) {
       showInfo(`${MAX_ATTACHMENTS} items max`, `Kept the first ${MAX_ATTACHMENTS}.`);
@@ -289,6 +319,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       uri: a.uri,
       kind: a.kind === 'video' ? 'video' : 'image',
     }));
+    sizeWarnRef.current = false;
     setTMedia([...tMedia, ...picked].slice(0, MAX_ATTACHMENTS));
     if (items.length > remaining) {
       showInfo(`${MAX_ATTACHMENTS} items max`, `Kept the first ${MAX_ATTACHMENTS}.`);
@@ -296,6 +327,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeMedia = (index: number) => {
+    sizeWarnRef.current = false;
     setTMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -451,6 +483,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
+  /** Non-blocking size warnings against the resolved platforms ("over 1 GB
+   *  won't reach X"). Items without a stored size get stat'd on the spot. */
+  const mediaWarnings = async (resolved: string[]): Promise<string[]> => {
+    if (!tMedia.length || !resolved.length) return [];
+    const files = await Promise.all(
+      tMedia.map(async (a) => ({
+        name: a.uri.split('/').pop() ?? (a.kind === 'video' ? 'Video' : 'Photo'),
+        size: a.size ?? (await statSize(a.uri)),
+        kind: a.kind,
+        durationMs: a.durationMs ?? null,
+      })),
+    );
+    return targetWarnings(files, resolved);
+  };
+
   const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
@@ -467,6 +514,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       showInfo('That channel needs media', blocked.message, blocked.channels);
       return false;
     }
+    if (!sizeWarnRef.current) {
+      const warnings = await mediaWarnings(resolved);
+      if (warnings.length) {
+        sizeWarnRef.current = true;
+        showInfo('Size warning — tap save again to queue', warnings.join('\n'));
+        return false;
+      }
+    }
+    sizeWarnRef.current = false;
     const keepApproval = sheetRef.current?.post?.status === 'approval';
     const isMember = canSubmit(await loadActor());
     const status: PostStatus = keepApproval || isMember ? 'approval' : 'queued';
@@ -576,6 +632,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         showInfo('That channel needs media', blocked.message, blocked.channels);
         return false;
       }
+      if (!sizeWarnRef.current) {
+        const warnings = await mediaWarnings(resolved);
+        if (warnings.length) {
+          sizeWarnRef.current = true;
+          showInfo('Size warning — tap post again to continue', warnings.join('\n'));
+          return false;
+        }
+      }
+      sizeWarnRef.current = false;
       // Members can't publish directly — their "post now" becomes a pending approval.
       if (canSubmit(await loadActor())) {
         const rec = buildRec(undefined, plats, 'approval', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);

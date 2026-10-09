@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { imageThumb, gridThumb, THUMB_WIDTHS } from './media';
+import { imageThumb, gridThumb, mediaThumbUrl, THUMB_WIDTHS } from './media';
 
 const SIGNED =
   'https://jeldzdhvwlspjfnxzybl.supabase.co/storage/v1/object/sign/post-media/ws/abc/0-x.jpg?token=eyJhbGci';
@@ -35,5 +35,26 @@ describe('imageThumb', () => {
 
   it('gridThumb uses the sm width', () => {
     expect(gridThumb(SIGNED)).toContain('width=160');
+  });
+});
+
+describe('mediaThumbUrl', () => {
+  it('prefers a client-generated thumb_url verbatim', () => {
+    const out = mediaThumbUrl({ thumb_url: 'https://media.sosial.app/post-media/prod/w/1/thumb.webp' });
+    expect(out).toBe('https://media.sosial.app/post-media/prod/w/1/thumb.webp');
+  });
+
+  it('derives a thumbnail from a signed R2 image URL', () => {
+    const out = mediaThumbUrl({ signed_url: SIGNED });
+    expect(out).toBe(imageThumb(SIGNED, THUMB_WIDTHS.sm));
+  });
+
+  it('returns undefined for a video with no thumb', () => {
+    expect(mediaThumbUrl({ signed_url: SIGNED, kind: 'video' })).toBeUndefined();
+  });
+
+  it('returns undefined when there is nothing to work with', () => {
+    expect(mediaThumbUrl({})).toBeUndefined();
+    expect(mediaThumbUrl({ kind: 'image' })).toBeUndefined();
   });
 });

@@ -1,6 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, supabaseUrl, currentSession } from './supabase';
+import { supabase, supabaseUrl, currentSession, callEdgeFunction } from './supabase';
+import { uploadMediaFromFile } from './mediaUpload';
 import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, postAttachments, type ManagedPost, type MediaAttachment } from './managed';
 import { isChainPlatform } from './thread';
 import { loadAccounts } from './metaStore';
@@ -15,24 +17,6 @@ import { findAccount, findAccountForProvider, accountExternalId, asIdList, type 
  * re-saves upsert instead of duplicating. Media uses deterministic storage
  * paths (<workspace>/<client_id>/<index>.<ext>), uploaded natively.
  */
-
-function extFor(uri: string, kind: string): string {
-  const u = uri.toLowerCase().split('?')[0];
-  const m = u.match(/\.([a-z0-9]{2,4})$/);
-  if (m) return m[1];
-  return kind === 'video' ? 'mp4' : 'jpg';
-}
-
-function mimeFor(ext: string, kind: string): string {
-  if (kind === 'video') {
-    if (ext === 'mov') return 'video/quicktime';
-    return 'video/mp4';
-  }
-  if (ext === 'png') return 'image/png';
-  if (ext === 'webp') return 'image/webp';
-  if (ext === 'gif') return 'image/gif';
-  return 'image/jpeg';
-}
 
 function deviceTimezone(): string | undefined {
   try {
@@ -62,6 +46,23 @@ function mapTargetStatus(p: ManagedPost): 'pending' | 'needs_approval' | CloudSt
   if (s === 'draft') return 'pending';
   if (s === 'approval') return 'needs_approval';
   return s;
+}
+
+/** Grid thumbnail: shrink to <=640px on the long edge, encode WebP. */
+async function makeThumb(uri: string): Promise<string | null> {
+  try {
+    const probe: any = await manipulateAsync(uri, []);
+    const long = Math.max(probe.width ?? 0, probe.height ?? 0, 1);
+    const scale = Math.min(1, 640 / long);
+    const actions =
+      scale < 1
+        ? [{ resize: { width: Math.max(1, Math.round((probe.width ?? long) * scale)), height: Math.max(1, Math.round((probe.height ?? long) * scale)) } }]
+        : [];
+    const out = await manipulateAsync(uri, actions, { compress: 0.8, format: SaveFormat.WEBP });
+    return out.uri;
+  } catch {
+    return null;
+  }
 }
 
 /** Mirror one local post (idempotent by client_id). Resolves when done. */
@@ -153,54 +154,29 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   const atts = postAttachments(post).slice(0, 10);
   const linked: string[] = [];
   const newPaths: string[] = [];
-  const pushStamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   for (const a of atts) {
     if (!a?.uri || linked.length >= 10) continue;
-    const kind = a.kind === 'video' ? 'video' : 'image';
-    const ext = extFor(a.uri, kind);
-    const mime = mimeFor(ext, kind);
-    const path = `${wsId}/${post.id}/${linked.length}-${pushStamp}.${ext}`;
-    // Native binary upload: Hermes cannot build Blobs from TypedArrays, so
-    // the file goes straight from disk via a signed upload slot — no JS
-    // Blob, no base64 round-trip through JS memory.
-    const { data: slot, error: slotErr } = await sb.storage.from('post-media').createSignedUploadUrl(path);
-    if (slotErr || !slot?.signedUrl) {
-      throw new Error(`cloud media upload slot failed: ${slotErr?.message ?? 'no url'}`);
+    const kind: 'image' | 'video' = a.kind === 'video' ? 'video' : 'image';
+    let thumbUri: string | undefined;
+    let width: number | undefined;
+    let height: number | undefined;
+    if (kind === 'image') {
+      try {
+        const probe: any = await manipulateAsync(a.uri, []);
+        width = probe.width ?? undefined;
+        height = probe.height ?? undefined;
+      } catch {}
+      thumbUri = (await makeThumb(a.uri)) ?? undefined;
     }
-    const signed = slot.signedUrl.startsWith('http')
-      ? slot.signedUrl
-      : `${supabaseUrl()}/storage/v1${slot.signedUrl.startsWith('/') ? '' : '/'}${slot.signedUrl}`;
-    const up = await FileSystem.uploadAsync(signed, a.uri, {
-      httpMethod: 'PUT',
-      headers: { 'Content-Type': mime },
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    });
-    if (up.status < 200 || up.status >= 300) {
-      throw new Error(`cloud media upload failed (${up.status})`);
+    // Bytes go straight from disk to R2 via a presigned URL — no Blob, no
+    // base64 round-trip through Hermes. The edge `media` function owns the
+    // `media_assets` insert/status; the device never inserts the row itself.
+    const res = await uploadMediaFromFile(wsId, a.uri, { kind, width, height, thumbUri });
+    linked.push(res.mediaId);
+    newPaths.push(res.storagePath);
+    if (thumbUri) {
+      FileSystem.deleteAsync(thumbUri, { idempotent: true }).catch(() => {});
     }
-    let byteSize: number | null = null;
-    try {
-      const info: any = await FileSystem.getInfoAsync(a.uri);
-      if (info?.exists && typeof info.size === 'number' && info.size > 0) byteSize = info.size;
-    } catch {}
-    // Unique paths never collide, so always insert a fresh asset row — the
-    // old path-keyed dedupe reused the previous video's row after a swap.
-    const { data: ins, error: mErr } = await sb
-      .from('media_assets')
-      .insert({
-        workspace_id: wsId,
-        uploaded_by: userId,
-        storage_path: path,
-        kind,
-        mime_type: mime,
-        byte_size: byteSize,
-        status: 'ready',
-      })
-      .select('id')
-      .single();
-    if (mErr || !ins) throw new Error(`cloud media row failed: ${mErr?.message ?? 'no row'}`);
-    linked.push(String((ins as any).id));
-    newPaths.push(path);
   }
 
   // Links BEFORE targets (atomicity): the worker only ever sees queued
@@ -270,19 +246,21 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   }
 
   // Sweep superseded objects/rows from earlier pushes of THIS post only
-  // (best-effort — a leftover `0.mp4` in this prefix is exactly how a
-  // replaced video haunted the next publish).
+  // (best-effort — a leftover media object in this prefix is exactly how a
+  // replaced video haunted the next publish). New uploads live in R2, so the
+  // edge `delete` action removes the object + marks the row deleted.
   try {
     const stale = prevPaths.filter((p) => p && !newPaths.includes(p));
     if (stale.length) {
-      await sb.storage.from('post-media').remove(stale).catch(() => ({}));
       const { data: rows } = await sb
         .from('media_assets')
         .select('id, storage_path')
         .eq('workspace_id', wsId)
         .in('storage_path', stale);
       const ids = ((rows ?? []) as any[]).map((r) => String(r.id)).filter(Boolean);
-      if (ids.length) await sb.from('media_assets').delete().in('id', ids);
+      for (const id of ids) {
+        await callEdgeFunction('media', { action: 'delete', mediaId: id }).catch(() => {});
+      }
     }
   } catch {}
   // Record the successful push — the pull uses this allowlist to retract

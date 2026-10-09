@@ -1,6 +1,7 @@
 /** Server-side Facebook Page and Instagram Business publishing. */
 import { readSecret } from './db';
-import { storageDownload, storageSign } from './rest';
+import { storageDownload, storageSign, storageHeadSize } from './rest';
+import { assertMediaAllowed } from './mediaLimits';
 
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const IG_GRAPH = 'https://graph.instagram.com';
@@ -9,7 +10,14 @@ const IG_WAIT_MS = 90_000;
 interface Bundle {
   target: { id: string; provider: string; caption: string | null; options: any; format: string | null };
   post: { id: string; title: string; body: string };
-  media: { storage_path: string; kind: string; mime_type: string | null; position: number }[];
+  media: {
+    storage_path: string;
+    kind: string;
+    mime_type: string | null;
+    position: number;
+    byte_size: number | null;
+    duration_ms: number | null;
+  }[];
   channel: { id: string; external_id: string; instance_url: string | null; metadata: any };
   secrets: { access_secret_id: string | null; refresh_secret_id: string | null; expires_at: string | null };
 }
@@ -52,10 +60,23 @@ export async function publishFacebookTarget(bundle: Bundle): Promise<{ remoteId:
   const caption = b.target.caption ?? b.post.body ?? '';
   const video = media(b, 'video')[0];
   if (video) {
-    const bytes = await storageDownload(await storageSign('post-media', video.storage_path), 128 * 1024 * 1024);
-    const id = await fbForm(`/${pageId}/videos`, tokenValue, { description: caption }, {
-      name: 'sosial.mp4', mime: video.mime_type || 'video/mp4', bytes,
+    await assertMediaAllowed('facebook', [video], async () => {
+      if (video.byte_size) return video.byte_size;
+      const head = await storageHeadSize('post-media', video.storage_path);
+      if (head === null) throw new Error('Video: could not read its size from storage.');
+      return head;
     });
+    // Graph pulls the bytes itself (file_url) — no 128 MB buffer on the worker,
+    // so multi-GB videos work. The signed URL must outlive the crawl.
+    const url = await storageSign('post-media', video.storage_path, 3600);
+    const r = await fetch(`${FB_GRAPH}/${pageId}/videos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: caption, file_url: url, access_token: tokenValue }),
+    });
+    const j = await json(r);
+    if (!r.ok || j.error || (!j.id && !j.post_id)) throw new Error(errorText(j, 'Facebook publish failed.'));
+    const id = String(j.post_id ?? j.id);
     return { remoteId: id, remoteUrl: `https://www.facebook.com/${id}` };
   }
   const images = media(b, 'image');
@@ -125,6 +146,12 @@ export async function publishInstagramTarget(bundle: Bundle): Promise<{ remoteId
   if (String(b.target.format ?? '').toLowerCase() === 'story') {
     throw new Error('Instagram Stories are not supported by closed-app publishing yet. Use Feed or Reel.');
   }
+  await assertMediaAllowed('instagram', [...videos, ...images], async (m) => {
+    if (m.byte_size) return m.byte_size;
+    const head = await storageHeadSize('post-media', m.storage_path);
+    if (head === null) throw new Error('Media: could not read its size from storage.');
+    return head;
+  });
   let creationId: string;
   if (videos.length) {
     const url = await storageSign('post-media', videos[0].storage_path, 3600);

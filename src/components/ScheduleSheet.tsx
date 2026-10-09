@@ -848,10 +848,10 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
         .filter((n): n is string => Boolean(n));
       return names.length ? `• ${label} (${names.join(', ')})` : `• ${label}`;
     });
-    const snippet = (composer?.caption ?? '').trim().replace(/\s+/g, ' ');
+    const snippet = (composer?.caption ?? '').trim().replace(/[ \t]+/g, ' ');
     Alert.alert(
       `Post now to ${targets.length} channel${targets.length === 1 ? '' : 's'}?`,
-      `${lines.join('\n')}${snippet ? `\n\n“${snippet.slice(0, 140)}${snippet.length > 140 ? '…' : ''}”` : ''}`,
+      `${lines.join('\n')}${snippet ? `\n\n${snippet.slice(0, 140)}${snippet.length > 140 ? '…' : ''}` : ''}`,
       [{ text: 'Cancel', style: 'cancel' }, { text: 'Post now', onPress: go }],
     );
   };

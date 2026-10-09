@@ -7,6 +7,10 @@ export type PostStatus = 'draft' | 'queued' | 'approval' | 'sent';
 export interface MediaAttachment {
   uri: string;
   kind: 'image' | 'video';
+  /** Bytes on disk (set at pick time) — powers size warnings. */
+  size?: number;
+  /** Video length in ms (set at pick time) — YouTube 4 h check. */
+  durationMs?: number;
 }
 
 export type ChannelKey = 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x' | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'gmb';

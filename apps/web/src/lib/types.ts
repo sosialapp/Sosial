@@ -75,8 +75,19 @@ export interface MediaAssetRow {
   kind: 'image' | 'video';
   mime_type: string | null;
   byte_size: number | null;
-  status: 'uploading' | 'ready' | 'failed';
+  /** where the bytes live: legacy Supabase bucket, R2, or both (p56) */
+  storage_backend?: 'supabase' | 'r2' | 'both';
+  /** permanent media, no expiry; 'deleted' is a soft-delete tombstone (p58) */
+  status: 'pending' | 'uploading' | 'ready' | 'failed' | 'deleted';
+  original_filename?: string | null;
+  thumb_path?: string | null;
+  width?: number | null;
+  height?: number | null;
+  duration_ms?: number | null;
+  created_at?: string;
   signed_url?: string;
+  /** signed URL for thumb_path, when the asset has a client-generated thumb */
+  thumb_url?: string;
 }
 
 export interface PostMediaRow {

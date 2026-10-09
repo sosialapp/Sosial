@@ -105,16 +105,9 @@ export default function BlogDoc({
 
   const uploadFile = useCallback(async (file: File): Promise<string> => {
     const { createClient } = await import('@/lib/supabase/client');
+    const { uploadBlogMedia } = await import('@/lib/mediaUpload');
     const sb = createClient();
-    const ext =
-      (file.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await sb.storage
-      .from('blog-media')
-      .upload(path, file, { contentType: file.type || 'application/octet-stream' });
-    if (error) throw new Error(error.message);
-    const { data } = sb.storage.from('blog-media').getPublicUrl(path);
-    return data.publicUrl;
+    return uploadBlogMedia(sb, 'docs', file);
   }, []);
 
   const editor = useEditor(

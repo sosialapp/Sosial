@@ -20,6 +20,9 @@ export interface PlanLimits {
   aiCredits: number | null;
   users: number | null;
   workspaces: number | null;
+  /** total bytes of media a workspace may store; null = unlimited. Media is
+   *  retained permanently — this caps how much can be uploaded, never expiry. */
+  storageBytes: number | null;
   watermarkRequired: boolean;
 }
 
@@ -37,6 +40,9 @@ export interface PlanDef {
   points: string[];
 }
 
+/** 1 GiB in bytes — storage quotas are written in whole GiB. */
+export const GiB = 1024 ** 3;
+
 export const PLANS: Record<PlanKey, PlanDef> = {
   free: {
     key: 'free',
@@ -45,7 +51,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
     badge: 'For getting started',
     monthly: 0,
     annual: 0,
-    limits: { channels: 3, scheduledPostsPerChannel: 10, aiCredits: 20, users: 1, workspaces: 1, watermarkRequired: true },
+    limits: { channels: 3, scheduledPostsPerChannel: 10, aiCredits: 20, users: 1, workspaces: 1, storageBytes: 2 * GiB, watermarkRequired: true },
     points: [
       '3 connected channels',
       '10 scheduled posts per channel',
@@ -62,7 +68,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
     badge: 'For creators & individuals',
     monthly: 12,
     annual: 120,
-    limits: { channels: 6, scheduledPostsPerChannel: null, aiCredits: 500, users: 1, workspaces: 1, watermarkRequired: false },
+    limits: { channels: 6, scheduledPostsPerChannel: null, aiCredits: 500, users: 1, workspaces: 1, storageBytes: 25 * GiB, watermarkRequired: false },
     points: [
       '6 connected channels',
       'Unlimited scheduled posts',
@@ -79,7 +85,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
     featured: true,
     monthly: 29,
     annual: 290,
-    limits: { channels: 25, scheduledPostsPerChannel: null, aiCredits: 1500, users: 5, workspaces: 5, watermarkRequired: false },
+    limits: { channels: 25, scheduledPostsPerChannel: null, aiCredits: 1500, users: 5, workspaces: 5, storageBytes: 100 * GiB, watermarkRequired: false },
     points: [
       '25 connected channels',
       'Unlimited scheduled posts',
@@ -95,7 +101,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
     badge: 'For agencies & businesses',
     monthly: 79,
     annual: 790,
-    limits: { channels: 100, scheduledPostsPerChannel: null, aiCredits: 5000, users: null, workspaces: null, watermarkRequired: false },
+    limits: { channels: 100, scheduledPostsPerChannel: null, aiCredits: 5000, users: null, workspaces: null, storageBytes: 500 * GiB, watermarkRequired: false },
     points: [
       '100 connected channels',
       'Unlimited scheduled posts',
@@ -111,7 +117,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
     monthly: 1,
     annual: 1,
     lifetime: 1,
-    limits: { channels: null, scheduledPostsPerChannel: null, aiCredits: null, users: null, workspaces: null, watermarkRequired: false },
+    limits: { channels: null, scheduledPostsPerChannel: null, aiCredits: null, users: null, workspaces: null, storageBytes: null, watermarkRequired: false },
     points: [
       'Unlimited connected channels',
       'Unlimited scheduled posts',

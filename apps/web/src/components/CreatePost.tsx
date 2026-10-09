@@ -18,6 +18,7 @@ import { providerMeta, postTypeOptions } from '@/lib/providers';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
+import { validateUpload, targetWarnings } from '@/lib/mediaLimits';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
@@ -480,6 +481,16 @@ export default function CreatePost({
     };
   }, [ready, picked, segs, thread]);
 
+  /** Non-blocking size warnings — "over 1 GB won't reach X, tap YouTube too". */
+  const sizeWarnings = useMemo(() => {
+    const files = segs
+      .flatMap((s) => s.media)
+      .filter((m): m is MediaItem & { file: File } => Boolean(m.file))
+      .map((m) => ({ name: m.file.name, size: m.file.size, kind: m.kind }));
+    if (!files.length) return [] as string[];
+    return targetWarnings(files, chosenProviders);
+  }, [segs, chosenProviders]);
+
   /**
    * Inline gating: a channel the draft can't satisfy renders grey with its
    * reason on tap (instead of a separate panel below). "Unselected" chips
@@ -563,7 +574,21 @@ export default function CreatePost({
 
   function addFilesTo(i: number, list: FileList | File[] | null) {
     if (!list) return;
-    const next = toMediaItems(Array.from(list));
+    const accepted: File[] = [];
+    for (const file of Array.from(list)) {
+      const problem = validateUpload({
+        name: file.name,
+        size: file.size,
+        kind: file.type.startsWith('video') ? 'video' : 'image',
+      });
+      if (problem) {
+        setErr(problem);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (!accepted.length) return;
+    const next = toMediaItems(accepted);
     setSegs((prev) =>
       prev.map((s, j) => (j === i ? { ...s, media: [...s.media, ...next].slice(0, 10) } : s)),
     );
@@ -877,10 +902,16 @@ export default function CreatePost({
                   </button>
                 </div>
               ) : null}
-              {chipNote ? (
+              {sizeWarnings.length > 0 && !err ? (
                 <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDF6E7] px-3 py-2 dark:bg-[#2b2417]" role="status">
                   <p className="min-w-0 flex-1 whitespace-pre-line text-xs font-bold text-amber-700 dark:text-amber-300">
-                    {chipNote}
+                    {sizeWarnings.join('\n')}
+                  </p>
+                </div>
+              ) : null}
+              {chipNote ? (
+                <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDF6E7] px-3 py-2 dark:bg-[#2b2417]" role="status">
+                  <p className="min-w-0 flex-1 whitespace-pre-line text-xs font-bold text-amber-700 dark:text-amber-300">                    {chipNote}
                   </p>
                   <button
                     type="button"
@@ -1010,13 +1041,39 @@ export default function CreatePost({
                       const snippet =
                         segs.find((s) => s.body.trim())?.body.trim().replace(/\s+/g, ' ') ?? '';
                       const parts = segs.filter((s) => s.body.trim() || s.media.length > 0).length;
-                      if (!snippet) return null;
+                      const media = segs.flatMap((s) => s.media);
+                      if (!snippet && media.length === 0) return null;
                       return (
-                        <p className="mt-3 rounded-xl bg-paper-dim px-3 py-2 text-xs text-soft">
-                          “{snippet.slice(0, 140)}
-                          {snippet.length > 140 ? '…' : ''}”
-                          {thread && parts > 1 ? ` (+${parts - 1} more parts)` : ''}
-                        </p>
+                        <div className="mt-3">
+                          {media.length > 0 ? (
+                            <div className="mb-2 flex gap-1.5 overflow-x-auto rounded-xl bg-paper-dim p-2">
+                              {media.slice(0, 10).map((m, i) => (
+                                <div key={`${m.url}-${i}`} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line">
+                                  {m.kind === 'video' ? (
+                                    <>
+                                      <video src={m.url} className="h-full w-full object-cover" muted playsInline />
+                                      <span className="absolute bottom-0.5 right-0.5 rounded bg-ink/70 px-1 text-[9px] font-bold text-paper">▶</span>
+                                    </>
+                                  ) : (
+                                    <img src={m.url} alt="" className="h-full w-full object-cover" />
+                                  )}
+                                </div>
+                              ))}
+                              {media.length > 10 ? (
+                                <div className="flex h-16 w-8 shrink-0 items-center justify-center rounded-lg bg-surface text-xs font-bold text-muted">
+                                  +{media.length - 10}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {snippet ? (
+                            <p className="rounded-xl bg-paper-dim px-3 py-2 text-xs whitespace-pre-line text-soft">
+                              {snippet.slice(0, 140)}
+                              {snippet.length > 140 ? '…' : ''}
+                              {thread && parts > 1 ? ` (+${parts - 1} more parts)` : ''}
+                            </p>
+                          ) : null}
+                        </div>
                       );
                     })()}
                     <div className="mt-4 flex gap-2">

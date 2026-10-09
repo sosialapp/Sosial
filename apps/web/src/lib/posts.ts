@@ -1,38 +1,69 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ALL_PROVIDERS } from './providers';
 import { assertQueueLeadTime } from './queue';
+import { uploadMedia } from './mediaUpload';
 import type { ConnectedChannel, PostWithTargets, WorkspaceInfo } from './types';
 
 /** Ordered media + targets for every post in a workspace (RLS-scoped).
- *  Media bytes live in a private bucket, so each asset gets a short-lived
- *  signed URL for previews. */
+ *  Media bytes live in a private store, so each asset gets a short-lived
+ *  signed URL for previews. R2 assets are signed through the `media` edge
+ *  function; legacy Supabase assets through Storage — a post can mix both. */
 export async function fetchPosts(sb: SupabaseClient, workspaceId: string): Promise<PostWithTargets[]> {
   const { data, error } = await sb
     .from('posts')
     .select(
-      '*, post_targets(*), post_media(position, media_assets(id, workspace_id, storage_path, kind, mime_type, byte_size, status)), approvals(id, status, comment, created_at, decided_at)',
+      '*, post_targets(*), post_media(position, media_assets(id, workspace_id, storage_path, thumb_path, storage_backend, kind, mime_type, byte_size, width, height, duration_ms, status)), approvals(id, status, comment, created_at, decided_at)',
     )
     .eq('workspace_id', workspaceId)
     .order('scheduled_at', { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
 
   const rows = (data ?? []) as unknown as PostWithTargets[];
-  const paths = new Set<string>();
+
+  const supabasePaths = new Set<string>();
+  const r2Paths = new Set<string>();
   for (const p of rows) {
     for (const m of p.post_media ?? []) {
-      if (m.media_assets?.storage_path) paths.add(m.media_assets.storage_path);
+      const a = m.media_assets;
+      if (!a?.storage_path) continue;
+      if (a.storage_backend === 'r2') {
+        r2Paths.add(a.storage_path);
+        if (a.thumb_path) r2Paths.add(a.thumb_path);
+      } else {
+        supabasePaths.add(a.storage_path);
+      }
     }
   }
-  if (paths.size) {
-    const { data: signed } = await sb.storage.from('post-media').createSignedUrls([...paths], 3600);
-    const byPath = new Map<string, string>();
-    for (const s of (signed ?? []) as { path: string; signedUrl: string | null }[]) {
-      if (s.signedUrl) byPath.set(s.path, s.signedUrl);
+
+  const signed = new Map<string, string>();
+  if (supabasePaths.size) {
+    const { data: urls } = await sb.storage.from('post-media').createSignedUrls([...supabasePaths], 3600);
+    for (const s of (urls ?? []) as { path: string; signedUrl: string | null }[]) {
+      if (s.signedUrl) signed.set(s.path, s.signedUrl);
     }
-    for (const p of rows) {
-      for (const m of p.post_media ?? []) {
-        if (m.media_assets) m.media_assets.signed_url = byPath.get(m.media_assets.storage_path);
+  }
+  if (r2Paths.size) {
+    try {
+      const { data: res, error: signErr } = await sb.functions.invoke('media', {
+        body: { action: 'sign', items: [...r2Paths].map((path) => ({ path, bucket: 'post-media' })), expiresIn: 3600 },
+      });
+      if (!signErr && res && !(res as { error?: string }).error) {
+        const urls = (res as { urls: string[] }).urls ?? [];
+        [...r2Paths].forEach((path, i) => {
+          if (urls[i]) signed.set(path, urls[i]);
+        });
       }
+    } catch {
+      // Preview signing is best-effort; the list still renders without thumbs.
+    }
+  }
+
+  for (const p of rows) {
+    for (const m of p.post_media ?? []) {
+      const a = m.media_assets;
+      if (!a) continue;
+      a.signed_url = signed.get(a.storage_path);
+      a.thumb_url = a.thumb_path ? signed.get(a.thumb_path) : undefined;
     }
   }
   return rows;
@@ -242,31 +273,16 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
   if (pErr || !prow) throw new Error(`Could not save the post: ${pErr?.message ?? 'no row'}`);
   const postId = String((prow as { id: string }).id);
 
-  // Media first — deterministic per-push stamp so a re-save never reuses a path.
-  const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  // Media first — uploaded straight to R2 via the `media` edge function, which
+  // creates the media_assets row (service role) and marks it ready on complete.
+  // Ordering matches mobile (media before targets) so the worker never sees a
+  // queued target whose media is still missing.
   const linked: string[] = [];
   for (let i = 0; i < files.length; i++) {
     const { file, kind } = files[i];
-    const ext = extFor(file.name, kind);
-    const mime = file.type || mimeFor(ext, kind);
-    const path = `${workspaceId}/${clientId}/${i}-${stamp}.${ext}`;
-    const up = await sb.storage.from('post-media').upload(path, file, { contentType: mime, upsert: true });
-    if (up.error) throw new Error(`Media upload failed (${file.name}): ${up.error.message}`);
-    const { data: ins, error: mErr } = await sb
-      .from('media_assets')
-      .insert({
-        workspace_id: workspaceId,
-        uploaded_by: userId,
-        storage_path: path,
-        kind,
-        mime_type: mime,
-        byte_size: file.size,
-        status: 'ready',
-      })
-      .select('id')
-      .single();
-    if (mErr || !ins) throw new Error(`Could not record media (${file.name}): ${mErr?.message ?? 'no row'}`);
-    linked.push(String((ins as { id: string }).id));
+    // userId is only consumed by the edge when the caller is service_role.
+    const res = await uploadMedia(sb, workspaceId, file, kind, undefined, userId);
+    linked.push(res.mediaId);
   }
 
   if (linked.length) {

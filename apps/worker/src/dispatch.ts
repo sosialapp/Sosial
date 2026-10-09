@@ -14,7 +14,11 @@ import {
   deferJob,
   channelDailyRemaining,
   channelDailyNextSlot,
+  getMediaAsset,
+  deleteMediaAsset,
 } from './db';
+import { storageRemove, storageHeadSize } from './rest';
+import { assertMediaAllowed } from './mediaLimits';
 import { publishBlueskyTarget, blueskyPostUrl } from './bsky';
 import { publishThreadsTarget } from './threads';
 import { publishXTarget } from './x';
@@ -41,6 +45,9 @@ import { info, debug } from './logger';
 function notPorted(kind: string): Error {
   return new Error(`job kind '${kind}' not ported yet — see apps/worker/README.md`);
 }
+
+/** Private bucket holding post media bytes (p5_media_storage). */
+const MEDIA_BUCKET = 'post-media';
 
 async function handlePublishTarget(job: Job): Promise<void> {
   const targetId = String(job.payload?.post_target_id ?? '');
@@ -78,6 +85,21 @@ async function handlePublishTarget(job: Job): Promise<void> {
   }
 
   try {
+    // Publish-time ruleset: this target's provider must be able to take the
+    // attached media (≤1 GB video everywhere but YouTube; YouTube ≤10 GB and
+    // ≤4 h; images ≤10 MB). A broken rule fails THIS target with a clear
+    // reason — other targets on the post still publish.
+    const media = (bundle?.media ?? []) as {
+      kind: string;
+      storage_path: string;
+      byte_size: number | null;
+      duration_ms: number | null;
+    }[];
+    if (media.length) {
+      await assertMediaAllowed(provider, media, (m) =>
+        m.kind === 'image' ? storageHeadSize(MEDIA_BUCKET, m.storage_path) : Promise.resolve(null),
+      );
+    }
     if (provider === 'bluesky') {
       const uri = await publishBlueskyTarget(bundle);
       const did = String(bundle?.channel?.external_id ?? '');
@@ -230,8 +252,24 @@ async function handleSendPush(job: Job): Promise<void> {
 }
 
 async function handleCleanupMedia(job: Job): Promise<void> {
-  debug(`cleanup_media (job ${job.id})`);
-  throw notPorted('cleanup_media');
+  const mediaId = String(job.payload?.media_id ?? '');
+  if (!mediaId) throw new Error(`job ${job.id}: missing media_id`);
+  debug(`cleanup_media ${mediaId} (job ${job.id})`);
+  const asset = await getMediaAsset(mediaId);
+  // Already swept (or deleted by hand): the object is the thing that matters,
+  // and there is no path to it any more. Idempotent success.
+  if (!asset) {
+    debug(`media ${mediaId} already gone`);
+    return;
+  }
+  // Media is retained permanently — this kind only runs for an explicit user
+  // delete or an abandoned/failed upload. Objects are R2 (`storage_backend`
+  // 'r2'/'both') or the legacy Supabase bucket; storageRemove routes by path.
+  // Object first, then the row: a crash between the two leaves an orphan row
+  // the next sweep re-enqueues, never an orphan object with no way to find it.
+  if (asset.storage_path) await storageRemove(MEDIA_BUCKET, asset.storage_path);
+  await deleteMediaAsset(mediaId);
+  debug(`media ${mediaId} deleted — object + row removed`);
 }
 
 async function handleSendInvite(job: Job): Promise<void> {

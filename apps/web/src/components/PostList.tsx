@@ -13,7 +13,7 @@ import {
   submitForApproval,
 } from '@/lib/posts';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
-import { gridThumb, imageThumb, THUMB_WIDTHS } from '@/lib/media';
+import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
 
@@ -274,11 +274,11 @@ function PreviewDialog({
                     controls
                     className="h-20 w-20 rounded-lg border border-line bg-bone object-cover"
                   />
-                ) : m.signed_url ? (
+                ) : mediaThumbUrl(m) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={m.id}
-                    src={gridThumb(m.signed_url)}
+                    src={mediaThumbUrl(m)}
                     alt=""
                     loading="lazy"
                     className="h-20 w-20 rounded-lg border border-line object-cover"
@@ -589,11 +589,11 @@ export default function PostList({
                           controls
                           className="h-auto max-h-[420px] w-full rounded-2xl border border-line bg-bone object-contain"
                         />
-                      ) : m.signed_url ? (
+                      ) : m.signed_url || m.thumb_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           key={m.id}
-                          src={imageThumb(m.signed_url, THUMB_WIDTHS.lg)}
+                          src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.lg) : m.thumb_url ?? undefined}
                           alt=""
                           loading="lazy"
                           className="h-auto max-h-[420px] w-full rounded-2xl border border-line bg-bone object-contain"

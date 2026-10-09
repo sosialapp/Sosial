@@ -8,6 +8,28 @@ import { useTheme, Palette, R } from '../theme';
 import { SOCIAL_META } from '../constants';
 import { useFocusScrollContext } from './FocusScroll';
 
+/** Determinate progress bar (web parity with shadcn Progress): accent fill on
+ *  the soft-line track, `value` 0-100, animated width. */
+export function ProgressBar({ value, height = 8 }: { value: number; height?: number }) {
+  const { C } = useTheme();
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <View
+      accessibilityRole="progressbar"
+      style={{ height, borderRadius: height / 2, backgroundColor: C.lineSoft, overflow: 'hidden' }}
+    >
+      <View
+        style={{
+          width: `${pct}%`,
+          height,
+          borderRadius: height / 2,
+          backgroundColor: C.accent,
+        }}
+      />
+    </View>
+  );
+}
+
 /** Filled circle-check (Ionicons checkmark-circle shape, 512 viewBox) — the
  *  shared "connected/done" icon used everywhere ✓ used to be typed. */
 export function CheckIcon({ size = 16, color }: { size?: number; color?: string }) {

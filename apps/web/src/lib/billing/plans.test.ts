@@ -64,6 +64,14 @@ describe('canonical pricing', () => {
     }
   });
 
+  it('caps workspace storage by plan (media is kept forever, never expired)', () => {
+    expect(PLANS.free.limits.storageBytes).toBe(2 * 1024 ** 3);
+    expect(PLANS.solo.limits.storageBytes).toBe(25 * 1024 ** 3);
+    expect(PLANS.team.limits.storageBytes).toBe(100 * 1024 ** 3);
+    expect(PLANS.business.limits.storageBytes).toBe(500 * 1024 ** 3);
+    expect(PLANS.ultimate.limits.storageBytes).toBeNull();
+  });
+
   it('keeps feature limits identical across billing intervals', () => {
     // Limits live once on the plan — the interval cannot alter them by design.
     for (const key of PLAN_ORDER) {
@@ -143,6 +151,7 @@ describe('canonical pricing', () => {
       aiCredits: null,
       users: null,
       workspaces: null,
+      storageBytes: null,
       watermarkRequired: false,
     });
     expect(nextPlan('ultimate')).toBeNull();

@@ -364,9 +364,9 @@ export default function QuickPost({
                       })}
                   </ul>
                   {body.trim() ? (
-                    <p className="mt-3 rounded-xl bg-paper-dim px-3 py-2 text-xs text-soft">
-                      “{body.trim().replace(/\s+/g, ' ').slice(0, 140)}
-                      {body.trim().length > 140 ? '…' : ''}”
+                    <p className="mt-3 rounded-xl bg-paper-dim px-3 py-2 text-xs whitespace-pre-line text-soft">
+                      {body.trim().replace(/[ \t]+/g, ' ').slice(0, 140)}
+                      {body.trim().length > 140 ? '…' : ''}
                     </p>
                   ) : null}
                   <div className="mt-4 flex gap-2">

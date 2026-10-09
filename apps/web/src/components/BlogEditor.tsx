@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { uploadBlogMedia } from '@/lib/mediaUpload';
 import BlogDoc from '@/components/blog/BlogDoc';
 import ChartIslands from '@/components/site/ChartIslands';
 import { cleanDocForPublish, normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
@@ -85,15 +86,8 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
     setErr(null);
     try {
       const sb = createClient();
-      const ext =
-        (f.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-      const path = `covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await sb.storage
-        .from('blog-media')
-        .upload(path, f, { contentType: f.type });
-      if (error) throw new Error(error.message);
-      const { data } = sb.storage.from('blog-media').getPublicUrl(path);
-      setCoverUrl(data.publicUrl);
+      const url = await uploadBlogMedia(sb, 'covers', f);
+      setCoverUrl(url);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Cover upload failed.');
     } finally {

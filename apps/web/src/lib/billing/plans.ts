@@ -34,6 +34,9 @@ export interface PlanLimits {
   users: number | null;
   /** workspaces (brands) the user may own; null = unlimited */
   workspaces: number | null;
+  /** total bytes of media a workspace may store; null = unlimited. Media is
+   *  retained permanently — this caps how much can be uploaded, never expiry. */
+  storageBytes: number | null;
   /** true ⇒ the Sosial watermark is forced ON and cannot be disabled */
   watermarkRequired: boolean;
 }
@@ -59,6 +62,9 @@ export interface PlanDef {
   points: string[];
 }
 
+/** 1 GiB in bytes — storage quotas are written in whole GiB. */
+export const GiB = 1024 ** 3;
+
 /** The canonical price book. Prices are explicit — never derived. */
 export const PLANS: Record<PlanKey, PlanDef> = {
   free: {
@@ -74,6 +80,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       aiCredits: 20,
       users: 1,
       workspaces: 1,
+      storageBytes: 2 * GiB,
       watermarkRequired: true,
     },
     points: [
@@ -98,6 +105,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       aiCredits: 500,
       users: 1,
       workspaces: 1,
+      storageBytes: 25 * GiB,
       watermarkRequired: false,
     },
     points: [
@@ -122,6 +130,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       aiCredits: 1500,
       users: 5,
       workspaces: 5,
+      storageBytes: 100 * GiB,
       watermarkRequired: false,
     },
     points: [
@@ -145,6 +154,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       aiCredits: 5000,
       users: null,
       workspaces: null,
+      storageBytes: 500 * GiB,
       watermarkRequired: false,
     },
     points: [
@@ -170,6 +180,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       aiCredits: null,
       users: null,
       workspaces: null,
+      storageBytes: null,
       watermarkRequired: false,
     },
     points: [

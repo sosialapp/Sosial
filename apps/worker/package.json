@@ -2,16 +2,20 @@
   "name": "sosial-worker",
   "version": "0.1.0",
   "private": true,
-  "description": "Sosial publish worker (Railway): claims jobs from Supabase job_queue and runs them. Dependency-free — plain Node 18+ fetch, no pg driver.",
+  "description": "Sosial publish worker (Railway): claims jobs from Supabase job_queue and runs them. Dependency-free â€” plain Node 18+ fetch, no pg driver.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1148.0",
+    "@aws-sdk/s3-request-presigner": "^3.1148.0",
     "sharp": "^0.35.4"
   },
   "devDependencies": {
-    "@types/node": "^26.6.1"
+    "@types/node": "^26.6.1",
+    "vitest": "^5.0.1"
   }
 }

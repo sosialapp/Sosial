@@ -42,8 +42,9 @@ node apps/worker/dist/index.js
   pulled by remote id into `post_stats` for every provider that exposes a
   read API (TikTok has none and is skipped as a no-op).
 - `sync_avatars`, `send_push`, `send_invite`.
-
-Only `cleanup_media` remains a stub.
+- `cleanup_media` — explicit-deletion sweep. Deletes the bytes + row for media
+  the user removed, and clears abandoned/failed uploads. Media is retained
+  permanently — there is no time-based expiry; post text is kept forever too.
 
 ## Deploy (Railway, when ready)
 

@@ -129,6 +129,32 @@ export async function getInvite(inviteId: string): Promise<InviteRow | null> {
   return rows?.[0] ?? null;
 }
 
+/* ----------------------------- cleanup_media ----------------------------- */
+
+export interface MediaAssetRow {
+  id: string;
+  workspace_id: string;
+  storage_path: string;
+  status: string;
+  pinned: boolean;
+  storage_backend: string;
+}
+
+/** Media row for cleanup/delete flows — null when already deleted. */
+export async function getMediaAsset(mediaId: string): Promise<MediaAssetRow | null> {
+  const rows = await rest<MediaAssetRow[]>(
+    `/rest/v1/media_assets?id=eq.${encodeURIComponent(mediaId)}&select=id,workspace_id,storage_path,status,pinned,storage_backend`,
+  );
+  return rows?.[0] ?? null;
+}
+
+/** Delete one media row; post_media links cascade, the post itself survives. */
+export async function deleteMediaAsset(mediaId: string): Promise<void> {
+  await rest<unknown>(`/rest/v1/media_assets?id=eq.${encodeURIComponent(mediaId)}`, {
+    method: 'DELETE',
+  });
+}
+
 function siteUrl(): string {
   return env('WORKER_SITE_URL', 'https://sosial.app').replace(/\/+$/, '');
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Modal, ActivityIndicator, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
-import { PrimaryBtn, GhostBtn, SocialGlyph } from './ui';
+import { PrimaryBtn, GhostBtn, SocialGlyph, ProgressBar } from './ui';
 import { SOCIAL_META } from '../constants';
 
 export interface PubRow {
@@ -68,6 +68,9 @@ export default function PublishNotice({
   const s = makeS(C);
   if (!visible) return null;
   const allGood = (rows?.length ?? 0) > 0 && rows!.every((r) => r.state === 'done');
+  const doneCount = (rows ?? []).filter((r) => r.state === 'done' || r.state === 'fail' || r.state === 'manual').length;
+  const overall = rows && rows.length ? (doneCount / rows.length) * 100 : mode === 'loading' ? 8 : 0;
+  const rowBar = (state: PubRow['state']) => (state === 'working' ? 55 : 100);
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => { if (mode === 'result' || mode === 'info') onDone?.(); if (mode === 'privacy') onCancel?.(); if (mode === 'loading') onHide?.(); }}>
       <View style={s.bg}>
@@ -79,7 +82,7 @@ export default function PublishNotice({
           ) : null}
           {mode === 'loading' ? (
             <View style={s.loadHead}>
-              <ActivityIndicator size="large" color={C.accent} />
+              <ProgressBar value={overall} />
             </View>
           ) : null}
           {mode === 'privacy' ? (
@@ -113,6 +116,11 @@ export default function PublishNotice({
                       <RowIcon state={r.state} />
                       <View style={{ flex: 1 }}>
                         <Text style={s.rowT}>{r.label}</Text>
+                        {mode === 'loading' && r.state === 'working' ? (
+                          <View style={{ marginTop: 5 }}>
+                            <ProgressBar value={rowBar(r.state)} height={4} />
+                          </View>
+                        ) : null}
                         {r.note ? (
                           <Text style={s.rowNote} selectable>
                             {r.note}
