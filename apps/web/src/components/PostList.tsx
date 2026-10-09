@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Repeat2, Eye, type LucideIcon } from 'lucide-react';
+import { Check, Heart, MessageCircle, Pencil, Repeat2, Eye, Send, Share2, Trash2, type LucideIcon } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { MediaAssetRow, PostWithTargets, PostStatus, WorkspaceInfo } from '@/lib/types';
+import type { ConnectedChannel, MediaAssetRow, PostWithTargets, PostStatus, WorkspaceInfo } from '@/lib/types';
+import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import {
   approvePost,
@@ -50,6 +51,59 @@ function agoShort(iso: string): string {
   const h = Math.round(m / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
+}
+
+/** Short relative time for a post's head, e.g. "2h", "3d", "Mar 4". */
+function shortRel(iso: string | null): string {
+  if (!iso) return 'unscheduled';
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '—';
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 60) return `${Math.max(1, s)}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.round(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Compact count for the card stats bar (1.2k, 3.4M). */
+function fmtCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
+  return `${(n / 1_000_000).toFixed(1)}M`;
+}
+
+/** Icon button with a tooltip label, used for the card footer actions. */
+function IconAction({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  danger,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card transition hover:bg-bone disabled:opacity-40 ${
+        danger ? 'text-[#9F2F2D] hover:border-[#9F2F2D]/40 dark:text-[#f2a8a8]' : 'text-soft hover:text-ink'
+      }`}
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" />
+    </button>
+  );
 }
 
 function mediaOf(p: PostWithTargets): MediaAssetRow[] {
@@ -311,6 +365,7 @@ export default function PostList({
   workspaceId,
   onEdit,
   avatars = {},
+  channels = [],
   initialTab,
   hideChrome,
 }: {
@@ -322,6 +377,8 @@ export default function PostList({
   onEdit?: (postId: string) => void;
   /** Channel avatar URLs by channel id — brand discs render without photos. */
   avatars?: Record<string, string>;
+  /** Connected channels, for author name + @handle on the card head. */
+  channels?: ConnectedChannel[];
   /** Preselect a status filter (the /post pills pass theirs). */
   initialTab?: Tab;
   /** Hide the header + pill row (the /post pills already cover filtering). */
@@ -342,7 +399,52 @@ export default function PostList({
   const [monthSel, setMonthSel] = useState('');
   const [mediaSel, setMediaSel] = useState<'all' | 'text' | 'image' | 'video'>('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [stats, setStats] = useState<Record<string, StatRow>>({});
   const [, startTransition] = useTransition();
+
+  const channelById = useMemo(() => {
+    const m = new Map<string, ConnectedChannel>();
+    for (const c of channels) m.set(c.id, c);
+    return m;
+  }, [channels]);
+
+  /** Author label for a channel id: display name, else brand label. */
+  const authorOf = (channelId: string, provider: string) => {
+    const c = channelById.get(channelId);
+    const name = c?.display_name || providerMeta(provider).label;
+    const raw = c?.handle ?? c?.external_id ?? '';
+    const handle = raw ? (raw.startsWith('@') ? raw : `@${raw}`) : null;
+    return { name, handle };
+  };
+
+  // Card-level stats: one batch fetch for the visible sent targets (same
+  // query the preview panel uses; best-effort, cards render zeros without it).
+  useEffect(() => {
+    const ids = posts
+      .filter((p) => p.status === 'sent' || p.status === 'partial')
+      .flatMap((p) => p.post_targets.filter((t) => t.status === 'sent').map((t) => t.id));
+    if (!ids.length) return;
+    let live = true;
+    void (async () => {
+      try {
+        const sb = createClient();
+        const { data } = await sb
+          .from('post_stats')
+          .select('post_target_id,likes,comments,shares,views,fetched_at')
+          .eq('workspace_id', workspaceId)
+          .in('post_target_id', ids);
+        if (!live) return;
+        const map: Record<string, StatRow> = {};
+        for (const row of (data ?? []) as StatRow[]) map[row.post_target_id] = row;
+        setStats(map);
+      } catch {
+        // stats are best-effort
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [posts, workspaceId]);
 
   const dateOf = (p: PostWithTargets) => p.sent_at ?? p.scheduled_at ?? p.created_at ?? '';
 
@@ -656,39 +758,53 @@ export default function PostList({
           const cardMedia = g.parts.flatMap((p) => mediaOf(p));
           const expanded = expandedKey === g.key;
           const fullText = isChain ? g.parts.map((p) => p.body).filter(Boolean).join('\n\n') : (head.body || '');
+          const lead = targets[0];
+          const author = lead ? authorOf(lead.channel_id, lead.provider) : { name: 'Draft', handle: null };
+          const when = head.sent_at ?? head.scheduled_at;
+          const cardStats = g.parts
+            .flatMap((p) => p.post_targets)
+            .filter((t) => t.status === 'sent')
+            .map((t) => stats[t.id])
+            .filter((s): s is StatRow => Boolean(s));
+          const totalStat = (k: 'likes' | 'comments' | 'shares') =>
+            cardStats.reduce((a, s) => a + (s[k] ?? 0), 0);
+          const viewSum = cardStats.reduce((a, s) => a + (s.views == null ? 0 : Number(s.views)), 0);
+          const hasViews = cardStats.some((s) => s.views != null);
+          const showStats = cardStats.length > 0;
           return (
             <>
               <article
                 key={g.key}
                 className="overflow-hidden rounded-3xl border border-line bg-card"
               >
-                {/* Header: channels + time + status, like a social post head */}
-                <div className="flex items-center gap-2.5 px-4 pt-3.5">
-                  <span className="flex -space-x-1.5">
-                    {targets.slice(0, 5).map((t) => (
-                      <ChannelAvatar
-                        key={t.channel_id ?? t.provider}
-                        provider={t.provider}
-                        avatar={avatars[t.channel_id]}
-                        size={32}
-                      />
-                    ))}
-                  </span>
+                {/* Header: author pfp + name/handle + time, like a social post */}
+                <div className="flex items-center gap-3 px-4 pt-3.5">
+                  <ChannelAvatar
+                    provider={lead?.provider ?? 'x'}
+                    avatar={lead ? avatars[lead.channel_id] : undefined}
+                    size={40}
+                  />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-extrabold">
-                      {targets.slice(0, 3).map((t) => providerMeta(t.provider).label).join(' · ')}
-                      {targets.length > 3 ? ` +${targets.length - 3}` : ''}
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-extrabold">{author.name}</span>
+                      {isChain ? (
+                        <span className="shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
+                          Chain · {g.parts.length}
+                        </span>
+                      ) : null}
                     </span>
-                    <span className="block text-xs text-faint">
-                      {head.sent_at ? `Sent ${formatDateTime(head.sent_at)}` : formatDateTime(head.scheduled_at)}
+                    <span className="flex items-center gap-1 text-xs text-faint">
+                      {author.handle ? <span className="truncate">{author.handle}</span> : null}
+                      {author.handle ? <span aria-hidden="true">·</span> : null}
+                      <span
+                        className="shrink-0"
+                        title={head.sent_at ? formatDateTime(head.sent_at) : formatDateTime(head.scheduled_at)}
+                      >
+                        {shortRel(when)}
+                      </span>
                     </span>
                   </span>
                   <span className={`pill ${meta.className}`}>{meta.label}</span>
-                  {isChain ? (
-                    <span className="pill bg-paper-dim text-ink" title="One threaded chain">
-                      Chain · {g.parts.length}
-                    </span>
-                  ) : null}
                 </div>
 
                 {/* Body: full text, expandable */}
@@ -740,9 +856,13 @@ export default function PostList({
                   )}
                 </div>
 
-                {/* Media: natural aspect ratio, never cropped */}
+                {/* Media: social sizing — full-width single, square grid for many */}
                 {cardMedia.length > 0 && (
-                  <div className={`mt-2.5 gap-1 px-4 ${cardMedia.length > 1 ? 'grid grid-cols-2' : ''}`}>
+                  <div
+                    className={`mt-2.5 gap-1 px-4 ${
+                      cardMedia.length === 1 ? '' : cardMedia.length === 2 ? 'grid grid-cols-2' : 'grid grid-cols-2'
+                    }`}
+                  >
                     {cardMedia.slice(0, 4).map((m) =>
                       m.kind === 'video' ? (
                         <video
@@ -751,7 +871,9 @@ export default function PostList({
                           muted
                           playsInline
                           controls
-                          className="h-auto max-h-[420px] w-full rounded-2xl border border-line bg-bone object-contain"
+                          className={`w-full rounded-2xl border border-line bg-bone object-cover ${
+                            cardMedia.length === 1 ? 'max-h-[520px]' : 'aspect-square'
+                          }`}
                         />
                       ) : m.signed_url || m.thumb_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -760,12 +882,16 @@ export default function PostList({
                           src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.lg) : m.thumb_url ?? undefined}
                           alt=""
                           loading="lazy"
-                          className="h-auto max-h-[420px] w-full rounded-2xl border border-line bg-bone object-contain"
+                          className={`w-full rounded-2xl border border-line bg-bone object-cover ${
+                            cardMedia.length === 1 ? 'max-h-[520px]' : 'aspect-square'
+                          }`}
                         />
                       ) : (
                         <span
                           key={m.id}
-                          className="flex h-24 items-center justify-center rounded-2xl border border-line bg-bone text-[10px] text-faint"
+                          className={`flex items-center justify-center rounded-2xl border border-line bg-bone text-[10px] text-faint ${
+                            cardMedia.length === 1 ? 'h-40' : 'aspect-square'
+                          }`}
                         >
                           {m.kind}
                         </span>
@@ -777,7 +903,31 @@ export default function PostList({
                   <p className="px-4 pt-1 text-xs font-bold text-faint">+{mediaTotal - 4} more attachments</p>
                 )}
 
-                {/* Footer: channel logos + actions */}
+                {/* Stats bar (sent posts): views · likes · comments · shares */}
+                {showStats ? (
+                  <div className="flex items-center gap-5 px-4 pt-3 text-xs font-bold text-muted">
+                    {hasViews ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                        {fmtCount(viewSum)}
+                      </span>
+                    ) : null}
+                    <span className="inline-flex items-center gap-1.5">
+                      <Heart className="h-4 w-4" aria-hidden="true" />
+                      {fmtCount(totalStat('likes'))}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                      {fmtCount(totalStat('comments'))}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Share2 className="h-4 w-4" aria-hidden="true" />
+                      {fmtCount(totalStat('shares'))}
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* Footer: target logos + icon actions */}
                 <div className="flex flex-wrap items-center gap-2 px-4 py-3">
                   <span className="flex items-center gap-1" title={targets.map((t) => providerMeta(t.provider).label).join(', ')}>
                     {targets.map((t) => (
@@ -790,76 +940,58 @@ export default function PostList({
                     ))}
                   </span>
                   <span className="flex-1" />
-                <button
-                  className="btn btn-sm btn-ghost"
-                  type="button"
-                  onClick={openPreview}
-                >
-                  Preview
-                </button>
-                {canApprove && inApproval && (
-                  <>
-                    <button
-                      className="btn btn-sm btn-bolt"
-                      type="button"
+                  {canApprove && inApproval && (
+                    <>
+                      <IconAction
+                        icon={Check}
+                        label={`Approve${isChain ? ` (${ids.length})` : ''}`}
+                        disabled={busy}
+                        onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
+                      />
+                      <IconAction
+                        icon={MessageCircle}
+                        label="Request changes"
+                        disabled={busy}
+                        onClick={() => askChanges(head)}
+                      />
+                    </>
+                  )}
+                  {draftish && (
+                    <IconAction
+                      icon={Pencil}
+                      label="Edit post"
                       disabled={busy}
-                      onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
-                    >
-                      Approve{isChain ? ` (${ids.length})` : ''}
-                    </button>
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      type="button"
+                      onClick={() => {
+                        if (onEdit) onEdit(head.id);
+                        else router.push(`/post?edit=${head.id}`);
+                      }}
+                    />
+                  )}
+                  {canApprove && draftish && (
+                    <IconAction
+                      icon={Send}
+                      label="Post now"
                       disabled={busy}
-                      onClick={() => askChanges(head)}
-                    >
-                      Request changes
-                    </button>
-                  </>
-                )}
-                {draftish && (
-                  <button
-                    className="btn btn-sm btn-ghost"
-                    type="button"
+                      onClick={() => runMany(g.key, ids, (sb, id) => publishPostNow(sb, id))}
+                    />
+                  )}
+                  {!canApprove && draftish && (
+                    <IconAction
+                      icon={Send}
+                      label="Submit for approval"
+                      disabled={busy}
+                      onClick={() =>
+                        runMany(g.key, ids, (sb, id) => submitForApproval(sb, { postId: id, workspaceId, userId }))
+                      }
+                    />
+                  )}
+                  <IconAction
+                    icon={Trash2}
+                    label={`Delete${isChain ? ` (${ids.length})` : ''}`}
+                    danger
                     disabled={busy}
-                    onClick={() => {
-                      if (onEdit) onEdit(head.id);
-                      else router.push(`/post?edit=${head.id}`);
-                    }}
-                  >
-                    Edit
-                  </button>
-                )}
-                {canApprove && draftish && (
-                  <button
-                    className="btn btn-sm btn-ghost"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => runMany(g.key, ids, (sb, id) => publishPostNow(sb, id))}
-                  >
-                    Publish now
-                  </button>
-                )}
-                {!canApprove && draftish && (
-                  <button
-                    className="btn btn-sm btn-ghost"
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      runMany(g.key, ids, (sb, id) => submitForApproval(sb, { postId: id, workspaceId, userId }))
-                    }
-                  >
-                    Submit for approval
-                  </button>
-                )}
-                <button
-                  className="btn btn-sm btn-ghost"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => runMany(g.key, ids, (sb, id) => deletePost(sb, id))}
-                >
-                  Delete{isChain ? ` (${ids.length})` : ''}
-                </button>
+                    onClick={() => runMany(g.key, ids, (sb, id) => deletePost(sb, id))}
+                  />
                 </div>
               </article>
             {previewKey === g.key ? (

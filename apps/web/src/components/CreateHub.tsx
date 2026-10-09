@@ -1146,6 +1146,7 @@ export default function CreateHub({
             workspaceId={workspaceId}
             onEdit={startEdit}
             avatars={avatarRecord}
+            channels={channels}
             initialTab={statusView}
             hideChrome
           />

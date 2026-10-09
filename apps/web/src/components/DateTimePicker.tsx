@@ -1,23 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Clock, Globe, Minus, Plus } from 'lucide-react';
-import { useDismiss } from '@/lib/useDismiss';
+import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Clock, Globe, Minus, Plus } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 /**
- * Schedule controls in one row: date (calendar popover) · time (custom
- * stepper popover) · timezone (searchable dropdown, defaults to the user's
- * zone). Emits the correct UTC instant for the chosen wall time in the
- * chosen zone — browser offset math, no extra deps.
+ * Schedule controls in one row: date (shadcn calendar popover) · time (stepper
+ * popover) · timezone (searchable dropdown, defaults to the user's zone).
+ * Emits the correct UTC instant for the chosen wall time in the chosen zone —
+ * browser offset math, no extra deps. Styling mirrors the analytics range
+ * picker: pill triggers + themed Popover/Calendar.
  */
 
 type Wall = { y: number; m: number; d: number; minutes: number };
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 const FALLBACK_ZONES = [
   'UTC',
@@ -129,8 +125,9 @@ const fmtTime = (minutes: number): string => {
 
 const clampMinutes = (v: number) => Math.max(0, Math.min(1439, v));
 
+/** Pill trigger — matches the analytics range/channel controls. */
 const TRIGGER =
-  'flex w-full min-w-0 items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-bold text-ink transition hover:border-ink/40';
+  'inline-flex min-w-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition';
 
 /** A labelled −/+ stepper with a directly editable number. */
 function Stepper({
@@ -262,7 +259,7 @@ function TimeField({
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto rounded-full bg-ink px-3 py-1 text-[11px] font-extrabold text-paper transition hover:opacity-90"
+          className="ml-auto rounded-full bg-accent px-3 py-1 text-[11px] font-extrabold text-ink transition hover:bg-accent-bright"
         >
           Done
         </button>
@@ -283,38 +280,19 @@ export default function DateTimePicker({
   onTimezoneChange: (tz: string) => void;
 }) {
   const zones = useMemo(supportedZones, []);
-  const [open, setOpen] = useState<null | 'cal' | 'tz' | 'time'>(null);
+  const [open, setOpen] = useState<null | 'cal' | 'time' | 'tz'>(null);
   const [tzQuery, setTzQuery] = useState('');
-  const rootRef = useRef<HTMLDivElement>(null);
-  useDismiss(rootRef, open !== null, () => setOpen(null));
 
   const wall: Wall = useMemo(() => {
     if (value) return utcToWall(value, timezone);
     return utcToWall(new Date().toISOString(), timezone);
   }, [value, timezone]);
 
-  const [view, setView] = useState<{ y: number; m: number }>(() => ({ y: wall.y, m: wall.m }));
-  useEffect(() => {
-    if (open === 'cal') setView({ y: wall.y, m: wall.m });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
   const emit = (next: Wall) => {
     onChange(zonedToUtc(next.y, next.m, next.d, next.minutes, timezone).toISOString());
   };
 
-  const monthMatrix = useMemo(() => {
-    const first = new Date(view.y, view.m - 1, 1);
-    const offset = (first.getDay() + 6) % 7; // Monday-first
-    const start = new Date(view.y, view.m - 1, 1 - offset);
-    return Array.from({ length: 42 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d;
-    });
-  }, [view]);
-
-  const todayKey = new Date().toDateString();
+  const selectedDate = useMemo(() => new Date(wall.y, wall.m - 1, wall.d), [wall.y, wall.m, wall.d]);
   // Past days can't be scheduled (mobile parity: the queue needs >= 5 min
   // lead, and the submit + write layers reject anything too soon anyway).
   const todayStart = useMemo(() => {
@@ -322,6 +300,7 @@ export default function DateTimePicker({
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
+
   const q = tzQuery.trim().toLowerCase();
   // No render cap: the full IANA list must stay scrollable (a cap used to
   // cut the list off around America/Caracas).
@@ -331,184 +310,107 @@ export default function DateTimePicker({
   }, [q, zones]);
 
   return (
-    <div ref={rootRef} className="flex flex-wrap items-center gap-2">
-      {/* Date — calendar only */}
-      <div className="relative min-w-0 flex-1 sm:flex-none">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => (v === 'cal' ? null : 'cal'))}
-          aria-haspopup="dialog"
-          aria-expanded={open === 'cal'}
-          aria-label="Pick date"
-          className={`${TRIGGER} min-w-[9.5rem]`}
-        >
-          <Calendar className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-          <span className="truncate">{fmtDay(wall)}</span>
-        </button>
-        {open === 'cal' ? (
-          <div
-            role="dialog"
-            aria-label="Pick date"
-            className="absolute left-0 top-full z-40 mt-2 w-[17rem] rounded-2xl border border-line bg-card p-3 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
-          >
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                aria-label="Previous month"
-                onClick={() => setView(({ y, m }) => (m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 }))}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-              <p className="text-sm font-extrabold">{MONTHS[view.m - 1]} {view.y}</p>
-              <button
-                type="button"
-                aria-label="Next month"
-                onClick={() => setView(({ y, m }) => (m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 }))}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
-              >
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="mt-2 grid grid-cols-7 gap-0.5 text-center">
-              {WEEKDAYS.map((d) => (
-                <span key={d} className="text-[10px] font-bold text-faint">{d}</span>
-              ))}
-              {monthMatrix.map((d) => {
-                const selected = d.getFullYear() === wall.y && d.getMonth() + 1 === wall.m && d.getDate() === wall.d;
-                const outside = d.getMonth() + 1 !== view.m;
-                const isToday = d.toDateString() === todayKey;
-                const isPast = d < todayStart;
-                return (
-                  <button
-                    key={d.toISOString()}
-                    type="button"
-                    disabled={isPast}
-                    onClick={() => {
-                      if (isPast) return;
-                      emit({ ...wall, y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
-                      setOpen(null);
-                    }}
-                    className={`flex h-8 items-center justify-center rounded-lg text-xs font-bold transition ${
-                      isPast
-                        ? 'cursor-not-allowed text-faint opacity-40'
-                        : selected
-                          ? 'bg-ink text-paper'
-                          : outside
-                            ? 'text-faint hover:bg-paper-dim'
-                            : isToday
-                              ? 'text-accent-ink hover:bg-accent-soft'
-                              : 'text-soft hover:bg-paper-dim'
-                    }`}
-                  >
-                    {d.getDate()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-      </div>
+    <div className="flex flex-wrap items-center gap-1.5">
+      {/* Date — shadcn calendar popover */}
+      <Popover open={open === 'cal'} onOpenChange={(o) => setOpen(o ? 'cal' : null)}>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label="Pick date" className={`${TRIGGER} border-line bg-card text-muted hover:bg-paper`}>
+            <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{fmtDay(wall)}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            defaultMonth={selectedDate}
+            disabled={{ before: todayStart }}
+            onSelect={(d) => {
+              if (!d) return;
+              emit({ ...wall, y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
+              setOpen(null);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
 
-      {/* Time — custom stepper popover */}
-      <div className="relative min-w-0 flex-1 sm:flex-none">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => (v === 'time' ? null : 'time'))}
-          aria-haspopup="dialog"
-          aria-expanded={open === 'time'}
-          aria-label="Pick time"
-          className={`${TRIGGER} min-w-[6.5rem] sm:w-[7.5rem]`}
-        >
-          <Clock className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-          <span className="truncate tabular-nums">{fmtTime(wall.minutes)}</span>
-        </button>
-        {open === 'time' ? (
-          <div
-            role="dialog"
-            aria-label="Pick time"
-            className="absolute left-0 top-full z-40 mt-2 w-[15.5rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-line bg-card p-3 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
-          >
-            <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-faint">
-              {fmtDay(wall)} · {fmtTime(wall.minutes)}
-            </p>
-            <TimeField
-              key={timezone}
-              wall={wall}
-              timezone={timezone}
-              onEmit={(minutes) => emit({ ...wall, minutes })}
-              onClose={() => setOpen(null)}
-            />
-          </div>
-        ) : null}
-      </div>
+      {/* Time — stepper popover */}
+      <Popover open={open === 'time'} onOpenChange={(o) => setOpen(o ? 'time' : null)}>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label="Pick time" className={`${TRIGGER} border-line bg-card text-muted hover:bg-paper`}>
+            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate tabular-nums">{fmtTime(wall.minutes)}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[16.5rem] p-3" align="start">
+          <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-faint">
+            {fmtDay(wall)} · {fmtTime(wall.minutes)}
+          </p>
+          <TimeField
+            key={timezone}
+            wall={wall}
+            timezone={timezone}
+            onEmit={(minutes) => emit({ ...wall, minutes })}
+            onClose={() => setOpen(null)}
+          />
+        </PopoverContent>
+      </Popover>
 
       {/* Timezone — searchable dropdown, defaults to the user's zone */}
-      <div className="relative min-w-0 flex-[1.5] sm:flex-none">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => (v === 'tz' ? null : 'tz'))}
-          aria-haspopup="listbox"
-          aria-expanded={open === 'tz'}
-          aria-label="Pick timezone"
-          className={`${TRIGGER} min-w-[10.5rem]`}
-        >
-          <Globe className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-          <span className="truncate">{zoneLabel(timezone)}</span>
-          <span className="ml-auto shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
-            {offsetLabel(timezone)}
-          </span>
-        </button>
-        {open === 'tz' ? (
-          <div
-            role="listbox"
-            aria-label="Timezone"
-            className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-line bg-card p-2 shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
-          >
-            <input
-              value={tzQuery}
-              onChange={(e) => setTzQuery(e.target.value)}
-              placeholder="Search your city or timezone…"
-              aria-label="Search timezones"
-              autoFocus
-              className="field !py-1.5 text-xs"
-            />
-            <div className="no-scrollbar mt-1 max-h-56 overflow-y-auto">
+      <Popover open={open === 'tz'} onOpenChange={(o) => setOpen(o ? 'tz' : null)}>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label="Pick timezone" className={`${TRIGGER} border-line bg-card text-muted hover:bg-paper`}>
+            <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{zoneLabel(timezone)}</span>
+            <span className="ml-0.5 shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
+              {offsetLabel(timezone)}
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-2" align="end">
+          <input
+            value={tzQuery}
+            onChange={(e) => setTzQuery(e.target.value)}
+            placeholder="Search your city or timezone…"
+            aria-label="Search timezones"
+            autoFocus
+            className="field !py-1.5 text-xs"
+          />
+          <div className="no-scrollbar mt-1 max-h-56 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => {
+                const tz = deviceZone();
+                // Re-anchor the same wall time to the user's own zone.
+                onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, tz).toISOString());
+                onTimezoneChange(tz);
+                setOpen(null);
+              }}
+              className={`flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === deviceZone() ? 'bg-accent-soft text-accent-ink' : ''}`}
+            >
+              My timezone ({zoneLabel(deviceZone())})
+            </button>
+            {tzMatches.map((z) => (
               <button
+                key={z}
                 type="button"
+                role="option"
+                aria-selected={timezone === z}
                 onClick={() => {
-                  const tz = deviceZone();
-                  // Re-anchor the same wall time to the user's own zone.
-                  onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, tz).toISOString());
-                  onTimezoneChange(tz);
+                  // Same wall time, re-anchored to the new zone.
+                  onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, z).toISOString());
+                  onTimezoneChange(z);
                   setOpen(null);
                 }}
-                className={`flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === deviceZone() ? 'bg-accent-soft text-accent-ink' : ''}`}
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === z ? 'bg-accent-soft text-accent-ink' : ''}`}
               >
-                My timezone ({zoneLabel(deviceZone())})
+                <span className="flex-1 truncate">{zoneLabel(z)}</span>
+                <span className="text-[10px] font-medium text-faint">{offsetLabel(z)}</span>
               </button>
-              {tzMatches.map((z) => (
-                <button
-                  key={z}
-                  type="button"
-                  role="option"
-                  aria-selected={timezone === z}
-                  onClick={() => {
-                    // Same wall time, re-anchored to the new zone.
-                    onChange(zonedToUtc(wall.y, wall.m, wall.d, wall.minutes, z).toISOString());
-                    onTimezoneChange(z);
-                    setOpen(null);
-                  }}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${timezone === z ? 'bg-accent-soft text-accent-ink' : ''}`}
-                >
-                  <span className="flex-1 truncate">{zoneLabel(z)}</span>
-                  <span className="text-[10px] font-medium text-faint">{offsetLabel(z)}</span>
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
-        ) : null}
-      </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
