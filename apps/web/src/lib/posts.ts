@@ -81,7 +81,7 @@ export async function fetchPostsLite(sb: SupabaseClient, workspaceId: string): P
 
 /** Exact columns the app reads — nothing outside ConnectedChannel. */
 const CHANNEL_COLUMNS =
-  'id, workspace_id, provider, external_id, display_name, handle, instance_url, status, metadata';
+  'id, workspace_id, provider, external_id, display_name, handle, instance_url, status, metadata, last_error';
 
 /** Canonical provider order (matches the channels page grouping). */
 const PROVIDER_ORDER = new Map<string, number>(ALL_PROVIDERS.map((p, i) => [p, i]));

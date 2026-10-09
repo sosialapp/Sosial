@@ -48,6 +48,7 @@ export interface ConnectedChannel {
   instance_url: string | null;
   status: ChannelStatus;
   metadata: Record<string, unknown>;
+  last_error?: string | null;
 }
 
 export interface PostTargetRow {

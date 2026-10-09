@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import IntegrationsTab from '@/components/IntegrationsTab';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
 import ChannelAvatar from './ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -817,7 +817,15 @@ export default function ConnectPanel({
               >
                 <BrandIcon provider={p as BrandProvider} className="h-10 w-10" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-extrabold tracking-tight">{label}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="block text-sm font-extrabold tracking-tight">{label}</span>
+                    {list.some((c) => c.status === 'expired') ? (
+                      <AlertTriangle
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 shrink-0 text-[#8a6100] dark:text-[#e6a417]"
+                      />
+                    ) : null}
+                  </span>
                   <span className="block truncate text-xs text-muted">{subtitle(p, list)}</span>
                 </span>
                 {hasAny || manual ? (
@@ -840,25 +848,42 @@ export default function ConnectPanel({
               {expanded ? (
                 <div className="space-y-2 px-4 pb-4">
                   {list.map((c) => (
-                    <div key={c.id} className="flex items-center gap-2.5 rounded-xl px-1 py-1">
-                      <ChannelAvatar
-                        provider={c.provider}
-                        avatar={channelAvatar(c.metadata)}
-                        size={30}
-                        badge={list.length > 1}
-                      />
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{accountName(c)}</span>
-                      <span
-                        aria-label={c.status}
-                        title={c.status}
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[c.status] ?? 'bg-surface'}`}
-                      />
-                      {canManage ? (
-                        <DisconnectChannel
-                          workspaceId={workspaceId}
+                    <div key={c.id} className="rounded-xl px-1 py-1">
+                      <div className="flex items-center gap-2.5">
+                        <ChannelAvatar
                           provider={c.provider}
-                          externalId={c.external_id}
+                          avatar={channelAvatar(c.metadata)}
+                          size={30}
+                          badge={list.length > 1}
                         />
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{accountName(c)}</span>
+                        {c.status === 'expired' ? (
+                          <span
+                            className="flex shrink-0 items-center gap-1 rounded-full bg-[#FDF3D7] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#8a6100] dark:bg-[#2b2417] dark:text-[#e6a417]"
+                            title={c.last_error ?? 'Reconnect this channel.'}
+                          >
+                            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                            Reconnect
+                          </span>
+                        ) : (
+                          <span
+                            aria-label={c.status}
+                            title={c.status}
+                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[c.status] ?? 'bg-surface'}`}
+                          />
+                        )}
+                        {canManage ? (
+                          <DisconnectChannel
+                            workspaceId={workspaceId}
+                            provider={c.provider}
+                            externalId={c.external_id}
+                          />
+                        ) : null}
+                      </div>
+                      {c.status === 'expired' && c.last_error ? (
+                        <p className="mt-1 truncate pl-[40px] pr-2 text-[11px] text-[#8a6100] dark:text-[#e6a417]" title={c.last_error}>
+                          {c.last_error}
+                        </p>
                       ) : null}
                     </div>
                   ))}

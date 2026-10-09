@@ -235,6 +235,16 @@ export function isCloudOnly(a: ConnectedAccount): boolean {
   return a.fields.cloudOnly === true && !accountConnected(a);
 }
 
+/**
+ * The worker marked this channel's cloud auth dead (refresh failed). Carries
+ * the worker's reason; cleared automatically when the cloud recovers. Only
+ * cloud-linked rows get it — device-local credentials are judged locally.
+ */
+export function accountExpired(a: ConnectedAccount): string | undefined {
+  const v = a.fields.cloudExpired;
+  return typeof v === 'string' && v.length > 0 ? v : undefined;
+}
+
 export function connectedAccounts(accounts: ConnectedAccount[]): ConnectedAccount[] {
   return accounts.filter(accountConnected);
 }

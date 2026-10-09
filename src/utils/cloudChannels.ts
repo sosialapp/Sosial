@@ -399,6 +399,12 @@ interface CloudChannelRow {
   metadata: Record<string, unknown> | null;
 }
 
+interface ExpiredChannelRow {
+  provider: string;
+  external_id: string;
+  last_error: string | null;
+}
+
 export interface PullResult {
   /** cloud rows merged into existing local accounts */
   matched: string[];
@@ -433,11 +439,19 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     if (!session) return out; // desired state waits for sign-in; no failure
     await AsyncStorage.setItem(PULL_LAST_KEY, String(Date.now())).catch(() => {});
     const sb = supabase();
-    const { data, error } = await sb
-      .from('connected_channels')
-      .select('provider, external_id, display_name, handle, instance_url, metadata')
-      .eq('workspace_id', session.workspace.id)
-      .eq('status', 'connected');
+    const [conn, dead] = await Promise.all([
+      sb
+        .from('connected_channels')
+        .select('provider, external_id, display_name, handle, instance_url, metadata')
+        .eq('workspace_id', session.workspace.id)
+        .eq('status', 'connected'),
+      sb
+        .from('connected_channels')
+        .select('provider, external_id, last_error')
+        .eq('workspace_id', session.workspace.id)
+        .eq('status', 'expired'),
+    ]);
+    const { data, error } = conn;
     if (error) {
       out.failed.push({ ch: '*', message: error.message });
       return out;
@@ -560,6 +574,43 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         next.splice(i, 1);
         dirty = true;
         if (!out.removed.includes(provider)) out.removed.push(provider);
+      }
+    }
+    if (dirty) await saveAccounts(next);
+    // ---- expired: mirror the web's channel health onto the device ----
+    // The worker marks dead channels 'expired'; stamp matching local rows so
+    // Connect can badge them. Stale stamps clear when the cloud recovers.
+    const deadRows = ((dead.data ?? []) as ExpiredChannelRow[]).filter(
+      (r) =>
+        typeof r.provider === 'string' &&
+        (PROVIDER_KEYS as readonly string[]).includes(r.provider) &&
+        typeof r.external_id === 'string' &&
+        r.external_id.length > 0,
+    );
+    if (deadRows.length) {
+      const deadKeys = new Set(deadRows.map((r) => `${r.provider}:${r.external_id}`));
+      const reasonFor = (provider: string, externalId: string): string | undefined =>
+        deadRows.find((r) => r.provider === provider && r.external_id === externalId)?.last_error ??
+        undefined;
+      for (const a of next) {
+        const provider = a.provider as CloudChannelKey;
+        if (!(PROVIDER_KEYS as readonly string[]).includes(provider)) continue;
+        const ext = accountExternalId(a);
+        const key = ext ? `${provider}:${ext}` : `${provider}:`;
+        const deadHere =
+          deadKeys.has(key) || (!ext && [...deadKeys].some((k) => k.startsWith(`${provider}:`)));
+        const stamp = deadHere ? reasonFor(provider, ext ?? '') : undefined;
+        if (stamp !== a.fields.cloudExpired) {
+          const fields: Record<string, unknown> = { ...a.fields };
+          if (stamp) {
+            fields.cloudExpired = stamp;
+          } else {
+            delete fields.cloudExpired;
+          }
+          const i = next.findIndex((x) => x.id === a.id);
+          if (i >= 0) next[i] = { ...a, fields };
+          dirty = true;
+        }
       }
     }
     if (dirty) await saveAccounts(next);

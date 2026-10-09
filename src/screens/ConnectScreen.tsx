@@ -7,7 +7,7 @@ import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount } from '../utils/metaStore';
 import { canConnectProvider } from '../utils/plans';
-import { accountName, accountAvatar, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
+import { accountName, accountAvatar, accountExpired, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
 import {
   loginFacebook, exchangeFacebookCode, fetchPages, pickPage, FbPage,
   loginInstagram, exchangeInstagramCode, fetchInstagramProfile,
@@ -1557,6 +1557,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
             const cfg = providerCfg[p];
             const list = accounts.filter((a) => a.provider === p);
             const hasAny = list.length > 0;
+            const expiredHere = list.map((a) => accountExpired(a)).filter(Boolean) as string[];
             const expanded = openProvider === p;
             const connect = () => { if (!needManager()) return; if (cfg.configured) cfg.connect(undefined); };
             const soonTap = () => {
@@ -1582,6 +1583,12 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
                       <Text style={s.rowT}>{cfg.label}</Text>
                       {cfg.soon ? (
                         <View style={s.soonBadge}><Text style={s.soonBadgeT}>Soon</Text></View>
+                      ) : null}
+                      {expiredHere.length > 0 ? (
+                        <View style={s.reconnectBadge}>
+                          <Ionicons name="warning" size={10} color="#8a6100" />
+                          <Text style={s.reconnectBadgeT}>Reconnect</Text>
+                        </View>
                       ) : null}
                     </View>
                     {list.length === 0 ? (
@@ -1610,12 +1617,22 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
                     {list.map((a) => {
                       const isSel = selectedAccountFor(p)?.id === a.id;
                       const cloud = isCloudOnly(a);
+                      const deadReason = accountExpired(a);
                       return (
                         <View key={a.id} style={s.acctRow}>
                           <TouchableOpacity onPress={() => selectAccount(p, a)} activeOpacity={0.7} style={s.acctSel}>
                             <ChannelAvatar platform={p} avatar={accountAvatar(a)} size={30} badge={list.length > 1} />
-                            <Text style={s.acctT} numberOfLines={1}>{accountLabel(a)}</Text>
-                            {!cloud && list.length > 1 && isSel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.acctT} numberOfLines={1}>{accountLabel(a)}</Text>
+                              {deadReason ? (
+                                <Text style={s.acctErr} numberOfLines={2}>{deadReason}</Text>
+                              ) : null}
+                            </View>
+                            {deadReason ? (
+                              <Ionicons name="warning" size={16} color="#e6a417" />
+                            ) : !cloud && list.length > 1 && isSel ? (
+                              <Ionicons name="checkmark-circle" size={16} color={C.accent} />
+                            ) : null}
                           </TouchableOpacity>
                           {cloud ? (
                             <View style={s.cloudActions}>
@@ -1697,7 +1714,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   sub: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
   acctRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   acctSel: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  acctT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
+  acctT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
+  acctErr: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, lineHeight: 15, color: '#8a6100', marginTop: 1 },
   addRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, marginTop: 2 },
   addRowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   switchBox: { backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.lineSoft, padding: 12, marginTop: 8, gap: 8 },
@@ -1707,6 +1725,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   switchBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   soonBadge: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   soonBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.accentInk },
+  reconnectBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FDF3D7', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  reconnectBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#8a6100' },
   bskyField: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, paddingHorizontal: 13 },
   bskySuffix: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14.5, color: C.muted },
   helpCard: { backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, padding: 12, gap: 8 },
