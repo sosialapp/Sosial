@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CalendarClock, Clock, Eye, Link2, MessageCircle, Repeat2, Send, Users } from 'lucide-react';
+import { Eye, Heart, MessageCircle, Percent, Send, Users } from 'lucide-react';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Badge } from '@/components/ui/badge';
@@ -118,6 +118,8 @@ export default async function AnalyticsPage() {
     likes: perfRows.reduce((a, r) => a + r.likes, 0),
     comments: perfRows.reduce((a, r) => a + r.comments, 0),
     shares: perfRows.reduce((a, r) => a + r.shares, 0),
+    views: perfRows.reduce((a, r) => a + (r.views ?? 0), 0),
+    hasViews: perfRows.some((r) => r.views !== null),
   };
   const audienceEng =
     audience.hasFollowers && audience.followers > 0
@@ -129,8 +131,15 @@ export default async function AnalyticsPage() {
   const queued = byStatus(['queued', 'publishing', 'approval']).length;
   const sent = byStatus(['sent', 'partial']);
   const failed = byStatus(['failed']).length;
-  const sentWeek = sent.filter((p) => p.sent_at && now - new Date(p.sent_at).getTime() < 7 * DAY).length;
-  const liveChannels = channels.filter((c) => c.status === 'connected').length;
+
+  const stats = [
+    { label: 'Posts', value: full(sent.length), href: '/queue', icon: Send },
+    { label: 'Total Followers', value: audience.hasFollowers ? full(audience.followers) : '—', href: '/channels', icon: Users },
+    { label: 'Reactions', value: full(audience.likes), href: '/queue', icon: Heart },
+    { label: 'Comments', value: full(audience.comments), href: '/queue', icon: MessageCircle },
+    { label: 'Eng. Rate', value: audienceEng ?? '—', href: '/queue', icon: Percent },
+    { label: 'Views', value: audience.hasViews ? full(audience.views) : '—', href: '/queue', icon: Eye },
+  ];
   const funnelMax = Math.max(1, drafts, queued, sent.length, failed);
 
   // Per-channel delivery across every target ever recorded.
@@ -188,13 +197,6 @@ export default async function AnalyticsPage() {
     { label: 'Failed', value: failed, href: '/queue', color: '#E60023' },
   ];
 
-  const stats = [
-    { label: 'Posts sent', value: sent.length, href: '/queue', icon: Send },
-    { label: 'Sent this week', value: sentWeek, href: '/queue', icon: CalendarClock },
-    { label: 'Scheduled', value: queued, href: '/calendar', icon: Clock },
-    { label: 'Channels live', value: `${liveChannels}/${channels.length}`, href: '/channels', icon: Link2 },
-  ];
-
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Analytics</p>
@@ -202,7 +204,7 @@ export default async function AnalyticsPage() {
         How you&apos;re doing
       </h1>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((s) => (
           <Link key={s.label} href={s.href}>
             <Card className="group p-4 transition hover:border-ink sm:p-5">
@@ -233,34 +235,7 @@ export default async function AnalyticsPage() {
               Connect a channel and publish — audience and engagement land here within a day.
             </p>
           ) : (
-            <>
-              <div className="grid grid-cols-3 gap-3 pb-3">
-                <div className="rounded-2xl bg-paper-dim p-3">
-                  <span className="flex items-center gap-1.5 text-xs text-muted">
-                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                    Total followers
-                  </span>
-                  <p className="mt-1 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
-                    {audience.hasFollowers ? full(audience.followers) : '—'}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-paper-dim p-3">
-                  <span className="flex items-center gap-1.5 text-xs text-muted">
-                    <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                    Total interactions
-                  </span>
-                  <p className="mt-1 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
-                    {full(audience.likes + audience.comments + audience.shares)}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-paper-dim p-3">
-                  <span className="text-xs text-muted">Engagement rate</span>
-                  <p className="mt-1 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
-                    {audienceEng ?? '—'}
-                  </p>
-                </div>
-              </div>
-              <Table>
+            <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Channel</TableHead>
@@ -303,7 +278,6 @@ export default async function AnalyticsPage() {
                   })}
                 </TableBody>
               </Table>
-            </>
           )}
         </CardContent>
       </Card>
