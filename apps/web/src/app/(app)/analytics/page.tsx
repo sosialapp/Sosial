@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CalendarClock, Clock, Link2, Send } from 'lucide-react';
+import { CalendarClock, Clock, Eye, Link2, MessageCircle, Repeat2, Send, Users } from 'lucide-react';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,28 @@ const fmtDate = (iso: string | null): string => {
 
 const ACTIVE_TARGET = new Set(['pending', 'needs_approval', 'queued', 'publishing']);
 
+/** Exact count with separators — follower totals must read digit-for-digit. */
+const full = (n: number | null): string => (n === null ? '—' : n.toLocaleString('en-US'));
+
+/** Engagement rate, same math as the mobile analytics screen. */
+const engRate = (likes: number, comments: number, shares: number, followers: number | null): string | null => {
+  if (!followers || followers <= 0) return null;
+  return `${(((likes + comments + shares) / followers) * 100).toFixed(1)}%`;
+};
+
+interface ChannelPerfRow {
+  channelId: string;
+  provider: ProviderKey;
+  label: string;
+  followers: number | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  views: number | null;
+  sent: number;
+  fetchedAt: string | null;
+}
+
 /** Full analytics: pipeline funnel, per-channel delivery, weekly rhythm, recent sends. */
 export default async function AnalyticsPage() {
   const ctx = await getWorkspaceContext();
@@ -44,6 +66,64 @@ export default async function AnalyticsPage() {
   ]);
 
   const now = Date.now();
+
+  // ---- Channel performance: follower snapshots + per-channel stat totals ----
+  const [statsSnap, perfStats] = await Promise.all([
+    sb.from('channel_stats').select('channel_id, provider, followers, fetched_at'),
+    sb.from('post_stats').select('channel_id, provider, likes, comments, shares, views'),
+  ]);
+  const followersBy = new Map<string, { followers: number | null; fetchedAt: string | null }>();
+  for (const r of (statsSnap.data ?? []) as { channel_id: string; followers: number | null; fetched_at: string }[]) {
+    followersBy.set(r.channel_id, { followers: r.followers, fetchedAt: r.fetched_at });
+  }
+  const totalsBy = new Map<string, { likes: number; comments: number; shares: number; views: number | null; provider: ProviderKey }>();
+  for (const r of (perfStats.data ?? []) as { channel_id: string; provider: string; likes: number; comments: number; shares: number; views: number | null }[]) {
+    const cur = totalsBy.get(r.channel_id) ?? { likes: 0, comments: 0, shares: 0, views: null, provider: r.provider as ProviderKey };
+    cur.likes += r.likes ?? 0;
+    cur.comments += r.comments ?? 0;
+    cur.shares += r.shares ?? 0;
+    if (r.views != null) cur.views = (cur.views ?? 0) + Number(r.views);
+    totalsBy.set(r.channel_id, cur);
+  }
+  const sentBy = new Map<string, { provider: ProviderKey; sent: number }>();
+  for (const p of posts) {
+    for (const t of p.post_targets ?? []) {
+      if (t.status !== 'sent' || !t.channel_id) continue;
+      const cur = sentBy.get(t.channel_id) ?? { provider: t.provider as ProviderKey, sent: 0 };
+      if (t.status === 'sent') cur.sent += 1;
+      sentBy.set(t.channel_id, cur);
+    }
+  }
+  const perfRows: ChannelPerfRow[] = channels
+    .filter((c) => c.status === 'connected' || c.status === 'expired')
+    .map((c) => {
+      const tot = totalsBy.get(c.id);
+      return {
+        channelId: c.id,
+        provider: c.provider,
+        label: providerMeta(c.provider).label,
+        followers: followersBy.get(c.id)?.followers ?? null,
+        likes: tot?.likes ?? 0,
+        comments: tot?.comments ?? 0,
+        shares: tot?.shares ?? 0,
+        views: tot?.views ?? null,
+        sent: sentBy.get(c.id)?.sent ?? 0,
+        fetchedAt: followersBy.get(c.id)?.fetchedAt ?? null,
+      };
+    })
+    .filter((r) => r.sent > 0 || r.followers !== null);
+  const audience = {
+    followers: perfRows.reduce((a, r) => a + (r.followers ?? 0), 0),
+    hasFollowers: perfRows.some((r) => r.followers !== null),
+    likes: perfRows.reduce((a, r) => a + r.likes, 0),
+    comments: perfRows.reduce((a, r) => a + r.comments, 0),
+    shares: perfRows.reduce((a, r) => a + r.shares, 0),
+  };
+  const audienceEng =
+    audience.hasFollowers && audience.followers > 0
+      ? `${(((audience.likes + audience.comments + audience.shares) / audience.followers) * 100).toFixed(1)}%`
+      : null;
+
   const byStatus = (s: string[]) => posts.filter((p) => s.includes(p.status));
   const drafts = byStatus(['draft']).length;
   const queued = byStatus(['queued', 'publishing', 'approval']).length;
@@ -133,6 +213,100 @@ export default async function AnalyticsPage() {
           </Link>
         ))}
       </div>
+
+      {/* Channel performance — audience + engagement, mirrors the mobile analytics */}
+      <Card className="mt-3">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle>Channel performance</CardTitle>
+              <CardDescription>Followers refresh daily · engagement is interactions over followers</CardDescription>
+            </div>
+            <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
+              Manage channels
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-1">
+          {perfRows.length === 0 ? (
+            <p className="text-sm text-muted">
+              Connect a channel and publish — audience and engagement land here within a day.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3 pb-3">
+                <div className="rounded-2xl bg-paper-dim p-3">
+                  <span className="flex items-center gap-1.5 text-xs text-muted">
+                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                    Total followers
+                  </span>
+                  <p className="mt-1 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+                    {audience.hasFollowers ? full(audience.followers) : '—'}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-paper-dim p-3">
+                  <span className="flex items-center gap-1.5 text-xs text-muted">
+                    <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    Total interactions
+                  </span>
+                  <p className="mt-1 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+                    {full(audience.likes + audience.comments + audience.shares)}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-paper-dim p-3">
+                  <span className="text-xs text-muted">Engagement rate</span>
+                  <p className="mt-1 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+                    {audienceEng ?? '—'}
+                  </p>
+                </div>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Channel</TableHead>
+                    <TableHead className="text-right">Followers</TableHead>
+                    <TableHead className="text-right">Likes</TableHead>
+                    <TableHead className="text-right">Comments</TableHead>
+                    <TableHead className="text-right">Shares</TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1">
+                        <Eye className="h-3 w-3" aria-hidden="true" />
+                        Views
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">Engagement</TableHead>
+                    <TableHead className="text-right">Sent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {perfRows.map((r) => {
+                    const eng = engRate(r.likes, r.comments, r.shares, r.followers);
+                    return (
+                      <TableRow key={r.channelId}>
+                        <TableCell>
+                          <span className="flex items-center gap-2.5">
+                            <BrandIcon provider={r.provider} className="h-7 w-7 shrink-0" />
+                            <span className="truncate font-bold">{r.label}</span>
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-display font-extrabold" title={r.fetchedAt ? `Snapshot ${fmtDate(r.fetchedAt)}` : 'Awaiting first daily snapshot'}>
+                          {full(r.followers)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted">{full(r.likes)}</TableCell>
+                        <TableCell className="text-right text-muted">{full(r.comments)}</TableCell>
+                        <TableCell className="text-right text-muted">{full(r.shares)}</TableCell>
+                        <TableCell className="text-right text-muted">{r.views === null ? '—' : full(r.views)}</TableCell>
+                        <TableCell className="text-right font-bold">{eng ?? '—'}</TableCell>
+                        <TableCell className="text-right text-muted">{r.sent}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
         {/* Pipeline */}
