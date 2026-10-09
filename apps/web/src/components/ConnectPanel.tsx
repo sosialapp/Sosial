@@ -101,6 +101,35 @@ export default function ConnectPanel({
   );
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
+  /** channel_id → token is stale (expiry older than 1h). A stale token means
+   *  the hourly refresh never landed — the channel is dead even while its
+   *  status row still says 'connected'. Refreshed on mount. */
+  const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const sb = createClient();
+        const { data } = await sb.rpc('channel_health', { p_workspace_id: workspaceId });
+        if (!alive || !Array.isArray(data)) return;
+        setStaleIds(
+          new Set(
+            (data as { channel_id: string; token_stale: boolean }[])
+              .filter((r) => r.token_stale)
+              .map((r) => r.channel_id),
+          ),
+        );
+      } catch {
+        // health is advisory — the status column still drives the badges
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [workspaceId]);
+  /** Dead = worker-marked expired, or token stale past the refresh window. */
+  const isDead = (c: ConnectedChannel) => c.status === 'expired' || staleIds.has(c.id);
   const [mastodonInstance, setMastodonInstance] = useState('');
   const [tgToken, setTgToken] = useState('');
   const [tgChat, setTgChat] = useState('');
@@ -819,7 +848,7 @@ export default function ConnectPanel({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className="block text-sm font-extrabold tracking-tight">{label}</span>
-                    {list.some((c) => c.status === 'expired') ? (
+                    {list.some((c) => isDead(c)) ? (
                       <AlertTriangle
                         aria-hidden="true"
                         className="h-3.5 w-3.5 shrink-0 text-[#8a6100] dark:text-[#e6a417]"
@@ -857,10 +886,10 @@ export default function ConnectPanel({
                           badge={list.length > 1}
                         />
                         <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{accountName(c)}</span>
-                        {c.status === 'expired' ? (
+                        {isDead(c) ? (
                           <span
                             className="flex shrink-0 items-center gap-1 rounded-full bg-[#FDF3D7] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#8a6100] dark:bg-[#2b2417] dark:text-[#e6a417]"
-                            title={c.last_error ?? 'Reconnect this channel.'}
+                            title={c.last_error ?? 'Session expired — reconnect this channel.'}
                           >
                             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                             Reconnect
@@ -880,9 +909,9 @@ export default function ConnectPanel({
                           />
                         ) : null}
                       </div>
-                      {c.status === 'expired' && c.last_error ? (
-                        <p className="mt-1 truncate pl-[40px] pr-2 text-[11px] text-[#8a6100] dark:text-[#e6a417]" title={c.last_error}>
-                          {c.last_error}
+                      {isDead(c) ? (
+                        <p className="mt-1 truncate pl-[40px] pr-2 text-[11px] text-[#8a6100] dark:text-[#e6a417]" title={c.last_error ?? undefined}>
+                          {c.last_error ?? 'Session expired — reconnect this channel.'}
                         </p>
                       ) : null}
                     </div>

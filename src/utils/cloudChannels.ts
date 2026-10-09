@@ -439,7 +439,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     if (!session) return out; // desired state waits for sign-in; no failure
     await AsyncStorage.setItem(PULL_LAST_KEY, String(Date.now())).catch(() => {});
     const sb = supabase();
-    const [conn, dead] = await Promise.all([
+    const [conn, dead, health] = await Promise.all([
       sb
         .from('connected_channels')
         .select('provider, external_id, display_name, handle, instance_url, metadata')
@@ -450,6 +450,10 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         .select('provider, external_id, last_error')
         .eq('workspace_id', session.workspace.id)
         .eq('status', 'expired'),
+      sb.rpc('channel_health', { p_workspace_id: session.workspace.id }).then(
+        (r: { data: unknown }) => r,
+        () => ({ data: null }) as { data: unknown },
+      ),
     ]);
     const { data, error } = conn;
     if (error) {
@@ -580,6 +584,9 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     // ---- expired: mirror the web's channel health onto the device ----
     // The worker marks dead channels 'expired'; stamp matching local rows so
     // Connect can badge them. Stale stamps clear when the cloud recovers.
+    // A channel still 'connected' with a token expiry older than 1h is dead
+    // too (the hourly refresh never landed) — the health RPC flags it via
+    // token_stale, covering refresh failures that never got marked.
     const deadRows = ((dead.data ?? []) as ExpiredChannelRow[]).filter(
       (r) =>
         typeof r.provider === 'string' &&
@@ -587,8 +594,25 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         typeof r.external_id === 'string' &&
         r.external_id.length > 0,
     );
-    if (deadRows.length) {
-      const deadKeys = new Set(deadRows.map((r) => `${r.provider}:${r.external_id}`));
+    const staleKeys = new Set(
+      (
+        ((health as { data: unknown }).data ?? []) as {
+          provider: string;
+          external_id: string;
+          token_stale: boolean;
+        }[]
+      )
+        .filter((r) => r?.token_stale && typeof r.provider === 'string' && typeof r.external_id === 'string')
+        .map((r) => `${r.provider}:${r.external_id}`),
+    );
+    const deadKeys = new Set(deadRows.map((r) => `${r.provider}:${r.external_id}`));
+    const matchesDead = (provider: string, ext: string | null | undefined): boolean =>
+      [deadKeys, staleKeys].some(
+        (set) =>
+          (ext ? set.has(`${provider}:${ext}`) : false) ||
+          (!ext && [...set].some((k) => k.startsWith(`${provider}:`))),
+      );
+    if (deadRows.length || staleKeys.size) {
       const reasonFor = (provider: string, externalId: string): string | undefined =>
         deadRows.find((r) => r.provider === provider && r.external_id === externalId)?.last_error ??
         undefined;
@@ -596,10 +620,9 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         const provider = a.provider as CloudChannelKey;
         if (!(PROVIDER_KEYS as readonly string[]).includes(provider)) continue;
         const ext = accountExternalId(a);
-        const key = ext ? `${provider}:${ext}` : `${provider}:`;
-        const deadHere =
-          deadKeys.has(key) || (!ext && [...deadKeys].some((k) => k.startsWith(`${provider}:`)));
-        const stamp = deadHere ? reasonFor(provider, ext ?? '') : undefined;
+        const stamp = matchesDead(provider, ext)
+          ? reasonFor(provider, ext ?? '') ?? 'Session expired — reconnect this channel.'
+          : undefined;
         if (stamp !== a.fields.cloudExpired) {
           const fields: Record<string, unknown> = { ...a.fields };
           if (stamp) {

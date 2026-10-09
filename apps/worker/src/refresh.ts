@@ -173,6 +173,20 @@ export async function refreshChannelToken(
       warn(`refresh ${c.provider}/${c.external_id}: auth-dead, marked expired (${msg.slice(0, 120)})`);
       return 'skipped';
     }
+    // Refresh can never run without the provider's OAuth client keys on the
+    // worker — and lazy refresh at publish time fails identically, so the
+    // channel genuinely cannot publish. Mark + notify with an actionable
+    // reason; reconnecting heals it until the next expiry.
+    if (/needs .+ on the worker/i.test(msg)) {
+      const reason = `${msg.slice(0, 200)} Reconnect this account for a fresh token.`;
+      await restPatch('connected_channels', c.id, {
+        status: 'expired',
+        last_error: reason,
+      });
+      await notifyExpired(reason);
+      warn(`refresh ${c.provider}/${c.external_id}: missing client keys, marked expired`);
+      return 'skipped';
+    }
     throw e;
   }
 }
