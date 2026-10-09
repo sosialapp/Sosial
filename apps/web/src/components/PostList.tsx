@@ -859,7 +859,7 @@ export default function PostList({
                 {/* Media: social sizing — full-width single, square grid for many */}
                 {cardMedia.length > 0 && (
                   <div
-                    className={`mt-2.5 flex flex-wrap gap-1.5 px-4 ${cardMedia.length > 1 ? 'max-w-[420px]' : ''}`}
+                    className={`mt-2.5 flex flex-wrap gap-1.5 px-4 ${cardMedia.length > 1 ? 'max-w-[420px]' : ''} justify-center`}
                   >
                     {cardMedia.slice(0, 4).map((m) =>
                       m.kind === 'video' ? (
