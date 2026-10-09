@@ -4,13 +4,19 @@
  * Notification bell — header island. Polls `notifications` (RLS: own rows)
  * every 30s for unread count, lists the latest in a WorkspaceSwitcher-style
  * dropdown, marks all read on open, clicks navigate via the notification's
- * href. Events are written by P48 DB triggers: team changes, approvals and
- * publish results.
+ * href. Events are written by P48/P60 DB triggers: team changes, approvals
+ * and publish results.
+ *
+ * Publish rows carry post_id and render rich: channel label list in the
+ * title ("Published to X @acme, Instagram @acme"), an avatar/logo row, the
+ * post's first media thumb when it has media, then "<text> is live.".
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Bell, CheckCheck } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCheck, FileText, PenLine, ShieldCheck, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import ChannelAvatar from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 
 export interface NotifRow {
   id: string;
@@ -18,20 +24,31 @@ export interface NotifRow {
   title: string;
   body: string;
   href: string | null;
+  post_id?: string | null;
   read_at: string | null;
   created_at: string;
 }
 
-const KIND_ICON: Record<string, string> = {
-  member_joined: '👋',
-  member_left: '👋',
-  member_removed: '🚪',
-  role_changed: '🛡️',
-  approval_requested: '📝',
-  approval_approved: '✅',
-  approval_changes: '✏️',
-  target_sent: '🚀',
-  target_failed: '⚠️',
+interface ChannelInfo {
+  provider: string;
+  handle: string | null;
+  avatar?: string;
+}
+
+interface PostExtras {
+  channels: ChannelInfo[];
+  mediaUrl?: string;
+}
+
+const KIND_ICON: Record<string, typeof Bell> = {
+  member_joined: UserPlus,
+  member_left: UserPlus,
+  member_removed: UserPlus,
+  role_changed: ShieldCheck,
+  approval_requested: FileText,
+  approval_approved: CheckCheck,
+  approval_changes: PenLine,
+  target_failed: AlertTriangle,
 };
 
 function ago(iso: string): string {
@@ -46,6 +63,7 @@ function ago(iso: string): string {
 
 export default function NotificationBell() {
   const [items, setItems] = useState<NotifRow[]>([]);
+  const [extras, setExtras] = useState<Record<string, PostExtras>>({});
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -57,7 +75,7 @@ export default function NotificationBell() {
       const client = sb.current;
       const { data } = await client
         .from('notifications')
-        .select('id,kind,title,body,href,read_at,created_at')
+        .select('id,kind,title,body,href,post_id,read_at,created_at')
         .order('created_at', { ascending: false })
         .limit(20);
       const rows = (data ?? []) as NotifRow[];
@@ -73,6 +91,88 @@ export default function NotificationBell() {
     const t = setInterval(() => void load(), 30000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Enrich publish rows: sent channels + first media thumb per post.
+  const postsKey = [...new Set(items.filter((n) => n.post_id).map((n) => n.post_id as string))].slice(0, 12).join(',');
+  useEffect(() => {
+    if (!postsKey || !sb.current) return;
+    const postIds = postsKey.split(',');
+    let alive = true;
+    void (async () => {
+      const client = sb.current!;
+      const [targets, pm] = await Promise.all([
+        client
+          .from('post_targets')
+          .select('post_id, provider, status, connected_channels(handle, display_name, metadata)')
+          .in('post_id', postIds),
+        client
+          .from('post_media')
+          .select('post_id, position, media_assets(kind, storage_path, thumb_path, storage_backend)')
+          .in('post_id', postIds)
+          .order('position'),
+      ]);
+      if (!alive) return;
+
+      const out: Record<string, PostExtras> = {};
+      for (const id of postIds) {
+        const chans = ((targets.data ?? []) as Record<string, unknown>[])
+          .filter((t) => t.post_id === id && t.status === 'sent')
+          .map((t) => {
+            const cc = t.connected_channels as { handle?: string | null; display_name?: string | null; metadata?: Record<string, unknown> } | null;
+            return {
+              provider: String(t.provider),
+              handle: cc?.handle ?? null,
+              avatar: channelAvatar(cc?.metadata ?? {}),
+            };
+          });
+        out[id] = { channels: chans };
+      }
+
+      // Sign everything in one pass: R2 via the edge, legacy via Storage.
+      const firstPerPost = new Map<string, { path: string; backend: string }>();
+      for (const r of (pm.data ?? []) as Record<string, unknown>[]) {
+        const asset = r.media_assets as { kind: string; storage_path: string; thumb_path: string | null; storage_backend: string } | null;
+        if (!asset || firstPerPost.has(String(r.post_id))) continue;
+        const path = asset.thumb_path ?? (asset.kind === 'image' ? asset.storage_path : null);
+        if (path) firstPerPost.set(String(r.post_id), { path, backend: asset.storage_backend });
+      }
+      const toSign = [...firstPerPost.values()];
+      const signed = new Map<string, string>();
+      const r2 = toSign.filter((s) => s.backend === 'r2');
+      const legacy = toSign.filter((s) => s.backend !== 'r2');
+      if (r2.length) {
+        try {
+          const { data: res } = await client.functions.invoke('media', {
+            body: { action: 'sign', items: r2.map((s) => ({ path: s.path, bucket: 'post-media' })), expiresIn: 3600 },
+          });
+          const urls = (res as { urls?: string[] } | null)?.urls ?? [];
+          r2.forEach((s, i) => {
+            if (urls[i]) signed.set(s.path, urls[i]);
+          });
+        } catch {}
+      }
+      if (legacy.length) {
+        try {
+          const { data: urls } = await client.storage
+            .from('post-media')
+            .createSignedUrls(legacy.map((s) => s.path), 3600);
+          legacy.forEach((s, i) => {
+            const u = (urls as { path: string; signedUrl: string | null }[] | null)?.[i]?.signedUrl;
+            if (u) signed.set(s.path, u);
+          });
+        } catch {}
+      }
+      // Attach resolved thumbs.
+      for (const [id, spec] of firstPerPost) {
+        const url = signed.get(spec.path);
+        if (url) out[id] = { ...out[id], mediaUrl: url };
+      }
+      if (alive) setExtras(out);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [postsKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -136,11 +236,11 @@ export default function NotificationBell() {
               </p>
             ) : (
               items.map((n) => {
+                const isPublish = n.kind === 'target_sent' && n.post_id;
+                const ex = isPublish ? extras[n.post_id as string] : undefined;
+                const Icon = KIND_ICON[n.kind];
                 const inner = (
                   <div className="flex gap-2.5 px-4 py-3">
-                    <span aria-hidden="true" className="text-base leading-5">
-                      {KIND_ICON[n.kind] ?? '🔔'}
-                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
                         <span className={`truncate text-xs ${n.read_at ? 'text-muted' : 'font-bold text-ink'}`}>
@@ -148,12 +248,34 @@ export default function NotificationBell() {
                         </span>
                         <span className="shrink-0 text-[10px] text-faint">{ago(n.created_at)}</span>
                       </span>
+                      {ex && ex.channels.length > 0 ? (
+                        <span className="mt-1.5 flex flex-wrap items-center gap-1">
+                          {ex.channels.slice(0, 6).map((c, i) => (
+                            <ChannelAvatar
+                              key={`${c.provider}-${i}`}
+                              provider={c.provider}
+                              avatar={c.avatar}
+                              size={18}
+                            />
+                          ))}
+                        </span>
+                      ) : null}
+                      {ex?.mediaUrl ? (
+                        <img
+                          src={ex.mediaUrl}
+                          alt=""
+                          className="mt-1.5 h-20 w-20 rounded-lg border border-line object-cover"
+                        />
+                      ) : null}
                       {n.body ? (
-                        <span className="mt-0.5 line-clamp-2 block text-[11px] leading-relaxed text-muted">
+                        <span className="mt-1 line-clamp-2 block text-[11px] leading-relaxed text-muted">
                           {n.body}
                         </span>
                       ) : null}
                     </span>
+                    {Icon ? (
+                      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
+                    ) : null}
                     {!n.read_at ? <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> : null}
                   </div>
                 );

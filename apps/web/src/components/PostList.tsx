@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Heart, MessageCircle, Repeat2, Eye, type LucideIcon } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MediaAssetRow, PostWithTargets, PostStatus, WorkspaceInfo } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
@@ -75,11 +76,11 @@ interface StatRow {
   fetched_at: string;
 }
 
-function StatCell({ icon, value }: { icon: string; value: number | null }) {
+function StatCell({ icon: Icon, value }: { icon: LucideIcon; value: number | null }) {
   if (value === null) return null;
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-paper-dim px-2.5 py-1 text-[11px] font-bold text-soft">
-      <span aria-hidden="true">{icon}</span>
+      <Icon className="h-3 w-3 text-muted" aria-hidden="true" />
       {value >= 10000 ? `${(value / 1000).toFixed(1)}k` : value}
     </span>
   );
@@ -215,10 +216,10 @@ function PreviewDialog({
                         <ChannelAvatar provider={t.provider} avatar={avatars[t.channel_id]} size={22} />
                         <span className="text-xs font-bold">{providerMeta(t.provider).label}</span>
                         <span className="flex flex-wrap items-center gap-1.5">
-                          <StatCell icon="❤️" value={s?.likes ?? 0} />
-                          <StatCell icon="💬" value={s?.comments ?? 0} />
-                          <StatCell icon="🔁" value={s?.shares ?? 0} />
-                          {s?.views != null ? <StatCell icon="👁️" value={s.views} /> : null}
+                          <StatCell icon={Heart} value={s?.likes ?? 0} />
+                          <StatCell icon={MessageCircle} value={s?.comments ?? 0} />
+                          <StatCell icon={Repeat2} value={s?.shares ?? 0} />
+                          {s?.views != null ? <StatCell icon={Eye} value={s.views} /> : null}
                         </span>
                         {s ? (
                           <span className="text-[10px] text-faint" title={`Fetched ${formatDateTime(s.fetched_at)}`}>
