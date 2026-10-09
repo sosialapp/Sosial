@@ -411,9 +411,22 @@ export default function PostList({
   /** Author label for a channel id: display name, else brand label. */
   const authorOf = (channelId: string, provider: string) => {
     const c = channelById.get(channelId);
-    const name = c?.display_name || providerMeta(provider).label;
-    const raw = c?.handle ?? c?.external_id ?? '';
-    const handle = raw ? (raw.startsWith('@') ? raw : `@${raw}`) : null;
+    const display = c?.display_name?.trim() || providerMeta(provider).label;
+    // Real handles only: never fall back to external_id (Threads stores the
+    // numeric user id there, Ghost stores the site URL — neither is a handle).
+    const cleanHandle = (raw: string | null | undefined): string | null => {
+      if (!raw) return null;
+      const t = raw.trim().replace(/^@+/, '');
+      if (!t) return null;
+      if (t.includes('://') || t.includes('/') || t.includes(' ') || t.includes('\\')) return null;
+      if (/^\d+$/.test(t)) return null;
+      if (t.length > 64) return null;
+      return `@${t}`;
+    };
+    // Threads/Mastodon/X stash "@user" in display_name with handle null —
+    // surface that as the handle instead of the numeric id.
+    const handle = cleanHandle(c?.handle) ?? (display.startsWith('@') ? cleanHandle(display) : null);
+    const name = display.replace(/^@+/, '') || display;
     return { name, handle };
   };
 
