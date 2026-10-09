@@ -761,16 +761,12 @@ export default function PostList({
           const lead = targets[0];
           const author = lead ? authorOf(lead.channel_id, lead.provider) : { name: 'Draft', handle: null };
           const when = head.sent_at ?? head.scheduled_at;
-          const cardStats = g.parts
-            .flatMap((p) => p.post_targets)
-            .filter((t) => t.status === 'sent')
-            .map((t) => stats[t.id])
-            .filter((s): s is StatRow => Boolean(s));
+          const sentTargets = g.parts.flatMap((p) => p.post_targets).filter((t) => t.status === 'sent');
+          const cardStats = sentTargets.map((t) => stats[t.id]).filter((s): s is StatRow => Boolean(s));
           const totalStat = (k: 'likes' | 'comments' | 'shares') =>
             cardStats.reduce((a, s) => a + (s[k] ?? 0), 0);
           const viewSum = cardStats.reduce((a, s) => a + (s.views == null ? 0 : Number(s.views)), 0);
-          const hasViews = cardStats.some((s) => s.views != null);
-          const showStats = cardStats.length > 0;
+          const showStats = sentTargets.length > 0;
           return (
             <>
               <article
@@ -910,12 +906,10 @@ export default function PostList({
                     <>
                       <span className="flex-1" />
                       <span className="flex items-center gap-3.5 text-xs font-bold text-muted">
-                        {hasViews ? (
-                          <span className="inline-flex items-center gap-1" title="Views">
-                            <Eye className="h-4 w-4" aria-hidden="true" />
-                            {fmtCount(viewSum)}
-                          </span>
-                        ) : null}
+                        <span className="inline-flex items-center gap-1" title="Views">
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                          {fmtCount(viewSum)}
+                        </span>
                         <span className="inline-flex items-center gap-1" title="Likes">
                           <Heart className="h-4 w-4" aria-hidden="true" />
                           {fmtCount(totalStat('likes'))}
