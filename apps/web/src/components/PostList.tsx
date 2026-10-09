@@ -337,13 +337,64 @@ export default function PostList({
   const [perPage, setPerPage] = useState(15);
   const [page, setPage] = useState(1);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [chanSel, setChanSel] = useState<string[]>([]);
+  const [monthSel, setMonthSel] = useState('');
+  const [mediaSel, setMediaSel] = useState<'all' | 'text' | 'image' | 'video'>('all');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [, startTransition] = useTransition();
+
+  const dateOf = (p: PostWithTargets) => p.sent_at ?? p.scheduled_at ?? p.created_at ?? '';
+
+  /** Providers actually present across the loaded posts (for the channel filter). */
+  const providersPresent = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of posts) for (const t of p.post_targets) set.add(t.provider);
+    return [...set].sort((a, b) => providerMeta(a).label.localeCompare(providerMeta(b).label));
+  }, [posts]);
+
+  /** YYYY-MM buckets actually present (for the month filter, newest first). */
+  const monthsPresent = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of posts) {
+      const d = dateOf(p);
+      if (d.length >= 7) set.add(d.slice(0, 7));
+    }
+    return [...set].sort().reverse();
+  }, [posts]);
+
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split('-').map(Number);
+    if (!y || !m) return ym;
+    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const groupMediaKind = (parts: PostWithTargets[]): 'text' | 'image' | 'video' => {
+    const kinds = new Set(parts.flatMap((p) => mediaOf(p).map((m) => m.kind)));
+    if (kinds.has('video')) return 'video';
+    if (kinds.has('image')) return 'image';
+    return 'text';
+  };
+
+  const activeFilterCount =
+    (query.trim() ? 1 : 0) + chanSel.length + (monthSel ? 1 : 0) + (mediaSel !== 'all' ? 1 : 0);
+
+  const clearFilters = () => {
+    setQuery('');
+    setChanSel([]);
+    setMonthSel('');
+    setMediaSel('all');
+  };
 
   /** Chain parts render as ONE card — a thread draft is a single post. */
   const groups = useMemo(() => {
-    const dateOf = (p: PostWithTargets) => p.sent_at ?? p.scheduled_at ?? p.created_at ?? '';
+    const q = query.trim().toLowerCase();
     const filtered = posts
       .filter((p) => TAB_MATCH[tab](p.status))
+      .filter((p) => {
+        if (!q) return true;
+        return `${p.title ?? ''} ${p.body ?? ''}`.toLowerCase().includes(q);
+      })
       .sort((a, b) => {
         const c = dateOf(a).localeCompare(dateOf(b));
         return sortNewest ? -c : c;
@@ -354,23 +405,27 @@ export default function PostList({
       if (p.chain_id) {
         if (seen.has(p.chain_id)) continue;
         seen.add(p.chain_id);
-        out.push({
-          key: `chain:${p.chain_id}`,
-          parts: filtered
-            .filter((q) => q.chain_id === p.chain_id)
-            .sort((a, b) => a.chain_position - b.chain_position),
-        });
+        const parts = filtered
+          .filter((q) => q.chain_id === p.chain_id)
+          .sort((a, b) => a.chain_position - b.chain_position);
+        if (chanSel.length && !parts.some((x) => x.post_targets.some((t) => chanSel.includes(t.provider)))) continue;
+        if (monthSel && !dateOf(parts[0]).startsWith(monthSel)) continue;
+        if (mediaSel !== 'all' && groupMediaKind(parts) !== mediaSel) continue;
+        out.push({ key: `chain:${p.chain_id}`, parts });
       } else {
+        if (chanSel.length && !p.post_targets.some((t) => chanSel.includes(t.provider))) continue;
+        if (monthSel && !dateOf(p).startsWith(monthSel)) continue;
+        if (mediaSel !== 'all' && groupMediaKind([p]) !== mediaSel) continue;
         out.push({ key: `post:${p.id}`, parts: [p] });
       }
     }
     return out;
-  }, [posts, tab, sortNewest]);
+  }, [posts, tab, sortNewest, query, chanSel, monthSel, mediaSel]);
 
   // Pagination: 15 rows per page by default, page resets on filter/sort/data.
   useEffect(() => {
     setPage(1);
-  }, [tab, sortNewest, perPage, posts.length]);
+  }, [tab, sortNewest, perPage, posts.length, query, chanSel, monthSel, mediaSel]);
   const totalPages = Math.max(1, Math.ceil(groups.length / perPage));
   const safePage = Math.min(page, totalPages);
   const pageGroups = groups.slice((safePage - 1) * perPage, safePage * perPage);
@@ -444,7 +499,115 @@ export default function PostList({
         </p>
       )}
 
-      <div className="flex-1 space-y-4 p-6">
+      <div className="flex-1 p-6 lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-6">
+        {/* Filter panel: inline toggle on mobile, sticky sidebar on desktop. */}
+        <div className="mb-4 lg:mb-0">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            className="flex w-full items-center justify-between rounded-2xl border border-line bg-card px-4 py-2.5 text-xs font-bold text-soft transition hover:bg-paper lg:hidden"
+          >
+            Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+            <span aria-hidden="true" className="text-muted">{filtersOpen ? '▴' : '▾'}</span>
+          </button>
+          <aside
+            aria-label="Post filters"
+            className={`${filtersOpen ? 'mt-2 block' : 'hidden'} rounded-2xl border border-line bg-card p-4 lg:mt-0 lg:block lg:sticky lg:top-4`}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Filters</p>
+              {activeFilterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-[11px] font-bold text-accent-ink hover:underline"
+                >
+                  Clear all
+                </button>
+              ) : null}
+            </div>
+
+            <label className="mt-3 block">
+              <span className="text-[11px] font-bold text-muted">Search</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search posts…"
+                aria-label="Search posts"
+                className="mt-1 w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-faint focus:border-accent focus:outline-none"
+              />
+            </label>
+
+            <div className="mt-3">
+              <p className="text-[11px] font-bold text-muted">Channels</p>
+              <div className="mt-1.5 flex flex-col gap-1">
+                {providersPresent.length === 0 ? (
+                  <p className="text-[11px] text-faint">No channels on these posts.</p>
+                ) : (
+                  providersPresent.map((p) => {
+                    const on = chanSel.includes(p);
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() =>
+                          setChanSel((prev) => (on ? prev.filter((x) => x !== p) : [...prev, p]))
+                        }
+                        className={`flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold transition ${
+                          on ? 'bg-accent text-ink' : 'text-soft hover:bg-paper'
+                        }`}
+                      >
+                        <ChannelAvatar provider={p} size={20} />
+                        <span className="min-w-0 flex-1 truncate text-left">{providerMeta(p).label}</span>
+                        {on ? <span aria-hidden="true">✓</span> : null}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <label className="mt-3 block">
+              <span className="text-[11px] font-bold text-muted">Month</span>
+              <select
+                value={monthSel}
+                onChange={(e) => setMonthSel(e.target.value)}
+                aria-label="Filter by month"
+                className="mt-1 w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs font-bold text-ink focus:border-accent focus:outline-none"
+              >
+                <option value="">All months</option>
+                {monthsPresent.map((m) => (
+                  <option key={m} value={m}>
+                    {monthLabel(m)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="mt-3">
+              <p className="text-[11px] font-bold text-muted">Media</p>
+              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                {(['all', 'text', 'image', 'video'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={mediaSel === m}
+                    onClick={() => setMediaSel(m)}
+                    className={`rounded-xl px-2 py-1.5 text-xs font-bold capitalize transition ${
+                      mediaSel === m ? 'bg-accent text-ink' : 'text-soft hover:bg-paper'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+        <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted">
             {groups.length === 0
@@ -768,6 +931,7 @@ export default function PostList({
             </button>
           </nav>
         ) : null}
+        </div>
       </div>
     </div>
   );
