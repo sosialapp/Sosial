@@ -822,15 +822,12 @@ export default function PostList({
                   title="Preview"
                   className="cursor-pointer px-4 pt-2 text-left"
                 >
-                  {head.title ? (
-                    <p className="text-[15px] font-extrabold leading-snug">{head.title}</p>
-                  ) : null}
-                  {fullText ? (
+                  {fullText || head.title ? (
                     <>
-                      <p className={`mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-soft ${expanded ? '' : 'line-clamp-4'}`}>
-                        {fullText}
+                      <p className={`whitespace-pre-wrap break-words text-sm leading-relaxed text-soft ${expanded ? '' : 'line-clamp-4'}`}>
+                        {fullText || head.title}
                       </p>
-                      {fullText.length > 220 ? (
+                      {(fullText || head.title || '').length > 220 ? (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -897,31 +894,7 @@ export default function PostList({
                   <p className="px-4 pt-1 text-xs font-bold text-faint">+{mediaTotal - 4} more attachments</p>
                 )}
 
-                {/* Stats bar (sent posts): views · likes · comments · shares */}
-                {showStats ? (
-                  <div className="flex items-center gap-5 px-4 pt-3 text-xs font-bold text-muted">
-                    {hasViews ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <Eye className="h-4 w-4" aria-hidden="true" />
-                        {fmtCount(viewSum)}
-                      </span>
-                    ) : null}
-                    <span className="inline-flex items-center gap-1.5">
-                      <Heart className="h-4 w-4" aria-hidden="true" />
-                      {fmtCount(totalStat('likes'))}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                      {fmtCount(totalStat('comments'))}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Share2 className="h-4 w-4" aria-hidden="true" />
-                      {fmtCount(totalStat('shares'))}
-                    </span>
-                  </div>
-                ) : null}
-
-                {/* Footer: target logos + icon actions */}
+                {/* Footer: target logos + stats + icon actions */}
                 <div className="flex flex-wrap items-center gap-2 px-4 py-3">
                   <span className="flex items-center gap-1" title={targets.map((t) => providerMeta(t.provider).label).join(', ')}>
                     {targets.map((t) => (
@@ -933,6 +906,28 @@ export default function PostList({
                       />
                     ))}
                   </span>
+                  {showStats ? (
+                    <span className="flex items-center gap-3.5 text-xs font-bold text-muted">
+                      {hasViews ? (
+                        <span className="inline-flex items-center gap-1" title="Views">
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                          {fmtCount(viewSum)}
+                        </span>
+                      ) : null}
+                      <span className="inline-flex items-center gap-1" title="Likes">
+                        <Heart className="h-4 w-4" aria-hidden="true" />
+                        {fmtCount(totalStat('likes'))}
+                      </span>
+                      <span className="inline-flex items-center gap-1" title="Comments">
+                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                        {fmtCount(totalStat('comments'))}
+                      </span>
+                      <span className="inline-flex items-center gap-1" title="Shares">
+                        <Share2 className="h-4 w-4" aria-hidden="true" />
+                        {fmtCount(totalStat('shares'))}
+                      </span>
+                    </span>
+                  ) : null}
                   <span className="flex-1" />
                   {canApprove && inApproval && (
                     <>
