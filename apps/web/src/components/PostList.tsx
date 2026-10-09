@@ -894,7 +894,7 @@ export default function PostList({
                   <p className="px-4 pt-1 text-xs font-bold text-faint">+{mediaTotal - 4} more attachments</p>
                 )}
 
-                {/* Footer: target logos + stats + icon actions */}
+                {/* Footer: target logos (left) · post stats (center) · actions (right) */}
                 <div className="flex flex-wrap items-center gap-2 px-4 py-3">
                   <span className="flex items-center gap-1" title={targets.map((t) => providerMeta(t.provider).label).join(', ')}>
                     {targets.map((t) => (
@@ -907,26 +907,29 @@ export default function PostList({
                     ))}
                   </span>
                   {showStats ? (
-                    <span className="flex items-center gap-3.5 text-xs font-bold text-muted">
-                      {hasViews ? (
-                        <span className="inline-flex items-center gap-1" title="Views">
-                          <Eye className="h-4 w-4" aria-hidden="true" />
-                          {fmtCount(viewSum)}
+                    <>
+                      <span className="flex-1" />
+                      <span className="flex items-center gap-3.5 text-xs font-bold text-muted">
+                        {hasViews ? (
+                          <span className="inline-flex items-center gap-1" title="Views">
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            {fmtCount(viewSum)}
+                          </span>
+                        ) : null}
+                        <span className="inline-flex items-center gap-1" title="Likes">
+                          <Heart className="h-4 w-4" aria-hidden="true" />
+                          {fmtCount(totalStat('likes'))}
                         </span>
-                      ) : null}
-                      <span className="inline-flex items-center gap-1" title="Likes">
-                        <Heart className="h-4 w-4" aria-hidden="true" />
-                        {fmtCount(totalStat('likes'))}
+                        <span className="inline-flex items-center gap-1" title="Comments">
+                          <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                          {fmtCount(totalStat('comments'))}
+                        </span>
+                        <span className="inline-flex items-center gap-1" title="Shares">
+                          <Share2 className="h-4 w-4" aria-hidden="true" />
+                          {fmtCount(totalStat('shares'))}
+                        </span>
                       </span>
-                      <span className="inline-flex items-center gap-1" title="Comments">
-                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                        {fmtCount(totalStat('comments'))}
-                      </span>
-                      <span className="inline-flex items-center gap-1" title="Shares">
-                        <Share2 className="h-4 w-4" aria-hidden="true" />
-                        {fmtCount(totalStat('shares'))}
-                      </span>
-                    </span>
+                    </>
                   ) : null}
                   <span className="flex-1" />
                   {canApprove && inApproval && (
