@@ -148,7 +148,10 @@ serve(async (req: Request): Promise<Response> => {
 
   const aws = new AwsClient({ accessKeyId, secretAccessKey, service: "s3", region: "auto" });
   const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
-  const objectUrl = (bucket: string, path: string) => `${endpoint}/${bucket}/${path}`;
+  // URL path layout: <endpoint>/<real bucket>/<logical prefix>/<path>. The
+  // first path segment is the BUCKET NAME to R2 — the logical bucket
+  // (post-media/blog-media) is a prefix inside R2_BUCKET, never the bucket.
+  const objectUrl = (bucket: string, path: string) => `${endpoint}/${r2Bucket}/${bucket}/${path}`;
 
   const expiresIn = (v: unknown, max: number) => {
     const n = typeof v === "number" && Number.isFinite(v) ? Math.floor(v) : 0;
