@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowUpDown, CalendarDays, Download, Eye, FileDown, FileText, Heart, Info, MessageCircle, Percent, Send, Users } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -8,7 +8,9 @@ import { BrandIcon } from '@/components/BrandIcon';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
+import { Drawer } from '@/components/ui/drawer';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip } from '@/components/ui/tooltip';
 import { HBarList } from '@/components/ui/chart';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import {
@@ -112,6 +114,7 @@ export default function AnalyticsDashboard({
   const [custom, setCustom] = useState<DateRange | undefined>();
   const [calOpen, setCalOpen] = useState(false);
   const [chanSel, setChanSel] = useState<string[]>([]);
+  const [exportOpen, setExportOpen] = useState(false);
   const [topSort, setTopSort] = useState<{ key: TopSortKey; dir: 'asc' | 'desc' }>({
     key: 'interactions',
     dir: 'desc',
@@ -131,12 +134,16 @@ export default function AnalyticsDashboard({
     return { from, to, label: `${fmt(from)} – ${fmt(to)}` };
   }, [preset, custom, now]);
 
-  /** Providers on the account (channel filter chips). */
+  /** Connected channels on the account (filter chips). */
+  const connectedChannels = useMemo(
+    () => channels.filter((c) => c.status === 'connected'),
+    [channels],
+  );
   const providersPresent = useMemo(() => {
     const set = new Set<ProviderKey>();
-    for (const c of channels) set.add(c.provider);
+    for (const c of connectedChannels) set.add(c.provider);
     return [...set].sort((a, b) => providerMeta(a).label.localeCompare(providerMeta(b).label));
-  }, [channels]);
+  }, [connectedChannels]);
 
   const inRange = (iso: string | null | undefined): boolean => {
     if (!iso) return false;
@@ -308,7 +315,7 @@ export default function AnalyticsDashboard({
         ? (a.interactions - b.interactions) * dir
         : (new Date(a.sentAt ?? 0).getTime() - new Date(b.sentAt ?? 0).getTime()) * dir,
     );
-    return rows.slice(0, 10);
+    return rows.slice(0, 5);
   }, [sent, statsByPost, topSort]);
 
   // ---- channel performance table (latest snapshots, channel-filtered) ----
@@ -454,33 +461,24 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             How you&apos;re doing
           </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper" title="Download the channel + top-post tables as CSV">
-            <Download className="h-3.5 w-3.5" aria-hidden="true" />
-            CSV
-          </button>
-          <button type="button" onClick={exportMarkdown} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper" title="Download this report as Markdown">
-            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-            Markdown
-          </button>
-          <button type="button" onClick={exportPdf} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper" title="Open a print-ready report (save as PDF)">
-            <FileDown className="h-3.5 w-3.5" aria-hidden="true" />
-            PDF
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setExportOpen(true)}
+          className="btn btn-sm btn-bolt"
+        >
+          <Download className="h-3.5 w-3.5" aria-hidden="true" />
+          Export
+        </button>
       </div>
 
       {/* Range + channel controls */}
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
-        {PRESETS.map((p) => (
+        {PRESETS.filter((p) => p.id !== 'custom').map((p) => (
           <button
             key={p.id}
             type="button"
             aria-pressed={preset === p.id}
-            onClick={() => {
-              setPreset(p.id);
-              if (p.id === 'custom') setCalOpen(true);
-            }}
+            onClick={() => setPreset(p.id)}
             className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
               preset === p.id ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
             }`}
@@ -492,13 +490,14 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           <PopoverTrigger asChild>
             <button
               type="button"
+              aria-pressed={preset === 'custom'}
               onClick={() => setPreset('custom')}
               className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition ${
                 preset === 'custom' ? 'border-accent bg-accent text-ink' : 'border-line bg-card text-muted hover:bg-paper'
               }`}
             >
               <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-              {preset === 'custom' && custom?.from ? range.label : 'Pick dates'}
+              {preset === 'custom' && custom?.from ? range.label : 'Custom'}
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -509,14 +508,11 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               onSelect={setCustom}
               numberOfMonths={1}
             />
-            <div className="flex justify-end gap-2 border-t border-line-soft p-3">
+            <div className="flex items-center justify-between gap-2 border-t border-line-soft p-3">
               <button
                 type="button"
-                onClick={() => {
-                  setCustom(undefined);
-                  setCalOpen(false);
-                }}
-                className="rounded-full px-3 py-1.5 text-xs font-bold text-muted hover:text-ink"
+                onClick={() => setCustom(undefined)}
+                className="rounded-full px-3 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
               >
                 Clear
               </button>
@@ -526,14 +522,14 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                   setPreset('custom');
                   setCalOpen(false);
                 }}
-                className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-ink"
+                className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-ink transition hover:bg-accent-bright"
               >
                 Apply
               </button>
             </div>
           </PopoverContent>
         </Popover>
-        <span className="ml-1 text-xs text-faint">{range.label}</span>
+        {preset !== 'custom' ? <span className="ml-1 text-xs text-faint">{range.label}</span> : null}
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
@@ -572,9 +568,15 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           <Card key={s.label} className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <s.icon className="h-5 w-5 text-muted" aria-hidden="true" />
-              <span title={s.hint} aria-label={s.hint} className="cursor-help text-faint hover:text-ink">
-                <Info className="h-3.5 w-3.5" aria-hidden="true" />
-              </span>
+              <Tooltip content={s.hint} align="end">
+                <button
+                  type="button"
+                  aria-label={s.hint}
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-faint transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </Tooltip>
             </div>
             <p className="mt-2 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{s.value}</p>
             <p className="mt-1 text-xs text-muted">{s.label}</p>
@@ -820,6 +822,69 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           Create a post
         </Link>
       </Card>
+
+      <Drawer
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Export report"
+        description={`${range.label}${chanSel.length ? ` · ${chanSel.map((p) => providerMeta(p).label).join(', ')}` : ' · all channels'}`}
+      >
+        <div className="space-y-2.5">
+          <ExportOption
+            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+            title="CSV"
+            subtitle="Channel + top-post tables as a spreadsheet"
+            onClick={() => {
+              exportCsv();
+              setExportOpen(false);
+            }}
+          />
+          <ExportOption
+            icon={<Download className="h-5 w-5" aria-hidden="true" />}
+            title="Markdown"
+            subtitle="Full report with summary and tables"
+            onClick={() => {
+              exportMarkdown();
+              setExportOpen(false);
+            }}
+          />
+          <ExportOption
+            icon={<FileDown className="h-5 w-5" aria-hidden="true" />}
+            title="PDF"
+            subtitle="Opens a print-ready report — save as PDF"
+            onClick={() => {
+              exportPdf();
+              setExportOpen(false);
+            }}
+          />
+        </div>
+      </Drawer>
     </div>
+  );
+}
+
+function ExportOption({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper-dim p-4 text-left transition hover:border-accent hover:bg-accent-soft"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card text-ink">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-extrabold text-ink">{title}</span>
+        <span className="block text-xs text-muted">{subtitle}</span>
+      </span>
+    </button>
   );
 }

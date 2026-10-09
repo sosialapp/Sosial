@@ -12,20 +12,28 @@ const PopoverAnchor = PopoverPrimitive.Anchor;
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = 'center', sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Content
-      ref={ref}
-      align={align}
-      sideOffset={sideOffset}
-      className={cn(
-        'z-50 w-72 rounded-2xl border border-line bg-card p-4 text-ink shadow-[0_16px_50px_rgba(28,26,20,0.25)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-        className,
-      )}
-      {...props}
-    />
-  </PopoverPrimitive.Portal>
-));
+>(({ className, align = 'center', sideOffset = 4, ...props }, ref) => {
+  // Portal inside the dashboard's theme scope so `.theme-dark` variables apply;
+  // document.body would strand the panel outside dark mode.
+  const container =
+    typeof document === 'undefined'
+      ? undefined
+      : document.querySelector('[data-theme-root]') ?? document.body;
+  return (
+    <PopoverPrimitive.Portal container={container}>
+      <PopoverPrimitive.Content
+        ref={ref}
+        align={align}
+        sideOffset={sideOffset}
+        className={cn(
+          'z-50 w-72 rounded-2xl border border-line bg-card p-4 text-ink shadow-[0_16px_50px_rgba(28,26,20,0.25)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          className,
+        )}
+        {...props}
+      />
+    </PopoverPrimitive.Portal>
+  );
+});
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;
 
 export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor };
