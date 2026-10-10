@@ -1500,6 +1500,13 @@ body {
   background: var(--sx-evt-bg);
   border-color: var(--sx-evt-border);
 }
+/* The library wrapper is `overflow: hidden` with a %-height, so a
+ * content-sized card gets its bottom border clipped. Let the card own the
+ * box exactly (border-box) so the full frame always draws. */
+.sx-react-calendar-wrapper .sx__time-grid-event .sx-event-card {
+  height: 100%;
+  box-sizing: border-box;
+}
 .sx-react-calendar-wrapper .sx-event-card .sx-event-title {
   color: #1f2937;
 }
