@@ -217,7 +217,7 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
         c.sxThumbs.length === 1 ? (
           <div className="mt-1">{eventMedia(c.sxThumbs[0], 'h-auto max-h-[100px] w-full')}</div>
         ) : (
-          <div className="mt-1 grid grid-cols-3 gap-1">
+          <div className={`mt-1 grid gap-1 ${c.sxThumbs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
             {c.sxThumbs
               .slice(0, 3)
               .map((t) => eventMedia(t, 'h-auto max-h-[60px] w-full'))}
@@ -725,7 +725,8 @@ export default function ScheduleXBoard({
         id: p.id,
         title: snippet(p),
         start,
-        end: start.add({ minutes: 150 }),
+        // Block height follows content: text-only stays compact, media gets room.
+        end: start.add({ minutes: thumbs.length === 0 ? 75 : thumbs.length === 1 ? 150 : 135 }),
         calendarId: statusCalendar(p.status),
         sxProvider: t0?.provider,
         sxAvatar: t0 ? avatarOf(t0.channel_id) : undefined,
