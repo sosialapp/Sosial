@@ -234,16 +234,33 @@ export default async function DashboardPage() {
             role={ctx.workspace.role}
           />
 
-          {/* Week calendar — same Schedule-X style as the calendar page */}
-          <Card className="overflow-hidden p-5" aria-label="Content calendar">
-            <div className="flex flex-wrap items-center gap-2">
+          {/* Content calendar — Schedule-X week in the same skin as /calendar */}
+          <Card className="overflow-hidden" aria-label="Content calendar">
+            <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-4">
               <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>
+              <p className="text-xs text-muted">This week</p>
               <span className="flex-1" />
-              <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
+              <span className="flex items-center gap-3 text-[11px] font-bold text-muted">
+                {[
+                  ['Draft', 'bg-[#9A958B]'],
+                  ['Queued', 'bg-[#B45309]'],
+                  ['Sent', 'bg-[#12914A]'],
+                  ['Failed', 'bg-[#E5484D]'],
+                ].map(([label, dot]) => (
+                  <span key={label} className="flex items-center gap-1">
+                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
+                    {label}
+                  </span>
+                ))}
+              </span>
+              <Link
+                href="/calendar"
+                className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
+              >
                 Open calendar
               </Link>
             </div>
-            <div className="mt-4">
+            <div className="px-5 py-4">
               <ScheduleXBoard variant="mini" posts={posts} channels={channels} media={mediaMap} />
             </div>
           </Card>
