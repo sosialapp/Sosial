@@ -1537,7 +1537,9 @@ export default function ScheduleXBoard({
             )}
           </div>
         </div>,
-        document.body,
+        // Inside the theme scope so `.theme-dark` variables apply;
+        // document.body would strand the panel outside dark mode.
+        document.querySelector('[data-theme-root]') ?? document.body,
       )
         : null}
     </div>

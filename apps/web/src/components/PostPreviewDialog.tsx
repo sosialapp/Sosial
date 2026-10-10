@@ -49,6 +49,9 @@ export default function PostPreviewDialog({
   if (!post || typeof document === 'undefined') return null;
   const meta = isPostStatus(post.status) ? POST_STATUS_META[post.status] : null;
   const media = (post.media ?? []).slice(0, 4);
+  // Portal inside the theme scope so `.theme-dark` variables apply;
+  // document.body would strand the panel outside dark mode.
+  const container = document.querySelector('[data-theme-root]') ?? document.body;
 
   return createPortal(
     <div
@@ -156,6 +159,6 @@ export default function PostPreviewDialog({
         </button>
       </div>
     </div>,
-    document.body,
+    container,
   );
 }
