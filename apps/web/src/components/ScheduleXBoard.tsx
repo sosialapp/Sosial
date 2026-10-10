@@ -1490,7 +1490,7 @@ export default function ScheduleXBoard({
             type="button"
             aria-label="Close"
             onClick={() => setSelectedPostId(null)}
-            className="absolute inset-0 cursor-default bg-ink/40 backdrop-blur-[2px]"
+            className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-[2px]"
           />
           <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-card p-5 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-2">
