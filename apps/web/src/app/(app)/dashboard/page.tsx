@@ -1,18 +1,18 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChartColumn, ChevronLeft, ChevronRight, Clock, Link2 } from 'lucide-react';
+import { ChartColumn, Clock, Link2 } from 'lucide-react';
 import SendIcon from '@/components/SendIcon';
 import { channelAvatar } from '@/lib/channelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
+import DashboardRecentActivity from '@/components/DashboardRecentActivity';
 import QuickPost from '@/components/QuickPost';
-import PostPeek from '@/components/PostPeek';
-import RecentActivityCarousel from '@/components/RecentActivityCarousel';
 import type { RecentActivityItem } from '@/components/RecentActivityCarousel';
+import ScheduleXBoard from '@/components/ScheduleXBoard';
 import { Card } from '@/components/ui/card';
 import { providerMeta } from '@/lib/providers';
-import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
+import { chainPartsByChain, isChainHead } from '@/lib/chains';
 import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
-import { addDays, dayKey, WEEKDAYS } from '@/lib/format';
+import { addDays, dayKey } from '@/lib/format';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -103,10 +103,6 @@ export default async function DashboardPage() {
   const parts = chainPartsByChain(posts);
   const avatarByChannel = new Map(channels.map((c) => [c.id, channelAvatar(c.metadata)]));
   const avatarOf = (channelId: string): string | undefined => avatarByChannel.get(channelId);
-  const avatarRecord: Record<string, string> = {};
-  for (const [id, v] of avatarByChannel) {
-    if (typeof v === 'string') avatarRecord[id] = v;
-  }
   const queued = posts.filter((p) => p.status === 'queued' || p.status === 'publishing');
   const queuedHeads = queued.filter((p) => isChainHead(p, parts));
   const sentWeek = posts.filter(
@@ -155,7 +151,7 @@ export default async function DashboardPage() {
   const mediaMap = await fetchMediaForPosts(
     sb,
     ctx.workspace.id,
-    recentFeed.map(({ p }) => p.id),
+    posts.map((p) => p.id),
   );
   const recentItems: RecentActivityItem[] = recentFeed.map(({ p }) => {
     const t0 = p.post_targets?.[0];
@@ -185,37 +181,6 @@ export default async function DashboardPage() {
     sentPrevWeek.length > 0
       ? Math.round(((sentWeek.length - sentPrevWeek.length) / sentPrevWeek.length) * 100)
       : null;
-
-  // Week strip: Mon..Sun of the current week.
-  const today = new Date();
-  const mondayOffset = (today.getDay() + 6) % 7;
-  const monday = addDays(today, -mondayOffset);
-  const sunday = addDays(monday, 6);
-  const week = Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(monday, i);
-    const k = dayKey(d);
-    const dayPosts = queuedHeads
-      .filter((p) => p.scheduled_at && dayKey(new Date(p.scheduled_at)) === k)
-      .sort((a, b) => +new Date(a.scheduled_at!) - +new Date(b.scheduled_at!));
-    return { d, k, posts: dayPosts, isToday: k === dayKey(today) };
-  });
-  const rangeLabel = `${monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
-
-  // Time axis: 2-hour rows from 6 AM to 10 PM; events bucket into the nearest row.
-  const HOURS = [6, 8, 10, 12, 14, 16, 18, 20, 22];
-  const hourLabel = (h: number) => {
-    const ap = h >= 12 ? 'PM' : 'AM';
-    const hh = h % 12 === 0 ? 12 : h % 12;
-    return `${hh} ${ap}`;
-  };
-  const rowFor = (iso: string): number => {
-    const h = new Date(iso).getHours();
-    if (h <= HOURS[0]) return HOURS[0];
-    for (let i = HOURS.length - 1; i >= 0; i--) {
-      if (h >= HOURS[i]) return HOURS[i];
-    }
-    return HOURS[0];
-  };
 
   return (
     <div className="w-full pt-6">
@@ -269,98 +234,17 @@ export default async function DashboardPage() {
             role={ctx.workspace.role}
           />
 
-          {/* Week calendar */}
+          {/* Week calendar — same Schedule-X style as the calendar page */}
           <Card className="overflow-hidden p-5" aria-label="Content calendar">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>
-              <p className="text-xs text-muted">{rangeLabel}</p>
               <span className="flex-1" />
-              <Link
-                href="/calendar"
-                aria-label="Previous week"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
-              <Link
-                href="/calendar"
-                aria-label="Next week"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
-              >
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
+                Open calendar
               </Link>
             </div>
-
-            {/* Week time-grid: hour gutter + seven day columns, one aligned grid. */}
-            <div className="mt-4 overflow-x-auto">
-              <div className="min-w-[680px]">
-                {/* Day header row */}
-                <div className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))] pb-2">
-                  <span />
-                  {week.map(({ d, k, isToday }) => (
-                    <div key={k} className="flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-bold text-faint">
-                        {WEEKDAYS[(d.getDay() + 6) % 7]?.slice(0, 3) ?? ''}
-                      </span>
-                      <span
-                        className={`flex h-6 w-6 items-center justify-center rounded-full font-display text-xs font-extrabold ${
-                          isToday ? 'bg-accent text-on-accent' : 'text-ink'
-                        }`}
-                      >
-                        {d.getDate()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Hour rows */}
-                {HOURS.map((h, ri) => (
-                  <div key={h} className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))]">
-                    <span
-                      className={`pr-2 text-right text-[10px] font-medium text-faint ${
-                        ri === 0 ? '' : '-translate-y-1'
-                      }`}
-                    >
-                      {hourLabel(h)}
-                    </span>
-                    {week.map(({ k, posts: dayPosts, isToday }) => {
-                      const cell = dayPosts.filter((p) => rowFor(p.scheduled_at!) === h);
-                      return (
-                        <div
-                          key={k}
-                          className={`border-t border-line-soft p-1 text-[10px] [&:not(:first-child)]:border-l ${
-                            isToday ? 'bg-accent/[0.06]' : ''
-                          } ${ri === HOURS.length - 1 ? 'border-b' : ''}`}
-                          style={{ height: '4.5rem' }}
-                        >
-                          {cell.slice(0, 2).map((p) => (
-                            <PostPeek
-                              key={p.id}
-                              post={{
-                                id: p.id,
-                                title: p.title,
-                                body: p.body,
-                                scheduled_at: p.scheduled_at,
-                                status: p.status,
-                                targets: (p.post_targets ?? []).map((t) => ({
-                                  provider: t.provider,
-                                  channel_id: t.channel_id,
-                                })),
-                              }}
-                              when={`${fmtDay(p.scheduled_at)}, ${fmtTime(p.scheduled_at)}`}
-                              avatars={avatarRecord}
-                              threadParts={threadCount(p, parts)}
-                            />
-                          ))}
-                          {cell.length > 2 ? (
-                            <span className="block px-1 text-[9px] font-bold text-muted">+{cell.length - 2} more</span>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+            <div className="mt-4">
+              <ScheduleXBoard variant="mini" posts={posts} channels={channels} media={mediaMap} />
             </div>
           </Card>
         </div>
@@ -378,7 +262,7 @@ export default async function DashboardPage() {
             {recentFeed.length === 0 ? (
               <p className="mt-3 text-sm text-muted">Nothing here yet. Publish or queue a post and it lands here.</p>
             ) : (
-              <RecentActivityCarousel items={recentItems} />
+              <DashboardRecentActivity items={recentItems} />
             )}
           </Card>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowUpDown, CalendarDays, Download, Eye, FileDown, FileText, Heart, Info, MessageCircle, Percent, Send, Users } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -14,6 +14,9 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { HBarList } from '@/components/ui/chart';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import { channelAvatar } from '@/lib/channelAvatar';
+import { fetchMediaForPosts } from '@/lib/posts';
+import { createClient } from '@/lib/supabase/client';
+import PostPreviewDialog, { type PreviewPostData } from '@/components/PostPreviewDialog';
 import {
   Table,
   TableBody,
@@ -23,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
-import type { ConnectedChannel, PostStatus, PostWithTargets, ProviderKey } from '@/lib/types';
+import type { ConnectedChannel, MediaAssetRow, PostStatus, PostWithTargets, ProviderKey } from '@/lib/types';
 
 export interface StatSnapshotRow {
   post_id: string;
@@ -119,6 +122,80 @@ export default function AnalyticsDashboard({
     key: 'interactions',
     dir: 'desc',
   });
+
+  // Click-to-preview: any post row opens the shared social preview (media is
+  // fetched on demand and cached per post).
+  const [preview, setPreview] = useState<PreviewPostData | null>(null);
+  const [previewMedia, setPreviewMedia] = useState<Record<string, MediaAssetRow[]>>({});
+  const openToken = useRef(0);
+
+  const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
+  const cleanHandle = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    const t = raw.trim().replace(/^@+/, '');
+    if (!t) return null;
+    if (t.includes('://') || t.includes('/') || t.includes(' ') || t.includes('\\')) return null;
+    if (/^\d+$/.test(t)) return null;
+    if (t.length > 64) return null;
+    return `@${t}`;
+  };
+  const authorOf = (channelId: string, provider: string) => {
+    const c = channelById.get(channelId);
+    const display = c?.display_name?.trim() || providerMeta(provider).label;
+    const handle = cleanHandle(c?.handle) ?? (display.startsWith('@') ? cleanHandle(display) : null);
+    return { name: display.replace(/^@+/, '') || display, handle };
+  };
+  const avatarOf = (channelId: string): string | undefined => {
+    const c = channelById.get(channelId);
+    return c ? channelAvatar(c.metadata) : undefined;
+  };
+
+  const openPreview = (
+    post: PostWithTargets,
+    stats: { likes: number; comments: number; shares: number; views: number | null } | null,
+  ) => {
+    const t = ++openToken.current;
+    const t0 = post.post_targets?.[0];
+    const provider = t0?.provider ?? 'instagram';
+    const author = t0
+      ? authorOf(t0.channel_id, provider)
+      : { name: providerMeta(provider).label, handle: null };
+    const when = post.sent_at ?? post.scheduled_at ?? post.created_at ?? '';
+    const base: PreviewPostData = {
+      id: post.id,
+      text: post.body || post.title || '',
+      status: post.status,
+      timeLabel: when
+        ? new Date(when).toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          })
+        : '',
+      timeTitle: when || undefined,
+      provider,
+      authorName: author.name,
+      authorHandle: author.handle,
+      avatar: t0 ? avatarOf(t0.channel_id) : undefined,
+      media: previewMedia[post.id] ?? [],
+      stats,
+    };
+    setPreview(base);
+    if (previewMedia[post.id] || !post.workspace_id) return;
+    void (async () => {
+      try {
+        const sb = createClient();
+        const map = await fetchMediaForPosts(sb, post.workspace_id, [post.id]);
+        const list = map[post.id] ?? [];
+        if (openToken.current !== t) return;
+        setPreviewMedia((prev) => ({ ...prev, [post.id]: list }));
+        setPreview({ ...base, media: list });
+      } catch {
+        /* text-only preview stands */
+      }
+    })();
+  };
 
   const range = useMemo((): { from: number; to: number; label: string } => {
     const sod = startOfDay(now);
@@ -658,7 +735,24 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 {topPosts.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="max-w-56">
-                      <span className="block truncate font-bold" title={p.title}>{p.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const full = sent.find((s) => s.id === p.id);
+                          if (full) {
+                            openPreview(full, {
+                              likes: p.likes,
+                              comments: p.comments,
+                              shares: p.shares,
+                              views: p.views,
+                            });
+                          }
+                        }}
+                        title={p.title}
+                        className="block w-full truncate text-left font-bold hover:underline"
+                      >
+                        {p.title}
+                      </button>
                     </TableCell>
                     <TableCell>
                       <span className="flex items-center">
@@ -756,7 +850,21 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                   const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
                   const st = POST_STATUS_META[p.status];
                   return (
-                    <li key={p.id} className="flex items-center gap-2.5">
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const agg = statsByPost.get(p.id);
+                          openPreview(
+                            p,
+                            agg
+                              ? { likes: agg.likes, comments: agg.comments, shares: agg.shares, views: agg.views }
+                              : null,
+                          );
+                        }}
+                        title="Open preview"
+                        className="flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition hover:bg-paper-dim"
+                      >
                       <div className="flex shrink-0 items-center" aria-hidden="true">
                         {providers.slice(0, 3).map((pv, i) => (
                           <span
@@ -774,6 +882,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                         <p className="text-xs text-muted">{fmtDate(p.sent_at)}</p>
                       </div>
                       <Badge className={st.className}>{st.label}</Badge>
+                      </button>
                     </li>
                   );
                 })}
@@ -855,6 +964,8 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           Create a post
         </Link>
       </Card>
+
+      <PostPreviewDialog post={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

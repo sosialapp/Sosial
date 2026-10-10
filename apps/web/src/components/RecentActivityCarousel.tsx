@@ -27,12 +27,22 @@ const isPostStatus = (s: string): s is PostStatus => s in POST_STATUS_META;
  * time on top, text + media below, with a vertical dot rail on the right.
  * Scrolling over the card, swiping, or clicking a dot flips to the next post.
  */
-export default function RecentActivityCarousel({ items }: { items: RecentActivityItem[] }) {
+export default function RecentActivityCarousel({
+  items,
+  onOpen,
+}: {
+  items: RecentActivityItem[];
+  /** Single click / tap on the post (not a rail/dot/wheel swipe) opens it. */
+  onOpen?: (item: RecentActivityItem) => void;
+}) {
   const [index, setIndex] = useState(0);
   const count = items.length;
   const wrapRef = useRef<HTMLDivElement>(null);
   const cool = useRef(0);
   const touchY = useRef<number | null>(null);
+  // Last swipe/wheel navigation time — a click right after a swipe is the
+  // swipe's own tap, not an open-preview intent.
+  const navAt = useRef(0);
 
   // Wheel anywhere over the card flips posts and never moves the page
   // (non-passive so the card owns the gesture).
@@ -47,6 +57,7 @@ export default function RecentActivityCarousel({ items }: { items: RecentActivit
       const now = Date.now();
       if (now - cool.current < 900) return;
       cool.current = now;
+      navAt.current = now;
       setIndex((i) => (i + (e.deltaY > 0 ? 1 : -1) + count) % count);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -70,11 +81,20 @@ export default function RecentActivityCarousel({ items }: { items: RecentActivit
         const dy = touchY.current - (e.changedTouches[0]?.clientY ?? touchY.current);
         touchY.current = null;
         if (Math.abs(dy) < 40) return;
+        navAt.current = Date.now();
         setIndex((i) => (i + (dy > 0 ? 1 : -1) + count) % count);
       }}
     >
       <div className="min-w-0 flex-1">
-        <article key={item.id}>
+        <article
+          key={item.id}
+          onClick={() => {
+            if (!onOpen || Date.now() - navAt.current < 600) return;
+            onOpen(item);
+          }}
+          title={onOpen ? 'Open preview' : undefined}
+          className={onOpen ? 'cursor-pointer rounded-xl' : undefined}
+        >
           {/* Header: avatar + name/handle + time + status */}
           <div className="flex items-center gap-2.5">
             <ChannelAvatar provider={item.provider} avatar={item.avatar} size={36} />

@@ -680,6 +680,7 @@ export default function ScheduleXBoard({
   initialView = 'week',
   initialAnchor,
   media = {},
+  variant = 'page',
 }: {
   posts: PostWithTargets[];
   channels: ConnectedChannel[];
@@ -689,6 +690,8 @@ export default function ScheduleXBoard({
   initialAnchor?: string;
   /** Signed media per post id, for the thumbnail row on schedule cards. */
   media?: Record<string, MediaAssetRow[]>;
+  /** 'page' = full calendar; 'mini' = bare week grid for embedding (dashboard). */
+  variant?: 'page' | 'mini';
 }) {
   const router = useRouter();
   const [view] = useState<BoardView>(initialView);
@@ -1147,7 +1150,9 @@ export default function ScheduleXBoard({
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className={variant === 'mini' ? 'sx-compact' : 'flex min-h-screen flex-col'}>
+      {variant === 'mini' ? null : (
+      <>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-xl font-extrabold tracking-tight">{title}</h1>
@@ -1309,6 +1314,7 @@ export default function ScheduleXBoard({
         <span className="flex-1" />
         <span className="text-xs text-faint">{sxEvents.length} shown</span>
       </div>
+      </> )}
 
       {err && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
@@ -1326,6 +1332,23 @@ export default function ScheduleXBoard({
         </div>
       )}
 
+      {variant === 'mini' ? (
+        mounted ? (
+          <SXMount
+            view="week"
+            anchorKey={dayKey(anchor)}
+            events={sxEvents}
+            dark={dark}
+            timeZone={timeZone}
+            notify={setErr}
+            resolveDrop={resolveDrop}
+            onSelectPost={handleSelectPost}
+            persistDrop={persistDrop}
+          />
+        ) : (
+          <div className="min-h-[300px] animate-pulse rounded-2xl bg-paper-dim" />
+        )
+      ) : (
       <div className="min-w-0 flex-1 p-4">
         {view === 'year' ? (
           <>
@@ -1447,6 +1470,7 @@ export default function ScheduleXBoard({
           </p>
         ) : null}
       </div>
+      )}
 
       {selectedPost && typeof document !== 'undefined'
         ? createPortal(
