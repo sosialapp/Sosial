@@ -7,7 +7,6 @@ import {
   annualSavingsPct, type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 import type { UsageSnapshot } from '@/lib/billing/usage';
-import SegmentedPills from '@/components/ui/segmented-pills';
 
 interface EntitlementView {
   plan: PlanKey;
@@ -333,15 +332,17 @@ export default function BillingPanel({
       <section id="change-plan" className="card scroll-mt-24 p-5" aria-label="Change plan">
         <p className="eyebrow">Change plan</p>
         <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Billing interval">
-          <SegmentedPills
-            ariaLabel="Billing interval"
-            value={interval}
-            onChange={setInterval}
-            options={[
-              { value: 'monthly', label: 'Monthly' },
-              { value: 'annual', label: `Annual — save up to ${annualSavingsPct('team')}%` },
-            ]}
-          />
+          {(['monthly', 'annual'] as const).map((i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setInterval(i)}
+              aria-pressed={interval === i}
+              className={`pill border ${interval === i ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
+            >
+              {i === 'monthly' ? 'Monthly' : `Annual — save up to ${annualSavingsPct('team')}%`}
+            </button>
+          ))}
         </div>
 
         <div className="mt-3 space-y-2">

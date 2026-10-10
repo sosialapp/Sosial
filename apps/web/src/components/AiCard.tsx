@@ -323,14 +323,23 @@ export default function AiCard({
 
       {/* Tone */}
       <p className="mt-4 text-xs font-bold text-soft">How should it sound?</p>
-      <SegmentedPills
-        ariaLabel="Tone"
-        size="sm"
-        value={tone}
-        onChange={setTone}
-        trackClassName={`mt-1.5 ${AI_TRACK}`}
-        options={STUDIO_TONES.map((t) => ({ value: t.id, label: t.label }))}
-      />
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Tone">
+        {STUDIO_TONES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTone(t.id)}
+            aria-pressed={tone === t.id}
+            className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+              tone === t.id
+                ? 'border-ink bg-ink text-paper'
+                : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {/* Style */}
       <button
@@ -419,17 +428,27 @@ export default function AiCard({
 
       {/* Structure preset — suggested from the topic, applied by tap */}
       <p className="mt-4 text-xs font-bold text-soft">Structure</p>
-      <SegmentedPills
-        ariaLabel="Structure preset"
-        size="sm"
-        value={format}
-        onChange={pickFormat}
-        trackClassName={`mt-1.5 ${AI_TRACK}`}
-        options={(['auto', ...AI_FORMATS.map((f) => f.id)] as const).map((id) => ({
-          value: id,
-          label: id === 'auto' ? 'Auto' : AI_FORMATS.find((f) => f.id === id)?.label ?? id,
-        }))}
-      />
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Structure preset">
+        {(['auto', ...AI_FORMATS.map((f) => f.id)] as const).map((id) => {
+          const on = format === id;
+          const label = id === 'auto' ? 'Auto' : AI_FORMATS.find((f) => f.id === id)?.label ?? id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => pickFormat(id)}
+              aria-pressed={on}
+              className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                on
+                  ? 'border-ink bg-ink text-paper'
+                  : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
       {format !== 'auto' ? (
         <p className="mt-1 text-[11px] text-muted">
           {AI_FORMATS.find((f) => f.id === format)?.blurb}
@@ -480,14 +499,21 @@ export default function AiCard({
           </div>
           <div>
             <p className="text-xs font-bold">Emoji</p>
-            <SegmentedPills
-              ariaLabel="Emoji"
-              size="sm"
-              value={emoji}
-              onChange={setEmoji}
-              trackClassName={`mt-1 ${AI_TRACK}`}
-              options={EMOJI_OPTS.map((o) => ({ value: o.id, label: o.label }))}
-            />
+            <div className="mt-1 flex gap-1" role="group" aria-label="Emoji">
+              {EMOJI_OPTS.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => setEmoji(o.id)}
+                  aria-pressed={emoji === o.id}
+                  className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold transition ${
+                    emoji === o.id ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <span className="flex-1">
@@ -523,23 +549,25 @@ export default function AiCard({
           </div>
 
           {draft.length > 1 ? (
-            <SegmentedPills
-              ariaLabel="Channel drafts"
-              role="tablist"
-              size="sm"
-              value={tab}
-              onChange={setTab}
-              trackClassName={`mt-2 ${AI_TRACK}`}
-              options={draft.map((v, i) => ({
-                value: i,
-                label: (
-                  <span className="flex items-center gap-1.5">
-                    {v.platform === 'any' ? null : <PlatformGlyph id={v.platform} />}
-                    {platformLabel(v.platform)}
-                  </span>
-                ),
-              }))}
-            />
+            <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Channel drafts">
+              {draft.map((v, i) => (
+                <button
+                  key={v.platform}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === tab}
+                  onClick={() => setTab(i)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                    i === tab
+                      ? 'border-ink bg-ink text-paper'
+                      : 'border-line bg-paper text-muted hover:text-ink'
+                  }`}
+                >
+                  {v.platform === 'any' ? null : <PlatformGlyph id={v.platform} />}
+                  {platformLabel(v.platform)}
+                </button>
+              ))}
+            </div>
           ) : null}
 
           <div className="mt-2 space-y-2">

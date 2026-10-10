@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } 
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, FeedPhoto, FeedVideo } from '../components/ui';
-import { Tabs } from '../components/ui-kit';
 import { AvatarButton } from '../components/ProfileMenu';
 import ConnectButton from '../components/ConnectButton';
 import ChannelDrawer from '../components/ChannelDrawer';
@@ -276,23 +275,19 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
   const body = (
     <>
       {/* pipeline tabs */}
-      <View style={{ paddingHorizontal: pad, marginTop: 14, alignSelf: 'flex-start' }}>
-        <Tabs
-          options={TABS.map((t) => ({ value: t.id, label: t.label }))}
-          value={tab}
-          onChange={setTab}
-          scrollable
-          accessibilityLabel="Post pipeline"
-          renderOption={(t, active) => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-              <Text style={[st.tabT, active && { color: C.onInk }]}>{t.label}</Text>
-              <View style={[st.tabCount, active && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Text style={[st.tabCountT, active && { color: C.onInk }]}>{counts[t.value]}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: pad, marginTop: 14 }}>
+        {TABS.map((t) => {
+          const on = tab === t.id;
+          return (
+            <TouchableOpacity key={t.id} onPress={() => setTab(t.id)} style={[st.tab, on && st.tabOn]} activeOpacity={0.75}>
+              <Text style={[st.tabT, on && { color: C.onInk }]}>{t.label}</Text>
+              <View style={[st.tabCount, on && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <Text style={[st.tabCountT, on && { color: C.onInk }]}>{counts[t.id]}</Text>
               </View>
-            </View>
-          )}
-        />
-      </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {/* toolbar — channel filter, sort, refresh */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: pad, marginTop: 12 }}>

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { AvatarButton } from '../components/ProfileMenu';
-import { SocialGlyph, Seg } from '../components/ui';
+import { SocialGlyph } from '../components/ui';
 import ChannelDrawer from '../components/ChannelDrawer';
 import CommunityScreen from './CommunityScreen';
 import { AreaChart, BarsChart, HBarList } from '../components/charts';
@@ -318,15 +318,16 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
           </TouchableOpacity>
         </View>
 
-        <View style={{ paddingHorizontal: 24, marginTop: 12 }}>
-          <Seg
-            options={RANGES.map((r) => ({ value: r.key, label: r.label }))}
-            value={range}
-            onChange={onRange}
-            scrollable
-            accessibilityLabel="Analytics range"
-          />
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 24, marginTop: 12 }}>
+          {RANGES.map((r) => {
+            const on = range === r.key;
+            return (
+              <TouchableOpacity key={r.key} onPress={() => onRange(r.key)} style={[s.range, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
+                <Text style={[s.rangeT, on && { color: C.onInk }]}>{r.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {!anyConnected ? (
           <View style={{ paddingHorizontal: 24, marginTop: 16 }}>

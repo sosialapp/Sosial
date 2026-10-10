@@ -18,7 +18,6 @@ import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
-import SegmentedPills from '@/components/ui/segmented-pills';
 
 export type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
 
@@ -588,27 +587,23 @@ export default function PostList({
       <header className="border-b border-line px-6 py-4">
         <p className="eyebrow">Queue</p>
         <h1 className="font-display text-xl font-extrabold tracking-tight">Posts</h1>
-        <div className="mt-3">
-          <SegmentedPills
-            ariaLabel="Post status"
-            role="tablist"
-            variant="accent"
-            value={tab}
-            onChange={setTab}
-            options={TABS.map((t) => ({
-              value: t.id,
-              label: (
-                <>
-                  {t.label}
-                  {posts.filter((p) => TAB_MATCH[t.id](p.status)).length > 0 ? (
-                    <span className="ml-1.5 opacity-60">
-                      {posts.filter((p) => TAB_MATCH[t.id](p.status)).length}
-                    </span>
-                  ) : null}
-                </>
-              ),
-            }))}
-          />
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {TABS.map((t) => {
+            const count = posts.filter((p) => TAB_MATCH[t.id](p.status)).length;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                  tab === t.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
+                }`}
+              >
+                {t.label}
+                {count > 0 && <span className="ml-1.5 opacity-60">{count}</span>}
+              </button>
+            );
+          })}
         </div>
       </header>
       )}
@@ -709,20 +704,20 @@ export default function PostList({
 
             <div className="mt-3">
               <p className="text-[11px] font-bold text-muted">Media</p>
-              <div className="mt-1.5">
-                <SegmentedPills
-                  ariaLabel="Media type"
-                  size="sm"
-                  variant="accent"
-                  value={mediaSel}
-                  onChange={setMediaSel}
-                  options={[
-                    { value: 'all', label: 'All' },
-                    { value: 'text', label: 'Text' },
-                    { value: 'image', label: 'Image' },
-                    { value: 'video', label: 'Video' },
-                  ]}
-                />
+              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                {(['all', 'text', 'image', 'video'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={mediaSel === m}
+                    onClick={() => setMediaSel(m)}
+                    className={`rounded-xl px-2 py-1.5 text-xs font-bold capitalize transition ${
+                      mediaSel === m ? 'bg-accent text-on-accent' : 'text-soft hover:bg-paper'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
               </div>
             </div>
           </aside>
