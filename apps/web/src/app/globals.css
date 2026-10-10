@@ -1374,6 +1374,7 @@ body {
 .sx-react-calendar-wrapper,
 .sx-react-calendar-wrapper.is-dark,
 .sx-react-calendar-wrapper .is-dark {
+  --sx-border: 1px dashed var(--color-line-soft);
   --sx-color-primary: var(--color-bolt);
   --sx-color-on-primary: var(--color-on-accent);
   --sx-color-primary-container: var(--color-accent-soft);
