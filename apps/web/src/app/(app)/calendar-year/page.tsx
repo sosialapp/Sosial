@@ -3,8 +3,8 @@ import CalendarBoard from '@/components/CalendarBoard';
 import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
-/** Month grid at its own URL. */
-export default async function CalendarMonthPage({
+/** Year overview at its own URL. */
+export default async function CalendarYearPage({
   searchParams,
 }: {
   searchParams: Promise<{ d?: string }>;
@@ -23,6 +23,6 @@ export default async function CalendarMonthPage({
     posts.map((p) => p.id),
   );
   return (
-    <CalendarBoard posts={posts} channels={channels} media={media} initialView="month" initialAnchor={d} />
+    <CalendarBoard posts={posts} channels={channels} media={media} initialView="year" initialAnchor={d} />
   );
 }

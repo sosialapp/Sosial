@@ -4,9 +4,10 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import type { ConnectedChannel, PostWithTargets } from '@/lib/types';
+import type { ConnectedChannel, MediaAssetRow, PostWithTargets } from '@/lib/types';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
+import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { createClient } from '@/lib/supabase/client';
 import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
 import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
@@ -15,12 +16,50 @@ import { MONTHS, WEEKDAYS, addDays, addMonths, dayKey, formatTime, isSameDay, mo
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type View = 'day' | 'week' | 'month' | 'year';
 
 function snippet(p: PostWithTargets): string {
   const text = (p.title || p.body || 'Untitled').replace(/\s+/g, ' ').trim();
   return text.length > 68 ? `${text.slice(0, 68)}…` : text;
 }
+
+/** Status → event dot colour. Hexes hold up on pastel cards in both themes. */
+const STATUS_DOT: Record<string, string> = {
+  draft: 'bg-[#9A958B]',
+  approval: 'bg-[#B45309]',
+  queued: 'bg-[#B45309]',
+  publishing: 'bg-[#B45309]',
+  partial: 'bg-[#B45309]',
+  sent: 'bg-[#12914A]',
+  failed: 'bg-[#E5484D]',
+};
+const dotOf = (status: string): string => STATUS_DOT[status] ?? 'bg-[#9A958B]';
+
+/** Provider → pastel schedule-card tint (fixed hexes, dark text on top). */
+const EVENT_TINT: Record<string, { bg: string; border: string }> = {
+  facebook: { bg: '#DBEAFE', border: '#BFDBFE' },
+  instagram: { bg: '#FCE7F3', border: '#F5C2DF' },
+  threads: { bg: '#E9E7F2', border: '#D3CEE6' },
+  tiktok: { bg: '#DFF5F2', border: '#B7E5DE' },
+  x: { bg: '#FCF3D9', border: '#F0E2B0' },
+  bluesky: { bg: '#DBEAFE', border: '#BFDBFE' },
+  linkedin: { bg: '#DBEAFE', border: '#BFDBFE' },
+  mastodon: { bg: '#E4DFF7', border: '#C9C0EE' },
+  pinterest: { bg: '#FDE2E2', border: '#F6C1C1' },
+  youtube: { bg: '#FDE2E2', border: '#F6C1C1' },
+  telegram: { bg: '#D9EDFB', border: '#B7DBF3' },
+  discord: { bg: '#E3E1FB', border: '#C8C3F3' },
+  wordpress: { bg: '#DDE9F5', border: '#BDD5EC' },
+  devto: { bg: '#E8E8EA', border: '#D4D4D8' },
+  hashnode: { bg: '#E3E9FF', border: '#C2CFFA' },
+  ghost: { bg: '#E8E8EA', border: '#D4D4D8' },
+  vk: { bg: '#DCE9F8', border: '#B9D3EE' },
+  gmb: { bg: '#E2E8F0', border: '#CBD5E1' },
+};
+const DEFAULT_TINT = { bg: '#F1F5F9', border: '#E2E8F0' };
+const tintOf = (provider: string | undefined): { bg: string; border: string } =>
+  (provider && EVENT_TINT[provider]) || DEFAULT_TINT;
 
 /** Real account avatars with platform logo badges (brand disc fallback). */
 function ChannelAvatars({
@@ -250,15 +289,27 @@ export default function CalendarBoard({
   posts,
   channels,
   initialView = 'week',
+  initialAnchor,
+  media = {},
 }: {
   posts: PostWithTargets[];
   channels: ConnectedChannel[];
   /** View from the route path (/calendar-month → month). The URL is the source of truth. */
-  initialView?: 'month' | 'week' | 'line';
+  initialView?: View;
+  /** Day-key (YYYY-MM-DD) the calendar opens on — carried in ?d= across view switches. */
+  initialAnchor?: string;
+  /** Signed media per post id, for the thumbnail row on schedule cards. */
+  media?: Record<string, MediaAssetRow[]>;
 }) {
   const router = useRouter();
-  const [view] = useState<'month' | 'week' | 'line'>(initialView);
-  const [anchor, setAnchor] = useState(() => new Date());
+  const [view] = useState<View>(initialView);
+  const [anchor, setAnchor] = useState(() => {
+    if (initialAnchor) {
+      const [y, m, d] = initialAnchor.split('-').map(Number);
+      if (y && m && d) return new Date(y, m - 1, d);
+    }
+    return new Date();
+  });
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -318,21 +369,11 @@ export default function CalendarBoard({
   );
   const nowTop = ((today.getHours() * 60 + today.getMinutes()) / 60) * HOUR_PX;
 
-  /** Agenda window: 14 days from the anchor, upcoming scheduled posts grouped by day. */
-  const agenda = useMemo(() => {
-    const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-    const days: { key: string; date: Date; items: PostWithTargets[] }[] = [];
-    for (let i = 0; i < 14; i++) {
-      const d = addDays(start, i);
-      const items = byDay.get(dayKey(d)) ?? [];
-      if (items.length) days.push({ key: dayKey(d), date: d, items });
-    }
-    return days;
-  }, [anchor, byDay]);
-
-  const agendaEnd = addDays(new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()), 13);
-  const weekStart = weekDays[0];
-  const weekEnd = weekDays[6];
+  /** Single-day time layout for the Day view (anchor's date). */
+  const dayLayout = useMemo(
+    () => layoutDay(byDay.get(dayKey(anchor)) ?? []),
+    [anchor, byDay],
+  );
 
   /** All parts that move as one: the post alone, or its whole chain. */
   function chainOf(id: string): PostWithTargets[] {
@@ -430,21 +471,21 @@ export default function CalendarBoard({
   }
 
   const title =
-    view === 'month'
-      ? `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
-      : view === 'week'
-        ? `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
-        : `${anchor.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${agendaEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    view === 'day'
+      ? anchor.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+      : `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
 
   const stepPrev = () => {
     if (view === 'month') setAnchor(addMonths(anchor, -1));
     else if (view === 'week') setAnchor(addDays(anchor, -7));
-    else setAnchor(addDays(anchor, -14));
+    else if (view === 'day') setAnchor(addDays(anchor, -1));
+    else setAnchor(addMonths(anchor, -12));
   };
   const stepNext = () => {
     if (view === 'month') setAnchor(addMonths(anchor, 1));
     else if (view === 'week') setAnchor(addDays(anchor, 7));
-    else setAnchor(addDays(anchor, 14));
+    else if (view === 'day') setAnchor(addDays(anchor, 1));
+    else setAnchor(addMonths(anchor, 12));
   };
   const stepToday = () => {
     const now = new Date();
@@ -452,42 +493,225 @@ export default function CalendarBoard({
     setSelectedKey(dayKey(now));
   };
 
+  /** Switch views at their own URLs, carrying the anchor day in ?d= so the
+   *  window doesn't jump back to today. */
+  const goView = (next: View) => {
+    if (next === view) return;
+    const d = dayKey(anchor);
+    const path =
+      next === 'month'
+        ? '/calendar-month'
+        : next === 'day'
+          ? '/calendar-day'
+          : next === 'year'
+            ? '/calendar-year'
+            : '/calendar';
+    router.push(`${path}?d=${d}`, { scroll: false });
+  };
+
+  const VIEW_TABS: { id: View; label: string }[] = [
+    { id: 'day', label: 'Day' },
+    { id: 'week', label: 'Week' },
+    { id: 'month', label: 'Month' },
+    { id: 'year', label: 'Year' },
+  ];
+
+  /** Pastel schedule card: provider avatar + "{Provider} Post", time, thumbnails. */
+  const scheduleCard = (
+    p: PostWithTargets,
+    k: string,
+    pos?: { top: number; left: string; width: string },
+  ) => {
+    const t0 = p.post_targets[0];
+    const tint = tintOf(t0?.provider);
+    const label = t0 ? providerMeta(t0.provider).label : 'Post';
+    const thumbs = (media[p.id] ?? []).slice(0, 4);
+    return (
+      <div
+        key={p.id}
+        draggable
+        onDragStart={(e) => {
+          e.stopPropagation();
+          setDragId(p.id);
+        }}
+        onDragEnd={() => {
+          setDragId(null);
+          setOverKey(null);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedKey(k);
+          setSelectedPostId(p.id);
+        }}
+        title={snippet(p)}
+        className={`cursor-grab overflow-hidden rounded-[10px] border px-2.5 py-2 transition hover:shadow-md ${
+          dragId === p.id ? 'opacity-50' : ''
+        } ${selectedPostId === p.id ? 'ring-2 ring-ink/40' : ''} ${pos ? 'absolute' : ''}`}
+        style={{
+          background: tint.bg,
+          borderColor: tint.border,
+          ...(pos ?? {}),
+          minHeight: 100,
+          maxHeight: 150,
+        }}
+      >
+        <div className="flex items-center gap-1.5">
+          {t0 ? (
+            <ChannelAvatar provider={t0.provider} avatar={avatarOf(t0.channel_id)} size={18} />
+          ) : null}
+          <span className="truncate text-xs font-extrabold" style={{ color: '#1F2937' }}>
+            {label} Post
+          </span>
+          <span className="flex-1" />
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotOf(p.status)}`} aria-hidden="true" />
+        </div>
+        <div
+          className="mt-0.5 truncate text-[10px] font-medium"
+          style={{ color: '#6B7280', paddingLeft: t0 ? 24 : 0 }}
+        >
+          {formatTime(p.scheduled_at)}
+          {partCount(p) > 1 ? ` · Thread ${partCount(p)}` : ''}
+        </div>
+        {thumbs.length > 0 ? (
+          <div className="mt-1.5 flex gap-1" style={{ paddingLeft: t0 ? 24 : 0 }}>
+            {thumbs.map((m) => {
+              const src =
+                m.kind === 'image' && m.signed_url
+                  ? imageThumb(m.signed_url, THUMB_WIDTHS.xs)
+                  : (m.thumb_url ?? m.signed_url ?? undefined);
+              return src ? (
+                <img
+                  key={m.id}
+                  src={src}
+                  alt=""
+                  className="h-7 w-7 rounded-md border border-black/5 object-cover"
+                />
+              ) : null;
+            })}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  /** Hour gutter for the time grids (12 AM … 11 PM). */
+  const gutter = (
+    <div className="relative" style={{ height: DAY_H }}>
+      {Array.from({ length: 24 }, (_, h) => (
+        <span
+          key={h}
+          className="absolute right-1.5 text-[10px] font-medium tabular-nums text-faint"
+          style={{ top: h * HOUR_PX - 7 }}
+        >
+          {hourLabel(h)}
+        </span>
+      ))}
+    </div>
+  );
+
+  /** One day column of a time grid: dashed hour lines, now-line, schedule cards. */
+  const dayColumn = (
+    date: Date,
+    items: { p: PostWithTargets; top: number; lane: number; lanes: number }[],
+  ) => {
+    const k = dayKey(date);
+    const isOver = overKey === k;
+    return (
+      <div
+        key={k}
+        onClick={() => {
+          setSelectedKey(k);
+          setSelectedPostId(null);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (overKey !== k) setOverKey(k);
+        }}
+        onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
+        onDrop={(e) => {
+          e.preventDefault();
+          void dropOn(date);
+        }}
+        className={`relative cursor-pointer border-l border-dashed border-line-soft transition ${
+          selectedKey === k ? 'bg-paper-dim/40' : ''
+        } ${isOver ? 'bg-accent-soft' : ''}`}
+        style={{ height: DAY_H }}
+      >
+        {Array.from({ length: 25 }, (_, h) => (
+          <div
+            key={h}
+            aria-hidden="true"
+            className="absolute right-0 left-0 border-t border-dashed border-line-soft"
+            style={{ top: h * HOUR_PX }}
+          />
+        ))}
+        {k === todayKey ? (
+          <div className="absolute right-0 left-0 z-10 border-t-2 border-[#E5484D]" style={{ top: nowTop }}>
+            <span className="absolute -top-[5px] left-0 h-2 w-2 rounded-full bg-[#E5484D]" />
+          </div>
+        ) : null}
+        {items.map(({ p, top, lane, lanes }) =>
+          scheduleCard(p, k, {
+            top,
+            left: `calc(${(lane / lanes) * 100}% + 3px)`,
+            width: `calc(${100 / lanes}% - 6px)`,
+          }),
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
-        <div>
-          <p className="eyebrow">Calendar</p>
+        <div className="flex items-center gap-3">
           <h1 className="font-display text-xl font-extrabold tracking-tight">{title}</h1>
+          <div className="flex items-center rounded-full border border-line">
+            <button
+              type="button"
+              onClick={stepPrev}
+              aria-label="Previous"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:text-ink"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={stepToday}
+              className="px-1.5 text-xs font-bold text-ink transition hover:opacity-70"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={stepNext}
+              aria-label="Next"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:text-ink"
+            >
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Tabs
-            value={view}
-            onValueChange={(v) => {
-              const next = v as 'month' | 'week' | 'line';
-              if (next === view) return;
-              // Views live at their own URLs — navigate so every view is linkable.
-              router.push(
-                next === 'month' ? '/calendar-month' : next === 'line' ? '/calendar-line' : '/calendar',
-                { scroll: false },
-              );
-            }}
-          >
-            <TabsList aria-label="Calendar view">
-              <TabsTrigger value="month">Month</TabsTrigger>
-              <TabsTrigger value="week">Week</TabsTrigger>
-              <TabsTrigger value="line">Line</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button variant="ghost" size="icon" onClick={stepPrev} aria-label={view === 'month' ? 'Previous month' : view === 'week' ? 'Previous week' : 'Previous 14 days'}>
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={stepToday}>
-            Today
-          </Button>
-          <Button variant="ghost" size="icon" onClick={stepNext} aria-label={view === 'month' ? 'Next month' : view === 'week' ? 'Next week' : 'Next 14 days'}>
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </div>
+        <nav
+          aria-label="Calendar view"
+          className="flex items-center gap-0.5 rounded-full bg-paper-dim p-1"
+        >
+          {VIEW_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => goView(t.id)}
+              aria-current={view === t.id ? 'page' : undefined}
+              className={`rounded-full px-4 py-1.5 text-xs transition ${
+                view === t.id
+                  ? 'bg-paper font-extrabold text-ink shadow-sm'
+                  : 'font-bold text-muted hover:text-ink'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
       </header>
 
       {err && (
@@ -617,17 +841,10 @@ export default function CalendarBoard({
                               setSelectedKey(hk);
                               setSelectedPostId(null);
                             }}
-                            className="flex flex-col items-center gap-0.5 px-1 py-2 transition hover:bg-paper-dim"
+                            className="px-1 py-2.5 text-center text-xs transition hover:bg-paper-dim"
                           >
-                            <span className="text-[10px] font-bold uppercase tracking-wide text-faint">
-                              {day.toLocaleDateString(undefined, { weekday: 'short' })}
-                            </span>
-                            <span
-                              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                                isDayToday ? 'bg-accent text-on-accent' : 'text-ink'
-                              }`}
-                            >
-                              {day.getDate()}
+                            <span className={isDayToday ? 'font-extrabold text-ink' : 'font-medium text-muted'}>
+                              {day.toLocaleDateString(undefined, { weekday: 'short' })} {day.getDate()}
                             </span>
                           </button>
                         );
@@ -638,205 +855,88 @@ export default function CalendarBoard({
                       className="grid"
                       style={{ gridTemplateColumns: '3.5rem repeat(7, minmax(0, 1fr))' }}
                     >
-                      <div className="relative" style={{ height: DAY_H }}>
-                        {Array.from({ length: 23 }, (_, i) => i + 1).map((h) => (
-                          <span
-                            key={h}
-                            className="absolute right-1.5 text-[10px] font-bold tabular-nums text-faint"
-                            style={{ top: h * HOUR_PX - 7 }}
-                          >
-                            {hourLabel(h)}
-                          </span>
-                        ))}
-                      </div>
-                      {weekDays.map((day, di) => {
-                        const k = dayKey(day);
-                        const isOver = overKey === k;
-                        return (
-                          <div
-                            key={k}
-                            onClick={() => {
-                              setSelectedKey(k);
-                              setSelectedPostId(null);
-                            }}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              if (overKey !== k) setOverKey(k);
-                            }}
-                            onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              void dropOn(day);
-                            }}
-                            className={`relative cursor-pointer border-l border-line transition ${
-                              selectedKey === k ? 'bg-paper-dim/40' : ''
-                            } ${isOver ? 'bg-accent-soft' : ''}`}
-                            style={{
-                              height: DAY_H,
-                              backgroundImage:
-                                'repeating-linear-gradient(to bottom, transparent 0, transparent 47px, rgba(128,128,128,0.22) 47px, rgba(128,128,128,0.22) 48px)',
-                            }}
-                          >
-                            {k === todayKey ? (
-                              <div
-                                className="absolute left-0 right-0 z-10 border-t-2 border-[#E5484D]"
-                                style={{ top: nowTop }}
-                              >
-                                <span className="absolute -top-[5px] left-0 h-2 w-2 rounded-full bg-[#E5484D]" />
-                              </div>
-                            ) : null}
-                            {weekLayouts[di].map(({ p, top, lane, lanes }) => (
-                              <div
-                                key={p.id}
-                                draggable
-                                onDragStart={() => setDragId(p.id)}
-                                onDragEnd={() => {
-                                  setDragId(null);
-                                  setOverKey(null);
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedKey(k);
-                                  setSelectedPostId(p.id);
-                                }}
-                                title={snippet(p)}
-                                className={`absolute max-h-[104px] cursor-grab overflow-hidden rounded-lg border border-line bg-paper px-2 py-1.5 text-[11px] leading-tight transition hover:border-ink/30 ${
-                                  dragId === p.id ? 'opacity-50' : ''
-                                } ${selectedPostId === p.id ? 'z-20 ring-1 ring-accent' : ''}`}
-                                style={{
-                                  top,
-                                  left: `calc(${(lane / lanes) * 100}% + 2px)`,
-                                  width: `calc(${100 / lanes}% - 4px)`,
-                                }}
-                              >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-bold tabular-nums text-ink">
-                                    {formatTime(p.scheduled_at)}
-                                  </span>
-                                  <ChannelAvatars post={p} avatarOf={avatarOf} />
-                                </div>
-                                {partCount(p) > 1 ? (
-                                  <div className="mt-0.5 text-[10px] font-bold text-faint">
-                                    Thread · {partCount(p)} parts
-                                  </div>
-                                ) : null}
-                                <div className="mt-0.5 line-clamp-2 text-soft">{snippet(p)}</div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
+                      {gutter}
+                      {weekDays.map((day, di) => dayColumn(day, weekLayouts[di]))}
                     </div>
                   </div>
                 </div>
               </div>
               <p className="mt-3 text-xs text-faint">
-                The week on a clock — posts sit at their exact time. Drag a post onto another day
-                to reschedule it (time stays the same). Click a post to retime it.
+                Posts sit at their exact time. Drag a post onto another day to reschedule it (time
+                stays the same). Click a post to retime it.
+              </p>
+            </>
+          ) : view === 'day' ? (
+            <>
+              <div className="overflow-hidden rounded-2xl border border-line bg-card">
+                <div className="border-b border-line px-4 py-2.5 text-center text-xs">
+                  <span
+                    className={
+                      dayKey(anchor) === todayKey ? 'font-extrabold text-ink' : 'font-medium text-muted'
+                    }
+                  >
+                    {anchor.toLocaleDateString(undefined, { weekday: 'long' })} {anchor.getDate()}
+                  </span>
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: '3.5rem minmax(0, 1fr)' }}>
+                  {gutter}
+                  {dayColumn(anchor, dayLayout)}
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-faint">
+                One day on a clock. Drag a post onto the day to move it here (time stays the same).
+                Click a post to retime it.
               </p>
             </>
           ) : (
             <>
-              <div className="overflow-hidden rounded-2xl border border-line bg-card">
-                {agenda.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-muted">
-                    Nothing scheduled in these 14 days.
-                  </p>
-                ) : (
-                  agenda.map((day) => {
-                    const isT = day.key === dayKey(today);
-                    const isOver = overKey === day.key;
-                    return (
-                      <div
-                        key={day.key}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          if (overKey !== day.key) setOverKey(day.key);
-                        }}
-                        onDragLeave={() => setOverKey((v) => (v === day.key ? null : v))}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          void dropOn(day.date);
-                        }}
-                        className={`border-b border-line-soft transition last:border-b-0 ${
-                          isOver ? 'bg-accent-soft' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 px-4 pt-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedKey(day.key);
-                              setSelectedPostId(null);
-                            }}
-                            aria-label={`Select ${day.key}`}
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition hover:ring-2 hover:ring-accent ${
-                              isT ? 'bg-accent text-on-accent' : 'bg-paper-dim text-ink'
-                            }`}
-                          >
-                            {day.date.getDate()}
-                          </button>
-                          <span className="text-sm font-extrabold">
-                            {day.date.toLocaleDateString(undefined, { weekday: 'long' })}
-                          </span>
-                          <span className="text-xs text-muted">
-                            {day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                          </span>
-                          <span className="flex-1" />
-                          <span className="text-[11px] font-bold text-faint">
-                            {day.items.length} post{day.items.length === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                        <div className="space-y-1 px-4 py-2.5">
-                          {day.items.map((p) => {
-                            const st = POST_STATUS_META[p.status];
-                            return (
-                              <div
-                                key={p.id}
-                                draggable
-                                onDragStart={(e) => {
-                                  e.stopPropagation();
-                                  setDragId(p.id);
-                                }}
-                                onDragEnd={() => {
-                                  setDragId(null);
-                                  setOverKey(null);
-                                }}
-                                onClick={() => {
-                                  setSelectedKey(day.key);
-                                  setSelectedPostId(p.id);
-                                }}
-                                title={snippet(p)}
-                                className={`flex cursor-grab items-center gap-2.5 rounded-xl border border-line bg-paper px-3 py-2 transition ${
-                                  dragId === p.id ? 'opacity-50' : ''
-                                } ${selectedPostId === p.id ? 'ring-1 ring-accent' : ''}`}
-                              >
-                                <span className="w-14 shrink-0 text-xs font-bold tabular-nums text-ink">
-                                  {formatTime(p.scheduled_at)}
-                                </span>
-                                <span className="min-w-0 flex-1 truncate text-sm text-soft">
-                                  {snippet(p)}
-                                </span>
-                                <ChannelAvatars post={p} avatarOf={avatarOf} />
-                                {partCount(p) > 1 ? (
-                                  <span className="shrink-0 text-[11px] font-bold text-faint">
-                                    Thread · {partCount(p)}
-                                  </span>
-                                ) : null}
-                                <Badge className={`${st.className} hidden shrink-0 sm:inline-flex`}>
-                                  {st.label}
-                                </Badge>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {MONTHS.map((name, m) => (
+                  <div key={name} className="rounded-2xl border border-line bg-card p-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/calendar-month?d=${anchor.getFullYear()}-${String(m + 1).padStart(2, '0')}-01`,
+                        )
+                      }
+                      className="text-sm font-extrabold transition hover:underline"
+                    >
+                      {name}
+                    </button>
+                    <div className="mt-2 grid grid-cols-7 gap-y-1 text-center">
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                        <span key={`${d}${i}`} className="text-[9px] font-bold text-faint">
+                          {d}
+                        </span>
+                      ))}
+                      {monthMatrix(new Date(anchor.getFullYear(), m, 1))
+                        .flat()
+                        .map((d) => {
+                          const k = dayKey(d);
+                          const inMonth = d.getMonth() === m;
+                          const has = (byDay.get(k) ?? []).length > 0;
+                          const isT = k === todayKey;
+                          return (
+                            <span
+                              key={k}
+                              className={`flex flex-col items-center py-0.5 text-[11px] ${
+                                inMonth ? 'text-soft' : 'text-faint opacity-40'
+                              } ${isT ? 'font-extrabold text-ink' : ''}`}
+                            >
+                              {d.getDate()}
+                              <span
+                                className={`mt-0.5 h-1 w-1 rounded-full ${has ? 'bg-accent' : 'bg-transparent'}`}
+                              />
+                            </span>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ))}
               </div>
               <p className="mt-3 text-xs text-faint">
-                Drag a post onto another day to move it. Click a post to retime it exactly.
+                The whole year at a glance — dots mark days with posts. Pick a month to open it.
               </p>
             </>
           )}
