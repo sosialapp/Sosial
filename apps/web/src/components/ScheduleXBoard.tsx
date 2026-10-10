@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import type { HTMLAttributes } from 'react';
+import type { CSSProperties, HTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -259,16 +259,21 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   return (
     <OpenOnTap
       id={pid}
-      className="overflow-hidden rounded-lg border p-1.5"
-      style={{ background: c.sxTintBg ?? '#F1F5F9', borderColor: c.sxTintBorder ?? '#E2E8F0' }}
+      className="sx-event-card overflow-hidden rounded-lg border p-1.5"
+      style={
+        {
+          '--sx-evt-bg': c.sxTintBg ?? '#F1F5F9',
+          '--sx-evt-border': c.sxTintBorder ?? '#E2E8F0',
+        } as CSSProperties
+      }
     >
       <div className="flex items-center gap-1.5">
         {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={22} /> : null}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[11px] font-extrabold" style={{ color: '#1F2937' }}>
+          <span className="sx-event-title block truncate text-[11px] font-extrabold">
             {c.sxName ?? c.sxLabel ?? c.title ?? 'Post'}
           </span>
-          <span className="block truncate text-[10px]" style={{ color: '#6B7280' }}>
+          <span className="sx-event-sub block truncate text-[10px]">
             {c.sxHandle ? `${c.sxHandle} · ` : ''}
             {time}
             {c.sxThread ? ` · Thread ${c.sxThread}` : ''}
@@ -281,9 +286,7 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
         ) : null}
       </div>
       {c.title ? (
-        <div className="mt-1 line-clamp-2 text-[11px] leading-snug" style={{ color: '#33302A' }}>
-          {c.title}
-        </div>
+        <div className="sx-event-text mt-1 line-clamp-2 text-[11px] leading-snug">{c.title}</div>
       ) : null}
       {Array.isArray(c.sxThumbs) && c.sxThumbs.length > 0 ? (
         c.sxThumbs.length === 1 ? (
@@ -307,16 +310,19 @@ function SXMonthChip({ calendarEvent }: { calendarEvent: SXEvent }) {
   return (
     <OpenOnTap
       id={pid}
-      className="flex items-center gap-1 truncate rounded-md px-1 py-px"
-      style={{ background: c.sxTintBg ?? '#F1F5F9', border: `1px solid ${c.sxTintBorder ?? '#E2E8F0'}` }}
+      className="sx-event-card flex items-center gap-1 truncate rounded-md border px-1 py-px"
+      style={
+        {
+          '--sx-evt-bg': c.sxTintBg ?? '#F1F5F9',
+          '--sx-evt-border': c.sxTintBorder ?? '#E2E8F0',
+        } as CSSProperties
+      }
       title={c.title}
     >
-      <span className="shrink-0 text-[10px] font-bold" style={{ color: '#1F2937' }}>
+      <span className="sx-event-title shrink-0 text-[10px] font-bold">
         {sxClockLabel(c.start, c.sxTime)}
       </span>
-      <span className="truncate text-[11px]" style={{ color: '#4B5563' }}>
-        {c.title ?? ''}
-      </span>
+      <span className="sx-event-text truncate text-[11px]">{c.title ?? ''}</span>
     </OpenOnTap>
   );
 }

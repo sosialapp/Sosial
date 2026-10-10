@@ -1439,3 +1439,36 @@ body {
   background-color: var(--color-accent-soft);
   color: var(--color-ink);
 }
+
+/* Custom event cards: pastel fill in light mode, dark surface in dark mode
+ * (provider tint survives as the border). Text follows the same split. */
+.sx-react-calendar-wrapper .sx-event-card {
+  background: var(--sx-evt-bg);
+  border-color: var(--sx-evt-border);
+}
+.sx-react-calendar-wrapper .sx-event-card .sx-event-title {
+  color: #1f2937;
+}
+.sx-react-calendar-wrapper .sx-event-card .sx-event-sub {
+  color: #6b7280;
+}
+.sx-react-calendar-wrapper .sx-event-card .sx-event-text {
+  color: #33302a;
+}
+.sx-react-calendar-wrapper.is-dark .sx-event-card,
+.sx-react-calendar-wrapper .is-dark .sx-event-card {
+  background: var(--color-card);
+  border-color: var(--sx-evt-border);
+}
+.sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-title,
+.sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-title {
+  color: var(--color-ink);
+}
+.sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-sub,
+.sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-sub {
+  color: var(--color-muted);
+}
+.sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-text,
+.sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-text {
+  color: var(--color-soft);
+}
