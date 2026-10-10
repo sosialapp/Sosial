@@ -115,6 +115,10 @@ export type SXEvent = CalendarEvent & {
   sxProvider?: string;
   sxAvatar?: string;
   sxLabel?: string;
+  sxName?: string;
+  sxHandle?: string | null;
+  sxStatusLabel?: string;
+  sxStatusClass?: string;
   sxTime?: string;
   sxThread?: number | null;
   sxStatus?: string;
@@ -142,32 +146,64 @@ function sxStartToISO(
   }
 }
 
-/** Custom time-grid event: provider logo + "{Provider} Post", time, thumbnails. */
+/** Live clock label from a Schedule-X event start (updates mid-drag,
+ *  unlike the snapshot time stored at mapping). */
+function sxClockLabel(start: unknown, fallback?: string): string {
+  try {
+    const z = start as unknown as { hour?: unknown; minute?: unknown };
+    if (typeof z?.hour === 'number') {
+      const h24 = z.hour;
+      const m = typeof z.minute === 'number' ? z.minute : 0;
+      const ap = h24 >= 12 ? 'PM' : 'AM';
+      const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+      return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return fallback ?? '';
+}
+
+/** Custom time-grid event: mini post card (author · handle · time, text, media). */
 function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   const c = calendarEvent ?? {};
+  const time = sxClockLabel(c.start, c.sxTime);
   return (
     <div
-      className="h-full overflow-hidden rounded-lg border px-1.5 py-1"
+      className="h-full overflow-hidden rounded-lg border p-1.5"
       style={{ background: c.sxTintBg ?? '#F1F5F9', borderColor: c.sxTintBorder ?? '#E2E8F0' }}
     >
       <div className="flex items-center gap-1.5">
-        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={20} /> : null}
-        <span className="truncate text-xs font-extrabold" style={{ color: '#1F2937' }}>
-          {c.sxLabel ?? c.title ?? 'Post'}
+        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={22} /> : null}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[11px] font-extrabold" style={{ color: '#1F2937' }}>
+            {c.sxName ?? c.sxLabel ?? c.title ?? 'Post'}
+          </span>
+          <span className="block truncate text-[10px]" style={{ color: '#6B7280' }}>
+            {c.sxHandle ? `${c.sxHandle} · ` : ''}
+            {time}
+            {c.sxThread ? ` · Thread ${c.sxThread}` : ''}
+          </span>
         </span>
+        {c.sxStatusLabel ? (
+          <span className={`pill shrink-0 ${c.sxStatusClass ?? ''}`} style={{ fontSize: 9 }}>
+            {c.sxStatusLabel}
+          </span>
+        ) : null}
       </div>
-      <div className="truncate text-[10px] font-medium" style={{ color: '#6B7280' }}>
-        {c.sxTime ?? ''}
-        {c.sxThread ? ` · Thread ${c.sxThread}` : ''}
-      </div>
+      {c.title ? (
+        <div className="mt-1 line-clamp-2 text-[11px] leading-snug" style={{ color: '#33302A' }}>
+          {c.title}
+        </div>
+      ) : null}
       {Array.isArray(c.sxThumbs) && c.sxThumbs.length > 0 ? (
-        <div className="mt-0.5 flex gap-0.5">
-          {c.sxThumbs.slice(0, 4).map((t) => (
+        <div className="mt-1 flex gap-1">
+          {c.sxThumbs.slice(0, 3).map((t) => (
             <img
               key={t.id}
               src={t.src}
               alt=""
-              className="h-5 w-5 rounded border border-black/5 object-cover"
+              className="h-12 w-12 rounded-lg border border-black/5 object-cover"
             />
           ))}
         </div>
@@ -186,7 +222,7 @@ function SXMonthChip({ calendarEvent }: { calendarEvent: SXEvent }) {
       title={c.title}
     >
       <span className="shrink-0 text-[10px] font-bold" style={{ color: '#1F2937' }}>
-        {c.sxTime ?? ''}
+        {sxClockLabel(c.start, c.sxTime)}
       </span>
       <span className="truncate text-[11px]" style={{ color: '#4B5563' }}>
         {c.title ?? ''}
@@ -487,6 +523,16 @@ export default function ScheduleXBoard({
     [channels],
   );
   const avatarOf = (channelId: string): string | undefined => avatarByChannel.get(channelId);
+  const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
+  /** Real handle only — never numeric ids, URLs or site names. */
+  const cleanHandle = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    const t = raw.trim().replace(/^@+/, '');
+    if (!t || t.includes('://') || /[:\s/\\]/.test(t)) return null;
+    if (/^\d+$/.test(t)) return null;
+    if (t.length > 64) return null;
+    return `@${t}`;
+  };
 
   /** Chain parts grouped by chain_id — only the head renders anywhere. */
   const chainParts = useMemo(() => chainPartsByChain(posts), [posts]);
@@ -529,6 +575,8 @@ export default function ScheduleXBoard({
       }).toZonedDateTime(timeZone);
       const t0 = p.post_targets[0];
       const tint = tintOf(t0?.provider);
+      const ch = t0 ? channelById.get(t0.channel_id) : undefined;
+      const st = POST_STATUS_META[p.status];
       const thumbs = (media[p.id] ?? [])
         .slice(0, 4)
         .map((m) => ({
@@ -543,11 +591,15 @@ export default function ScheduleXBoard({
         id: p.id,
         title: snippet(p),
         start,
-        end: start.add({ minutes: 90 }),
+        end: start.add({ minutes: 120 }),
         calendarId: statusCalendar(p.status),
         sxProvider: t0?.provider,
         sxAvatar: t0 ? avatarOf(t0.channel_id) : undefined,
         sxLabel: t0 ? `${providerMeta(t0.provider).label} Post` : 'Post',
+        sxName: ch?.display_name?.trim() || (t0 ? providerMeta(t0.provider).label : 'Post'),
+        sxHandle: cleanHandle(ch?.handle),
+        sxStatusLabel: st.label,
+        sxStatusClass: st.className,
         sxTime: formatTime(p.scheduled_at),
         sxThread: partCount(p) > 1 ? partCount(p) : null,
         sxStatus: p.status,
@@ -558,7 +610,7 @@ export default function ScheduleXBoard({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posts, media, chainParts, avatarByChannel, timeZone]);
+  }, [posts, media, chainParts, avatarByChannel, channelById, timeZone]);
 
   // Fresh server data for the drop pipeline (calendar callbacks are created once).
   const postsRef = useRef(posts);
