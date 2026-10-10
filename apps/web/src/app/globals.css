@@ -1519,7 +1519,9 @@ body {
 .sx-react-calendar-wrapper.is-dark .sx-event-card,
 .sx-react-calendar-wrapper .is-dark .sx-event-card {
   background: var(--color-card);
-  border-color: var(--sx-evt-border);
+  /* The light pastel tint reads as a near-white line on a dark surface —
+   * blend it back into the card so it stays a muted provider-coloured edge. */
+  border-color: color-mix(in srgb, var(--sx-evt-border) 40%, var(--color-card));
 }
 .sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-title,
 .sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-title {
@@ -1532,4 +1534,10 @@ body {
 .sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-text,
 .sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-text {
   color: var(--color-soft);
+}
+/* Overlapping events get a hard-coded white separator from the library's
+ * inline border rule — re-tint it to the dark hairline colour. */
+.sx-react-calendar-wrapper.is-dark .sx__time-grid-event,
+.sx-react-calendar-wrapper .is-dark .sx__time-grid-event {
+  border-color: var(--color-line) !important;
 }
