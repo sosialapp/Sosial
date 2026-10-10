@@ -525,13 +525,14 @@ export default function ScheduleXBoard({
     for (const p of posts) {
       if (!p.scheduled_at || !isHead(p)) continue;
       const d = new Date(p.scheduled_at);
+      // Timed events must be ZonedDateTime (PlainDate is all-day-only).
       const start = Temporal.PlainDateTime.from({
         year: d.getFullYear(),
         month: d.getMonth() + 1,
         day: d.getDate(),
         hour: d.getHours(),
         minute: d.getMinutes(),
-      });
+      }).toZonedDateTime(timeZone);
       const t0 = p.post_targets[0];
       const tint = tintOf(t0?.provider);
       const thumbs = (media[p.id] ?? [])
@@ -563,7 +564,7 @@ export default function ScheduleXBoard({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posts, media, chainParts, avatarByChannel]);
+  }, [posts, media, chainParts, avatarByChannel, timeZone]);
 
   // Fresh server data for the drop pipeline (calendar callbacks are created once).
   const postsRef = useRef(posts);
