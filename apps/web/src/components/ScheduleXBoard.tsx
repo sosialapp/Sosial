@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { HTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
@@ -238,6 +239,12 @@ function OpenOnTap({
       onTouchEnd={(e) => {
         const t = e.changedTouches[0];
         maybeOpen(t ? t.clientX : -999, t ? t.clientY : -999, 12);
+      }}
+      onClick={() => {
+        if (id) sxCardOpen?.(id);
+      }}
+      onDoubleClick={() => {
+        if (id) sxCardOpen?.(id);
       }}
     >
       {children}
@@ -1441,13 +1448,14 @@ export default function ScheduleXBoard({
         ) : null}
       </div>
 
-      {selectedPost ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Post details"
-        >
+      {selectedPost && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Post details"
+            >
           <button
             type="button"
             aria-label="Close"
@@ -1498,8 +1506,10 @@ export default function ScheduleXBoard({
               />
             )}
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+        : null}
     </div>
   );
 }
