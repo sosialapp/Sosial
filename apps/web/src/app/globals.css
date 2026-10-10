@@ -1356,6 +1356,11 @@ body {
 .sx-react-calendar-wrapper .sx__calendar-header {
   display: none;
 }
+/* Month view sizes to its content — no fixed height, no blank space below. */
+.sx-height-auto .sx-react-calendar-wrapper {
+  height: auto;
+  min-height: 0;
+}
 .sx-react-calendar-wrapper .sx__calendar {
   border: 1px solid var(--color-line);
   border-radius: 16px;

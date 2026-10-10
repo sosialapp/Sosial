@@ -42,18 +42,6 @@ function snippet(p: PostWithTargets): string {
   return text.length > 68 ? `${text.slice(0, 68)}…` : text;
 }
 
-/** Status → event dot colour. Hexes hold up on pastel cards in both themes. */
-const STATUS_DOT: Record<string, string> = {
-  draft: 'bg-[#9A958B]',
-  approval: 'bg-[#B45309]',
-  queued: 'bg-[#B45309]',
-  publishing: 'bg-[#B45309]',
-  partial: 'bg-[#B45309]',
-  sent: 'bg-[#12914A]',
-  failed: 'bg-[#E5484D]',
-};
-const dotOf = (status: string): string => STATUS_DOT[status] ?? 'bg-[#9A958B]';
-
 /** Provider → pastel schedule-card tint (fixed hexes, dark text on top). */
 const EVENT_TINT: Record<string, { bg: string; border: string }> = {
   facebook: { bg: '#DBEAFE', border: '#BFDBFE' },
@@ -167,11 +155,6 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
         <span className="truncate text-[11px] font-bold" style={{ color: '#1F2937' }}>
           {c.sxLabel ?? 'Post'}
         </span>
-        <span className="flex-1" />
-        <span
-          className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotOf(c.sxStatus ?? 'draft')}`}
-          aria-hidden="true"
-        />
       </div>
       <div className="truncate text-[10px] font-medium" style={{ color: '#6B7280' }}>
         {c.sxTime ?? ''}
@@ -202,10 +185,6 @@ function SXMonthChip({ calendarEvent }: { calendarEvent: SXEvent }) {
       style={{ background: c.sxTintBg ?? '#F1F5F9', border: `1px solid ${c.sxTintBorder ?? '#E2E8F0'}` }}
       title={c.title}
     >
-      <span
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotOf(c.sxStatus ?? 'draft')}`}
-        aria-hidden="true"
-      />
       <span className="shrink-0 text-[10px] font-bold" style={{ color: '#1F2937' }}>
         {c.sxTime ?? ''}
       </span>
@@ -379,6 +358,7 @@ function SXMount({
   events,
   dark,
   timeZone,
+  notify,
   onSelectPost,
   persistDrop,
 }: {
@@ -387,6 +367,7 @@ function SXMount({
   events: SXEvent[];
   dark: boolean;
   timeZone: string;
+  notify: (msg: string) => void;
   onSelectPost: (postId: string, start: Temporal.ZonedDateTime | Temporal.PlainDateTime | Temporal.PlainDate) => void;
   persistDrop: (postId: string, iso: string) => void;
 }) {
@@ -409,12 +390,16 @@ function SXMount({
       monthGridOptions: { nEventsPerDay: 3 },
       isDark: dark,
       callbacks: {
+        // Always render full event cards — never the small-screen dot mode.
+        isCalendarSmall: () => false,
         onEventClick: (ev) => {
           onSelectPost(String(ev.id), ev.start);
         },
         onBeforeEventUpdate: (_oldEv, newEv) => {
           const iso = sxStartToISO(newEv.start, timeZone);
-          if (!iso || queueTooSoon(iso)) {
+          if (!iso) return false;
+          if (queueTooSoon(iso)) {
+            notify(leadTimeMessage());
             return false;
           }
           return true;
@@ -476,7 +461,8 @@ export default function ScheduleXBoard({
   // Schedule-X renders client-side only (local timezone + Temporal).
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  // Dark mode follows the ThemeScope root; the calendar remounts on toggle.
+  // Dark mode follows the ThemeScope root: class mutations plus the
+  // 'sosial-theme' broadcast the toggle emits. The calendar remounts on change.
   const [dark, setDark] = useState(false);
   useEffect(() => {
     const root = document.querySelector('[data-theme-root]');
@@ -484,7 +470,11 @@ export default function ScheduleXBoard({
     sync();
     const mo = new MutationObserver(sync);
     if (root) mo.observe(root, { attributes: true, attributeFilter: ['class'] });
-    return () => mo.disconnect();
+    window.addEventListener('sosial-theme', sync);
+    return () => {
+      mo.disconnect();
+      window.removeEventListener('sosial-theme', sync);
+    };
   }, []);
 
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -873,16 +863,19 @@ export default function ScheduleXBoard({
             </p>
           </>
         ) : mounted ? (
-          <SXMount
-            key={dark ? 'dark' : 'light'}
-            view={view}
-            anchorKey={dayKey(anchor)}
-            events={sxEvents}
-            dark={dark}
-            timeZone={timeZone}
-            onSelectPost={handleSelectPost}
-            persistDrop={persistDrop}
-          />
+          <div className={view === 'month' ? 'sx-height-auto' : undefined}>
+            <SXMount
+              key={dark ? 'dark' : 'light'}
+              view={view}
+              anchorKey={dayKey(anchor)}
+              events={sxEvents}
+              dark={dark}
+              timeZone={timeZone}
+              notify={setErr}
+              onSelectPost={handleSelectPost}
+              persistDrop={persistDrop}
+            />
+          </div>
         ) : (
           <div className="h-full min-h-[480px] animate-pulse rounded-2xl bg-paper-dim" />
         )}
