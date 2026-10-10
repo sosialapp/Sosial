@@ -640,10 +640,9 @@ function SXMount({
         onBeforeEventUpdate: (_oldEv, newEv) => {
           const iso = resolveDrop(newEv);
           if (!iso) return false;
-          if (queueTooSoon(iso)) {
-            notify(leadTimeMessage());
-            return false;
-          }
+          // Too-soon drops snap back with no popup — the guard message on a
+          // past/near drag was noisy; the 5-minute rule still applies.
+          if (queueTooSoon(iso)) return false;
           return true;
         },
         onEventUpdate: (ev) => {
