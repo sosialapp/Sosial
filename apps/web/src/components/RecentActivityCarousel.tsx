@@ -30,17 +30,20 @@ const isPostStatus = (s: string): s is PostStatus => s in POST_STATUS_META;
 export default function RecentActivityCarousel({ items }: { items: RecentActivityItem[] }) {
   const [index, setIndex] = useState(0);
   const count = items.length;
-  const areaRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const cool = useRef(0);
   const touchY = useRef<number | null>(null);
 
-  // Wheel over the card flips posts (non-passive so the card owns the gesture).
+  // Wheel anywhere over the card flips posts and never moves the page
+  // (non-passive so the card owns the gesture).
   useEffect(() => {
-    const el = areaRef.current;
+    const el = wrapRef.current;
     if (!el || count < 2) return;
     const onWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaY) < 8) return;
+      // Horizontal gestures (trackpad sideways, shift+wheel) pass through.
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.deltaY === 0) return;
       e.preventDefault();
+      if (Math.abs(e.deltaY) < 8) return;
       const now = Date.now();
       if (now - cool.current < 900) return;
       cool.current = now;
@@ -56,21 +59,21 @@ export default function RecentActivityCarousel({ items }: { items: RecentActivit
   const media = item.media.slice(0, 4);
 
   return (
-    <div className="mt-4 flex gap-2.5">
-      <div
-        ref={areaRef}
-        className="min-w-0 flex-1 touch-pan-x select-none"
-        onTouchStart={(e) => {
-          touchY.current = e.touches[0]?.clientY ?? null;
-        }}
-        onTouchEnd={(e) => {
-          if (touchY.current == null || count < 2) return;
-          const dy = touchY.current - (e.changedTouches[0]?.clientY ?? touchY.current);
-          touchY.current = null;
-          if (Math.abs(dy) < 40) return;
-          setIndex((i) => (i + (dy > 0 ? 1 : -1) + count) % count);
-        }}
-      >
+    <div
+      ref={wrapRef}
+      className="mt-4 flex touch-pan-x gap-2.5 select-none"
+      onTouchStart={(e) => {
+        touchY.current = e.touches[0]?.clientY ?? null;
+      }}
+      onTouchEnd={(e) => {
+        if (touchY.current == null || count < 2) return;
+        const dy = touchY.current - (e.changedTouches[0]?.clientY ?? touchY.current);
+        touchY.current = null;
+        if (Math.abs(dy) < 40) return;
+        setIndex((i) => (i + (dy > 0 ? 1 : -1) + count) % count);
+      }}
+    >
+      <div className="min-w-0 flex-1">
         <article key={item.id}>
           {/* Header: avatar + name/handle + time + status */}
           <div className="flex items-center gap-2.5">
