@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { Temporal } from 'temporal-polyfill';
+// Global Temporal (same identity Schedule-X validates against — never the
+// named import, which can be a different class object than the global).
+import 'temporal-polyfill/global';
 import {
   viewDay,
   viewMonthGrid,
