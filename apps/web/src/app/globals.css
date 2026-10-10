@@ -1344,3 +1344,21 @@ body {
   --color-accent-soft: #FDF3D7;
   --color-accent-ink: #1C1A14;
 }
+
+/* Schedule-X host: fill the page under our own header (the library header
+ * is hidden — Day/Week/Month/Year + Today + New post live in our header).
+ * Brand font + bolt accents on top of the default theme. */
+.sx-react-calendar-wrapper {
+  width: 100%;
+  height: calc(100dvh - 210px);
+  min-height: 520px;
+  font-family: var(--font-sans);
+}
+.sx__calendar-header {
+  display: none;
+}
+.sx__calendar {
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--color-card);
+}

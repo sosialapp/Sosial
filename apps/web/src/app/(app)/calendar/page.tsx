@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import CalendarBoard from '@/components/CalendarBoard';
+import ScheduleXBoard from '@/components/ScheduleXBoard';
 import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
@@ -21,5 +21,6 @@ export default async function CalendarPage({
     ctx.workspace.id,
     posts.map((p) => p.id),
   );
-  return <CalendarBoard posts={posts} channels={channels} media={media} initialAnchor={d} />;
+  return <ScheduleXBoard posts={posts} channels={channels} media={media} initialAnchor={d} />;
 }
+
