@@ -6,10 +6,6 @@ import { generateSocial, rewritePosts, withHashtags, SOCIAL_PLATFORMS, THREAD_PL
 import { AI_FORMATS, detectFormat, type AiFormatId } from '@/lib/aiFormats';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 import { providerMeta } from '@/lib/providers';
-import SegmentedPills from '@/components/ui/segmented-pills';
-
-/** Shared track styling for the AI card's option switches. */
-const AI_TRACK = 'border-[#E3D9FA] bg-white/60 dark:border-white/10 dark:bg-white/5';
 
 type EmojiMode = 'auto' | 'on' | 'off';
 const EMOJI_OPTS: { id: EmojiMode; label: string }[] = [
@@ -390,17 +386,23 @@ export default function AiCard({
 
       {/* Format */}
       <p className="mt-4 text-xs font-bold text-soft">Format</p>
-      <SegmentedPills
-        ariaLabel="Format"
-        size="sm"
-        value={thread ? 'thread' : 'post'}
-        onChange={(f) => onThreadChange(f === 'thread')}
-        trackClassName={`mt-1.5 ${AI_TRACK}`}
-        options={[
-          { value: 'post', label: 'Post' },
-          { value: 'thread', label: 'Thread' },
-        ]}
-      />
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Format">
+        {[{ value: 'post', label: 'Post' }, { value: 'thread', label: 'Thread' }].map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => onThreadChange(f.value === 'thread')}
+            aria-pressed={(thread ? 'thread' : 'post') === f.value}
+            className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+              (thread ? 'thread' : 'post') === f.value
+                ? 'border-ink bg-ink text-paper'
+                : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
       {thread ? (
         <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#E3D9FA] bg-white/60 px-3 py-2 dark:border-white/10 dark:bg-white/5">
           <span className="text-xs font-bold text-soft">Posts</span>

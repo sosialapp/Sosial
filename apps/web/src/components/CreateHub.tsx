@@ -22,7 +22,6 @@ import {
 } from '@/lib/studio/model';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets, WorkspaceInfo } from '@/lib/types';
 import { gridThumb } from '@/lib/media';
-import SegmentedPills from '@/components/ui/segmented-pills';
 import { createClient } from '@/lib/supabase/client';
 import {
   pushLibraryItem, tombstoneLibraryItem, pullLibraryRows,
@@ -865,22 +864,48 @@ export default function CreateHub({
         </>
       )}
 
-      <SegmentedPills
-        ariaLabel="Post sections"
-        role="tablist"
-        variant="accent"
-        value={view === 'templates' ? 'templates' : view === 'ideas' && statusView === null ? 'ideas' : 'create'}
-        onChange={(v) => {
-          if (v === 'create') router.push('/post', { scroll: false });
-          else if (v === 'templates') router.push('/post-templates', { scroll: false });
-          else router.push('/post-ideas', { scroll: false });
-        }}
-        options={[
-          { value: 'create', label: 'Create' },
-          { value: 'templates', label: 'Templates' },
-          { value: 'ideas', label: ideas.length ? `Ideas · ${ideas.length}` : 'Ideas' },
-        ]}
-      />
+      <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Post sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'create' || statusView !== null}
+          onClick={() => router.push('/post', { scroll: false })}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            view === 'create' || statusView !== null
+              ? 'border-accent bg-accent text-on-accent'
+              : 'border-line bg-card text-muted hover:bg-paper'
+          }`}
+        >
+          Create
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'templates'}
+          onClick={() => router.push('/post-templates', { scroll: false })}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            view === 'templates'
+              ? 'border-accent bg-accent text-on-accent'
+              : 'border-line bg-card text-muted hover:bg-paper'
+          }`}
+        >
+          Templates
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'ideas'}
+          onClick={() => router.push('/post-ideas', { scroll: false })}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            view === 'ideas'
+              ? 'border-accent bg-accent text-on-accent'
+              : 'border-line bg-card text-muted hover:bg-paper'
+          }`}
+        >
+          Ideas
+          {ideas.length ? ` · ${ideas.length}` : ''}
+        </button>
+      </div>
       {(view === 'create' || statusView !== null) && (
         <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Post filters">
           <button
