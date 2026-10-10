@@ -11,6 +11,7 @@ import { generateSocial, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CheckIcon } from '@/components/StatusIcons';
 import DateTimePicker from '@/components/DateTimePicker';
+import SegmentedPills from '@/components/ui/segmented-pills';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
 
@@ -384,22 +385,17 @@ export default function Composer({
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-full border border-line bg-paper p-0.5" role="tablist" aria-label="Post kind">
-            {(['single', 'chain'] as Kind[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={kind === k}
-                onClick={() => setKind(k)}
-                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                  kind === k ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
-                }`}
-              >
-                {k === 'single' ? 'Single' : 'Chain'}
-              </button>
-            ))}
-          </div>
+          <SegmentedPills
+            ariaLabel="Post kind"
+            role="tablist"
+            variant="accent"
+            value={kind}
+            onChange={setKind}
+            options={[
+              { value: 'single', label: 'Single' },
+              { value: 'chain', label: 'Chain' },
+            ]}
+          />
           <button className="btn btn-bolt" disabled={busy} type="submit">
             {busy ? 'Saving…' : submitLabel}
           </button>

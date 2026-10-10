@@ -15,6 +15,7 @@ import { saveProject, loadProjects, deleteProject, renameProject } from './HomeS
 import { loadIdeas, saveIdea, deleteIdea, syncIdeas, Idea, ThreadSeg } from '../utils/ideas';
 import PostScreen from './PostScreen';
 import { ScheduleForm } from '../components/ScheduleSheet';
+import { Tabs } from '../components/ui-kit';
 import { SegMediaStrip } from '../components/SegMediaStrip';
 import { useVerticalReorder } from '../components/useVerticalReorder';
 import { useComposer } from '../store/ComposerContext';
@@ -556,19 +557,20 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
         </View>
 
         {/* section tabs — scrolls instead of overflowing on narrow screens */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 20, marginTop: 16 }}>
-          {(['post', 'templates', 'publish', 'ideas'] as const).map((t) => {
-            const on = tab === t;
-            return (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setTab(t)}
-                style={[s.tab, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                <Text style={[s.tabT, on && { color: C.onInk }]}>{t === 'ideas' ? 'Ideas' : t === 'templates' ? 'Templates' : t === 'post' ? 'Post' : 'Publish'}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View style={{ paddingHorizontal: 20, marginTop: 16, alignSelf: 'flex-start' }}>
+          <Tabs
+            options={[
+              { value: 'post', label: 'Post' },
+              { value: 'templates', label: 'Templates' },
+              { value: 'publish', label: 'Publish' },
+              { value: 'ideas', label: 'Ideas' },
+            ]}
+            value={tab}
+            onChange={setTab}
+            scrollable
+            accessibilityLabel="Create sections"
+          />
+        </View>
 
         {tab === 'ideas' ? (
           <View style={{ paddingHorizontal: 24, marginTop: 14 }}>

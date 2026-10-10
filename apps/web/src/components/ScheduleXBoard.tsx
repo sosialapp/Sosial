@@ -40,6 +40,7 @@ import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import SegmentedPills from '@/components/ui/segmented-pills';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 function snippet(p: PostWithTargets): string {
@@ -1221,26 +1222,15 @@ export default function ScheduleXBoard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <nav
-            aria-label="Calendar view"
-            className="flex items-center gap-0.5 rounded-full bg-paper-dim p-1"
-          >
-            {VIEW_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => goView(t.id)}
-                aria-current={view === t.id ? 'page' : undefined}
-                className={`rounded-full px-4 py-1.5 text-xs transition ${
-                  view === t.id
-                    ? 'bg-paper font-extrabold text-ink shadow-sm'
-                    : 'font-bold text-muted hover:text-ink'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
+          <SegmentedPills
+            ariaLabel="Calendar view"
+            role="tablist"
+            variant="paper"
+            value={view}
+            onChange={goView}
+            trackClassName="border-transparent bg-paper-dim"
+            options={VIEW_TABS.map((t) => ({ value: t.id, label: t.label }))}
+          />
           <Link href="/post" className="btn btn-bolt btn-sm">
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             New post

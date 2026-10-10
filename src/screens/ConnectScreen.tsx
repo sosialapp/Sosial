@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking } 
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui';
+import { Tabs } from '../components/ui-kit';
 import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount } from '../utils/metaStore';
@@ -1453,26 +1454,16 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
         <Text style={s.kicker}>{tab === 'channels' ? 'Channels' : 'Integrations'}</Text>
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Connect</Text>
 
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-          {(['channels', 'integrations'] as const).map((t) => (
-            <TouchableOpacity
-              key={t}
-              onPress={() => setTab(t)}
-              activeOpacity={0.75}
-              style={{
-                borderRadius: 999,
-                paddingHorizontal: 18,
-                paddingVertical: 9,
-                backgroundColor: tab === t ? C.ink : C.card,
-                borderWidth: 1,
-                borderColor: C.lineSoft,
-              }}
-            >
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: tab === t ? C.onInk : C.muted }}>
-                {t === 'channels' ? 'Channels' : 'Integrations'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={{ marginTop: 16, alignSelf: 'flex-start' }}>
+          <Tabs
+            options={[
+              { value: 'channels', label: 'Channels' },
+              { value: 'integrations', label: 'Integrations' },
+            ]}
+            value={tab}
+            onChange={setTab}
+            accessibilityLabel="Connect sections"
+          />
         </View>
 
         {!isManager && cloudUser ? (

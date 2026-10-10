@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PrimaryBtn, GhostBtn, Stepper, PillToggle, Field, SocialGlyph, Seg } from './ui';
+import { Tabs } from './ui-kit';
 import {
   SocialBrief, SocialResult, SocialTone, SocialPlatform, SocialStyle, SocialVariant,
   SocialPhase, Toggle, RewriteOp, SocialSegmentMedia,
@@ -600,21 +601,24 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                   ) : null}
 
                   {draft.length > 1 ? (
-                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-                      {draft.map((v, i) => {
-                        const on = i === tab;
-                        return (
-                          <TouchableOpacity key={v.platform} onPress={() => setTab(i)} style={[st.chip, on && st.chipOn]} activeOpacity={0.75} accessibilityState={{ selected: on }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              {v.platform === 'any'
-                                ? <Ionicons name="globe-outline" size={12} color={on ? C.onInk : C.muted} />
-                                : <SocialGlyph platform={v.platform} size={11} color={on ? C.onInk : C.muted} />}
-                              <Text style={[st.chipT, on && st.chipTOn]}>{labelOf(v.platform)}</Text>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
+                    <Tabs
+                      options={draft.map((v) => ({ value: v.platform, label: labelOf(v.platform) }))}
+                      value={draft[tab]?.platform ?? draft[0].platform}
+                      onChange={(p) => {
+                        const i = draft.findIndex((v) => v.platform === p);
+                        if (i >= 0) setTab(i);
+                      }}
+                      scrollable
+                      accessibilityLabel="Channel drafts"
+                      renderOption={(o, active) => (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {o.value === 'any'
+                            ? <Ionicons name="globe-outline" size={12} color={active ? C.onInk : C.muted} />
+                            : <SocialGlyph platform={o.value} size={11} color={active ? C.onInk : C.muted} />}
+                          <Text style={[st.chipT, active && st.chipTOn]}>{o.label}</Text>
+                        </View>
+                      )}
+                    />
                   ) : null}
 
                   {active?.posts.map((seg, i) => {

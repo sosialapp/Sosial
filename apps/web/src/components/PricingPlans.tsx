@@ -9,6 +9,7 @@ import {
 import { BrandIcon, BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
 import { SourceMark } from '@/components/SourceMarks';
 import { GridPulse } from '@/components/ui/grid-pulse';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 /**
  * Pricing band — pastel-header cards with quota fields, a channel/integration
@@ -130,25 +131,18 @@ export default function PricingPlans({
 
         {/* Interval toggle */}
         <div className="mt-10 flex justify-center">
-          <div
-            className="inline-flex items-center gap-1 rounded-full border border-line bg-white p-1 shadow-[0_2px_10px_rgba(28,26,20,0.06)]"
-            role="group"
-            aria-label="Billing interval"
-          >
-            {(['monthly', 'annual'] as const).map((i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setInterval(i)}
-                aria-pressed={interval === i}
-                className={`rounded-full px-5 py-2 text-sm font-semibold transition-all ${
-                  interval === i ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
-                }`}
-              >
-                {i === 'monthly' ? 'Monthly' : 'Annual'}
-              </button>
-            ))}
-          </div>
+          <SegmentedPills
+            ariaLabel="Billing interval"
+            size="lg"
+            value={interval}
+            onChange={setInterval}
+            trackClassName="bg-white shadow-[0_2px_10px_rgba(28,26,20,0.06)]"
+            buttonClassName="font-semibold"
+            options={[
+              { value: 'monthly', label: 'Monthly' },
+              { value: 'annual', label: 'Annual' },
+            ]}
+          />
         </div>
 
         {/* Cards */}

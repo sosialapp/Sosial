@@ -11,6 +11,7 @@ import DisconnectChannel from './DisconnectChannel';
 import { OAUTH_PROVIDERS, oauthLabel, type OAuthProvider } from '@/lib/oauth';
 import { canConnectProvider, type PlanKey } from '@/lib/billing/plans';
 import type { ConnectedChannel } from '@/lib/types';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 export interface FbPickPage {
   id: string;
@@ -752,22 +753,16 @@ export default function ConnectPanel({
         </p>
       ) : null}
 
-      <div className="flex gap-2" role="tablist" aria-label="Connect sections">
-        {(['channels', 'integrations'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-2 text-xs font-bold transition ${
-              tab === t ? 'bg-ink text-paper' : 'border border-line bg-card text-muted hover:text-ink'
-            }`}
-          >
-            {t === 'channels' ? 'Channels' : 'Integrations'}
-          </button>
-        ))}
-      </div>
+      <SegmentedPills
+        ariaLabel="Connect sections"
+        role="tablist"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'channels', label: 'Channels' },
+          { value: 'integrations', label: 'Integrations' },
+        ]}
+      />
 
       {tab === 'integrations' ? (
         <IntegrationsTab />

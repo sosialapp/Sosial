@@ -33,6 +33,14 @@ function row(cells: Record<number, string>): string[] {
   return out;
 }
 
+// A date guaranteed to be in the future regardless of when the suite runs —
+// a hardcoded "tomorrow" goes stale once the calendar catches up with it.
+function futureDate(): string {
+  const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} 09:00`;
+}
+
 describe('parseSheetDate', () => {
   it('parses ISO with Z, offset, and naive (in zone)', () => {
     expect(parseSheetDate('2026-10-10T09:00:00Z', 'auto', 'UTC')).toBe('2026-10-10T09:00:00.000Z');
@@ -77,8 +85,9 @@ describe('matchPlatforms', () => {
 
 describe('mapSheetRow', () => {
   it('maps a complete row to a scheduled draft', () => {
+    const when = futureDate();
     const r = row({
-      0: '2026-10-10 09:00',
+      0: when,
       1: 'LinkedIn',
       2: 'We are live!',
       3: 'Launch day',
@@ -91,7 +100,7 @@ describe('mapSheetRow', () => {
     expect(res.draft?.title).toBe('Launch day');
     expect(res.draft?.body).toBe('We are live!');
     expect(res.draft?.channelIds).toEqual(['ch-li']);
-    expect(res.draft?.scheduledAt).toBe('2026-10-10T09:00:00.000Z');
+    expect(res.draft?.scheduledAt).toBe(`${when.slice(0, 10)}T09:00:00.000Z`);
     expect(res.draft?.mediaUrls).toEqual(['https://example.com/pic.jpg']);
     expect(res.draft?.tags).toEqual(['launch', 'news']);
     expect(res.errors).toEqual([]);
@@ -111,7 +120,7 @@ describe('mapSheetRow', () => {
   });
 
   it('status draft wins over a valid date; unmapped status defaults to draft with warning', () => {
-    const base = { 0: '2026-10-10 09:00', 1: 'X', 2: 'hi' };
+    const base = { 0: futureDate(), 1: 'X', 2: 'hi' };
     const draft = mapSheetRow(2, row({ ...base, 5: 'Idea' }), MAPPING, OPTIONS, CHANNELS);
     expect(draft.ok).toBe(true);
     expect(draft.draft?.scheduledAt).toBeNull();
@@ -120,7 +129,7 @@ describe('mapSheetRow', () => {
     expect(unmapped.ok).toBe(true);
     // A valid date + unmapped status keeps the schedule (draft-default only
     // applies when there is nothing to schedule).
-    expect(unmapped.draft?.scheduledAt).toBe('2026-10-10T09:00:00.000Z');
+    expect(unmapped.draft?.scheduledAt).toBe(`${base[0].slice(0, 10)}T09:00:00.000Z`);
     expect(unmapped.draft?.warnings.some((w) => /unmapped/i.test(w))).toBe(false);
   });
 

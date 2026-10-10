@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { useTheme, Palette, R } from '../theme';
+import { Segmented } from './segmented';
 
 /** shadcn-flavoured primitives for React Native, on the app's theme tokens.
  *  Mirrors the web kit (Card / Table / Badge / Tabs) so both surfaces read
@@ -77,38 +78,41 @@ export function Badge({
   );
 }
 
-/** Tabs — pill segmented control (ink-filled active tab), web parity. */
+/** Tabs — pill segmented control (ink-filled active tab), web parity.
+ *  The thumb slides to the active pill on every switch. */
 export function Tabs<T extends string>({
   options,
   value,
   onChange,
   style,
+  scrollable,
+  renderOption,
+  accessibilityLabel,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
   style?: StyleProp<ViewStyle>;
+  scrollable?: boolean;
+  renderOption?: (o: { value: T; label: string }, active: boolean) => React.ReactNode;
+  accessibilityLabel?: string;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
   return (
-    <View style={[s.tabs, style]}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <TouchableOpacity
-            key={o.value}
-            onPress={() => onChange(o.value)}
-            style={[s.tab, on && s.tabOn]}
-            activeOpacity={0.8}
-          >
-            <Text style={[s.tabT, on && s.tabTOn]} numberOfLines={1}>
-              {o.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+    <Segmented
+      options={options}
+      value={value}
+      onChange={onChange}
+      trackStyle={[s.tabs, style]}
+      thumbStyle={s.tabOn}
+      tabStyle={s.tab}
+      labelStyle={s.tabT}
+      activeLabelStyle={s.tabTOn}
+      renderOption={renderOption}
+      scrollable={scrollable}
+      accessibilityLabel={accessibilityLabel}
+    />
   );
 }
 

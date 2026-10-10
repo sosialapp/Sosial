@@ -11,6 +11,7 @@ import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
 import { GitBranch } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
+import SegmentedPills from '@/components/ui/segmented-pills';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
@@ -760,26 +761,24 @@ export default function CreatePost({
               ) : null}
               <span className="flex-1" />
               {/* Mode pill — top, dashboard style */}
-              <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Post mode">
-                {(['now', 'schedule'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      if (m === 'schedule' && (!whenIso || queueTooSoon(whenIso))) {
+              <SegmentedPills
+                ariaLabel="Post mode"
+                value={mode}
+                onChange={setMode}
+                options={[
+                  { value: 'now', label: 'Post now' },
+                  {
+                    value: 'schedule',
+                    label: 'Schedule',
+                    onSelect: () => {
+                      if (!whenIso || queueTooSoon(whenIso)) {
                         setWhenIso(new Date(minQueueTime()).toISOString());
                       }
-                      setMode(m);
-                    }}
-                    aria-pressed={mode === m}
-                    className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                      mode === m ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
-                    }`}
-                  >
-                    {m === 'now' ? 'Post now' : 'Schedule'}
-                  </button>
-                ))}
-              </div>
+                      setMode('schedule');
+                    },
+                  },
+                ]}
+              />
             </div>
 
             {/* Schedule row — top, next to the title */}

@@ -7,6 +7,7 @@ import type { DateRange } from 'react-day-picker';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { Badge } from '@/components/ui/badge';
+import SegmentedPills from '@/components/ui/segmented-pills';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -575,19 +576,15 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
 
       {/* Range + channel controls */}
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
-        {PRESETS.filter((p) => p.id !== 'custom').map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            aria-pressed={preset === p.id}
-            onClick={() => setPreset(p.id)}
-            className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-              preset === p.id ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+        <SegmentedPills
+          ariaLabel="Analytics range"
+          variant="accent"
+          value={preset === 'custom' ? 'custom' : preset}
+          onChange={(id) => {
+            if (id !== 'custom') setPreset(id);
+          }}
+          options={PRESETS.filter((p) => p.id !== 'custom').map((p) => ({ value: p.id, label: p.label }))}
+        />
         <Popover open={calOpen} onOpenChange={setCalOpen}>
           <PopoverTrigger asChild>
             <button

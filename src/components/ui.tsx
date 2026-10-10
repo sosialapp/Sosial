@@ -7,6 +7,7 @@ import { Svg, Path, G } from 'react-native-svg';
 import { useTheme, Palette, R } from '../theme';
 import { SOCIAL_META } from '../constants';
 import { useFocusScrollContext } from './FocusScroll';
+import { Segmented } from './segmented';
 
 /** Determinate progress bar (web parity with shadcn Progress): accent fill on
  *  the soft-line track, `value` 0-100, animated width. */
@@ -272,21 +273,40 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-/** iOS-style segmented control — tonal track, paper thumb with shadow */
-export function Seg<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+/** iOS-style segmented control — tonal track, paper thumb with shadow.
+ *  The thumb slides to the active pill on every switch. */
+export function Seg<T extends string>({
+  options,
+  value,
+  onChange,
+  scrollable,
+  renderOption,
+  accessibilityLabel,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  scrollable?: boolean;
+  renderOption?: (o: { value: T; label: string }, active: boolean) => React.ReactNode;
+  accessibilityLabel?: string;
+}) {
   const { C } = useTheme();
   const s = makeS(C);
   return (
-    <View style={s.segWrap}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <TouchableOpacity key={o.value} onPress={() => onChange(o.value)} style={[s.seg, on && s.segOn]} activeOpacity={0.8}>
-            <Text style={[s.segT, on && s.segTOn]} numberOfLines={1}>{o.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+    <Segmented
+      options={options}
+      value={value}
+      onChange={onChange}
+      trackStyle={s.segWrap}
+      thumbStyle={s.segOn}
+      tabStyle={s.seg}
+      labelStyle={s.segT}
+      activeLabelStyle={s.segTOn}
+      renderOption={renderOption}
+      scrollable={scrollable}
+      accessibilityLabel={accessibilityLabel}
+      grow
+    />
   );
 }
 
