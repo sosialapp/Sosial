@@ -1346,19 +1346,85 @@ body {
 }
 
 /* Schedule-X host: fill the page under our own header (the library header
- * is hidden — Day/Week/Month/Year + Today + New post live in our header).
- * Brand font + bolt accents on top of the default theme. */
+ * is hidden — Day/Week/Month/Year + Today + New post live in our header). */
 .sx-react-calendar-wrapper {
   width: 100%;
   height: calc(100dvh - 210px);
   min-height: 520px;
   font-family: var(--font-sans);
 }
-.sx__calendar-header {
+.sx-react-calendar-wrapper .sx__calendar-header {
   display: none;
 }
-.sx__calendar {
+.sx-react-calendar-wrapper .sx__calendar {
   border: 1px solid var(--color-line);
   border-radius: 16px;
   background: var(--color-card);
+}
+
+/* Sosial skin for Schedule-X: Material vars remapped onto brand tokens.
+ * The tokens flip themselves inside .theme-dark, so one block covers both
+ * themes; the .is-dark selectors below outrank the library's own dark
+ * block wherever it lands. */
+.sx-react-calendar-wrapper,
+.sx-react-calendar-wrapper.is-dark,
+.sx-react-calendar-wrapper .is-dark {
+  --sx-color-primary: var(--color-bolt);
+  --sx-color-on-primary: var(--color-on-accent);
+  --sx-color-primary-container: var(--color-accent-soft);
+  --sx-color-on-primary-container: var(--color-bolt-deep);
+  --sx-color-secondary: var(--color-muted);
+  --sx-color-on-secondary: var(--color-paper);
+  --sx-color-secondary-container: var(--color-paper-dim);
+  --sx-color-on-secondary-container: var(--color-ink);
+  --sx-color-tertiary: var(--color-bolt-deep);
+  --sx-color-on-tertiary: var(--color-on-accent);
+  --sx-color-tertiary-container: var(--color-accent-soft);
+  --sx-color-on-tertiary-container: var(--color-bolt-deep);
+  --sx-color-surface: var(--color-card);
+  --sx-color-surface-dim: var(--color-paper-dim);
+  --sx-color-surface-bright: var(--color-card);
+  --sx-color-on-surface: var(--color-ink);
+  --sx-color-surface-container: var(--color-paper-dim);
+  --sx-color-surface-container-low: var(--color-card);
+  --sx-color-surface-container-high: var(--color-paper-dim);
+  --sx-color-background: var(--color-card);
+  --sx-color-on-background: var(--color-ink);
+  --sx-color-outline: var(--color-line);
+  --sx-color-outline-variant: var(--color-line-soft);
+  --sx-color-surface-tint: var(--color-bolt);
+  --sx-internal-color-text: var(--color-ink);
+  --sx-internal-color-light-gray: var(--color-paper-dim);
+  --sx-internal-color-gray-ripple-background: var(--color-line-soft);
+}
+
+/* Eyebrow-style day labels, display-font date numbers, tabular hour axis. */
+.sx-react-calendar-wrapper .sx__week-grid__day-name {
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.sx-react-calendar-wrapper .sx__week-grid__date-number {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.sx-react-calendar-wrapper .sx__week-grid__hour-text {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-faint);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__header-date {
+  font-weight: 700;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__header-day-name {
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__events-more {
+  font-weight: 700;
+  border-radius: 999px;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__events-more:hover {
+  background-color: var(--color-accent-soft);
+  color: var(--color-ink);
 }
