@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import type { HTMLAttributes } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 // Global Temporal (same identity Schedule-X validates against — never the
 // named import, which can be a different class object than the global).
 import 'temporal-polyfill/global';
@@ -39,6 +39,7 @@ import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 function snippet(p: PostWithTargets): string {
   const text = (p.title || p.body || 'Untitled').replace(/\s+/g, ' ').trim();
@@ -69,6 +70,27 @@ const EVENT_TINT: Record<string, { bg: string; border: string }> = {
 const DEFAULT_TINT = { bg: '#F1F5F9', border: '#E2E8F0' };
 const tintOf = (provider: string | undefined): { bg: string; border: string } =>
   (provider && EVENT_TINT[provider]) || DEFAULT_TINT;
+
+/** Status dot colours for the status filter list. */
+const STATUS_DOT: Record<string, string> = {
+  draft: 'bg-[#9A958B]',
+  approval: 'bg-[#B45309]',
+  queued: 'bg-[#B45309]',
+  publishing: 'bg-[#B45309]',
+  partial: 'bg-[#B45309]',
+  sent: 'bg-[#12914A]',
+  failed: 'bg-[#E5484D]',
+};
+
+const STATUS_OPTIONS = [
+  'draft',
+  'approval',
+  'queued',
+  'publishing',
+  'sent',
+  'partial',
+  'failed',
+] as const;
 
 /** Local wall-clock parts of an ISO instant. */
 function partsOf(iso: string | null): { h: number; m: number } {
@@ -460,7 +482,7 @@ function TimeEditor({
   );
 }
 
-type BoardView = 'day' | 'week' | 'month' | 'year';
+type BoardView = 'day' | 'week' | 'month' | 'year' | 'list';
 
 /** Sent-post popup body: the dashboard Recent-posts social view (author, text, media). */
 function SentPostView({
@@ -673,6 +695,9 @@ export default function ScheduleXBoard({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [err, setErr] = useState<string | null>(null);
+  /** Null = all. Set = only these channel ids / statuses. */
+  const [chanFilter, setChanFilter] = useState<string[] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string[] | null>(null);
   const [pending, startTransition] = useTransition();
   // Schedule-X renders client-side only (local timezone + Temporal).
   const [mounted, setMounted] = useState(false);
@@ -718,9 +743,40 @@ export default function ScheduleXBoard({
   const partCount = (p: PostWithTargets): number => threadCount(p, chainParts);
   const isHead = (p: PostWithTargets): boolean => isChainHead(p, chainParts);
 
+  /** Display set: full posts drive chains/actions, this drives what renders. */
+  const visiblePosts = useMemo(
+    () =>
+      posts.filter((p) => {
+        if (
+          chanFilter &&
+          !p.post_targets.some((t) => chanFilter.includes(t.channel_id))
+        )
+          return false;
+        if (statusFilter && !statusFilter.includes(p.status)) return false;
+        return true;
+      }),
+    [posts, chanFilter, statusFilter],
+  );
+
+  const toggleChan = (id: string) => {
+    setChanFilter((prev) => {
+      const cur = prev ?? channels.map((c) => c.id);
+      const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+      return next.length === 0 || next.length === channels.length ? null : next;
+    });
+  };
+
+  const toggleStatus = (s: string) => {
+    setStatusFilter((prev) => {
+      const cur = prev ?? [...STATUS_OPTIONS];
+      const next = cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s];
+      return next.length === 0 || next.length === STATUS_OPTIONS.length ? null : next;
+    });
+  };
+
   const byDay = useMemo(() => {
     const m = new Map<string, PostWithTargets[]>();
-    for (const p of posts) {
+    for (const p of visiblePosts) {
       if (!p.scheduled_at) continue;
       if (!isHead(p)) continue;
       const k = dayKey(new Date(p.scheduled_at));
@@ -733,14 +789,14 @@ export default function ScheduleXBoard({
     }
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posts, chainParts]);
+  }, [visiblePosts, chainParts]);
 
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? null;
 
-  /** Posts → Schedule-X events (chain heads with a time; 60-min display block). */
+  /** Posts → Schedule-X events (chain heads with a time; block fits content). */
   const sxEvents = useMemo<SXEvent[]>(() => {
     const out: SXEvent[] = [];
-    for (const p of posts) {
+    for (const p of visiblePosts) {
       if (!p.scheduled_at || !isHead(p)) continue;
       const d = new Date(p.scheduled_at);
       // Timed events must be ZonedDateTime (PlainDate is all-day-only).
@@ -790,7 +846,7 @@ export default function ScheduleXBoard({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posts, media, chainParts, avatarByChannel, channelById, timeZone]);
+  }, [visiblePosts, media, chainParts, avatarByChannel, channelById, timeZone]);
 
   // Fresh server data for the drop pipeline (calendar callbacks are created once).
   const postsRef = useRef(posts);
@@ -964,12 +1020,14 @@ export default function ScheduleXBoard({
     if (view === 'month') setAnchor(addMonths(anchor, -1));
     else if (view === 'week') setAnchor(addDays(anchor, -7));
     else if (view === 'day') setAnchor(addDays(anchor, -1));
+    else if (view === 'list') setAnchor(addDays(anchor, -14));
     else setAnchor(addMonths(anchor, -12));
   };
   const stepNext = () => {
     if (view === 'month') setAnchor(addMonths(anchor, 1));
     else if (view === 'week') setAnchor(addDays(anchor, 7));
     else if (view === 'day') setAnchor(addDays(anchor, 1));
+    else if (view === 'list') setAnchor(addDays(anchor, 14));
     else setAnchor(addMonths(anchor, 12));
   };
   const stepToday = () => {
@@ -990,7 +1048,9 @@ export default function ScheduleXBoard({
           ? '/calendar-day'
           : next === 'year'
             ? '/calendar-year'
-            : '/calendar';
+            : next === 'list'
+              ? '/calendar-list'
+              : '/calendar';
     router.push(`${path}?d=${d}`, { scroll: false });
   };
 
@@ -999,9 +1059,85 @@ export default function ScheduleXBoard({
     { id: 'week', label: 'Week' },
     { id: 'month', label: 'Month' },
     { id: 'year', label: 'Year' },
+    { id: 'list', label: 'List' },
   ];
 
   const todayKey = dayKey(new Date());
+
+  /** List view: 14-day window from the anchor, days with posts only. */
+  const listDays = useMemo(() => {
+    const base = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+    const days: { key: string; date: Date; items: PostWithTargets[] }[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = addDays(base, i);
+      const items = byDay.get(dayKey(d)) ?? [];
+      if (items.length) days.push({ key: dayKey(d), date: d, items });
+    }
+    return days;
+  }, [anchor, byDay]);
+
+  /** List view: visible drafts with no date yet. */
+  const undatedVisible = useMemo(
+    () => visiblePosts.filter((p) => !p.scheduled_at && isHead(p)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visiblePosts, chainParts],
+  );
+
+  const dayLabelFor = (d: Date, k: string): string => {
+    const date = d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    if (k === todayKey) return `Today, ${date}`;
+    if (k === dayKey(addDays(new Date(), 1))) return `Tomorrow, ${date}`;
+    return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  };
+
+  const authorLine = (p: PostWithTargets): { name: string; handle: string | null; provider: string } => {
+    const t0 = p.post_targets[0];
+    const provider = t0?.provider ?? 'x';
+    const ch = t0 ? channelById.get(t0.channel_id) : undefined;
+    return {
+      name: ch?.display_name?.trim() || providerMeta(provider).label,
+      handle: cleanHandle(ch?.handle),
+      provider,
+    };
+  };
+
+  /** One list row: time · account · text · status. Opens the same popup. */
+  const listRow = (p: PostWithTargets, k: string, timeText: string, timeFaint?: boolean) => {
+    const t0 = p.post_targets[0];
+    const a = authorLine(p);
+    const st = POST_STATUS_META[p.status];
+    return (
+      <button
+        key={p.id}
+        type="button"
+        onClick={() => {
+          setSelectedKey(k);
+          setSelectedPostId(p.id);
+        }}
+        className={`flex w-full items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 text-left transition hover:border-ink/30 ${
+          selectedPostId === p.id ? 'ring-2 ring-accent' : ''
+        }`}
+      >
+        <span
+          className={`w-16 shrink-0 text-xs font-bold tabular-nums ${timeFaint ? 'text-faint' : 'text-ink'}`}
+        >
+          {timeText}
+        </span>
+        {t0 ? (
+          <ChannelAvatar provider={t0.provider} avatar={avatarOf(t0.channel_id)} size={22} />
+        ) : null}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-bold">{snippet(p)}</span>
+          <span className="block truncate text-xs text-muted">
+            {a.handle ? `${a.handle} · ` : ''}
+            {a.name}
+            {partCount(p) > 1 ? ` · Thread ${partCount(p)}` : ''}
+          </span>
+        </span>
+        <Badge className={`${st.className} hidden shrink-0 sm:inline-flex`}>{st.label}</Badge>
+      </button>
+    );
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -1061,6 +1197,111 @@ export default function ScheduleXBoard({
           </Link>
         </div>
       </header>
+
+      {/* Filters: channel/account + post status. Null = all. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-6 py-2.5">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
+            >
+              Channels{chanFilter ? ` · ${chanFilter.length}` : ''}
+              <ChevronDown className="h-3 w-3 text-faint" aria-hidden="true" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="!w-64 !p-2">
+            <button
+              type="button"
+              onClick={() => setChanFilter(null)}
+              className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
+            >
+              All channels
+            </button>
+            {channels.map((c) => {
+              const label = c.display_name?.trim() || providerMeta(c.provider).label;
+              const checked = !chanFilter || chanFilter.includes(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-paper-dim"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleChan(c.id)}
+                    className="h-3.5 w-3.5 shrink-0 accent-[#FFC62E]"
+                  />
+                  <ChannelAvatar
+                    provider={c.provider}
+                    avatar={channelAvatar(c.metadata)}
+                    size={20}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-xs font-bold">{label}</span>
+                </label>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
+            >
+              Status{statusFilter ? ` · ${statusFilter.length}` : ''}
+              <ChevronDown className="h-3 w-3 text-faint" aria-hidden="true" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="!w-56 !p-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter(null)}
+              className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
+            >
+              All statuses
+            </button>
+            {STATUS_OPTIONS.map((s) => {
+              const meta = POST_STATUS_META[s];
+              const checked = !statusFilter || statusFilter.includes(s);
+              return (
+                <label
+                  key={s}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-paper-dim"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleStatus(s)}
+                    className="h-3.5 w-3.5 shrink-0 accent-[#FFC62E]"
+                  />
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[s] ?? 'bg-[#9A958B]'}`}
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-xs font-bold">{meta.label}</span>
+                </label>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+
+        {chanFilter || statusFilter ? (
+          <button
+            type="button"
+            onClick={() => {
+              setChanFilter(null);
+              setStatusFilter(null);
+            }}
+            className="text-xs font-bold text-muted transition hover:text-ink"
+          >
+            Clear
+          </button>
+        ) : null}
+        <span className="flex-1" />
+        <span className="text-xs text-faint">{sxEvents.length} shown</span>
+      </div>
 
       {err && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
@@ -1126,11 +1367,57 @@ export default function ScheduleXBoard({
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-faint">
-              The whole year at a glance — dots mark days with posts. Pick a month to open it.
-            </p>
-          </>
-        ) : mounted ? (
+              <p className="mt-3 text-xs text-faint">
+                The whole year at a glance — dots mark days with posts. Pick a month to open it.
+              </p>
+            </>
+          ) : view === 'list' ? (
+            <>
+              {listDays.length === 0 && undatedVisible.length === 0 ? (
+                <p className="rounded-2xl border border-line bg-card px-4 py-10 text-center text-sm text-muted">
+                  Nothing scheduled in these 14 days.
+                </p>
+              ) : (
+                <div className="mx-auto w-full max-w-3xl space-y-6">
+                  {listDays.map((day) => (
+                    <section key={day.key}>
+                      <div className="mb-2 flex items-baseline gap-2 px-1">
+                        <h2 className="font-display text-base font-extrabold tracking-tight">
+                          {dayLabelFor(day.date, day.key)}
+                        </h2>
+                        <span className="text-xs text-faint">
+                          {day.items.length} post{day.items.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {day.items.map((p) => listRow(p, day.key, formatTime(p.scheduled_at)))}
+                      </div>
+                    </section>
+                  ))}
+                  {undatedVisible.length > 0 ? (
+                    <section>
+                      <div className="mb-2 flex items-baseline gap-2 px-1">
+                        <h2 className="font-display text-base font-extrabold tracking-tight">
+                          No date yet
+                        </h2>
+                        <span className="text-xs text-faint">
+                          {undatedVisible.length} draft{undatedVisible.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {undatedVisible
+                          .slice(0, 10)
+                          .map((p) => listRow(p, dayKey(new Date()), 'No date', true))}
+                      </div>
+                    </section>
+                  ) : null}
+                </div>
+              )}
+              <p className="mt-3 text-xs text-faint">
+                Click a post to open it. Dragging lives on the Day, Week and Month views.
+              </p>
+            </>
+          ) : mounted ? (
           <div className={view === 'month' ? 'sx-height-auto' : undefined}>
             <SXMount
               view={view}
