@@ -150,10 +150,10 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
       className="h-full overflow-hidden rounded-lg border px-1.5 py-1"
       style={{ background: c.sxTintBg ?? '#F1F5F9', borderColor: c.sxTintBorder ?? '#E2E8F0' }}
     >
-      <div className="flex items-center gap-1">
-        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={14} /> : null}
-        <span className="truncate text-[11px] font-bold" style={{ color: '#1F2937' }}>
-          {c.sxLabel ?? 'Post'}
+      <div className="flex items-center gap-1.5">
+        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={20} /> : null}
+        <span className="truncate text-xs font-extrabold" style={{ color: '#1F2937' }}>
+          {c.sxLabel ?? c.title ?? 'Post'}
         </span>
       </div>
       <div className="truncate text-[10px] font-medium" style={{ color: '#6B7280' }}>
@@ -359,6 +359,7 @@ function SXMount({
   dark,
   timeZone,
   notify,
+  resolveDrop,
   onSelectPost,
   persistDrop,
 }: {
@@ -368,6 +369,7 @@ function SXMount({
   dark: boolean;
   timeZone: string;
   notify: (msg: string) => void;
+  resolveDrop: (ev: CalendarEvent) => string | null;
   onSelectPost: (postId: string, start: Temporal.ZonedDateTime | Temporal.PlainDateTime | Temporal.PlainDate) => void;
   persistDrop: (postId: string, iso: string) => void;
 }) {
@@ -396,7 +398,7 @@ function SXMount({
           onSelectPost(String(ev.id), ev.start);
         },
         onBeforeEventUpdate: (_oldEv, newEv) => {
-          const iso = sxStartToISO(newEv.start, timeZone);
+          const iso = resolveDrop(newEv);
           if (!iso) return false;
           if (queueTooSoon(iso)) {
             notify(leadTimeMessage());
@@ -405,7 +407,7 @@ function SXMount({
           return true;
         },
         onEventUpdate: (ev) => {
-          const iso = sxStartToISO(ev.start, timeZone);
+          const iso = resolveDrop(ev);
           if (iso) persistDrop(String(ev.id), iso);
         },
       },
@@ -541,7 +543,7 @@ export default function ScheduleXBoard({
         id: p.id,
         title: snippet(p),
         start,
-        end: start.add({ minutes: 60 }),
+        end: start.add({ minutes: 90 }),
         calendarId: statusCalendar(p.status),
         sxProvider: t0?.provider,
         sxAvatar: t0 ? avatarOf(t0.channel_id) : undefined,
@@ -589,6 +591,30 @@ export default function ScheduleXBoard({
       }
     },
     [router],
+  );
+
+  /** Dropped event → UTC ISO. Timed starts convert directly; all-day
+   *  (PlainDate) drops, e.g. month-grid drags, keep the post's wall-clock time.
+   *  Stable for the once-created calendar callbacks (reads live data via ref). */
+  const resolveDrop = useCallback(
+    (ev: CalendarEvent): string | null => {
+      const direct = sxStartToISO(ev.start, timeZone);
+      if (direct) return direct;
+      try {
+        const day = (ev.start as unknown as { toString?: () => string })?.toString?.();
+        if (typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
+          const post = postsRef.current.find((p) => p.id === String(ev.id));
+          if (post?.scheduled_at) {
+            const { h, m } = partsOf(post.scheduled_at);
+            return isoAt(day, h, m);
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+      return null;
+    },
+    [timeZone],
   );
 
   /** Event click → open the popup (uses only stable setters: never stale). */
@@ -870,8 +896,9 @@ export default function ScheduleXBoard({
               anchorKey={dayKey(anchor)}
               events={sxEvents}
               dark={dark}
-              timeZone={timeZone}
-              notify={setErr}
+            timeZone={timeZone}
+            notify={setErr}
+            resolveDrop={resolveDrop}
               onSelectPost={handleSelectPost}
               persistDrop={persistDrop}
             />
