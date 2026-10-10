@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import type { HTMLAttributes } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
@@ -182,12 +183,54 @@ function eventMedia(t: { id: string; kind: string; src: string }, cls: string) {
     <img key={t.id} src={t.src} alt="" loading="lazy" className={shared} />
   );
 }
+/** Click fallback: custom cards call this directly so opening never depends
+ *  on the library's click pipeline (its 150ms drag threshold swallows taps). */
+let sxCardOpen: ((id: string) => void) | null = null;
+
+/** Tap/click detector that ignores real drags (movement threshold), for both
+ *  mouse and touch. Fires alongside the library click handler — same id, so
+ *  opening twice is a harmless no-op. */
+function OpenOnTap({
+  id,
+  children,
+  ...rest
+}: HTMLAttributes<HTMLDivElement> & { id: string }) {
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const maybeOpen = (x: number, y: number, limit: number) => {
+    const s = start.current;
+    start.current = null;
+    if (!s || !id) return;
+    if (Math.hypot(x - s.x, y - s.y) < limit) sxCardOpen?.(id);
+  };
+  return (
+    <div
+      {...rest}
+      onMouseDown={(e) => {
+        start.current = { x: e.clientX, y: e.clientY };
+      }}
+      onTouchStart={(e) => {
+        const t = e.touches[0];
+        start.current = t ? { x: t.clientX, y: t.clientY } : null;
+      }}
+      onMouseUp={(e) => maybeOpen(e.clientX, e.clientY, 8)}
+      onTouchEnd={(e) => {
+        const t = e.changedTouches[0];
+        maybeOpen(t ? t.clientX : -999, t ? t.clientY : -999, 12);
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   const c = calendarEvent ?? {};
   const time = sxClockLabel(c.start, c.sxTime);
+  const pid = String(c.id ?? '');
   return (
-    <div
-      className="h-full overflow-hidden rounded-lg border p-1.5"
+    <OpenOnTap
+      id={pid}
+      className="overflow-hidden rounded-lg border p-1.5"
       style={{ background: c.sxTintBg ?? '#F1F5F9', borderColor: c.sxTintBorder ?? '#E2E8F0' }}
     >
       <div className="flex items-center gap-1.5">
@@ -224,15 +267,17 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
           </div>
         )
       ) : null}
-    </div>
+    </OpenOnTap>
   );
 }
 
 /** Custom month-grid event: compact one-line chip. */
 function SXMonthChip({ calendarEvent }: { calendarEvent: SXEvent }) {
   const c = calendarEvent ?? {};
+  const pid = String(c.id ?? '');
   return (
-    <div
+    <OpenOnTap
+      id={pid}
       className="flex items-center gap-1 truncate rounded-md px-1 py-px"
       style={{ background: c.sxTintBg ?? '#F1F5F9', border: `1px solid ${c.sxTintBorder ?? '#E2E8F0'}` }}
       title={c.title}
@@ -243,7 +288,7 @@ function SXMonthChip({ calendarEvent }: { calendarEvent: SXEvent }) {
       <span className="truncate text-[11px]" style={{ color: '#4B5563' }}>
         {c.title ?? ''}
       </span>
-    </div>
+    </OpenOnTap>
   );
 }
 
@@ -751,6 +796,16 @@ export default function ScheduleXBoard({
   const postsRef = useRef(posts);
   useEffect(() => {
     postsRef.current = posts;
+  });
+
+  // Direct card-tap opener for OpenOnTap (module registry, refreshed render).
+  useEffect(() => {
+    sxCardOpen = (id: string) => {
+      const p = posts.find((pp) => pp.id === id);
+      if (!p) return;
+      setSelectedPostId(id);
+      if (p.scheduled_at) setSelectedKey(dayKey(new Date(p.scheduled_at)));
+    };
   });
 
   /** Persist a drag-and-drop move: shift the whole chain by the same delta. */
