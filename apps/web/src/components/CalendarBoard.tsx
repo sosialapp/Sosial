@@ -89,7 +89,7 @@ function partsOf(iso: string | null): { h: number; m: number } {
 
 /* ------------------------- week time-grid geometry ------------------------- */
 
-const HOUR_PX = 48;
+const HOUR_PX = 56;
 const DAY_H = HOUR_PX * 24;
 
 function minutesOf(iso: string | null): number {
@@ -103,9 +103,14 @@ function hourLabel(h: number): string {
   return `${h12} ${ampm}`;
 }
 
-/** Interval-partition a day's posts into lanes so overlaps sit side by side
- *  (30-minute collision window — posts are instants, not durations). */
-function layoutDay(items: PostWithTargets[]): {
+/** Interval-partition a day's posts into lanes so overlaps sit side by side.
+ *  Posts are instants, not durations — the collision window comes from the
+ *  estimated rendered card height (plus a breathing gap), so cards never
+ *  visually stack on top of each other. */
+function layoutDay(
+  items: PostWithTargets[],
+  estimateHeight?: (p: PostWithTargets) => number,
+): {
   p: PostWithTargets;
   top: number;
   lane: number;
@@ -113,7 +118,9 @@ function layoutDay(items: PostWithTargets[]): {
 }[] {
   const sorted = [...items].sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''));
   const starts = sorted.map((p) => minutesOf(p.scheduled_at));
-  const ends = starts.map((s) => s + 30);
+  const ends = starts.map((s, i) =>
+    estimateHeight ? s + (estimateHeight(sorted[i]) / HOUR_PX) * 60 + 12 : s + 30,
+  );
   const laneEnd: number[] = [];
   const laneOf: number[] = sorted.map((_, i) => {
     let lane = laneEnd.findIndex((e) => e <= starts[i]);
@@ -362,17 +369,23 @@ export default function CalendarBoard({
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? null;
   const today = new Date();
   const todayKey = dayKey(today);
+  /** Estimated schedule-card height: compact text block, taller with thumbnails.
+   *  Feeds the lane-packing collision window so cards never visually overlap. */
+  const cardHeight = (p: PostWithTargets): number =>
+    58 + ((media[p.id] ?? []).length > 0 ? 38 : 0);
   /** Per-day time layouts for the week grid (posts at their exact time). */
   const weekLayouts = useMemo(
-    () => weekDays.map((d) => layoutDay(byDay.get(dayKey(d)) ?? [])),
-    [weekDays, byDay],
+    () => weekDays.map((d) => layoutDay(byDay.get(dayKey(d)) ?? [], cardHeight)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weekDays, byDay, media],
   );
   const nowTop = ((today.getHours() * 60 + today.getMinutes()) / 60) * HOUR_PX;
 
   /** Single-day time layout for the Day view (anchor's date). */
   const dayLayout = useMemo(
-    () => layoutDay(byDay.get(dayKey(anchor)) ?? []),
-    [anchor, byDay],
+    () => layoutDay(byDay.get(dayKey(anchor)) ?? [], cardHeight),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [anchor, byDay, media],
   );
 
   /** All parts that move as one: the post alone, or its whole chain. */
@@ -544,22 +557,21 @@ export default function CalendarBoard({
           setSelectedPostId(p.id);
         }}
         title={snippet(p)}
-        className={`cursor-grab overflow-hidden rounded-[10px] border px-2.5 py-2 transition hover:shadow-md ${
+        className={`cursor-grab overflow-hidden rounded-xl border p-2 shadow-sm transition hover:shadow-md ${
           dragId === p.id ? 'opacity-50' : ''
         } ${selectedPostId === p.id ? 'ring-2 ring-ink/40' : ''} ${pos ? 'absolute' : ''}`}
         style={{
           background: tint.bg,
           borderColor: tint.border,
           ...(pos ?? {}),
-          minHeight: 100,
-          maxHeight: 150,
+          maxHeight: 160,
         }}
       >
         <div className="flex items-center gap-1.5">
           {t0 ? (
-            <ChannelAvatar provider={t0.provider} avatar={avatarOf(t0.channel_id)} size={18} />
+            <ChannelAvatar provider={t0.provider} avatar={avatarOf(t0.channel_id)} size={16} />
           ) : null}
-          <span className="truncate text-xs font-extrabold" style={{ color: '#1F2937' }}>
+          <span className="truncate text-[11px] font-bold" style={{ color: '#1F2937' }}>
             {label} Post
           </span>
           <span className="flex-1" />
@@ -567,13 +579,13 @@ export default function CalendarBoard({
         </div>
         <div
           className="mt-0.5 truncate text-[10px] font-medium"
-          style={{ color: '#6B7280', paddingLeft: t0 ? 24 : 0 }}
+          style={{ color: '#6B7280', paddingLeft: t0 ? 22 : 0 }}
         >
           {formatTime(p.scheduled_at)}
           {partCount(p) > 1 ? ` · Thread ${partCount(p)}` : ''}
         </div>
         {thumbs.length > 0 ? (
-          <div className="mt-1.5 flex gap-1" style={{ paddingLeft: t0 ? 24 : 0 }}>
+          <div className="mt-1 flex gap-1" style={{ paddingLeft: t0 ? 22 : 0 }}>
             {thumbs.map((m) => {
               const src =
                 m.kind === 'image' && m.signed_url
@@ -584,7 +596,7 @@ export default function CalendarBoard({
                   key={m.id}
                   src={src}
                   alt=""
-                  className="h-7 w-7 rounded-md border border-black/5 object-cover"
+                  className="h-6 w-6 rounded-md border border-black/5 object-cover"
                 />
               ) : null;
             })}
@@ -634,7 +646,7 @@ export default function CalendarBoard({
         }}
         className={`relative cursor-pointer border-l border-dashed border-line-soft transition ${
           selectedKey === k ? 'bg-paper-dim/40' : ''
-        } ${isOver ? 'bg-accent-soft' : ''}`}
+        } ${k === todayKey ? 'bg-accent/[0.04]' : ''} ${isOver ? 'bg-accent-soft' : ''}`}
         style={{ height: DAY_H }}
       >
         {Array.from({ length: 25 }, (_, h) => (
