@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
@@ -571,6 +571,16 @@ export default function CalendarBoard({
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const activePost = posts.find((p) => p.id === activeId) ?? null;
+
+  // Popup open ⇔ an event is selected. Escape closes it.
+  useEffect(() => {
+    if (!selectedPostId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedPostId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedPostId]);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -604,11 +614,6 @@ export default function CalendarBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posts, chainParts]);
 
-  const undated = useMemo(
-    () => posts.filter((p) => !p.scheduled_at && isHead(p)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [posts, chainParts],
-  );
   const weeks = useMemo(() => monthMatrix(anchor), [anchor]);
   /** Monday-first 7-day window containing the anchor (Week view). */
   const weekDays = useMemo(() => {
@@ -885,26 +890,32 @@ export default function CalendarBoard({
             </button>
           </div>
         </div>
-        <nav
-          aria-label="Calendar view"
-          className="flex items-center gap-0.5 rounded-full bg-paper-dim p-1"
-        >
-          {VIEW_TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => goView(t.id)}
-              aria-current={view === t.id ? 'page' : undefined}
-              className={`rounded-full px-4 py-1.5 text-xs transition ${
-                view === t.id
-                  ? 'bg-paper font-extrabold text-ink shadow-sm'
-                  : 'font-bold text-muted hover:text-ink'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <div className="flex items-center gap-2">
+          <nav
+            aria-label="Calendar view"
+            className="flex items-center gap-0.5 rounded-full bg-paper-dim p-1"
+          >
+            {VIEW_TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => goView(t.id)}
+                aria-current={view === t.id ? 'page' : undefined}
+                className={`rounded-full px-4 py-1.5 text-xs transition ${
+                  view === t.id
+                    ? 'bg-paper font-extrabold text-ink shadow-sm'
+                    : 'font-bold text-muted hover:text-ink'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          <Link href="/post" className="btn btn-bolt btn-sm">
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            New post
+          </Link>
+        </div>
       </header>
 
       {err && (
@@ -923,8 +934,7 @@ export default function CalendarBoard({
         </div>
       )}
 
-      <div className="flex flex-1 flex-col xl:flex-row">
-        <div className="min-w-0 flex-1 p-4">
+      <div className="min-w-0 flex-1 p-4">
           <DndContext
             sensors={sensors}
             collisionDetection={pointerWithin}
@@ -1128,70 +1138,53 @@ export default function CalendarBoard({
           </DndContext>
         </div>
 
-        <aside className="w-full shrink-0 border-t border-line bg-card p-5 xl:w-80 xl:border-l xl:border-t-0">
-          {selectedPost ? (
-            <div className="mb-5">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="eyebrow">
-                  Selected post
-                  {partCount(selectedPost) > 1 ? ` · thread of ${partCount(selectedPost)}` : ''}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPostId(null)}
-                  aria-label="Close editor"
-                  className="text-xs font-bold text-muted transition hover:text-ink"
-                >
-                  ✕
-                </button>
-              </div>
-              {partCount(selectedPost) > 1 ? (
-                <p className="mb-2 text-xs text-muted">
-                  Retiming or deleting applies to the whole thread.
-                </p>
-              ) : null}
-              <TimeEditor
-                key={selectedPost.id}
-                post={selectedPost}
-                dayLabel={selectedKey}
-                avatarOf={avatarOf}
-                onSave={(iso) => void retime(selectedPost.id, iso)}
-                onSaveChannels={(times) => void persistChannels(times)}
-                onPublish={() => void publishNow()}
-                onDelete={() => void remove()}
-                busy={pending}
-              />
-            </div>
-          ) : null}
-
-          {undated.length > 0 && (
-            <div className="mt-6">
-              <p className="eyebrow mb-2">Drafts · no date</p>
-              <div className="space-y-1.5">
-              {undated.slice(0, 6).map((p) => (
-                <div key={p.id} className="truncate rounded-lg bg-bone px-2.5 py-1.5 text-xs text-soft">
-                  {snippet(p)}
-                  {partCount(p) > 1 ? ` · thread of ${partCount(p)}` : ''}
-                </div>
-              ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6 flex flex-col gap-2">
-            <Link href="/post" className="btn btn-bolt w-full">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              New post
-            </Link>
-            {pending && <p className="text-center text-xs text-muted">Saving…</p>}
-            {channels.length === 0 && (
-              <p className="text-center text-xs text-muted">
-                No channels connected yet. Connect one in the app.
+      {selectedPost ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Post details"
+        >
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setSelectedPostId(null)}
+            className="absolute inset-0 cursor-default bg-ink/40 backdrop-blur-[2px]"
+          />
+          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-card p-5 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="eyebrow">
+                Post · {selectedKey}
+                {partCount(selectedPost) > 1 ? ` · thread of ${partCount(selectedPost)}` : ''}
               </p>
-            )}
+              <button
+                type="button"
+                onClick={() => setSelectedPostId(null)}
+                aria-label="Close details"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+            {partCount(selectedPost) > 1 ? (
+              <p className="mb-2 text-xs text-muted">
+                Retiming or deleting applies to the whole thread.
+              </p>
+            ) : null}
+            <TimeEditor
+              key={selectedPost.id}
+              post={selectedPost}
+              dayLabel={selectedKey}
+              avatarOf={avatarOf}
+              onSave={(iso) => void retime(selectedPost.id, iso)}
+              onSaveChannels={(times) => void persistChannels(times)}
+              onPublish={() => void publishNow()}
+              onDelete={() => void remove()}
+              busy={pending}
+            />
           </div>
-        </aside>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
