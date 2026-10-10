@@ -2,22 +2,13 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ChartColumn, ChevronLeft, ChevronRight, Clock, Link2 } from 'lucide-react';
 import SendIcon from '@/components/SendIcon';
-import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
 import QuickPost from '@/components/QuickPost';
 import PostPeek from '@/components/PostPeek';
 import RecentActivityCarousel from '@/components/RecentActivityCarousel';
 import type { RecentActivityItem } from '@/components/RecentActivityCarousel';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Card } from '@/components/ui/card';
 import { providerMeta } from '@/lib/providers';
 import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
 import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
@@ -118,10 +109,6 @@ export default async function DashboardPage() {
   }
   const queued = posts.filter((p) => p.status === 'queued' || p.status === 'publishing');
   const queuedHeads = queued.filter((p) => isChainHead(p, parts));
-  const upcoming = queuedHeads
-    .filter((p) => p.scheduled_at && new Date(p.scheduled_at).getTime() >= now - 60_000)
-    .sort((a, b) => +new Date(a.scheduled_at!) - +new Date(b.scheduled_at!))
-    .slice(0, 5);
   const sentWeek = posts.filter(
     (p) =>
       (p.status === 'sent' || p.status === 'partial') &&
@@ -395,58 +382,6 @@ export default async function DashboardPage() {
             )}
           </Card>
 
-          {/* Upcoming */}
-          <Card aria-label="Upcoming posts">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Upcoming posts</CardTitle>
-                <Link href="/calendar" className="text-xs font-bold text-ink hover:underline">
-                  View all
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-2">
-              {upcoming.length === 0 ? (
-                <p className="text-sm text-muted">Nothing scheduled right now.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-0" />
-                      <TableHead>Post</TableHead>
-                      <TableHead className="text-right">When</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {upcoming.map((p) => {
-                      const t0 = p.post_targets?.[0];
-                      const pv = t0?.provider ?? 'instagram';
-                      const meta = providerMeta(pv);
-                      return (
-                        <TableRow key={p.id}>
-                          <TableCell className="w-0 pr-0">
-                            <ChannelAvatar
-                              provider={pv}
-                              avatar={t0 ? avatarOf(t0.channel_id) : undefined}
-                              size={32}
-                            />
-                          </TableCell>
-                          <TableCell className="min-w-0">
-                            <span className="block truncate text-[11px] font-bold text-muted">{meta.label}</span>
-                            <span className="block truncate text-xs font-bold">{p.title || 'Untitled post'}</span>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-right text-[11px] text-faint">
-                            {fmtDay(p.scheduled_at)}, {fmtTime(p.scheduled_at)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Analytics snapshot */}
           <AnalyticsCard
             sentAt={posts
@@ -457,44 +392,6 @@ export default async function DashboardPage() {
               .map((p) => p.sent_at as string)}
           />
 
-          {/* Needs attention, only when something is actually wrong */}
-          {(() => {
-            const failed = posts.filter((p) => p.status === 'failed');
-            const approvals = posts.filter((p) => p.status === 'approval');
-            const sick = channels.filter((c) => c.status !== 'connected');
-            const total = failed.length + approvals.length + sick.length;
-            if (total === 0) return null;
-            return (
-              <Card className="p-5" aria-label="Needs attention">
-                <p className="font-display text-base font-extrabold tracking-tight">Needs attention</p>
-                <ul className="mt-3 space-y-2 text-sm">
-                  {failed.slice(0, 2).map((p) => (
-                    <li key={p.id}>
-                      <Link href="/queue" className="block truncate font-bold hover:text-ink">
-                        {p.title || 'Untitled post'}
-                      </Link>
-                      <p className="text-xs text-muted">Failed to send. Retry from the queue.</p>
-                    </li>
-                  ))}
-                  {approvals.slice(0, 2).map((p) => (
-                    <li key={p.id}>
-                      <Link href="/queue" className="block truncate font-bold hover:text-ink">
-                        {p.title || 'Untitled post'}
-                      </Link>
-                      <p className="text-xs text-muted">Waiting for approval.</p>
-                    </li>
-                  ))}
-                  {sick.slice(0, 3).map((c) => (
-                    <li key={c.id} className="flex items-center gap-2">
-                      <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={22} badge={false} />
-                      <span className="truncate font-bold">{providerMeta(c.provider).label}</span>
-                      <span className="text-xs text-muted">{c.status}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            );
-          })()}
         </div>
       </div>
     </div>
