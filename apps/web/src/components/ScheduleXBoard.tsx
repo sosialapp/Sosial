@@ -17,6 +17,7 @@ import { ScheduleXCalendar, useNextCalendarApp } from '@schedule-x/react';
 import { createEventsServicePlugin } from '@schedule-x/events-service';
 import { createCalendarControlsPlugin } from '@schedule-x/calendar-controls';
 import { createDragAndDropPlugin } from '@schedule-x/drag-and-drop';
+import { createScrollControllerPlugin } from '@schedule-x/scroll-controller';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets } from '@/lib/types';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -123,7 +124,7 @@ export type SXEvent = CalendarEvent & {
   sxTime?: string;
   sxThread?: number | null;
   sxStatus?: string;
-  sxThumbs?: { id: string; src: string }[];
+  sxThumbs?: { id: string; kind: 'video' | 'image'; src: string }[];
   sxTintBg?: string;
   sxTintBorder?: string;
 };
@@ -165,7 +166,22 @@ function sxClockLabel(start: unknown, fallback?: string): string {
   return fallback ?? '';
 }
 
-/** Custom time-grid event: mini post card (author · handle · time, text, media). */
+/** Scroll the time grid to just before now on first render (HH:00). */
+function initialScrollForNow(): string {
+  const h = (new Date().getHours() + 23) % 24;
+  return `${String(h).padStart(2, '0')}:00`;
+}
+
+/** Event media at its natural ratio: image, or muted preview for video. */
+function eventMedia(t: { id: string; kind: string; src: string }, cls: string) {
+  const shared = `${cls} rounded-lg border border-black/5 bg-black/5 object-contain`;
+  return t.kind === 'video' ? (
+    <video key={t.id} src={t.src} muted playsInline preload="metadata" className={shared} />
+  ) : (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={t.id} src={t.src} alt="" loading="lazy" className={shared} />
+  );
+}
 function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   const c = calendarEvent ?? {};
   const time = sxClockLabel(c.start, c.sxTime);
@@ -198,16 +214,15 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
         </div>
       ) : null}
       {Array.isArray(c.sxThumbs) && c.sxThumbs.length > 0 ? (
-        <div className="mt-1 flex gap-1">
-          {c.sxThumbs.slice(0, 3).map((t) => (
-            <img
-              key={t.id}
-              src={t.src}
-              alt=""
-              className="h-12 w-12 rounded-lg border border-black/5 object-cover"
-            />
-          ))}
-        </div>
+        c.sxThumbs.length === 1 ? (
+          <div className="mt-1">{eventMedia(c.sxThumbs[0], 'h-auto max-h-[100px] w-full')}</div>
+        ) : (
+          <div className="mt-1 grid grid-cols-3 gap-1">
+            {c.sxThumbs
+              .slice(0, 3)
+              .map((t) => eventMedia(t, 'h-auto max-h-[60px] w-full'))}
+          </div>
+        )
       ) : null}
     </div>
   );
@@ -273,6 +288,12 @@ function TimeEditor({
     Object.fromEntries(targets.map((t) => [t.channel_id, partsOf(t.scheduled_at)])),
   );
   const perChannel = targets.length > 1;
+  // Cancelling a scheduled post removes it; drafts/failed posts say Delete.
+  const cancellable =
+    post.status === 'queued' ||
+    post.status === 'publishing' ||
+    post.status === 'approval' ||
+    post.status === 'partial';
 
   const applyAll = (h: number, m: number) => onSave(isoAt(dayLabel, h, m));
 
@@ -379,9 +400,17 @@ function TimeEditor({
           </Button>
         ) : null}
         <Button variant="ghost" size="sm" className="flex-1 !text-[#9F2F2D]" onClick={onDelete} disabled={busy}>
-          Delete
+          {cancellable ? 'Cancel schedule' : 'Delete'}
         </Button>
       </div>
+      {post.status !== 'sent' ? (
+        <Link
+          href={`/post?edit=${post.id}`}
+          className="btn btn-sm mt-2 w-full border border-line bg-paper"
+        >
+          Edit post
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -505,6 +534,7 @@ function SXMount({
   const [eventsService] = useState(() => createEventsServicePlugin());
   const [controls] = useState(() => createCalendarControlsPlugin());
   const [dnd] = useState(() => createDragAndDropPlugin(15));
+  const [scroller] = useState(() => createScrollControllerPlugin({ initialScroll: initialScrollForNow() }));
   const viewObj = SX_VIEWS[view];
 
   const calendar = useNextCalendarApp(
@@ -541,7 +571,7 @@ function SXMount({
         },
       },
     },
-    [eventsService, controls, dnd],
+    [eventsService, controls, dnd, scroller],
   );
 
   // Push fresh server data into the calendar (retime/publish/delete → refresh).
@@ -684,17 +714,18 @@ export default function ScheduleXBoard({
         .slice(0, 4)
         .map((m) => ({
           id: m.id,
+          kind: m.kind,
           src:
             m.kind === 'image' && m.signed_url
               ? imageThumb(m.signed_url, THUMB_WIDTHS.xs)
               : (m.thumb_url ?? m.signed_url ?? ''),
         }))
-        .filter((t): t is { id: string; src: string } => Boolean(t.src));
+        .filter((t): t is { id: string; kind: 'video' | 'image'; src: string } => Boolean(t.src));
       out.push({
         id: p.id,
         title: snippet(p),
         start,
-        end: start.add({ minutes: 120 }),
+        end: start.add({ minutes: 150 }),
         calendarId: statusCalendar(p.status),
         sxProvider: t0?.provider,
         sxAvatar: t0 ? avatarOf(t0.channel_id) : undefined,
