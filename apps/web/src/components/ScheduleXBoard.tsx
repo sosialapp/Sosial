@@ -29,6 +29,7 @@ import {
   addDays,
   addMonths,
   dayKey,
+  formatDateTime,
   formatTime,
   monthMatrix,
 } from '@/lib/format';
@@ -387,6 +388,98 @@ function TimeEditor({
 
 type BoardView = 'day' | 'week' | 'month' | 'year';
 
+/** Sent-post popup body: the dashboard Recent-posts social view (author, text, media). */
+function SentPostView({
+  post,
+  mediaItems,
+  avatarOf,
+  channelById,
+  cleanHandle,
+  onDelete,
+  busy,
+}: {
+  post: PostWithTargets;
+  mediaItems: MediaAssetRow[];
+  avatarOf: (channelId: string) => string | undefined;
+  channelById: Map<string, ConnectedChannel>;
+  cleanHandle: (raw: string | null | undefined) => string | null;
+  onDelete: () => void;
+  busy: boolean;
+}) {
+  const t0 = post.post_targets[0];
+  const provider = t0?.provider ?? 'x';
+  const ch = t0 ? channelById.get(t0.channel_id) : undefined;
+  const name = ch?.display_name?.trim() || providerMeta(provider).label;
+  const handle = cleanHandle(ch?.handle);
+  const when = post.sent_at ?? post.scheduled_at;
+  const st = POST_STATUS_META[post.status];
+  const text = post.body || post.title || '';
+  return (
+    <div>
+      <div className="flex items-center gap-2.5">
+        <ChannelAvatar
+          provider={provider}
+          avatar={t0 ? avatarOf(t0.channel_id) : undefined}
+          size={36}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-extrabold">{name}</span>
+          <span className="block truncate text-xs text-faint">
+            {handle ? `${handle} · ` : ''}
+            {when ? formatDateTime(when) : ''}
+          </span>
+        </span>
+        <Badge className={st.className}>{st.label}</Badge>
+      </div>
+      {text ? (
+        <p className="mt-3 max-h-[30vh] overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-soft">
+          {text}
+        </p>
+      ) : (
+        <p className="mt-3 text-sm italic text-faint">No text — media only.</p>
+      )}
+      {mediaItems.length > 0 ? (
+        <div
+          className={`mt-3 flex flex-wrap justify-center gap-1.5 ${mediaItems.length > 1 ? 'mx-auto max-w-[320px]' : ''}`}
+        >
+          {mediaItems.map((m) =>
+            m.kind === 'video' ? (
+              <video
+                key={m.id}
+                src={m.signed_url}
+                muted
+                playsInline
+                controls
+                className="h-auto max-h-[220px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
+              />
+            ) : m.signed_url || m.thumb_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={m.id}
+                src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.md) : m.thumb_url ?? undefined}
+                alt=""
+                loading="lazy"
+                className={`h-auto w-auto rounded-xl border border-line bg-bone object-contain ${
+                  mediaItems.length > 1 ? 'max-h-[120px] max-w-[calc(50%-0.25rem)]' : 'max-h-[220px] max-w-full'
+                }`}
+              />
+            ) : null,
+          )}
+        </div>
+      ) : null}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="mt-3 w-full !text-[#9F2F2D]"
+        onClick={onDelete}
+        disabled={busy}
+      >
+        Delete
+      </Button>
+    </div>
+  );
+}
+
 /** Schedule-X mount: creates the calendar once, then syncs events + date via plugins. */
 function SXMount({
   view,
@@ -460,6 +553,16 @@ function SXMount({
   useEffect(() => {
     if (calendar) controls.setDate(Temporal.PlainDate.from(anchorKey));
   }, [calendar, anchorKey, controls]);
+
+  // Flip the theme live through the calendar's reactive signal — remounting
+  // here is what caused the full refresh + lost scroll on every toggle.
+  useEffect(() => {
+    if (!calendar) return;
+    const state = (
+      calendar as unknown as { calendarState?: { isDark?: { value: boolean } } }
+    ).calendarState;
+    if (state?.isDark) state.isDark.value = dark;
+  }, [calendar, dark]);
 
   if (!calendar) {
     return <div className="h-full min-h-[480px] animate-pulse rounded-2xl bg-paper-dim" />;
@@ -943,7 +1046,6 @@ export default function ScheduleXBoard({
         ) : mounted ? (
           <div className={view === 'month' ? 'sx-height-auto' : undefined}>
             <SXMount
-              key={dark ? 'dark' : 'light'}
               view={view}
               anchorKey={dayKey(anchor)}
               events={sxEvents}
@@ -998,17 +1100,29 @@ export default function ScheduleXBoard({
                 Retiming or deleting applies to the whole thread.
               </p>
             ) : null}
-            <TimeEditor
-              key={selectedPost.id}
-              post={selectedPost}
-              dayLabel={selectedKey}
-              avatarOf={avatarOf}
-              onSave={(iso) => void retime(selectedPost.id, iso)}
-              onSaveChannels={(times) => void persistChannels(times)}
-              onPublish={() => void publishNow()}
-              onDelete={() => void remove()}
-              busy={pending}
-            />
+            {selectedPost.status === 'sent' ? (
+              <SentPostView
+                post={selectedPost}
+                mediaItems={(media[selectedPost.id] ?? []).slice(0, 4)}
+                avatarOf={avatarOf}
+                channelById={channelById}
+                cleanHandle={cleanHandle}
+                onDelete={() => void remove()}
+                busy={pending}
+              />
+            ) : (
+              <TimeEditor
+                key={selectedPost.id}
+                post={selectedPost}
+                dayLabel={selectedKey}
+                avatarOf={avatarOf}
+                onSave={(iso) => void retime(selectedPost.id, iso)}
+                onSaveChannels={(times) => void persistChannels(times)}
+                onPublish={() => void publishNow()}
+                onDelete={() => void remove()}
+                busy={pending}
+              />
+            )}
           </div>
         </div>
       ) : null}
