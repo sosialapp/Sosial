@@ -1032,6 +1032,22 @@ export default function ScheduleXBoard({
       ? anchor.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
       : `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
 
+  // Muted period line under the title: the exact span the current view covers.
+  const rangeLabel = (() => {
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (view === 'week') {
+      const start = addDays(anchor, -((anchor.getDay() + 6) % 7)); // Monday start
+      const end = addDays(start, 6);
+      return `${fmt(start)} – ${fmt(end)}, ${end.getFullYear()}`;
+    }
+    if (view === 'list') {
+      const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+      return `${fmt(start)} – ${fmt(addDays(start, 13))}`;
+    }
+    if (view === 'day') return anchor.toLocaleDateString(undefined, { weekday: 'long' });
+    return null;
+  })();
+
   const stepPrev = () => {
     if (view === 'month') setAnchor(addMonths(anchor, -1));
     else if (view === 'week') setAnchor(addDays(anchor, -7));
@@ -1079,6 +1095,17 @@ export default function ScheduleXBoard({
   ];
 
   const todayKey = dayKey(new Date());
+
+  /** Year view: posts per month for the anchor year (drives the count pills). */
+  const yearCounts = useMemo(() => {
+    const y = anchor.getFullYear();
+    const counts = Array.from({ length: 12 }, () => 0);
+    byDay.forEach((items, k) => {
+      const [yy, mm] = k.split('-').map(Number);
+      if (yy === y && mm >= 1 && mm <= 12) counts[mm - 1] += items.length;
+    });
+    return counts;
+  }, [byDay, anchor]);
 
   /** List view: 14-day window from the anchor, days with posts only. */
   const listDays = useMemo(() => {
@@ -1161,20 +1188,25 @@ export default function ScheduleXBoard({
       <>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
         <div className="flex items-center gap-3">
-          <h1 className="font-display text-xl font-extrabold tracking-tight">{title}</h1>
-          <div className="flex items-center rounded-full border border-line">
+          <div className="flex flex-col">
+            <h1 className="font-display text-xl font-extrabold tracking-tight leading-tight">{title}</h1>
+            {rangeLabel ? (
+              <span className="text-[11px] font-bold text-muted">{rangeLabel}</span>
+            ) : null}
+          </div>
+          <div className="flex items-center rounded-full border border-line p-0.5">
             <button
               type="button"
               onClick={stepPrev}
               aria-label="Previous"
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:text-ink"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
             >
               <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
             <button
               type="button"
               onClick={stepToday}
-              className="px-1.5 text-xs font-bold text-ink transition hover:opacity-70"
+              className="rounded-full px-3 py-1 text-xs font-bold text-ink transition hover:bg-paper-dim"
             >
               Today
             </button>
@@ -1182,7 +1214,7 @@ export default function ScheduleXBoard({
               type="button"
               onClick={stepNext}
               aria-label="Next"
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:text-ink"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
             >
               <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -1360,18 +1392,32 @@ export default function ScheduleXBoard({
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {MONTHS.map((name, m) => (
-                <div key={name} className="rounded-2xl border border-line bg-card p-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        `/calendar-month?d=${anchor.getFullYear()}-${String(m + 1).padStart(2, '0')}-01`,
-                      )
-                    }
-                    className="text-sm font-extrabold transition hover:underline"
-                  >
-                    {name}
-                  </button>
+                <div
+                  key={name}
+                  className={`rounded-2xl border bg-card p-4 transition ${
+                    m === anchor.getMonth() && anchor.getFullYear() === new Date().getFullYear()
+                      ? 'border-accent shadow-sm'
+                      : 'border-line'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/calendar-month?d=${anchor.getFullYear()}-${String(m + 1).padStart(2, '0')}-01`,
+                        )
+                      }
+                      className="text-sm font-extrabold transition hover:underline"
+                    >
+                      {name}
+                    </button>
+                    {yearCounts[m] ? (
+                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-bolt-deep">
+                        {yearCounts[m]}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="mt-2 grid grid-cols-7 gap-y-1 text-center">
                     {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                       <span key={`${d}${i}`} className="text-[9px] font-bold text-faint">
@@ -1390,9 +1436,17 @@ export default function ScheduleXBoard({
                             key={k}
                             className={`flex flex-col items-center py-0.5 text-[11px] ${
                               inMonth ? 'text-soft' : 'text-faint opacity-40'
-                            } ${isT ? 'font-extrabold text-ink' : ''}`}
+                            }`}
                           >
-                            {d.getDate()}
+                            <span
+                              className={
+                                isT
+                                  ? 'flex h-4 w-4 items-center justify-center rounded-full bg-bolt font-extrabold text-on-accent'
+                                  : ''
+                              }
+                            >
+                              {d.getDate()}
+                            </span>
                             <span
                               className={`mt-0.5 h-1 w-1 rounded-full ${has ? 'bg-accent' : 'bg-transparent'}`}
                             />
