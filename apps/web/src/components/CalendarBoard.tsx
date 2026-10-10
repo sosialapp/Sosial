@@ -16,6 +16,17 @@ import { MONTHS, WEEKDAYS, addDays, addMonths, dayKey, formatTime, isSameDay, mo
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { ReactNode } from 'react';
 
 type View = 'day' | 'week' | 'month' | 'year';
 
@@ -60,6 +71,244 @@ const EVENT_TINT: Record<string, { bg: string; border: string }> = {
 const DEFAULT_TINT = { bg: '#F1F5F9', border: '#E2E8F0' };
 const tintOf = (provider: string | undefined): { bg: string; border: string } =>
   (provider && EVENT_TINT[provider]) || DEFAULT_TINT;
+
+/** Droppable id for a calendar day cell/column. */
+const dayDropId = (key: string): string => `day:${key}`;
+
+/** Precomputed bits for a schedule card (tint, labels, thumbnails). */
+export type CardBits = {
+  tint: { bg: string; border: string };
+  label: string;
+  timeLabel: string;
+  threadLabel: string | null;
+  thumbs: { id: string; src: string }[];
+  avatar: string | undefined;
+  provider: string | undefined;
+};
+
+/** Pure pastel schedule card — rendered in the grid and in the drag overlay. */
+function ScheduleCardView({
+  post,
+  bits,
+  selected,
+  dimmed,
+}: {
+  post: PostWithTargets;
+  bits: CardBits;
+  selected: boolean;
+  dimmed: boolean;
+}) {
+  return (
+    <div
+      title={snippet(post)}
+      className={`overflow-hidden rounded-xl border p-2 shadow-sm transition ${
+        dimmed ? 'opacity-50' : ''
+      } ${selected ? 'ring-2 ring-ink/40' : ''}`}
+      style={{ background: bits.tint.bg, borderColor: bits.tint.border }}
+    >
+      <div className="flex items-center gap-1.5">
+        {bits.provider ? (
+          <ChannelAvatar provider={bits.provider} avatar={bits.avatar} size={16} />
+        ) : null}
+        <span className="truncate text-[11px] font-bold" style={{ color: '#1F2937' }}>
+          {bits.label} Post
+        </span>
+        <span className="flex-1" />
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotOf(post.status)}`}
+          aria-hidden="true"
+        />
+      </div>
+      <div
+        className="mt-0.5 truncate text-[10px] font-medium"
+        style={{ color: '#6B7280', paddingLeft: bits.provider ? 22 : 0 }}
+      >
+        {bits.timeLabel}
+        {bits.threadLabel ? ` · ${bits.threadLabel}` : ''}
+      </div>
+      {bits.thumbs.length > 0 ? (
+        <div className="mt-1 flex gap-1" style={{ paddingLeft: bits.provider ? 22 : 0 }}>
+          {bits.thumbs.map((t) => (
+            <img
+              key={t.id}
+              src={t.src}
+              alt=""
+              className="h-6 w-6 rounded-md border border-black/5 object-cover"
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** dnd-kit draggable schedule card for the Day/Week time grids. */
+function DraggableScheduleCard({
+  post,
+  bits,
+  selected,
+  dimmed,
+  top,
+  left,
+  width,
+  onOpen,
+}: {
+  post: PostWithTargets;
+  bits: CardBits;
+  selected: boolean;
+  dimmed: boolean;
+  top: number;
+  left: string;
+  width: string;
+  onOpen: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: post.id });
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+      className="absolute cursor-grab"
+      style={{ top, left, width, touchAction: 'none' }}
+    >
+      <ScheduleCardView post={post} bits={bits} selected={selected} dimmed={dimmed || isDragging} />
+    </div>
+  );
+}
+
+/** dnd-kit droppable day column for the Day/Week time grids. */
+function DroppableDayColumn({
+  date,
+  selected,
+  isToday,
+  nowTop,
+  onSelect,
+  children,
+}: {
+  date: Date;
+  selected: boolean;
+  isToday: boolean;
+  nowTop: number;
+  onSelect: () => void;
+  children: ReactNode;
+}) {
+  const k = dayKey(date);
+  const { setNodeRef, isOver } = useDroppable({ id: dayDropId(k) });
+  return (
+    <div
+      ref={setNodeRef}
+      onClick={onSelect}
+      className={`relative cursor-pointer border-l border-dashed border-line-soft transition ${
+        selected ? 'bg-paper-dim/40' : ''
+      } ${isToday ? 'bg-accent/[0.04]' : ''} ${isOver ? 'bg-accent-soft' : ''}`}
+      style={{ height: DAY_H }}
+    >
+      {Array.from({ length: 25 }, (_, h) => (
+        <div
+          key={h}
+          aria-hidden="true"
+          className="absolute right-0 left-0 border-t border-dashed border-line-soft"
+          style={{ top: h * HOUR_PX }}
+        />
+      ))}
+      {isToday ? (
+        <div className="absolute right-0 left-0 z-10 border-t-2 border-[#E5484D]" style={{ top: nowTop }}>
+          <span className="absolute -top-[5px] left-0 h-2 w-2 rounded-full bg-[#E5484D]" />
+        </div>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+/** dnd-kit droppable day cell for the Month grid. */
+function MonthDayCell({
+  date,
+  inMonth,
+  isToday,
+  count,
+  selected,
+  onSelect,
+  children,
+}: {
+  date: Date;
+  inMonth: boolean;
+  isToday: boolean;
+  count: number;
+  selected: boolean;
+  onSelect: () => void;
+  children: ReactNode;
+}) {
+  const k = dayKey(date);
+  const { setNodeRef, isOver } = useDroppable({ id: dayDropId(k) });
+  return (
+    <div
+      ref={setNodeRef}
+      onClick={onSelect}
+      className={`min-h-[104px] cursor-pointer bg-card p-1.5 transition ${
+        inMonth ? '' : 'opacity-45'
+      } ${selected ? 'bg-paper' : ''} ${isOver ? 'ring-2 ring-inset ring-accent' : ''}`}
+    >
+      <div className="mb-1 flex items-center justify-between">
+        <span
+          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+            isToday ? 'bg-accent text-on-accent' : 'text-muted'
+          }`}
+        >
+          {date.getDate()}
+        </span>
+        {count > 2 && <span className="text-[10px] text-faint">+{count - 2}</span>}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+/** dnd-kit draggable compact chip for the Month grid. */
+function DraggableMonthChip({
+  post,
+  avatarOf,
+  threadLabel,
+  selected,
+  dimmed,
+  onOpen,
+}: {
+  post: PostWithTargets;
+  avatarOf: (channelId: string) => string | undefined;
+  threadLabel: string | null;
+  selected: boolean;
+  dimmed: boolean;
+  onOpen: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: post.id });
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+      title={snippet(post)}
+      className={`cursor-grab rounded-lg border border-line bg-paper px-1.5 py-1 text-[11px] leading-tight ${
+        dimmed || isDragging ? 'opacity-50' : ''
+      } ${selected ? 'ring-1 ring-accent' : ''}`}
+      style={{ touchAction: 'none' }}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <span className="font-bold text-ink">{formatTime(post.scheduled_at)}</span>
+        <ChannelAvatars post={post} avatarOf={avatarOf} />
+      </div>
+      {threadLabel ? <div className="text-[10px] font-bold text-faint">{threadLabel}</div> : null}
+      <div className="truncate text-soft">{snippet(post)}</div>
+    </div>
+  );
+}
 
 /** Real account avatars with platform logo badges (brand disc fallback). */
 function ChannelAvatars({
@@ -319,8 +568,9 @@ export default function CalendarBoard({
   });
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overKey, setOverKey] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const activePost = posts.find((p) => p.id === activeId) ?? null;
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -459,13 +709,11 @@ export default function CalendarBoard({
     }
   }
 
-  async function dropOn(target: Date) {
-    const id = dragId;
-    setDragId(null);
-    setOverKey(null);
-    if (!id) return;
+  async function dropOn(target: Date, id?: string) {
+    const pid = id ?? activeId;
+    if (!pid) return;
     // Dragging a chain head moves every part to the new day, times kept.
-    const moves = chainOf(id).map((part) => ({ id: part.id, iso: moveToDay(part.scheduled_at, target) }));
+    const moves = chainOf(pid).map((part) => ({ id: part.id, iso: moveToDay(part.scheduled_at, target) }));
     if (!moves.length) return;
     if (moves.some((m) => queueTooSoon(m.iso))) {
       setErr(leadTimeMessage());
@@ -529,81 +777,28 @@ export default function CalendarBoard({
     { id: 'year', label: 'Year' },
   ];
 
-  /** Pastel schedule card: provider avatar + "{Provider} Post", time, thumbnails. */
-  const scheduleCard = (
-    p: PostWithTargets,
-    k: string,
-    pos?: { top: number; left: string; width: string },
-  ) => {
+  /** Precomputed card bits (tint, labels, thumbnails) for a post. */
+  const cardBits = (p: PostWithTargets): CardBits => {
     const t0 = p.post_targets[0];
-    const tint = tintOf(t0?.provider);
-    const label = t0 ? providerMeta(t0.provider).label : 'Post';
-    const thumbs = (media[p.id] ?? []).slice(0, 4);
-    return (
-      <div
-        key={p.id}
-        draggable
-        onDragStart={(e) => {
-          e.stopPropagation();
-          setDragId(p.id);
-        }}
-        onDragEnd={() => {
-          setDragId(null);
-          setOverKey(null);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          setSelectedKey(k);
-          setSelectedPostId(p.id);
-        }}
-        title={snippet(p)}
-        className={`cursor-grab overflow-hidden rounded-xl border p-2 shadow-sm transition hover:shadow-md ${
-          dragId === p.id ? 'opacity-50' : ''
-        } ${selectedPostId === p.id ? 'ring-2 ring-ink/40' : ''} ${pos ? 'absolute' : ''}`}
-        style={{
-          background: tint.bg,
-          borderColor: tint.border,
-          ...(pos ?? {}),
-          maxHeight: 160,
-        }}
-      >
-        <div className="flex items-center gap-1.5">
-          {t0 ? (
-            <ChannelAvatar provider={t0.provider} avatar={avatarOf(t0.channel_id)} size={16} />
-          ) : null}
-          <span className="truncate text-[11px] font-bold" style={{ color: '#1F2937' }}>
-            {label} Post
-          </span>
-          <span className="flex-1" />
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotOf(p.status)}`} aria-hidden="true" />
-        </div>
-        <div
-          className="mt-0.5 truncate text-[10px] font-medium"
-          style={{ color: '#6B7280', paddingLeft: t0 ? 22 : 0 }}
-        >
-          {formatTime(p.scheduled_at)}
-          {partCount(p) > 1 ? ` · Thread ${partCount(p)}` : ''}
-        </div>
-        {thumbs.length > 0 ? (
-          <div className="mt-1 flex gap-1" style={{ paddingLeft: t0 ? 22 : 0 }}>
-            {thumbs.map((m) => {
-              const src =
-                m.kind === 'image' && m.signed_url
-                  ? imageThumb(m.signed_url, THUMB_WIDTHS.xs)
-                  : (m.thumb_url ?? m.signed_url ?? undefined);
-              return src ? (
-                <img
-                  key={m.id}
-                  src={src}
-                  alt=""
-                  className="h-6 w-6 rounded-md border border-black/5 object-cover"
-                />
-              ) : null;
-            })}
-          </div>
-        ) : null}
-      </div>
-    );
+    const thumbs = (media[p.id] ?? [])
+      .slice(0, 4)
+      .map((m) => ({
+        id: m.id,
+        src:
+          m.kind === 'image' && m.signed_url
+            ? imageThumb(m.signed_url, THUMB_WIDTHS.xs)
+            : (m.thumb_url ?? m.signed_url ?? ''),
+      }))
+      .filter((t): t is { id: string; src: string } => Boolean(t.src));
+    return {
+      tint: tintOf(t0?.provider),
+      label: t0 ? providerMeta(t0.provider).label : 'Post',
+      timeLabel: formatTime(p.scheduled_at),
+      threadLabel: partCount(p) > 1 ? `Thread ${partCount(p)}` : null,
+      thumbs,
+      avatar: t0 ? avatarOf(t0.channel_id) : undefined,
+      provider: t0?.provider,
+    };
   };
 
   /** Hour gutter for the time grids (12 AM … 11 PM). */
@@ -621,55 +816,41 @@ export default function CalendarBoard({
     </div>
   );
 
-  /** One day column of a time grid: dashed hour lines, now-line, schedule cards. */
+  /** One day column of a time grid: droppable target with schedule cards. */
   const dayColumn = (
     date: Date,
     items: { p: PostWithTargets; top: number; lane: number; lanes: number }[],
   ) => {
     const k = dayKey(date);
-    const isOver = overKey === k;
     return (
-      <div
+      <DroppableDayColumn
         key={k}
-        onClick={() => {
+        date={date}
+        selected={selectedKey === k}
+        isToday={k === todayKey}
+        nowTop={nowTop}
+        onSelect={() => {
           setSelectedKey(k);
           setSelectedPostId(null);
         }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (overKey !== k) setOverKey(k);
-        }}
-        onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
-        onDrop={(e) => {
-          e.preventDefault();
-          void dropOn(date);
-        }}
-        className={`relative cursor-pointer border-l border-dashed border-line-soft transition ${
-          selectedKey === k ? 'bg-paper-dim/40' : ''
-        } ${k === todayKey ? 'bg-accent/[0.04]' : ''} ${isOver ? 'bg-accent-soft' : ''}`}
-        style={{ height: DAY_H }}
       >
-        {Array.from({ length: 25 }, (_, h) => (
-          <div
-            key={h}
-            aria-hidden="true"
-            className="absolute right-0 left-0 border-t border-dashed border-line-soft"
-            style={{ top: h * HOUR_PX }}
+        {items.map(({ p, top, lane, lanes }) => (
+          <DraggableScheduleCard
+            key={p.id}
+            post={p}
+            bits={cardBits(p)}
+            selected={selectedPostId === p.id}
+            dimmed={activeId === p.id}
+            top={top}
+            left={`calc(${(lane / lanes) * 100}% + 3px)`}
+            width={`calc(${100 / lanes}% - 6px)`}
+            onOpen={() => {
+              setSelectedKey(k);
+              setSelectedPostId(p.id);
+            }}
           />
         ))}
-        {k === todayKey ? (
-          <div className="absolute right-0 left-0 z-10 border-t-2 border-[#E5484D]" style={{ top: nowTop }}>
-            <span className="absolute -top-[5px] left-0 h-2 w-2 rounded-full bg-[#E5484D]" />
-          </div>
-        ) : null}
-        {items.map(({ p, top, lane, lanes }) =>
-          scheduleCard(p, k, {
-            top,
-            left: `calc(${(lane / lanes) * 100}% + 3px)`,
-            width: `calc(${100 / lanes}% - 6px)`,
-          }),
-        )}
-      </div>
+      </DroppableDayColumn>
     );
   };
 
@@ -744,6 +925,25 @@ export default function CalendarBoard({
 
       <div className="flex flex-1 flex-col xl:flex-row">
         <div className="min-w-0 flex-1 p-4">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={({ active }) => {
+              setActiveId(String(active.id));
+              setErr(null);
+            }}
+            onDragEnd={({ over }) => {
+              const pid = activeId;
+              setActiveId(null);
+              if (!pid || !over) return;
+              const oid = String(over.id);
+              if (!oid.startsWith('day:')) return;
+              const [y, m, d] = oid.slice(4).split('-').map(Number);
+              if (!y || !m || !d) return;
+              void dropOn(new Date(y, m - 1, d), pid);
+            }}
+            onDragCancel={() => setActiveId(null)}
+          >
           {view === 'month' ? (
             <>
               <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-line bg-line">
@@ -757,73 +957,34 @@ export default function CalendarBoard({
                   const items = byDay.get(k) ?? [];
                   const inMonth = day.getMonth() === anchor.getMonth();
                   const isDayToday = isSameDay(day, today);
-                  const isOver = overKey === k;
                   return (
-                    <div
+                    <MonthDayCell
                       key={k}
-                      onClick={() => {
+                      date={day}
+                      inMonth={inMonth}
+                      isToday={isDayToday}
+                      count={items.length}
+                      selected={selectedKey === k}
+                      onSelect={() => {
                         setSelectedKey(k);
                         setSelectedPostId(null);
                       }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (overKey !== k) setOverKey(k);
-                      }}
-                      onDragLeave={() => setOverKey((v) => (v === k ? null : v))}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        void dropOn(day);
-                      }}
-                      className={`min-h-[104px] cursor-pointer bg-card p-1.5 transition ${
-                        inMonth ? '' : 'opacity-45'
-                      } ${selectedKey === k ? 'bg-paper' : ''} ${
-                        isOver ? 'ring-2 ring-inset ring-accent' : ''
-                      }`}
                     >
-                      <div className="mb-1 flex items-center justify-between">
-                        <span
-                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                            isDayToday ? 'bg-accent text-on-accent' : 'text-muted'
-                          }`}
-                        >
-                          {day.getDate()}
-                        </span>
-                        {items.length > 2 && <span className="text-[10px] text-faint">+{items.length - 2}</span>}
-                      </div>
-                      <div className="space-y-1">
-                        {items.slice(0, 2).map((p) => (
-                          <div
-                            key={p.id}
-                            draggable
-                            onDragStart={() => setDragId(p.id)}
-                            onDragEnd={() => {
-                              setDragId(null);
-                              setOverKey(null);
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedKey(k);
-                              setSelectedPostId(p.id);
-                            }}
-                            title={snippet(p)}
-                            className={`cursor-grab rounded-lg border border-line bg-paper px-1.5 py-1 text-[11px] leading-tight ${
-                              dragId === p.id ? 'opacity-50' : ''
-                            } ${selectedPostId === p.id ? 'ring-1 ring-accent' : ''}`}
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="font-bold text-ink">{formatTime(p.scheduled_at)}</span>
-                              <ChannelAvatars post={p} avatarOf={avatarOf} />
-                            </div>
-                            {partCount(p) > 1 ? (
-                              <div className="text-[10px] font-bold text-faint">
-                                Thread · {partCount(p)}
-                              </div>
-                            ) : null}
-                            <div className="truncate text-soft">{snippet(p)}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                      {items.slice(0, 2).map((p) => (
+                        <DraggableMonthChip
+                          key={p.id}
+                          post={p}
+                          avatarOf={avatarOf}
+                          threadLabel={partCount(p) > 1 ? `Thread · ${partCount(p)}` : null}
+                          selected={selectedPostId === p.id}
+                          dimmed={activeId === p.id}
+                          onOpen={() => {
+                            setSelectedKey(k);
+                            setSelectedPostId(p.id);
+                          }}
+                        />
+                      ))}
+                    </MonthDayCell>
                   );
                 })}
               </div>
@@ -952,6 +1113,19 @@ export default function CalendarBoard({
               </p>
             </>
           )}
+            <DragOverlay>
+              {activePost ? (
+                <div className="w-56 cursor-grabbing">
+                  <ScheduleCardView
+                    post={activePost}
+                    bits={cardBits(activePost)}
+                    selected={false}
+                    dimmed={false}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </div>
 
         <aside className="w-full shrink-0 border-t border-line bg-card p-5 xl:w-80 xl:border-l xl:border-t-0">
