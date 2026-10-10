@@ -61,14 +61,17 @@ export async function publishDevtoTarget(bundle: Bundle): Promise<{ remoteId: st
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
-  if (!text) throw new Error('Dev.to needs article text — this post is empty.');
-  const title = (b.post.title ?? '').trim() || text.split('\n')[0].slice(0, 120);
+  const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
+  const articleMarkdown = typeof art?.markdown === 'string' ? art.markdown.trim() : '';
+  const body = articleMarkdown || text;
+  if (!body) throw new Error('Dev.to needs article text — this post is empty.');
+  const title = (b.post.title ?? '').trim() || body.replace(/^#+\s*/, '').split('\n')[0].slice(0, 120);
   const opts = (b.target.options ?? {}) as Record<string, unknown>;
   const article: Record<string, unknown> = {
     title,
-    body_markdown: text,
+    body_markdown: body,
     published: true,
-    description: text.slice(0, 150),
+    description: (text || body).slice(0, 150),
   };
   const tags = cleanTags(opts.tags);
   if (tags) article.tags = tags;

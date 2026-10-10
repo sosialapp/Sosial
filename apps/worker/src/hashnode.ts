@@ -52,8 +52,11 @@ export async function publishHashnodeTarget(bundle: Bundle): Promise<{ remoteId:
   if (!publicationId) throw new Error('Hashnode publication is missing — reconnect the channel in Connect.');
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
-  if (!text) throw new Error('Hashnode needs article text — this post is empty.');
-  const title = (b.post.title ?? '').trim() || text.split('\n')[0].slice(0, 120);
+  const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
+  const articleMarkdown = typeof art?.markdown === 'string' ? art.markdown.trim() : '';
+  const body = articleMarkdown || text;
+  if (!body) throw new Error('Hashnode needs article text — this post is empty.');
+  const title = (b.post.title ?? '').trim() || body.replace(/^#+\s*/, '').split('\n')[0].slice(0, 120);
 
   const created = await gql<{ publishPost: { post: { id: string; slug: string; url: string } } }>(
     pat,
@@ -64,7 +67,7 @@ export async function publishHashnodeTarget(bundle: Bundle): Promise<{ remoteId:
     }`,
     {
       publicationId,
-      input: { title, contentMarkdown: text },
+      input: { title, contentMarkdown: body },
     },
   );
   const post = created.publishPost?.post;

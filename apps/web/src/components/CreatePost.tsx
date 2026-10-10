@@ -9,7 +9,9 @@ import { channelAvatar } from '@/lib/channelAvatar';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
-import { GitBranch } from 'lucide-react';
+import ArticleEditor from '@/components/ArticleEditor';
+import MediaSourcesDialog from '@/components/MediaSourcesDialog';
+import { GitBranch, Plus } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import StudioCanvas from '@/components/studio/StudioCanvas';
@@ -19,6 +21,8 @@ import { providerMeta, postTypeOptions } from '@/lib/providers';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
+import { articleIsEmpty, articleOptions, articlePlainText, isArticleProvider } from '@/lib/article';
+import type { TipTapDoc } from '@/lib/blogConvert';
 import { validateUpload, targetWarnings } from '@/lib/mediaLimits';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
@@ -359,6 +363,10 @@ export default function CreatePost({
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
   /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
   const [types, setTypes] = useState<Record<string, string>>({});
+  /** Social composer vs. rich article editor (website channels only). */
+  const [surface, setSurface] = useState<'social' | 'article'>('social');
+  const [articleDoc, setArticleDoc] = useState<TipTapDoc | null>(null);
+  const [articleTitle, setArticleTitle] = useState('');
   const [parts, setParts] = useState(() => Math.max(3, initParts?.length ?? 3));
   const [mode, setMode] = useState<'now' | 'schedule'>('now');
   const [whenIso, setWhenIso] = useState<string | null>(
@@ -382,6 +390,10 @@ export default function CreatePost({
   const [rail, setRail] = useState<'template' | 'preview' | 'ai'>('ai');
   const [tplKind, setTplKind] = useState<'text' | 'design'>('text');
   const [designBusy, setDesignBusy] = useState<string | null>(null);
+  /** Article cover picker (reuses the composer's media pipeline). */
+  const [coverOpen, setCoverOpen] = useState(false);
+  const coverBtnRef = useRef<HTMLButtonElement>(null);
+  const coverFileRef = useRef<HTMLInputElement>(null);
 
   /** Rail Template/text: drop a caption into part 1, keeping its media. */
   function useRailCaption(t: { title: string; body: string }) {
@@ -462,6 +474,17 @@ export default function CreatePost({
   );
   /** Channels currently picked — drives the format pills. */
   const chosenNow = useMemo(() => ready.filter((c) => picked.includes(c.id)), [ready, picked]);
+  /** Website channels (WordPress/Ghost/Dev.to/Hashnode) among the picks. */
+  const articlePicked = useMemo(
+    () => chosenNow.some((c) => isArticleProvider(c.provider)),
+    [chosenNow],
+  );
+  /** Default to the rich editor when an article channel is in the mix; fall
+   *  back to social when none are. Only re-runs when that fact flips, so a
+   *  manual toggle is never overridden. */
+  useEffect(() => {
+    setSurface(articlePicked ? 'article' : 'social');
+  }, [articlePicked]);
   const limit = useMemo(() => {
     const ls = ready.filter((c) => picked.includes(c.id)).map((c) => providerMeta(c.provider).limit);
     return ls.length ? Math.min(...ls) : 2200;
@@ -637,8 +660,9 @@ export default function CreatePost({
       setErr(leadTimeMessage());
       return;
     }
+    const articleHasContent = surface === 'article' && !articleIsEmpty(articleDoc);
     const live = segs.filter((s) => s.body.trim() || s.media.length > 0);
-    if (live.length === 0) {
+    if (live.length === 0 && !articleHasContent) {
       setErr('Add a caption or some media first.');
       return;
     }
@@ -679,17 +703,30 @@ export default function CreatePost({
       const sb = createClient();
       if (!thread) {
         const s0 = segs[0];
+        const articleMode = surface === 'article';
+        const articleBody = articleMode ? articlePlainText(articleDoc) : '';
+        const bodyText = articleMode ? articleBody || s0.body.trim() : s0.body.trim();
+        const titleText = articleMode
+          ? articleTitle.trim() || bodyText.split('\n')[0].slice(0, 60)
+          : bodyText.split('\n')[0].slice(0, 60);
+        const targetOptions: Record<string, Record<string, unknown>> = {};
+        if (articleMode && articleDoc && !articleIsEmpty(articleDoc)) {
+          for (const c of chosen) {
+            if (isArticleProvider(c.provider)) targetOptions[c.provider] = articleOptions(articleDoc);
+          }
+        }
         newIds = [
           await createPost(sb, {
           workspaceId,
           userId,
           role,
-          title: s0.body.trim().split('\n')[0].slice(0, 60),
-          body: s0.body.trim(),
+          title: titleText,
+          body: bodyText,
           mode: submitMode,
           scheduleIso: submitMode === 'schedule' ? whenIso : null,
           channels: chosen,
           formats: types,
+          targetOptions,
           files: s0.media
             .filter((m): m is MediaItem & { file: File } => Boolean(m.file))
             .map(({ file, kind }) => ({ file, kind })),
@@ -884,6 +921,22 @@ export default function CreatePost({
               </div>
             ) : null}
 
+            {/* Social composer vs. rich article editor — only when a website
+                channel is picked; the toggle defaults to Article in that case. */}
+            {articlePicked ? (
+              <div className="mt-3">
+                <SegmentedPills
+                  ariaLabel="Composer mode"
+                  value={surface}
+                  onChange={setSurface}
+                  options={[
+                    { value: 'social', label: 'Social post' },
+                    { value: 'article', label: 'Article' },
+                  ]}
+                />
+              </div>
+            ) : null}
+
             {/* Part 1 — same box as every other part */}
             <div className="mt-3">
               {err ? (
@@ -922,16 +975,96 @@ export default function CreatePost({
                   </button>
                 </div>
               ) : null}
-              <PostBox
-                seg={segs[0] ?? { body: '', media: [] }}
-                onChange={(body) => setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, body } : s)))}
-                onAddFiles={(list) => addFilesTo(0, list)}
-                onRemoveMedia={(mi) => removeMediaFrom(0, mi)}
-                onReorderMedia={(from, to) => reorderMediaIn(0, from, to)}
-                placeholder="What's on your mind?"
-                limit={limit}
-                label="Post text"
-              />
+              {surface === 'article' ? (
+                <div className="space-y-2">
+                  <input
+                    value={articleTitle}
+                    onChange={(e) => setArticleTitle(e.target.value)}
+                    placeholder="Article title"
+                    aria-label="Article title"
+                    className="w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-base font-bold text-ink placeholder:text-faint focus:border-ink/40 focus:outline-none"
+                  />
+                  <ArticleEditor initial={articleDoc} onChange={(doc) => setArticleDoc(doc)} />
+                  <div className="rounded-2xl border border-line bg-paper p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-muted">
+                        Cover image
+                      </span>
+                      <span className="flex-1" />
+                      <button
+                        type="button"
+                        ref={coverBtnRef}
+                        onClick={() => setCoverOpen(true)}
+                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-accent-ink transition hover:opacity-80"
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        Add cover
+                      </button>
+                    </div>
+                    {(segs[0]?.media.length ?? 0) > 0 ? (
+                      <div className="mt-2 flex gap-2 overflow-x-auto">
+                        {(segs[0]?.media ?? []).map((m, i) => (
+                          <span
+                            key={`${m.url}-${i}`}
+                            className="relative block h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-paper-dim"
+                          >
+                            {m.kind === 'image' ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={m.url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <video src={m.url} muted playsInline className="h-full w-full object-cover" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeMediaFrom(0, i)}
+                              aria-label="Remove cover"
+                              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] leading-none text-white"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-faint">
+                        Optional — used as the featured image where the platform supports it.
+                      </p>
+                    )}
+                    <input
+                      ref={coverFileRef}
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        addFilesTo(0, e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                    <MediaSourcesDialog
+                      open={coverOpen}
+                      getAnchor={() => {
+                        const r = coverBtnRef.current?.getBoundingClientRect();
+                        return r ? { left: r.left, topEdge: r.top, bottom: r.bottom } : null;
+                      }}
+                      onClose={() => setCoverOpen(false)}
+                      onPickLocal={() => coverFileRef.current?.click()}
+                      onAttach={(files) => addFilesTo(0, files)}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <PostBox
+                  seg={segs[0] ?? { body: '', media: [] }}
+                  onChange={(body) => setSegs((prev) => prev.map((s, j) => (j === 0 ? { ...s, body } : s)))}
+                  onAddFiles={(list) => addFilesTo(0, list)}
+                  onRemoveMedia={(mi) => removeMediaFrom(0, mi)}
+                  onReorderMedia={(from, to) => reorderMediaIn(0, from, to)}
+                  placeholder="What's on your mind?"
+                  limit={limit}
+                  label="Post text"
+                />
+              )}
             </div>
 
             {/* Thread parts */}
@@ -1106,15 +1239,19 @@ export default function CreatePost({
 
             {/* One row: thread link · save draft · post — aligned */}
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setThreadMode(!thread)}
-                aria-pressed={thread}
-                className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
-              >
-                <BranchIcon />
-                {thread ? 'Turn off thread' : 'Post as thread'}
-              </button>
+              {surface === 'article' ? (
+                <span className="text-xs text-faint">Publishing as an article.</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setThreadMode(!thread)}
+                  aria-pressed={thread}
+                  className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
+                >
+                  <BranchIcon />
+                  {thread ? 'Turn off thread' : 'Post as thread'}
+                </button>
+              )}
               <span className="flex-1" />
               <button
                 type="button"

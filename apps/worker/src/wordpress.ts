@@ -75,6 +75,8 @@ export async function publishWordPressTarget(bundle: Bundle): Promise<{ remoteId
   const auth = authHeader(username, appPassword);
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
+  const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
+  const articleHtml = typeof art?.html === 'string' ? art.html.trim() : '';
   const media = [...(b.media ?? [])]
     .filter((m) => m.kind === 'image' || m.kind === 'video')
     .sort((a, z) => a.position - z.position);
@@ -102,7 +104,10 @@ export async function publishWordPressTarget(bundle: Bundle): Promise<{ remoteId
     featuredId = Number(uploaded.id) || 0;
   }
 
-  const { title, content } = toBlocks(b.post.title ?? '', text);
+  const blocks = articleHtml
+    ? { title: (b.post.title ?? '').trim() || 'Untitled', content: articleHtml }
+    : toBlocks(b.post.title ?? '', text);
+  const { title, content } = blocks;
   if (!content && !featuredId) {
     throw new Error('WordPress needs text or a featured image — this post has neither.');
   }

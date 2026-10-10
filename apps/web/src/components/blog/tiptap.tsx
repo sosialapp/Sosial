@@ -187,7 +187,7 @@ function ResizableImageView({
 }
 
 /** Image with a stored width (percent). Same node name, so saved docs keep working. */
-const ResizableImage = Image.extend({
+export const ResizableImage = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),

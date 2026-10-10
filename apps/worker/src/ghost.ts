@@ -85,7 +85,11 @@ export async function publishGhostTarget(bundle: Bundle): Promise<{ remoteId: st
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
-  const { title, html } = toHtml(b.post.title ?? '', text);
+  const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
+  const articleHtml = typeof art?.html === 'string' ? art.html.trim() : '';
+  const { title, html } = articleHtml
+    ? { title: (b.post.title ?? '').trim() || 'Untitled', html: articleHtml }
+    : toHtml(b.post.title ?? '', text);
   if (!html) throw new Error('Ghost needs article text — this post is empty.');
   const token = ghostJwt(adminKey);
   const created = await ghost<{ posts: { id: string; url: string }[] }>(base, token, '/posts/?source=html', {
