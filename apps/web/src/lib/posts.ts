@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { ALL_PROVIDERS } from './providers';
 import { assertQueueLeadTime } from './queue';
 import { uploadMedia } from './mediaUpload';
-import type { ConnectedChannel, PostWithTargets, WorkspaceInfo } from './types';
+import type { ConnectedChannel, MediaAssetRow, PostMediaRow, PostWithTargets, WorkspaceInfo } from './types';
 
 /** Ordered media + targets for every post in a workspace (RLS-scoped).
  *  Media bytes live in a private store, so each asset gets a short-lived
@@ -20,18 +20,28 @@ export async function fetchPosts(sb: SupabaseClient, workspaceId: string): Promi
 
   const rows = (data ?? []) as unknown as PostWithTargets[];
 
-  const supabasePaths = new Set<string>();
-  const r2Paths = new Set<string>();
+  const assets: MediaAssetRow[] = [];
   for (const p of rows) {
     for (const m of p.post_media ?? []) {
-      const a = m.media_assets;
-      if (!a?.storage_path) continue;
-      if (a.storage_backend === 'r2') {
-        r2Paths.add(a.storage_path);
-        if (a.thumb_path) r2Paths.add(a.thumb_path);
-      } else {
-        supabasePaths.add(a.storage_path);
-      }
+      if (m.media_assets) assets.push(m.media_assets);
+    }
+  }
+  await signAssetUrls(sb, assets);
+  return rows;
+}
+
+/** Fill signed_url/thumb_url on media assets (Supabase bucket + R2 edge sign).
+ *  Shared by fetchPosts and fetchMediaForPosts — same rules, one place. */
+async function signAssetUrls(sb: SupabaseClient, assets: MediaAssetRow[]): Promise<void> {
+  const supabasePaths = new Set<string>();
+  const r2Paths = new Set<string>();
+  for (const a of assets) {
+    if (!a?.storage_path) continue;
+    if (a.storage_backend === 'r2') {
+      r2Paths.add(a.storage_path);
+      if (a.thumb_path) r2Paths.add(a.thumb_path);
+    } else {
+      supabasePaths.add(a.storage_path);
     }
   }
 
@@ -58,15 +68,11 @@ export async function fetchPosts(sb: SupabaseClient, workspaceId: string): Promi
     }
   }
 
-  for (const p of rows) {
-    for (const m of p.post_media ?? []) {
-      const a = m.media_assets;
-      if (!a) continue;
-      a.signed_url = signed.get(a.storage_path);
-      a.thumb_url = a.thumb_path ? signed.get(a.thumb_path) : undefined;
-    }
+  for (const a of assets) {
+    if (!a) continue;
+    a.signed_url = signed.get(a.storage_path);
+    a.thumb_url = a.thumb_path ? signed.get(a.thumb_path) : undefined;
   }
-  return rows;
 }
 
 export async function fetchPostsLite(sb: SupabaseClient, workspaceId: string): Promise<PostWithTargets[]> {
@@ -77,6 +83,37 @@ export async function fetchPostsLite(sb: SupabaseClient, workspaceId: string): P
     .order('scheduled_at', { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as PostWithTargets[];
+}
+
+/** Signed media assets for a handful of posts (dashboard carousel).
+ *  Scoped to the given ids so the dashboard doesn't sign the whole library. */
+export async function fetchMediaForPosts(
+  sb: SupabaseClient,
+  workspaceId: string,
+  postIds: string[],
+): Promise<Record<string, MediaAssetRow[]>> {
+  const out: Record<string, MediaAssetRow[]> = {};
+  if (postIds.length === 0) return out;
+  const { data, error } = await sb
+    .from('posts')
+    .select(
+      'id, post_media(position, media_assets(id, workspace_id, storage_path, thumb_path, storage_backend, kind, mime_type, byte_size, width, height, duration_ms, status))',
+    )
+    .eq('workspace_id', workspaceId)
+    .in('id', postIds)
+    .order('position', { referencedTable: 'post_media', ascending: true });
+  if (error) return out;
+  const assets: MediaAssetRow[] = [];
+  for (const row of (data ?? []) as unknown as { id: string; post_media: PostMediaRow[] }[]) {
+    const list = [...(row.post_media ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .map((m) => m.media_assets)
+      .filter((m): m is MediaAssetRow => Boolean(m));
+    out[row.id] = list;
+    assets.push(...list);
+  }
+  await signAssetUrls(sb, assets);
+  return out;
 }
 
 /** Exact columns the app reads — nothing outside ConnectedChannel. */

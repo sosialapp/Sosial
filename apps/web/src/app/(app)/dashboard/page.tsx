@@ -7,6 +7,8 @@ import { channelAvatar } from '@/lib/channelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
 import QuickPost from '@/components/QuickPost';
 import PostPeek from '@/components/PostPeek';
+import RecentActivityCarousel from '@/components/RecentActivityCarousel';
+import type { RecentActivityItem } from '@/components/RecentActivityCarousel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -18,7 +20,7 @@ import {
 } from '@/components/ui/table';
 import { providerMeta } from '@/lib/providers';
 import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
-import { fetchChannels, fetchPostsLite } from '@/lib/posts';
+import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey, WEEKDAYS } from '@/lib/format';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
@@ -143,7 +145,54 @@ export default async function DashboardPage() {
       .map((p) => ({ p, t: p.created_at ?? '' })),
   ]
     .sort((a, b) => b.t.localeCompare(a.t))
-    .slice(0, 4);
+    .slice(0, 5);
+
+  // Carousel slides: social-style author (real handles only — never numeric
+  // ids or site URLs) + signed media for just these posts.
+  const channelById = new Map(channels.map((c) => [c.id, c]));
+  const cleanHandle = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    const t = raw.trim().replace(/^@+/, '');
+    if (!t) return null;
+    if (t.includes('://') || t.includes('/') || t.includes(' ') || t.includes('\\')) return null;
+    if (/^\d+$/.test(t)) return null;
+    if (t.length > 64) return null;
+    return `@${t}`;
+  };
+  const authorOf = (channelId: string, provider: string) => {
+    const c = channelById.get(channelId);
+    const display = c?.display_name?.trim() || providerMeta(provider).label;
+    const handle = cleanHandle(c?.handle) ?? (display.startsWith('@') ? cleanHandle(display) : null);
+    return { name: display.replace(/^@+/, '') || display, handle };
+  };
+  const mediaMap = await fetchMediaForPosts(
+    sb,
+    ctx.workspace.id,
+    recentFeed.map(({ p }) => p.id),
+  );
+  const recentItems: RecentActivityItem[] = recentFeed.map(({ p }) => {
+    const t0 = p.post_targets?.[0];
+    const provider = t0?.provider ?? 'instagram';
+    const author = t0 ? authorOf(t0.channel_id, provider) : { name: providerMeta(provider).label, handle: null };
+    const isQueued = p.status === 'queued' || p.status === 'publishing';
+    const when = p.sent_at ?? p.scheduled_at ?? p.created_at ?? '';
+    return {
+      id: p.id,
+      text: p.body || p.title || '',
+      status: p.status,
+      timeLabel: isQueued
+        ? p.scheduled_at
+          ? `${fmtDay(p.scheduled_at)}, ${fmtTime(p.scheduled_at)}`
+          : timeAgo(p.created_at)
+        : timeAgo(p.sent_at ?? p.created_at),
+      timeTitle: when ? `${fmtDay(when)}, ${fmtTime(when)}` : '',
+      provider,
+      authorName: author.name,
+      authorHandle: author.handle,
+      avatar: t0 ? avatarOf(t0.channel_id) : undefined,
+      media: mediaMap[p.id] ?? [],
+    };
+  });
 
   const delta =
     sentPrevWeek.length > 0
@@ -342,40 +391,7 @@ export default async function DashboardPage() {
             {recentFeed.length === 0 ? (
               <p className="mt-3 text-sm text-muted">Nothing here yet. Publish or queue a post and it lands here.</p>
             ) : (
-              <ul className="mt-4 space-y-4">
-                {recentFeed.map(({ p }) => {
-                  const t0 = p.post_targets?.[0];
-                  const pv = t0?.provider ?? 'instagram';
-                  const meta = providerMeta(pv);
-                  const failed = p.status === 'failed';
-                  const isQueued = p.status === 'queued' || p.status === 'publishing';
-                  return (
-                    <li key={p.id} className="flex items-center gap-3">
-                      <ChannelAvatar
-                        provider={pv}
-                        avatar={t0 ? avatarOf(t0.channel_id) : undefined}
-                        size={40}
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-bold">
-                          {failed ? 'Failed on ' : isQueued ? 'Queued on ' : 'Posted on '}
-                          {meta.label}
-                        </span>
-                        <span className="block truncate text-xs text-soft">
-                          {p.title || 'Untitled post'}
-                        </span>
-                        <span className="block text-[11px] text-faint">
-                          {failed
-                            ? 'Failed to send. Retry from the queue.'
-                            : isQueued
-                              ? `Goes out ${fmtDay(p.scheduled_at)}, ${fmtTime(p.scheduled_at)}`
-                              : timeAgo(p.sent_at)}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <RecentActivityCarousel items={recentItems} />
             )}
           </Card>
 
