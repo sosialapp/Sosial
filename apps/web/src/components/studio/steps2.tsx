@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CARD_STYLES,
   DATA,
@@ -30,57 +30,197 @@ const BLOCK_TYPES: { id: BlockType; label: string }[] = [
 
 const clampC = (v: number) => Math.min(1, Math.max(-1, v));
 
-/** Drag-to-pan crop pad: the image renders with the same zoom/pan math as
- *  the canvas, dragging maps px deltas to the -1..1 pan range. */
-function CropPad({
-  uri, zoom, x, y, onChange,
+/** Frame aspect (w/h) of an image block — must match the canvas renderer
+ *  (blocks.tsx): square 1:1, wide 16:9, custom 340:imageH canvas units. */
+function frameAspectOf(b: ContentBlock): number {
+  const asp = b.imageAspect ?? (b.imageH !== undefined ? 'custom' : 'wide');
+  if (asp === 'square') return 1;
+  if (asp === 'wide') return 16 / 9;
+  return 340 / Math.max(60, b.imageH ?? 140);
+}
+
+/**
+ * Real crop editor: the photo sits contain-fit in a dark stage, an
+ * aspect-locked crop rectangle (matching the block frame) overlays it with
+ * draggable corner handles, thirds grid, dimmed outside — like a normal
+ * image editor. The rect maps to the canvas model {zoom,x,y} so both
+ * renderers stay unchanged:
+ *   zoom = full width / rect width; x = 1 - 2·z·u0/(z-1) (u0 = rect left
+ *   as a fraction of the image), mirrored for y.
+ */
+function CropEditor({
+  uri,
+  aspect,
+  value,
+  onChange,
+  onReset,
 }: {
   uri: string;
-  zoom: number;
-  x: number;
-  y: number;
+  aspect: number;
+  value?: { zoom: number; x: number; y: number };
   onChange: (c: { zoom: number; x: number; y: number }) => void;
+  onReset: () => void;
 }) {
-  const boxRef = useRef<HTMLDivElement | null>(null);
-  const drag = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
-  const z = Math.max(1, zoom);
-  const onDown = (e: React.PointerEvent) => {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [nat, setNat] = useState({ w: 0, h: 0 });
+  const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const drag = useRef<{
+    mode: 'move' | 0 | 1 | 2 | 3;
+    px: number;
+    py: number;
+    r: { x: number; y: number; w: number; h: number };
+    stage: { left: number; top: number };
+  } | null>(null);
+
+  // Measure the stage so the photo's contain-fit box is known.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBox({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    setBox({ w: el.clientWidth, h: el.clientHeight });
+    return () => ro.disconnect();
+  }, []);
+
+  const scale = nat.w > 0 && nat.h > 0 && box.w > 0 ? Math.min(box.w / nat.w, box.h / nat.h) : 0;
+  const dispW = nat.w * scale;
+  const dispH = nat.h * scale;
+  const ox = (box.w - dispW) / 2;
+  const oy = (box.h - dispH) / 2;
+
+  // Initialise the rect once the photo geometry is known.
+  useEffect(() => {
+    if (!scale || rect || !dispW || !dispH) return;
+    let r: { x: number; y: number; w: number; h: number };
+    if (value && value.zoom > 1.001) {
+      const z = value.zoom;
+      const u0 = -(value.x - 1) * (z - 1) / (2 * z);
+      const v0 = -(value.y - 1) * (z - 1) / (2 * z);
+      r = { x: u0 * dispW, y: v0 * dispH, w: dispW / z, h: dispH / z };
+    } else {
+      // Largest aspect-locked rect centered on the photo.
+      const w = dispW / dispH > aspect ? dispH * aspect : dispW;
+      const h = w / aspect;
+      r = { x: (dispW - w) / 2, y: (dispH - h) / 2, w, h };
+    }
+    setRect(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, dispW, dispH]);
+
+  const emit = (r: { x: number; y: number; w: number; h: number }) => {
+    const z = dispW / r.w;
+    const xm = z > 1.001 ? clampC(1 - (2 * z * (r.x / dispW)) / (z - 1)) : 0;
+    const ym = z > 1.001 ? clampC(1 - (2 * z * (r.y / dispH)) / (z - 1)) : 0;
+    onChange({ zoom: Math.round(z * 100) / 100, x: Math.round(xm * 100) / 100, y: Math.round(ym * 100) / 100 });
+  };
+
+  const minW = dispW / 3;
+  const applyDrag = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: { x: number; y: number; w: number; h: number }) => {
+    if (mode === 'move') {
+      const nx = Math.min(dispW - start.w, Math.max(0, start.x + dx));
+      const ny = Math.min(dispH - start.h, Math.max(0, start.y + dy));
+      setRect({ ...start, x: nx, y: ny });
+      return;
+    }
+    // Corner resize, aspect-locked. Corners: 0 TL, 1 TR, 2 BL, 3 BR.
+    const fx = mode === 0 || mode === 2 ? start.x + start.w : start.x;
+    const fy = mode === 0 || mode === 1 ? start.y + start.h : start.y;
+    const cornerX = mode === 1 || mode === 3;
+    const cornerY = mode === 2 || mode === 3;
+    let w = Math.abs(dx);
+    let h = Math.abs(dy) * aspect > w ? (Math.abs(dy) * aspect) : w;
+    w = Math.max(h, Math.abs(dx));
+    h = w / aspect;
+    // Fit inside the photo, shrinking on the dominant axis first.
+    w = Math.min(dispW, Math.max(minW, w));
+    h = w / aspect;
+    if (h > dispH) {
+      h = dispH;
+      w = h * aspect;
+    }
+    const sx = cornerX ? (dx >= 0 ? 1 : -1) : -1;
+    const sy = cornerY ? (dy >= 0 ? 1 : -1) : -1;
+    let x = cornerX ? (sx > 0 ? fx : fx - w) : Math.min(start.x, fx - w);
+    let y = cornerY ? (sy > 0 ? fy : fy - h) : Math.min(start.y, fy - h);
+    x = Math.min(dispW - w, Math.max(0, x));
+    y = Math.min(dispH - h, Math.max(0, y));
+    setRect({ x, y, w, h });
+  };
+
+  const onDown = (mode: 'move' | 0 | 1 | 2 | 3) => (e: React.PointerEvent) => {
+    const stage = stageRef.current;
+    if (!stage || !rect) return;
+    const b = stage.getBoundingClientRect();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, x, y };
+    drag.current = { mode, px: e.clientX, py: e.clientY, r: rect, stage: { left: b.left, top: b.top } };
   };
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current;
-    const box = boxRef.current;
-    if (!d || !box || z <= 1) return;
-    const dx = ((e.clientX - d.px) * 2) / (box.clientWidth * (z - 1));
-    const dy = ((e.clientY - d.py) * 2) / (box.clientHeight * (z - 1));
-    onChange({ zoom, x: clampC(d.x + dx), y: clampC(d.y + dy) });
+    if (!d) return;
+    applyDrag(d.mode, e.clientX - d.px, e.clientY - d.py, d.r);
   };
   const onUp = () => {
+    if (drag.current && rect) emit(rect);
     drag.current = null;
   };
+
+  const handles: { i: 0 | 1 | 2 | 3; x: 'left' | 'right'; y: 'top' | 'bottom' }[] = [
+    { i: 0, x: 'left', y: 'top' },
+    { i: 1, x: 'right', y: 'top' },
+    { i: 2, x: 'left', y: 'bottom' },
+    { i: 3, x: 'right', y: 'bottom' },
+  ];
+
   return (
-    <div
-      ref={boxRef}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-      className="relative h-44 w-full touch-none select-none overflow-hidden rounded-xl bg-black/5"
-      style={{ cursor: z > 1 ? 'grab' : 'default' }}
-      aria-label="Crop preview — drag to reposition"
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={uri}
-        alt=""
-        draggable={false}
-        className="pointer-events-none absolute block"
-        style={{
-          width: `${z * 100}%`, height: `${z * 100}%`, objectFit: 'cover',
-          left: `${(x - 1) * (z - 1) * 50}%`, top: `${(y - 1) * (z - 1) * 50}%`,
-        }}
-      />
+    <div className="space-y-2">
+      <div
+        ref={stageRef}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        className="relative h-64 w-full select-none overflow-hidden rounded-xl bg-[#141210] touch-none"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={uri}
+          alt=""
+          draggable={false}
+          onLoad={(e) => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+          className="pointer-events-none absolute"
+          style={{ left: ox, top: oy, width: dispW || undefined, height: dispH || undefined, maxWidth: 'none' }}
+        />
+        {rect ? (
+          <>
+            <div
+              onPointerDown={onDown('move')}
+              className="absolute cursor-move"
+              style={{ left: ox + rect.x, top: oy + rect.y, width: rect.w, height: rect.h, boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)' }}
+            >
+              {/* thirds grid */}
+              <span className="pointer-events-none absolute left-1/3 top-0 h-full w-px bg-white/35" />
+              <span className="pointer-events-none absolute left-2/3 top-0 h-full w-px bg-white/35" />
+              <span className="pointer-events-none absolute left-0 top-1/3 h-px w-full bg-white/35" />
+              <span className="pointer-events-none absolute left-0 top-2/3 h-px w-full bg-white/35" />
+              <span className="pointer-events-none absolute inset-0 border border-white/80" />
+            </div>
+            {handles.map((h) => (
+              <span
+                key={h.i}
+                onPointerDown={onDown(h.i)}
+                className="absolute h-5 w-5 cursor-pointer rounded-[5px] border-2 border-[#141210] bg-white"
+                style={{ left: ox + rect.x + (h.x === 'left' ? 0 : rect.w) - 10, top: oy + rect.y + (h.y === 'top' ? 0 : rect.h) - 10 }}
+              />
+            ))}
+          </>
+        ) : null}
+      </div>
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-xs text-muted">Drag the corners to crop, drag inside to move.</p>
+        <button type="button" onClick={onReset} className="btn btn-ghost">
+          Reset
+        </button>
+      </div>
     </div>
   );
 }
@@ -511,34 +651,15 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                         />
                       </Field>
                       {b.imageUri ? (
-                        <Field label="Free crop" hint="Drag the photo, zoom in, Done.">
-                          <div className="space-y-2">
-                            <CropPad
-                              uri={b.imageUri}
-                              zoom={b.imageCrop?.zoom ?? 1}
-                              x={b.imageCrop?.x ?? 0}
-                              y={b.imageCrop?.y ?? 0}
-                              onChange={(c) => update(b.id, { imageCrop: c })}
-                            />
-                            <div className="flex items-center gap-2">
-                              <Stepper
-                                value={b.imageCrop?.zoom ?? 1}
-                                onChange={(v) =>
-                                  update(b.id, { imageCrop: { zoom: v, x: b.imageCrop?.x ?? 0, y: b.imageCrop?.y ?? 0 } })
-                                }
-                                step={0.1}
-                                min={1}
-                                max={3}
-                                format={(v) => `${v.toFixed(1)}x`}
-                              />
-                              <span className="flex-1" />
-                              {b.imageCrop ? (
-                                <button type="button" onClick={() => update(b.id, { imageCrop: undefined })} className="btn btn-ghost">
-                                  Reset crop
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
+                        <Field label="Free crop" hint="Corner handles resize, drag inside to move.">
+                          <CropEditor
+                            key={`${b.imageUri}|${b.imageCrop?.zoom ?? 1}|${b.imageCrop?.x ?? 0}|${b.imageCrop?.y ?? 0}`}
+                            uri={b.imageUri}
+                            aspect={frameAspectOf(b)}
+                            value={b.imageCrop}
+                            onChange={(c) => update(b.id, { imageCrop: c })}
+                            onReset={() => update(b.id, { imageCrop: undefined })}
+                          />
                         </Field>
                       ) : null}
                       {b.imageUri ? (
