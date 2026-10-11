@@ -1143,6 +1143,18 @@ export default function ScheduleXBoard({
 
   const todayKey = dayKey(new Date());
 
+  /** The middle stepper pill mirrors position: "Today" while today is in
+   *  view, "Back to today" once stepped away (it always jumps back). */
+  const onToday = (() => {
+    const now = new Date();
+    if (view === 'day' || view === 'week') return todayInView(view, dayKey(anchor));
+    if (view === 'month')
+      return anchor.getFullYear() === now.getFullYear() && anchor.getMonth() === now.getMonth();
+    if (view === 'year') return anchor.getFullYear() === now.getFullYear();
+    const base = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+    return todayKey >= dayKey(base) && todayKey <= dayKey(addDays(base, 13));
+  })();
+
   /** Year view: posts per month for the anchor year (drives the count pills). */
   const yearCounts = useMemo(() => {
     const y = anchor.getFullYear();
@@ -1253,9 +1265,10 @@ export default function ScheduleXBoard({
             <button
               type="button"
               onClick={stepToday}
+              title="Back to today"
               className="rounded-full px-3 py-1 text-xs font-bold text-ink transition hover:bg-paper-dim"
             >
-              Today
+              {onToday ? 'Today' : 'Back to today'}
             </button>
             <button
               type="button"
