@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Modal, Tex
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { AvatarButton } from '../components/ProfileMenu';
+import NotificationBell from '../components/NotificationBell';
 import ConnectButton from '../components/ConnectButton';
 import { Txt, PrimaryBtn, GhostBtn, FeedPhoto, FeedVideo } from '../components/ui';
+import { Tabs } from '../components/ui-kit';
 import AICopySheet from '../components/AICopySheet';
 import MediaSources from '../components/MediaSources';
 import { usePost, defaultPage } from '../store/PostContext';
@@ -118,10 +119,11 @@ function TplPost({ post, kind, builtIn, onOpen, onMenu, width = TPL_COL_W }: {
   );
 }
 
-function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…', onDragChange }: {
+function ThreadEditor({ segments, onChange, onPickThread, placeholder = 'Hook…', onDragChange }: {
   segments: ThreadSeg[];
   onChange: (s: ThreadSeg[]) => void;
-  pickMedia: (limit: number) => Promise<MediaAttachment[]>;
+  /** Open the media sources sheet for segment i (caller owns the sheet). */
+  onPickThread: (index: number) => void;
   placeholder?: string;
   onDragChange?: (dragging: boolean) => void;
 }) {
@@ -132,11 +134,13 @@ function ThreadEditor({ segments, onChange, pickMedia, placeholder = 'Hook…', 
   const setAt = (i: number, v: string) => onChange(segs.map((x, j) => (j === i ? { ...x, text: v } : x)));
   const add = () => { if (segs.length < 12) onChange([...segs, { ...blank }]); };
   const remove = (i: number) => { if (segs.length > 1) onChange(segs.filter((_, j) => j !== i)); };
-  const attach = async (i: number) => {
+  const attach = (i: number) => {
     const remaining = THREAD_MEDIA_MAX - segs[i].media.length;
-    if (remaining <= 0) return;
-    const picked = await pickMedia(remaining);
-    if (picked.length) onChange(segs.map((x, j) => (j === i ? { ...x, media: [...x.media, ...picked].slice(0, THREAD_MEDIA_MAX) } : x)));
+    if (remaining <= 0) {
+      Alert.alert('Segment full', `Each part holds up to ${THREAD_MEDIA_MAX} attachments.`);
+      return;
+    }
+    onPickThread(i);
   };
   const detach = (i: number, mi: number) => onChange(segs.map((x, j) => (j === i ? { ...x, media: x.media.filter((_, k) => k !== mi) } : x)));
   const moveMedia = (i: number, from: number, to: number) => onChange(segs.map((x, j) => {
@@ -225,10 +229,7 @@ function SheetRow({ label, onPress, danger }: { label: string; onPress: () => vo
 }
 
 /** Create tab: ideas + AI writing + templates, with a new-post card up top. */
-export default function CreateScreen({ email, team, onProfile, onConnect, onTemplate, onOpenProject, postSignal, onConsumePostSignal }: {
-  email: string;
-  team: string;
-  onProfile: () => void;
+export default function CreateScreen({ onConnect, onTemplate, onOpenProject, postSignal, onConsumePostSignal }: {
   onConnect: () => void;
   onTemplate: () => void;
   onOpenProject: (p: QuickPost) => void;
@@ -258,19 +259,54 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const [eTitle, setETitle] = useState('');
   const [eBody, setEBody] = useState('');
   const [eMedia, setEMedia] = useState<MediaAttachment | null>(null);
-  /** Which idea editor the sources sheet feeds ('c' create, 'e' edit). */
-  const [sourcesFor, setSourcesFor] = useState<'c' | 'e' | null>(null);
-  /** Stock/cloud attach into the open idea editor (+ credit if owed). */
-  const attachIdeaMedia = (items: { uri: string; kind: 'image' | 'video' }[], credit?: string) => {
+  /** Which create-composer target the sources sheet feeds (seg null = single
+   *  photo, else that thread part). The edit modal hosts its own copy inline
+   *  (eSources) so iOS never stacks two Modals. */
+  const [sourcesFor, setSourcesFor] = useState<{ seg: number | null } | null>(null);
+  const [eSources, setESources] = useState<{ seg: number | null } | null>(null);
+  /** Stock/cloud attach into the create composer (+ credit if owed). */
+  const attachCreateMedia = (t: { seg: number | null } | null, items: MediaAttachment[], credit?: string) => {
+    if (!items.length) return;
+    if (t?.seg != null) {
+      const idx = t.seg;
+      setCThread((prev) => {
+        if (!prev) return prev;
+        return prev.map((sg, j) => {
+          if (j !== idx) return sg;
+          const media = [...sg.media, ...items].slice(0, THREAD_MEDIA_MAX);
+          let text = sg.text;
+          if (credit && !text.includes('Unsplash')) text = `${text.trim()}\n\n${credit}`.trim();
+          return { ...sg, text, media };
+        });
+      });
+      return;
+    }
     const first = items[0];
     if (!first) return;
-    if (sourcesFor === 'e') {
-      setEMedia(first);
-      if (credit && !eBody.includes('Unsplash')) setEBody(`${eBody.trim()}\n\n${credit}`.trim());
-    } else {
-      setCMedia(first);
-      if (credit && !cBody.includes('Unsplash')) setCBody(`${cBody.trim()}\n\n${credit}`.trim());
+    setCMedia(first);
+    if (credit && !cBody.includes('Unsplash')) setCBody(`${cBody.trim()}\n\n${credit}`.trim());
+  };
+  /** Stock/cloud attach into the open edit modal (+ credit if owed). */
+  const attachEditMedia = (t: { seg: number | null } | null, items: MediaAttachment[], credit?: string) => {
+    if (!items.length) return;
+    if (t?.seg != null) {
+      const idx = t.seg;
+      setEThread((prev) => {
+        if (!prev) return prev;
+        return prev.map((sg, j) => {
+          if (j !== idx) return sg;
+          const media = [...sg.media, ...items].slice(0, THREAD_MEDIA_MAX);
+          let text = sg.text;
+          if (credit && !text.includes('Unsplash')) text = `${text.trim()}\n\n${credit}`.trim();
+          return { ...sg, text, media };
+        });
+      });
+      return;
     }
+    const first = items[0];
+    if (!first) return;
+    setEMedia(first);
+    if (credit && !eBody.includes('Unsplash')) setEBody(`${eBody.trim()}\n\n${credit}`.trim());
   };
   const [eThread, setEThread] = useState<ThreadSeg[] | null>(null);
   // AI sheet routing (composer AI lives in context; ideas + editor use this one)
@@ -409,11 +445,17 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
 
   const openEditor = (idea: Idea) => {
     setEditing(idea);
+    setESources(null);
     setETitle(idea.title);
     setEBody(idea.body);
     const isThread = (idea.thread?.length ?? 0) > 1;
     setEMedia(!isThread && idea.imageUri ? { uri: idea.imageUri, kind: 'image' } : !isThread && idea.videoUri ? { uri: idea.videoUri, kind: 'video' } : null);
     setEThread(isThread ? idea.thread!.map((s) => ({ ...s })) : null);
+  };
+
+  const closeEditor = () => {
+    setESources(null);
+    setEditing(null);
   };
 
   const saveEditor = async () => {
@@ -430,7 +472,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
       videoUri: head?.kind === 'video' ? head.uri : undefined,
       thread,
     });
-    setEditing(null);
+    closeEditor();
     loadIdeas().then(setIdeas);
   };
 
@@ -543,7 +585,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ConnectButton onPress={onConnect} />
-            <AvatarButton email={email} team={team} onPress={onProfile} />
+            <NotificationBell />
           </View>
         </View>
 
@@ -552,20 +594,21 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
           <Text style={s.sub}>Catch the idea, let AI shape it, then post it.</Text>
         </View>
 
-        {/* section tabs — scrolls instead of overflowing on narrow screens */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 20, marginTop: 16 }}>
-          {(['post', 'templates', 'publish', 'ideas'] as const).map((t) => {
-            const on = tab === t;
-            return (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setTab(t)}
-                style={[s.tab, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                <Text style={[s.tabT, on && { color: C.onInk }]}>{t === 'ideas' ? 'Ideas' : t === 'templates' ? 'Templates' : t === 'post' ? 'Post' : 'Publish'}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {/* section tabs — sliding thumb glides on every switch */}
+        <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+          <Tabs
+            options={[
+              { value: 'post', label: 'Post' },
+              { value: 'templates', label: 'Templates' },
+              { value: 'publish', label: 'Publish' },
+              { value: 'ideas', label: 'Ideas' },
+            ]}
+            value={tab}
+            onChange={setTab}
+            scrollable
+            accessibilityLabel="Create sections"
+          />
+        </View>
 
         {tab === 'ideas' ? (
           <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
@@ -575,7 +618,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               <Txt value={cTitle} onChangeText={setCTitle} placeholder="Idea title…" style={s.cTitle} />
               <Text style={s.secLabel}>Write</Text>
               {cThread ? (
-                <ThreadEditor segments={cThread} onChange={setCThread} pickMedia={pickMedia} onDragChange={setSegScrollLock} />
+                <ThreadEditor segments={cThread} onChange={setCThread} onPickThread={(i) => setSourcesFor({ seg: i })} onDragChange={setSegScrollLock} />
               ) : (
                 <Txt value={cBody} onChangeText={setCBody} placeholder="Describe the idea…" multiline style={{ minHeight: 56, textAlignVertical: 'top' }} />
               )}
@@ -591,7 +634,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                     </View>
                   ) : (
                     <TouchableOpacity
-                      onPress={() => setSourcesFor('c')}
+                      onPress={() => setSourcesFor({ seg: null })}
                       hitSlop={6}
                       accessibilityLabel="Attach media"
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start' }}
@@ -774,7 +817,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
           </View>
         ) : (
           <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-            <PostScreen bare email={email} team={team} onProfile={onProfile} onConnect={onConnect} />
+            <PostScreen bare onConnect={onConnect} />
           </View>
         )}
       </ScrollView>
@@ -788,16 +831,29 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
       />
 
       {/* idea editor */}
-      <Modal visible={editing !== null} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
-        <TouchableOpacity activeOpacity={1} onPress={() => setEditing(null)} style={s.sheetBg}>
+      <Modal visible={editing !== null} transparent animationType="slide" onRequestClose={closeEditor}>
+        <TouchableOpacity activeOpacity={1} onPress={closeEditor} style={s.sheetBg}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={s.sheet}>
+            {eSources ? (
+              <MediaSources
+                onPickLocal={async () => {
+                  const t = eSources;
+                  const lim = t.seg != null ? Math.max(1, THREAD_MEDIA_MAX - (eThread?.[t.seg]?.media.length ?? 0)) : 1;
+                  const picked = await pickMedia(lim);
+                  setESources(null);
+                  attachEditMedia(t, picked);
+                }}
+                onAttach={(items, credit) => attachEditMedia(eSources, items, credit)}
+                onClose={() => setESources(null)}
+              />
+            ) : (
             <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={!segScrollLock}>
               <Text style={s.sheetT}>Edit idea</Text>
               <Text style={s.secLabel}>Title</Text>
               <Txt value={eTitle} onChangeText={setETitle} placeholder="Idea title…" style={s.cTitle} />
               <Text style={s.secLabel}>Write</Text>
               {eThread ? (
-                <ThreadEditor segments={eThread} onChange={setEThread} pickMedia={pickMedia} onDragChange={setSegScrollLock} />
+                <ThreadEditor segments={eThread} onChange={setEThread} onPickThread={(i) => setESources({ seg: i })} onDragChange={setSegScrollLock} />
               ) : (
                 <Txt value={eBody} onChangeText={setEBody} placeholder="Describe the idea…" multiline style={{ minHeight: 90, textAlignVertical: 'top' }} />
               )}
@@ -813,7 +869,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                     </View>
                   ) : (
                     <TouchableOpacity
-                      onPress={() => setSourcesFor('e')}
+                      onPress={() => setESources({ seg: null })}
                       hitSlop={6}
                       accessibilityLabel="Attach media"
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start' }}
@@ -844,6 +900,7 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
                 </TouchableOpacity>
               ) : null}
             </ScrollView>
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -888,19 +945,19 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
         </TouchableOpacity>
       </Modal>
 
-      {/* media sources (stock + cloud drives) for the idea editors */}
+      {/* media sources (upload + stock + cloud drives) for the create composer */}
       <Modal visible={sourcesFor !== null} transparent animationType="slide" onRequestClose={() => setSourcesFor(null)}>
         <View style={[s.sheetBg, { justifyContent: 'flex-end' }]}>
           <View style={[s.sheet, { maxHeight: '88%', padding: 20 }]}>
             <MediaSources
               onPickLocal={async () => {
-                const target = sourcesFor;
+                const t = sourcesFor;
+                const lim = t?.seg != null ? Math.max(1, THREAD_MEDIA_MAX - (cThread?.[t.seg]?.media.length ?? 0)) : 1;
+                const picked = await pickMedia(lim);
                 setSourcesFor(null);
-                const one = (await pickMedia())[0] ?? null;
-                if (target === 'e') setEMedia(one);
-                else setCMedia(one);
+                attachCreateMedia(t, picked);
               }}
-              onAttach={(items, credit) => attachIdeaMedia(items, credit)}
+              onAttach={(items, credit) => attachCreateMedia(sourcesFor, items, credit)}
               onClose={() => setSourcesFor(null)}
             />
           </View>
@@ -914,8 +971,6 @@ const makeS = (C: Palette) => StyleSheet.create({
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
   wordmark: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, letterSpacing: -0.4, color: C.ink },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6 },
-  tab: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
-  tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   composer: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 13, gap: 10 },
   secLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
   link: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk },

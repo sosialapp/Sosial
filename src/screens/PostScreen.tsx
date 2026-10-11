@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } 
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, FeedPhoto, FeedVideo } from '../components/ui';
-import { AvatarButton } from '../components/ProfileMenu';
+import NotificationBell from '../components/NotificationBell';
 import ConnectButton from '../components/ConnectButton';
 import ChannelDrawer from '../components/ChannelDrawer';
 import { SOCIAL_META } from '../constants';
@@ -70,10 +70,7 @@ function ChannelStack({ plats, C }: { plats: string[]; C: Palette }) {
 
 /** Post pipeline: channel drawer + queue/drafts/approvals/sent + sorting.
  *  The composer lives at app level — this screen only lists and opens it. */
-export default function PostScreen({ email, team, onProfile, onConnect, bare }: {
-  email: string;
-  team: string;
-  onProfile: () => void;
+export default function PostScreen({ onConnect, bare }: {
   onConnect: () => void;
   bare?: boolean;
 }) {
@@ -358,7 +355,7 @@ export default function PostScreen({ email, team, onProfile, onConnect, bare }: 
             <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>Post</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <ConnectButton onPress={onConnect} />
-              <AvatarButton email={email} team={team} onPress={onProfile} />
+              <NotificationBell />
             </View>
           </View>
           {body}

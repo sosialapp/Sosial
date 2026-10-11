@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 
-export type MainTab = 'home' | 'post';
+export type MainTab = 'home' | 'post' | 'analytics' | 'profile';
 
-/** Home | (+) | Post, left to right. + expands to Template / Post. */
+/** Home | Post | (+) | Analytics | Profile, left to right. + expands to Template / Post. */
 export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   tab: MainTab;
   onTab: (t: MainTab) => void;
@@ -29,12 +29,14 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   const inner = (
     <>
       {item('home', 'home', 'Home')}
+      {item('post', 'send', 'Post')}
       <TouchableOpacity onPress={() => setPlus(true)} style={s.plusWrap} activeOpacity={0.8}>
         <View style={s.plus}>
           <Ionicons name="add" size={28} color={C.onInk} />
         </View>
       </TouchableOpacity>
-      {item('post', 'send', 'Post')}
+      {item('analytics', 'bar-chart', 'Insights')}
+      {item('profile', 'person', 'Profile')}
     </>
   );
 
@@ -93,9 +95,9 @@ const makeS = (C: Palette) => StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 }, elevation: 8,
   },
-  item: { alignItems: 'center', gap: 3, minWidth: 72, paddingVertical: 2 },
-  itemT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: C.faint },
-  plusWrap: { alignItems: 'center', justifyContent: 'center', minWidth: 72 },
+  item: { alignItems: 'center', gap: 3, minWidth: 58, paddingVertical: 2 },
+  itemT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.faint },
+  plusWrap: { alignItems: 'center', justifyContent: 'center', minWidth: 64 },
   plus: {
     width: 52, height: 52, borderRadius: 26, backgroundColor: C.accent,
     alignItems: 'center', justifyContent: 'center',

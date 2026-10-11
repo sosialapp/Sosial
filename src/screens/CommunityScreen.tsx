@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, A
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T } from '../theme';
 import { SocialGlyph } from '../components/ui';
-import { AvatarButton } from '../components/ProfileMenu';
+import NotificationBell from '../components/NotificationBell';
 import ChannelDrawer from '../components/ChannelDrawer';
 import { SOCIAL_META } from '../constants';
 import { loadMetaState, MetaState } from '../utils/metaStore';
@@ -28,10 +28,7 @@ function timeAgo(ts: number): string {
 
 /** Community: replies, comments and mentions across connected channels.
  *  `bare` embeds the feed inside another page (no masthead, no own scroll). */
-export default function CommunityScreen({ email, team, onProfile, onConnect, bare }: {
-  email: string;
-  team: string;
-  onProfile: () => void;
+export default function CommunityScreen({ onConnect, bare }: {
   onConnect: () => void;
   bare?: boolean;
 }) {
@@ -97,7 +94,7 @@ export default function CommunityScreen({ email, team, onProfile, onConnect, bar
             <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>Community</Text>
             <Text style={s.sub}>Replies, comments and mentions.</Text>
           </View>
-          <AvatarButton email={email} team={team} onPress={onProfile} />
+          <NotificationBell />
         </View>
       )}
 

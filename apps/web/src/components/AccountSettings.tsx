@@ -149,7 +149,7 @@ export default function AccountSettings({
   const title =
     view === 'main' ? 'Account' : view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings'
     : view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription'
-    : view === 'changelog' ? "What's new" : view === 'report' ? 'Report a problem'
+    : view === 'changelog' ? "What's new" : view === 'report' ? 'Support'
     : view === 'delete' ? 'Delete my data' : 'Legal';
 
   async function flipNotif(key: 'posts' | 'comments' | 'weekly') {
@@ -352,7 +352,7 @@ export default function AccountSettings({
               <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label="Team" sub="Roles, channels & invites" href="/team" />
             ) : null}
             <Row icon={<Star className="h-5 w-5" aria-hidden="true" />} label="Rate Sosial" sub="Tell us how we are doing" onClick={() => setView('report')} />
-            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label="Report a problem" sub="Bugs, ideas, billing help" onClick={() => { setRepKind('bug'); setRepSubject(''); setRepBody(''); setView('report'); }} />
+            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label="Support" sub="Bugs, ideas, billing help" onClick={() => { setRepKind('bug'); setRepSubject(''); setRepBody(''); setView('report'); }} />
             <Row icon={<Sparkles className="h-5 w-5" aria-hidden="true" />} label="What's new" sub="Changelog" onClick={() => setView('changelog')} />
           </Card>
 
@@ -550,7 +550,7 @@ export default function AccountSettings({
           />
           <Button onClick={() => void sendReport()} disabled={repBusy} className="w-full">
             <Send className="h-4 w-4" aria-hidden="true" />
-            {repBusy ? 'Sending…' : 'Send report'}
+            {repBusy ? 'Sending…' : 'Send'}
           </Button>
         </Card>
       ) : null}

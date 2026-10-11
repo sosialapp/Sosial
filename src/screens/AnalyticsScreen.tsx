@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { AvatarButton } from '../components/ProfileMenu';
+import NotificationBell from '../components/NotificationBell';
 import { SocialGlyph } from '../components/ui';
 import CommunityScreen from './CommunityScreen';
 import { BarsChart, HBarList } from '../components/charts';
-import { Card, CardTitle, CardDescription } from '../components/ui-kit';
+import { Card, CardTitle, CardDescription, Tabs } from '../components/ui-kit';
 import { SOCIAL_META } from '../constants';
 import { currentSession } from '../utils/supabase';
 import {
@@ -64,12 +64,9 @@ const fmtDate = (iso: string | null): string => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export default function AnalyticsScreen({ email, team, onProfile, onConnect, onBack }: {
-  email: string;
-  team: string;
-  onProfile: () => void;
+export default function AnalyticsScreen({ onConnect, onBack }: {
   onConnect: () => void;
-  /** Present when reached from Home (no dock there) — back chevron. */
+  /** Present when reached from Home — back chevron. */
   onBack?: () => void;
 }) {
   const { C } = useTheme();
@@ -309,43 +306,33 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
               {view === 'community' ? <Text style={s.heroSub}>Replies, comments and mentions.</Text> : null}
             </View>
           </View>
-          <AvatarButton email={email} team={team} onPress={onProfile} />
+          <NotificationBell />
         </View>
 
         <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-          <View style={s.tabSwitch}>
-            {([
-              { id: 'analytics', label: 'Analytics' },
-              { id: 'community', label: 'Community' },
-            ] as const).map((t) => {
-              const on = view === t.id;
-              return (
-                <TouchableOpacity
-                  key={t.id}
-                  onPress={() => setView(t.id)}
-                  style={[s.tabPill, on && { backgroundColor: C.ink }]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[s.tabT, on && { color: C.onInk }]}>{t.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <Tabs
+            options={[
+              { value: 'analytics', label: 'Analytics' },
+              { value: 'community', label: 'Community' },
+            ]}
+            value={view}
+            onChange={setView}
+            accessibilityLabel="Analytics sections"
+          />
         </View>
 
         {view === 'analytics' ? (
           <>
             {/* Range presets */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 24, marginTop: 12 }}>
-              {PRESETS.map((p) => {
-                const on = preset === p.id;
-                return (
-                  <TouchableOpacity key={p.id} onPress={() => setPreset(p.id)} style={[s.range, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                    <Text style={[s.rangeT, on && { color: C.onInk }]}>{p.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <View style={{ paddingHorizontal: 24, marginTop: 12 }}>
+              <Tabs
+                options={PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+                value={preset}
+                onChange={setPreset}
+                scrollable
+                accessibilityLabel="Date range"
+              />
+            </View>
 
             {/* Channel filter chips */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 24, marginTop: 10 }}>
@@ -550,7 +537,7 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
           </>
         ) : (
           <View style={{ marginTop: 14 }}>
-            <CommunityScreen bare email={email} team={team} onProfile={onProfile} onConnect={onConnect} />
+            <CommunityScreen bare onConnect={onConnect} />
           </View>
         )}
       </ScrollView>
@@ -561,11 +548,6 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
 const makeS = (C: Palette) => StyleSheet.create({
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
-  tabSwitch: { flexDirection: 'row', gap: 4, backgroundColor: C.surface, borderRadius: 999, padding: 3, alignSelf: 'flex-start' },
-  tabPill: { borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
-  tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
-  range: { borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
-  rangeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   chanChip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingLeft: 6, paddingRight: 13, paddingVertical: 6, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
   chanChipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, maxWidth: 130 },
   kpiWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 },

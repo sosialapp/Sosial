@@ -78,6 +78,7 @@ export default function MediaSources({
   const [source, setSource] = useState<Source | null>(null);
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'photo' | 'video'>('photo');
+  const [stockSource, setStockSource] = useState<'unsplash' | 'pexels'>('unsplash');
   const [items, setItems] = useState<StockItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -244,7 +245,7 @@ export default function MediaSources({
         await loadCanva(query.trim());
         return;
       } else {
-        setItems(await searchStock('unsplash', query.trim(), 'photo'));
+        setItems(await searchStock(stockSource, query.trim(), type));
       }
     } catch (e: any) {
       Alert.alert('Search failed', e?.message ?? 'Try again.');
@@ -353,7 +354,10 @@ export default function MediaSources({
     setOdFiles([]);
     setOdStack([]);
     setCanvaDesigns([]);
-    if (id === 'unsplash') setType('photo');
+    if (id === 'unsplash') {
+      setType('photo');
+      setStockSource('unsplash');
+    }
     if (id === 'drive' || id === 'gphotos') {
       const ok = await filesConnected();
       setFilesAuthed(ok);
@@ -592,7 +596,7 @@ export default function MediaSources({
                   ))}
                 </View>
               ) : null}
-              {source === 'unsplash' ? (
+              {source === 'unsplash' && stockSource === 'unsplash' ? (
                 <Text style={s.creditNote}>Photographer credit is added to your caption automatically.</Text>
               ) : null}
 
@@ -821,33 +825,59 @@ export default function MediaSources({
                   }
                 />
               ) : (
-                <FlatList
-                  data={items}
-                  keyExtractor={(x) => x.id}
-                  numColumns={3}
-                  contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
-                  columnWrapperStyle={{ gap: 8 }}
-                  keyboardShouldPersistTaps="handled"
-                  renderItem={({ item }) => (
-                    <TouchableOpacity onPress={() => pick(item)} activeOpacity={0.8} style={s.cell}>
-                      <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
-                      {item.kind === 'video' ? (
-                        <View style={s.playBadge}>
-                          <Ionicons name="play" size={12} color="#fff" />
-                        </View>
-                      ) : null}
-                      {downloading === item.id ? (
-                        <View style={s.dlOverlay}>
-                          <ActivityIndicator size="small" color="#fff" />
-                        </View>
-                      ) : null}
-                      <Text style={s.author} numberOfLines={1}>{item.author}</Text>
-                    </TouchableOpacity>
-                  )}
-                  ListEmptyComponent={
-                    !busy ? <Text style={s.empty}>Search above to browse stock.</Text> : null
-                  }
-                />
+                <>
+                  <View style={s.typeRow}>
+                    {(['unsplash', 'pexels'] as const).map((p) => (
+                      <TouchableOpacity
+                        key={p}
+                        onPress={() => { setStockSource(p); setItems([]); }}
+                        style={[s.typePill, stockSource === p && { backgroundColor: C.ink }]}
+                      >
+                        <Text style={[s.typeT, stockSource === p && { color: C.onInk }]}>
+                          {p === 'unsplash' ? 'Unsplash' : 'Pexels'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                    {(['photo', 'video'] as const).map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        onPress={() => { setType(t); setItems([]); }}
+                        style={[s.typePill, type === t && { backgroundColor: C.ink }]}
+                      >
+                        <Text style={[s.typeT, type === t && { color: C.onInk }]}>
+                          {t === 'photo' ? 'Photos' : 'Videos'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <FlatList
+                    data={items}
+                    keyExtractor={(x) => x.id}
+                    numColumns={3}
+                    contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 20 }}
+                    columnWrapperStyle={{ gap: 8 }}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={({ item }) => (
+                      <TouchableOpacity onPress={() => pick(item)} activeOpacity={0.8} style={s.cell}>
+                        <Image source={{ uri: item.thumb }} style={s.thumb} resizeMode="cover" />
+                        {item.kind === 'video' ? (
+                          <View style={s.playBadge}>
+                            <Ionicons name="play" size={12} color="#fff" />
+                          </View>
+                        ) : null}
+                        {downloading === item.id ? (
+                          <View style={s.dlOverlay}>
+                            <ActivityIndicator size="small" color="#fff" />
+                          </View>
+                        ) : null}
+                        <Text style={s.author} numberOfLines={1}>{item.author}</Text>
+                      </TouchableOpacity>
+                    )}
+                    ListEmptyComponent={
+                      !busy ? <Text style={s.empty}>Search above to browse stock.</Text> : null
+                    }
+                  />
+                </>
               )}
             </>
           )}

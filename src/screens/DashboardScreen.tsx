@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T, R } from '../theme';
-import { AvatarButton } from '../components/ProfileMenu';
+import NotificationBell from '../components/NotificationBell';
 import { Card, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui-kit';
 import ConnectButton from '../components/ConnectButton';
 import { loadManagedPosts, ManagedPost } from '../utils/managed';
@@ -33,10 +33,8 @@ function timeAgo(ts: number): string {
 
 interface Summary { followers: number; engagement: number; hasFollowers: boolean }
 
-export default function DashboardScreen({ team, email, onProfile, onConnect, onPost, onAnalytics }: {
+export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }: {
   team: string;
-  email: string;
-  onProfile: () => void;
   onConnect: () => void;
   onPost: () => void;
   onAnalytics: () => void;
@@ -131,7 +129,7 @@ export default function DashboardScreen({ team, email, onProfile, onConnect, onP
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ConnectButton onPress={onConnect} />
-            <AvatarButton email={email} team={team} onPress={onProfile} />
+            <NotificationBell />
           </View>
         </View>
 

@@ -17,6 +17,7 @@ import {
 } from '../utils/ai/social';
 import { WRITER_LANGUAGES } from '../utils/ai/languages';
 import AIPictureSheet from './AIPictureSheet';
+import MediaSources from './MediaSources';
 
 /**
  * Write with AI — the studio.
@@ -157,25 +158,22 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setPicTarget(null);
   };
 
-  /** The user's own photo/video from the device library. */
-  const pickOwnMedia = async (vi: number, pi: number) => {
-    const k = mediaKey(vi, pi);
-    const have = segMedia[k]?.length ?? 0;
-    const remaining = 4 - have;
-    if (remaining <= 0) return;
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: remaining > 1,
-      selectionLimit: remaining,
-      quality: 0.9,
-    }).catch(() => null);
-    if (!res || res.canceled) return;
-    const picked: SocialSegmentMedia[] = (res.assets ?? []).map((a) => ({
-      uri: a.uri,
-      kind: a.type === 'video' ? 'video' : 'image',
-    }));
-    if (!picked.length) return;
-    setSegMedia((m) => ({ ...m, [k]: [...(m[k] ?? []), ...picked].slice(0, 4) }));
+  /** "Add own" target (variant + post) — browses every source, not just the roll. */
+  const [ownTarget, setOwnTarget] = useState<{ vi: number; pi: number } | null>(null);
+
+  const attachOwnMediaTo = (t: { vi: number; pi: number } | null, items: { uri: string; kind: 'image' | 'video' }[], credit?: string) => {
+    if (!t) return;
+    const k = mediaKey(t.vi, t.pi);
+    setSegMedia((m) => ({ ...m, [k]: [...(m[k] ?? []), ...items.map((a) => ({ uri: a.uri, kind: a.kind }) as SocialSegmentMedia)].slice(0, 4) }));
+    if (credit) {
+      setDraft((d) => d.map((v, i) => (i === t.vi ? { ...v, posts: v.posts.map((p, j) => (j === t.pi && !p.includes('Unsplash') ? `${p.trim()}\n\n${credit}`.trim() : p)) } : v)));
+      setDirty(true);
+    }
+  };
+
+  const attachOwnMedia = (items: { uri: string; kind: 'image' | 'video' }[], credit?: string) => {
+    attachOwnMediaTo(ownTarget, items, credit);
+    setOwnTarget(null);
   };
 
   const removeMedia = (vi: number, pi: number, mi: number) => {
@@ -223,6 +221,8 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setDraft([]);
     setSegMedia({});
     setErr('');
+    setOwnTarget(null);
+    setPicTarget(null);
     onClose();
   };
 
@@ -289,6 +289,32 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} />
           <View style={st.sheet}>
             {mounted ? (
+            ownTarget ? (
+              <MediaSources
+                onPickLocal={async () => {
+                  const t = ownTarget;
+                  setOwnTarget(null);
+                  if (!t) return;
+                  const have = segMedia[mediaKey(t.vi, t.pi)]?.length ?? 0;
+                  const remaining = 4 - have;
+                  if (remaining <= 0) return;
+                  const res = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ['images', 'videos'],
+                    allowsMultipleSelection: remaining > 1,
+                    selectionLimit: remaining,
+                    quality: 0.9,
+                  }).catch(() => null);
+                  if (!res || res.canceled) return;
+                  const picked = (res.assets ?? []).map((a) => ({
+                    uri: a.uri,
+                    kind: (a.type === 'video' ? 'video' : 'image') as 'image' | 'video',
+                  }));
+                  if (picked.length) attachOwnMediaTo(t, picked);
+                }}
+                onAttach={attachOwnMedia}
+                onClose={() => setOwnTarget(null)}
+              />
+            ) : (
             <>
             <ScrollView
               style={{ flexShrink: 1 }}
@@ -662,7 +688,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                                 <Ionicons name="image" size={13} color={C.accentInk} />
                                 <Text style={st.attBtnT}>Picture</Text>
                               </TouchableOpacity>
-                              <TouchableOpacity onPress={() => pickOwnMedia(tab, i)} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Add your own photo or video">
+                              <TouchableOpacity onPress={() => setOwnTarget({ vi: tab, pi: i })} style={st.attBtn} activeOpacity={0.75} accessibilityLabel="Add media: phone, stock, Canva, cloud drives">
                                 <Ionicons name="image-outline" size={13} color={C.accentInk} />
                                 <Text style={st.attBtnT}>Add own</Text>
                               </TouchableOpacity>
@@ -743,6 +769,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
               )}
             </View>
             </>
+            )
             ) : null}
           </View>
         </View>

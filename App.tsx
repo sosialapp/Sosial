@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StatusBar, ActivityIndicator, View, Text, BackHandler, Platform, Alert, AppState } from 'react-native';
+import { StatusBar, ActivityIndicator, View, Text, BackHandler, Platform, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
@@ -19,8 +19,7 @@ import ExportScreen from './src/screens/ExportScreen';
 import ConnectScreen from './src/screens/ConnectScreen';
 import TeamScreen from './src/screens/TeamScreen';
 import PrivacyScreen from './src/screens/PrivacyScreen';
-import BottomNav from './src/components/BottomNav';
-import ProfileMenu from './src/components/ProfileMenu';
+import BottomNav, { type MainTab } from './src/components/BottomNav';
 import Grain from './src/components/Grain';
 import { useFontsLoaded } from './src/utils/fonts';
 import { loadAccount, saveAccount, Account } from './src/utils/account';
@@ -43,13 +42,12 @@ const WELCOME_SEEN_KEY = 'zap_welcome_seen_v1';
 const LOCAL_OK_KEY = 'zap_local_ok_v1';
 
 function Shell() {
-  const { C, mode, toggle } = useTheme();
+  const { C, mode } = useTheme();
   const { openPostById, publishPostById } = useComposer();
   const [route, setRoute] = useState<Route>('home');
   const [connectFrom, setConnectFrom] = useState<Route>('create');
   const [privacyFrom, setPrivacyFrom] = useState<Route>('account');
   const [teamFrom, setTeamFrom] = useState<Route>('create');
-  const [profileOpen, setProfileOpen] = useState(false);
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
   const [welcomeReady, setWelcomeReady] = useState(false);
@@ -283,23 +281,6 @@ function Shell() {
     setRoute('size');
   };
 
-  const support = () => {
-    Alert.alert('Support', 'Need help? Email pestelbiz@gmail.com and we’ll get back to you.');
-  };
-
-  const logout = () => {
-    Alert.alert('Logout', 'Sign out on this device?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        onPress: async () => {
-          await patchAccount({ email: '' });
-          goWelcomeLocked();
-        },
-      },
-    ]);
-  };
-
   if (!fontsLoaded || !welcomeReady) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bone }}>
@@ -342,8 +323,16 @@ function Shell() {
     );
   }
 
-  // Dock shows on Home and the composer; the composer highlights Post.
-  const isTab = route === 'home' || route === 'create';
+  // Dock shows on the four tab routes; the composer highlights Post.
+  const isTab = route === 'home' || route === 'create' || route === 'analytics' || route === 'account';
+  const activeTab: MainTab =
+    route === 'create' ? 'post' : route === 'analytics' ? 'analytics' : route === 'account' ? 'profile' : 'home';
+  const goTab = (t: MainTab) => {
+    if (t === 'home') setRoute('home');
+    else if (t === 'post') goCreatePost();
+    else if (t === 'analytics') setRoute('analytics');
+    else setRoute('account');
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -353,8 +342,6 @@ function Shell() {
           {route === 'home' ? (
             <DashboardScreen
               team={account.team}
-              email={account.email}
-              onProfile={() => setProfileOpen(true)}
               onConnect={() => goConnect('home')}
               onPost={goCreatePost}
               onAnalytics={() => setRoute('analytics')}
@@ -362,9 +349,6 @@ function Shell() {
           ) : null}
           {route === 'create' ? (
             <CreateScreen
-              email={account.email}
-              team={account.team}
-              onProfile={() => setProfileOpen(true)}
               onConnect={() => goConnect('create')}
               onTemplate={newTemplate}
               onOpenProject={(p) => { loadPost(p); setRoute('editor'); }}
@@ -374,9 +358,6 @@ function Shell() {
           ) : null}
           {route === 'analytics' ? (
             <AnalyticsScreen
-              email={account.email}
-              team={account.team}
-              onProfile={() => setProfileOpen(true)}
               onConnect={() => goConnect('analytics')}
               onBack={() => setRoute('home')}
             />
@@ -418,24 +399,13 @@ function Shell() {
             style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
           >
             <BottomNav
-              tab={route === 'create' ? 'post' : 'home'}
-              onTab={(t) => (t === 'home' ? setRoute('home') : goCreatePost())}
+              tab={activeTab}
+              onTab={goTab}
               onTemplate={newTemplate}
               onPost={goCreatePost}
             />
           </View>
         ) : null}
-        <ProfileMenu
-          visible={profileOpen}
-          email={account.email}
-          team={account.team}
-          dark={mode === 'dark'}
-          onToggleDark={toggle}
-          onClose={() => setProfileOpen(false)}
-          onAccount={() => setRoute('account')}
-          onSupport={support}
-          onLogout={logout}
-        />
       </SafeAreaView>
       {/* single film-grain coat over the whole window incl. status/home strips,
           so the strips never read as a different color from the screens */}

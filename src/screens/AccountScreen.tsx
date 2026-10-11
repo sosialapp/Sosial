@@ -37,7 +37,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   onLoggedOut: () => void;
   onTeam: () => void;
 }) {
-  const { C } = useTheme();
+  const { C, mode, toggle } = useTheme();
   const s = makeS(C);
   const [view, setView] = useState<AcctView>('main');
   const [yearly, setYearly] = useState(true);
@@ -292,7 +292,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings' :
     view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription' :
     view === 'changelog' ? "What's new" : view === 'terms' ? 'Terms of use' :
-    view === 'report' ? 'Report a problem' : 'Legal'
+    view === 'report' ? 'Support' : 'Legal'
   );
 
   const row = (icon: string, label: string, sub: string | undefined, onPress: () => void, danger?: boolean) => (
@@ -346,7 +346,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const sendReport = async () => {
     const body = repBody.trim();
     if (!body) {
-      Alert.alert('Empty report', 'Describe the problem first.');
+      Alert.alert('Nothing to send', 'Describe the problem first.');
       return;
     }
     setRepBusy(true);
@@ -369,12 +369,29 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       setRepSubject('');
       setRepBody('');
       setView('main');
-      Alert.alert('Report sent', 'Thanks — it’s in the owner inbox.');
+      Alert.alert('Message sent', 'Thanks — it’s in the owner inbox.');
     } catch (e: any) {
       Alert.alert('Couldn’t send', e?.message ?? 'Try again.');
     } finally {
       setRepBusy(false);
     }
+  };
+
+  /** Device sign-out (profile menu's Logout, now that the menu is gone). */
+  const confirmLogout = () => {
+    Alert.alert('Logout', 'Sign out on this device?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        onPress: async () => {
+          try {
+            await signOutCloud();
+          } catch {}
+          onUpdate({ email: '' });
+          onLoggedOut();
+        },
+      },
+    ]);
   };
 
   /** Canonical price book (src/utils/plans.ts mirrors the web config). */
@@ -483,7 +500,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {plan === 'team' ? row('people-outline', 'Team', 'Roles, channels & invites', onTeam) : null}
               {row('refresh-outline', 'Restore purchase', undefined, () => Alert.alert('Restore purchase', 'No purchases found on this device.'))}
               {row('star-outline', 'Rate Sosial', 'Review on the Play Store', rateApp)}
-              {row('flag-outline', 'Report a problem', 'Bugs, ideas, billing help', () => {
+              {row('chatbubble-ellipses-outline', 'Support', 'Bugs, ideas, billing help', () => {
                 setRepKind('bug');
                 setRepSubject('');
                 setRepBody('');
@@ -496,6 +513,16 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {row('document-text-outline', 'Terms of use', undefined, () => setView('terms'))}
               {row('scale-outline', 'Legal', undefined, () => setView('legal'))}
               {row('trash-outline', 'Delete my data', 'Erase your account everywhere', () => { setDelArmed(false); setDelWord(''); setView('delete'); }, true)}
+            </View>
+            <View style={s.list}>
+              <View style={s.row}>
+                <Ionicons name="moon-outline" size={20} color={C.ink} />
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={s.rowT}>Dark mode</Text>
+                </View>
+                <Switch value={mode === 'dark'} onValueChange={toggle} trackColor={{ true: C.accent, false: '#D8D1BF' }} thumbColor="#ffffff" />
+              </View>
+              {row('log-out-outline', 'Logout', 'Sign out on this device', confirmLogout, true)}
             </View>
           </>
         ) : null}
@@ -619,7 +646,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               onPress={() => { if (!repBusy) void sendReport(); }}
               style={s.save} activeOpacity={0.85}
             >
-              <Text style={s.saveT}>{repBusy ? 'Sending…' : 'Send report'}</Text>
+              <Text style={s.saveT}>{repBusy ? 'Sending…' : 'Send'}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
