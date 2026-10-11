@@ -10,74 +10,99 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const sz = (base: number, f: number) => Math.max(base * k, w * f) * zoom;
   const txt = (base: number) => sz(base, 0.032);
   const hair = Math.max(0.5, w / 340);
-  if (block.type === 'bar') {
+  const st = block.style;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  // chartVariant re-aims the block at any renderer; absent = type default.
+  // Mirrors web blocks.tsx ChartBlock — keep in sync.
+  const variant = st?.chartVariant ?? (block.type === 'bar' ? 'hbar' : block.type);
+  const showV = st?.chartShowValues ?? true;
+  const showL = st?.chartShowLabels ?? true;
+  if (variant === 'hbar') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + b.value, 0) || 1;
+    const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1.6) : 1;
+    const barH = Math.max(6 * k, w * 0.03) * t;
+    const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * barH * 0.6 : 6 * k;
     return (
       <View style={{ gap: Math.max(4 * k, w * 0.02) }}>
         {data.map((d, i) => (
           <View key={i}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
-              <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
-              <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }}>{d.value}</Text>
-            </View>
-            <View style={{ height: Math.max(6 * k, w * 0.03), backgroundColor: '#00000015', borderRadius: 6 * k, overflow: 'hidden' }}>
-              <View style={{ width: `${Math.max(0, (d.value / total)) * 100}%`, height: Math.max(6 * k, w * 0.03), backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: 6 * k }} />
+            {showL || showV ? (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
+                {showL ? (
+                  <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
+                ) : null}
+                {showV ? <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }}>{d.value}</Text> : null}
+              </View>
+            ) : null}
+            <View style={{ height: barH, backgroundColor: '#00000015', borderRadius: rad, overflow: 'hidden' }}>
+              <View style={{ width: `${Math.max(0, (d.value / total)) * 100}%`, height: barH, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
             </View>
           </View>
         ))}
       </View>
     );
   }
-  if (block.type === 'pie') {
+  if (variant === 'pie') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + Math.max(0, b.value), 0) || 1;
     const colors = DATA;
     let acc = 0;
     const R = Math.max(20 * k, w * 0.15);
-    const SW = R * 0.35;
+    const SW = R * (st?.chartThickness != null ? clamp(st.chartThickness, 0.15, 0.8) : 0.35);
     const VB = (R + SW / 2 + 2) * 2;
     const CC = VB / 2;
     const C = 2 * Math.PI * R;
+    const legend = st?.chartLegend ?? 'right';
+    const wheel = (
+      <Svg width={VB} height={VB} viewBox={`0 0 ${VB} ${VB}`} style={legend === 'bottom' ? { alignSelf: 'center' } : { flexShrink: 0 }}>
+        <Circle cx={CC} cy={CC} r={R} stroke="#00000015" strokeWidth={SW} fill="none" />
+        {data.map((d, i) => {
+          const frac = Math.max(0, d.value) / total;
+          const dash = frac * C;
+          const off = -acc * C;
+          acc += frac;
+          return <Circle key={i} cx={CC} cy={CC} r={R} stroke={d.color ?? colors[i % colors.length]} strokeWidth={SW} fill="none" strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={off} rotation={-90} origin={`${CC},${CC}`} />;
+        })}
+      </Svg>
+    );
+    const legendRows = legend === 'none' ? null : (
+      <View style={legend === 'bottom' ? { width: '100%', gap: Math.max(3 * k, w * 0.015) } : { flex: 1, gap: Math.max(3 * k, w * 0.015) }}>
+        {data.map((d, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
+            <View style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? colors[i % colors.length], flexShrink: 0 }} />
+            <Text style={{ ...F(font), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', flex: 1 }}>{d.label}</Text>
+            <Text style={{ ...F(font, true), fontSize: sz(10, 0.03), color: block.textColor ?? '#111' }}>{Math.round((Math.max(0, d.value) / total) * 100)}%</Text>
+          </View>
+        ))}
+      </View>
+    );
+    if (legend === 'bottom')
+      return <View style={{ alignItems: 'center', gap: Math.max(8 * k, w * 0.04) }}>{wheel}{legendRows}</View>;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(8 * k, w * 0.04) }}>
-        <Svg width={VB} height={VB} viewBox={`0 0 ${VB} ${VB}`}>
-          <Circle cx={CC} cy={CC} r={R} stroke="#00000015" strokeWidth={SW} fill="none" />
-          {data.map((d, i) => {
-            const frac = Math.max(0, d.value) / total;
-            const dash = frac * C;
-            const off = -acc * C;
-            acc += frac;
-            return <Circle key={i} cx={CC} cy={CC} r={R} stroke={d.color ?? colors[i % colors.length]} strokeWidth={SW} fill="none" strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={off} rotation={-90} origin={`${CC},${CC}`} />;
-          })}
-        </Svg>
-        <View style={{ flex: 1, gap: Math.max(3 * k, w * 0.015) }}>
-          {data.map((d, i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
-              <View style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? colors[i % colors.length] }} />
-              <Text style={{ ...F(font), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', flex: 1 }}>{d.label}</Text>
-              <Text style={{ ...F(font, true), fontSize: sz(10, 0.03), color: block.textColor ?? '#111' }}>{Math.round((Math.max(0, d.value) / total) * 100)}%</Text>
-            </View>
-          ))}
-        </View>
+        {wheel}
+        {legendRows}
       </View>
     );
   }
-  if (block.type === 'vbar') {
+  if (variant === 'vbar') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + Math.max(0, b.value), 0) || 1;
-    const maxH = Math.max(80 * k, w * 0.35);
+    const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1) : 1;
+    const maxH = Math.max(80 * k, w * 0.35) * (st?.chartHeight != null ? clamp(st.chartHeight, 0.4, 1.6) : 1);
+    const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * 12 * k : 6 * k;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: Math.max(6 * k, w * 0.03) }}>
         {data.map((d, i) => {
           const h = Math.max(2 * k, (Math.max(0, d.value) / total) * maxH);
           return (
             <View key={i} style={{ flex: 1, alignItems: 'center', gap: 3 * k }}>
-              <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1}>{d.value}</Text>
-              <View style={{ height: maxH, justifyContent: 'flex-end', width: '100%' }}>
-                <View style={{ height: h, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: 6 * k }} />
+              {showV ? <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1}>{d.value}</Text> : null}
+              <View style={{ height: maxH, justifyContent: 'flex-end', width: '100%', alignItems: 'center' }}>
+                <View style={{ height: h, width: `${t * 100}%`, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
               </View>
-              <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1}>{d.label}</Text>
+              {showL ? <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1}>{d.label}</Text> : null}
             </View>
           );
         })}
@@ -87,7 +112,28 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   return null;
 }
 
-export default function ContentBlockView({ block, width, font = 'inter', zoom = 1, fill = false }: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
+/** Outer wrapper honouring per-block width % + alignment (width math inside
+ *  keeps using the full content width so text scale stays predictable).
+ *  Mirrors web blocks.tsx BlockView — keep in sync. */
+export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
+  const { block } = props;
+  const st = block.style;
+  const pct = st?.width != null ? Math.min(1, Math.max(0.3, st.width)) : 1;
+  const align = st?.align ?? 'left';
+  if (pct >= 1 && align === 'left') return <ContentBlockInner {...props} />;
+  return (
+    <View
+      style={{
+        width: `${pct * 100}%` as any,
+        alignSelf: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+      }}
+    >
+      <ContentBlockInner {...props} />
+    </View>
+  );
+}
+
+function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = false }: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
   const tc = block.textColor ?? '#111111';
   const w = width;
   const k = w / 340;
@@ -134,14 +180,19 @@ export default function ContentBlockView({ block, width, font = 'inter', zoom = 
   }
   if (block.type === 'table') {
     const rows = block.table ?? [['', '']];
+    const st = block.style;
+    const ts = st?.tableScale != null ? Math.min(1.6, Math.max(0.6, st.tableScale)) : 1;
+    const colW = st?.tableColWidths;
+    const headerBg = st?.tableHeaderBg ?? true;
+    const zebra = st?.tableZebra ?? false;
     return (
       <View>
         {block.heading ? <Text style={{ ...F(font, true), fontSize: sz(12, 0.045), color: tc, marginBottom: Math.max(4 * k, w * 0.015) }}>{block.heading}</Text> : null}
         <View style={{ borderWidth: hair, borderColor: tc + '44', borderRadius: Math.max(6 * k, w * 0.015), overflow: 'hidden' }}>
           {rows.map((row, ri) => (
-            <View key={ri} style={{ flexDirection: 'row', backgroundColor: ri === 0 ? tc + '14' : 'transparent' }}>
+            <View key={ri} style={{ flexDirection: 'row', backgroundColor: ri === 0 && headerBg ? tc + '14' : zebra && ri % 2 === 1 ? tc + '0A' : 'transparent' }}>
               {row.map((cell, ci) => (
-                <Text key={ci} style={{ ...F(font, ri === 0), flex: 1, fontSize: sz(9, 0.028), padding: Math.max(4 * k, w * 0.012), color: tc, borderLeftWidth: ci > 0 ? hair : 0, borderLeftColor: tc + '22' }}>{cell}</Text>
+                <Text key={ci} style={{ ...F(font, ri === 0), flex: colW?.[ci] ?? 1, fontSize: sz(9 * ts, 0.028 * ts), padding: Math.max(4 * k * ts, w * 0.012 * ts), color: tc, borderLeftWidth: ci > 0 ? hair : 0, borderLeftColor: tc + '22' }}>{cell}</Text>
               ))}
             </View>
           ))}
@@ -150,7 +201,10 @@ export default function ContentBlockView({ block, width, font = 'inter', zoom = 
     );
   }
   if (block.type === 'image') {
+    const st = block.style;
     const asp = block.imageAspect ?? (block.imageH !== undefined ? 'custom' : 'wide');
+    const fit = st?.imageFit ?? 'cover';
+    const radius = st?.imageRadius != null ? Math.min(0.5, Math.max(0, st.imageRadius)) * w : 8 * k;
     const custom = asp === 'custom';
     const frame = custom ? { height: (block.imageH ?? 140) * k } : { aspectRatio: asp === 'square' ? 1 : 16 / 9 };
     const focus = block.imageFocus ?? 4;
@@ -185,11 +239,11 @@ export default function ContentBlockView({ block, width, font = 'inter', zoom = 
       <View style={grow}>
         {block.heading ? <Text style={{ ...F(font, true), fontSize: sz(12, 0.045), color: tc, marginBottom: Math.max(4 * k, w * 0.015) }}>{block.heading}</Text> : null}
         {block.imageUri ? (
-          <View style={[frame, grow, { overflow: 'hidden', borderRadius: 8 * k, justifyContent: crop ? 'flex-start' : vAlign }]}>
-            <Image source={{ uri: block.imageUri }} style={(cropInner ?? imgInner) as any} resizeMode="cover" />
+          <View style={[frame, grow, { overflow: 'hidden', borderRadius: radius, justifyContent: crop ? 'flex-start' : vAlign }]}>
+            <Image source={{ uri: block.imageUri }} style={(cropInner ?? imgInner) as any} resizeMode={fit} />
           </View>
         ) : (
-          <View style={[frame, { width: '100%', borderRadius: 8 * k, borderWidth: hair, borderStyle: 'dashed', borderColor: tc + '66', alignItems: 'center', justifyContent: 'center' }]}>
+          <View style={[frame, { width: '100%', borderRadius: radius, borderWidth: hair, borderStyle: 'dashed', borderColor: tc + '66', alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={{ ...F(font), fontSize: sz(10, 0.03), color: tc + '99' }}>No image yet — pick one in the editor</Text>
           </View>
         )}

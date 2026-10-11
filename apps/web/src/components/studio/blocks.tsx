@@ -127,7 +127,28 @@ export function ChromeIcon({ name, size, color }: { name: string; size: number; 
 
 /* -------------------------------- blocks ------------------------------- */
 
-export function BlockView({ block, width, font, zoom = 1 }: { block: ContentBlock; width: number; font: FontId; zoom?: number }) {  const tc = block.textColor ?? '#111111';
+/** Outer wrapper honouring per-block width % + alignment (width math inside
+ *  keeps using the full content width so text scale stays predictable). */
+export function BlockView(props: { block: ContentBlock; width: number; font: FontId; zoom?: number }) {
+  const { block } = props;
+  const st = block.style;
+  const pct = st?.width != null ? Math.min(1, Math.max(0.3, st.width)) : 1;
+  const align = st?.align ?? 'left';
+  if (pct >= 1 && align === 'left') return <BlockInner {...props} />;
+  return (
+    <div
+      style={{
+        width: `${pct * 100}%`,
+        marginRight: align === 'left' ? 'auto' : align === 'center' ? 'auto' : 0,
+        marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : 0,
+      }}
+    >
+      <BlockInner {...props} />
+    </div>
+  );
+}
+
+function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; width: number; font: FontId; zoom?: number }) {  const tc = block.textColor ?? '#111111';
   const w = width;
   const k = w / 340;
   const sz = (base: number, f: number) => Math.max(base * k, w * f) * zoom;
@@ -183,16 +204,24 @@ export function BlockView({ block, width, font, zoom = 1 }: { block: ContentBloc
   }
   if (block.type === 'table') {
     const rows = block.table ?? [['', '']];
+    const st = block.style;
+    const ts = st?.tableScale != null ? Math.min(1.6, Math.max(0.6, st.tableScale)) : 1;
+    const colW = st?.tableColWidths;
+    const headerBg = st?.tableHeaderBg ?? true;
+    const zebra = st?.tableZebra ?? false;
     return (
       <div>
         {heading}
         <div style={{ borderWidth: hair, borderStyle: 'solid', borderColor: `${tc}44`, borderRadius: Math.max(6 * k, w * 0.015), overflow: 'hidden' }}>
           {rows.map((row, ri) => (
-            <div key={ri} style={{ display: 'flex', backgroundColor: ri === 0 ? `${tc}14` : 'transparent' }}>
+            <div
+              key={ri}
+              style={{ display: 'flex', backgroundColor: ri === 0 && headerBg ? `${tc}14` : zebra && ri % 2 === 1 ? `${tc}0A` : 'transparent' }}
+            >
               {row.map((cell, ci) => (
                 <p
                   key={ci}
-                  style={{ ...ff(font, ri === 0), flex: 1, fontSize: sz(9, 0.028), padding: Math.max(4 * k, w * 0.012), color: tc, margin: 0, borderLeftWidth: ci > 0 ? hair : 0, borderLeftStyle: 'solid', borderLeftColor: `${tc}22` }}
+                  style={{ ...ff(font, ri === 0), flex: colW?.[ci] ?? 1, fontSize: sz(9 * ts, 0.028 * ts), padding: Math.max(4 * k * ts, w * 0.012 * ts), color: tc, margin: 0, borderLeftWidth: ci > 0 ? hair : 0, borderLeftStyle: 'solid', borderLeftColor: `${tc}22` }}
                 >
                   {cell}
                 </p>
@@ -204,8 +233,11 @@ export function BlockView({ block, width, font, zoom = 1 }: { block: ContentBloc
     );
   }
   if (block.type === 'image') {
+    const st = block.style;
     const asp = block.imageAspect ?? (block.imageH !== undefined ? 'custom' : 'wide');
     const frameH = asp === 'custom' ? (block.imageH ?? 140) * k : asp === 'square' ? w : (w * 9) / 16;
+    const fit = st?.imageFit ?? 'cover';
+    const radius = st?.imageRadius != null ? Math.min(0.5, Math.max(0, st.imageRadius)) * w : 8 * k;
     const focus = block.imageFocus ?? 4;
     const fx = (focus % 3) - 1;
     const fy = Math.floor(focus / 3) - 1;
@@ -213,21 +245,21 @@ export function BlockView({ block, width, font, zoom = 1 }: { block: ContentBloc
       <div>
         {heading}
         {block.imageUri ? (
-          <div style={{ width: '100%', height: frameH, overflow: 'hidden', borderRadius: 8 * k, position: 'relative', backgroundColor: '#00000010' }}>
+          <div style={{ width: '100%', height: frameH, overflow: 'hidden', borderRadius: radius, position: 'relative', backgroundColor: '#00000010' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={block.imageUri}
               alt=""
               style={{
                 position: 'absolute', width: fx !== 0 || fy !== 0 ? '140%' : '100%', height: fx !== 0 || fy !== 0 ? '140%' : '100%',
-                objectFit: 'cover',
+                objectFit: fit,
                 left: fx === 0 ? '0' : fx > 0 ? 'auto' : '-40%', right: fx > 0 ? '-40%' : 'auto',
                 top: fy === 0 ? '0' : fy > 0 ? 'auto' : '-40%', bottom: fy > 0 ? '-40%' : 'auto',
               }}
             />
           </div>
         ) : (
-          <div style={{ width: '100%', height: frameH, borderRadius: 8 * k, borderWidth: hair, borderStyle: 'dashed', borderColor: `${tc}66`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '100%', height: frameH, borderRadius: radius, borderWidth: hair, borderStyle: 'dashed', borderColor: `${tc}66`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <p style={{ ...ff(font), fontSize: sz(10, 0.03), color: `${tc}99`, margin: 0 }}>No image yet. Pick one in the editor</p>
           </div>
         )}
@@ -249,73 +281,98 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const k = w / 340;
   const sz = (base: number, f: number) => Math.max(base * k, w * f) * zoom;
   const txt = (base: number) => sz(base, 0.032);
-  if (block.type === 'bar') {
+  const st = block.style;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  // chartVariant re-aims the block at any renderer (bar=vbar→horizontal,
+  // etc.); absent = the block type's own default.
+  const variant = st?.chartVariant ?? (block.type === 'bar' ? 'hbar' : block.type);
+  const showV = st?.chartShowValues ?? true;
+  const showL = st?.chartShowLabels ?? true;
+  if (variant === 'hbar') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + b.value, 0) || 1;
+    const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1.6) : 1;
+    const barH = Math.max(6 * k, w * 0.03) * t;
+    const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * barH * 0.6 : 6 * k;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: Math.max(4 * k, w * 0.02) }}>
         {data.map((d, i) => (
           <div key={i}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
-              <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
-              <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p>
-            </div>
-            <div style={{ height: Math.max(6 * k, w * 0.03), backgroundColor: '#00000015', borderRadius: 6 * k, overflow: 'hidden' }}>
-              <div style={{ width: `${Math.max(0, d.value / total) * 100}%`, height: Math.max(6 * k, w * 0.03), backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: 6 * k }} />
+            {showL || showV ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
+                {showL ? (
+                  <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
+                ) : null}
+                {showV ? <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p> : null}
+              </div>
+            ) : null}
+            <div style={{ height: barH, backgroundColor: '#00000015', borderRadius: rad, overflow: 'hidden' }}>
+              <div style={{ width: `${Math.max(0, d.value / total) * 100}%`, height: barH, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
             </div>
           </div>
         ))}
       </div>
     );
   }
-  if (block.type === 'pie') {
+  if (variant === 'pie') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + Math.max(0, b.value), 0) || 1;
     const R = Math.max(20 * k, w * 0.15);
-    const SW = R * 0.35;
+    const SW = R * (st?.chartThickness != null ? clamp(st.chartThickness, 0.15, 0.8) : 0.35);
     const VB = (R + SW / 2 + 2) * 2;
     const CC = VB / 2;
     const C = 2 * Math.PI * R;
     let acc = 0;
+    const legend = st?.chartLegend ?? 'right';
+    const wheel = (
+      <svg width={VB} height={VB} viewBox={`0 0 ${VB} ${VB}`} style={legend === 'bottom' ? { display: 'block', margin: '0 auto' } : { display: 'block', flexShrink: 0 }}>
+        <circle cx={CC} cy={CC} r={R} stroke="#00000015" strokeWidth={SW} fill="none" />
+        {data.map((d, i) => {
+          const frac = Math.max(0, d.value) / total;
+          const dash = frac * C;
+          const off = -acc * C;
+          acc += frac;
+          return <circle key={i} cx={CC} cy={CC} r={R} stroke={d.color ?? DATA[i % DATA.length]} strokeWidth={SW} fill="none" strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={off} transform={`rotate(-90 ${CC} ${CC})`} />;
+        })}
+      </svg>
+    );
+    const legendRows = legend === 'none' ? null : (
+      <div style={{ flex: legend === 'bottom' ? undefined : 1, width: legend === 'bottom' ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: Math.max(3 * k, w * 0.015) }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
+            <span style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? DATA[i % DATA.length], flexShrink: 0 }} />
+            <p style={{ ...ff(font), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', flex: 1, margin: 0 }}>{d.label}</p>
+            <p style={{ ...ff(font, true), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', margin: 0 }}>{Math.round((Math.max(0, d.value) / total) * 100)}%</p>
+          </div>
+        ))}
+      </div>
+    );
+    if (legend === 'bottom')
+      return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: Math.max(8 * k, w * 0.04) }}>{wheel}{legendRows}</div>;
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: Math.max(8 * k, w * 0.04) }}>
-        <svg width={VB} height={VB} viewBox={`0 0 ${VB} ${VB}`}>
-          <circle cx={CC} cy={CC} r={R} stroke="#00000015" strokeWidth={SW} fill="none" />
-          {data.map((d, i) => {
-            const frac = Math.max(0, d.value) / total;
-            const dash = frac * C;
-            const off = -acc * C;
-            acc += frac;
-            return <circle key={i} cx={CC} cy={CC} r={R} stroke={d.color ?? DATA[i % DATA.length]} strokeWidth={SW} fill="none" strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={off} transform={`rotate(-90 ${CC} ${CC})`} />;
-          })}
-        </svg>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: Math.max(3 * k, w * 0.015) }}>
-          {data.map((d, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
-              <span style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? DATA[i % DATA.length] }} />
-              <p style={{ ...ff(font), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', flex: 1, margin: 0 }}>{d.label}</p>
-              <p style={{ ...ff(font, true), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', margin: 0 }}>{Math.round((Math.max(0, d.value) / total) * 100)}%</p>
-            </div>
-          ))}
-        </div>
+        {wheel}
+        {legendRows}
       </div>
     );
   }
   // vbar
   const data = block.chart ?? [];
   const total = data.reduce((a, b) => a + Math.max(0, b.value), 0) || 1;
-  const maxH = Math.max(80 * k, w * 0.35);
+  const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1) : 1;
+  const maxH = Math.max(80 * k, w * 0.35) * (st?.chartHeight != null ? clamp(st.chartHeight, 0.4, 1.6) : 1);
+  const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * 12 * k : 6 * k;
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: Math.max(6 * k, w * 0.03) }}>
       {data.map((d, i) => {
         const h = Math.max(2 * k, (Math.max(0, d.value) / total) * maxH);
         return (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 * k }}>
-            <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p>
-            <div style={{ height: maxH, display: 'flex', alignItems: 'flex-end', width: '100%' }}>
-              <div style={{ height: h, width: '100%', backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: 6 * k }} />
+            {showV ? <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p> : null}
+            <div style={{ height: maxH, display: 'flex', alignItems: 'flex-end', width: '100%', justifyContent: 'center' }}>
+              <div style={{ height: h, width: `${t * 100}%`, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
             </div>
-            <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.label}</p>
+            {showL ? <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.label}</p> : null}
           </div>
         );
       })}
