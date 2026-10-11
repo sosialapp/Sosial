@@ -45,7 +45,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
           const pct = Math.max(0, (d.value / total)) * 100;
           const outsideL = showL && labPos === 'out';
           const outsideV = showV && valPos === 'out';
-          const thumb = Math.max(10 * k, w * 0.042) * imgScale;
+          const thumb = Math.max(14 * k, w * 0.052) * imgScale;
           return (
             <View key={i}>
               {outsideL || outsideV ? (
@@ -118,7 +118,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
         {data.map((d, i) => (
           <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
             {labelImg && d.img ? (
-              <Image source={{ uri: d.img }} style={{ width: Math.max(10 * k, w * 0.032) * imgScale, height: Math.max(10 * k, w * 0.032) * imgScale, borderRadius: Math.max(3 * k, w * 0.01) * imgScale }} resizeMode="cover" />
+              <Image source={{ uri: d.img }} style={{ width: Math.max(14 * k, w * 0.05) * imgScale, height: Math.max(14 * k, w * 0.05) * imgScale, borderRadius: Math.max(4 * k, w * 0.014) * imgScale }} resizeMode="cover" />
             ) : (
               <View style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? colors[i % colors.length], flexShrink: 0 }} />
             )}
@@ -181,9 +181,9 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
                 </View>
               </View>
               {showL && labPos === 'out' ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(3 * k, w * 0.014), maxWidth: '100%', minWidth: 0 }}>
-                  {labelImg && d.img ? <Image source={{ uri: d.img }} style={{ width: Math.max(9 * k, w * 0.038) * imgScale, height: Math.max(9 * k, w * 0.038) * imgScale, borderRadius: Math.max(3 * k, w * 0.011) * imgScale }} resizeMode="cover" /> : null}
-                  <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
+                <View style={{ flexDirection: 'column', alignItems: 'center', gap: Math.max(2 * k, w * 0.01), maxWidth: '100%', minWidth: 0 }}>
+                  {labelImg && d.img ? <Image source={{ uri: d.img }} style={{ width: Math.max(16 * k, w * 0.06) * imgScale, height: Math.max(16 * k, w * 0.06) * imgScale, borderRadius: Math.max(4 * k, w * 0.016) * imgScale }} resizeMode="cover" /> : null}
+                  <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111', maxWidth: '100%', textAlign: 'center' }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
                 </View>
               ) : null}
             </View>

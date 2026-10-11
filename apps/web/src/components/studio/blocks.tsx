@@ -332,7 +332,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
                     <span style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.018), flex: 1, minWidth: 0 }}>
                       {labelImg && d.img ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.042) * imgScale, height: Math.max(10 * k, w * 0.042) * imgScale, borderRadius: Math.max(3 * k, w * 0.012) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
+                        <img src={d.img} alt="" style={{ width: Math.max(14 * k, w * 0.052) * imgScale, height: Math.max(14 * k, w * 0.052) * imgScale, borderRadius: Math.max(4 * k, w * 0.015) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
                       ) : null}
                       <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
                     </span>
@@ -403,7 +403,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
             {labelImg && d.img ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.032) * imgScale, height: Math.max(10 * k, w * 0.032) * imgScale, borderRadius: Math.max(3 * k, w * 0.01) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
+              <img src={d.img} alt="" style={{ width: Math.max(14 * k, w * 0.05) * imgScale, height: Math.max(14 * k, w * 0.05) * imgScale, borderRadius: Math.max(4 * k, w * 0.014) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
             ) : (
               <span style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? DATA[i % DATA.length], flexShrink: 0 }} />
             )}
@@ -472,12 +472,12 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
               </div>
             </div>
             {showL && labPos === 'out' ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: Math.max(3 * k, w * 0.014), maxWidth: '100%', minWidth: 0 }}>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: Math.max(2 * k, w * 0.01), maxWidth: '100%', minWidth: 0 }}>
                 {labelImg && d.img ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={d.img} alt="" style={{ width: Math.max(9 * k, w * 0.038) * imgScale, height: Math.max(9 * k, w * 0.038) * imgScale, borderRadius: Math.max(3 * k, w * 0.011) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
+                  <img src={d.img} alt="" style={{ width: Math.max(16 * k, w * 0.06) * imgScale, height: Math.max(16 * k, w * 0.06) * imgScale, borderRadius: Math.max(4 * k, w * 0.016) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
                 ) : null}
-                <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
+                <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0, maxWidth: '100%', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
               </span>
             ) : null}
           </div>
