@@ -104,6 +104,8 @@ export const FONT_OPTIONS: { value: FontId; label: string }[] = [
 export interface PfpStyle {
   uri?: string;
   hidden?: boolean;
+  /** Hide only the social badges (photo stays). */
+  socialsHidden?: boolean;
   pfpY: 'top' | 'bottom';
   size: number;
   shape: 'circle' | 'rounded';

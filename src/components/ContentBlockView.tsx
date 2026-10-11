@@ -227,9 +227,11 @@ function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = fals
       ? {
           width: `${crop.zoom * 100}%` as any,
           height: `${crop.zoom * 100}%` as any,
+          // (x-1) mapping: -1 shows the left edge, +1 the right, 0 centered —
+          // always full frame coverage. Matches web blocks.tsx.
           transform: [
-            { translateX: (crop.x * overX) / 2 },
-            { translateY: (crop.y * overY) / 2 },
+            { translateX: ((crop.x - 1) * overX) / 2 },
+            { translateY: ((crop.y - 1) * overY) / 2 },
           ],
         }
       : null;

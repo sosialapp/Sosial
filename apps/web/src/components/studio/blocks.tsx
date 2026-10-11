@@ -241,6 +241,10 @@ function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; wid
     const focus = block.imageFocus ?? 4;
     const fx = (focus % 3) - 1;
     const fy = Math.floor(focus / 3) - 1;
+    // Manual crop wins over the focal preset: zoom (1-3) + pan (-1..1 each
+    // axis), mirroring mobile ContentBlockView — keep in sync.
+    const crop = block.imageCrop;
+    const zoom = Math.min(3, Math.max(1, crop?.zoom ?? 1));
     return (
       <div>
         {heading}
@@ -250,12 +254,22 @@ function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; wid
             <img
               src={block.imageUri}
               alt=""
-              style={{
-                position: 'absolute', width: fx !== 0 || fy !== 0 ? '140%' : '100%', height: fx !== 0 || fy !== 0 ? '140%' : '100%',
-                objectFit: fit,
-                left: fx === 0 ? '0' : fx > 0 ? 'auto' : '-40%', right: fx > 0 ? '-40%' : 'auto',
-                top: fy === 0 ? '0' : fy > 0 ? 'auto' : '-40%', bottom: fy > 0 ? '-40%' : 'auto',
-              }}
+              style={
+                crop
+                  ? {
+                      position: 'absolute', display: 'block',
+                      width: `${zoom * 100}%`, height: `${zoom * 100}%`, objectFit: 'cover',
+                      // (x-1) mapping: x=-1 shows the left edge, x=+1 the right,
+                      // x=0 centered — always full frame coverage.
+                      left: `${(crop.x - 1) * (zoom - 1) * 50}%`, top: `${(crop.y - 1) * (zoom - 1) * 50}%`,
+                    }
+                  : {
+                      position: 'absolute', width: fx !== 0 || fy !== 0 ? '140%' : '100%', height: fx !== 0 || fy !== 0 ? '140%' : '100%',
+                      objectFit: fit,
+                      left: fx === 0 ? '0' : fx > 0 ? 'auto' : '-40%', right: fx > 0 ? '-40%' : 'auto',
+                      top: fy === 0 ? '0' : fy > 0 ? 'auto' : '-40%', bottom: fy > 0 ? '-40%' : 'auto',
+                    }
+              }
             />
           </div>
         ) : (

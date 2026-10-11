@@ -440,8 +440,9 @@ export default function StudioCanvas({
     ? page.title.size * k * 1.3 * titleLines + ((page.title.subtitle ?? '').trim() ? (page.title.subtitleSize ?? 15) * k * 1.35 : 0)
     : 0;
   const pfpVisible = !(page.pfp.hidden ?? false);
-  const socialsBelow = pfpVisible && page.socials.some((s) => s.visible) && (page.pfp.socialPos ?? 'below') === 'below';
-  const socialsAbove = pfpVisible && page.socials.some((s) => s.visible) && (page.pfp.socialPos ?? 'below') === 'top';
+  const socialsOn = pfpVisible && !(page.pfp.socialsHidden ?? false) && page.socials.some((s) => s.visible);
+  const socialsBelow = socialsOn && (page.pfp.socialPos ?? 'below') === 'below';
+  const socialsAbove = socialsOn && (page.pfp.socialPos ?? 'below') === 'top';
   const pfpH = pfpVisible
     ? page.pfp.size * k + pad(4) + (page.pfp.username?.trim() ? pad(page.pfp.handleSize ?? 8.5) + pad(2) : 0) + ((socialsBelow || socialsAbove) ? pad(page.pfp.iconSize ?? 17) + pad(6) : 0)
     : 0;
@@ -671,7 +672,8 @@ function TitleBlock({ page, k }: { page: PostPage; k: number }) {
 
 function PfpRow({ page, k }: { page: PostPage; k: number }) {
   if (page.pfp.hidden ?? false) return null;
-  const visibleSocials = page.socials.filter((s) => s.visible);
+  const socialsOff = page.pfp.socialsHidden ?? false;
+  const visibleSocials = socialsOff ? [] : page.socials.filter((s) => s.visible);
   const socialPos = page.pfp.socialPos ?? 'below';
   const badgeBg = page.pfp.badgeBg ?? true;
   const badgeRows = page.pfp.badgeRows ?? 1;

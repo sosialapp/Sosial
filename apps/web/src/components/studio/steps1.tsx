@@ -340,10 +340,16 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
   return (
     <div className="space-y-4">
       <SwitchRow
-        title="Show photo & socials"
+        title="Show photo"
         sub={(p.hidden ?? false) ? 'Hidden on the canvas' : 'Visible on the canvas'}
         on={!(p.hidden ?? false)}
         onPress={() => patchPfp({ hidden: !(p.hidden ?? false) })}
+      />
+      <SwitchRow
+        title="Show socials"
+        sub={(p.socialsHidden ?? false) ? 'Badges hidden on the canvas' : 'Badges visible on the canvas'}
+        on={!(p.socialsHidden ?? false)}
+        onPress={() => patchPfp({ socialsHidden: !(p.socialsHidden ?? false) })}
       />
       <div className="space-y-3" style={{ opacity: p.hidden ? 0.45 : 1 }}>
         <Section no="01" title="Portrait" hint="Your face on the post." />
@@ -389,7 +395,7 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
           <EmojiInput value={p.customHandle ?? ''} onChange={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" className="field" />
         </Field>
       </div>
-      <div className="space-y-3" style={{ opacity: p.hidden ? 0.45 : 1 }}>
+      <div className="space-y-3" style={{ opacity: (p.hidden || p.socialsHidden) ? 0.45 : 1 }}>
         <Section no="02" title="Badges" hint="Centered next to your photo on the export." />
         <div className="card divide-y divide-line-soft overflow-hidden">
           {ALL_SOCIALS.filter((pl) => pl !== 'whatsapp').map((pl) => {

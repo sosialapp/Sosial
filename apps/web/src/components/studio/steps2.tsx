@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   CARD_STYLES,
   DATA,
@@ -27,6 +27,63 @@ const BLOCK_TYPES: { id: BlockType; label: string }[] = [
   { id: 'free', label: 'Text' },
   { id: 'image', label: 'Image' },
 ];
+
+const clampC = (v: number) => Math.min(1, Math.max(-1, v));
+
+/** Drag-to-pan crop pad: the image renders with the same zoom/pan math as
+ *  the canvas, dragging maps px deltas to the -1..1 pan range. */
+function CropPad({
+  uri, zoom, x, y, onChange,
+}: {
+  uri: string;
+  zoom: number;
+  x: number;
+  y: number;
+  onChange: (c: { zoom: number; x: number; y: number }) => void;
+}) {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const drag = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
+  const z = Math.max(1, zoom);
+  const onDown = (e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    drag.current = { px: e.clientX, py: e.clientY, x, y };
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    const box = boxRef.current;
+    if (!d || !box || z <= 1) return;
+    const dx = ((e.clientX - d.px) * 2) / (box.clientWidth * (z - 1));
+    const dy = ((e.clientY - d.py) * 2) / (box.clientHeight * (z - 1));
+    onChange({ zoom, x: clampC(d.x + dx), y: clampC(d.y + dy) });
+  };
+  const onUp = () => {
+    drag.current = null;
+  };
+  return (
+    <div
+      ref={boxRef}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      className="relative h-44 w-full touch-none select-none overflow-hidden rounded-xl bg-black/5"
+      style={{ cursor: z > 1 ? 'grab' : 'default' }}
+      aria-label="Crop preview — drag to reposition"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={uri}
+        alt=""
+        draggable={false}
+        className="pointer-events-none absolute block"
+        style={{
+          width: `${z * 100}%`, height: `${z * 100}%`, objectFit: 'cover',
+          left: `${(x - 1) * (z - 1) * 50}%`, top: `${(y - 1) * (z - 1) * 50}%`,
+        }}
+      />
+    </div>
+  );
+}
 
 /* -------------------------------- 04 content ------------------------------- */
 
@@ -453,6 +510,37 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                           format={(v) => `${Math.round(v * 200)}%`}
                         />
                       </Field>
+                      {b.imageUri ? (
+                        <Field label="Free crop" hint="Drag the photo, zoom in, Done.">
+                          <div className="space-y-2">
+                            <CropPad
+                              uri={b.imageUri}
+                              zoom={b.imageCrop?.zoom ?? 1}
+                              x={b.imageCrop?.x ?? 0}
+                              y={b.imageCrop?.y ?? 0}
+                              onChange={(c) => update(b.id, { imageCrop: c })}
+                            />
+                            <div className="flex items-center gap-2">
+                              <Stepper
+                                value={b.imageCrop?.zoom ?? 1}
+                                onChange={(v) =>
+                                  update(b.id, { imageCrop: { zoom: v, x: b.imageCrop?.x ?? 0, y: b.imageCrop?.y ?? 0 } })
+                                }
+                                step={0.1}
+                                min={1}
+                                max={3}
+                                format={(v) => `${v.toFixed(1)}x`}
+                              />
+                              <span className="flex-1" />
+                              {b.imageCrop ? (
+                                <button type="button" onClick={() => update(b.id, { imageCrop: undefined })} className="btn btn-ghost">
+                                  Reset crop
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </Field>
+                      ) : null}
                       {b.imageUri ? (
                         <Field label="Focus" hint="Which third of the photo shows.">
                           <div className="space-y-1">

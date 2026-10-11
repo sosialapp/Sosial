@@ -80,10 +80,17 @@ export default function PhotoSocialsEditor() {
     <View style={{ gap: 18 }}>
       <View style={st.switchRow}>
         <View style={{ flex: 1 }}>
-          <Text style={st.switchT}>Show photo & socials</Text>
+          <Text style={st.switchT}>Show photo</Text>
           <Text style={st.switchS}>{(p.hidden ?? false) ? 'Hidden on the canvas' : 'Visible on the canvas'}</Text>
         </View>
         <PillToggle on={!(p.hidden ?? false)} onPress={() => patchPfp({ hidden: !(p.hidden ?? false) })} />
+      </View>
+      <View style={st.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={st.switchT}>Show socials</Text>
+          <Text style={st.switchS}>{(p.socialsHidden ?? false) ? 'Badges hidden on the canvas' : 'Badges visible on the canvas'}</Text>
+        </View>
+        <PillToggle on={!(p.socialsHidden ?? false)} onPress={() => patchPfp({ socialsHidden: !(p.socialsHidden ?? false) })} />
       </View>
 
       <View style={{ gap: 12, opacity: p.hidden ? 0.45 : 1 }}>
@@ -131,7 +138,7 @@ export default function PhotoSocialsEditor() {
         </Field>
       </View>
 
-      <View style={{ gap: 12, opacity: p.hidden ? 0.45 : 1 }}>
+      <View style={{ gap: 12, opacity: (p.hidden || p.socialsHidden) ? 0.45 : 1 }}>
         <Section no="02" title="Badges" hint="Centered next to your photo on the export." />
         <View style={st.list}>
           {ALL_PLATFORMS.map((pl, i) => {

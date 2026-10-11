@@ -72,8 +72,9 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
     ? page.title.size * s * 1.3 * titleLines + ((page.title.subtitle ?? '').trim() ? (page.title.subtitleSize ?? 15) * s * 1.35 : 0)
     : 0;
   const pfpVisible = !(page.pfp.hidden ?? false);
-  const socialsBelow = pfpVisible && visibleSocials.length > 0 && socialPos === 'below';
-  const socialsAbove = pfpVisible && visibleSocials.length > 0 && socialPos === 'top';
+  const socialsOn = pfpVisible && !(page.pfp.socialsHidden ?? false) && visibleSocials.length > 0;
+  const socialsBelow = socialsOn && socialPos === 'below';
+  const socialsAbove = socialsOn && socialPos === 'top';
   const pfpH = pfpVisible
     ? page.pfp.size * s + pad(4) + (page.pfp.username?.trim() ? pad(handleSize) + pad(2) : 0) + ((socialsBelow || socialsAbove) ? pad(iconSize) + pad(6) : 0)
     : 0;
@@ -128,7 +129,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           ) : null}
         </View>
       )}
-      {visibleSocials.length > 0 ? (
+      {visibleSocials.length > 0 && !(page.pfp.socialsHidden ?? false) ? (
         <View
           style={{
             flexDirection: 'row',

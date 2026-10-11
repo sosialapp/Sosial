@@ -89,8 +89,8 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
                     width: frameW * zoom,
                     height: frameH * zoom,
                     transform: [
-                      { translateX: (x * overX) / 2 },
-                      { translateY: (y * overY) / 2 },
+                      { translateX: ((x - 1) * overX) / 2 },
+                      { translateY: ((y - 1) * overY) / 2 },
                     ],
                   }}
                 />
