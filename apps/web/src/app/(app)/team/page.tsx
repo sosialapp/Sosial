@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import ApiKeysManager from '@/components/ApiKeysManager';
-import CreateTeamCard from '@/components/CreateTeamCard';
 import McpSection from '@/components/McpSection';
 import TeamManager from '@/components/TeamManager';
+import TeamPicker from '@/components/TeamPicker';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -33,22 +33,48 @@ export default async function TeamPage() {
       .eq('status', 'connected'),
   ]);
 
+  const members = membersRes.data ?? [];
+  const { data: memberships } = await sb
+    .from('workspace_members')
+    .select('role, workspaces!inner(id, name)')
+    .eq('user_id', ctx.user.id)
+    .eq('status', 'active');
+  const workspaces = (
+    ((memberships ?? []) as unknown as {
+      role: string;
+      workspaces: { id: string; name: string | null };
+    }[])
+  )
+    .map((m) => ({
+      id: String(m.workspaces.id),
+      name: String(m.workspaces.name ?? 'My team'),
+      role: String(m.role),
+    }))
+    .sort((a, b) => (b.id === ctx.workspace.id ? 1 : 0) - (a.id === ctx.workspace.id ? 1 : 0));
+
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
       <p className="eyebrow">Workspace</p>
       <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Team</h1>
-      <p className="mt-1 text-sm text-muted">
-        {ctx.workspace.name} · {(membersRes.data ?? []).length} member
-        {(membersRes.data ?? []).length === 1 ? '' : 's'}
-      </p>
+      <TeamPicker
+        current={{ id: ctx.workspace.id, name: ctx.workspace.name, role: ctx.workspace.role }}
+        memberCount={members.length}
+        workspaces={
+          workspaces.some((w) => w.id === ctx.workspace.id)
+            ? workspaces
+            : [
+                ...workspaces,
+                { id: ctx.workspace.id, name: ctx.workspace.name, role: ctx.workspace.role },
+              ]
+        }
+      />
       <div className="mt-4 space-y-4">
-        <CreateTeamCard />
         <TeamManager
           workspaceId={ctx.workspace.id}
           workspaceName={ctx.workspace.name}
           myUserId={ctx.user.id}
           myRole={ctx.workspace.role}
-          members={membersRes.data ?? []}
+          members={members}
           invites={invitesRes.data ?? []}
           grants={(grantsRes.data ?? []) as { member_id: string; provider: string }[]}
           channels={(channelsRes.data ?? []) as {
