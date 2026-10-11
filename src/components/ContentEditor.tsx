@@ -235,7 +235,7 @@ export default function ContentEditor() {
         ) : null}
         {!page.fullCard ? (
         <>
-        <Field label="Card height" hint="Auto hugs your content. Fixed sets an exact height.">
+        <Field label="Inner card height" hint="The social card (Minimal, Instagram, X…). Auto hugs your content, Fixed sets an exact height.">
           <Seg options={[{ value: 'auto', label: 'Auto' }, { value: 'fixed', label: 'Fixed' }]} value={page.cardH ? 'fixed' : 'auto'} onChange={(v) => patchPage({ cardH: v === 'fixed' ? Math.min(page.cardH ?? 300, cardMaxH) : null, cardY: v === 'fixed' ? (normCardY(page.cardY) ?? 'top') : page.cardY })} />
         </Field>
         {page.cardH ? (
