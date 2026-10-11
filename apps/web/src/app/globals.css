@@ -609,6 +609,40 @@ body {
     color: rgba(28, 26, 20, 0.35);
   }
 
+  /* Article editor (composer) — same TipTap node styling as the blog editor, but
+   * bound to the app's theme tokens instead of a paper sheet, so the writing
+   * surface flips with dark mode. */
+  .article-editor .tiptap-doc {
+    min-height: 220px;
+  }
+  .theme-dark .article-editor .tiptap-doc {
+    color: var(--color-ink);
+  }
+  .theme-dark .article-editor .tiptap-doc a {
+    color: var(--color-bolt);
+  }
+  .theme-dark .article-editor .tiptap-doc p.is-editor-empty:first-child::before {
+    color: rgba(245, 241, 228, 0.32);
+  }
+  .theme-dark .article-editor .tiptap-doc pre {
+    background: var(--color-surface);
+  }
+  .theme-dark .article-editor .tiptap-doc th {
+    background: var(--color-surface);
+  }
+  .theme-dark .article-editor .tiptap-doc img.ProseMirror-selectednode {
+    outline-color: var(--color-ink);
+  }
+  .theme-dark .article-editor .tiptap-doc .column-resize-handle {
+    background: var(--color-soft);
+  }
+  .theme-dark .article-editor .tiptap-imghandle {
+    border-color: var(--color-paper);
+  }
+  .theme-dark .article-editor .tiptap-imghandle::after {
+    border-color: var(--color-paper);
+  }
+
   /* Floating format bar (tippy wrapper stays invisible — the pill is the UI). */
   .tippy-box {
     background: transparent !important;

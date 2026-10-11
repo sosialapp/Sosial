@@ -101,7 +101,7 @@ export default function ArticleEditor({
   };
 
   return (
-    <div className="doc-sheet blog-doc">
+    <div className="blog-doc article-editor">
       <div
         className="flex flex-wrap items-center gap-0.5 rounded-2xl border border-line bg-paper-dim p-1.5"
         role="toolbar"
