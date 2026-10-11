@@ -26,8 +26,8 @@ describe('FEATURE_MATRIX', () => {
     expect(row('Team members').value('free')).toBe('1 member');
     expect(row('Team members').value('team')).toBe('5 members');
     expect(row('Team members').value('business')).toBe('Unlimited');
-    expect(row('Workspaces / brands').value('team')).toBe('5 workspaces');
-    expect(row('Workspaces / brands').value('business')).toBe('Unlimited');
+    expect(row('Workspaces / brands').value('team')).toBe('3 workspaces');
+    expect(row('Workspaces / brands').value('business')).toBe('6 workspaces');
   });
 
   it('marks the watermark as required on free and user-controlled when paid', () => {

@@ -52,9 +52,9 @@ describe('canonical pricing', () => {
     expect(PLANS.solo.limits.users).toBe(1);
     expect(PLANS.solo.limits.workspaces).toBe(1);
     expect(PLANS.team.limits.users).toBe(5);
-    expect(PLANS.team.limits.workspaces).toBe(5);
+    expect(PLANS.team.limits.workspaces).toBe(3);
     expect(PLANS.business.limits.users).toBeNull();
-    expect(PLANS.business.limits.workspaces).toBeNull();
+    expect(PLANS.business.limits.workspaces).toBe(6);
   });
 
   it('forces the watermark on free and leaves it user-controlled when paid', () => {

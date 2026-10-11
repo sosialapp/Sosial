@@ -177,8 +177,42 @@ export async function myWorkspace(userId: string, email: string): Promise<Worksp
   return created;
 }
 
-export async function currentSession(): Promise<{ user: User; session: Session; workspace: WorkspaceInfo } | null> {
+/** Create a new team (workspace) owned by the caller and pin the device to
+ *  it. Plan caps are enforced by the DB's WORKSPACE_LIMIT trigger
+ *  (free/solo 1 · team 3 · business 6 · ultimate unlimited); its message is
+ *  surfaced to the caller for the alert. */
+export async function createWorkspace(name: string): Promise<WorkspaceInfo> {
   const sb = supabase();
+  const { data } = await sb.auth.getSession();
+  const user = data.session?.user;
+  if (!user) throw new Error('Sign in first.');
+  const trimmed = name.trim().slice(0, 80) || 'New team';
+  const { data: ws, error: wsErr } = await sb
+    .from('workspaces')
+    .insert({ name: trimmed, owner_id: user.id })
+    .select('id, name')
+    .single();
+  if (wsErr || !ws) {
+    const raw = wsErr?.message ?? '';
+    throw new Error(raw.startsWith('WORKSPACE_LIMIT')
+      ? raw.replace(/^WORKSPACE_LIMIT:\s*/, '')
+      : 'Could not create the team.');
+  }
+  const { error: mErr } = await sb.from('workspace_members').insert({
+    workspace_id: ws.id,
+    user_id: user.id,
+    email: user.email ?? '',
+    role: 'owner',
+    status: 'active',
+    all_channels: true,
+  });
+  if (mErr) throw new Error('Could not join the new team.');
+  const created = { id: String(ws.id), name: String(ws.name ?? trimmed), role: 'owner' as const };
+  await SecureStore.setItemAsync(WS_KEY, created.id).catch(() => {});
+  return created;
+}
+
+export async function currentSession(): Promise<{ user: User; session: Session; workspace: WorkspaceInfo } | null> {  const sb = supabase();
   const { data, error } = await sb.auth.getSession();
   if (error) throw friendly(error, 'Could not restore your session.');
   if (!data.session?.user) return null;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import * as Clipboard from 'expo-clipboard';
-import { supabase, listMyWorkspaces, switchWorkspace, type WorkspaceSummary } from '../utils/supabase';
+import { supabase, listMyWorkspaces, switchWorkspace, createWorkspace, type WorkspaceSummary } from '../utils/supabase';
 import { pullCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
@@ -42,6 +42,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [renamingTeam, setRenamingTeam] = useState(false);
   const [teamNameDraft, setTeamNameDraft] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createName, setCreateName] = useState('');
   const [gAll, setGAll] = useState(true);
   const [gProviders, setGProviders] = useState<string[]>([]);
 
@@ -89,6 +91,24 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   };
 
   useEffect(() => { void reload(); }, []);
+
+  /** Create a team, land in it, pull its channels. DB trigger surfaces the
+   *  plan cap (team 3 · business 6 · ultimate unlimited) in the message. */
+  const createTeam = async () => {
+    if (!createName.trim()) return;
+    setBusy(true);
+    try {
+      await createWorkspace(createName);
+      setCreateName('');
+      await pullCloudChannels(true).catch(() => null);
+      await syncCloudChannels().catch(() => null);
+      await reload();
+    } catch (e) {
+      Alert.alert('Could not create team', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const actor = { userId: team?.myUserId ?? null, role: (team?.myRole ?? 'member') as TeamRole };
   const isManager = actor.role === 'owner' || actor.role === 'admin';
@@ -292,39 +312,54 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
           )
         ) : null}
 
-        {workspaces.length > 1 ? (
-          <View style={[s.member, { marginTop: 12 }]}>
-            <View style={{ flex: 1, gap: 8 }}>
-              <Text style={s.rowT}>Your workspaces</Text>
-              <Text style={s.rowS}>Same login can hold several — pick the one with your channels.</Text>
-              {workspaces.map((w) => {
-                const current = team ? w.id === team.workspaceId : false;
-                return (
-                  <TouchableOpacity
-                    key={w.id}
-                    onPress={() => confirmSwitch(w)}
-                    disabled={busy || current}
-                    activeOpacity={0.7}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}
-                  >
-                    <View style={[s.miniAvatar, current ? { backgroundColor: C.ink } : null]}>
-                      <Text style={[s.miniAvatarT, current ? { color: C.onInk } : null]}>
-                        {(w.name || '?')[0].toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1, gap: 1 }}>
-                      <Text style={s.rowT} numberOfLines={1}>{w.name}</Text>
-                      <Text style={s.rowS} numberOfLines={1}>
-                        {w.liveChannels} live channel{w.liveChannels === 1 ? '' : 's'} · {w.role}
-                      </Text>
-                    </View>
-                    {current ? <Ionicons name="checkmark-circle" size={16} color={C.accentInk} /> : null}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+        <View style={[s.member, { marginTop: 12 }]}>
+          <View style={{ flex: 1, gap: 8 }}>
+            <Text style={s.rowT}>Your workspaces</Text>
+            <Text style={s.rowS}>Same login can hold several — pick the one with your channels.</Text>
+            {workspaces.map((w) => {
+              const current = team ? w.id === team.workspaceId : false;
+              return (
+                <TouchableOpacity
+                  key={w.id}
+                  onPress={() => confirmSwitch(w)}
+                  disabled={busy || current}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}
+                >
+                  <View style={[s.miniAvatar, current ? { backgroundColor: C.ink } : null]}>
+                    <Text style={[s.miniAvatarT, current ? { color: C.onInk } : null]}>
+                      {(w.name || '?')[0].toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 1 }}>
+                    <Text style={s.rowT} numberOfLines={1}>{w.name}</Text>
+                    <Text style={s.rowS} numberOfLines={1}>
+                      {w.liveChannels} live channel{w.liveChannels === 1 ? '' : 's'} · {w.role}
+                    </Text>
+                  </View>
+                  {current ? <Ionicons name="checkmark-circle" size={16} color={C.accentInk} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+            {creating ? (
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 2 }}>
+                <View style={{ flex: 1 }}>
+                  <Txt value={createName} onChangeText={setCreateName} placeholder="Team name" />
+                </View>
+                <TouchableOpacity onPress={() => void createTeam()} disabled={busy} style={[s.miniBtn, { backgroundColor: C.ink }]} activeOpacity={0.7}>
+                  <Text style={[s.miniBtnT, { color: C.onInk }]}>{busy ? '…' : 'Create'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setCreating(false); setCreateName(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name="close-circle" size={18} color={C.redText} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => setCreating(true)} disabled={busy} style={{ alignSelf: 'flex-start' }}>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>+ Create team</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        ) : null}
+        </View>
 
         {plan !== 'team' ? (
           <View style={{ marginTop: 16, gap: 12 }}>
