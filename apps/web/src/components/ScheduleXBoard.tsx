@@ -700,7 +700,7 @@ export default function ScheduleXBoard({
   variant?: 'page' | 'mini';
 }) {
   const router = useRouter();
-  const [view] = useState<BoardView>(initialView);
+  const [view, setView] = useState<BoardView>(initialView);
   const [anchor, setAnchor] = useState(() => {
     if (initialAnchor) {
       const [y, m, d] = initialAnchor.split('-').map(Number);
@@ -1068,10 +1068,13 @@ export default function ScheduleXBoard({
     setSelectedKey(dayKey(now));
   };
 
-  /** Switch views at their own URLs, carrying the anchor day in ?d= so the
-   *  window doesn't jump back to today. */
+  /** Switch views instantly in-page — the posts are already in memory, so
+   *  just remount the calendar instead of a full page load. The URL is
+   *  replaced (never pushed) so refresh and bookmarks still land on the
+   *  right view; the per-view routes remain as entry points. */
   const goView = (next: BoardView) => {
     if (next === view) return;
+    setView(next);
     const d = dayKey(anchor);
     const path =
       next === 'month'
@@ -1083,7 +1086,7 @@ export default function ScheduleXBoard({
             : next === 'list'
               ? '/calendar-list'
               : '/calendar';
-    router.push(`${path}?d=${d}`, { scroll: false });
+    window.history.replaceState(null, '', `${path}?d=${d}`);
   };
 
   const VIEW_TABS: { id: BoardView; label: string }[] = [
@@ -1499,6 +1502,7 @@ export default function ScheduleXBoard({
           ) : mounted ? (
           <div className={view === 'month' ? 'sx-height-auto' : undefined}>
             <SXMount
+              key={view}
               view={view}
               anchorKey={dayKey(anchor)}
               events={sxEvents}
