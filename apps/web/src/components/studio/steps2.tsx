@@ -38,6 +38,8 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
 
   const update = (id: string, patch: Partial<ContentBlock>) =>
     patchPage({ blocks: blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) });
+  const patchStyle = (b: ContentBlock, patch: Partial<NonNullable<ContentBlock['style']>>) =>
+    update(b.id, { style: { ...(b.style ?? {}), ...patch } });
   const remove = (id: string) => patchPage({ blocks: blocks.filter((b) => b.id !== id) });
   const move = (id: string, dir: -1 | 1) => {
     const i = blocks.findIndex((b) => b.id === id);
@@ -121,6 +123,13 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
           <Swatches colors={PALETTE} value={page.cardColor ?? '#FFFFFF'} onChange={(c) => patchPage({ cardColor: c })} />
         </Field>
         <SwitchRow title="Full card" sub="Content card fills the whole canvas. Single card" on={page.fullCard ?? false} onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })} />
+        {page.fullCard ? (
+          <>
+            <SwitchRow title="Title inside card" sub="Card renders the title row itself" on={page.fullCardTitle ?? false} onPress={() => patchPage({ fullCardTitle: !(page.fullCardTitle ?? false) })} />
+            <SwitchRow title="Avatar header" sub="Name + avatar at the top of the card" on={page.fullCardAvatar ?? false} onPress={() => patchPage({ fullCardAvatar: !(page.fullCardAvatar ?? false) })} />
+            <SwitchRow title="Socials footer" sub="Handles row at the bottom of the card" on={page.fullCardSocials ?? false} onPress={() => patchPage({ fullCardSocials: !(page.fullCardSocials ?? false) })} />
+          </>
+        ) : null}
         {!page.fullCard ? (
           <>
             <Field label="Card height">
@@ -197,6 +206,22 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                     placeholder="Heading (optional)"
                     className="field"
                   />
+                  <div className="flex gap-2">
+                    <Field label="Width" hint="">
+                      <Seg
+                        options={[{ value: '1', label: 'Full' }, { value: '0.75', label: '75%' }, { value: '0.5', label: '50%' }]}
+                        value={String(b.style?.width ?? 1)}
+                        onChange={(v) => patchStyle(b, { width: Number(v) })}
+                      />
+                    </Field>
+                    <Field label="Align" hint="">
+                      <Seg
+                        options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Mid' }, { value: 'right', label: 'Right' }]}
+                        value={b.style?.align ?? 'left'}
+                        onChange={(v) => patchStyle(b, { align: v as 'left' | 'center' | 'right' })}
+                      />
+                    </Field>
+                  </div>
                   {b.type !== 'image' ? (
                     <Field label="Ink">
                       <Swatches colors={PALETTE} value={b.textColor ?? '#111111'} onChange={(c) => update(b.id, { textColor: c })} />
@@ -241,6 +266,46 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                         rows={4}
                         className="field min-h-[90px] resize-y font-mono !text-xs"
                       />
+                      <Field label="Column widths">
+                        <Seg
+                          options={[{ value: 'equal', label: 'Equal' }, { value: 'first', label: 'Wide first' }, { value: 'last', label: 'Wide last' }]}
+                          value={
+                            b.style?.tableColWidths
+                              ? b.style.tableColWidths[0] > 1
+                                ? 'first'
+                                : 'last'
+                              : 'equal'
+                          }
+                          onChange={(v) =>
+                            patchStyle(b, {
+                              tableColWidths:
+                                v === 'equal' ? undefined : (b.table?.[0] ?? []).map((_, ci, arr) => (v === 'first' ? (ci === 0 ? 1.8 : 1) : ci === arr.length - 1 ? 1.8 : 1)),
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="Text size">
+                        <Stepper
+                          value={b.style?.tableScale ?? 1}
+                          onChange={(v) => patchStyle(b, { tableScale: v })}
+                          step={0.1}
+                          min={0.6}
+                          max={1.6}
+                          format={(v) => `${Math.round(v * 100)}%`}
+                        />
+                      </Field>
+                      <div className="flex flex-wrap gap-2">
+                        <SwitchRow
+                          title="Header fill"
+                          on={b.style?.tableHeaderBg ?? true}
+                          onPress={() => patchStyle(b, { tableHeaderBg: !(b.style?.tableHeaderBg ?? true) })}
+                        />
+                        <SwitchRow
+                          title="Zebra rows"
+                          on={b.style?.tableZebra ?? false}
+                          onPress={() => patchStyle(b, { tableZebra: !(b.style?.tableZebra ?? false) })}
+                        />
+                      </div>
                     </>
                   ) : null}
                   {(b.type === 'bar' || b.type === 'pie' || b.type === 'vbar') ? (
@@ -275,6 +340,72 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                           </span>
                         </div>
                       ))}
+                      {b.type === 'pie' ? (
+                        <Field label="Legend">
+                          <Seg
+                            options={[{ value: 'right', label: 'Right' }, { value: 'bottom', label: 'Below' }, { value: 'none', label: 'None' }]}
+                            value={b.style?.chartLegend ?? 'right'}
+                            onChange={(v) => patchStyle(b, { chartLegend: v as 'right' | 'bottom' | 'none' })}
+                          />
+                        </Field>
+                      ) : null}
+                      {b.type !== 'pie' ? (
+                        <Field label="Thickness">
+                          <Stepper
+                            value={b.style?.chartThickness ?? 1}
+                            onChange={(v) => patchStyle(b, { chartThickness: v })}
+                            step={0.1}
+                            min={0.3}
+                            max={1.6}
+                            format={(v) => `${Math.round(v * 100)}%`}
+                          />
+                        </Field>
+                      ) : (
+                        <Field label="Ring thickness">
+                          <Stepper
+                            value={b.style?.chartThickness ?? 0.35}
+                            onChange={(v) => patchStyle(b, { chartThickness: v })}
+                            step={0.05}
+                            min={0.15}
+                            max={0.8}
+                            format={(v) => `${Math.round(v * 100)}%`}
+                          />
+                        </Field>
+                      )}
+                      <Field label="Corner rounding" hint="0 = style default">
+                        <Stepper
+                          value={b.style?.chartRadius ?? 0}
+                          onChange={(v) => patchStyle(b, { chartRadius: v })}
+                          step={0.1}
+                          min={0}
+                          max={1}
+                          format={(v) => `${Math.round(v * 100)}%`}
+                        />
+                      </Field>
+                      {b.type === 'vbar' ? (
+                        <Field label="Column height">
+                          <Stepper
+                            value={b.style?.chartHeight ?? 1}
+                            onChange={(v) => patchStyle(b, { chartHeight: v })}
+                            step={0.1}
+                            min={0.4}
+                            max={1.6}
+                            format={(v) => `${Math.round(v * 100)}%`}
+                          />
+                        </Field>
+                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        <SwitchRow
+                          title="Values"
+                          on={b.style?.chartShowValues ?? true}
+                          onPress={() => patchStyle(b, { chartShowValues: !(b.style?.chartShowValues ?? true) })}
+                        />
+                        <SwitchRow
+                          title="Labels"
+                          on={b.style?.chartShowLabels ?? true}
+                          onPress={() => patchStyle(b, { chartShowLabels: !(b.style?.chartShowLabels ?? true) })}
+                        />
+                      </div>
                     </>
                   ) : null}
                   {b.type === 'image' ? (
@@ -305,6 +436,23 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
                           <Stepper value={b.imageH ?? 140} onChange={(v) => update(b.id, { imageH: v })} step={10} min={60} max={300} format={(v) => `${v}`} />
                         </Field>
                       ) : null}
+                      <Field label="Fit">
+                        <Seg
+                          options={[{ value: 'cover', label: 'Fill' }, { value: 'contain', label: 'Fit' }]}
+                          value={b.style?.imageFit ?? 'cover'}
+                          onChange={(v) => patchStyle(b, { imageFit: v as 'cover' | 'contain' })}
+                        />
+                      </Field>
+                      <Field label="Corners">
+                        <Stepper
+                          value={b.style?.imageRadius ?? 0}
+                          onChange={(v) => patchStyle(b, { imageRadius: v })}
+                          step={0.05}
+                          min={0}
+                          max={0.5}
+                          format={(v) => `${Math.round(v * 200)}%`}
+                        />
+                      </Field>
                       {b.imageUri ? (
                         <Field label="Focus" hint="Which third of the photo shows.">
                           <div className="space-y-1">
