@@ -50,6 +50,19 @@ function newBlock(type: BlockType): ContentBlock {  if (type === 'table') return
   return { id: uid('b'), type: 'bullets', heading: 'Points', items: ['Point one', 'Point two'] };
 }
 
+/** Switch row matching the built-in ones (title + sub + pill toggle). */
+function ToggleRow({ C, title, sub, on, onPress }: { C: Palette; title: string; sub?: string; on: boolean; onPress: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>{title}</Text>
+        {sub ? <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>{sub}</Text> : null}
+      </View>
+      <PillToggle on={on} onPress={onPress} />
+    </View>
+  );
+}
+
 export default function ContentEditor() {
   const { C } = useTheme();
   const st = makeSt(C);
@@ -90,6 +103,8 @@ export default function ContentEditor() {
     setOpenId(b.id);
   };
   const update = (id: string, patch: Partial<ContentBlock>) => setBlocks(blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  const patchStyle = (b: ContentBlock, patch: Partial<NonNullable<ContentBlock['style']>>) =>
+    update(b.id, { style: { ...(b.style ?? {}), ...patch } });
   const remove = (id: string) => setBlocks(blocks.filter((b) => b.id !== id));
   const pickImage = async (id: string) => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
@@ -177,6 +192,13 @@ export default function ContentEditor() {
           </View>
           <PillToggle on={page.fullCard ?? false} onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })} />
         </View>
+        {page.fullCard ? (
+          <>
+            <ToggleRow C={C} title="Title inside card" sub="Card renders the title row itself" on={page.fullCardTitle ?? false} onPress={() => patchPage({ fullCardTitle: !(page.fullCardTitle ?? false) })} />
+            <ToggleRow C={C} title="Avatar header" sub="Name + avatar at the top of the card" on={page.fullCardAvatar ?? false} onPress={() => patchPage({ fullCardAvatar: !(page.fullCardAvatar ?? false) })} />
+            <ToggleRow C={C} title="Socials footer" sub="Handles row at the bottom of the card" on={page.fullCardSocials ?? false} onPress={() => patchPage({ fullCardSocials: !(page.fullCardSocials ?? false) })} />
+          </>
+        ) : null}
         {!page.fullCard ? (
         <>
         <Field label="Card height">
@@ -255,6 +277,26 @@ export default function ContentEditor() {
                   />
                 ) : null}
                 <Txt value={b.heading ?? ''} onChangeText={(v) => update(b.id, { heading: v })} placeholder="Heading (optional)" />
+                <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+                  <View style={{ flex: 1, minWidth: 140 }}>
+                    <Field label="Width">
+                      <Seg
+                        options={[{ value: '1', label: 'Full' }, { value: '0.75', label: '75%' }, { value: '0.5', label: '50%' }]}
+                        value={String(b.style?.width ?? 1)}
+                        onChange={(v) => patchStyle(b, { width: Number(v) })}
+                      />
+                    </Field>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 140 }}>
+                    <Field label="Align">
+                      <Seg
+                        options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Mid' }, { value: 'right', label: 'Right' }]}
+                        value={b.style?.align ?? 'left'}
+                        onChange={(v) => patchStyle(b, { align: v as 'left' | 'center' | 'right' })}
+                      />
+                    </Field>
+                  </View>
+                </View>
                 {b.type !== 'image' ? (
                   <Field label="Ink">
                     <Swatches colors={PALETTE} value={b.textColor ?? '#111111'} onChange={(c) => update(b.id, { textColor: c })} />
@@ -285,6 +327,30 @@ export default function ContentEditor() {
                       style={{ minHeight: 90, textAlignVertical: 'top' }}
                       multiline
                     />
+                    <Field label="Column widths">
+                      <Seg
+                        options={[{ value: 'equal', label: 'Equal' }, { value: 'first', label: 'Wide first' }, { value: 'last', label: 'Wide last' }]}
+                        value={b.style?.tableColWidths ? (b.style.tableColWidths[0] > 1 ? 'first' : 'last') : 'equal'}
+                        onChange={(v) =>
+                          patchStyle(b, {
+                            tableColWidths:
+                              v === 'equal' ? undefined : (b.table?.[0] ?? []).map((_, ci, arr) => (v === 'first' ? (ci === 0 ? 1.8 : 1) : ci === arr.length - 1 ? 1.8 : 1)),
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Text size">
+                      <Stepper
+                        value={b.style?.tableScale ?? 1}
+                        onChange={(v) => patchStyle(b, { tableScale: v })}
+                        step={0.1}
+                        min={0.6}
+                        max={1.6}
+                        format={(v) => `${Math.round(v * 100)}%`}
+                      />
+                    </Field>
+                    <ToggleRow C={C} title="Header fill" on={b.style?.tableHeaderBg ?? true} onPress={() => patchStyle(b, { tableHeaderBg: !(b.style?.tableHeaderBg ?? true) })} />
+                    <ToggleRow C={C} title="Zebra rows" on={b.style?.tableZebra ?? false} onPress={() => patchStyle(b, { tableZebra: !(b.style?.tableZebra ?? false) })} />
                   </>
                 ) : null}
                 {(b.type === 'bar' || b.type === 'pie' || b.type === 'vbar') ? (
@@ -308,6 +374,62 @@ export default function ContentEditor() {
                         </ScrollView>
                       </View>
                     ))}
+                    {b.type === 'pie' ? (
+                      <>
+                        <Field label="Legend">
+                          <Seg
+                            options={[{ value: 'right', label: 'Right' }, { value: 'bottom', label: 'Below' }, { value: 'none', label: 'None' }]}
+                            value={b.style?.chartLegend ?? 'right'}
+                            onChange={(v) => patchStyle(b, { chartLegend: v as 'right' | 'bottom' | 'none' })}
+                          />
+                        </Field>
+                        <Field label="Ring thickness">
+                          <Stepper
+                            value={b.style?.chartThickness ?? 0.35}
+                            onChange={(v) => patchStyle(b, { chartThickness: v })}
+                            step={0.05}
+                            min={0.15}
+                            max={0.8}
+                            format={(v) => `${Math.round(v * 100)}%`}
+                          />
+                        </Field>
+                      </>
+                    ) : (
+                      <Field label="Thickness">
+                        <Stepper
+                          value={b.style?.chartThickness ?? 1}
+                          onChange={(v) => patchStyle(b, { chartThickness: v })}
+                          step={0.1}
+                          min={0.3}
+                          max={1.6}
+                          format={(v) => `${Math.round(v * 100)}%`}
+                        />
+                      </Field>
+                    )}
+                    <Field label="Corner rounding" hint="0 = style default">
+                      <Stepper
+                        value={b.style?.chartRadius ?? 0}
+                        onChange={(v) => patchStyle(b, { chartRadius: v })}
+                        step={0.1}
+                        min={0}
+                        max={1}
+                        format={(v) => `${Math.round(v * 100)}%`}
+                      />
+                    </Field>
+                    {b.type === 'vbar' ? (
+                      <Field label="Column height">
+                        <Stepper
+                          value={b.style?.chartHeight ?? 1}
+                          onChange={(v) => patchStyle(b, { chartHeight: v })}
+                          step={0.1}
+                          min={0.4}
+                          max={1.6}
+                          format={(v) => `${Math.round(v * 100)}%`}
+                        />
+                      </Field>
+                    ) : null}
+                    <ToggleRow C={C} title="Show values" on={b.style?.chartShowValues ?? true} onPress={() => patchStyle(b, { chartShowValues: !(b.style?.chartShowValues ?? true) })} />
+                    <ToggleRow C={C} title="Show labels" on={b.style?.chartShowLabels ?? true} onPress={() => patchStyle(b, { chartShowLabels: !(b.style?.chartShowLabels ?? true) })} />
                   </>
                 ) : null}
                 {b.type === 'image' ? (
@@ -335,6 +457,23 @@ export default function ContentEditor() {
                         <Stepper value={b.imageH ?? 140} onChange={(v) => update(b.id, { imageH: v })} step={10} min={60} max={300} format={(v) => `${v}`} />
                       </Field>
                     ) : null}
+                    <Field label="Fit">
+                      <Seg
+                        options={[{ value: 'cover', label: 'Fill' }, { value: 'contain', label: 'Fit' }]}
+                        value={b.style?.imageFit ?? 'cover'}
+                        onChange={(v) => patchStyle(b, { imageFit: v as 'cover' | 'contain' })}
+                      />
+                    </Field>
+                    <Field label="Corners" hint="0 = default">
+                      <Stepper
+                        value={b.style?.imageRadius ?? 0}
+                        onChange={(v) => patchStyle(b, { imageRadius: v })}
+                        step={0.05}
+                        min={0}
+                        max={0.5}
+                        format={(v) => `${Math.round(v * 200)}%`}
+                      />
+                    </Field>
                     {b.imageUri ? (
                       <Field label="Crop" hint="Drag & zoom for full control, or tap a focal point.">
                         <View style={{ gap: 10 }}>
