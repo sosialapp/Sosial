@@ -440,12 +440,16 @@ export default function StudioCanvas({
     ? page.title.size * k * 1.3 * titleLines + ((page.title.subtitle ?? '').trim() ? (page.title.subtitleSize ?? 15) * k * 1.35 : 0)
     : 0;
   const pfpVisible = !(page.pfp.hidden ?? false);
-  const socialsOn = pfpVisible && !(page.pfp.socialsHidden ?? false) && page.socials.some((s) => s.visible);
+  const socialsOn = !(page.pfp.socialsHidden ?? false) && page.socials.some((s) => s.visible);
   const socialsBelow = socialsOn && (page.pfp.socialPos ?? 'below') === 'below';
   const socialsAbove = socialsOn && (page.pfp.socialPos ?? 'below') === 'top';
-  const pfpH = pfpVisible
-    ? page.pfp.size * k + pad(4) + (page.pfp.username?.trim() ? pad(page.pfp.handleSize ?? 8.5) + pad(2) : 0) + ((socialsBelow || socialsAbove) ? pad(page.pfp.iconSize ?? 17) + pad(6) : 0)
+  // Photo and socials hide independently now: each contributes its own
+  // height when present, so a photo-less badges row still reserves space.
+  const photoH = pfpVisible
+    ? page.pfp.size * k + pad(4) + (page.pfp.username?.trim() ? pad(page.pfp.handleSize ?? 8.5) + pad(2) : 0)
     : 0;
+  const socialsH = (socialsBelow || socialsAbove) ? pad(page.pfp.iconSize ?? 17) + pad(6) : 0;
+  const pfpH = (pfpVisible || socialsOn) ? photoH + socialsH : 0;
   const cardMax = Math.max(90, canvasH - pad(16) * 2 - titleH - pfpH - pad(10) * 2);
 
   const blocks =
@@ -671,8 +675,10 @@ function TitleBlock({ page, k }: { page: PostPage; k: number }) {
 }
 
 function PfpRow({ page, k }: { page: PostPage; k: number }) {
-  if (page.pfp.hidden ?? false) return null;
+  // Photo and socials hide independently — only an empty row returns null.
+  const photoOff = page.pfp.hidden ?? false;
   const socialsOff = page.pfp.socialsHidden ?? false;
+  if (photoOff && socialsOff) return null;
   const visibleSocials = socialsOff ? [] : page.socials.filter((s) => s.visible);
   const socialPos = page.pfp.socialPos ?? 'below';
   const badgeBg = page.pfp.badgeBg ?? true;
@@ -700,9 +706,10 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
         gap: socialGap * k,
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 * k }}>
-        {page.pfp.uri ? (
-          // eslint-disable-next-line @next/next/no-img-element
+      {!photoOff ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 * k }}>
+          {page.pfp.uri ? (
+            // eslint-disable-next-line @next/next/no-img-element
           <img
             src={page.pfp.uri}
             alt=""
@@ -730,7 +737,8 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
             {page.pfp.username}
           </span>
         ) : null}
-      </div>
+        </div>
+      ) : null}
       {visibleSocials.length > 0 ? (
         <div
           style={{

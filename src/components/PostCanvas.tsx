@@ -72,12 +72,15 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
     ? page.title.size * s * 1.3 * titleLines + ((page.title.subtitle ?? '').trim() ? (page.title.subtitleSize ?? 15) * s * 1.35 : 0)
     : 0;
   const pfpVisible = !(page.pfp.hidden ?? false);
-  const socialsOn = pfpVisible && !(page.pfp.socialsHidden ?? false) && visibleSocials.length > 0;
+  const socialsOn = !(page.pfp.socialsHidden ?? false) && visibleSocials.length > 0;
   const socialsBelow = socialsOn && socialPos === 'below';
   const socialsAbove = socialsOn && socialPos === 'top';
-  const pfpH = pfpVisible
-    ? page.pfp.size * s + pad(4) + (page.pfp.username?.trim() ? pad(handleSize) + pad(2) : 0) + ((socialsBelow || socialsAbove) ? pad(iconSize) + pad(6) : 0)
+  // Photo and socials hide independently — each contributes its own height.
+  const photoH = pfpVisible
+    ? page.pfp.size * s + pad(4) + (page.pfp.username?.trim() ? pad(handleSize) + pad(2) : 0)
     : 0;
+  const socialsH = (socialsBelow || socialsAbove) ? pad(iconSize) + pad(6) : 0;
+  const pfpH = (pfpVisible || socialsOn) ? photoH + socialsH : 0;
   const cardMax = Math.max(90, canvasH - pad(16) * 2 - titleH - pfpH - pad(10) * 2);
 
   const blocks = page.blocks.length === 0 ? (
@@ -99,7 +102,10 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
     </View>
   );
 
-  const pfpRow = (page.pfp.hidden ?? false) ? null : (
+  // Photo and socials hide independently — only an empty row is skipped.
+  const photoOff = page.pfp.hidden ?? false;
+  const socialsOff = page.pfp.socialsHidden ?? false;
+  const pfpRow = photoOff && socialsOff ? null : (
     <View
       style={{
         flexDirection: dir,
@@ -108,7 +114,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
         gap: pad(socialGap),
       }}
     >
-      {page.pfp.uri ? (
+      {!photoOff ? (page.pfp.uri ? (
         <View style={{ alignItems: 'center', gap: pad(3) }}>
           <Image source={{ uri: page.pfp.uri }} style={{ width: page.pfp.size * s, height: page.pfp.size * s, borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * s) / 2 : pad(12), borderWidth: pad(borderW), borderColor: '#fff' }} />
           {page.pfp.username?.trim() ? (
@@ -128,8 +134,8 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
             </Text>
           ) : null}
         </View>
-      )}
-      {visibleSocials.length > 0 && !(page.pfp.socialsHidden ?? false) ? (
+      )) : null}
+      {visibleSocials.length > 0 && !socialsOff ? (
         <View
           style={{
             flexDirection: 'row',
