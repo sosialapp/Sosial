@@ -1260,13 +1260,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   const renderSubPanel = (p: ProviderKey) => {
     const sel = selectedAccountFor(p);
     if (sel && isCloudOnly(sel)) {
-      // Page/org/board pickers need this phone connected — the placeholder
-      // only offers the upgrade path (Connect on its row).
-      return (
-        <View style={s.pageRow}>
-          <Text style={s.pageT} numberOfLines={2}>To manage it on this phone, press Connect on the account above.</Text>
-        </View>
-      );
+      return null;
     }
     if (p === 'facebook') {
       const acct = selectedAccountFor('facebook');
@@ -1523,11 +1517,6 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
         {!ytConfigured ? (
           <View style={s.warn}>
             <Text style={s.warnT}>Add your Google Client ID + secret in .env first, then reload.</Text>
-          </View>
-        ) : null}
-        {!pinConfigured ? (
-          <View style={s.warn}>
-            <Text style={s.warnT}>Add your Pinterest App ID + secret in .env first, then reload.</Text>
           </View>
         ) : null}
 

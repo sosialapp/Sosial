@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BackgroundStyle, PostPage, QuickPost } from '../types';
+import { BackgroundStyle, PostPage, QuickPost, SocialLink, SocialPlatform } from '../types';
 import { uid } from '../constants';
 import { pushLibraryItem, tombstoneLibraryItem, pullLibraryRows } from './librarySync';
 
@@ -242,62 +242,100 @@ export async function syncTemplates(): Promise<{ native: ProjectPreset[]; foreig
 
 /* ---------------- Starter templates (prebuilt, offline-safe) ---------------- */
 
-const SEED_KEY = 'quickpost_seeded_starter_templates_v1';
+const SEED_KEY = 'quickpost_seeded_starter_templates_v2';
+/** v1 seeds replaced by the web-parity starters below. */
+const V1_IDS = ['starter-quote-v1', 'starter-sale-v1', 'starter-news-v1'];
 
-function starterPage(opts: {
-  bg: string;
-  pattern?: BackgroundStyle['type'];
-  title: string;
-  subtitle?: string;
-  items: string[];
-}): PostPage {
+/** Default pfp config (matches the editor's blank page). */
+function seedPfp(): PostPage['pfp'] {
+  return {
+    pfpY: 'bottom',
+    size: 40,
+    shape: 'circle',
+    socialPos: 'right',
+    badgeBg: true,
+    badgeRows: 1,
+    handleColor: '#FFFFFF',
+    handleSize: 7.5,
+    iconSize: 24,
+    iconOutline: false,
+    socialGap: 6,
+    align: 'center',
+    borderW: 0,
+    username: '',
+  };
+}
+
+function seedSocial(platform: SocialPlatform, handle: string): SocialLink {
+  return { id: uid('s'), platform, handle, visible: true, font: 'jakarta', bold: true, italic: false };
+}
+
+/**
+ * Starter designs — mirrored from the web app's starterProjects()
+ * (apps/web/src/components/CreateHub.tsx). Keep the three in sync:
+ * same sizes, backgrounds, typography, blocks, socials and captions.
+ */
+function starterLaunch(): PostPage {
   return {
     id: uid('page'),
-    background: {
-      type: opts.pattern ?? 'solid',
-      color: opts.bg,
-      patternColor: '#00000014',
-      patternSize: 20,
-      patternOpacity: 0.6,
-      mixEnabled: false,
-    },
+    background: { type: 'dots', color: '#111111', patternColor: '#FFE45E', patternSize: 26, patternOpacity: 0.5, mixEnabled: false },
     title: {
-      text: opts.title,
-      position: 'top',
-      color: '#111111',
-      size: 30,
-      align: 'center',
-      font: 'jakarta',
-      bold: true,
-      italic: false,
-      subtitle: opts.subtitle,
-      subtitleSize: 15,
-      subtitleColor: '#44403C',
+      text: 'It’s live.', position: 'top', color: '#FFFFFF', size: 40,
+      align: 'left', font: 'jakarta', bold: true, italic: false,
+      subtitle: 'Everything you asked for, in one place.', subtitleSize: 15, subtitleColor: '#F5F1E8',
     },
-    pfp: {
-      hidden: true,
-      pfpY: 'top',
-      size: 64,
-      shape: 'circle',
-      socialPos: 'below',
-      badgeBg: true,
-      badgeRows: 1,
-      handleColor: '#FFFFFF',
-      handleSize: 8,
-      iconSize: 16,
-      iconOutline: false,
-      socialGap: 6,
-      align: 'center',
-      borderW: 2,
-    },
-    socials: [],
+    pfp: seedPfp(),
+    socials: [seedSocial('instagram', '@yourhandle')],
     blocks: [
-      { id: uid('b'), type: 'bullets', items: opts.items, textColor: '#111111' },
+      { id: uid('b'), type: 'bullets', heading: 'What’s new', items: ['Faster than ever', 'Works everywhere', 'Free to try'], textColor: '#111111' },
     ],
     font: 'jakarta',
-    cardStyle: 'facebook',
+    cardStyle: 'minimal',
+    cardColor: '#FFFFFFF2',
+    showWatermark: true,
+    caption: 'Big news, it’s live! #launch #newdrop',
+  };
+}
+
+function starterQuote(): PostPage {
+  return {
+    id: uid('page'),
+    background: { type: 'solid', color: '#F5F1E8', patternColor: '#111111', patternSize: 22, patternOpacity: 0.12, mixEnabled: false },
+    title: {
+      text: '“Show up every day.”', position: 'top', color: '#111111', size: 36,
+      align: 'center', font: 'playfair', bold: true, italic: false,
+      subtitle: 'Consistency beats intensity.', subtitleSize: 15, subtitleColor: '#57534E',
+    },
+    pfp: { ...seedPfp(), hidden: true },
+    socials: [],
+    blocks: [],
+    font: 'jakarta',
+    cardStyle: 'minimal',
+    cardColor: '#FFFFFFF2',
     showWatermark: true,
     caption: '',
+  };
+}
+
+function starterPromo(): PostPage {
+  return {
+    id: uid('page'),
+    background: { type: 'stripes', color: '#7C2D12', patternColor: '#F97316', patternSize: 30, patternOpacity: 0.5, mixEnabled: false },
+    title: {
+      text: '20% off ends Sunday', position: 'top', color: '#FFFFFF', size: 38,
+      align: 'left', font: 'jakarta', bold: true, italic: false,
+      subtitle: '', subtitleSize: 15,
+    },
+    pfp: seedPfp(),
+    socials: [seedSocial('tiktok', '@yourhandle')],
+    blocks: [
+      { id: uid('b'), type: 'table', heading: 'Plans', items: [], table: [['Plan', 'Monthly', 'Yearly'], ['Solo', '$12', '$120'], ['Team', '$29', '$290']], textColor: '#111111' },
+    ],
+    font: 'jakarta',
+    cardStyle: 'minimal',
+    cardColor: '#FFFFFFF2',
+    showWatermark: true,
+    caption: 'One weekend only. #sale #promo',
   };
 }
 
@@ -306,46 +344,37 @@ function starterPost(name: string, sizeId: QuickPost['sizeId'], page: PostPage):
 }
 
 /**
- * First-run seed: three ready-made designs so the Templates page is never
- * bare. Runs once (marker key) — deleting a starter never brings it back.
+ * First-run seed: three ready-made designs (web parity) so the Templates
+ * page is never bare. v2 replaces the old pastel seeds; deleting a starter
+ * never brings it back.
  */
 export async function seedStarterTemplates(): Promise<ProjectPreset[]> {
   try {
     const raw = await AsyncStorage.getItem(PROJECT_KEY);
-    const list: ProjectPreset[] = raw ? JSON.parse(raw) : [];
+    let list: ProjectPreset[] = raw ? JSON.parse(raw) : [];
     const done = await AsyncStorage.getItem(SEED_KEY);
     if (done) return list;
     const has = (id: string) => list.some((x) => x.id === id);
+    // v1 seeds are superseded — swap them out for the web-parity set.
+    list = list.filter((x) => !(x.builtIn && V1_IDS.includes(x.id)));
     const seeds: ProjectPreset[] = [];
     const now = Date.now();
-    if (!has('starter-quote-v1')) {
+    if (!has('starter-launch-v2')) {
       seeds.push({
-        id: 'starter-quote-v1', name: 'Morning Quote', builtIn: true, createdAt: now,
-        post: starterPost('Morning Quote', 'square', starterPage({
-          bg: '#F2EDE2', title: 'Make today count.',
-          subtitle: 'One goal. One focus. One win.',
-          items: ['Pick a single priority', 'Big text, lots of whitespace', 'End with your handle'],
-        })),
+        id: 'starter-launch-v2', name: 'Launch card', builtIn: true, createdAt: now,
+        post: starterPost('Launch card', 'portrait', starterLaunch()),
       });
     }
-    if (!has('starter-sale-v1')) {
+    if (!has('starter-quote-v2')) {
       seeds.push({
-        id: 'starter-sale-v1', name: 'Weekend Sale', builtIn: true, createdAt: now,
-        post: starterPost('Weekend Sale', 'square', starterPage({
-          bg: '#F9E2CF', pattern: 'dots', title: 'WEEKEND SALE',
-          subtitle: 'Up to 50% off, Sat–Sun only.',
-          items: ['Doors open 9am', 'Bring a friend', 'While stocks last'],
-        })),
+        id: 'starter-quote-v2', name: 'Quote card', builtIn: true, createdAt: now,
+        post: starterPost('Quote card', 'square', starterQuote()),
       });
     }
-    if (!has('starter-news-v1')) {
+    if (!has('starter-promo-v2')) {
       seeds.push({
-        id: 'starter-news-v1', name: 'Big Announcement', builtIn: true, createdAt: now,
-        post: starterPost('Big Announcement', 'square', starterPage({
-          bg: '#E1F3FE', pattern: 'waves', title: 'Big news, everyone.',
-          subtitle: 'Here is what changes Monday.',
-          items: ['What is new', 'Why it matters', 'What to do next'],
-        })),
+        id: 'starter-promo-v2', name: 'Promo card', builtIn: true, createdAt: now,
+        post: starterPost('Promo card', 'story', starterPromo()),
       });
     }
     const next = [...list, ...seeds];

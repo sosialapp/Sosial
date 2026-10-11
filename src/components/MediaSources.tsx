@@ -42,9 +42,9 @@ const SOURCES: { id: Source; label: string; icon: string; mark: SourceMarkId; no
 
 /** Not yet wired — Google media awaits Google OAuth verification (restricted
  *  scopes + CASA). Shown greyed as roadmap. */
-const SOON: { label: string; icon: string; note: string }[] = [
-  { label: 'Google Drive', icon: 'folder-outline', note: 'Coming soon' },
-  { label: 'Google Photos', icon: 'images-outline', note: 'Coming soon' },
+const SOON: { label: string; mark: SourceMarkId; note: string }[] = [
+  { label: 'Google Drive', mark: 'drive', note: 'Coming soon' },
+  { label: 'Google Photos', mark: 'gphotos', note: 'Coming soon' },
 ];
 
 const LABEL: Record<Source, string> = {
@@ -491,7 +491,7 @@ export default function MediaSources({
           >
             <Ionicons name="images-outline" size={22} color={C.accentInk} />
             <View style={{ flex: 1 }}>
-              <Text style={s.tileT}>Camera roll</Text>
+              <Text style={s.tileT}>Upload from phone</Text>
               <Text style={s.tileS}>Photos and videos on this device</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={C.faint} />
@@ -513,7 +513,7 @@ export default function MediaSources({
               activeOpacity={0.75}
               style={[s.tile, { opacity: 0.55 }]}
             >
-              <Ionicons name={src.icon as any} size={22} color={C.faint} />
+              <SourceMark id={src.mark} size={22} color={C.faint} />
               <View style={{ flex: 1 }}>
                 <Text style={s.tileT}>{src.label}</Text>
                 <Text style={s.tileS}>{src.note}</Text>

@@ -1,22 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { AvatarButton } from '../components/ProfileMenu';
 import { SocialGlyph } from '../components/ui';
-import ChannelDrawer from '../components/ChannelDrawer';
 import CommunityScreen from './CommunityScreen';
-import { AreaChart, BarsChart, HBarList } from '../components/charts';
-import { Card, CardTitle, CardDescription, Tabs } from '../components/ui-kit';
+import { BarsChart, HBarList } from '../components/charts';
+import { Card, CardTitle, CardDescription } from '../components/ui-kit';
 import { SOCIAL_META } from '../constants';
-import { loadMetaState, loadAccounts, MetaState } from '../utils/metaStore';
-import { schedulableProviders } from '../utils/socialAccounts';
-import { fetchAnalytics, Analytics, RANGES, RangeKey, ChannelStats, PerPost, rangeBounds } from '../utils/analytics';
+import { currentSession } from '../utils/supabase';
+import {
+  fetchCloudAnalytics,
+  type CloudAnalytics,
+  type CloudChannel,
+  type CloudPost,
+} from '../utils/cloudAnalytics';
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+/**
+ * Mirrors the web analytics dashboard (apps/web AnalyticsDashboard): reads
+ * the same cloud tables (posts, post_stats, channel_stats snapshots) and
+ * renders the same cards — stat grid, pipeline, weekly/weekday rhythm,
+ * top posts, recently sent, channel performance.
+ */
 
-type PostRow = PerPost & { channel: ChannelStats['channel'] };
+const DAY = 86400000;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+type RangePreset = 'last7' | 'last30' | 'mtd';
+
+const PRESETS: { id: RangePreset; label: string }[] = [
+  { id: 'last7', label: '7 days' },
+  { id: 'last30', label: '30 days' },
+  { id: 'mtd', label: 'Month to date' },
+];
 
 function compact(n: number | null): string {
   if (n === null || n === undefined) return '—';
@@ -25,8 +41,8 @@ function compact(n: number | null): string {
   return n.toFixed(1);
 }
 
-/** Exact count with thousands separators — follower totals must match the API
- *  digit-for-digit (compact rounding like "1.2k" reads as a wrong number). */
+/** Exact count with thousands separators — follower totals must match the
+ *  snapshot digit-for-digit. */
 function full(n: number | null): string {
   if (n === null || n === undefined) return '—';
   try {
@@ -36,122 +52,18 @@ function full(n: number | null): string {
   }
 }
 
-/** likes + comments + shares — the engagement score used for ranking & trends. */
-function scoreOf(p: { likes: number; comments: number; shares?: number }): number {
-  return p.likes + p.comments + (p.shares ?? 0);
-}
+const startOfDay = (t: number): number => {
+  const d = new Date(t);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
 
-/** Same score, for a whole channel's totals. */
-function channelScore(c: { reactions: number; comments: number; shares?: number }): number {
-  return c.reactions + c.comments + (c.shares ?? 0);
-}
+const fmtDate = (iso: string | null): string => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
-function agg(channels: ChannelStats[]) {
-  const followers = channels.reduce((a, c) => a + (c.followers ?? 0), 0);
-  const hasFollowers = channels.some((c) => c.followers !== null);
-  const posts = channels.reduce((a, c) => a + c.posts, 0);
-  const reactions = channels.reduce((a, c) => a + c.reactions, 0);
-  const comments = channels.reduce((a, c) => a + c.comments, 0);
-  const shares = channels.reduce((a, c) => a + (c.shares ?? 0), 0);
-  const hasShares = channels.some((c) => (c.shares ?? 0) > 0);
-  const views = channels.reduce((a, c) => a + (c.views ?? 0), 0);
-  const hasViews = channels.some((c) => c.views !== null);
-  const interactions = reactions + comments;
-  const engagement = hasFollowers && followers > 0 ? (interactions / followers) * 100 : null;
-  const avgPerPost = posts > 0 ? interactions / posts : null;
-  return { followers: hasFollowers ? followers : null, posts, reactions, comments, shares, hasShares, views: hasViews ? views : null, hasViews, interactions, engagement, avgPerPost };
-}
-
-function timeAgo(ts: number): string {
-  const d = Date.now() - ts;
-  if (d < 3600000) return `${Math.max(1, Math.round(d / 60000))}m ago`;
-  if (d < 86400000) return `${Math.round(d / 3600000)}h ago`;
-  return `${Math.round(d / 86400000)}d ago`;
-}
-
-function seriesDelta(series?: { ts: number; value: number }[]): number | null {
-  if (!series || series.length < 2) return null;
-  return series[series.length - 1].value - series[0].value;
-}
-
-/** Sum follower histories across channels into one daily total series. */
-function combinedFollowers(channels: ChannelStats[]): { ts: number; value: number }[] {
-  const map = new Map<number, number>();
-  for (const c of channels) {
-    for (const p of c.followerSeries ?? []) {
-      const day = new Date(p.ts).setHours(0, 0, 0, 0);
-      map.set(day, (map.get(day) ?? 0) + p.value);
-    }
-  }
-  return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([ts, value]) => ({ ts, value }));
-}
-
-function allPosts(chans: ChannelStats[]): PostRow[] {
-  return chans.flatMap((c) => c.perPost.map((p) => ({ ...p, channel: c.channel })));
-}
-
-/**
- * Engagement (likes+comments+shares) over time. One bucket per day for short
- * ranges, per week for long ones — works on every channel since it's derived
- * from post timestamps instead of the follower series only FB/IG expose.
- */
-function engagementBins(posts: PostRow[], start: number, end: number): { values: number[]; labels: string[]; bestLabel: string | null; bestValue: number } {
-  const DAY = 86400000;
-  const spanDays = Math.max(1, Math.round((end - start) / DAY));
-  const weekly = spanDays > 31;
-  const bucketDays = weekly ? 7 : 1;
-  const bins = Math.max(1, Math.min(30, Math.ceil(spanDays / bucketDays)));
-  const values = new Array(bins).fill(0);
-  for (const p of posts) {
-    const idx = Math.floor((p.ts - start) / (bucketDays * DAY));
-    if (idx >= 0 && idx < bins) values[idx] += scoreOf(p);
-  }
-  const labels = values.map((_, i) => {
-    const d = new Date(start + i * bucketDays * DAY);
-    return weekly ? `${d.getMonth() + 1}/${d.getDate()}` : String(d.getDate());
-  });
-  let bestIdx = -1;
-  values.forEach((v, i) => { if (v > 0 && (bestIdx < 0 || v > values[bestIdx])) bestIdx = i; });
-  return { values, labels, bestLabel: bestIdx >= 0 ? labels[bestIdx] : null, bestValue: bestIdx >= 0 ? values[bestIdx] : 0 };
-}
-
-/** Average engagement per weekday — answers "when should I post". */
-function weekdayProfile(posts: PostRow[]): { avgs: number[]; counts: number[]; bestIdx: number } {
-  const sums = new Array(7).fill(0);
-  const counts = new Array(7).fill(0);
-  for (const p of posts) {
-    const d = new Date(p.ts).getDay();
-    sums[d] += scoreOf(p);
-    counts[d] += 1;
-  }
-  const avgs = sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
-  let bestIdx = -1;
-  for (let i = 0; i < 7; i++) if (counts[i] > 0 && (bestIdx < 0 || avgs[i] > avgs[bestIdx])) bestIdx = i;
-  return { avgs, counts, bestIdx };
-}
-
-/** Second half of the range vs the first, as a % change in engagement. */
-function momentum(posts: PostRow[], start: number, end: number): number | null {
-  const mid = start + (end - start) / 2;
-  let first = 0, second = 0, firstN = 0, secondN = 0;
-  for (const p of posts) {
-    if (p.ts < mid) { first += scoreOf(p); firstN++; } else { second += scoreOf(p); secondN++; }
-  }
-  if (!firstN || !secondN) return null;
-  if (!first) return second > 0 ? 100 : null;
-  return ((second - first) / first) * 100;
-}
-
-/** Channels ranked by average engagement per post (needs no follower count). */
-function channelRank(chans: ChannelStats[]): { channel: string; avg: number; posts: number }[] {
-  return chans
-    .filter((c) => c.posts > 0)
-    .map((c) => ({ channel: c.channel, avg: channelScore(c) / c.posts, posts: c.posts }))
-    .sort((a, b) => b.avg - a.avg);
-}
-
-/** Analytics tab: KPI grid, growth, engagement trend, channel leaderboard,
- *  best-time-to-post, per-channel sections, ranked posts, comment feed. */
 export default function AnalyticsScreen({ email, team, onProfile, onConnect, onBack }: {
   email: string;
   team: string;
@@ -162,112 +74,221 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const [meta, setMeta] = useState<MetaState>({});
-  const [data, setData] = useState<Analytics | null>(null);
+  const [data, setData] = useState<CloudAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [channel, setChannel] = useState('all');
-  const [drawer, setDrawer] = useState(false);
-  const [sched, setSched] = useState<Set<string>>(new Set());
-  const [range, setRange] = useState<RangeKey>('last30');
+  const [preset, setPreset] = useState<RangePreset>('last30');
+  const [chanSel, setChanSel] = useState<string[]>([]);
   const [view, setView] = useState<'analytics' | 'community'>('analytics');
 
-  const load = async (m?: MetaState, r?: RangeKey) => {
-    const mm = m ?? (await loadMetaState());
-    setMeta(mm);
-    loadAccounts()
-      .then((all) => setSched(new Set<string>(schedulableProviders(all))))
-      .catch(() => {});
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      setData(await fetchAnalytics(mm, r ?? range));
+      setData(await fetchCloudAnalytics());
+    } catch {
+      setData(null);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onRange = (k: RangeKey) => {
-    setRange(k);
-    setLoading(true);
-    fetchAnalytics(meta, k).then(setData).finally(() => setLoading(false));
-  };
+  useEffect(() => {
+    void load();
+    void currentSession().catch(() => null);
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      setData(await fetchAnalytics(await loadMetaState(), range));
+      setData(await fetchCloudAnalytics());
     } finally {
       setRefreshing(false);
     }
   };
 
-  const discordSub = (() => {
-    if (!meta.dcChannelId) return 'Not connected';
-    if (!meta.dcChannelName) return 'Connected';
-    const name = meta.dcChannelName.replace(/^#/, '');
-    return meta.dcGuildName ? `${meta.dcGuildName} / #${name}` : `#${name}`;
-  })();
-  const wpSub = !meta.wpSiteUrl
-    ? 'Not connected'
-    : meta.wpSiteName ?? meta.wpSiteUrl.replace(/^https?:\/\//i, '');
-  const drawerChannels = [
-    { id: 'facebook', label: 'Facebook', sub: meta.pageName ?? 'Not connected', connected: !!meta.pageId || sched.has('facebook') },
-    { id: 'instagram', label: 'Instagram', sub: meta.igName ?? 'Not connected', connected: !!meta.igId || sched.has('instagram') },
-    { id: 'threads', label: 'Threads', sub: meta.threadsName ?? 'Not connected', connected: !!meta.threadsId || sched.has('threads') },
-    { id: 'tiktok', label: 'TikTok', sub: meta.ttName ?? ((meta.ttAccessToken || meta.ttRefreshToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ttAccessToken || meta.ttRefreshToken) || sched.has('tiktok') },
-    { id: 'x', label: 'X', sub: meta.xName ?? ((meta.xAccessToken || meta.xRefreshToken) ? 'Connected' : 'Not connected'), connected: !!(meta.xAccessToken || meta.xRefreshToken) || sched.has('x') },
-    { id: 'bluesky', label: 'Bluesky', sub: meta.bskyName ?? ((meta.bskyAccessJwt || meta.bskyRefreshJwt) ? 'Connected' : 'Not connected'), connected: !!(meta.bskyAccessJwt || meta.bskyRefreshJwt) || sched.has('bluesky') },
-    { id: 'linkedin', label: 'LinkedIn', sub: meta.liName ?? ((meta.liPersonUrn ? 'Connected' : 'Not connected')), connected: !!meta.liPersonUrn || sched.has('linkedin') },
-    { id: 'youtube', label: 'YouTube', sub: meta.ytChannelName ?? ((meta.ytRefreshToken || meta.ytAccessToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ytRefreshToken || meta.ytAccessToken) || sched.has('youtube') },
-    { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? ((meta.mastodonAccessToken && meta.mastodonInstance) ? 'Connected' : 'Not connected'), connected: !!(meta.mastodonAccessToken && meta.mastodonInstance) || sched.has('mastodon') },
-    { id: 'pinterest', label: 'Pinterest', sub: 'Coming soon', connected: false, comingSoon: true },
-    { id: 'telegram', label: 'Telegram', sub: meta.tgChatTitle ?? ((meta.tgBotToken && meta.tgChatId) ? 'Connected' : 'Not connected'), connected: !!(meta.tgBotToken && meta.tgChatId) || sched.has('telegram') },
-    { id: 'discord', label: 'Discord', sub: discordSub, connected: !!meta.dcChannelId || sched.has('discord') },
-    { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!meta.wpSiteUrl || sched.has('wordpress') },
-    { id: 'devto', label: 'Dev.to', sub: meta.devName ?? meta.devUsername ?? (meta.devApiKey ? 'Connected' : 'Not connected'), connected: !!meta.devApiKey || sched.has('devto') },
-    { id: 'hashnode', label: 'Hashnode', sub: meta.hnPublicationTitle ?? (meta.hnToken && meta.hnPublicationId ? 'Connected' : 'Not connected'), connected: !!(meta.hnToken && meta.hnPublicationId) || sched.has('hashnode') },
-    { id: 'ghost', label: 'Ghost', sub: meta.ghSiteName ?? meta.ghSiteUrl ?? (meta.ghAdminKey ? 'Connected' : 'Not connected'), connected: !!meta.ghAdminKey || sched.has('ghost') },
-    { id: 'vk', label: 'VK', sub: meta.vkGroupName ?? (meta.vkToken && meta.vkGroupId ? 'Connected' : 'Not connected'), connected: !!(meta.vkToken && meta.vkGroupId) || sched.has('vk') },
-    { id: 'gmb', label: 'Google Business', sub: meta.gmLocationTitle ?? (meta.gmRefreshToken && meta.gmLocation ? 'Connected' : 'Not connected'), connected: sched.has('gmb'), comingSoon: true },
-  ];
-  const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
+  const now = Date.now();
+  const range = useMemo((): { from: number; to: number; label: string } => {
+    const sod = startOfDay(now);
+    if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: 'Last 7 days' };
+    if (preset === 'last30') return { from: sod - 29 * DAY, to: sod + DAY - 1, label: 'Last 30 days' };
+    const d = new Date(now);
+    return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: sod + DAY - 1, label: 'Month to date' };
+  }, [preset, now]);
 
-  const chans = (data?.channels ?? []).filter((c) => (channel === 'all' ? true : c.channel === channel));
-  const live = chans.filter((c) => !(c.note ?? '').endsWith('not connected.'));
-  const totals = agg(chans);
-  const rangeLabel = RANGES.find((r) => r.key === range)?.label ?? '';
-  const posts = allPosts(chans);
-  const bars = posts
-    .map((p) => ({ ...p, score: scoreOf(p) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8);
-  const maxScore = Math.max(1, ...bars.map((b) => b.score));
-  const notes = chans.map((c) => c.note).filter(Boolean) as string[];
-  const anyConnected = drawerChannels.some((c) => c.connected);
+  const connected = useMemo(
+    () => (data?.channels ?? []).filter((c) => c.status === 'connected'),
+    [data],
+  );
 
-  const followerDelta = chans.reduce<number>((a, c) => a + (seriesDelta(c.followerSeries) ?? 0), 0);
-  const hasDelta = chans.some((c) => (c.followerSeries?.length ?? 0) >= 2);
-  const combined = combinedFollowers(chans);
-  const { start: rbStart, end: rbEnd } = rangeBounds(range);
-  const eng = engagementBins(posts, rbStart, rbEnd);
-  const week = weekdayProfile(posts);
-  const trend = momentum(posts, rbStart, rbEnd);
-  const rank = channelRank(live);
-  const maxAvg = Math.max(1, ...rank.map((r) => r.avg));
+  const inRange = (iso: string | null | undefined): boolean => {
+    if (!iso) return false;
+    const t = new Date(iso).getTime();
+    return !Number.isNaN(t) && t >= range.from && t <= range.to;
+  };
+  const postDate = (p: CloudPost): string | null => p.sent_at ?? p.scheduled_at ?? p.created_at ?? null;
+  const chanOk = (channelId: string): boolean => chanSel.length === 0 || chanSel.includes(channelId);
 
-  const kpis: { label: string; value: string; sub: string; tone?: 'up' | 'down' }[] = [
-    { label: 'Followers', value: full(totals.followers), sub: hasDelta ? `${followerDelta >= 0 ? '+' : ''}${compact(followerDelta)} in range` : 'connected channels', tone: hasDelta ? (followerDelta >= 0 ? 'up' : 'down') : undefined },
-    { label: 'Engagement', value: totals.engagement !== null ? `${totals.engagement.toFixed(1)}%` : '—', sub: 'of followers in range' },
-    { label: 'Interactions', value: compact(totals.interactions), sub: trend !== null ? `${trend >= 0 ? '+' : ''}${trend.toFixed(0)}% vs first half` : 'likes + comments', tone: trend !== null ? (trend >= 0 ? 'up' : 'down') : undefined },
-    { label: 'Avg / post', value: totals.avgPerPost !== null ? compact(Math.round(totals.avgPerPost * 10) / 10) : '—', sub: 'interactions per post' },
-    { label: 'Views', value: compact(totals.views), sub: totals.hasViews ? 'where the API exposes it' : 'not exposed by these APIs' },
-    { label: 'Shares', value: compact(totals.shares), sub: totals.hasShares ? 'reposts, retweets & saves' : 'not exposed by these APIs' },
-  ];
+  const scoped = useMemo(() => {
+    const posts = data?.posts ?? [];
+    return posts.filter((p) => {
+      if (!inRange(postDate(p))) return false;
+      if (chanSel.length === 0) return true;
+      return p.targets.some((t) => chanSel.includes(t.channel_id));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, range, chanSel]);
+
+  const byStatus = (list: string[]) => scoped.filter((p) => list.includes(p.status));
+  const drafts = byStatus(['draft']).length;
+  const queued = byStatus(['queued', 'publishing', 'approval']).length;
+  const sent = byStatus(['sent', 'partial']);
+  const failed = byStatus(['failed']).length;
+  const funnelMax = Math.max(1, drafts, queued, sent.length, failed);
+
+  // Engagement aggregates — latest snapshots, not date-bound (like web).
+  const statsScoped = useMemo(() => (data?.postStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel]);
+  const likes = statsScoped.reduce((a, r) => a + (r.likes ?? 0), 0);
+  const comments = statsScoped.reduce((a, r) => a + (r.comments ?? 0), 0);
+  const shares = statsScoped.reduce((a, r) => a + (r.shares ?? 0), 0);
+  const views = statsScoped.reduce((a, r) => a + (r.views == null ? 0 : Number(r.views)), 0);
+  const hasViews = statsScoped.some((r) => r.views != null);
+  const chanStatsScoped = useMemo(() => (data?.channelStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel]);
+  const followers = chanStatsScoped.reduce((a, r) => a + (r.followers ?? 0), 0);
+  const hasFollowers = chanStatsScoped.some((r) => r.followers !== null);
+  const eng = hasFollowers && followers > 0 ? `${(((likes + comments + shares) / followers) * 100).toFixed(1)}%` : null;
+
+  // Weekly + weekday rhythm (range-scoped, from sent posts).
+  const weeks: { label: string; count: number }[] = [];
+  for (let i = 7; i >= 0; i--) {
+    const start = now - (i + 1) * 7 * DAY;
+    const end = now - i * 7 * DAY;
+    const count = sent.filter((p) => {
+      if (!p.sent_at) return false;
+      const t = new Date(p.sent_at).getTime();
+      return t >= start && t < end;
+    }).length;
+    weeks.push({ label: `${new Date(end).getMonth() + 1}/${new Date(end).getDate()}`, count });
+  }
+  const weekMax = Math.max(1, ...weeks.map((w) => w.count));
+  const weekdayCounts = new Array(7).fill(0);
+  for (const p of sent) {
+    if (!p.sent_at) continue;
+    const d = new Date(p.sent_at);
+    if (Number.isNaN(d.getTime())) continue;
+    weekdayCounts[d.getDay()] += 1;
+  }
+  const weekdayMax = Math.max(1, ...weekdayCounts);
+
+  const recent = [...sent]
+    .filter((p) => p.sent_at)
+    .sort((a, b) => +new Date(b.sent_at!) - +new Date(a.sent_at!))
+    .slice(0, 5);
+
+  // Top posts: interactions summed across the post's targets.
+  const statsByPost = useMemo(() => {
+    const map = new Map<string, { likes: number; comments: number; shares: number; views: number | null }>();
+    for (const r of statsScoped) {
+      const cur = map.get(r.post_id) ?? { likes: 0, comments: 0, shares: 0, views: null };
+      cur.likes += r.likes ?? 0;
+      cur.comments += r.comments ?? 0;
+      cur.shares += r.shares ?? 0;
+      if (r.views != null) cur.views = (cur.views ?? 0) + Number(r.views);
+      map.set(r.post_id, cur);
+    }
+    return map;
+  }, [statsScoped]);
+
+  const topPosts = useMemo(() => {
+    const rows = sent.map((p) => {
+      const agg = statsByPost.get(p.id);
+      const lk = agg?.likes ?? 0;
+      const cm = agg?.comments ?? 0;
+      const sh = agg?.shares ?? 0;
+      return {
+        id: p.id,
+        title: p.title || p.body?.slice(0, 60) || 'Untitled post',
+        sentAt: p.sent_at,
+        providers: [...new Set(p.targets.map((t) => t.provider))],
+        likes: lk,
+        comments: cm,
+        shares: sh,
+        views: agg?.views ?? null,
+        interactions: lk + cm + sh,
+      };
+    });
+    rows.sort((a, b) => b.interactions - a.interactions);
+    return rows.slice(0, 5);
+  }, [sent, statsByPost]);
+
+  // Channel performance rows (latest snapshots, channel-filtered).
+  const totalsBy = useMemo(() => {
+    const map = new Map<string, { likes: number; comments: number; shares: number; views: number | null }>();
+    for (const r of statsScoped) {
+      const cur = map.get(r.channel_id) ?? { likes: 0, comments: 0, shares: 0, views: null };
+      cur.likes += r.likes ?? 0;
+      cur.comments += r.comments ?? 0;
+      cur.shares += r.shares ?? 0;
+      if (r.views != null) cur.views = (cur.views ?? 0) + Number(r.views);
+      map.set(r.channel_id, cur);
+    }
+    return map;
+  }, [statsScoped]);
+
+  const perfRows = useMemo(() => {
+    return (data?.channels ?? [])
+      .filter((c) => c.status === 'connected' || c.status === 'expired')
+      .filter((c) => chanOk(c.id))
+      .map((c: CloudChannel) => {
+        const tot = totalsBy.get(c.id);
+        const snap = chanStatsScoped.find((sn) => sn.channel_id === c.id);
+        const sn2 = sent.filter((p) => p.targets.some((t) => t.channel_id === c.id && t.status === 'sent')).length;
+        const fol = snap?.followers ?? null;
+        return {
+          channel: c,
+          label: c.display_name?.trim() || SOCIAL_META[c.provider]?.label || c.provider,
+          followers: fol,
+          likes: tot?.likes ?? 0,
+          comments: tot?.comments ?? 0,
+          shares: tot?.shares ?? 0,
+          views: tot?.views ?? null,
+          sent: sn2,
+          eng: fol && fol > 0 ? `${((((tot?.likes ?? 0) + (tot?.comments ?? 0) + (tot?.shares ?? 0)) / fol) * 100).toFixed(1)}%` : null,
+        };
+      })
+      .filter((r) => r.sent > 0 || r.followers !== null);
+  }, [data, chanStatsScoped, totalsBy, sent, chanSel]);
+
+  const statusChip = (status: string): { label: string; color: string } => {
+    switch (status) {
+      case 'sent': return { label: 'Sent', color: C.greenText };
+      case 'partial': return { label: 'Partial', color: '#B45309' };
+      case 'failed': return { label: 'Failed', color: C.redText };
+      case 'publishing': return { label: 'Publishing', color: '#B45309' };
+      case 'queued': return { label: 'Queued', color: '#B45309' };
+      case 'approval': return { label: 'Review', color: '#7C5CF0' };
+      default: return { label: 'Draft', color: C.muted };
+    }
+  };
+
+  const glyphStack = (providers: string[], size: number) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {providers.slice(0, 3).map((pv, i) => (
+        <View
+          key={`${pv}-${i}`}
+          style={{
+            width: size, height: size, borderRadius: size / 2,
+            backgroundColor: SOCIAL_META[pv]?.bg ?? C.ink,
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 2, borderColor: C.card,
+            marginLeft: i === 0 ? 0 : -size * 0.3,
+            zIndex: providers.length - i,
+          }}
+        >
+          <SocialGlyph platform={pv} size={size * 0.58} color="#fff" />
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
@@ -292,302 +313,247 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
         </View>
 
         <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-          <Tabs
-            options={[
-              { value: 'analytics', label: 'Analytics' },
-              { value: 'community', label: 'Community' },
-            ]}
-            value={view}
-            onChange={setView}
-          />
+          <View style={s.tabSwitch}>
+            {([
+              { id: 'analytics', label: 'Analytics' },
+              { id: 'community', label: 'Community' },
+            ] as const).map((t) => {
+              const on = view === t.id;
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  onPress={() => setView(t.id)}
+                  style={[s.tabPill, on && { backgroundColor: C.ink }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.tabT, on && { color: C.onInk }]}>{t.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {view === 'analytics' ? (
-        <>
-        <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-          <TouchableOpacity onPress={() => setDrawer(true)} style={s.chanBtn} activeOpacity={0.75}>
-            {channel === 'all' ? (
-              <Ionicons name="globe-outline" size={18} color={C.accentInk} />
-            ) : (
-              <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: SOCIAL_META[channel]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
-                <SocialGlyph platform={channel} size={14} color="#fff" />
-              </View>
-            )}
-            <Text style={s.chanBtnT}>{channelLabel}</Text>
-            <Ionicons name="chevron-down" size={18} color={C.faint} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 24, marginTop: 12 }}>
-          {RANGES.map((r) => {
-            const on = range === r.key;
-            return (
-              <TouchableOpacity key={r.key} onPress={() => onRange(r.key)} style={[s.range, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                <Text style={[s.rangeT, on && { color: C.onInk }]}>{r.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {!anyConnected ? (
-          <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-            <View style={s.empty}>
-              <Text style={s.emptyT}>No channels connected</Text>
-              <Text style={s.emptyS}>Connect Facebook, Instagram, Threads or TikTok to see followers, reactions and comments.</Text>
-              <TouchableOpacity onPress={onConnect} style={s.connectBtn} activeOpacity={0.8}>
-                <Text style={s.connectBtnT}>Connect a channel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : loading && !data ? (
-          <View style={{ padding: 40, alignItems: 'center' }}>
-            <ActivityIndicator color={C.accent} />
-            <Text style={s.loadingT}>Crunching numbers…</Text>
-          </View>
-        ) : (
           <>
-            {/* hero */}
-            <View style={{ paddingHorizontal: 24, marginTop: 22 }}>
-              <Text style={s.eyebrow}>{rangeLabel} · {live.length} channel{live.length === 1 ? '' : 's'}</Text>
-              <Text style={s.heroLabel}>
-                {totals.interactions > 0 ? `${compact(totals.interactions)} interactions from ${totals.posts} post${totals.posts === 1 ? '' : 's'}` : `${totals.posts} post${totals.posts === 1 ? '' : 's'} in range`}
-              </Text>
-            </View>
+            {/* Range presets */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 24, marginTop: 12 }}>
+              {PRESETS.map((p) => {
+                const on = preset === p.id;
+                return (
+                  <TouchableOpacity key={p.id} onPress={() => setPreset(p.id)} style={[s.range, on && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
+                    <Text style={[s.rangeT, on && { color: C.onInk }]}>{p.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-            {/* KPI grid */}
-            <View style={[s.kpiWrap, { paddingHorizontal: 24 }]}>
-              {kpis.map((k) => (
-                <Card key={k.label} style={s.kpi}>
-                  <Text style={s.kpiLabel}>{k.label}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                    <Text style={s.kpiVal}>{k.value}</Text>
-                    {k.tone ? (
-                      <Ionicons name={k.tone === 'up' ? 'arrow-up' : 'arrow-down'} size={13} color={k.tone === 'up' ? C.greenText : C.redText} />
-                    ) : null}
-                  </View>
-                  <Text style={[s.kpiSub, k.tone === 'up' && { color: C.greenText }, k.tone === 'down' && { color: C.redText }]} numberOfLines={2}>{k.sub}</Text>
-                </Card>
-              ))}
-            </View>
+            {/* Channel filter chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 24, marginTop: 10 }}>
+              <TouchableOpacity
+                onPress={() => setChanSel([])}
+                style={[s.chanChip, chanSel.length === 0 && { backgroundColor: C.ink, borderColor: C.ink }]}
+                activeOpacity={0.75}
+              >
+                <Text style={[s.chanChipT, chanSel.length === 0 && { color: C.onInk }]}>All channels</Text>
+              </TouchableOpacity>
+              {connected.map((c) => {
+                const on = chanSel.includes(c.id);
+                const brand = SOCIAL_META[c.provider]?.bg ?? C.ink;
+                const name = c.display_name?.trim() || SOCIAL_META[c.provider]?.label || c.provider;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    onPress={() => setChanSel((prev) => (prev.includes(c.id) ? prev.filter((x) => x !== c.id) : [...prev, c.id]))}
+                    style={[s.chanChip, on && { backgroundColor: C.ink, borderColor: C.ink }]}
+                    activeOpacity={0.75}
+                  >
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: brand, alignItems: 'center', justifyContent: 'center' }}>
+                      <SocialGlyph platform={c.provider} size={12} color="#fff" />
+                    </View>
+                    <Text style={[s.chanChipT, on && { color: C.onInk }]} numberOfLines={1}>{name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-            {/* follower growth */}
-            {combined.length >= 2 ? (
-              <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
-                <Card>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <CardTitle>Follower growth</CardTitle>
-                    {hasDelta ? (
-                      <Text style={[s.deltaT, { color: followerDelta >= 0 ? C.greenText : C.redText }]}>
-                        {followerDelta >= 0 ? '+' : ''}{compact(followerDelta)}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View style={{ marginTop: 14 }}>
-                    <AreaChart
-                      data={combined.map((p) => p.value)}
-                      color={C.accent}
-                      height={96}
-                      gridLines={3}
-                      interactive
-                      labels={combined.map((p) => new Date(p.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}
-                      formatValue={full}
-                    />
-                  </View>
-                  <CardDescription>{rangeLabel} · total across connected channels</CardDescription>
-                </Card>
+            {loading && !data ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <ActivityIndicator color={C.accent} />
+                <Text style={s.loadingT}>Crunching numbers…</Text>
               </View>
-            ) : null}
-
-            {/* engagement over time */}
-            <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-              <Card>
-                <CardTitle>Engagement over time</CardTitle>
-                <View style={{ marginTop: 14 }}>
-                  <BarsChart
-                    data={eng.values}
-                    color={C.accent}
-                    height={84}
-                    gridLines={3}
-                    interactive
-                    labels={eng.labels}
-                    highlightIndex={eng.values.reduce((best, v, i) => (v > eng.values[best] ? i : best), 0)}
-                    formatValue={compact}
-                  />
+            ) : connected.length === 0 ? (
+              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+                <View style={s.empty}>
+                  <Text style={s.emptyT}>No channels connected</Text>
+                  <Text style={s.emptyS}>Connect a channel and publish — audience and engagement land here within a day.</Text>
+                  <TouchableOpacity onPress={onConnect} style={s.connectBtn} activeOpacity={0.8}>
+                    <Text style={s.connectBtnT}>Connect a channel</Text>
+                  </TouchableOpacity>
                 </View>
-                <CardDescription>
-                  Likes, comments &amp; shares per {rbEnd - rbStart > 31 * 86400000 ? 'week' : 'day'} · {compact(eng.values.reduce((a, b) => a + b, 0))} total
-                  {eng.bestLabel ? ` · peak ${eng.bestLabel} (${compact(eng.bestValue)})` : ''}
-                </CardDescription>
-              </Card>
-            </View>
-
-            {/* channel leaderboard */}
-            {rank.length >= 2 ? (
-              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <Card>
-                  <CardTitle>Channel leaderboard</CardTitle>
-                  <CardDescription>Average interactions per post</CardDescription>
-                  <View style={{ marginTop: 12 }}>
-                    <HBarList
-                      rows={rank.map((r) => ({
-                        label: SOCIAL_META[r.channel]?.label ?? r.channel,
-                        value: Math.round(r.avg * 10) / 10,
-                        color: SOCIAL_META[r.channel]?.bg ?? C.ink,
-                        sub: `${r.posts} post${r.posts === 1 ? '' : 's'}`,
-                      }))}
-                      max={maxAvg}
-                      formatValue={compact}
-                    />
-                  </View>
-                </Card>
               </View>
-            ) : null}
+            ) : (
+              <>
+                {/* Stat grid — same six cards as web */}
+                <View style={[s.kpiWrap, { paddingHorizontal: 24 }]}>
+                  {[
+                    { label: 'Posts', value: full(sent.length), sub: `Sent in ${range.label.toLowerCase()}` },
+                    { label: 'Followers', value: hasFollowers ? full(followers) : '—', sub: 'Latest daily snapshots' },
+                    { label: 'Reactions', value: full(likes), sub: 'Across sent posts' },
+                    { label: 'Comments', value: full(comments), sub: 'Across sent posts' },
+                    { label: 'Eng. rate', value: eng ?? '—', sub: 'Interactions ÷ followers' },
+                    { label: 'Views', value: hasViews ? full(views) : '—', sub: 'Where the platform exposes it' },
+                  ].map((k) => (
+                    <Card key={k.label} style={s.kpi}>
+                      <Text style={s.kpiLabel}>{k.label}</Text>
+                      <Text style={s.kpiVal}>{k.value}</Text>
+                      <Text style={s.kpiSub} numberOfLines={2}>{k.sub}</Text>
+                    </Card>
+                  ))}
+                </View>
 
-            {/* best time to post */}
-            {posts.length >= 3 ? (
-              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <Card>
-                  <CardTitle>Best time to post</CardTitle>
-                  <CardDescription>
-                    {week.bestIdx >= 0
-                      ? `Posts land best on ${DAY_FULL[week.bestIdx]}s — ${compact(Math.round(week.avgs[week.bestIdx] * 10) / 10)} avg interactions`
-                      : 'No posted days in this range.'}
-                  </CardDescription>
-                  <View style={{ marginTop: 14 }}>
-                    <BarsChart
-                      data={week.avgs}
-                      color={C.soft}
-                      height={64}
-                      barGap={10}
-                      labels={DAY_NAMES}
-                      highlightIndex={week.bestIdx}
-                      interactive
-                      formatValue={compact}
-                    />
-                  </View>
-                </Card>
-              </View>
-            ) : null}
-
-            {/* per-channel sections */}
-            {live.map((c) => {
-              const brand = SOCIAL_META[c.channel]?.bg ?? C.ink;
-              const name = SOCIAL_META[c.channel]?.label ?? c.channel;
-              const scores = c.perPost.map((p) => p.likes + p.comments);
-              const delta = seriesDelta(c.followerSeries);
-              const bits: string[] = [];
-              if ((c.shares ?? 0) > 0) bits.push(`${compact(c.shares ?? 0)} shares`);
-              if (c.views !== null) bits.push(`${compact(c.views)} views`);
-              if (c.posts > 0) bits.push(`${compact(Math.round((channelScore(c) / c.posts) * 10) / 10)} avg/post`);
-              return (
-                <View key={c.channel} style={{ paddingHorizontal: 24, marginTop: 30 }}>
+                {/* Pipeline */}
+                <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
                   <Card>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={[s.tile, { backgroundColor: brand }]}>
-                      <SocialGlyph platform={c.channel} size={17} color="#fff" />
+                    <CardTitle>Pipeline</CardTitle>
+                    <View style={{ marginTop: 12 }}>
+                      <HBarList
+                        rows={[
+                          { label: 'Drafts', value: drafts, color: C.surface },
+                          { label: 'Queued', value: queued, color: '#B45309' },
+                          { label: 'Sent', value: sent.length, color: C.ink },
+                          { label: 'Failed', value: failed, color: '#E60023' },
+                        ]}
+                        max={funnelMax}
+                        formatValue={(v) => String(v)}
+                      />
                     </View>
-                    <View style={{ flex: 1, gap: 1 }}>
-                      <Text style={s.chanName}>{name}</Text>
-                      <Text style={s.chanHandle} numberOfLines={1}>{c.label}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                        <Text style={s.chanBig}>{full(c.followers)}</Text>
-                        {delta !== null ? (
-                          <Text style={[s.chanDelta, { color: delta >= 0 ? C.greenText : C.redText }]}>
-                            {delta >= 0 ? '+' : ''}{compact(delta)}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <Text style={s.chanSmall}>followers</Text>
-                    </View>
-                  </View>
-
-                  <View style={s.chanStatsRow}>
-                    <View style={s.chanStat}>
-                      <Text style={s.chanStatV}>{c.engagementRate !== null ? `${c.engagementRate.toFixed(1)}%` : '—'}</Text>
-                      <Text style={s.chanStatL}>engagement</Text>
-                    </View>
-                    <View style={s.chanStatDiv} />
-                    <View style={s.chanStat}>
-                      <Text style={s.chanStatV}>{c.posts}</Text>
-                      <Text style={s.chanStatL}>posts</Text>
-                    </View>
-                    <View style={s.chanStatDiv} />
-                    <View style={s.chanStat}>
-                      <Text style={s.chanStatV}>{compact(c.reactions + c.comments)}</Text>
-                      <Text style={s.chanStatL}>interactions</Text>
-                    </View>
-                  </View>
-
-                  {c.followerSeries && c.followerSeries.length >= 2 ? (
-                    <View style={{ marginTop: 14 }}>
-                      <AreaChart data={c.followerSeries.map((p) => p.value)} color={brand} height={60} gridLines={2} interactive formatValue={full} />
-                    </View>
-                  ) : scores.length > 0 ? (
-                    <View style={{ marginTop: 14 }}>
-                      <BarsChart data={scores.slice(0, 14)} color={brand} height={48} gridLines={2} interactive formatValue={compact} />
-                    </View>
-                  ) : null}
-                  {bits.length ? <Text style={s.statStrip}>{bits.join('  ·  ')}</Text> : null}
-                  {c.note ? <Text style={s.note}>{c.note}</Text> : null}
                   </Card>
                 </View>
-              );
-            })}
 
-            {/* top posts */}
-            <View style={{ paddingHorizontal: 24, marginTop: 30 }}>
-              <Text style={s.secT}>Top posts</Text>
-              {bars.length === 0 ? (
-                <Text style={s.hint}>No posts in this range yet.</Text>
-              ) : (
-                <View style={{ marginTop: 8 }}>
-                  <HBarList
-                    rows={bars.map((b) => {
-                      const metaBits = [`${compact(b.likes)} likes`, `${compact(b.comments)} comments`];
-                      if ((b.shares ?? 0) > 0) metaBits.push(`${compact(b.shares ?? 0)} shares`);
-                      if (b.views !== null) metaBits.push(`${compact(b.views)} views`);
-                      return {
-                        label: b.title,
-                        value: b.score,
-                        color: SOCIAL_META[b.channel]?.bg ?? C.ink,
-                        sub: `${metaBits.join(' · ')} · ${b.ts ? timeAgo(b.ts) : ''}`,
-                      };
-                    })}
-                    max={maxScore}
-                    formatValue={compact}
-                  />
+                {/* Sends per week */}
+                <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+                  <Card>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <CardTitle>Sends per week · last 8 weeks</CardTitle>
+                      <Text style={s.bestT}>best: {weekMax}/wk</Text>
+                    </View>
+                    <View style={{ marginTop: 14 }}>
+                      <BarsChart
+                        data={weeks.map((w) => w.count)}
+                        color={C.accent}
+                        height={96}
+                        gridLines={3}
+                        labels={weeks.map((w) => w.label)}
+                        formatValue={(v) => String(Math.round(v))}
+                      />
+                    </View>
+                  </Card>
                 </View>
-              )}
-            </View>
 
-            {notes.length > 0 ? (
-              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                {notes.map((n, i) => (
-                  <Text key={i} style={s.note}>• {n}</Text>
-                ))}
-              </View>
-            ) : null}
+                {/* Sends by weekday */}
+                <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+                  <Card>
+                    <CardTitle>Sends by weekday</CardTitle>
+                    <View style={{ marginTop: 14 }}>
+                      <BarsChart
+                        data={weekdayCounts}
+                        color={C.accent}
+                        height={84}
+                        gridLines={3}
+                        labels={WEEKDAYS}
+                        formatValue={(v) => String(Math.round(v))}
+                      />
+                    </View>
+                    <CardDescription>When your posts actually go out.</CardDescription>
+                  </Card>
+                </View>
+
+                {/* Top posts */}
+                <View style={{ paddingHorizontal: 24, marginTop: 30 }}>
+                  <Text style={s.secT}>Top posts</Text>
+                  <Text style={s.secS}>Ranked by interactions in {range.label.toLowerCase()}</Text>
+                  {topPosts.length === 0 ? (
+                    <Text style={s.hint}>No sent posts in this range yet.</Text>
+                  ) : (
+                    <View style={{ marginTop: 10, gap: 8 }}>
+                      {topPosts.map((p) => (
+                        <Card key={p.id} style={{ padding: 13 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            {glyphStack(p.providers, 26)}
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text style={s.postT} numberOfLines={1}>{p.title}</Text>
+                              <Text style={s.postS}>{fmtDate(p.sentAt)}</Text>
+                            </View>
+                            <Text style={s.postInter}>{full(p.interactions)}</Text>
+                          </View>
+                          <Text style={s.postMeta}>
+                            {full(p.likes)} likes · {full(p.comments)} comments · {full(p.shares)} shares{p.views !== null ? ` · ${full(p.views)} views` : ''}
+                          </Text>
+                        </Card>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Recently sent */}
+                <View style={{ paddingHorizontal: 24, marginTop: 30 }}>
+                  <Text style={s.secT}>Recently sent</Text>
+                  {recent.length === 0 ? (
+                    <Text style={s.hint}>No sends yet.</Text>
+                  ) : (
+                    <View style={{ marginTop: 10, gap: 8 }}>
+                      {recent.map((p) => {
+                        const st = statusChip(p.status);
+                        return (
+                          <View key={p.id} style={[s.rowCard, { backgroundColor: C.card, borderColor: C.lineSoft }]}>
+                            {glyphStack([...new Set(p.targets.map((t) => t.provider))], 24)}
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text style={s.postT} numberOfLines={1}>{p.title || 'Untitled post'}</Text>
+                              <Text style={s.postS}>{fmtDate(p.sent_at)}</Text>
+                            </View>
+                            <View style={[s.statusDot, { backgroundColor: st.color }]} />
+                            <Text style={[s.statusT, { color: st.color }]}>{st.label}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                {/* Channel performance */}
+                <View style={{ paddingHorizontal: 24, marginTop: 30 }}>
+                  <Text style={s.secT}>Channel performance</Text>
+                  <Text style={s.secS}>Followers refresh daily · engagement is interactions over followers</Text>
+                  {perfRows.length === 0 ? (
+                    <Text style={s.hint}>Connect a channel and publish — audience and engagement land here within a day.</Text>
+                  ) : (
+                    <View style={{ marginTop: 10, gap: 8 }}>
+                      {perfRows.map((r) => (
+                        <Card key={r.channel.id} style={{ padding: 13 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: SOCIAL_META[r.channel.provider]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
+                              <SocialGlyph platform={r.channel.provider} size={15} color="#fff" />
+                            </View>
+                            <Text style={[s.postT, { flex: 1 }]} numberOfLines={1}>{r.label}</Text>
+                            <Text style={s.postInter}>{full(r.followers)}</Text>
+                          </View>
+                          <Text style={s.postMeta}>
+                            {full(r.followers)} followers · {full(r.likes)} likes · {full(r.comments)} comments · {full(r.shares)} shares{r.views !== null ? ` · ${full(r.views)} views` : ''} · {r.eng ?? '—'} eng · {r.sent} sent
+                          </Text>
+                        </Card>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </>
+            )}
           </>
-        )}
-        </>
         ) : (
           <View style={{ marginTop: 14 }}>
             <CommunityScreen bare email={email} team={team} onProfile={onProfile} onConnect={onConnect} />
           </View>
         )}
       </ScrollView>
-
-      <ChannelDrawer
-        visible={drawer}
-        channels={drawerChannels}
-        value={channel}
-        onPick={setChannel}
-        onAddChannel={onConnect}
-        onSettings={onConnect}
-        onClose={() => setDrawer(false)}
-      />
     </View>
   );
 }
@@ -595,50 +561,30 @@ export default function AnalyticsScreen({ email, team, onProfile, onConnect, onB
 const makeS = (C: Palette) => StyleSheet.create({
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
-  chanBtn: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 15, paddingVertical: 13 },
-  chanBtnT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink },
+  tabSwitch: { flexDirection: 'row', gap: 4, backgroundColor: C.surface, borderRadius: 999, padding: 3, alignSelf: 'flex-start' },
+  tabPill: { borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
+  tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
   range: { borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
   rangeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
-  eyebrow: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, letterSpacing: 1.6, textTransform: 'uppercase', color: C.accent },
-  heroNum: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 52, letterSpacing: -2, lineHeight: 56, color: C.ink, marginTop: 6 },
-  heroLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, lineHeight: 21, color: C.soft, marginTop: 6 },
-  heroSub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted, marginTop: 8 },
-  deltaChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 8 },
-  deltaT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, letterSpacing: -0.2 },
+  chanChip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingLeft: 6, paddingRight: 13, paddingVertical: 6, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
+  chanChipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, maxWidth: 130 },
   kpiWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 },
   kpi: { flexGrow: 1, flexBasis: '46%', backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 14, gap: 3 },
   kpiLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, letterSpacing: 0.6, textTransform: 'uppercase', color: C.muted },
   kpiVal: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 26, letterSpacing: -0.6, color: C.ink, marginTop: 2 },
   kpiSub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, lineHeight: 15, color: C.faint, marginTop: 2 },
-  card: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 16 },
-  cardT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
-  cardS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 17, color: C.muted, marginTop: 8 },
-  tile: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  chanName: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, letterSpacing: -0.3, color: C.ink },
-  chanHandle: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
-  chanBig: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 24, letterSpacing: -0.6, color: C.ink },
-  chanDelta: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, letterSpacing: -0.2 },
-  chanSmall: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted },
-  chanStatsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingVertical: 11, marginTop: 14 },
-  chanStat: { flex: 1, alignItems: 'center', gap: 1 },
-  chanStatV: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 16, letterSpacing: -0.3, color: C.ink },
-  chanStatL: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10.5, color: C.muted },
-  chanStatDiv: { width: StyleSheet.hairlineWidth, height: 26, backgroundColor: C.line },
-  statStrip: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 20, color: C.muted, marginTop: 10 },
   secT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, letterSpacing: -0.4, color: C.ink },
+  secS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18, color: C.muted, marginTop: 2 },
   hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted, marginTop: 8 },
-  rankRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft },
-  rankNo: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.accent, width: 22 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  leadTile: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  barT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink },
-  microT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint },
-  track: { height: 5, borderRadius: 3, backgroundColor: C.surface, overflow: 'hidden' },
-  trackFill: { height: 5, borderRadius: 3 },
-  barV: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.ink, minWidth: 40, textAlign: 'right' },
-  metaLine: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint, marginTop: 1 },
-  dayLab: { flex: 1, textAlign: 'center', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint },
-  note: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.faint, marginTop: 4 },
+  postT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
+  postS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted },
+  postInter: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, letterSpacing: -0.4, color: C.ink },
+  postMeta: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, lineHeight: 16, color: C.faint, marginTop: 8 },
+  rowCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: R.lg, borderWidth: 1, padding: 12 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5 },
+  bestT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint },
+  heroSub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted, marginTop: 8 },
   empty: { backgroundColor: C.card, borderRadius: R.lg, padding: 28, alignItems: 'center' },
   emptyT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: C.ink },
   emptyS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6, textAlign: 'center', lineHeight: 19 },

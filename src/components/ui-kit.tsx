@@ -220,7 +220,7 @@ const makeS = (C: Palette) => StyleSheet.create({
 
   tabs: { flexDirection: 'row', gap: 4, backgroundColor: C.surface, borderRadius: 999, padding: 3, alignSelf: 'flex-start' },
   tab: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
-  tabOn: { backgroundColor: C.ink },
+  tabOn: { backgroundColor: C.ink, borderRadius: 999 },
   tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted },
   tabTOn: { color: C.onInk },
 
