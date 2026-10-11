@@ -30,6 +30,12 @@ const BLOCK_TYPES: { id: BlockType; label: string }[] = [
 
 const clampC = (v: number) => Math.min(1, Math.max(-1, v));
 
+/** Saved 'fill' values (short-lived experiment) behave as 'top'. */
+function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
+  if (c === 'fill') return 'top';
+  return (c as 'top' | 'middle' | 'bottom' | undefined) ?? undefined;
+}
+
 /** Frame aspect (w/h) of an image block — must match the canvas renderer
  *  (blocks.tsx): square 1:1, wide 16:9, custom contentW:imageH. The block is
  *  rendered at design width 340 minus the canvas pad (16×2) and card pad
@@ -360,17 +366,17 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
               <Seg
                 options={[{ value: 'auto', label: 'Auto fill' }, { value: 'fixed', label: 'Fixed' }]}
                 value={page.cardH ? 'fixed' : 'auto'}
-                onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null, cardY: v === 'fixed' ? (page.cardY ?? 'fill') : page.cardY })}
+                onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null, cardY: v === 'fixed' ? (normCardY(page.cardY) ?? 'top') : page.cardY })}
               />
             </Field>
             {page.cardH ? (
               <>
                 <Stepper value={page.cardH} onChange={(v) => patchPage({ cardH: v })} step={20} min={120} max={640} format={(v) => `${v}px`} />
-                <Field label="Card position" hint="Fill = extend below the title.">
+                <Field label="Card position" hint="Where the fixed-height card sits.">
                   <Seg
-                    options={[{ value: 'fill', label: 'Fill' }, { value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]}
-                    value={page.cardY ?? 'fill'}
-                    onChange={(v) => patchPage({ cardY: v as 'top' | 'middle' | 'bottom' | 'fill' })}
+                    options={[{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]}
+                    value={normCardY(page.cardY) ?? 'top'}
+                    onChange={(v) => patchPage({ cardY: v as 'top' | 'middle' | 'bottom' })}
                   />
                 </Field>
               </>

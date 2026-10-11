@@ -10,6 +10,12 @@ import { Txt, GhostBtn, PrimaryBtn, Section, Field, Swatches, Seg, Stepper, Pill
 import AIGenerateSheet from './AIGenerateSheet';
 import ImageCropModal from './ImageCropModal';
 import { applyGenResult } from '../utils/ai/apply';
+
+/** Saved 'fill' values (short-lived experiment) behave as 'top'. */
+function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
+  if (c === 'fill') return 'top';
+  return (c as 'top' | 'middle' | 'bottom' | undefined) ?? undefined;
+}
 import { GenResult } from '../utils/ai/types';
 import { loadAccount } from '../utils/account';
 
@@ -202,21 +208,20 @@ export default function ContentEditor() {
         {!page.fullCard ? (
         <>
         <Field label="Card height">
-          <Seg options={[{ value: 'auto', label: 'Auto fill' }, { value: 'fixed', label: 'Fixed' }]} value={page.cardH ? 'fixed' : 'auto'} onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null, cardY: v === 'fixed' ? (page.cardY ?? 'fill') : page.cardY })} />
+          <Seg options={[{ value: 'auto', label: 'Auto fill' }, { value: 'fixed', label: 'Fixed' }]} value={page.cardH ? 'fixed' : 'auto'} onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null, cardY: v === 'fixed' ? (normCardY(page.cardY) ?? 'top') : page.cardY })} />
         </Field>
         {page.cardH ? (
           <>
             <Stepper value={page.cardH} onChange={(v) => patchPage({ cardH: v })} step={20} min={120} max={640} format={(v) => `${v}px`} />
-            <Field label="Card position" hint="Fill = extend below the title.">
+            <Field label="Card position" hint="Where the fixed-height card sits.">
               <Seg
                 options={[
-                  { value: 'fill', label: 'Fill' },
                   { value: 'top', label: 'Top' },
                   { value: 'middle', label: 'Middle' },
                   { value: 'bottom', label: 'Bottom' },
                 ]}
-                value={page.cardY ?? 'fill'}
-                onChange={(v) => patchPage({ cardY: v as 'top' | 'middle' | 'bottom' | 'fill' })}
+                value={normCardY(page.cardY) ?? 'top'}
+                onChange={(v) => patchPage({ cardY: v as 'top' | 'middle' | 'bottom' })}
               />
             </Field>
           </>

@@ -57,9 +57,9 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const surfaceDark = badgeBg ? true : contrastRatio('#111111', badgeSurface) < contrastRatio('#FFFFFF', badgeSurface);
   const ringColor = surfaceDark ? '#FFFFFF' : '#111111';
   const pfpOnTop = (page.pfp.pfpY ?? 'top') === 'top';
-  // 'fill' is the promised default (matches the editor Seg) — the card
-  // extends below the title instead of the group being pinned to the bottom.
-  const cardY = page.cardY ?? 'fill';
+  // Fixed height = the card renders at exactly cardH. Saved 'fill' values
+  // (from the short-lived Fill experiment) behave as 'top'.
+  const cardY = ((page.cardY as string) === 'fill' ? 'top' : page.cardY) ?? 'top';
   // when the card is auto-height and a title sits on top, anchor the title+card
   // group to the top so it fills from the top instead of hanging at the bottom
   const groupY = page.cardAuto && hasTitle && page.title.position === 'top' ? 'top' : cardY;
@@ -243,24 +243,15 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           {(page.cardH || page.cardAuto) ? (
             <>
               {!stickToCard && pfpOnTop ? pfpRow : null}
-              <View style={{ gap: pad(10), flexShrink: page.cardAuto ? 1 : 0, ...(groupY === 'fill' ? { flexGrow: 1 } : null), marginTop: groupY === 'top' || groupY === 'fill' ? undefined : 'auto', marginBottom: groupY === 'bottom' || groupY === 'fill' ? undefined : 'auto' }}>
+              <View style={{ gap: pad(10), flexShrink: page.cardAuto ? 1 : 0, marginTop: groupY === 'top' ? undefined : 'auto', marginBottom: groupY === 'bottom' ? undefined : 'auto' }}>
                 {stickToCard && pfpOnTop ? pfpRow : null}
                 {titleOnTop ? titleBlock : null}
                 {page.cardH ? (
-                  groupY === 'fill' ? (
-                    /* fill: extend below the title, cardH is the floor */
-                    <View style={{ flex: 1, minHeight: pad(page.cardH) }}>
-                      <SocialCardChrome page={page} pad={pad} watermark={watermark}>
-                        {blocks}
-                      </SocialCardChrome>
-                    </View>
-                  ) : (
-                    <View style={{ height: pad(page.cardH) }}>
-                      <SocialCardChrome page={page} pad={pad} watermark={watermark}>
-                        {blocks}
-                      </SocialCardChrome>
-                    </View>
-                  )
+                  <View style={{ height: pad(page.cardH) }}>
+                    <SocialCardChrome page={page} pad={pad} watermark={watermark}>
+                      {blocks}
+                    </SocialCardChrome>
+                  </View>
                 ) : (
                   /* auto height — hugs content, capped so it can never spill off the canvas */
                   <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark}>
