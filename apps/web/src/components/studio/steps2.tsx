@@ -6,6 +6,7 @@ import {
   DATA,
   PALETTE,
   POST_SIZES,
+  maxCardHeightDesign,
   newBlock,
   parseChartLine,
   type BlockType,
@@ -260,9 +261,13 @@ function CropEditor({
 
 /* -------------------------------- 04 content ------------------------------- */
 
-export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPage'>) {
+export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' | 'patchPage'> & { designH: number }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // Tallest the fixed card may be while the title + profile/socials rows
+  // still fit — the stepper stops here so raising px can never shove them
+  // off the canvas.
+  const cardMaxH = Math.max(120, Math.min(640, Math.floor(maxCardHeightDesign(page, designH))));
   const blocks = page.blocks;
   const wmOn = page.showWatermark ?? true;
 
@@ -362,16 +367,16 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
         ) : null}
         {!page.fullCard ? (
           <>
-            <Field label="Card height">
+            <Field label="Card height" hint="Auto hugs your content. Fixed sets an exact height.">
               <Seg
-                options={[{ value: 'auto', label: 'Auto fill' }, { value: 'fixed', label: 'Fixed' }]}
+                options={[{ value: 'auto', label: 'Auto' }, { value: 'fixed', label: 'Fixed' }]}
                 value={page.cardH ? 'fixed' : 'auto'}
-                onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null, cardY: v === 'fixed' ? (normCardY(page.cardY) ?? 'top') : page.cardY })}
+                onChange={(v) => patchPage({ cardH: v === 'fixed' ? Math.min(page.cardH ?? 300, cardMaxH) : null, cardY: v === 'fixed' ? (normCardY(page.cardY) ?? 'top') : page.cardY })}
               />
             </Field>
             {page.cardH ? (
               <>
-                <Stepper value={page.cardH} onChange={(v) => patchPage({ cardH: v })} step={20} min={120} max={640} format={(v) => `${v}px`} />
+                <Stepper value={Math.min(page.cardH, cardMaxH)} onChange={(v) => patchPage({ cardH: v })} step={20} min={120} max={cardMaxH} format={(v) => `${v}px`} />
                 <Field label="Card position" hint="Where the fixed-height card sits.">
                   <Seg
                     options={[{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]}

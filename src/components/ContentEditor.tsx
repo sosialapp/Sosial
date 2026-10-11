@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { usePost } from '../store/PostContext';
 import { uid, PALETTE } from '../constants';
-import { BlockType, CardStyle, ContentBlock } from '../types';
+import { BlockType, CardStyle, ContentBlock, PostPage } from '../types';
 import { useTheme, Palette, R, DATA } from '../theme';
 import { Txt, GhostBtn, PrimaryBtn, Section, Field, Swatches, Seg, Stepper, PillToggle } from './ui';
 import AIGenerateSheet from './AIGenerateSheet';
@@ -15,6 +15,30 @@ import { applyGenResult } from '../utils/ai/apply';
 function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
   if (c === 'fill') return 'top';
   return (c as 'top' | 'middle' | 'bottom' | undefined) ?? undefined;
+}
+
+/**
+ * Tallest a card may be (design units) while the title + profile/socials
+ * rows still fit on a canvas of design height `designH`. Mirrors web
+ * maxCardHeightDesign in apps/web/src/lib/studio/model.ts — keep in sync.
+ * Unfloored; callers apply floors.
+ */
+function maxCardHeightDesign(page: PostPage, designH: number): number {
+  const hasTitle = page.title.position !== 'none' && page.title.text.trim().length > 0;
+  const titleLines = hasTitle ? Math.max(1, Math.ceil(page.title.text.trim().length / 26)) : 0;
+  const titleH = hasTitle
+    ? page.title.size * 1.3 * titleLines + ((page.title.subtitle ?? '').trim() ? (page.title.subtitleSize ?? 15) * 1.35 : 0)
+    : 0;
+  const pfpVisible = !(page.pfp.hidden ?? false);
+  const socialsOn = !(page.pfp.socialsHidden ?? false) && page.socials.some((s) => s.visible);
+  const socialsBelow = socialsOn && (page.pfp.socialPos ?? 'below') === 'below';
+  const socialsAbove = socialsOn && (page.pfp.socialPos ?? 'below') === 'top';
+  const photoH = pfpVisible
+    ? page.pfp.size + 4 + (page.pfp.username?.trim() ? (page.pfp.handleSize ?? 8.5) + 2 : 0)
+    : 0;
+  const socialsH = (socialsBelow || socialsAbove) ? (page.pfp.iconSize ?? 17) + 6 : 0;
+  const pfpH = (pfpVisible || socialsOn) ? photoH + socialsH : 0;
+  return designH - 16 * 2 - titleH - pfpH - 10 * 2;
 }
 import { GenResult } from '../utils/ai/types';
 import { loadAccount } from '../utils/account';
@@ -79,6 +103,10 @@ export default function ContentEditor() {
   const [plan, setPlan] = useState<'free' | 'pro' | 'team'>('free');
   useEffect(() => { loadAccount().then((a) => setPlan(a.plan)); }, []);
   if (!page) return null;
+  // Tallest the fixed card may be while the title + profile/socials rows
+  // still fit — the stepper stops here so raising px can never shove them
+  // off the canvas.
+  const cardMaxH = Math.max(120, Math.min(640, Math.floor(maxCardHeightDesign(page, 340 * sizeRatio))));
   const wmOn = page.showWatermark ?? true;
   const toggleWm = () => {
     if (wmOn && plan === 'free') {
@@ -207,12 +235,12 @@ export default function ContentEditor() {
         ) : null}
         {!page.fullCard ? (
         <>
-        <Field label="Card height">
-          <Seg options={[{ value: 'auto', label: 'Auto fill' }, { value: 'fixed', label: 'Fixed' }]} value={page.cardH ? 'fixed' : 'auto'} onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null, cardY: v === 'fixed' ? (normCardY(page.cardY) ?? 'top') : page.cardY })} />
+        <Field label="Card height" hint="Auto hugs your content. Fixed sets an exact height.">
+          <Seg options={[{ value: 'auto', label: 'Auto' }, { value: 'fixed', label: 'Fixed' }]} value={page.cardH ? 'fixed' : 'auto'} onChange={(v) => patchPage({ cardH: v === 'fixed' ? Math.min(page.cardH ?? 300, cardMaxH) : null, cardY: v === 'fixed' ? (normCardY(page.cardY) ?? 'top') : page.cardY })} />
         </Field>
         {page.cardH ? (
           <>
-            <Stepper value={page.cardH} onChange={(v) => patchPage({ cardH: v })} step={20} min={120} max={640} format={(v) => `${v}px`} />
+            <Stepper value={Math.min(page.cardH, cardMaxH)} onChange={(v) => patchPage({ cardH: v })} step={20} min={120} max={cardMaxH} format={(v) => `${v}px`} />
             <Field label="Card position" hint="Where the fixed-height card sits.">
               <Seg
                 options={[

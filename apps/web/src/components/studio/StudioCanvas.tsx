@@ -551,7 +551,9 @@ export default function StudioCanvas({
               {stickToCard && pfpOnTop ? pfpRow : null}
               {titleOnTop ? titleBlock : null}
               {page.cardH ? (
-                <div style={{ height: pad(page.cardH) }}>
+                /* fixed: exact height, clamped to what fits so the card can
+                   never shove the profile/socials rows off the canvas */
+                <div style={{ height: Math.min(pad(page.cardH), cardMax) }}>
                   <Chrome c={c} k={k} watermark={wm}>
                     {blocks}
                   </Chrome>
@@ -570,11 +572,11 @@ export default function StudioCanvas({
           <>
             {pfpOnTop ? pfpRow : null}
             {titleOnTop ? titleBlock : null}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              <Chrome c={c} k={k} watermark={wm}>
-                {blocks}
-              </Chrome>
-            </div>
+            {/* auto: the card hugs its content (capped so it can't spill),
+                like the cardAuto branch above */}
+            <Chrome c={c} k={k} fit maxH={cardMax} watermark={wm}>
+              {blocks}
+            </Chrome>
             {titleOnBottom ? titleBlock : null}
             {!pfpOnTop ? pfpRow : null}
           </>

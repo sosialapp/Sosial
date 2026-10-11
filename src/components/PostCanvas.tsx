@@ -247,7 +247,9 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
                 {stickToCard && pfpOnTop ? pfpRow : null}
                 {titleOnTop ? titleBlock : null}
                 {page.cardH ? (
-                  <View style={{ height: pad(page.cardH) }}>
+                  /* fixed: exact height, clamped to what fits so the card can
+                     never shove the profile/socials rows off the canvas */
+                  <View style={{ height: Math.min(pad(page.cardH), cardMax) }}>
                     <SocialCardChrome page={page} pad={pad} watermark={watermark}>
                       {blocks}
                     </SocialCardChrome>
@@ -267,11 +269,11 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
             <>
               {pfpOnTop ? pfpRow : null}
               {titleOnTop ? titleBlock : null}
-              <View style={{ flex: 1, minHeight: 0 }}>
-                <SocialCardChrome page={page} pad={pad} watermark={watermark}>
-                  {blocks}
-                </SocialCardChrome>
-              </View>
+              {/* auto: the card hugs its content (capped so it can't spill),
+                  like the cardAuto branch above */}
+              <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark}>
+                {blocks}
+              </SocialCardChrome>
               {titleOnBottom ? titleBlock : null}
               {!pfpOnTop ? pfpRow : null}
             </>

@@ -563,7 +563,7 @@ export default function StudioEditor({
             {!aiOpen && step === 'background' ? <BackgroundStep page={page} patchBackground={patchBackground} /> : null}
             {!aiOpen && step === 'title' ? <TitleStep page={page} patchTitle={patchTitle} patchPage={patchPage} /> : null}
             {!aiOpen && step === 'photo' ? <PhotoSocialsStep page={page} patchPfp={patchPfp} patchPage={patchPage} /> : null}
-            {!aiOpen && step === 'content' ? <ContentStep page={page} patchPage={patchPage} /> : null}
+            {!aiOpen && step === 'content' ? <ContentStep page={page} patchPage={patchPage} designH={340 * ratio} /> : null}
             {!aiOpen && step === 'pages' ? (
               <PagesStep
                 project={project}

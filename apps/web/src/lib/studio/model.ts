@@ -256,6 +256,31 @@ export function parseChartLine(line: string): { label: string; value: number } {
   return { label, value };
 }
 
+/**
+ * Tallest a card may be (design units) while the title + profile/socials
+ * rows still fit on a canvas of design height `designH`. Same estimate as
+ * the renderers' px `cardMax` (which is this × k, floored at 90px) — used
+ * to clamp the Fixed-height stepper so raising px can never shove the
+ * profile/socials rows off the canvas. Unfloored; callers apply floors.
+ */
+export function maxCardHeightDesign(page: PostPage, designH: number): number {
+  const hasTitle = page.title.position !== 'none' && page.title.text.trim().length > 0;
+  const titleLines = hasTitle ? Math.max(1, Math.ceil(page.title.text.trim().length / 26)) : 0;
+  const titleH = hasTitle
+    ? page.title.size * 1.3 * titleLines + ((page.title.subtitle ?? '').trim() ? (page.title.subtitleSize ?? 15) * 1.35 : 0)
+    : 0;
+  const pfpVisible = !(page.pfp.hidden ?? false);
+  const socialsOn = !(page.pfp.socialsHidden ?? false) && page.socials.some((s) => s.visible);
+  const socialsBelow = socialsOn && (page.pfp.socialPos ?? 'below') === 'below';
+  const socialsAbove = socialsOn && (page.pfp.socialPos ?? 'below') === 'top';
+  const photoH = pfpVisible
+    ? page.pfp.size + 4 + (page.pfp.username?.trim() ? (page.pfp.handleSize ?? 8.5) + 2 : 0)
+    : 0;
+  const socialsH = (socialsBelow || socialsAbove) ? (page.pfp.iconSize ?? 17) + 6 : 0;
+  const pfpH = (pfpVisible || socialsOn) ? photoH + socialsH : 0;
+  return designH - 16 * 2 - titleH - pfpH - 10 * 2;
+}
+
 export function blankBackground(): BackgroundStyle {
   return {
     type: 'dots',
