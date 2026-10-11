@@ -1143,16 +1143,33 @@ export default function ScheduleXBoard({
 
   const todayKey = dayKey(new Date());
 
-  /** The middle stepper pill mirrors position: "Today" while today is in
-   *  view, "Back to today" once stepped away (it always jumps back). */
-  const onToday = (() => {
+  /** The middle stepper pill names the period it sits on, in the calendar's
+   *  own unit ("Today" / "This week" / "October" / "2025"). Stepping the
+   *  chevrons moves it; clicking it always jumps back to today's period. */
+  const pill = (() => {
     const now = new Date();
-    if (view === 'day' || view === 'week') return todayInView(view, dayKey(anchor));
-    if (view === 'month')
-      return anchor.getFullYear() === now.getFullYear() && anchor.getMonth() === now.getMonth();
-    if (view === 'year') return anchor.getFullYear() === now.getFullYear();
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (view === 'day') {
+      return todayInView('day', dayKey(anchor)) ? 'Today' : fmt(anchor);
+    }
+    if (view === 'week') {
+      if (todayInView('week', dayKey(anchor))) return 'This week';
+      const start = addDays(anchor, -((anchor.getDay() + 6) % 7));
+      return `${fmt(start)} – ${fmt(addDays(start, 6))}`;
+    }
+    if (view === 'month') {
+      const current =
+        anchor.getFullYear() === now.getFullYear() && anchor.getMonth() === now.getMonth();
+      return current ? 'This month' : `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
+    }
+    if (view === 'year') {
+      return anchor.getFullYear() === now.getFullYear()
+        ? 'This year'
+        : String(anchor.getFullYear());
+    }
     const base = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-    return todayKey >= dayKey(base) && todayKey <= dayKey(addDays(base, 13));
+    const inWindow = todayKey >= dayKey(base) && todayKey <= dayKey(addDays(base, 13));
+    return inWindow ? 'Today' : `${fmt(base)} – ${fmt(addDays(base, 13))}`;
   })();
 
   /** Year view: posts per month for the anchor year (drives the count pills). */
@@ -1265,10 +1282,10 @@ export default function ScheduleXBoard({
             <button
               type="button"
               onClick={stepToday}
-              title="Back to today"
-              className="rounded-full px-3 py-1 text-xs font-bold text-ink transition hover:bg-paper-dim"
+              title="Jump to today"
+              className="min-w-[4.5rem] rounded-full px-3 py-1 text-center text-xs font-bold text-ink transition hover:bg-paper-dim"
             >
-              {onToday ? 'Today' : 'Back to today'}
+              {pill}
             </button>
             <button
               type="button"
