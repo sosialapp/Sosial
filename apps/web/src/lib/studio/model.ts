@@ -143,6 +143,36 @@ export interface SocialLink {
 
 export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar' | 'free' | 'image';
 
+/** Per-block presentation overrides. Every field is optional — absent means
+ *  "use the block type's default", so old designs keep rendering as-is. */
+export interface BlockStyle {
+  /** fraction of the content width the block occupies (0.3–1) */
+  width?: number;
+  align?: 'left' | 'center' | 'right';
+  /** chart orientation — overrides the block type's default */
+  chartVariant?: 'hbar' | 'vbar' | 'pie';
+  /** bar/donut thickness, relative (0.25–1) */
+  chartThickness?: number;
+  /** bar corner rounding (0–1) */
+  chartRadius?: number;
+  chartShowValues?: boolean;
+  chartShowLabels?: boolean;
+  /** pie legend placement */
+  chartLegend?: 'right' | 'bottom' | 'none';
+  /** vertical-bar column height, relative (0.4–1.6) */
+  chartHeight?: number;
+  /** image: fill the frame vs letterbox */
+  imageFit?: 'cover' | 'contain';
+  /** image corner rounding, fraction of width (0–0.5) */
+  imageRadius?: number;
+  /** table: relative column weights, one per column */
+  tableColWidths?: number[];
+  /** table text+padding scale (0.6–1.6) */
+  tableScale?: number;
+  tableHeaderBg?: boolean;
+  tableZebra?: boolean;
+}
+
 export interface ContentBlock {
   id: string;
   type: BlockType;
@@ -156,6 +186,7 @@ export interface ContentBlock {
   imageFocus?: number;
   imageCrop?: { zoom: number; x: number; y: number };
   textColor?: string;
+  style?: BlockStyle;
 }
 
 export type CardStyle =
@@ -181,6 +212,11 @@ export interface PostPage {
   font: FontId;
   cardStyle: CardStyle;
   fullCard?: boolean;
+  /** Full-card extras — when on, the card itself renders the title row,
+   *  avatar header and/or socials footer (mainly for Minimal full-card). */
+  fullCardTitle?: boolean;
+  fullCardAvatar?: boolean;
+  fullCardSocials?: boolean;
   cardColor?: string;
   cardH?: number | null;
   cardAuto?: boolean;

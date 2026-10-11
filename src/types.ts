@@ -79,6 +79,27 @@ export interface SocialLink {
 
 export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar' | 'free' | 'image';
 
+/** Per-block presentation overrides. Every field is optional — absent means
+ *  "use the block type's default", so old designs keep rendering as-is.
+ *  Mirrored from apps/web/src/lib/studio/model.ts — keep in sync. */
+export interface BlockStyle {
+  width?: number; // fraction of the content width the block occupies (0.3-1)
+  align?: 'left' | 'center' | 'right';
+  chartVariant?: 'hbar' | 'vbar' | 'pie'; // chart orientation, overrides type default
+  chartThickness?: number; // bar/donut thickness, relative (0.25-1)
+  chartRadius?: number; // bar corner rounding (0-1)
+  chartShowValues?: boolean;
+  chartShowLabels?: boolean;
+  chartLegend?: 'right' | 'bottom' | 'none'; // pie legend placement
+  chartHeight?: number; // vertical-bar column height, relative (0.4-1.6)
+  imageFit?: 'cover' | 'contain'; // fill the frame vs letterbox
+  imageRadius?: number; // image corner rounding, fraction of width (0-0.5)
+  tableColWidths?: number[]; // relative column weights, one per column
+  tableScale?: number; // table text+padding scale (0.6-1.6)
+  tableHeaderBg?: boolean;
+  tableZebra?: boolean;
+}
+
 export interface ContentBlock {
   id: string;
   type: BlockType;
@@ -93,6 +114,7 @@ export interface ContentBlock {
   /** Non-destructive manual crop: zoom (1-3) + pan (-1..1 each axis). */
   imageCrop?: { zoom: number; x: number; y: number };
   textColor?: string;
+  style?: BlockStyle;
 }
 
 export interface PostPage {
@@ -106,6 +128,11 @@ export interface PostPage {
   cardStyle: CardStyle; // content card template
   /** full card: the content card IS the whole canvas (no backdrop/title/pfp rows) */
   fullCard?: boolean;
+  /** Full-card extras — when on, the card itself renders the title row,
+   *  avatar header and/or socials footer (mainly for Minimal full-card). */
+  fullCardTitle?: boolean;
+  fullCardAvatar?: boolean;
+  fullCardSocials?: boolean;
   cardColor?: string; // content card background
   cardH?: number | null; // fixed card height px, null = auto fill
   cardAuto?: boolean; // card hugs its content — height grows/shrinks with the blocks

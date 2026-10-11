@@ -2,6 +2,7 @@
  * StudioCanvas — DOM port of mobile PostCanvas. Inline styles throughout so
  * the export serializer captures the tree exactly. k = width / 340.
  */
+import { useLayoutEffect, useRef, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import {
@@ -42,6 +43,56 @@ function contrastRatio(a: string, b: string): number {
 }
 
 /* --------------------------------- chrome ---------------------------------- */
+
+/** Auto-fit: measures the available body height against the natural content
+ *  height and scales the content down (min 45%) so nothing ever clips out of
+ *  the fixed card. Port of mobile SocialCardChrome's AutoFit — keep in sync. */
+function AutoFit({ gap, children }: { gap?: number; children: React.ReactNode }) {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    let raf = 0;
+    const measure = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const avail = outer.clientHeight;
+        const natural = inner.scrollHeight;
+        if (avail <= 0 || natural <= 0) return;
+        const next = natural > avail + 1 ? Math.max(0.45, avail / natural) : 1;
+        setScale((p) => (Math.abs(p - next) > 0.004 ? next : p));
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(outer);
+    ro.observe(inner);
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return (
+    <div ref={outerRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div
+        ref={innerRef}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          ...(gap ? { rowGap: gap } : null),
+          transformOrigin: 'top left',
+          transform: scale < 1 ? `scale(${scale})` : undefined,
+          width: scale < 1 ? `${100 / scale}%` : undefined,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 interface ChromeCtx {
   page: PostPage;
@@ -118,9 +169,12 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
   const style: CardStyle = page.cardStyle ?? 'minimal';
   const watermark = wmProp ?? c.watermark ?? true;
   const bodyPad = 13 * k;
+  // Flex column so the AutoFit wrapper inside is height-bounded. The old
+  // `gap` here was dead CSS (gap needs display:flex) — block margins are the
+  // real spacing, so dropping it keeps rendering identical.
   const bodyStyle: React.CSSProperties = fit
-    ? { padding: bodyPad, gap: 10 * k, flexShrink: 1, maxHeight: maxH, overflow: 'hidden' }
-    : { padding: bodyPad, gap: 10 * k, flex: 1, minHeight: 0 };
+    ? { padding: bodyPad, flexShrink: 1, maxHeight: maxH, overflow: 'hidden', display: 'flex', flexDirection: 'column' }
+    : { padding: bodyPad, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' };
   const shell = (radius: number, extra?: React.CSSProperties): React.CSSProperties => ({
     ...(fit ? { flexShrink: 1, maxHeight: maxH, overflow: 'hidden' } : { flex: 1, minHeight: 0 }),
     backgroundColor: c.cardBg, borderRadius: radius * k,
@@ -148,7 +202,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           </div>
           <ChromeIcon name="dots" size={12 * k} color={c.gray} />
         </div>
-        <div style={bodyStyle}>{children}</div>
+        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${12 * k}px ${7 * k}px` }}>
           <span style={{ width: 15 * k, height: 15 * k, borderRadius: 7.5 * k, backgroundColor: '#1877F2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             <ChromeIcon name="like" size={9 * k} color="#fff" />
@@ -186,7 +240,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             <ChromeIcon name="dots-v" size={11 * k} color={c.gray} />
           </span>
         </div>
-        <div style={bodyStyle}>{children}</div>
+        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
             action row — full-width, aspect-preserved, nudged down. */}
         <div style={{ padding: `2px ${14 * k}px ${10 * k}px`, marginTop: 2 * k }}>
@@ -233,7 +287,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             <ChromeIcon name="dots" size={12 * k} color={c.ink} />
           </span>
         </div>
-        <div style={bodyStyle}>{children}</div>
+        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
         <div style={{ padding: `0 ${12 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 * k }}>
             <ChromeIcon name="ig-heart" size={20 * k} color={c.ink} />
@@ -288,7 +342,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           </svg>
           </span>
         </div>
-        <div style={bodyStyle}>{children}</div>
+        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
             <ChromeIcon name="th-heart" size={20 * k} color={c.ink} />
@@ -316,7 +370,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             <p style={{ ...ff(c.font), fontSize: 8 * k, color: c.gray, margin: 0 }}>{c.firstHandle} · 2h</p>
           </div>
         </div>
-        <div style={bodyStyle}>{children}</div>
+        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${14 * k}px ${10 * k}px`, gap: 4 * k }}>
           {[
             { icon: 'bsky-comment', count: '12', color: c.gray },
@@ -339,8 +393,8 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
   // minimal
   return (
     <div style={{ position: 'relative', ...(fit ? { flexShrink: 1 } : { flex: 1, minHeight: 0 }) }}>
-      <div style={{ ...(fit ? { flexShrink: 1, maxHeight: maxH, overflow: 'hidden' } : { flex: 1, minHeight: 0 }), display: 'flex', flexDirection: 'column', gap: 10 * k, backgroundColor: c.cardBg, borderRadius: 14 * k, padding: 13 * k, borderWidth: Math.max(1, k), borderStyle: 'solid', borderColor: '#11111112' }}>
-        {children}
+      <div style={{ ...(fit ? { flexShrink: 1, maxHeight: maxH, overflow: 'hidden' } : { flex: 1, minHeight: 0 }), display: 'flex', flexDirection: 'column', backgroundColor: c.cardBg, borderRadius: 14 * k, padding: 13 * k, borderWidth: Math.max(1, k), borderStyle: 'solid', borderColor: '#11111112' }}>
+        <AutoFit gap={10 * k}>{children}</AutoFit>
       </div>
       {watermark ? (
         <span style={{ position: 'absolute', right: 13 * k, bottom: 13 * k }}>
