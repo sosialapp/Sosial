@@ -223,37 +223,6 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Content calendar — full width, Schedule-X week in the same skin as /calendar */}
-      <Card className="mt-6 overflow-hidden" aria-label="Content calendar">
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-4">
-          <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>
-          <p className="text-xs text-muted">This week</p>
-          <span className="flex-1" />
-          <span className="flex items-center gap-3 text-[11px] font-bold text-muted">
-            {[
-              ['Draft', 'bg-[#9A958B]'],
-              ['Queued', 'bg-[#B45309]'],
-              ['Sent', 'bg-[#12914A]'],
-              ['Failed', 'bg-[#E5484D]'],
-            ].map(([label, dot]) => (
-              <span key={label} className="flex items-center gap-1">
-                <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
-                {label}
-              </span>
-            ))}
-          </span>
-          <Link
-            href="/calendar"
-            className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
-          >
-            Open calendar
-          </Link>
-        </div>
-        <div className="px-5 py-4">
-          <ScheduleXBoard variant="mini" posts={posts} channels={channels} media={mediaMap} />
-        </div>
-      </Card>
-
       {/* Main + right rail */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
@@ -295,6 +264,37 @@ export default async function DashboardPage() {
 
         </div>
       </div>
+
+      {/* Content calendar — full width, Schedule-X week in the same skin as /calendar */}
+      <Card className="mt-4 overflow-hidden" aria-label="Content calendar">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-4">
+          <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>
+          <p className="text-xs text-muted">This week</p>
+          <span className="flex-1" />
+          <span className="flex items-center gap-3 text-[11px] font-bold text-muted">
+            {[
+              ['Draft', 'bg-[#9A958B]'],
+              ['Queued', 'bg-[#B45309]'],
+              ['Sent', 'bg-[#12914A]'],
+              ['Failed', 'bg-[#E5484D]'],
+            ].map(([label, dot]) => (
+              <span key={label} className="flex items-center gap-1">
+                <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
+                {label}
+              </span>
+            ))}
+          </span>
+          <Link
+            href="/calendar"
+            className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
+          >
+            Open calendar
+          </Link>
+        </div>
+        <div className="px-5 py-4">
+          <ScheduleXBoard variant="mini" posts={posts} channels={channels} media={mediaMap} />
+        </div>
+      </Card>
     </div>
   );
 }
