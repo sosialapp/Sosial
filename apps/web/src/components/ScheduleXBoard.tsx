@@ -1148,7 +1148,7 @@ export default function ScheduleXBoard({
    *  chevrons moves it; clicking it always jumps back to today's period. */
   const pill = (() => {
     const now = new Date();
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     if (view === 'day') {
       return todayInView('day', dayKey(anchor)) ? 'Today' : fmt(anchor);
     }
