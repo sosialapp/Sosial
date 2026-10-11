@@ -93,7 +93,7 @@ export default function PhotoSocialsEditor() {
         <PillToggle on={!(p.socialsHidden ?? false)} onPress={() => patchPfp({ socialsHidden: !(p.socialsHidden ?? false) })} />
       </View>
 
-      <View style={{ gap: 12, opacity: p.hidden ? 0.45 : 1 }}>
+      <View style={{ gap: 12, opacity: p.hidden ? 0.45 : 1 }} pointerEvents={p.hidden ? 'none' : 'auto'}>
         <Section no="01" title="Portrait" hint="Your face on the post." />
         {p.uri ? (
           <View style={st.photoCard}>
@@ -138,7 +138,7 @@ export default function PhotoSocialsEditor() {
         </Field>
       </View>
 
-      <View style={{ gap: 12, opacity: (p.hidden || p.socialsHidden) ? 0.45 : 1 }}>
+      <View style={{ gap: 12, opacity: p.socialsHidden ? 0.45 : 1 }} pointerEvents={p.socialsHidden ? 'none' : 'auto'}>
         <Section no="02" title="Badges" hint="Centered next to your photo on the export." />
         <View style={st.list}>
           {ALL_PLATFORMS.map((pl, i) => {

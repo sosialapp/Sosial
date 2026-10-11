@@ -31,12 +31,14 @@ const BLOCK_TYPES: { id: BlockType; label: string }[] = [
 const clampC = (v: number) => Math.min(1, Math.max(-1, v));
 
 /** Frame aspect (w/h) of an image block — must match the canvas renderer
- *  (blocks.tsx): square 1:1, wide 16:9, custom 340:imageH canvas units. */
+ *  (blocks.tsx): square 1:1, wide 16:9, custom contentW:imageH. The block is
+ *  rendered at design width 340 minus the canvas pad (16×2) and card pad
+ *  (13×2) = 282, so a custom frame is 282:imageH. */
 function frameAspectOf(b: ContentBlock): number {
   const asp = b.imageAspect ?? (b.imageH !== undefined ? 'custom' : 'wide');
   if (asp === 'square') return 1;
   if (asp === 'wide') return 16 / 9;
-  return 340 / Math.max(60, b.imageH ?? 140);
+  return 282 / Math.max(60, b.imageH ?? 140);
 }
 
 /**
@@ -115,7 +117,6 @@ function CropEditor({
     onChange({ zoom: Math.round(z * 100) / 100, x: Math.round(xm * 100) / 100, y: Math.round(ym * 100) / 100 });
   };
 
-  const minW = dispW / 3;
   const applyDrag = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: { x: number; y: number; w: number; h: number }) => {
     if (mode === 'move') {
       const nx = Math.min(dispW - start.w, Math.max(0, start.x + dx));
@@ -124,25 +125,27 @@ function CropEditor({
       return;
     }
     // Corner resize, aspect-locked. Corners: 0 TL, 1 TR, 2 BL, 3 BR.
-    const fx = mode === 0 || mode === 2 ? start.x + start.w : start.x;
-    const fy = mode === 0 || mode === 1 ? start.y + start.h : start.y;
-    const cornerX = mode === 1 || mode === 3;
-    const cornerY = mode === 2 || mode === 3;
-    let w = Math.abs(dx);
-    let h = Math.abs(dy) * aspect > w ? (Math.abs(dy) * aspect) : w;
-    w = Math.max(h, Math.abs(dx));
-    h = w / aspect;
-    // Fit inside the photo, shrinking on the dominant axis first.
-    w = Math.min(dispW, Math.max(minW, w));
-    h = w / aspect;
+    // The dragged corner moves with the pointer; the opposite corner is the
+    // fixed anchor. Size follows the larger of the two pointer deltas so the
+    // rect tracks the finger smoothly on both axes.
+    const anchoredLeft = mode === 1 || mode === 3; // TR/BR keep the left edge
+    const anchoredTop = mode === 2 || mode === 3; // BL/BR keep the top edge
+    const anchorX = anchoredLeft ? start.x : start.x + start.w;
+    const anchorY = anchoredTop ? start.y : start.y + start.h;
+    // pointer-to-anchor distance, aspect-locked (use the dominant axis)
+    let w = Math.max(Math.abs(dx), Math.abs(dy) * aspect);
+    w = Math.min(dispW, Math.max(dispW / 3, w));
+    let h = w / aspect;
     if (h > dispH) {
       h = dispH;
       w = h * aspect;
     }
-    const sx = cornerX ? (dx >= 0 ? 1 : -1) : -1;
-    const sy = cornerY ? (dy >= 0 ? 1 : -1) : -1;
-    let x = cornerX ? (sx > 0 ? fx : fx - w) : Math.min(start.x, fx - w);
-    let y = cornerY ? (sy > 0 ? fy : fy - h) : Math.min(start.y, fy - h);
+    // place the rect so the anchored corner stays put and the moved corner
+    // follows the pointer's direction
+    const movingRight = anchoredLeft; // we're dragging the right edge
+    const movingDown = anchoredTop; // we're dragging the bottom edge
+    let x = movingRight ? anchorX : anchorX - w;
+    let y = movingDown ? anchorY : anchorY - h;
     x = Math.min(dispW - w, Math.max(0, x));
     y = Math.min(dispH - h, Math.max(0, y));
     setRect({ x, y, w, h });

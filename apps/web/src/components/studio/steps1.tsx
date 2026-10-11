@@ -351,7 +351,7 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
         on={!(p.socialsHidden ?? false)}
         onPress={() => patchPfp({ socialsHidden: !(p.socialsHidden ?? false) })}
       />
-      <div className="space-y-3" style={{ opacity: p.hidden ? 0.45 : 1 }}>
+      <div className={`space-y-3 ${p.hidden ? 'pointer-events-none' : ''}`} style={{ opacity: p.hidden ? 0.45 : 1 }} aria-disabled={!!p.hidden}>
         <Section no="01" title="Portrait" hint="Your face on the post." />
         {p.uri ? (
           <div className="card flex items-center gap-3 p-3.5">
@@ -395,7 +395,7 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
           <EmojiInput value={p.customHandle ?? ''} onChange={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" className="field" />
         </Field>
       </div>
-      <div className="space-y-3" style={{ opacity: (p.hidden || p.socialsHidden) ? 0.45 : 1 }}>
+      <div className={`space-y-3 ${p.socialsHidden ? 'pointer-events-none' : ''}`} style={{ opacity: p.socialsHidden ? 0.45 : 1 }} aria-disabled={!!p.socialsHidden}>
         <Section no="02" title="Badges" hint="Centered next to your photo on the export." />
         <div className="card divide-y divide-line-soft overflow-hidden">
           {ALL_SOCIALS.filter((pl) => pl !== 'whatsapp').map((pl) => {

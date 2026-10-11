@@ -41,7 +41,7 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
   rectRef.current = rect;
 
   const frameAspect =
-    aspect === 'square' ? 1 : aspect === 'wide' ? 16 / 9 : 340 / Math.max(60, customH ?? 140);
+    aspect === 'square' ? 1 : aspect === 'wide' ? 16 / 9 : 282 / Math.max(60, customH ?? 140);
 
   useEffect(() => {
     if (visible && uri) {
@@ -97,10 +97,12 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
       setRect({ ...start, x: nx, y: ny });
       return;
     }
-    const fx = mode === 0 || mode === 2 ? start.x + start.w : start.x;
-    const fy = mode === 0 || mode === 1 ? start.y + start.h : start.y;
-    const cornerX = mode === 1 || mode === 3;
-    const cornerY = mode === 2 || mode === 3;
+    // Corner resize: the dragged corner follows the pointer, the opposite
+    // corner is an anchor, size follows the dominant axis (aspect-locked).
+    const anchoredLeft = mode === 1 || mode === 3; // TR/BR keep the left edge
+    const anchoredTop = mode === 2 || mode === 3; // BL/BR keep the top edge
+    const anchorX = anchoredLeft ? start.x : start.x + start.w;
+    const anchorY = anchoredTop ? start.y : start.y + start.h;
     let w = Math.max(Math.abs(dx), Math.abs(dy) * frameAspect);
     w = clamp(w, minW, dispW);
     let h = w / frameAspect;
@@ -108,10 +110,9 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
       h = dispH;
       w = h * frameAspect;
     }
-    const sx = cornerX ? (dx >= 0 ? 1 : -1) : -1;
-    const sy = cornerY ? (dy >= 0 ? 1 : -1) : -1;
-    const x = clamp(cornerX ? (sx > 0 ? fx : fx - w) : Math.min(start.x, fx - w), 0, dispW - w);
-    const y = clamp(cornerY ? (sy > 0 ? fy : fy - h) : Math.min(start.y, fy - h), 0, dispH - h);
+    // right/bottom anchored corners grow right/down; left/top ones grow left/up
+    const x = clamp(anchoredLeft ? anchorX : anchorX - w, 0, dispW - w);
+    const y = clamp(anchoredTop ? anchorY : anchorY - h, 0, dispH - h);
     setRect({ x, y, w, h });
   };
 

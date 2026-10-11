@@ -86,7 +86,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const blocks = page.blocks.length === 0 ? (
     <Text style={{ color: '#787774', textAlign: 'center', marginTop: pad(24), fontSize: pad(13), fontWeight: '600' }}>Add bullets, table or chart below</Text>
   ) : (
-    page.blocks.map((b) => <ContentBlockView key={b.id} block={b} width={CANVAS_W * s} font={page.font ?? 'inter'} zoom={page.contentScale ?? 1} fill={!!page.cardH} />)
+    page.blocks.map((b) => <ContentBlockView key={b.id} block={b} width={(CANVAS_W - 16 * 2 - 13 * 2) * s} font={page.font ?? 'inter'} zoom={page.contentScale ?? 1} fill={!!page.cardH} />)
   );
 
   const titleBlock = (
