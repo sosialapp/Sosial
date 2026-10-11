@@ -462,12 +462,70 @@ export default function StudioCanvas({
   const pfpRow = <PfpRow page={page} k={k} />;
   const c = chromeCtx(page);
 
-  const content = page.fullCard ? (
-    <div style={{ width: w, height: H, borderRadius: pad(14), overflow: 'hidden', backgroundColor: page.cardColor ?? '#FFFFFFF2' }}>
-      <Chrome c={c} k={k} fit maxH={H} watermark={wm}>
-        {blocks}
-      </Chrome>
+  // Full-card extras: title row / avatar header / socials footer rendered by
+  // the card itself (mainly for Minimal full-card). Socials reuse the same
+  // brand-disc style as PfpRow but with card-aware ink.
+  const fcExtras = (page.fullCardTitle && hasTitle) || page.fullCardAvatar || (page.fullCardSocials && page.socials.some((s) => s.visible));
+  const fcAvatar = page.fullCardAvatar ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7 * k, flexShrink: 0 }}>
+      <AvatarMark page={page} size={26} k={k} />
+      <span style={{ ...ff(c.font, true), fontSize: 10 * k, color: c.ink }}>{c.name}</span>
     </div>
+  ) : null;
+  const fcSocials =
+    page.fullCardSocials && page.socials.some((s) => s.visible) ? (
+      <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 6 * k, flexShrink: 0 }}>
+        {page.socials
+          .filter((s) => s.visible)
+          .map((sl) => {
+            const brand = providerMeta(sl.platform).color;
+            const iconSize = (page.pfp.iconSize ?? 17) * k;
+            const clash = contrastRatio(brand, page.cardColor ?? '#FFFFFF') < 3;
+            return (
+              <span key={sl.id} style={{ display: 'flex', alignItems: 'center', gap: 3 * k, borderRadius: 8 * k, padding: `${4 * k}px ${6 * k}px`, backgroundColor: clash ? '#111111E8' : 'transparent' }}>
+                <span
+                  style={{
+                    width: iconSize, height: iconSize, borderRadius: iconSize / 2, backgroundColor: brand,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF',
+                    ...(clash ? { borderWidth: Math.max(1, k), borderStyle: 'solid', borderColor: '#FFFFFF55' } : {}),
+                  }}
+                >
+                  {sl.platform === 'whatsapp' ? (
+                    <span style={{ ...ff(sl.font, true), fontSize: iconSize * 0.42, color: '#FFFFFF' }}>WA</span>
+                  ) : (
+                    <BrandIcon provider={sl.platform as 'instagram'} mono className="h-[62%] w-[62%]" />
+                  )}
+                </span>
+                {sl.handle ? (
+                  <span style={{ ...ff(sl.font, sl.bold, sl.italic), color: c.ink, fontSize: (page.pfp.handleSize ?? 8.5) * k }}>{sl.handle}</span>
+                ) : null}
+              </span>
+            );
+          })}
+      </div>
+    ) : null;
+
+  const content = page.fullCard ? (
+    fcExtras ? (
+      <div
+        style={{
+          width: w, height: H, borderRadius: pad(14), overflow: 'hidden',
+          backgroundColor: page.cardColor ?? '#FFFFFFF2',
+          display: 'flex', flexDirection: 'column', gap: pad(10), padding: pad(13),
+        }}
+      >
+        {page.fullCardTitle && hasTitle ? titleBlock : null}
+        {fcAvatar}
+        <Chrome c={c} k={k} watermark={wm}>{blocks}</Chrome>
+        {fcSocials}
+      </div>
+    ) : (
+      <div style={{ width: w, height: H, borderRadius: pad(14), overflow: 'hidden', backgroundColor: page.cardColor ?? '#FFFFFFF2' }}>
+        <Chrome c={c} k={k} fit maxH={H} watermark={wm}>
+          {blocks}
+        </Chrome>
+      </div>
+    )
   ) : (
     <div style={{ width: w, height: H, position: 'relative' }}>
       <PatternBackground bg={page.background} width={w} height={H} />

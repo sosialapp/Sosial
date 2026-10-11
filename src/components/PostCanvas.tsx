@@ -164,14 +164,62 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
 
   // Full card: the chrome fills the entire canvas — single card, no
   // backdrop/title/pfp rows. Export captures exactly this.
+  // Full-card extras (title row / avatar header / socials footer) render
+  // around the chrome, mirroring web StudioCanvas — keep in sync.
   if (page.fullCard) {
     const fullBg = page.cardColor ?? '#FFFFFFF2';
+    const fcInk = contrastRatio('#111111', fullBg) >= contrastRatio('#FFFFFF', fullBg) ? '#111111' : '#FFFFFF';
+    const fcAvatar = page.fullCardAvatar ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), flexShrink: 0 }}>
+        {page.pfp.uri ? (
+          <Image source={{ uri: page.pfp.uri }} style={{ width: pad(26), height: pad(26), borderRadius: pad(13) }} />
+        ) : (
+          <View style={{ width: pad(26), height: pad(26), borderRadius: pad(13), backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: pad(10) }}>Y</Text>
+          </View>
+        )}
+        <Text style={{ ...F(page.font ?? 'inter', true), fontSize: pad(10), color: fcInk }} numberOfLines={1}>
+          {page.pfp.username?.trim() || (page.pfp.customHandle?.trim() || page.socials.find((s) => s.visible && s.handle)?.handle || '@yourhandle').replace(/^@/, '')}
+        </Text>
+      </View>
+    ) : null;
+    const fcSocials =
+      page.fullCardSocials && visibleSocials.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: pad(6), flexShrink: 0 }}>
+          {visibleSocials.map((sl) => {
+            const brand = SOCIAL_META[sl.platform]?.bg ?? '#111111';
+            const iconSize = pad(page.pfp.iconSize ?? 17);
+            const clash = contrastRatio(brand, fullBg) < 3;
+            return (
+              <View key={sl.id} style={{ flexDirection: 'row', alignItems: 'center', gap: pad(3), borderRadius: pad(8), paddingHorizontal: pad(6), paddingVertical: pad(4), backgroundColor: clash ? '#111111E8' : 'transparent' }}>
+                <View style={{ width: iconSize, height: iconSize, borderRadius: iconSize / 2, backgroundColor: brand, alignItems: 'center', justifyContent: 'center', borderWidth: clash ? pad(1) : 0, borderColor: '#FFFFFF55' }}>
+                  <SocialGlyph platform={sl.platform} size={iconSize * 0.62} color="#FFFFFF" />
+                </View>
+                {sl.handle ? (
+                  <Text style={{ ...F(sl.font, sl.bold, sl.italic), color: fcInk, fontSize: pad(page.pfp.handleSize ?? 8.5) }}>{sl.handle}</Text>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      ) : null;
+    const fcExtras = (page.fullCardTitle && hasTitle) || fcAvatar || fcSocials;
     return (
       <ViewShot ref={ref} options={{ format: 'png', quality: 1 }} style={[styles.frame, { width: CANVAS_W * s, height: H * s, borderRadius: pad(14) }]}>
-        <View style={{ width: CANVAS_W * s, height: H * s, borderRadius: pad(14), overflow: 'hidden', backgroundColor: fullBg }}>
-          <SocialCardChrome page={page} pad={pad} watermark={watermark}>
+        <View
+          style={[
+            {
+              width: CANVAS_W * s, height: H * s, borderRadius: pad(14), overflow: 'hidden', backgroundColor: fullBg,
+              ...(fcExtras ? { flexDirection: 'column', gap: pad(10), padding: pad(13) } : {}),
+            },
+          ]}
+        >
+          {page.fullCardTitle && hasTitle ? titleBlock : null}
+          {fcAvatar}
+          <SocialCardChrome page={page} pad={pad} watermark={watermark} fit={!!fcExtras} maxH={fcExtras ? undefined : H * s}>
             {blocks}
           </SocialCardChrome>
+          {fcSocials}
         </View>
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: pad(14), borderWidth: 1, borderColor: '#EAEAEA' }} />
       </ViewShot>
