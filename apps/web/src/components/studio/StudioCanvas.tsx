@@ -542,6 +542,9 @@ export default function StudioCanvas({
               style={{
                 display: 'flex', flexDirection: 'column', gap: pad(10),
                 flexShrink: page.cardAuto ? 1 : 0,
+                // Fill: the group itself stretches so the card (flex:1 inside)
+                // absorbs the free space while the trailing pfp row stays put.
+                ...(groupY === 'fill' ? { flex: '1 0 auto' } : null),
                 marginTop: groupY === 'top' || groupY === 'fill' ? undefined : 'auto',
                 marginBottom: groupY === 'bottom' || groupY === 'fill' ? undefined : 'auto',
               }}

@@ -241,7 +241,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           {(page.cardH || page.cardAuto) ? (
             <>
               {!stickToCard && pfpOnTop ? pfpRow : null}
-              <View style={{ gap: pad(10), flexShrink: page.cardAuto ? 1 : 0, marginTop: groupY === 'top' || groupY === 'fill' ? undefined : 'auto', marginBottom: groupY === 'bottom' || groupY === 'fill' ? undefined : 'auto' }}>
+              <View style={{ gap: pad(10), flexShrink: page.cardAuto ? 1 : 0, ...(groupY === 'fill' ? { flexGrow: 1 } : null), marginTop: groupY === 'top' || groupY === 'fill' ? undefined : 'auto', marginBottom: groupY === 'bottom' || groupY === 'fill' ? undefined : 'auto' }}>
                 {stickToCard && pfpOnTop ? pfpRow : null}
                 {titleOnTop ? titleBlock : null}
                 {page.cardH ? (
