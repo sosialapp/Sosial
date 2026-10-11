@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import ApiKeysManager from '@/components/ApiKeysManager';
+import CreateTeamCard from '@/components/CreateTeamCard';
 import McpSection from '@/components/McpSection';
 import TeamManager from '@/components/TeamManager';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
@@ -40,7 +41,8 @@ export default async function TeamPage() {
         {ctx.workspace.name} · {(membersRes.data ?? []).length} member
         {(membersRes.data ?? []).length === 1 ? '' : 's'}
       </p>
-      <div className="mt-4">
+      <div className="mt-4 space-y-4">
+        <CreateTeamCard />
         <TeamManager
           workspaceId={ctx.workspace.id}
           workspaceName={ctx.workspace.name}
