@@ -248,8 +248,11 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
                 {titleOnTop ? titleBlock : null}
                 {page.cardH ? (
                   /* fixed: exact height, clamped to what fits so the card can
-                     never shove the profile/socials rows off the canvas */
-                  <View style={{ height: Math.min(pad(page.cardH), cardMax) }}>
+                     never shove the profile/socials rows off the canvas. The
+                     wrapper must be a flex column — the chrome root is flex:1,
+                     and in a plain wrapper it would ignore the height and hug
+                     its content instead. */
+                  <View style={{ height: Math.min(pad(page.cardH), cardMax), flexDirection: 'column' }}>
                     <SocialCardChrome page={page} pad={pad} watermark={watermark}>
                       {blocks}
                     </SocialCardChrome>

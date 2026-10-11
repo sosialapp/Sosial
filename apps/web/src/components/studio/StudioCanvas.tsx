@@ -552,8 +552,11 @@ export default function StudioCanvas({
               {titleOnTop ? titleBlock : null}
               {page.cardH ? (
                 /* fixed: exact height, clamped to what fits so the card can
-                   never shove the profile/socials rows off the canvas */
-                <div style={{ height: Math.min(pad(page.cardH), cardMax) }}>
+                   never shove the profile/socials rows off the canvas. The
+                   wrapper must be a flex column — the Chrome shell is
+                   flex:1, and in a plain block wrapper it would ignore the
+                   height and hug its content instead. */
+                <div style={{ height: Math.min(pad(page.cardH), cardMax), display: 'flex', flexDirection: 'column' }}>
                   <Chrome c={c} k={k} watermark={wm}>
                     {blocks}
                   </Chrome>
