@@ -497,6 +497,14 @@ export default function ContentEditor() {
                             <Seg options={[{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]} value={b.style?.chartBarImgPos ?? 'middle'} onChange={(v) => patchStyle(b, { chartBarImgPos: v as 'top' | 'middle' | 'bottom' })} />
                           </Field>
                         ) : null}
+                        <Field label="Label picture" hint="Show each row's photo as a small thumb beside the label">
+                          <Seg options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} value={(b.style?.chartLabelImg ?? true) ? 'on' : 'off'} onChange={(v) => patchStyle(b, { chartLabelImg: v === 'on' })} />
+                        </Field>
+                        {(b.style?.chartLabelImg ?? true) ? (
+                          <Field label="Photo size">
+                            <Stepper value={b.style?.chartLabelImgSize ?? 1} onChange={(v) => patchStyle(b, { chartLabelImgSize: v })} step={0.1} min={0.5} max={2} format={(v) => `${Math.round(v * 100)}%`} />
+                          </Field>
+                        ) : null}
                       </>
                     ) : null}
                   </>

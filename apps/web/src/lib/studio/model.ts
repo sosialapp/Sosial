@@ -169,6 +169,10 @@ export interface BlockStyle {
   chartBarImg?: 'none' | 'fill' | 'tile';
   /** Where the tile sits on a vertical column (fill ignores this). */
   chartBarImgPos?: 'top' | 'middle' | 'bottom';
+  /** Show the row photo as a small thumb beside/below the label (default on). */
+  chartLabelImg?: boolean;
+  /** Multiplier on the label thumb size (0.5-2). */
+  chartLabelImgSize?: number;
   /** vertical-bar column height, relative (0.4–1.6) */
   chartHeight?: number;
   /** image: fill the frame vs letterbox */

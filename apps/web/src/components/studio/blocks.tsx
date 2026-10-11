@@ -308,6 +308,8 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const labPos = st?.chartLabelPos ?? 'out';
   const barImg = st?.chartBarImg ?? 'none';
   const barImgPos = st?.chartBarImgPos ?? 'middle';
+  const labelImg = st?.chartLabelImg ?? true;
+  const imgScale = st?.chartLabelImgSize != null ? clamp(st.chartLabelImgSize, 0.5, 2) : 1;
   if (variant === 'hbar') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + b.value, 0) || 1;
@@ -328,9 +330,9 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
                   {outsideL ? (
                     <span style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.018), flex: 1, minWidth: 0 }}>
-                      {d.img ? (
+                      {labelImg && d.img ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.042), height: Math.max(10 * k, w * 0.042), borderRadius: Math.max(3 * k, w * 0.012), objectFit: 'cover', flexShrink: 0 }} />
+                        <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.042) * imgScale, height: Math.max(10 * k, w * 0.042) * imgScale, borderRadius: Math.max(3 * k, w * 0.012) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
                       ) : null}
                       <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
                     </span>
@@ -399,9 +401,9 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
       <div style={{ flex: legend === 'bottom' ? undefined : 1, width: legend === 'bottom' ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: Math.max(3 * k, w * 0.015) }}>
         {data.map((d, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
-            {d.img ? (
+            {labelImg && d.img ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.032), height: Math.max(10 * k, w * 0.032), borderRadius: Math.max(3 * k, w * 0.01), objectFit: 'cover', flexShrink: 0 }} />
+              <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.032) * imgScale, height: Math.max(10 * k, w * 0.032) * imgScale, borderRadius: Math.max(3 * k, w * 0.01) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
             ) : (
               <span style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? DATA[i % DATA.length], flexShrink: 0 }} />
             )}
@@ -471,9 +473,9 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
             </div>
             {showL && labPos === 'out' ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: Math.max(3 * k, w * 0.014), maxWidth: '100%', minWidth: 0 }}>
-                {d.img ? (
+                {labelImg && d.img ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={d.img} alt="" style={{ width: Math.max(9 * k, w * 0.038), height: Math.max(9 * k, w * 0.038), borderRadius: Math.max(3 * k, w * 0.011), objectFit: 'cover', flexShrink: 0 }} />
+                  <img src={d.img} alt="" style={{ width: Math.max(9 * k, w * 0.038) * imgScale, height: Math.max(9 * k, w * 0.038) * imgScale, borderRadius: Math.max(3 * k, w * 0.011) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
                 ) : null}
                 <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
               </span>

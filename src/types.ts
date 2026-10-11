@@ -96,6 +96,8 @@ export interface BlockStyle {
   chartLabelPos?: 'out' | 'in'; // labels inside the bar fill or outside
   chartBarImg?: 'none' | 'fill' | 'tile'; // decorate the bar with the row image
   chartBarImgPos?: 'top' | 'middle' | 'bottom'; // tile position on a column
+  chartLabelImg?: boolean; // show the row photo as a small label thumb (default on)
+  chartLabelImgSize?: number; // label thumb size multiplier (0.5-2)
   chartHeight?: number; // vertical-bar column height, relative (0.4-1.6)
   imageFit?: 'cover' | 'contain'; // fill the frame vs letterbox
   imageRadius?: number; // image corner rounding, fraction of width (0-0.5)

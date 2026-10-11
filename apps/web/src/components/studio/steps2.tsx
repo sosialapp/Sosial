@@ -702,6 +702,25 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
                               />
                             </Field>
                           ) : null}
+                          <Field label="Label picture" hint="Show each row's photo as a small thumb beside the label">
+                            <Seg
+                              options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]}
+                              value={(b.style?.chartLabelImg ?? true) ? 'on' : 'off'}
+                              onChange={(v) => patchStyle(b, { chartLabelImg: v === 'on' })}
+                            />
+                          </Field>
+                          {(b.style?.chartLabelImg ?? true) ? (
+                            <Field label="Photo size">
+                              <Stepper
+                                value={b.style?.chartLabelImgSize ?? 1}
+                                onChange={(v) => patchStyle(b, { chartLabelImgSize: Math.round(v * 10) / 10 })}
+                                step={0.1}
+                                min={0.5}
+                                max={2}
+                                format={(v) => `${Math.round(v * 100)}%`}
+                              />
+                            </Field>
+                          ) : null}
                         </>
                       ) : null}
                     </>

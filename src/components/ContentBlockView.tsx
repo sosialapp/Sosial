@@ -21,6 +21,8 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const labPos = st?.chartLabelPos ?? 'out';
   const barImg = st?.chartBarImg ?? 'none';
   const barImgPos = st?.chartBarImgPos ?? 'middle';
+  const labelImg = st?.chartLabelImg ?? true;
+  const imgScale = st?.chartLabelImgSize != null ? clamp(st.chartLabelImgSize, 0.5, 2) : 1;
   const lum = (hex: string) => {
     const h = (hex || '').replace('#', '');
     const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
@@ -43,14 +45,14 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
           const pct = Math.max(0, (d.value / total)) * 100;
           const outsideL = showL && labPos === 'out';
           const outsideV = showV && valPos === 'out';
-          const thumb = Math.max(10 * k, w * 0.042);
+          const thumb = Math.max(10 * k, w * 0.042) * imgScale;
           return (
             <View key={i}>
               {outsideL || outsideV ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
                   {outsideL ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.018), flex: 1, minWidth: 0 }}>
-                      {d.img ? <Image source={{ uri: d.img }} style={{ width: thumb, height: thumb, borderRadius: Math.max(3 * k, w * 0.012) }} resizeMode="cover" /> : null}
+                      {labelImg && d.img ? <Image source={{ uri: d.img }} style={{ width: thumb, height: thumb, borderRadius: Math.max(3 * k, w * 0.012) * imgScale }} resizeMode="cover" /> : null}
                       <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
                     </View>
                   ) : null}
@@ -115,8 +117,8 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
       <View style={legend === 'bottom' ? { width: '100%', gap: Math.max(3 * k, w * 0.015) } : { flex: 1, gap: Math.max(3 * k, w * 0.015) }}>
         {data.map((d, i) => (
           <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
-            {d.img ? (
-              <Image source={{ uri: d.img }} style={{ width: Math.max(10 * k, w * 0.032), height: Math.max(10 * k, w * 0.032), borderRadius: Math.max(3 * k, w * 0.01) }} resizeMode="cover" />
+            {labelImg && d.img ? (
+              <Image source={{ uri: d.img }} style={{ width: Math.max(10 * k, w * 0.032) * imgScale, height: Math.max(10 * k, w * 0.032) * imgScale, borderRadius: Math.max(3 * k, w * 0.01) * imgScale }} resizeMode="cover" />
             ) : (
               <View style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? colors[i % colors.length], flexShrink: 0 }} />
             )}
@@ -180,7 +182,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
               </View>
               {showL && labPos === 'out' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(3 * k, w * 0.014), maxWidth: '100%', minWidth: 0 }}>
-                  {d.img ? <Image source={{ uri: d.img }} style={{ width: Math.max(9 * k, w * 0.038), height: Math.max(9 * k, w * 0.038), borderRadius: Math.max(3 * k, w * 0.011) }} resizeMode="cover" /> : null}
+                  {labelImg && d.img ? <Image source={{ uri: d.img }} style={{ width: Math.max(9 * k, w * 0.038) * imgScale, height: Math.max(9 * k, w * 0.038) * imgScale, borderRadius: Math.max(3 * k, w * 0.011) * imgScale }} resizeMode="cover" /> : null}
                   <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
                 </View>
               ) : null}
