@@ -92,6 +92,10 @@ export interface BlockStyle {
   chartShowValues?: boolean;
   chartShowLabels?: boolean;
   chartLegend?: 'right' | 'bottom' | 'none'; // pie legend placement
+  chartValuePos?: 'out' | 'in'; // values inside the bar fill or outside
+  chartLabelPos?: 'out' | 'in'; // labels inside the bar fill or outside
+  chartBarImg?: 'none' | 'fill' | 'tile'; // decorate the bar with the row image
+  chartBarImgPos?: 'top' | 'middle' | 'bottom'; // tile position on a column
   chartHeight?: number; // vertical-bar column height, relative (0.4-1.6)
   imageFit?: 'cover' | 'contain'; // fill the frame vs letterbox
   imageRadius?: number; // image corner rounding, fraction of width (0-0.5)
@@ -107,7 +111,7 @@ export interface ContentBlock {
   heading?: string;
   items: string[]; // bullets / numbered / free lines
   table?: string[][]; // rows x cols
-  chart?: { label: string; value: number; color?: string }[];
+  chart?: { label: string; value: number; color?: string; img?: string }[];
   imageUri?: string; // image block source
   imageH?: number; // custom height in canvas units
   imageAspect?: 'square' | 'wide' | 'custom'; // crop frame: 1:1, 16:9, or custom height

@@ -161,6 +161,14 @@ export interface BlockStyle {
   chartShowLabels?: boolean;
   /** pie legend placement */
   chartLegend?: 'right' | 'bottom' | 'none';
+  /** Values inside the bar fill (contrast-inked) or outside (default). */
+  chartValuePos?: 'out' | 'in';
+  /** Labels inside the bar fill or outside (default). */
+  chartLabelPos?: 'out' | 'in';
+  /** Bar decoration: fill the bar with the row image, or a small tile. */
+  chartBarImg?: 'none' | 'fill' | 'tile';
+  /** Where the tile sits on a vertical column (fill ignores this). */
+  chartBarImgPos?: 'top' | 'middle' | 'bottom';
   /** vertical-bar column height, relative (0.4–1.6) */
   chartHeight?: number;
   /** image: fill the frame vs letterbox */
@@ -181,7 +189,7 @@ export interface ContentBlock {
   heading?: string;
   items: string[];
   table?: string[][];
-  chart?: { label: string; value: number; color?: string }[];
+  chart?: { label: string; value: number; color?: string; img?: string }[];
   imageUri?: string;
   imageH?: number;
   imageAspect?: 'square' | 'wide' | 'custom';

@@ -304,6 +304,22 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
     };
     input.click();
   };
+  const pickChartRowImage = async (b: ContentBlock, row: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      try {
+        const img = await fileToDataUrl(f);
+        update(b.id, { chart: (b.chart ?? []).map((c, k) => (k === row ? { ...c, img } : c)) });
+      } catch {
+        /* unreadable — stay put */
+      }
+    };
+    input.click();
+  };
 
   const draftKey = (b: ContentBlock, kind: 'table' | 'chart') => `${b.id}:${kind}`;
   const draftFor = (b: ContentBlock, kind: 'table' | 'chart'): string => {
@@ -555,6 +571,19 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
                       />
                       {(b.chart ?? []).map((d, di) => (
                         <div key={di} className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            aria-label={`Row ${di + 1} picture`}
+                            onClick={() => pickChartRowImage(b, di)}
+                            className="h-[22px] w-[22px] shrink-0 overflow-hidden rounded-md border border-black/10 bg-black/5"
+                          >
+                            {d.img ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={d.img} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-[10px] leading-[20px] text-muted">+</span>
+                            )}
+                          </button>
                           <span className="h-[18px] w-[18px] shrink-0 rounded-full border border-black/10" style={{ backgroundColor: d.color ?? DATA[di % DATA.length] }} />
                           <span className="min-w-0 flex-1 truncate text-xs font-bold">{d.label}</span>
                           <span className="flex gap-1 overflow-x-auto py-0.5">
@@ -641,6 +670,40 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
                           onPress={() => patchStyle(b, { chartShowLabels: !(b.style?.chartShowLabels ?? true) })}
                         />
                       </div>
+                      {b.type !== 'pie' ? (
+                        <>
+                          <Field label="Values sit">
+                            <Seg
+                              options={[{ value: 'out', label: 'Above' }, { value: 'in', label: 'In bar' }]}
+                              value={b.style?.chartValuePos ?? 'out'}
+                              onChange={(v) => patchStyle(b, { chartValuePos: v as 'out' | 'in' })}
+                            />
+                          </Field>
+                          <Field label="Labels sit">
+                            <Seg
+                              options={[{ value: 'out', label: 'Outside' }, { value: 'in', label: 'In bar' }]}
+                              value={b.style?.chartLabelPos ?? 'out'}
+                              onChange={(v) => patchStyle(b, { chartLabelPos: v as 'out' | 'in' })}
+                            />
+                          </Field>
+                          <Field label="Bar picture" hint="Uses each row's photo — fill the bar or a small tile">
+                            <Seg
+                              options={[{ value: 'none', label: 'None' }, { value: 'fill', label: 'Fill' }, { value: 'tile', label: 'Tile' }]}
+                              value={b.style?.chartBarImg ?? 'none'}
+                              onChange={(v) => patchStyle(b, { chartBarImg: v as 'none' | 'fill' | 'tile' })}
+                            />
+                          </Field>
+                          {(b.style?.chartBarImg ?? 'none') === 'tile' ? (
+                            <Field label="Tile position">
+                              <Seg
+                                options={[{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]}
+                                value={b.style?.chartBarImgPos ?? 'middle'}
+                                onChange={(v) => patchStyle(b, { chartBarImgPos: v as 'top' | 'middle' | 'bottom' })}
+                              />
+                            </Field>
+                          ) : null}
+                        </>
+                      ) : null}
                     </>
                   ) : null}
                   {b.type === 'image' ? (

@@ -33,6 +33,8 @@ function hexLum(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+const lum = hexLum;
+
 function isDarkHex(hex: string): boolean {
   return hexLum(hex || '#ffffff') < 0.45;
 }
@@ -302,29 +304,72 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const variant = st?.chartVariant ?? (block.type === 'bar' ? 'hbar' : block.type);
   const showV = st?.chartShowValues ?? true;
   const showL = st?.chartShowLabels ?? true;
+  const valPos = st?.chartValuePos ?? 'out';
+  const labPos = st?.chartLabelPos ?? 'out';
+  const barImg = st?.chartBarImg ?? 'none';
+  const barImgPos = st?.chartBarImgPos ?? 'middle';
   if (variant === 'hbar') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + b.value, 0) || 1;
     const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1.6) : 1;
     const barH = Math.max(6 * k, w * 0.03) * t;
     const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * barH * 0.6 : 6 * k;
+    const inked = (c: string) => (lum(c) < 0.55 ? '#ffffff' : '#111111');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: Math.max(4 * k, w * 0.02) }}>
-        {data.map((d, i) => (
-          <div key={i}>
-            {showL || showV ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
-                {showL ? (
-                  <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
-                ) : null}
-                {showV ? <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p> : null}
+        {data.map((d, i) => {
+          const fill = d.color ?? DATA[i % DATA.length];
+          const pct = Math.max(0, d.value / total) * 100;
+          const outsideL = showL && labPos === 'out';
+          const outsideV = showV && valPos === 'out';
+          return (
+            <div key={i}>
+              {outsideL || outsideV ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
+                  {outsideL ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.018), flex: 1, minWidth: 0 }}>
+                      {d.img ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.042), height: Math.max(10 * k, w * 0.042), borderRadius: Math.max(3 * k, w * 0.012), objectFit: 'cover', flexShrink: 0 }} />
+                      ) : null}
+                      <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
+                    </span>
+                  ) : null}
+                  {outsideV ? <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p> : null}
+                </div>
+              ) : null}
+              <div style={{ height: barH, backgroundColor: '#00000015', borderRadius: rad, overflow: 'hidden', position: 'relative' }}>
+                <div style={{ position: 'relative', width: `${pct}%`, height: barH, backgroundColor: fill, borderRadius: rad, overflow: 'hidden' }}>
+                  {barImg === 'fill' && d.img ? <img src={d.img} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                  {barImg === 'tile' && d.img ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={d.img}
+                      alt=""
+                      style={{
+                        position: 'absolute',
+                        [barImgPos === 'top' ? 'left' : barImgPos === 'bottom' ? 'right' : 'left']: Math.max(3 * k, w * 0.012),
+                        ...(barImgPos === 'middle' ? { left: Math.max(3 * k, w * 0.012) } : {}),
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: barH * 0.68,
+                        height: barH * 0.68,
+                        borderRadius: barH * 0.34,
+                        objectFit: 'cover',
+                      }}
+                    />
+                  ) : null}
+                  {showV && valPos === 'in' ? (
+                    <p style={{ position: 'absolute', right: Math.max(4 * k, w * 0.016), top: 0, bottom: 0, display: 'flex', alignItems: 'center', margin: 0, ...ff(font, true), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : inked(fill), textShadow: d.img && barImg === 'fill' ? '0 1px 3px rgba(0,0,0,0.6)' : 'none' }}>{d.value}</p>
+                  ) : null}
+                  {showL && labPos === 'in' ? (
+                    <p style={{ position: 'absolute', left: Math.max(4 * k, w * 0.016), top: 0, bottom: 0, display: 'flex', alignItems: 'center', maxWidth: '70%', margin: 0, ...ff(font, true), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : inked(fill), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: d.img && barImg === 'fill' ? '0 1px 3px rgba(0,0,0,0.6)' : 'none' }}>{d.label}</p>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
-            <div style={{ height: barH, backgroundColor: '#00000015', borderRadius: rad, overflow: 'hidden' }}>
-              <div style={{ width: `${Math.max(0, d.value / total) * 100}%`, height: barH, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -354,7 +399,12 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
       <div style={{ flex: legend === 'bottom' ? undefined : 1, width: legend === 'bottom' ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: Math.max(3 * k, w * 0.015) }}>
         {data.map((d, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
-            <span style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? DATA[i % DATA.length], flexShrink: 0 }} />
+            {d.img ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={d.img} alt="" style={{ width: Math.max(10 * k, w * 0.032), height: Math.max(10 * k, w * 0.032), borderRadius: Math.max(3 * k, w * 0.01), objectFit: 'cover', flexShrink: 0 }} />
+            ) : (
+              <span style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? DATA[i % DATA.length], flexShrink: 0 }} />
+            )}
             <p style={{ ...ff(font), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', flex: 1, margin: 0 }}>{d.label}</p>
             <p style={{ ...ff(font, true), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', margin: 0 }}>{Math.round((Math.max(0, d.value) / total) * 100)}%</p>
           </div>
@@ -376,17 +426,58 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1) : 1;
   const maxH = Math.max(80 * k, w * 0.35) * (st?.chartHeight != null ? clamp(st.chartHeight, 0.4, 1.6) : 1);
   const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * 12 * k : 6 * k;
+  const inked = (c: string) => (lum(c) < 0.55 ? '#ffffff' : '#111111');
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: Math.max(6 * k, w * 0.03) }}>
       {data.map((d, i) => {
         const h = Math.max(2 * k, (Math.max(0, d.value) / total) * maxH);
+        const fill = d.color ?? DATA[i % DATA.length];
+        const ink = inked(fill);
         return (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 * k }}>
-            {showV ? <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p> : null}
+            {showV && valPos === 'out' ? <p style={{ ...ff(font, true), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.value}</p> : null}
             <div style={{ height: maxH, display: 'flex', alignItems: 'flex-end', width: '100%', justifyContent: 'center' }}>
-              <div style={{ height: h, width: `${t * 100}%`, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
+              <div style={{ position: 'relative', height: h, width: `${t * 100}%`, backgroundColor: fill, borderRadius: rad, overflow: 'hidden' }}>
+                {barImg === 'fill' && d.img ? <img src={d.img} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                {barImg === 'tile' && d.img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={d.img}
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      margin: '0 auto',
+                      width: Math.max(10 * k, w * 0.05),
+                      height: Math.max(10 * k, w * 0.05),
+                      borderRadius: Math.max(3 * k, w * 0.014),
+                      objectFit: 'cover',
+                      ...(barImgPos === 'top'
+                        ? { top: Math.max(2 * k, w * 0.01) }
+                        : barImgPos === 'bottom'
+                          ? { bottom: Math.max(2 * k, w * 0.01) }
+                          : { top: '50%', transform: 'translateY(-50%)' }),
+                    }}
+                  />
+                ) : null}
+                {showV && valPos === 'in' ? (
+                  <p style={{ position: 'absolute', top: Math.max(2 * k, w * 0.012), left: 0, right: 0, textAlign: 'center', margin: 0, ...ff(font, true), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : ink, textShadow: d.img && barImg === 'fill' ? '0 1px 3px rgba(0,0,0,0.6)' : 'none' }}>{d.value}</p>
+                ) : null}
+                {showL && labPos === 'in' ? (
+                  <p style={{ position: 'absolute', bottom: Math.max(2 * k, w * 0.012), left: 0, right: 0, textAlign: 'center', margin: 0, ...ff(font), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: d.img && barImg === 'fill' ? '0 1px 3px rgba(0,0,0,0.6)' : 'none' }}>{d.label}</p>
+                ) : null}
+              </div>
             </div>
-            {showL ? <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0 }}>{d.label}</p> : null}
+            {showL && labPos === 'out' ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: Math.max(3 * k, w * 0.014), maxWidth: '100%', minWidth: 0 }}>
+                {d.img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={d.img} alt="" style={{ width: Math.max(9 * k, w * 0.038), height: Math.max(9 * k, w * 0.038), borderRadius: Math.max(3 * k, w * 0.011), objectFit: 'cover', flexShrink: 0 }} />
+                ) : null}
+                <p style={{ ...ff(font), fontSize: txt(8), color: block.textColor ?? '#111', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</p>
+              </span>
+            ) : null}
           </div>
         );
       })}

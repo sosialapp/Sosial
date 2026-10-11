@@ -144,6 +144,12 @@ export default function ContentEditor() {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
     if (!res.canceled && res.assets[0]) update(id, { imageUri: res.assets[0].uri });
   };
+  const pickChartRowImage = async (b: ContentBlock, row: number) => {
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
+    if (res.canceled || !res.assets[0]) return;
+    const img = res.assets[0].uri;
+    update(b.id, { chart: (b.chart ?? []).map((c, k) => (k === row ? { ...c, img } : c)) });
+  };
   // raw text drafts for table/chart editors — parsed into the model on blur,
   // so normalization never fights the cursor mid-typing
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -399,6 +405,17 @@ export default function ContentEditor() {
                     />
                     {(b.chart ?? []).map((d, di) => (
                       <View key={di} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => pickChartRowImage(b, di)}
+                          style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: '#00000014', backgroundColor: '#00000008', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}
+                          activeOpacity={0.7}
+                        >
+                          {d.img ? (
+                            <Image source={{ uri: d.img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                          ) : (
+                            <Text style={{ fontSize: 12, color: C.muted }}>+</Text>
+                          )}
+                        </TouchableOpacity>
                         <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: d.color ?? DATA[di % DATA.length], borderWidth: 1, borderColor: '#00000014' }} />
                         <Text style={st.itemLabel} numberOfLines={1}>{d.label}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
@@ -464,6 +481,24 @@ export default function ContentEditor() {
                     ) : null}
                     <ToggleRow C={C} title="Show values" on={b.style?.chartShowValues ?? true} onPress={() => patchStyle(b, { chartShowValues: !(b.style?.chartShowValues ?? true) })} />
                     <ToggleRow C={C} title="Show labels" on={b.style?.chartShowLabels ?? true} onPress={() => patchStyle(b, { chartShowLabels: !(b.style?.chartShowLabels ?? true) })} />
+                    {b.type !== 'pie' ? (
+                      <>
+                        <Field label="Values sit">
+                          <Seg options={[{ value: 'out', label: 'Above' }, { value: 'in', label: 'In bar' }]} value={b.style?.chartValuePos ?? 'out'} onChange={(v) => patchStyle(b, { chartValuePos: v as 'out' | 'in' })} />
+                        </Field>
+                        <Field label="Labels sit">
+                          <Seg options={[{ value: 'out', label: 'Outside' }, { value: 'in', label: 'In bar' }]} value={b.style?.chartLabelPos ?? 'out'} onChange={(v) => patchStyle(b, { chartLabelPos: v as 'out' | 'in' })} />
+                        </Field>
+                        <Field label="Bar picture" hint="Uses each row's photo — fill the bar or a small tile">
+                          <Seg options={[{ value: 'none', label: 'None' }, { value: 'fill', label: 'Fill' }, { value: 'tile', label: 'Tile' }]} value={b.style?.chartBarImg ?? 'none'} onChange={(v) => patchStyle(b, { chartBarImg: v as 'none' | 'fill' | 'tile' })} />
+                        </Field>
+                        {(b.style?.chartBarImg ?? 'none') === 'tile' ? (
+                          <Field label="Tile position">
+                            <Seg options={[{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]} value={b.style?.chartBarImgPos ?? 'middle'} onChange={(v) => patchStyle(b, { chartBarImgPos: v as 'top' | 'middle' | 'bottom' })} />
+                          </Field>
+                        ) : null}
+                      </>
+                    ) : null}
                   </>
                 ) : null}
                 {b.type === 'image' ? (

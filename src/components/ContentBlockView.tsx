@@ -17,6 +17,19 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const variant = st?.chartVariant ?? (block.type === 'bar' ? 'hbar' : block.type);
   const showV = st?.chartShowValues ?? true;
   const showL = st?.chartShowLabels ?? true;
+  const valPos = st?.chartValuePos ?? 'out';
+  const labPos = st?.chartLabelPos ?? 'out';
+  const barImg = st?.chartBarImg ?? 'none';
+  const barImgPos = st?.chartBarImgPos ?? 'middle';
+  const lum = (hex: string) => {
+    const h = (hex || '').replace('#', '');
+    const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
+    const r = parseInt(full.slice(0, 2), 16) / 255;
+    const g = parseInt(full.slice(2, 4), 16) / 255;
+    const b = parseInt(full.slice(4, 6), 16) / 255;
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const inked = (c: string) => (lum(c) < 0.55 ? '#ffffff' : '#111111');
   if (variant === 'hbar') {
     const data = block.chart ?? [];
     const total = data.reduce((a, b) => a + b.value, 0) || 1;
@@ -25,21 +38,53 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
     const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * barH * 0.6 : 6 * k;
     return (
       <View style={{ gap: Math.max(4 * k, w * 0.02) }}>
-        {data.map((d, i) => (
-          <View key={i}>
-            {showL || showV ? (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
-                {showL ? (
-                  <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
-                ) : null}
-                {showV ? <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }}>{d.value}</Text> : null}
+        {data.map((d, i) => {
+          const fill = d.color ?? DATA[i % DATA.length];
+          const pct = Math.max(0, (d.value / total)) * 100;
+          const outsideL = showL && labPos === 'out';
+          const outsideV = showV && valPos === 'out';
+          const thumb = Math.max(10 * k, w * 0.042);
+          return (
+            <View key={i}>
+              {outsideL || outsideV ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
+                  {outsideL ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.018), flex: 1, minWidth: 0 }}>
+                      {d.img ? <Image source={{ uri: d.img }} style={{ width: thumb, height: thumb, borderRadius: Math.max(3 * k, w * 0.012) }} resizeMode="cover" /> : null}
+                      <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
+                    </View>
+                  ) : null}
+                  {outsideV ? <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }}>{d.value}</Text> : null}
+                </View>
+              ) : null}
+              <View style={{ height: barH, backgroundColor: '#00000015', borderRadius: rad, overflow: 'hidden' }}>
+                <View style={{ width: `${pct}%`, height: barH, backgroundColor: fill, borderRadius: rad, overflow: 'hidden', position: 'relative' }}>
+                  {barImg === 'fill' && d.img ? <Image source={{ uri: d.img }} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} resizeMode="cover" /> : null}
+                  {barImg === 'tile' && d.img ? (
+                    <Image
+                      source={{ uri: d.img }}
+                      style={{
+                        position: 'absolute',
+                        [barImgPos === 'bottom' ? 'right' : 'left']: Math.max(3 * k, w * 0.012),
+                        top: (barH - barH * 0.68) / 2,
+                        width: barH * 0.68,
+                        height: barH * 0.68,
+                        borderRadius: barH * 0.34,
+                      }}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                  {showV && valPos === 'in' ? (
+                    <Text style={{ position: 'absolute', right: Math.max(4 * k, w * 0.016), lineHeight: barH, ...F(font, true), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : inked(fill) }}>{d.value}</Text>
+                  ) : null}
+                  {showL && labPos === 'in' ? (
+                    <Text style={{ position: 'absolute', left: Math.max(4 * k, w * 0.016), lineHeight: barH, maxWidth: '70%', ...F(font, true), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : inked(fill) }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
+                  ) : null}
+                </View>
               </View>
-            ) : null}
-            <View style={{ height: barH, backgroundColor: '#00000015', borderRadius: rad, overflow: 'hidden' }}>
-              <View style={{ width: `${Math.max(0, (d.value / total)) * 100}%`, height: barH, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     );
   }
@@ -70,7 +115,11 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
       <View style={legend === 'bottom' ? { width: '100%', gap: Math.max(3 * k, w * 0.015) } : { flex: 1, gap: Math.max(3 * k, w * 0.015) }}>
         {data.map((d, i) => (
           <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.02) }}>
-            <View style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? colors[i % colors.length], flexShrink: 0 }} />
+            {d.img ? (
+              <Image source={{ uri: d.img }} style={{ width: Math.max(10 * k, w * 0.032), height: Math.max(10 * k, w * 0.032), borderRadius: Math.max(3 * k, w * 0.01) }} resizeMode="cover" />
+            ) : (
+              <View style={{ width: Math.max(8 * k, w * 0.025), height: Math.max(8 * k, w * 0.025), borderRadius: Math.max(4 * k, w * 0.0125), backgroundColor: d.color ?? colors[i % colors.length], flexShrink: 0 }} />
+            )}
             <Text style={{ ...F(font), fontSize: sz(10, 0.03), color: block.textColor ?? '#111', flex: 1 }}>{d.label}</Text>
             <Text style={{ ...F(font, true), fontSize: sz(10, 0.03), color: block.textColor ?? '#111' }}>{Math.round((Math.max(0, d.value) / total) * 100)}%</Text>
           </View>
@@ -92,17 +141,49 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
     const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1) : 1;
     const maxH = Math.max(80 * k, w * 0.35) * (st?.chartHeight != null ? clamp(st.chartHeight, 0.4, 1.6) : 1);
     const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * 12 * k : 6 * k;
+    const tile = Math.max(10 * k, w * 0.05);
     return (
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: Math.max(6 * k, w * 0.03) }}>
         {data.map((d, i) => {
           const h = Math.max(2 * k, (Math.max(0, d.value) / total) * maxH);
+          const fill = d.color ?? DATA[i % DATA.length];
+          const ink = inked(fill);
           return (
             <View key={i} style={{ flex: 1, alignItems: 'center', gap: 3 * k }}>
-              {showV ? <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1}>{d.value}</Text> : null}
+              {showV && valPos === 'out' ? <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1}>{d.value}</Text> : null}
               <View style={{ height: maxH, justifyContent: 'flex-end', width: '100%', alignItems: 'center' }}>
-                <View style={{ height: h, width: `${t * 100}%`, backgroundColor: d.color ?? DATA[i % DATA.length], borderRadius: rad }} />
+                <View style={{ height: h, width: `${t * 100}%`, backgroundColor: fill, borderRadius: rad, overflow: 'hidden', position: 'relative' }}>
+                  {barImg === 'fill' && d.img ? <Image source={{ uri: d.img }} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} resizeMode="cover" /> : null}
+                  {barImg === 'tile' && d.img ? (
+                    <Image
+                      source={{ uri: d.img }}
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        marginHorizontal: 'auto',
+                        width: tile,
+                        height: tile,
+                        borderRadius: Math.max(3 * k, w * 0.014),
+                        ...(barImgPos === 'top' ? { top: Math.max(2 * k, w * 0.01) } : barImgPos === 'bottom' ? { bottom: Math.max(2 * k, w * 0.01) } : { top: (h - tile) / 2 }),
+                      }}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                  {showV && valPos === 'in' ? (
+                    <Text style={{ position: 'absolute', top: Math.max(2 * k, w * 0.012), left: 0, right: 0, textAlign: 'center', ...F(font, true), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : ink }} numberOfLines={1}>{d.value}</Text>
+                  ) : null}
+                  {showL && labPos === 'in' ? (
+                    <Text style={{ position: 'absolute', bottom: Math.max(2 * k, w * 0.012), left: 0, right: 0, textAlign: 'center', ...F(font), fontSize: txt(8), color: d.img && barImg === 'fill' ? '#ffffff' : ink }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
+                  ) : null}
+                </View>
               </View>
-              {showL ? <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1}>{d.label}</Text> : null}
+              {showL && labPos === 'out' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(3 * k, w * 0.014), maxWidth: '100%', minWidth: 0 }}>
+                  {d.img ? <Image source={{ uri: d.img }} style={{ width: Math.max(9 * k, w * 0.038), height: Math.max(9 * k, w * 0.038), borderRadius: Math.max(3 * k, w * 0.011) }} resizeMode="cover" /> : null}
+                  <Text style={{ ...F(font), fontSize: txt(8), color: block.textColor ?? '#111' }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
+                </View>
+              ) : null}
             </View>
           );
         })}
