@@ -89,13 +89,10 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
   };
 
   const minW = dispW / 3;
-  /** Aspect-locked resize/move with clamping inside the photo. */
-  const applyDrag = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: Rect) => {
+  /** Aspect-locked resize/move with clamping inside the photo. Pure — returns the next rect. */
+  const applyDrag = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: Rect): Rect => {
     if (mode === 'move') {
-      const nx = clamp(start.x + dx, 0, dispW - start.w);
-      const ny = clamp(start.y + dy, 0, dispH - start.h);
-      setRect({ ...start, x: nx, y: ny });
-      return;
+      return { ...start, x: clamp(start.x + dx, 0, dispW - start.w), y: clamp(start.y + dy, 0, dispH - start.h) };
     }
     // Corner resize: the dragged corner follows the pointer, the opposite
     // corner is an anchor, size follows the dominant axis (aspect-locked).
@@ -113,28 +110,48 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
     // right/bottom anchored corners grow right/down; left/top ones grow left/up
     const x = clamp(anchoredLeft ? anchorX : anchorX - w, 0, dispW - w);
     const y = clamp(anchoredTop ? anchorY : anchorY - h, 0, dispH - h);
-    setRect({ x, y, w, h });
+    return { x, y, w, h };
   };
 
   // refs so the responders (created once per geometry) see fresh values
   const geo = useRef({ dispW, dispH, minW });
   geo.current = { dispW, dispH, minW };
+  // Snapshot of the rect at gesture start + latest gesture deltas, so
+  // cumulative g.dx/g.dy are applied to the frozen start (applying them to
+  // the live rect double-counts and the rect races the finger).
+  const startRef = useRef<Rect | null>(null);
+  const lastG = useRef({ dx: 0, dy: 0 });
+  const raf = useRef<number | null>(null);
+  const flush = (idx: 'move' | 0 | 1 | 2 | 3) => {
+    if (raf.current != null) return;
+    raf.current = requestAnimationFrame(() => {
+      raf.current = null;
+      const start = startRef.current;
+      if (!start) return;
+      setRect(
+        idx === 'move'
+          ? (({ dispW: dw, dispH: dh }) => ({ ...start, x: clamp(start.x + lastG.current.dx, 0, dw - start.w), y: clamp(start.y + lastG.current.dy, 0, dh - start.h) }))(geo.current)
+          : applyDrag(idx, lastG.current.dx, lastG.current.dy, start),
+      );
+    });
+  };
 
   const bodyPan = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+          startRef.current = rectRef.current;
+        },
         onPanResponderMove: (_e, g) => {
-          const start = rectRef.current;
-          const { dispW: dw, dispH: dh } = geo.current;
-          if (!start) return;
-          const nx = clamp(start.x + g.dx, 0, dw - start.w);
-          const ny = clamp(start.y + g.dy, 0, dh - start.h);
-          setRect({ ...start, x: nx, y: ny });
+          if (!startRef.current) return;
+          lastG.current = { dx: g.dx, dy: g.dy };
+          flush('move');
         },
         onPanResponderRelease: () => {},
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -142,10 +159,13 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        startRef.current = rectRef.current;
+      },
       onPanResponderMove: (_e, g) => {
-        const start = rectRef.current;
-        if (!start) return;
-        applyDrag(idx, g.dx, g.dy, start);
+        if (!startRef.current) return;
+        lastG.current = { dx: g.dx, dy: g.dy };
+        flush(idx);
       },
       onPanResponderRelease: () => {},
     });

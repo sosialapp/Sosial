@@ -67,6 +67,10 @@ function CropEditor({
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [nat, setNat] = useState({ w: 0, h: 0 });
   const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  // Live rect for the rAF drag loop + the pending-frame refs.
+  const rectRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const raf = useRef<number | null>(null);
+  const lastPt = useRef({ x: 0, y: 0 });
   const drag = useRef<{
     mode: 'move' | 0 | 1 | 2 | 3;
     px: number;
@@ -107,6 +111,7 @@ function CropEditor({
       r = { x: (dispW - w) / 2, y: (dispH - h) / 2, w, h };
     }
     setRect(r);
+    rectRef.current = r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scale, dispW, dispH]);
 
@@ -117,12 +122,11 @@ function CropEditor({
     onChange({ zoom: Math.round(z * 100) / 100, x: Math.round(xm * 100) / 100, y: Math.round(ym * 100) / 100 });
   };
 
-  const applyDrag = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: { x: number; y: number; w: number; h: number }) => {
+  const computeRect = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: { x: number; y: number; w: number; h: number }) => {
     if (mode === 'move') {
       const nx = Math.min(dispW - start.w, Math.max(0, start.x + dx));
       const ny = Math.min(dispH - start.h, Math.max(0, start.y + dy));
-      setRect({ ...start, x: nx, y: ny });
-      return;
+      return { ...start, x: nx, y: ny };
     }
     // Corner resize, aspect-locked. Corners: 0 TL, 1 TR, 2 BL, 3 BR.
     // The dragged corner moves with the pointer; the opposite corner is the
@@ -148,7 +152,7 @@ function CropEditor({
     let y = movingDown ? anchorY : anchorY - h;
     x = Math.min(dispW - w, Math.max(0, x));
     y = Math.min(dispH - h, Math.max(0, y));
-    setRect({ x, y, w, h });
+    return { x, y, w, h };
   };
 
   const onDown = (mode: 'move' | 0 | 1 | 2 | 3) => (e: React.PointerEvent) => {
@@ -159,13 +163,27 @@ function CropEditor({
     drag.current = { mode, px: e.clientX, py: e.clientY, r: rect, stage: { left: b.left, top: b.top } };
   };
   const onMove = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    applyDrag(d.mode, e.clientX - d.px, e.clientY - d.py, d.r);
+    if (!drag.current) return;
+    // Coalesce to one state update per frame — pointermove fires faster than
+    // React can paint, and without this the drag stutters.
+    lastPt.current = { x: e.clientX, y: e.clientY };
+    if (raf.current != null) return;
+    raf.current = requestAnimationFrame(() => {
+      raf.current = null;
+      const dd = drag.current;
+      if (!dd) return;
+      const next = computeRect(dd.mode, lastPt.current.x - dd.px, lastPt.current.y - dd.py, dd.r);
+      rectRef.current = next;
+      setRect(next);
+    });
   };
   const onUp = () => {
-    if (drag.current && rect) emit(rect);
+    if (drag.current && rectRef.current) emit(rectRef.current);
     drag.current = null;
+    if (raf.current != null) {
+      cancelAnimationFrame(raf.current);
+      raf.current = null;
+    }
   };
 
   const handles: { i: 0 | 1 | 2 | 3; x: 'left' | 'right'; y: 'top' | 'bottom' }[] = [
@@ -195,10 +213,16 @@ function CropEditor({
         />
         {rect ? (
           <>
+            {/* dim outside the rect (4 slabs — a 9999px box-shadow repaints
+                the whole stage every frame and makes the drag stutter) */}
+            <div className="pointer-events-none absolute left-0 top-0 w-full" style={{ height: Math.max(0, oy + rect.y), backgroundColor: 'rgba(0,0,0,0.55)' }} />
+            <div className="pointer-events-none absolute left-0 w-full" style={{ top: oy + rect.y + rect.h, height: Math.max(0, box.h - (oy + rect.y + rect.h)), backgroundColor: 'rgba(0,0,0,0.55)' }} />
+            <div className="pointer-events-none absolute left-0" style={{ top: oy + rect.y, width: Math.max(0, ox + rect.x), height: rect.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+            <div className="pointer-events-none absolute" style={{ left: ox + rect.x + rect.w, top: oy + rect.y, width: Math.max(0, box.w - (ox + rect.x + rect.w)), height: rect.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <div
               onPointerDown={onDown('move')}
               className="absolute cursor-move"
-              style={{ left: ox + rect.x, top: oy + rect.y, width: rect.w, height: rect.h, boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)' }}
+              style={{ left: ox + rect.x, top: oy + rect.y, width: rect.w, height: rect.h }}
             >
               {/* thirds grid */}
               <span className="pointer-events-none absolute left-1/3 top-0 h-full w-px bg-white/35" />

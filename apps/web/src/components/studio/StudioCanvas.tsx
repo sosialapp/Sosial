@@ -428,7 +428,9 @@ export default function StudioCanvas({
   const titleOnTop = hasTitle && page.title.position === 'top';
   const titleOnBottom = hasTitle && page.title.position === 'bottom';
   const pfpOnTop = (page.pfp.pfpY ?? 'top') === 'top';
-  const cardY = page.cardY ?? 'bottom';
+  // 'fill' is the promised default (matches the editor Seg) — the card
+  // extends below the title instead of the group being pinned to the bottom.
+  const cardY = page.cardY ?? 'fill';
   const groupY = page.cardAuto && hasTitle && page.title.position === 'top' ? 'top' : cardY;
   const stickToCard = page.stickToCard ?? false;
   const wm = watermark ?? page.showWatermark ?? true;

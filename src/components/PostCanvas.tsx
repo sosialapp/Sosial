@@ -57,7 +57,9 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const surfaceDark = badgeBg ? true : contrastRatio('#111111', badgeSurface) < contrastRatio('#FFFFFF', badgeSurface);
   const ringColor = surfaceDark ? '#FFFFFF' : '#111111';
   const pfpOnTop = (page.pfp.pfpY ?? 'top') === 'top';
-  const cardY = page.cardY ?? 'bottom';
+  // 'fill' is the promised default (matches the editor Seg) — the card
+  // extends below the title instead of the group being pinned to the bottom.
+  const cardY = page.cardY ?? 'fill';
   // when the card is auto-height and a title sits on top, anchor the title+card
   // group to the top so it fills from the top instead of hanging at the bottom
   const groupY = page.cardAuto && hasTitle && page.title.position === 'top' ? 'top' : cardY;
