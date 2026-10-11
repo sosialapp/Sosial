@@ -51,7 +51,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
               {outsideL || outsideV ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
                   {outsideL ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(4 * k, w * 0.018), flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'column', alignItems: 'flex-start', gap: Math.max(2 * k, w * 0.01), flex: 1, minWidth: 0 }}>
                       {labelImg && d.img ? <Image source={{ uri: d.img }} style={{ width: thumb, height: thumb, borderRadius: Math.max(3 * k, w * 0.012) * imgScale }} resizeMode="cover" /> : null}
                       <Text style={{ ...F(font, true), fontSize: txt(8), color: block.textColor ?? '#111', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{d.label}</Text>
                     </View>

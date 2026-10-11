@@ -329,7 +329,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
               {outsideL || outsideV ? (
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: Math.max(6 * k, w * 0.02) }}>
                   {outsideL ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: Math.max(4 * k, w * 0.018), flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: Math.max(2 * k, w * 0.01), flex: 1, minWidth: 0 }}>
                       {labelImg && d.img ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={d.img} alt="" style={{ width: Math.max(14 * k, w * 0.052) * imgScale, height: Math.max(14 * k, w * 0.052) * imgScale, borderRadius: Math.max(4 * k, w * 0.015) * imgScale, objectFit: 'cover', flexShrink: 0 }} />
