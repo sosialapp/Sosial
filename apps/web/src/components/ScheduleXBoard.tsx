@@ -287,15 +287,9 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
     >
       <div className="flex items-center gap-1.5">
         {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={22} /> : null}
-        <span className="min-w-0 flex-1">
-          <span className="sx-event-title block truncate text-[11px] font-extrabold">
-            {c.sxName ?? c.sxLabel ?? c.title ?? 'Post'}
-          </span>
-          <span className="sx-event-sub block truncate text-[10px]">
-            {c.sxHandle ? `${c.sxHandle} · ` : ''}
-            {time}
-            {c.sxThread ? ` · Thread ${c.sxThread}` : ''}
-          </span>
+        <span className="sx-event-sub min-w-0 flex-1 truncate text-[10px]">
+          {time}
+          {c.sxThread ? ` · Thread ${c.sxThread}` : ''}
         </span>
         {c.sxStatusLabel ? (
           <span className={`pill shrink-0 ${c.sxStatusClass ?? ''}`} style={{ fontSize: 9 }}>
