@@ -197,6 +197,23 @@ function initialScrollForNow(): string {
   return `${String(h).padStart(2, '0')}:00`;
 }
 
+/** True while today falls inside the viewed span — the hour band only
+ *  means "now" then, so the wash stays off elsewhere. */
+function todayInView(view: 'day' | 'week' | 'month', anchorKey: string): boolean {
+  const today = dayKey(new Date());
+  if (view === 'day') return anchorKey === today;
+  if (view !== 'week') return false;
+  // Monday-first week containing the anchor (matches firstDayOfWeek: 1).
+  const [y, m, d] = anchorKey.split('-').map(Number);
+  if (!y || !m || !d) return false;
+  const a = new Date(y, m - 1, d);
+  const mon = new Date(a);
+  mon.setDate(a.getDate() - ((a.getDay() + 6) % 7));
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return today >= dayKey(mon) && today <= dayKey(sun);
+}
+
 /** Event media at its natural ratio: image, or muted preview for video. */
 function eventMedia(t: { id: string; kind: string; src: string }, cls: string) {
   const shared = `${cls} rounded-lg border border-black/5 bg-black/5 object-contain`;
@@ -674,10 +691,37 @@ function SXMount({
     if (state?.isDark) state.isDark.value = dark;
   }, [calendar, dark]);
 
+  // Wash the current hour's row across the whole grid. The day columns
+  // hold no hour rows (events are absolute; grid lines come from the time
+  // axis), so expose the hour as CSS vars and paint one band on every
+  // column + the axis. Repaints every minute; month view has no axis.
+  const hostRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!calendar) return;
+    const paint = () => {
+      const cal = hostRef.current?.querySelector('.sx-react-calendar-wrapper');
+      if (!cal) return;
+      const el = cal as HTMLElement;
+      const show = todayInView(view, anchorKey);
+      el.classList.toggle('sx-show-now-hour', show);
+      if (!show) return;
+      const rows = el.querySelectorAll('.sx__week-grid__time-axis .sx__week-grid__hour');
+      el.style.setProperty('--sx-now-hour', String(new Date().getHours()));
+      el.style.setProperty('--sx-day-hours', String(rows.length || 24));
+    };
+    paint();
+    const t = window.setInterval(paint, 60_000);
+    return () => window.clearInterval(t);
+  }, [calendar, view, anchorKey]);
+
   if (!calendar) {
     return <div className="h-full min-h-[480px] animate-pulse rounded-2xl bg-paper-dim" />;
   }
-  return <ScheduleXCalendar calendarApp={calendar} customComponents={SX_CUSTOM_COMPONENTS} />;
+  return (
+    <div ref={hostRef} style={{ display: 'contents' }}>
+      <ScheduleXCalendar calendarApp={calendar} customComponents={SX_CUSTOM_COMPONENTS} />
+    </div>
+  );
 }
 
 export default function ScheduleXBoard({

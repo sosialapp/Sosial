@@ -1427,20 +1427,31 @@ body {
   box-shadow: 0 1px 2px rgba(20, 18, 14, 0.04), 0 12px 32px -24px rgba(20, 18, 14, 0.22);
 }
 
-/* Week/day grid: the whole Mon–Sun header band reads yellowish so the
- * week strip is visible at a glance; today keeps the stronger day-name. */
+/* Week/day grid: today's column header reads yellowish so the current
+ * day is visible at a glance. */
 .sx-react-calendar-wrapper .sx__week-grid__date-axis {
   border-bottom: 1px solid var(--color-line);
   background: var(--color-paper-dim);
-}
-.sx-react-calendar-wrapper .sx__week-grid__date {
-  background: var(--color-accent-soft);
 }
 .sx-react-calendar-wrapper .sx__week-grid__date--is-today {
   background: var(--color-accent-soft);
 }
 .sx-react-calendar-wrapper .sx__week-grid__date--is-today .sx__week-grid__day-name {
   color: var(--color-bolt-deep);
+}
+/* Current-hour row wash: SXMount exposes --sx-now-hour / --sx-day-hours
+ * and toggles .sx-show-now-hour while today is in view. Each day column
+ * and the time axis paint the same band, so the hour reads as one
+ * horizontal strip across the whole grid. */
+.sx-react-calendar-wrapper.sx-show-now-hour .sx__time-grid-day,
+.sx-react-calendar-wrapper.sx-show-now-hour .sx__week-grid__time-axis {
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(var(--sx-now-hour, 0) / var(--sx-day-hours, 24) * 100%),
+    var(--color-accent-soft) calc(var(--sx-now-hour, 0) / var(--sx-day-hours, 24) * 100%),
+    var(--color-accent-soft) calc((var(--sx-now-hour, 0) + 1) / var(--sx-day-hours, 24) * 100%),
+    transparent calc((var(--sx-now-hour, 0) + 1) / var(--sx-day-hours, 24) * 100%)
+  );
 }
 /* Now-line: brand instead of the library's pure red, with a soft glow dot. */
 .sx-react-calendar-wrapper .sx__current-time-indicator {
