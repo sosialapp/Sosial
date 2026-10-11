@@ -542,18 +542,26 @@ export default function StudioCanvas({
               style={{
                 display: 'flex', flexDirection: 'column', gap: pad(10),
                 flexShrink: page.cardAuto ? 1 : 0,
-                marginTop: groupY === 'top' ? undefined : 'auto',
-                marginBottom: groupY === 'bottom' ? undefined : 'auto',
+                marginTop: groupY === 'top' || groupY === 'fill' ? undefined : 'auto',
+                marginBottom: groupY === 'bottom' || groupY === 'fill' ? undefined : 'auto',
               }}
             >
               {stickToCard && pfpOnTop ? pfpRow : null}
               {titleOnTop ? titleBlock : null}
               {page.cardH ? (
-                <div style={{ height: pad(page.cardH) }}>
-                  <Chrome c={c} k={k} watermark={wm}>
-                    {blocks}
-                  </Chrome>
-                </div>
+                groupY === 'fill' ? (
+                  <div style={{ flex: 1, minHeight: pad(page.cardH) }}>
+                    <Chrome c={c} k={k} watermark={wm}>
+                      {blocks}
+                    </Chrome>
+                  </div>
+                ) : (
+                  <div style={{ height: pad(page.cardH) }}>
+                    <Chrome c={c} k={k} watermark={wm}>
+                      {blocks}
+                    </Chrome>
+                  </div>
+                )
               ) : (
                 <Chrome c={c} k={k} fit maxH={cardMax} watermark={wm}>
                   {blocks}

@@ -241,15 +241,24 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           {(page.cardH || page.cardAuto) ? (
             <>
               {!stickToCard && pfpOnTop ? pfpRow : null}
-              <View style={{ gap: pad(10), flexShrink: page.cardAuto ? 1 : 0, marginTop: groupY === 'top' ? undefined : 'auto', marginBottom: groupY === 'bottom' ? undefined : 'auto' }}>
+              <View style={{ gap: pad(10), flexShrink: page.cardAuto ? 1 : 0, marginTop: groupY === 'top' || groupY === 'fill' ? undefined : 'auto', marginBottom: groupY === 'bottom' || groupY === 'fill' ? undefined : 'auto' }}>
                 {stickToCard && pfpOnTop ? pfpRow : null}
                 {titleOnTop ? titleBlock : null}
                 {page.cardH ? (
-                  <View style={{ height: pad(page.cardH) }}>
-                    <SocialCardChrome page={page} pad={pad} watermark={watermark}>
-                      {blocks}
-                    </SocialCardChrome>
-                  </View>
+                  groupY === 'fill' ? (
+                    /* fill: extend below the title, cardH is the floor */
+                    <View style={{ flex: 1, minHeight: pad(page.cardH) }}>
+                      <SocialCardChrome page={page} pad={pad} watermark={watermark}>
+                        {blocks}
+                      </SocialCardChrome>
+                    </View>
+                  ) : (
+                    <View style={{ height: pad(page.cardH) }}>
+                      <SocialCardChrome page={page} pad={pad} watermark={watermark}>
+                        {blocks}
+                      </SocialCardChrome>
+                    </View>
+                  )
                 ) : (
                   /* auto height — hugs content, capped so it can never spill off the canvas */
                   <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark}>

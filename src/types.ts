@@ -137,7 +137,7 @@ export interface PostPage {
   cardColor?: string; // content card background
   cardH?: number | null; // fixed card height px, null = auto fill
   cardAuto?: boolean; // card hugs its content — height grows/shrinks with the blocks
-  cardY?: 'top' | 'middle' | 'bottom'; // card placement in free space (fixed height)
+  cardY?: 'top' | 'middle' | 'bottom' | 'fill'; // card placement in free space (fixed height); 'fill' extends below the title
   stickToCard?: boolean; // pfp+socials group attaches to the card and follows it
   contentScale?: number; // content text zoom, 1 = 100%
   verified?: boolean; // show verified check after handle in card chrome

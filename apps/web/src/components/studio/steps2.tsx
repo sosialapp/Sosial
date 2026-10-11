@@ -333,17 +333,17 @@ export function ContentStep({ page, patchPage }: Pick<StepApi, 'page' | 'patchPa
               <Seg
                 options={[{ value: 'auto', label: 'Auto fill' }, { value: 'fixed', label: 'Fixed' }]}
                 value={page.cardH ? 'fixed' : 'auto'}
-                onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null })}
+                onChange={(v) => patchPage({ cardH: v === 'fixed' ? (page.cardH ?? 300) : null, cardY: v === 'fixed' ? (page.cardY ?? 'fill') : page.cardY })}
               />
             </Field>
             {page.cardH ? (
               <>
                 <Stepper value={page.cardH} onChange={(v) => patchPage({ cardH: v })} step={20} min={120} max={640} format={(v) => `${v}px`} />
-                <Field label="Card position">
+                <Field label="Card position" hint="Fill = extend below the title.">
                   <Seg
-                    options={[{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]}
-                    value={page.cardY ?? 'bottom'}
-                    onChange={(v) => patchPage({ cardY: v as 'top' | 'middle' | 'bottom' })}
+                    options={[{ value: 'fill', label: 'Fill' }, { value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }]}
+                    value={page.cardY ?? 'fill'}
+                    onChange={(v) => patchPage({ cardY: v as 'top' | 'middle' | 'bottom' | 'fill' })}
                   />
                 </Field>
               </>

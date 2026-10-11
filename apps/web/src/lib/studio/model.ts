@@ -222,7 +222,9 @@ export interface PostPage {
   cardColor?: string;
   cardH?: number | null;
   cardAuto?: boolean;
-  cardY?: 'top' | 'middle' | 'bottom';
+  /** Fixed-height card placement. 'fill' extends the card to eat the free
+   *  space below the title (cardH acts as the minimum). */
+  cardY?: 'top' | 'middle' | 'bottom' | 'fill';
   stickToCard?: boolean;
   contentScale?: number;
   verified?: boolean;
