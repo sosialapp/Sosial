@@ -106,7 +106,6 @@ function RailPanel({
   onTplKind,
   captions,
   designs,
-  starterDesigns,
   onUseCaption,
   onUseDesign,
   designBusy,
@@ -121,7 +120,6 @@ function RailPanel({
   onTplKind: (k: 'text' | 'design') => void;
   captions: { id: string; name: string; title: string; body: string }[];
   designs: StudioProject[];
-  starterDesigns: StudioProject[];
   onUseCaption: (t: { title: string; body: string }) => void;
   onUseDesign: (project: StudioProject, pageIndex: number, node: HTMLElement | null) => void;
   designBusy: string | null;
@@ -191,30 +189,18 @@ function RailPanel({
                 ))}
               </div>
             )
-          ) : designs.length + starterDesigns.length === 0 ? (
+          ) : designs.length === 0 ? (
             <p className="text-sm text-muted">No designs yet — make one on the Templates tab.</p>
           ) : (
             <div className="max-h-[480px] space-y-5 overflow-y-auto pb-1">
-              {starterDesigns.length > 0 ? (
-                <div>
-                  <p className="eyebrow mb-2">Starter templates</p>
-                  <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
-                    {starterDesigns.map((d) => (
-                      <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
-                    ))}
-                  </div>
+              <div>
+                <p className="eyebrow mb-2">Your templates</p>
+                <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
+                  {designs.map((d) => (
+                    <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
+                  ))}
                 </div>
-              ) : null}
-              {designs.length > 0 ? (
-                <div>
-                  <p className="eyebrow mb-2">Your templates</p>
-                  <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
-                    {designs.map((d) => (
-                      <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              </div>
             </div>
           )}
         </div>
@@ -294,7 +280,6 @@ export default function CreatePost({
   onEdited,
   libraryCaptions = [],
   libraryDesigns = [],
-  libraryStarterDesigns = [],
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
@@ -320,7 +305,6 @@ export default function CreatePost({
   /** Library for the rail Template tab (passed from the hub — no duplication). */
   libraryCaptions?: { id: string; name: string; title: string; body: string }[];
   libraryDesigns?: StudioProject[];
-  libraryStarterDesigns?: StudioProject[];
 }) {
   const router = useRouter();
   const ready = useMemo(() => channels.filter((c) => c.status === 'connected'), [channels]);
@@ -1284,7 +1268,6 @@ export default function CreatePost({
             onTplKind={setTplKind}
             captions={libraryCaptions}
             designs={libraryDesigns}
-            starterDesigns={libraryStarterDesigns}
             onUseCaption={useRailCaption}
             onUseDesign={useRailDesign}
             designBusy={designBusy}

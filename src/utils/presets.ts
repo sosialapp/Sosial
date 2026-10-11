@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BackgroundStyle, PostPage, QuickPost, SocialLink, SocialPlatform } from '../types';
+import { BackgroundStyle, QuickPost } from '../types';
 import { uid } from '../constants';
 import { pushLibraryItem, tombstoneLibraryItem, pullLibraryRows } from './librarySync';
 
@@ -240,150 +240,32 @@ export async function syncTemplates(): Promise<{ native: ProjectPreset[]; foreig
   return { native: nextNative, foreign: nextForeign };
 }
 
-/* ---------------- Starter templates (prebuilt, offline-safe) ---------------- */
+/* ---------------- Starter templates: removed ---------------- */
 
-const SEED_KEY = 'quickpost_seeded_starter_templates_v2';
-/** v1 seeds replaced by the web-parity starters below. */
-const V1_IDS = ['starter-quote-v1', 'starter-sale-v1', 'starter-news-v1'];
-
-/** Default pfp config (matches the editor's blank page). */
-function seedPfp(): PostPage['pfp'] {
-  return {
-    pfpY: 'bottom',
-    size: 40,
-    shape: 'circle',
-    socialPos: 'right',
-    badgeBg: true,
-    badgeRows: 1,
-    handleColor: '#FFFFFF',
-    handleSize: 7.5,
-    iconSize: 24,
-    iconOutline: false,
-    socialGap: 6,
-    align: 'center',
-    borderW: 0,
-    username: '',
-  };
-}
-
-function seedSocial(platform: SocialPlatform, handle: string): SocialLink {
-  return { id: uid('s'), platform, handle, visible: true, font: 'jakarta', bold: true, italic: false };
-}
+const SEED_PURGE_KEY = 'quickpost_purged_starter_templates_v1';
+/** Built-in seeds shipped by older versions — deleted on next load. */
+const STARTER_IDS = [
+  'starter-launch-v2', 'starter-quote-v2', 'starter-promo-v2',
+  'starter-quote-v1', 'starter-sale-v1', 'starter-news-v1',
+];
 
 /**
- * Starter designs — mirrored from the web app's starterProjects()
- * (apps/web/src/components/CreateHub.tsx). Keep the three in sync:
- * same sizes, backgrounds, typography, blocks, socials and captions.
+ * One-time cleanup: drop built-in starter templates that earlier versions
+ * seeded, then clear the old seed markers so they never come back.
  */
-function starterLaunch(): PostPage {
-  return {
-    id: uid('page'),
-    background: { type: 'dots', color: '#111111', patternColor: '#FFE45E', patternSize: 26, patternOpacity: 0.5, mixEnabled: false },
-    title: {
-      text: 'It’s live.', position: 'top', color: '#FFFFFF', size: 40,
-      align: 'left', font: 'jakarta', bold: true, italic: false,
-      subtitle: 'Everything you asked for, in one place.', subtitleSize: 15, subtitleColor: '#F5F1E8',
-    },
-    pfp: seedPfp(),
-    socials: [seedSocial('instagram', '@yourhandle')],
-    blocks: [
-      { id: uid('b'), type: 'bullets', heading: 'What’s new', items: ['Faster than ever', 'Works everywhere', 'Free to try'], textColor: '#111111' },
-    ],
-    font: 'jakarta',
-    cardStyle: 'minimal',
-    cardColor: '#FFFFFFF2',
-    showWatermark: true,
-    caption: 'Big news, it’s live! #launch #newdrop',
-  };
-}
-
-function starterQuote(): PostPage {
-  return {
-    id: uid('page'),
-    background: { type: 'solid', color: '#F5F1E8', patternColor: '#111111', patternSize: 22, patternOpacity: 0.12, mixEnabled: false },
-    title: {
-      text: '“Show up every day.”', position: 'top', color: '#111111', size: 36,
-      align: 'center', font: 'playfair', bold: true, italic: false,
-      subtitle: 'Consistency beats intensity.', subtitleSize: 15, subtitleColor: '#57534E',
-    },
-    pfp: { ...seedPfp(), hidden: true },
-    socials: [],
-    blocks: [],
-    font: 'jakarta',
-    cardStyle: 'minimal',
-    cardColor: '#FFFFFFF2',
-    showWatermark: true,
-    caption: '',
-  };
-}
-
-function starterPromo(): PostPage {
-  return {
-    id: uid('page'),
-    background: { type: 'stripes', color: '#7C2D12', patternColor: '#F97316', patternSize: 30, patternOpacity: 0.5, mixEnabled: false },
-    title: {
-      text: '20% off ends Sunday', position: 'top', color: '#FFFFFF', size: 38,
-      align: 'left', font: 'jakarta', bold: true, italic: false,
-      subtitle: '', subtitleSize: 15,
-    },
-    pfp: seedPfp(),
-    socials: [seedSocial('tiktok', '@yourhandle')],
-    blocks: [
-      { id: uid('b'), type: 'table', heading: 'Plans', items: [], table: [['Plan', 'Monthly', 'Yearly'], ['Solo', '$12', '$120'], ['Team', '$29', '$290']], textColor: '#111111' },
-    ],
-    font: 'jakarta',
-    cardStyle: 'minimal',
-    cardColor: '#FFFFFFF2',
-    showWatermark: true,
-    caption: 'One weekend only. #sale #promo',
-  };
-}
-
-function starterPost(name: string, sizeId: QuickPost['sizeId'], page: PostPage): QuickPost {
-  return { id: uid('post'), name, sizeId, font: 'jakarta', createdAt: Date.now(), pages: [page] };
-}
-
-/**
- * First-run seed: three ready-made designs (web parity) so the Templates
- * page is never bare. v2 replaces the old pastel seeds; deleting a starter
- * never brings it back.
- */
-export async function seedStarterTemplates(): Promise<ProjectPreset[]> {
+export async function purgeStarterTemplates(): Promise<ProjectPreset[]> {
+  const raw = await AsyncStorage.getItem(PROJECT_KEY);
+  const list: ProjectPreset[] = raw ? JSON.parse(raw) : [];
+  if (await AsyncStorage.getItem(SEED_PURGE_KEY)) return list;
+  const next = list.filter((x) => !(x.builtIn && STARTER_IDS.includes(x.id)));
   try {
-    const raw = await AsyncStorage.getItem(PROJECT_KEY);
-    let list: ProjectPreset[] = raw ? JSON.parse(raw) : [];
-    const done = await AsyncStorage.getItem(SEED_KEY);
-    if (done) return list;
-    const has = (id: string) => list.some((x) => x.id === id);
-    // v1 seeds are superseded — swap them out for the web-parity set.
-    list = list.filter((x) => !(x.builtIn && V1_IDS.includes(x.id)));
-    const seeds: ProjectPreset[] = [];
-    const now = Date.now();
-    if (!has('starter-launch-v2')) {
-      seeds.push({
-        id: 'starter-launch-v2', name: 'Launch card', builtIn: true, createdAt: now,
-        post: starterPost('Launch card', 'portrait', starterLaunch()),
-      });
-    }
-    if (!has('starter-quote-v2')) {
-      seeds.push({
-        id: 'starter-quote-v2', name: 'Quote card', builtIn: true, createdAt: now,
-        post: starterPost('Quote card', 'square', starterQuote()),
-      });
-    }
-    if (!has('starter-promo-v2')) {
-      seeds.push({
-        id: 'starter-promo-v2', name: 'Promo card', builtIn: true, createdAt: now,
-        post: starterPost('Promo card', 'story', starterPromo()),
-      });
-    }
-    const next = [...list, ...seeds];
     await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(next));
-    await AsyncStorage.setItem(SEED_KEY, '1');
-    return next;
+    await AsyncStorage.removeItem('quickpost_seeded_starter_templates_v2');
+    await AsyncStorage.setItem(SEED_PURGE_KEY, '1');
   } catch {
-    return [];
+    /* private mode — nothing persists anyway */
   }
+  return next;
 }
 
 /** Instantiate a preset as a fresh editable project. */

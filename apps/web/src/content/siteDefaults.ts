@@ -207,11 +207,11 @@ function featuresCreateBlocks(): B[] {
     { t: 'h', c: 'Templates — your greatest hits, reusable.' },
     {
       t: 'p',
-      c: 'Starter templates cover launches, roundups and founder stories, and your own best posts become templates too. A proven structure beats a blank page every time.',
+      c: 'Save any post as a template and reuse the structure next time. Your best-performing formats become the starting point for the next one, so you never build the same thing twice.',
     },
     {
       t: 'ul',
-      c: ['Starter templates for common post shapes', 'Save your own winners as templates', 'Pair with the caption-formulas cheat sheet'],
+      c: ['Save your own winners as templates', 'Reuse captions and full designs', 'Pair with the caption-formulas cheat sheet'],
     },
     { t: 'h', c: 'Media — photos and video that fit each feed.' },
     {
@@ -226,7 +226,7 @@ function featuresCreateBlocks(): B[] {
       { q: 'Do I have to rewrite my caption for each channel?', a: 'No. You write once; the composer adapts with per-channel previews and counters, and trims where a limit demands it.' },
       { q: 'Which media types can I attach?', a: 'Up to four images or a video per post, plus topical photos and AI-generated covers. Each channel page lists exactly what its network accepts.' },
       { q: 'Can I edit a post after scheduling it?', a: 'Yes. Edit the caption, swap media or move the slot any time before it ships.' },
-      { q: 'What templates are included?', a: 'Starters for launches, roundups, founder stories and more, plus your own saved templates from posts that performed.' },
+      { q: 'What templates are included?', a: 'Save any caption or full design as a template and reuse it any time. Your own saved templates from posts that performed are always there.' },
     ]),
   ];
 }

@@ -88,7 +88,7 @@ const PLUS_OPTIONS = [
   {
     href: '/post-templates',
     label: 'From template',
-    desc: 'Start from a starter',
+    desc: 'Reuse a saved design',
     icon: <LayoutGrid className="h-4 w-4" aria-hidden="true" />,
   },
 ];

@@ -73,10 +73,10 @@ export default async function CreatePage() {
           {
             eyebrow: 'Templates',
             title: 'Your greatest hits, reusable.',
-            body: 'Starter templates cover launches, roundups and founder stories, and your own best posts become templates too. A proven structure beats a blank page every time.',
+            body: 'Save any post as a template and reuse the structure next time. Your best-performing formats become the starting point for the next one, so you never build the same thing twice.',
             points: [
-              'Starter templates for common post shapes',
               'Save your own winners as templates',
+              'Reuse captions and full designs',
               'Pair with the caption-formulas cheat sheet',
             ],
           },
@@ -109,7 +109,7 @@ export default async function CreatePage() {
           },
           {
             q: 'What templates are included?',
-            a: 'Starters for launches, roundups, founder stories and more, plus your own saved templates from posts that performed.',
+            a: 'Save any caption or full design as a template and reuse it any time. Your own saved templates from posts that performed are always there.',
           },
         ]}
       />

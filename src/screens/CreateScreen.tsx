@@ -22,7 +22,7 @@ import { MediaAttachment, ManagedPost, ThreadSegmentMedia, THREAD_MEDIA_MAX } fr
 import { joinThread } from '../utils/thread';
 import { SocialResult, fetchCoverImage } from '../utils/ai/social';
 import { deleteProjectPreset, instantiatePreset, renameProjectPreset,
-saveProjectPreset, seedStarterTemplates, loadProjectPresets, loadForeignTemplates,
+saveProjectPreset, purgeStarterTemplates, loadProjectPresets, loadForeignTemplates,
 deleteForeignTemplate, syncTemplates, ProjectPreset, ForeignTemplate } from '../utils/presets';
 import PostCanvas, { CANVAS_W } from '../components/PostCanvas';
 import { POST_SIZES } from '../constants';
@@ -79,9 +79,6 @@ function MediaThumb({ media }: { media: MediaAttachment }) {
 
 /** Masonry column width the miniature canvases lay out against. */
 const TPL_COL_W = (Dimensions.get('window').width - 48 - 12) / 2;
-/** Fixed tile width for the built-in templates slider. */
-const TPL_SLIDE_W = 168;
-
 /**
  * The saved design itself, truly previewed: a miniature of the real canvas
  * (backdrop, title, blocks, chrome — exactly what export produces). Name +
@@ -295,8 +292,8 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
   const reload = () => {
     syncIdeas().then(setIdeas).catch(() => loadIdeas().then(setIdeas));
     loadProjects().then(setProjects);
-    // Seed built-ins first (first run only), then converge with the cloud.
-    seedStarterTemplates()
+    // Purge legacy built-in starters first, then converge with the cloud.
+    purgeStarterTemplates()
       .then(() => syncTemplates())
       .then(({ native, foreign }) => {
         setPresets(native);
@@ -678,30 +675,6 @@ export default function CreateScreen({ email, team, onProfile, onConnect, onTemp
               <Text style={s.tplCtaT}>+ New template design</Text>
               <Ionicons name="arrow-forward" size={18} color={C.onInk} />
             </TouchableOpacity>
-            {presets.filter((t) => t.builtIn).length ? (
-              <>
-                <Text style={[s.secT, { marginTop: 18 }]}>Starter templates</Text>
-                <View style={{ marginHorizontal: -24, marginTop: 12 }}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 12, paddingHorizontal: 24 }}
-                  >
-                    {presets.filter((t) => t.builtIn).map((tpl) => (
-                      <TplPost
-                        key={tpl.id}
-                        post={tpl.post}
-                        kind="Template"
-                        builtIn
-                        width={TPL_SLIDE_W}
-                        onOpen={() => handleUsePreset(tpl)}
-                        onMenu={() => setMenu({ kind: 'preset', tpl })}
-                      />
-                    ))}
-                  </ScrollView>
-                </View>
-              </>
-            ) : null}
             {presets.filter((t) => !t.builtIn).length ? (
               <>
                 <Text style={[s.secT, { marginTop: 26 }]}>Your templates</Text>

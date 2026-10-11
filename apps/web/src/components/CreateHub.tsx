@@ -15,9 +15,7 @@ import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { watermarkBlob } from '@/lib/studio/watermarkClient';
 import {
   POST_SIZES,
-  blankPage,
   blankProject,
-  uid,
   type StudioProject,
 } from '@/lib/studio/model';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets, WorkspaceInfo } from '@/lib/types';
@@ -91,98 +89,6 @@ const ideasKey = (workspaceId: string) => `sosial-ideas-${workspaceId}`;
 const templatesKey = (workspaceId: string) => `sosial-templates-${workspaceId}`;
 const projectsKey = (workspaceId: string) => `sosial-studio-v2-${workspaceId}`;
 const recentKey = (workspaceId: string) => `sosial-studio-recent-${workspaceId}`;
-
-/** Starter studio projects — real multi-block designs, not mockups. */
-function starterProjects(): StudioProject[] {
-  const launch = blankProject('Launch card');
-  launch.sizeId = 'portrait';
-  launch.pages = [
-    {
-      ...blankPage(),
-      background: { ...blankPage().background, type: 'dots', color: '#111111', patternColor: '#FFE45E', patternSize: 26, patternOpacity: 0.5, mixEnabled: false },
-      title: { text: 'It’s live.', position: 'top', color: '#FFFFFF', size: 40, align: 'left', font: 'jakarta', bold: true, italic: false, subtitle: 'Everything you asked for, in one place.', subtitleSize: 15, subtitleColor: '#F5F1E8' },
-      blocks: [
-        { id: uid('b'), type: 'bullets', heading: 'What’s new', items: ['Faster than ever', 'Works everywhere', 'Free to try'], textColor: '#111111' },
-      ],
-      cardColor: '#FFFFFFF2',
-      socials: [{ id: uid('s'), platform: 'instagram', handle: '@yourhandle', visible: true, font: 'jakarta', bold: true, italic: false }],
-      caption: 'Big news, it’s live! #launch #newdrop',
-    },
-  ];
-  const quote = blankProject('Quote card');
-  quote.sizeId = 'square';
-  quote.pages = [
-    {
-      ...blankPage(),
-      background: { ...blankPage().background, type: 'solid', color: '#F5F1E8', patternColor: '#111111', patternSize: 22, patternOpacity: 0.12, mixEnabled: false },
-      title: { text: '“Show up every day.”', position: 'top', color: '#111111', size: 36, align: 'center', font: 'playfair', bold: true, italic: false, subtitle: 'Consistency beats intensity.', subtitleSize: 15, subtitleColor: '#57534E' },
-      blocks: [],
-      pfp: { ...blankPage().pfp, hidden: true },
-      socials: [],
-      cardColor: '#FFFFFFF2',
-    },
-  ];
-  const promo = blankProject('Promo card');
-  promo.sizeId = 'story';
-  promo.pages = [
-    {
-      ...blankPage(),
-      background: { ...blankPage().background, type: 'stripes', color: '#7C2D12', patternColor: '#F97316', patternSize: 30, patternOpacity: 0.5, mixEnabled: false },
-      title: { text: '20% off ends Sunday', position: 'top', color: '#FFFFFF', size: 38, align: 'left', font: 'jakarta', bold: true, italic: false, subtitle: '', subtitleSize: 15 },
-      blocks: [
-        { id: uid('b'), type: 'table', heading: 'Plans', items: [], table: [['Plan', 'Monthly', 'Yearly'], ['Solo', '$12', '$120'], ['Team', '$29', '$290']], textColor: '#111111' },
-      ],
-      cardColor: '#FFFFFFF2',
-      socials: [{ id: uid('s'), platform: 'tiktok', handle: '@yourhandle', visible: true, font: 'jakarta', bold: true, italic: false }],
-      caption: 'One weekend only. #sale #promo',
-    },
-  ];
-  return [launch, quote, promo];
-}
-
-/** Starter caption templates — one tap into the composer. */
-const STARTERS: Template[] = [
-  {
-    id: 'starter-launch',
-    name: 'Product launch',
-    title: 'We just launched something new',
-    body: 'Big news, it’s live! Here’s what’s new and why you’ll love it.\n\n#launch #newdrop',
-    createdAt: 0,
-    builtIn: true,
-  },
-  {
-    id: 'starter-promo',
-    name: 'Sale / promo',
-    title: 'Sale is on. Don’t miss out',
-    body: 'For a limited time: get 20% off everything. Tap the link to shop before it ends.\n\n#sale #promo',
-    createdAt: 0,
-    builtIn: true,
-  },
-  {
-    id: 'starter-bts',
-    name: 'Behind the scenes',
-    title: 'A peek behind the curtain',
-    body: 'Here’s what we’ve been working on this week: the messy middle nobody usually sees.\n\n#behindthescenes #buildinpublic',
-    createdAt: 0,
-    builtIn: true,
-  },
-  {
-    id: 'starter-event',
-    name: 'Event reminder',
-    title: 'Reminder: we go live soon',
-    body: 'Don’t forget: we’re live this Friday at 6pm. Set a reminder and bring your questions.\n\n#live #event',
-    createdAt: 0,
-    builtIn: true,
-  },
-  {
-    id: 'starter-quote',
-    name: 'Quote card',
-    title: 'Quote of the week',
-    body: '“Show up every day. The algorithm rewards consistency.”\n\n#motivation #quote',
-    createdAt: 0,
-    builtIn: true,
-  },
-];
 
 function readList<T>(key: string): T[] {
   try {
@@ -965,9 +871,8 @@ export default function CreateHub({
             initialMediaParts={draftEdit?.mediaParts}
             editingIds={draftEdit?.postIds}
             onEdited={() => setDraftEdit(null)}
-            libraryCaptions={[...templates, ...STARTERS]}
+            libraryCaptions={templates}
             libraryDesigns={projects}
-            libraryStarterDesigns={starterProjects()}
           />
         </div>
       ) : view === 'ideas' ? (
@@ -1189,20 +1094,6 @@ export default function CreateHub({
             + New template design
           </button>
 
-          {/* Starter templates — horizontal rail of live canvas miniatures. */}
-          <p className="eyebrow pt-1">Starter templates</p>
-          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            {starterProjects().map((s) => (
-              <StarterTile
-                key={s.id}
-                project={s}
-                busy={renderingKey === s.id}
-                onOpen={() => setEditing(structuredClone(s))}
-                onUse={(node) => useStudioPage(s, 0, node, s.id)}
-              />
-            ))}
-          </div>
-
           {/* Your templates — two-column masonry with ••• menus. */}
           {projects.length > 0 ? (
             <>
@@ -1258,24 +1149,28 @@ export default function CreateHub({
             </>
           ) : null}
 
-          {/* Caption starters — collapsed, secondary to the canvas library. */}
+          {/* Save your own caption templates. */}
           <details className="card p-4 sm:p-5">
             <summary className="cursor-pointer list-none font-display text-sm font-extrabold [&::-webkit-details-marker]:hidden">
-              Caption starters <span aria-hidden="true" className="text-faint">·</span>{' '}
+              Caption templates <span aria-hidden="true" className="text-faint">·</span>{' '}
               <span className="text-xs font-medium text-muted">tap to browse</span>
             </summary>
             <div className="mt-4 space-y-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {STARTERS.map((s) => (
-                  <article key={s.id} className="rounded-2xl border border-line bg-paper p-3.5">
-                    <p className="truncate text-sm font-bold">{s.name}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-soft">{s.body}</p>
-                    <button type="button" onClick={() => useIntoComposer(s)} className="btn btn-ghost mt-2.5 w-full !py-1.5 !text-xs">
-                      Use caption
-                    </button>
-                  </article>
-                ))}
-              </div>
+              {templates.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {templates.map((s) => (
+                    <article key={s.id} className="rounded-2xl border border-line bg-paper p-3.5">
+                      <p className="truncate text-sm font-bold">{s.name}</p>
+                      <p className="mt-1 line-clamp-2 text-xs text-soft">{s.body}</p>
+                      <button type="button" onClick={() => useIntoComposer(s)} className="btn btn-ghost mt-2.5 w-full !py-1.5 !text-xs">
+                        Use caption
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted">No caption templates yet — save one below.</p>
+              )}
               <div className="space-y-2 rounded-2xl border border-line bg-paper p-3.5">
                 <p className="eyebrow">Save your own</p>
                 <input
@@ -1391,58 +1286,6 @@ export default function CreateHub({
         </div>
       )}
     </div>
-  );
-}
-
-/** Starter rail tile — fixed width, live miniature. Tap to open it in the canvas editor. */
-function StarterTile({
-  project,
-  busy,
-  onOpen,
-  onUse,
-}: {
-  project: StudioProject;
-  busy: boolean;
-  onOpen: () => void;
-  onUse: (node: HTMLElement | null) => void;
-}) {
-  const { ref, width } = useBoxWidth(190);
-  const nodeRef = useRef<HTMLDivElement>(null);
-  const page = project.pages[0];
-  if (!page) return null;
-  return (
-    <article className="w-[190px] shrink-0 snap-start">
-      <button type="button" onClick={onOpen} className="block w-full text-left" aria-label={`Edit ${project.name}`}>
-        <div ref={nodeRef} className="relative">
-          <div ref={ref}>
-            <StudioCanvas page={page} ratio={ratioOf(project)} width={width} frame={false} />
-          </div>
-          <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-white">
-            STARTER
-          </span>
-          {busy ? (
-            <span className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/35 text-xs font-bold text-white">
-              Rendering…
-            </span>
-          ) : null}
-        </div>
-      </button>
-      <div className="mt-2 flex items-start gap-2 px-0.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">{project.name}</p>
-          <p className="truncate text-xs text-muted">Template · {project.pages.length} page{project.pages.length === 1 ? '' : 's'}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => onUse(nodeRef.current)}
-          disabled={busy}
-          className="btn btn-primary shrink-0 !px-3 !py-1.5 !text-xs"
-          aria-label={`Use ${project.name} in a post`}
-        >
-          {busy ? '…' : 'Use'}
-        </button>
-      </div>
-    </article>
   );
 }
 
