@@ -1448,16 +1448,6 @@ body {
   background-color: var(--color-bolt-deep);
   box-shadow: 0 0 0 2px var(--color-card);
 }
-/* Current-hour gutter box: the library draws the now-line but marks no
- * hour row, so SXMount tags it (sx-hour-now) and the label becomes a bolt
- * pill — same language as the month-view today disc. */
-.sx-react-calendar-wrapper .sx__week-grid__time-axis .sx__week-grid__hour.sx-hour-now .sx__week-grid__hour-text {
-  background-color: var(--color-bolt);
-  color: var(--color-on-accent);
-  border-radius: 999px;
-  padding: 1px 7px;
-  font-weight: 800;
-}
 /* Month view: today's date gets the bolt disc, matching the week header. */
 .sx-react-calendar-wrapper .sx__month-grid-day__header-date.sx__is-today {
   background: var(--color-bolt);

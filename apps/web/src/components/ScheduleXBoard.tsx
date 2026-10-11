@@ -197,23 +197,6 @@ function initialScrollForNow(): string {
   return `${String(h).padStart(2, '0')}:00`;
 }
 
-/** True while today falls inside the viewed span — the hour gutter only
- *  means "now" then, so the current-hour highlight stays off elsewhere. */
-function todayInView(view: 'day' | 'week' | 'month', anchorKey: string): boolean {
-  const today = dayKey(new Date());
-  if (view === 'day') return anchorKey === today;
-  if (view !== 'week') return false;
-  // Monday-first week containing the anchor (matches firstDayOfWeek: 1).
-  const [y, m, d] = anchorKey.split('-').map(Number);
-  if (!y || !m || !d) return false;
-  const a = new Date(y, m - 1, d);
-  const mon = new Date(a);
-  mon.setDate(a.getDate() - ((a.getDay() + 6) % 7));
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-  return today >= dayKey(mon) && today <= dayKey(sun);
-}
-
 /** Event media at its natural ratio: image, or muted preview for video. */
 function eventMedia(t: { id: string; kind: string; src: string }, cls: string) {
   const shared = `${cls} rounded-lg border border-black/5 bg-black/5 object-contain`;
@@ -691,35 +674,10 @@ function SXMount({
     if (state?.isDark) state.isDark.value = dark;
   }, [calendar, dark]);
 
-  // Highlight the current hour's gutter box. The library draws the now-line
-  // but marks no hour row, so tag row [getHours()] on render + every minute.
-  // The axis never re-renders on date steps (hours are static), and month
-  // view has no axis at all — the query just finds nothing there.
-  const hostRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!calendar) return;
-    const paint = () => {
-      const host = hostRef.current;
-      if (!host) return;
-      const rows = host.querySelectorAll('.sx__week-grid__time-axis .sx__week-grid__hour');
-      rows.forEach((r) => r.classList.remove('sx-hour-now'));
-      if (!todayInView(view, anchorKey)) return;
-      const row = rows[new Date().getHours()];
-      if (row) row.classList.add('sx-hour-now');
-    };
-    paint();
-    const t = window.setInterval(paint, 60_000);
-    return () => window.clearInterval(t);
-  }, [calendar, view, anchorKey]);
-
   if (!calendar) {
     return <div className="h-full min-h-[480px] animate-pulse rounded-2xl bg-paper-dim" />;
   }
-  return (
-    <div ref={hostRef} style={{ display: 'contents' }}>
-      <ScheduleXCalendar calendarApp={calendar} customComponents={SX_CUSTOM_COMPONENTS} />
-    </div>
-  );
+  return <ScheduleXCalendar calendarApp={calendar} customComponents={SX_CUSTOM_COMPONENTS} />;
 }
 
 export default function ScheduleXBoard({
