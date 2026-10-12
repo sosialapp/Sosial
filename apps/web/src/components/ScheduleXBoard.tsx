@@ -571,6 +571,8 @@ function SentPostView({
                 muted
                 playsInline
                 controls
+                preload="metadata"
+                poster={m.thumb_url ?? undefined}
                 className="h-auto max-h-[220px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
               />
             ) : m.signed_url || m.thumb_url ? (

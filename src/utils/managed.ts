@@ -144,6 +144,10 @@ export interface ManagedPost {
   updatedAt?: number;
   status?: PostStatus;
   sentAt?: number;
+  /** Fingerprint of the cloud row this local copy was pulled from (body +
+   *  media asset ids). When it matches the fresh cloud row, the pull skips
+   *  re-downloading every attachment — the single biggest sync egress cost. */
+  cloudSig?: string;
   /** per-channel remote ids returned at publish time (post/media/tweet/video id
    *  or at:// URI) — powers the per-post analytics in the Sent view.
    *  ALSO the duplicate guard: a channel recorded here is never reposted. */

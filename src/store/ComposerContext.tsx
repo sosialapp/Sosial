@@ -1519,12 +1519,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   );
 
   // Back-sync worker verdicts FIRST, then publish due posts (launch, foreground,
-  // 60s tick). Ordering matters: the worker publishes when the app is closed,
-  // so its verdicts must land before the local pass reads the rows — otherwise
+  // 5-min tick). Ordering matters: the worker publishes when the app is closed,
+  // so its verdicts must land before the local pass reads the rows - otherwise
   // the sweep republishes what the worker already posted. Bump only when
   // something actually flipped.
   // Full convergence (push unsynced locals + adopt web posts) runs on launch
-  // and foreground — never on the 60s tick, where media re-uploads would burn
+  // and foreground - never on the tick, where media re-uploads would burn
   // bandwidth forever. This is what keeps the phone and the web identical.
   useEffect(() => {
     const sweep = (full: boolean) => {
@@ -1545,7 +1545,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'active') void sweep(true);
     });
-    const timer = setInterval(() => sweep(false), 60000);
+    const timer = setInterval(() => sweep(false), 300000);
     return () => {
       sub.remove();
       clearInterval(timer);

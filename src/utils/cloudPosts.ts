@@ -3,7 +3,7 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, supabaseUrl, currentSession, callEdgeFunction } from './supabase';
 import { uploadMediaFromFile } from './mediaUpload';
-import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, postAttachments, type ManagedPost, type MediaAttachment } from './managed';
+import { loadManagedPosts, saveManagedPostLocal, deleteManagedPost, postAttachments, type ManagedPost, type MediaAttachment } from './managed';
 import { isChainPlatform } from './thread';
 import { loadAccounts } from './metaStore';
 import { findAccount, findAccountForProvider, accountExternalId, asIdList, type ConnectedAccount, type ProviderKey } from './socialAccounts';
@@ -366,8 +366,12 @@ export async function pullCloudStatus(): Promise<{ updated: number }> {
       for (const r of rows) {
         if (r.remote_id) remoteIds[String(r.provider)] = String(r.remote_id);
       }
-      // saveManagedPost re-mirrors (idempotent upsert of the same state).
-      await saveManagedPost({ ...p, status: 'sent', sentAt: Date.now(), remoteIds });
+      // Local save + LIGHT cloud PATCH only: saveManagedPost here would
+      // re-upload every attachment on every status flip (sent-flips arrive
+      // per sweep), which burned egress forever. The verdict already lives
+      // in the cloud — the posts.status patch is all the mirror needs.
+      await saveManagedPostLocal({ ...p, status: 'sent', sentAt: Date.now(), remoteIds });
+      await markCloudPostSent(p.id);
       updated += 1;
     }
     if (updated > 0) console.log(`[cloud] back-sync: ${updated} post(s) → sent`);
@@ -490,6 +494,21 @@ function absUrl(signed: string): string {
 }
 
 const VIDEO_PULL_CAP = 25 * 1024 * 1024;
+
+/**
+ * Content fingerprint of a cloud post (text + media asset ids). Identical sig
+ * = identical post: the pull keeps local attachments instead of re-downloading
+ * every video/image on each sweep (timestamps bump without content changes).
+ */
+function cloudSigOf(cp: CloudPostRow, media: CloudMediaRow[], tgts: CloudTargetRow[]): string {
+  const mediaPart = media
+    .map((m) => `${m.media_assets?.id ?? ''}:${m.media_assets?.storage_path ?? ''}`)
+    .join(',');
+  const tgtPart = tgts
+    .map((t) => `${t.provider}:${t.format ?? ''}:${t.options ? JSON.stringify(t.options) : ''}`)
+    .join('|');
+  return `${cp.title ?? ''}¦${cp.body ?? ''}¦${cp.status}¦${cp.scheduled_at ?? ''}¦${mediaPart}¦${tgtPart}`;
+}
 
 /** Best-effort: fetch one cloud asset to device storage. Null on any failure. */
 async function fetchAsset(
@@ -657,6 +676,13 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
             };
           }
         } else if (cloudTs > localTs) {
+          // Same fingerprint = nothing actually changed (updated_at bumps on
+          // unrelated writes). Keep local attachments; skip the re-download.
+          const media = mediaByPost.get(cp.id) ?? [];
+          const sig = cloudSigOf(cp, media, tgts);
+          if (existing.cloudSig && existing.cloudSig === sig) {
+            continue;
+          }
           const atts = await buildAttachments(cp.id, cp.client_id ?? cp.id);
           const platformTypes: Record<string, string> = { ...(existing.platformTypes ?? {}) };
           for (const t of tgts) {
@@ -678,6 +704,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
             thread:
               (threadTgt?.options as { thread?: string[] } | null)?.thread ??
               existing.thread,
+            cloudSig: sig,
             ...(atts ? { attachments: atts, imageUri: undefined, videoUri: undefined } : {}),
           };
         }
@@ -694,6 +721,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
       // mobile save upserts the SAME row instead of duplicating it.
       if (adopted.has(cp.id)) continue;
       const hint = `web_${cp.id.slice(0, 8)}`;
+      const media = mediaByPost.get(cp.id) ?? [];
       const atts = await buildAttachments(cp.id, hint);
       const platformTypes: Record<string, string> = {};
       for (const t of tgts) {
@@ -715,6 +743,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
         createdAt: cloudTs || Date.now(),
         updatedAt: cloudTs || Date.now(),
         status: cloudStatusToLocal(cp.status),
+        cloudSig: cloudSigOf(cp, media, tgts),
         attachments: atts ?? undefined,
       };
       await saveManagedPostLocal(rec);

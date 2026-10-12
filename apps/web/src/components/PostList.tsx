@@ -327,6 +327,8 @@ function PreviewDialog({
                     muted
                     playsInline
                     controls
+                    preload="metadata"
+                    poster={m.thumb_url ?? undefined}
                     className="h-20 w-20 rounded-lg border border-line bg-bone object-cover"
                   />
                 ) : mediaThumbUrl(m) ? (
@@ -875,6 +877,8 @@ export default function PostList({
                           muted
                           playsInline
                           controls
+                          preload="metadata"
+                          poster={m.thumb_url ?? undefined}
                           className="h-auto max-h-[360px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
                         />
                       ) : m.signed_url || m.thumb_url ? (
