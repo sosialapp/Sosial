@@ -275,7 +275,7 @@ export default function WelcomeScreen({
                   <View style={s.checkRow}>
                     <CheckBox on={marketing} onPress={() => setMarketing((v) => !v)} color={C} />
                     <Text style={s.checkText}>
-                      Email me product updates.
+                      Sign up for promotional email
                     </Text>
                   </View>
                 </>
