@@ -66,6 +66,8 @@ export default function MediaSourcesDialog({
   const [source, setSource] = useState<Source | null>(null);
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'photo' | 'video'>('photo');
+  /** Stock provider within the Unsplash row (mobile parity: Pexels too). */
+  const [stockSource, setStockSource] = useState<'unsplash' | 'pexels'>('unsplash');
   const [items, setItems] = useState<StockItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState<{ id: string; progress: number | null } | null>(null);
@@ -188,7 +190,7 @@ export default function MediaSourcesDialog({
   const openSource = async (id: Source) => {
     reset();
     setSource(id);
-    if (id === 'unsplash') setType('photo');
+    if (id === 'unsplash') { setType('photo'); setStockSource('unsplash'); }
     if (id === 'drive' || id === 'gphotos' || id === 'dropbox' || id === 'canva' || id === 'onedrive') {
       const provider: CloudProvider =
         id === 'dropbox' ? 'dropbox' : id === 'canva' ? 'canva' : id === 'onedrive' ? 'onedrive' : 'google';
@@ -239,13 +241,13 @@ export default function MediaSourcesDialog({
     setBusy(true);
     setErr(null);
     try {
-      const data = await invokeStock('unsplash-search', {
+      const data = await invokeStock(stockSource === 'pexels' ? 'pexels-search' : 'unsplash-search', {
         query: query.trim(),
-        type: 'photo',
+        type,
         per_page: 12,
       });
       const list = (Array.isArray((data as any)?.items) ? (data as any).items : []) as StockItem[];
-      setItems(list.map((x) => ({ ...x, source: 'unsplash' })));
+      setItems(list.map((x) => ({ ...x, source: stockSource })));
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Search failed.');
     } finally {
@@ -268,8 +270,9 @@ export default function MediaSourcesDialog({
     try {
       const blob = await fetchProgressBlob(item.full, {}, track(item.id)).catch(() => null);
       if (!blob) throw new Error('Download failed — try another one.');
-      const file = new File([blob], `unsplash-${item.id}.jpg`, { type: 'image/jpeg' });
-      const credit = `Photo by ${item.author} on Unsplash (${item.authorUrl})`;
+      const isVideo = item.kind === 'video';
+      const file = new File([blob], `${item.source}-${item.id}.${isVideo ? 'mp4' : 'jpg'}`, { type: isVideo ? 'video/mp4' : 'image/jpeg' });
+      const credit = item.source === 'unsplash' ? `Photo by ${item.author} on Unsplash (${item.authorUrl})` : undefined;
       // Unsplash production requirement: a download event fires when a photo
       // is used. Fire-and-forget — the attach never waits on it.
       void invokeStock('unsplash-download', { id: item.id }).catch(() => {});
@@ -599,7 +602,37 @@ export default function MediaSourcesDialog({
                   </div>
                 ) : null}
                 {source === 'unsplash' ? (
-                  <p className="mt-1.5 text-[11px] text-muted">Photographer credit is added to your caption automatically.</p>
+                  <>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {(['unsplash', 'pexels'] as const).map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => { setStockSource(p); setItems([]); }}
+                          className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                            stockSource === p ? 'border-ink bg-ink text-paper' : 'border-line text-muted hover:text-ink'
+                          }`}
+                        >
+                          {p === 'unsplash' ? 'Unsplash' : 'Pexels'}
+                        </button>
+                      ))}
+                      {(['photo', 'video'] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => { setType(t); setItems([]); }}
+                          className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                            type === t ? 'border-ink bg-ink text-paper' : 'border-line text-muted hover:text-ink'
+                          }`}
+                        >
+                          {t === 'photo' ? 'Photos' : 'Videos'}
+                        </button>
+                      ))}
+                    </div>
+                    {stockSource === 'unsplash' ? (
+                      <p className="mt-1.5 text-[11px] text-muted">Photographer credit is added to your caption automatically.</p>
+                    ) : null}
+                  </>
                 ) : null}
                 {err ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
 

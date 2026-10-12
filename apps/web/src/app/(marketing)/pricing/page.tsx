@@ -58,7 +58,7 @@ export default async function PricingPage() {
           },
           {
             q: 'Do you charge for team seats on Team or Business?',
-            a: 'No. Team and Business are flat prices for the whole workspace — up to 5 members and 5 workspaces on Team, unlimited on Business.',
+            a: 'No. Team and Business are flat prices for the whole workspace — up to 5 members and 3 workspaces on Team, unlimited members and 6 workspaces on Business.',
           },
           {
             q: 'How does annual billing work?',
