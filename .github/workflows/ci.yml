@@ -16,3 +16,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run scan
+      # App test suites (vitest): web units + worker rules + mobile logic.
+      # Edge functions are Deno and run on Supabase, not here.
+      - run: npm test
+        working-directory: apps/web
+      - run: npm test
+        working-directory: apps/worker
+      - run: npm test
