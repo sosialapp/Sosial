@@ -49,7 +49,9 @@ $$;
 
 revoke all on function public.dormancy_candidates(timestamptz, int) from public, anon, authenticated;
 
--- Keys the cron job needs, populated by hand over psql/db query (never committed).
+-- Keys the cron job needs. edge_base_url is static; dormancy_token is a
+-- random shared token inserted live (never committed) and mirrored as the
+-- DORMANCY_TOKEN Supabase secret, which the edge function checks.
 create schema if not exists private;
 create table if not exists private.integration_keys (
   name text primary key,
@@ -68,7 +70,7 @@ begin
         select net.http_post(
           url := (select value from private.integration_keys where name = 'edge_base_url') || '/functions/v1/dormancy-sweep',
           headers := jsonb_build_object(
-            'Authorization', 'Bearer ' || (select value from private.integration_keys where name = 'service_role_key'),
+            'Authorization', 'Bearer ' || (select value from private.integration_keys where name = 'dormancy_token'),
             'Content-Type', 'application/json'
           ),
           body := '{}'::jsonb

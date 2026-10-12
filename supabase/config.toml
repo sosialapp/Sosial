@@ -456,3 +456,10 @@ enabled = true
 # Gateway verifies the user JWT (default) — the function re-checks membership.
 verify_jwt = true
 entrypoint = "./functions/media/index.ts"
+
+[functions.dormancy-sweep]
+enabled = true
+# Cron-only: the shared DORMANCY_TOKEN bearer is not a JWT, so the gateway
+# must not verify it — the function does its own token check.
+verify_jwt = false
+entrypoint = "./functions/dormancy-sweep/index.ts"

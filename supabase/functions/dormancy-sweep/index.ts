@@ -157,9 +157,12 @@ serve(async (req: Request): Promise<Response> => {
   const resendKey = Deno.env.get("RESEND_API_KEY") ?? "";
   if (!supaUrl || !serviceKey) return bad("Function misconfigured.", 500);
 
-  // Cron calls carry the service-role key as bearer; anything else is refused.
+  // Cron calls carry a dedicated shared token (stored live in
+  // private.integration_keys + Supabase secrets as DORMANCY_TOKEN) so the
+  // service-role key never has to live in the cron context.
+  const dormancyToken = Deno.env.get("DORMANCY_TOKEN") ?? "";
   const auth = req.headers.get("Authorization") ?? "";
-  if (auth !== `Bearer ${serviceKey}`) return bad("Unauthorized.", 401);
+  if (!dormancyToken || auth !== `Bearer ${dormancyToken}`) return bad("Unauthorized.", 401);
 
   const admin = createClient(supaUrl, serviceKey);
   const warnBefore = monthsAgo(WARN_AFTER_MONTHS);
