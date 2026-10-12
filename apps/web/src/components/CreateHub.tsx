@@ -340,6 +340,7 @@ export default function CreateHub({
     bodies: string[];
     channelIds: string[];
     whenIso: string | null;
+    threadsTopic: string;
     mediaParts: { url: string; kind: 'image' | 'video' }[][];
   } | null>(null);
   const [renderingKey, setRenderingKey] = useState<string | null>(null);
@@ -651,6 +652,11 @@ export default function CreateHub({
     const channelIds = Array.from(
       new Set(parts.flatMap((p) => p.post_targets.map((t) => t.channel_id))),
     );
+    const threadsTopic = String(
+      parts
+        .flatMap((p) => p.post_targets)
+        .find((t) => t.provider === 'threads')?.options?.threadsTopic ?? '',
+    );
     setPrefill(null);
     setPendingFiles(null);
     setDraftEdit({
@@ -659,6 +665,7 @@ export default function CreateHub({
       bodies,
       channelIds,
       whenIso: head.scheduled_at,
+      threadsTopic,
       mediaParts,
     });
     // Edits belong to the composer — bounce list views back to Create.
@@ -868,6 +875,7 @@ export default function CreateHub({
             }
             initialChannelIds={draftEdit?.channelIds}
             initialWhenIso={draftEdit?.whenIso ?? null}
+            initialThreadsTopic={draftEdit?.threadsTopic}
             initialMediaParts={draftEdit?.mediaParts}
             editingIds={draftEdit?.postIds}
             onEdited={() => setDraftEdit(null)}

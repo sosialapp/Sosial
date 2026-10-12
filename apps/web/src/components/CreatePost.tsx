@@ -275,6 +275,7 @@ export default function CreatePost({
   initialParts,
   initialChannelIds,
   initialWhenIso = null,
+  initialThreadsTopic = '',
   initialMediaParts,
   editingIds,
   onEdited,
@@ -296,6 +297,8 @@ export default function CreatePost({
   initialChannelIds?: string[];
   /** Draft edit: pre-fill the schedule time. */
   initialWhenIso?: string | null;
+  /** Draft edit: pre-fill the Threads community topic. */
+  initialThreadsTopic?: string;
   /** Draft edit: remote media per part to reload into the composer. */
   initialMediaParts?: { url: string; kind: 'image' | 'video' }[][];
   /** Draft edit: previous post rows, deleted after the replacement saves. */
@@ -347,6 +350,8 @@ export default function CreatePost({
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
   /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
   const [types, setTypes] = useState<Record<string, string>>({});
+  /** Threads community topic — mobile parity (topic_tag on the target). */
+  const [threadsTopic, setThreadsTopic] = useState(initialThreadsTopic || '');
   /** Social composer vs. rich article editor (website channels only). */
   const [surface, setSurface] = useState<'social' | 'article'>('social');
   const [articleDoc, setArticleDoc] = useState<TipTapDoc | null>(null);
@@ -699,6 +704,9 @@ export default function CreatePost({
             if (isArticleProvider(c.provider)) targetOptions[c.provider] = articleOptions(articleDoc);
           }
         }
+        if (threadsTopic.trim() && chosen.some((c) => c.provider === 'threads')) {
+          targetOptions['threads'] = { ...(targetOptions['threads'] ?? {}), threadsTopic: threadsTopic.trim() };
+        }
         newIds = [
           await createPost(sb, {
           workspaceId,
@@ -717,6 +725,10 @@ export default function CreatePost({
           timezone: tz,
         })];
       } else {
+        const chainTargetOptions: Record<string, Record<string, unknown>> =
+          threadsTopic.trim() && chosen.some((c) => c.provider === 'threads')
+            ? { threads: { threadsTopic: threadsTopic.trim() } }
+            : {};
         newIds = await createChain(sb, {
           workspaceId,
           userId,
@@ -732,6 +744,7 @@ export default function CreatePost({
           gapMinutes: 0,
           channels: chosen,
           formats: types,
+          targetOptions: chainTargetOptions,
         });
       }
       // Draft edit: the replacement saved — retire the original rows, then
@@ -902,6 +915,23 @@ export default function CreatePost({
                       </div>
                     </div>
                   ))}
+              </div>
+            ) : null}
+
+            {/* Threads community — optional topic tag, mobile parity */}
+            {chosenNow.some((c) => c.provider === 'threads') ? (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="w-24 shrink-0 truncate text-[11px] font-bold text-muted">
+                  Community
+                </span>
+                <input
+                  value={threadsTopic}
+                  onChange={(e) => setThreadsTopic(e.target.value)}
+                  placeholder="Topic tag (optional)"
+                  aria-label="Threads community topic tag"
+                  maxLength={50}
+                  className="field max-w-56 !py-1.5 !text-xs"
+                />
               </div>
             ) : null}
 

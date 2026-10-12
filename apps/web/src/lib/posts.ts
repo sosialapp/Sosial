@@ -390,6 +390,9 @@ export interface ChainArgs {
   timezone?: string;
   /** Per-provider format for the head targets (see ComposeArgs.formats). */
   formats?: Record<string, string>;
+  /** Per-provider target options for the head targets (e.g. threads
+   *  community topic) — merged under the chain `{ thread }` options. */
+  targetOptions?: Record<string, Record<string, unknown>>;
 }
 
 /**
@@ -425,14 +428,16 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
     // Head carries every channel; later parts keep non-chain providers only.
     const partChannels = i === 0 ? args.channels : soloChs;
     if (partChannels.length === 0) continue;
-    const targetOptions =
+    const chainOpts =
       i === 0 && thread.length > 1
         ? Object.fromEntries(
             args.channels
               .filter((c) => CHAIN_PROVIDERS.includes(c.provider))
-              .map((c) => [c.provider, { thread }]),
+              .map((c) => [c.provider, { thread, ...(args.targetOptions?.[c.provider] ?? {}) }]),
           )
         : undefined;
+    const targetOptions =
+      chainOpts ?? (i === 0 ? args.targetOptions : undefined);
     const iso =
       args.mode === 'draft' || base === null ? null : new Date(base + i * gapMs).toISOString();
     const id = await createPost(sb, {
