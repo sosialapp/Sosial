@@ -12,15 +12,16 @@ export const metadata: Metadata = {
   description:
     'Plan, write and publish social media posts across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest, from one composer, calendar and queue.',
   icons: { icon: '/bolt.png' },
+  // Social images resolve from the generated opengraph-image routes
+  // (root brand card + per-article cards) — no static images here.
   openGraph: {
     type: 'website',
     siteName: 'Sosial',
     title: 'Sosial: Social Media Scheduler and Management for Every Channel',
     description:
       'Plan, write and publish across ten social networks from one composer, calendar and queue, with an AI writer and approvals built in.',
-    images: ['/bolt.png'],
   },
-  twitter: { card: 'summary', images: ['/bolt.png'] },
+  twitter: { card: 'summary_large_image' },
 };
 
 export const viewport: Viewport = {

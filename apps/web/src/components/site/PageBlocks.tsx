@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { CheckIcon } from '@/components/StatusIcons';
+import { FaqJsonLd } from '@/components/site/JsonLd';
 
 /**
  * Shared building blocks for feature and audience pages. Server components,
@@ -109,6 +110,7 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
 export function FaqList({ items, title = 'Questions, answered' }: { items: { q: string; a: string }[]; title?: string }) {
   return (
     <section aria-label="Frequently asked questions" className="relative overflow-hidden">
+      <FaqJsonLd items={items} />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.035)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_20%,transparent_75%)]"

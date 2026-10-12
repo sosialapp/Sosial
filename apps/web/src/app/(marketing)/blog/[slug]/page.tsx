@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
+import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
 import { blogTagClass, formatPostDate } from '@/content/types';
 
@@ -48,6 +49,20 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
   return (
     <>
+      <ArticleJsonLd
+        title={post.title}
+        description={post.description}
+        slug={post.slug}
+        date={post.date}
+        coverUrl={post.coverUrl}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Home', path: '/' },
+          { name: 'Blog', path: '/blog' },
+          { name: post.title, path: `/blog/${post.slug}` },
+        ]}
+      />
       <article className="mx-auto max-w-3xl px-4 py-16 md:py-24">
         <Link href="/blog" className="text-xs font-bold text-muted hover:text-ink">
           ← All articles
