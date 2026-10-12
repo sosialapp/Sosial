@@ -132,7 +132,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data — posts, media, templates, connected channels and workspace records. Before any deletion we email the account holder a reminder one month in advance. Signing in at any point during that month cancels the deletion. Paid accounts with an active subscription are never treated as inactive. This policy exists so we do not hold personal data indefinitely for people who have left.',
+          c: 'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data — posts, media, templates, connected channels and workspace records. Before any deletion we email the account holder a reminder one month in advance. Signing in at any point during that month cancels the deletion. A shared workspace is only deleted once every member has been inactive: activity by any teammate — signing in or posting — keeps the workspace and its data. Paid accounts with an active subscription are never treated as inactive. This policy exists so we do not hold personal data indefinitely for people who have left.',
         },
       ],
     },
@@ -338,7 +338,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'If an account is inactive — no sign-in and no activity — for six consecutive months, it and all of its data are deleted. We email a reminder one month before any such deletion, and signing in at any point cancels it. Accounts with an active paid subscription are never deleted for inactivity. You can also delete everything yourself at any time from your profile or via [Request deletion](/delete-data).',
+          c: 'If an account is inactive — no sign-in and no activity — for six consecutive months, it and all of its data are deleted. We email a reminder one month before any such deletion, and signing in at any point cancels it. Accounts with an active paid subscription are never deleted for inactivity. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps it and its data. You can also delete everything yourself at any time from your profile or via [Request deletion](/delete-data).',
         },
       ],
     },

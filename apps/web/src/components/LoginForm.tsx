@@ -224,7 +224,7 @@ export default function LoginForm({
                   className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-current"
                 />
                 <span>
-                  Email me occasional product news and tips. Optional — unsubscribe any time.
+                  Email me product updates.
                 </span>
               </label>
             </div>

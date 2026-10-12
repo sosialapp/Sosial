@@ -15,7 +15,7 @@ export const TERMS_TEXT =
   'Your use of each connected platform — X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile — remains governed by that platform’s own terms and policies. Some channels are shown as "Soon" and cannot yet be connected (Google Business Profile, LinkedIn, Pinterest). X requires a paid plan.\n\n' +
   'You keep ownership of everything you create. Do not publish content you do not own or have rights to, or that is unlawful, infringing or deceptive.\n\n' +
   'Marketing emails (product news and tips) are sent only to users who opt in via the optional checkbox at signup or a preference in account settings. Every marketing email carries a one-click unsubscribe link, and unsubscribing takes effect immediately. Operational emails such as security notices, receipts and publishing confirmations are not marketing and continue regardless.\n\n' +
-  'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data. We email a reminder one month before any such deletion, and signing in at any point during that month cancels it. Accounts with an active paid subscription are never deleted for inactivity.\n\n' +
+  'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data. We email a reminder one month before any such deletion, and signing in at any point during that month cancels it. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps the workspace and its data. Accounts with an active paid subscription are never deleted for inactivity.\n\n' +
   'Sosial is provided as-is, without warranties, and our total liability is limited to the amount you paid in the twelve months before a claim.';
 
 export interface LegalSection {
@@ -66,7 +66,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   },
   {
     title: 'How long we keep it',
-    body: 'We keep your workspace data while your account is active, and delete it when you delete your workspace. If an account is inactive — no sign-in and no activity — for six consecutive months, it and all of its data are deleted; we email a reminder one month before, and signing in at any point cancels the deletion. Accounts with an active paid subscription are never deleted for inactivity.',
+    body: 'We keep your workspace data while your account is active, and delete it when you delete your workspace. If an account is inactive — no sign-in and no activity — for six consecutive months, it and all of its data are deleted; we email a reminder one month before, and signing in at any point cancels the deletion. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps it and its data. Accounts with an active paid subscription are never deleted for inactivity.',
   },
   {
     title: 'Children',
