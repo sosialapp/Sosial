@@ -15,13 +15,14 @@ import { fmtDateTime, platformsLabel } from '../utils/reminders';
 import { useComposer } from '../store/ComposerContext';
 import { loadActor, canApprove, canSubmit, Actor } from '../utils/team';
 
-type Tab = 'queued' | 'draft' | 'approval' | 'sent';
+type Tab = 'queued' | 'draft' | 'approval' | 'sent' | 'failed';
 type Sort = 'newest' | 'oldest' | 'az';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'draft', label: 'Drafts' },
   { id: 'queued', label: 'Queue' },
   { id: 'sent', label: 'Sent' },
+  { id: 'failed', label: 'Failed' },
   { id: 'approval', label: 'Approvals' },
 ];
 
@@ -36,6 +37,7 @@ const EMPTY_COPY: Record<Tab, { title: string; sub: string }> = {
   draft: { title: 'No drafts', sub: 'Save a post without a schedule and it waits here.' },
   approval: { title: 'Nothing to approve', sub: 'Posts your team submits for review land here.' },
   sent: { title: 'Nothing sent yet', sub: 'Published posts land here with a timestamp.' },
+  failed: { title: 'No failures', sub: 'Posts that could not publish land here with the reason.' },
 };
 
 function dayLabel(ts: number): string {
@@ -150,7 +152,13 @@ export default function PostScreen({ onConnect, bare }: {
   const matchChannel = (p: ManagedPost) =>
     channel === 'all' ? true : (p.platforms?.length ? p.platforms : ['any']).includes(channel);
 
-  const inTab = posts.filter((p) => (p.status ?? 'draft') === (tab === 'queued' ? 'queued' : tab) && matchChannel(p));
+  /** Failed tab: publishing verdicts (web parity — failed + partial both
+   *  mean "some leg did not go out"). */
+  const inTab = posts.filter((p) => {
+    const s = p.status ?? 'draft';
+    if (tab === 'failed') return s === 'failed' && matchChannel(p);
+    return s === (tab === 'queued' ? 'queued' : tab) && matchChannel(p);
+  });
 
   const sorted = [...inTab].sort((a, b) => {
     if (sort === 'az') return (a.title || '').localeCompare(b.title || '');
@@ -184,6 +192,7 @@ export default function PostScreen({ onConnect, bare }: {
     const overdue = tab === 'queued' && !!p.scheduledAt && p.scheduledAt <= Date.now();
     const when =
       tab === 'sent' && p.sentAt ? `Sent ${fmtDateTime(p.sentAt)}` :
+      tab === 'failed' && p.sentAt ? `Failed ${fmtDateTime(p.sentAt)}` :
       p.scheduledAt ? `${overdue ? 'Overdue · ' : ''}${fmtDateTime(p.scheduledAt)}` : 'Not scheduled';
     const legErr = Object.values(p.channelErr ?? {})[0] as string | undefined;
     const parked = tab === 'queued' && (p.autoTries ?? 0) >= MAX_AUTO_TRIES;
@@ -223,7 +232,7 @@ export default function PostScreen({ onConnect, bare }: {
               </View>
             </>
           )}
-          {tab === 'queued' && legErr ? (
+          {(tab === 'queued' || tab === 'failed') && legErr ? (
             <View style={st.errBar}>
               <Ionicons name="alert-circle" size={13} color={C.redText} />
               <Text style={st.errT} numberOfLines={2}>{legErr}</Text>
@@ -267,6 +276,7 @@ export default function PostScreen({ onConnect, bare }: {
     queued: posts.filter((p) => (p.status ?? 'draft') === 'queued').length,
     sent: posts.filter((p) => p.status === 'sent').length,
     approval: posts.filter((p) => p.status === 'approval').length,
+    failed: posts.filter((p) => p.status === 'failed').length,
   };
 
   const body = (

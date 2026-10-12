@@ -5,6 +5,7 @@ import PostBody from '@/components/site/PostBody';
 import { formatPageDate, sitePageHtml, sitePageMeta } from '@/lib/sitePages';
 import { allResources, resource } from '@/content/resources';
 import { resourceHref } from '@/content/types';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
@@ -46,6 +47,13 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
 
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Home', path: '/' },
+          { name: 'Resources', path: '/resources' },
+          { name: item.title, path: resourceHref(item.slug) },
+        ]}
+      />
       <article className="mx-auto max-w-3xl px-4 py-16 md:py-24">
         <Link href="/resources" className="text-xs font-bold text-muted hover:text-ink">
           ← Resource library

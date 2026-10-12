@@ -659,7 +659,12 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
         const localTs = existing.updatedAt ?? existing.createdAt ?? 0;
         let next: ManagedPost | null = null;
         if (isAuthoritative(cp.status)) {
-          const want = cloudStatusToLocal(cp.status === 'sent' ? 'sent' : 'queued');
+          // Publishing verdicts (web parity): sent wins; failed/partial land
+          // in the Failed tab instead of haunting the Queue.
+          const want: ManagedPost['status'] =
+            cp.status === 'sent' ? 'sent'
+            : cp.status === 'failed' || cp.status === 'partial' ? 'failed'
+            : 'queued';
           const remoteIds: Record<string, string> = { ...(existing.remoteIds ?? {}) };
           for (const t of tgts) {
             if (t.remote_id) remoteIds[String(t.provider)] = String(t.remote_id);

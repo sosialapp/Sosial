@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
 import { pushPostToCloud, deleteCloudPost } from './cloudPosts';
 
-export type PostStatus = 'draft' | 'queued' | 'approval' | 'sent';
+export type PostStatus = 'draft' | 'queued' | 'approval' | 'sent' | 'failed';
 
 export interface MediaAttachment {
   uri: string;

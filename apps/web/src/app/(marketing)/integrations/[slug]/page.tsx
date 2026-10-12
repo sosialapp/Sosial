@@ -7,6 +7,7 @@ import PageCms from '@/components/site/PageCms';
 import { GridPulse } from '@/components/ui/grid-pulse';
 import { CHANNEL_GUIDES, channelGuide, relatedChannels } from '@/content/channels';
 import { channelHref } from '@/content/types';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 export function generateStaticParams() {
@@ -47,6 +48,13 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
 
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Home', path: '/' },
+          { name: 'Integrations', path: '/integrations' },
+          { name: c.name, path: channelHref(c.key) },
+        ]}
+      />
       <section className="relative overflow-clip border-b border-line bg-card/60">
         <GridPulse
           cell={26}
