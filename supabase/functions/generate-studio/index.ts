@@ -4,7 +4,7 @@
 //   200 { pages: [{ blocks: [...] }] }
 //   · 401 unauthenticated · 402 AI not configured · 502 upstream failure
 //
-// Mirror of the mobile carousel writer (src/utils/ai/gemini.ts →
+// Mirror of the mobile carousel writer (src/utils/ai/carousel.ts →
 // buildCarouselPrompt): the model only returns words + block shape, never
 // ids, colors, sizes or images. The web client runs the same rules clamp
 // (apps/web/src/lib/studio/ai.ts) before anything reaches the canvas.

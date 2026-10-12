@@ -1,7 +1,7 @@
 import { ContentBrief, GenResult } from './types';
 import { normalizeResult } from './rules';
 import { mockGenerate } from './mock';
-import { buildCarouselPrompt } from './gemini';
+import { buildCarouselPrompt } from './carousel';
 import { serverGenerate, serverLabel, cloudSessionReady } from './server';
 
 export interface GenOpts {

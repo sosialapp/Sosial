@@ -198,7 +198,7 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+email_sent = 30
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -235,15 +235,17 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
+# Use a production-ready SMTP server (Resend is the sender; Supabase relays).
+# Secrets stay out of this file — set RESEND_API_KEY in the Supabase dashboard
+# (Auth → SMTP) for the hosted project, or as an env var for local dev.
 # [auth.email.smtp]
 # enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(RESEND_API_KEY)"
+# admin_email = "no-reply@sosial.app"
+# sender_name = "Sosial"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -448,3 +450,9 @@ entrypoint = "./functions/remove-channel-token/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/remove-channel-token/*.html" ]
+
+[functions.media]
+enabled = true
+# Gateway verifies the user JWT (default) — the function re-checks membership.
+verify_jwt = true
+entrypoint = "./functions/media/index.ts"

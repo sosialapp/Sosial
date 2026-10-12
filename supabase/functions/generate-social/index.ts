@@ -1,7 +1,7 @@
 // generate-social · metered model relay for the mobile AI writers.
 //
 // The mobile app builds rich, channel-aware prompts on-device (social.ts /
-// gemini.ts). Rather than ship a provider key in the bundle — the exact
+// carousel.ts). Rather than ship a provider key in the bundle — the exact
 // bypass that left mobile AI unmetered — the app posts the finished prompt
 // here and the key stays server-side. Every call is gated against the same
 // AI credit ledger the web app uses, so Free gets its 20 credits and paid
