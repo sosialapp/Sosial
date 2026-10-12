@@ -111,6 +111,55 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
+  // Channel cap, mirroring the enforce_channel_limit trigger (which counts
+  // every row regardless of status). Pre-checking here gives mobile and the
+  // oauth-exchange path the same clean "at the cap" error the web OAuth
+  // start route produces, instead of a raw trigger failure after upload.
+  const { data: sub0 } = await admin
+    .from("subscriptions")
+    .select("plan, status, current_period_end")
+    .eq("workspace_id", workspace_id)
+    .maybeSingle();
+  const paidStatuses0 = new Set(["active", "trialing", "past_due"]);
+  const s0 = sub0 as { plan?: string; status?: string; current_period_end?: string } | null;
+  const periodEnded0 = s0?.current_period_end
+    ? Date.parse(s0.current_period_end) <= Date.now()
+    : false;
+  const activePlan =
+    s0 && s0.plan !== "free" && paidStatuses0.has(s0.status ?? "") && !periodEnded0
+      ? (s0.plan ?? "free")
+      : "free";
+  const CHANNEL_CAPS: Record<string, number | null> = {
+    free: 3,
+    solo: 6,
+    team: 25,
+    business: 100,
+    ultimate: null,
+  };
+  const cap = CHANNEL_CAPS[activePlan] ?? 3;
+  if (cap !== null) {
+    // Reconnects of an already-connected account never count against the cap.
+    const { data: same } = await admin
+      .from("connected_channels")
+      .select("id")
+      .eq("workspace_id", workspace_id)
+      .eq("provider", provider)
+      .eq("external_id", external_id)
+      .limit(1);
+    if (!same || same.length === 0) {
+      const { count } = await admin
+        .from("connected_channels")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspace_id);
+      if ((count ?? 0) >= cap) {
+        return bad(
+          `Your plan connects up to ${cap} channels — you're at the cap. Disconnect one or upgrade to add more.`,
+          402,
+        );
+      }
+    }
+  }
+
   // Re-import hygiene: clear canonical names FIRST (Vault enforces unique
   // names). By-name (not by previous row) so orphan secrets from any failed
   // removal can never collide. If creation fails after this, the channel is

@@ -92,9 +92,15 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
 
   useEffect(() => { void reload(); }, []);
 
-  /** Create a team, land in it, pull its channels. DB trigger surfaces the
-   *  plan cap (team 3 · business 6 · ultimate unlimited) in the message. */
+  /** Create a team, land in it, pull its channels. Teams are a paid-plan
+   *  feature (Team, Business, Ultimate) — the plan gate below hides the
+   *  button for free/solo, and the DB trigger stays the backstop. */
+  const canCreateTeam = plan === 'team';
   const createTeam = async () => {
+    if (!canCreateTeam) {
+      Alert.alert('Teams need a paid plan', 'Creating teams unlocks on Team, Business or Ultimate. See plans to upgrade.');
+      return;
+    }
     if (!createName.trim()) return;
     setBusy(true);
     try {
@@ -353,9 +359,14 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                   <Ionicons name="close-circle" size={18} color={C.redText} />
                 </TouchableOpacity>
               </View>
-            ) : (
+            ) : canCreateTeam ? (
               <TouchableOpacity onPress={() => setCreating(true)} disabled={busy} style={{ alignSelf: 'flex-start' }}>
                 <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>+ Create team</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={onSeePlans} style={{ alignSelf: 'flex-start' }} activeOpacity={0.7}>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>+ Create team</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.muted, marginTop: 2 }}>Teams unlock on Team, Business or Ultimate</Text>
               </TouchableOpacity>
             )}
           </View>

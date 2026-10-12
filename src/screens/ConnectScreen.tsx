@@ -303,17 +303,38 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     );
   };
 
+  /** Channel cap by plan (free 3, Solo 6, Team 25; Business/Ultimate are
+   *  cloud-side keys the mobile plan stub folds into 'team'). Reconnecting
+   *  an existing account never counts. The DB trigger on connected_channels
+   *  stays the backstop - this is the friendly pre-flight. */
+  const atChannelCap = (accountId?: string): boolean => {
+    if (accountId) return false;
+    const caps: Record<'free' | 'pro' | 'team', number | null> = { free: 3, pro: 6, team: 25 };
+    const cap = caps[plan ?? 'free'];
+    return cap !== null && accounts.length >= cap;
+  };
+  const capAlert = () => {
+    const caps: Record<'free' | 'pro' | 'team', number | null> = { free: 3, pro: 6, team: 25 };
+    const cap = caps[plan ?? 'free'];
+    Alert.alert(
+      'Channel limit reached',
+      `Your plan connects up to ${cap} accounts — you're at the cap. Disconnect one or upgrade to add more.`,
+    );
+  };
   const doFacebook = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     setBusy('Opening Facebook…');
     if (!(await loginFacebook(accountId))) backedOut('Facebook');
   };
 
   const doInstagram = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     setBusy('Opening Instagram…');
     if (!(await loginInstagram(accountId))) backedOut('Instagram');
   };
 
   const doThreads = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     setBusy('Opening Threads…');
     if (!(await loginThreads(accountId))) backedOut('Threads');
   };
@@ -380,6 +401,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doTikTok = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!ttConfigured) {
       Alert.alert('Keys missing', 'TikTok client key is empty — check .env, then restart Expo (env loads at startup).');
       return;
@@ -404,6 +426,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doBsky = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     setBusy('Connecting Bluesky…');
     try {
       const { name } = await completeBskyLogin(bskyHandle, bskyPass, accountId);
@@ -419,6 +442,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doMastodon = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     setBusy('Opening Mastodon…');
     try {
       if (!(await loginMastodon(mastodonInstance, accountId))) backedOut('Mastodon');
@@ -429,6 +453,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doTelegram = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!tgToken.trim()) {
       Alert.alert('Bot token missing', 'Paste the token from @BotFather first.');
       return;
@@ -507,6 +532,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doDiscord = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!dcChannel) {
       Alert.alert('Channel missing', 'Pick a server and channel first.');
       return;
@@ -547,6 +573,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doWordPress = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!wpSite.trim()) {
       Alert.alert('Site URL missing', 'Enter your site URL first (https://…).');
       return;
@@ -587,6 +614,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doDevto = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!devKey.trim()) {
       Alert.alert('API key missing', 'Paste the key from dev.to → Settings → Extensions.');
       return;
@@ -637,6 +665,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doHashnode = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     const pub = hnPubs.find((g) => g.id === hnPub);
     if (!pub) {
       Alert.alert('Publication missing', 'Pick a publication first.');
@@ -667,6 +696,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doGhost = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!ghSite.trim()) {
       Alert.alert('Site URL missing', 'Enter your Ghost site URL first (https://…).');
       return;
@@ -700,6 +730,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doGmb = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     setBusy('Opening Google…');
     if (!(await loginGmb(accountId))) backedOut('Google Business');
   };
@@ -707,6 +738,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   /** Stage 2 of the GBP connect: clone account-level tokens into a
    *  per-location row (multi-account clone via saveProviderFields). */
   const doGmbPick = async (loc: GmbLocation, accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     setBusy(`Connecting ${loc.title}…`);
     try {
       const accounts = await loadAccounts();
@@ -738,7 +770,9 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     }
   };
 
-  const doVk = async (accountId?: string) => {    if (!vkCommunity.trim()) {
+  const doVk = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
+    if (!vkCommunity.trim()) {
       Alert.alert('Community missing', 'Enter the community link, short name or numeric id first.');
       return;
     }
@@ -772,6 +806,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doLinkedin = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!liConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
       return;
@@ -797,6 +832,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doYoutube = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!ytConfigured) {
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
       return;
@@ -811,6 +847,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   };
 
   const doPinterest = async (accountId?: string) => {
+    if (atChannelCap(accountId)) { capAlert(); return; }
     if (!pinConfigured) {
       Alert.alert('Keys missing', 'Paste the App ID + secret into .env first, then reload.');
       return;

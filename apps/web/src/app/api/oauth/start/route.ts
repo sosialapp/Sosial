@@ -61,11 +61,12 @@ export async function GET(req: Request) {
     );
   }
   if (cap !== null) {
+    // Count every channel row — the DB trigger (enforce_channel_limit)
+    // counts all rows regardless of status, so this must match it.
     const { count } = await sb
       .from('connected_channels')
       .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'connected');
+      .eq('workspace_id', workspaceId);
     if ((count ?? 0) >= cap && !(already.data ?? []).length) {
       return back(
         `Your plan connects up to ${cap} channels — you're at the cap. Disconnect one or upgrade in Billing.`,
