@@ -1,5 +1,8 @@
 import HubPage from './hub-page';
 
+export const metadata = { title: 'Post' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Mobile-style Post hub: quick composer, templates, publish, ideas. */

@@ -3,6 +3,9 @@ import ScheduleXBoard from '@/components/ScheduleXBoard';
 import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Calendar' };
+
+
 export default async function CalendarPage({
   searchParams,
 }: {

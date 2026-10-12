@@ -3,6 +3,9 @@ import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import { fetchChannels, fetchPostsLite } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Analytics' };
+
+
 export const dynamic = 'force-dynamic';
 
 /**

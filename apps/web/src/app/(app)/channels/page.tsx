@@ -7,6 +7,9 @@ import { fetchChannels } from '@/lib/posts';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Channels' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Mobile-style Connect list: one row per provider, expanding into accounts. */

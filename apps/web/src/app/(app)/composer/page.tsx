@@ -3,6 +3,9 @@ import Composer from '@/components/Composer';
 import { fetchLiveChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Composer' };
+
+
 export default async function ComposerPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');

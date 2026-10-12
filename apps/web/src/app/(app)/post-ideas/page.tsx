@@ -1,5 +1,8 @@
 import HubPage from '../post/hub-page';
 
+export const metadata = { title: 'Ideas' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Ideas inbox at its own URL. */

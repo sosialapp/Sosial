@@ -7,6 +7,9 @@ import { getUsage } from '@/lib/billing/usage';
 import { pricesConfigured } from '@/lib/billing/stripe';
 import { PLANS } from '@/lib/billing/plans';
 
+export const metadata = { title: 'Billing' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Billing: current plan, interval, price, period, usage, changes + cancellation. */

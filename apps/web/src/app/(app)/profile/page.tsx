@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation';
 import AccountSettings from '@/components/AccountSettings';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Profile' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Account settings — mirrors the mobile Account screen on the web backend. */

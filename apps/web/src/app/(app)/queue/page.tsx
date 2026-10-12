@@ -3,6 +3,9 @@ import PostList from '@/components/PostList';
 import { fetchPosts } from '@/lib/posts';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Queue' };
+
+
 export default async function QueuePage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');

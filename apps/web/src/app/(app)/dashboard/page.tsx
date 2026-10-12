@@ -15,6 +15,9 @@ import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey } from '@/lib/format';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Dashboard' };
+
+
 export const dynamic = 'force-dynamic';
 
 const greeting = (): string => {

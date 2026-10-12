@@ -5,6 +5,9 @@ import TeamManager from '@/components/TeamManager';
 import TeamPicker from '@/components/TeamPicker';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Team' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Workspace roster: members, pending invites, invite + remove (owner/admin). */

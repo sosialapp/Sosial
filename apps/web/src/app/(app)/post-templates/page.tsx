@@ -1,5 +1,8 @@
 import HubPage from '../post/hub-page';
 
+export const metadata = { title: 'Templates' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Templates studio at its own URL. */

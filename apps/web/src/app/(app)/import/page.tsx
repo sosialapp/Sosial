@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation';
 import ImportTabs from '@/components/ImportTabs';
 import { getWorkspaceContext } from '@/lib/supabase/server';
 
+export const metadata = { title: 'Import' };
+
+
 export const dynamic = 'force-dynamic';
 
 /** Content → Import (Notion · Google Sheets). */
