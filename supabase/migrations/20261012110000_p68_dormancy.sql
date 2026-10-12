@@ -7,7 +7,12 @@
 -- months without re-authenticating, so posts count as life.
 --
 -- The sweep itself lives in the dormancy-sweep edge function; pg_cron POSTs
--- it daily at 03:10 UTC with the service-role key.
+-- it daily at 03:10 UTC with a dedicated shared token.
+
+-- pg_net does the outbound HTTP. Installed into the `net` schema; Supabase
+-- ships the schema but not the extension.
+create schema if not exists net;
+create extension if not exists pg_net with schema net;
 
 create or replace function public.dormancy_candidates(
   p_idle_before timestamptz,
