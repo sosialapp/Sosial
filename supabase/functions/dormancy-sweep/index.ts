@@ -12,8 +12,11 @@
 // Paying accounts (active/trialing subscription) are never deleted — an
 // active subscription is activity in every sense that matters.
 // Batch-capped per run so one sweep never times out; cron catches the rest
-// tomorrow. "Idle" = no sign-in AND no post created in the window (a mobile
-// user can stay signed in for months without re-authenticating).
+// tomorrow. "Idle" = the user AND every workspace they belong to have had no
+// post and no active member sign-in in the window (a mobile user can stay
+// signed in for months without re-authenticating). So a dormant owner whose
+// team is still active is never swept; the team is only purged when every
+// member has been gone 6 months.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
