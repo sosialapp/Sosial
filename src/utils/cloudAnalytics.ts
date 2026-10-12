@@ -70,7 +70,9 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
       .select('id, title, body, status, sent_at, scheduled_at, created_at, post_targets(id, provider, channel_id, status)')
       .eq('workspace_id', wsId)
       .order('created_at', { ascending: false })
-      .limit(500),
+      // Web's analytics read is unlimited; keep the mobile cap far above any
+      // real workspace so both platforms compute the same numbers.
+      .limit(2000),
     sb
       .from('connected_channels')
       .select('id, provider, display_name, handle, status')

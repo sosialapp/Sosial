@@ -41,7 +41,7 @@ import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 import IntegrationsPanel from '../components/IntegrationsPanel';
 
-const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk'];
+const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb'];
 
 function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
@@ -894,9 +894,11 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     x: { label: 'X', manual: false, configured: xConfigured, connect: doX },
     bluesky: { label: 'Bluesky', manual: true, configured: true, connect: doBsky },
     mastodon: { label: 'Mastodon', manual: true, configured: true, connect: doMastodon },
-    linkedin: { label: 'LinkedIn', manual: false, configured: liConfigured, connect: doLinkedin },
+    // Soon on web too (production approval pending) — parity by design.
+    linkedin: { label: 'LinkedIn', manual: false, configured: liConfigured, soon: true, connect: doLinkedin },
     youtube: { label: 'YouTube', manual: false, configured: ytConfigured, connect: doYoutube },
-    pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, connect: doPinterest },
+    // Soon on web too — parity by design.
+    pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, soon: true, connect: doPinterest },
     telegram: { label: 'Telegram', manual: true, configured: true, connect: doTelegram },
     discord: { label: 'Discord', manual: true, configured: true, connect: doDiscord },
     wordpress: { label: 'WordPress', manual: true, configured: true, connect: doWordPress },

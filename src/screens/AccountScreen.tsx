@@ -723,7 +723,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: '25 connected channels' },
                 { text: 'Unlimited scheduled posts' },
                 { text: '1,500 AI credits a month' },
-                { text: '5 team members and 5 workspaces' },
+                { text: '5 team members and 3 workspaces' },
                 { text: 'Approval workflows and roles' },
               ]}
               action={plan === 'free'
@@ -743,7 +743,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: '100 connected channels' },
                 { text: 'Unlimited scheduled posts' },
                 { text: '5,000 AI credits a month' },
-                { text: 'Unlimited team members and workspaces' },
+                { text: 'Unlimited team members, 6 workspaces' },
               ]}
               action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch — the web app supports it today.') }}
             />
