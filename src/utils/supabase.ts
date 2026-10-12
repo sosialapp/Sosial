@@ -221,9 +221,21 @@ export async function currentSession(): Promise<{ user: User; session: Session; 
   return { user: data.session.user, session: data.session, workspace };
 }
 
-export async function signUpEmail(email: string, password: string): Promise<{ needsConfirm: boolean; email: string }> {
+export async function signUpEmail(
+  email: string,
+  password: string,
+  marketingOptIn = false,
+): Promise<{ needsConfirm: boolean; email: string }> {
   const sb = supabase();
-  const { data, error } = await sb.auth.signUp({ email: email.trim(), password });
+  const { data, error } = await sb.auth.signUp({
+    email: email.trim(),
+    password,
+    options: {
+      // Read by the web /auth/callback after inbox confirmation, which adds
+      // consenting users to the marketing audience (Resend).
+      data: { marketing_opt_in: marketingOptIn },
+    },
+  });
   if (error) throw friendly(error, 'Sign-up failed.');
   if (!data.session) return { needsConfirm: true, email: email.trim() };
   await myWorkspace(data.session.user.id, data.session.user.email ?? email.trim());

@@ -46,6 +46,8 @@ export default function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [marketing, setMarketing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -54,6 +56,7 @@ export default function LoginForm({
     setMode(next);
     setConfirm('');
     setPassword('');
+    setAgree(false);
     setErr(null);
     setNote(null);
   }
@@ -72,6 +75,11 @@ export default function LoginForm({
       return;
     }
 
+    if (mode === 'up' && !agree) {
+      setErr('Please agree to the Terms and Privacy Policy to continue.');
+      return;
+    }
+
     setBusy(true);
     try {
       const sb = createClient();
@@ -83,7 +91,12 @@ export default function LoginForm({
         const { data, error } = await sb.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${redirectTo}?next=${encodeURIComponent('/dashboard')}&mode=confirm` },
+          options: {
+            emailRedirectTo: `${redirectTo}?next=${encodeURIComponent('/dashboard')}&mode=confirm`,
+            // Picked up by /auth/callback after the user confirms, which adds
+            // consenting users to the marketing audience (Resend).
+            data: { marketing_opt_in: marketing },
+          },
         });
         if (error) throw error;
         if (!data.session) {
@@ -183,17 +196,38 @@ export default function LoginForm({
           </button>
 
           {signingUp && (
-            <p className="text-center text-xs leading-relaxed text-faint">
-              By creating an account you agree to our{' '}
-              <Link href="/terms" className="text-muted underline underline-offset-2 hover:text-ink">
-                Terms &amp; Conditions
-              </Link>{' '}
-              and{' '}
-              <Link href="/privacy" className="text-muted underline underline-offset-2 hover:text-ink">
-                Privacy Policy
-              </Link>
-              .
-            </p>
+            <div className="space-y-2 pt-1">
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-muted">
+                <input
+                  type="checkbox"
+                  checked={agree}
+                  onChange={(e) => setAgree(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-current"
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
+                    Terms &amp; Conditions
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">
+                    Privacy Policy
+                  </Link>
+                  .
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-muted">
+                <input
+                  type="checkbox"
+                  checked={marketing}
+                  onChange={(e) => setMarketing(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-current"
+                />
+                <span>
+                  Email me occasional product news and tips. Optional — unsubscribe any time.
+                </span>
+              </label>
+            </div>
           )}
         </form>
 

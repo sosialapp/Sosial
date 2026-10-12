@@ -59,6 +59,8 @@ export default function WelcomeScreen({
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [legal, setLegal] = useState<null | 'terms' | 'privacy'>(null);
+  const [agree, setAgree] = useState(false);
+  const [marketing, setMarketing] = useState(false);
 
   const finish = async (fallbackEmail: string) => {
     let profile: WelcomeProfile = {
@@ -92,12 +94,16 @@ export default function WelcomeScreen({
       setErr('Passwords don’t match — retype them.');
       return;
     }
+    if (mode === 'up' && !agree) {
+      setErr('Please agree to the Terms and Privacy Policy to continue.');
+      return;
+    }
     setBusy(true);
     setErr(null);
     setNotice(null);
     try {
       if (mode === 'up') {
-        const r = await signUpEmail(email, pw);
+        const r = await signUpEmail(email, pw, marketing);
         if (r.needsConfirm) {
           setNotice('Account created — check your inbox for the confirmation link, then sign in.');
           setPw('');
@@ -251,12 +257,28 @@ export default function WelcomeScreen({
                 }}
               />
               {mode === 'up' ? (
-                <Text style={s.fine}>
-                  By signing up, you agree to our{' '}
-                  <Text style={s.link} onPress={() => setLegal('terms')}>Terms of Use</Text>
-                  {' '}and{' '}
-                  <Text style={s.link} onPress={() => setLegal('privacy')}>Privacy Policy</Text>.
-                </Text>
+                <>
+                  <View style={s.checkRow}>
+                    <CheckBox on={agree} onPress={() => setAgree((v) => !v)} color={C} />
+                    <Text style={s.checkText}>
+                      I agree to the{' '}
+                      <Text style={s.link} onPress={() => setLegal('terms')}>
+                        Terms of Use
+                      </Text>{' '}
+                      and{' '}
+                      <Text style={s.link} onPress={() => setLegal('privacy')}>
+                        Privacy Policy
+                      </Text>
+                      .
+                    </Text>
+                  </View>
+                  <View style={s.checkRow}>
+                    <CheckBox on={marketing} onPress={() => setMarketing((v) => !v)} color={C} />
+                    <Text style={s.checkText}>
+                      Email me occasional product news and tips. Optional — unsubscribe any time.
+                    </Text>
+                  </View>
+                </>
               ) : null}
               {allowSkip ? (
                 <TouchableOpacity onPress={onSkip} activeOpacity={0.7} style={s.skipHit}>
@@ -300,6 +322,43 @@ export default function WelcomeScreen({
         </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
+  );
+}
+
+/**
+ * Tiny square checkbox for the signup legal / marketing consents.
+ * Module-level so toggling never remounts the form around it.
+ */
+function CheckBox({
+  on,
+  onPress,
+  color,
+}: {
+  on: boolean;
+  onPress: () => void;
+  color: Palette;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on }}
+      style={{
+        width: 16,
+        height: 16,
+        borderRadius: 4,
+        borderWidth: 1.5,
+        borderColor: on ? color.ink : color.line,
+        backgroundColor: on ? color.ink : 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 1,
+      }}
+    >
+      {on ? <Text style={{ color: color.paper, fontSize: 10, fontFamily: 'PlusJakartaSans_800ExtraBold', lineHeight: 12 }}>✓</Text> : null}
+    </TouchableOpacity>
   );
 }
 
@@ -402,6 +461,15 @@ const makeS = (C: Palette) =>
       fontSize: 11.5,
       color: C.faint,
       textAlign: 'center',
+    },
+    checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 2 },
+    checkHit: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, flex: 1 },
+    checkText: {
+      fontFamily: 'PlusJakartaSans_400Regular',
+      fontSize: 11.5,
+      lineHeight: 16,
+      color: C.muted,
+      flex: 1,
     },
     link: {
       fontFamily: 'PlusJakartaSans_700Bold',

@@ -23,7 +23,7 @@ export interface LegalDoc {
 export const TERMS: LegalDoc = {
   slug: 'terms',
   title: 'Terms of Use',
-  updated: '2026-10-08',
+  updated: '2026-10-12',
   summary:
     'The agreement between you and Sosial for using the service: accounts, content, publishing and liability.',
   sections: [
@@ -119,7 +119,25 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '8. Contact',
+      title: '8. Marketing emails',
+      blocks: [
+        {
+          t: 'p',
+          c: 'Product news and tips are sent only to users who explicitly opt in — the checkbox at signup or a preference in your account settings. Opting in is optional and never affects how the product works. Every marketing email carries a one-click unsubscribe link, and unsubscribing takes effect immediately. We never send marketing email to addresses that have not consented, and operational emails (security notices, billing receipts, publishing confirmations) are not marketing and continue regardless of this choice.',
+        },
+      ],
+    },
+    {
+      title: '9. Inactive accounts',
+      blocks: [
+        {
+          t: 'p',
+          c: 'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data — posts, media, templates, connected channels and workspace records. Before any deletion we email the account holder a reminder one month in advance. Signing in at any point during that month cancels the deletion. Paid accounts with an active subscription are never treated as inactive. This policy exists so we do not hold personal data indefinitely for people who have left.',
+        },
+      ],
+    },
+    {
+      title: '10. Contact',
       blocks: [
         {
           t: 'p',
@@ -133,7 +151,7 @@ export const TERMS: LegalDoc = {
 export const PRIVACY: LegalDoc = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: '2026-10-08',
+  updated: '2026-10-12',
   summary:
     'What we store, why we store it, how it is protected, who we share it with, and how to get it out, written in plain language.',
   sections: [
@@ -317,6 +335,19 @@ export const PRIVACY: LegalDoc = {
         {
           t: 'p',
           c: 'We keep your workspace data while your account is active. If you delete your workspace, we remove your content, connected tokens and personal details. Some records may be retained briefly for legal, tax or security reasons.',
+        },
+        {
+          t: 'p',
+          c: 'If an account is inactive — no sign-in and no activity — for six consecutive months, it and all of its data are deleted. We email a reminder one month before any such deletion, and signing in at any point cancels it. Accounts with an active paid subscription are never deleted for inactivity. You can also delete everything yourself at any time from your profile or via [Request deletion](/delete-data).',
+        },
+      ],
+    },
+    {
+      title: 'Marketing emails',
+      blocks: [
+        {
+          t: 'p',
+          c: 'We send product news and tips only to people who asked for them — via the optional checkbox at signup or a preference in account settings. Consent is stored as a flag on your account, the emails come from our own domain, and every one carries a one-click unsubscribe link that takes effect immediately. We do not share your email address with advertising networks, and unsubscribing from marketing never affects operational emails such as security notices, receipts or publishing confirmations.',
         },
       ],
     },
