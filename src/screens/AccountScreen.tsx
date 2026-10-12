@@ -412,7 +412,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 132 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={() => (view === 'main' ? onBack() : setView('main'))} activeOpacity={0.7} style={s.backBtn}>
           <Ionicons name="chevron-back" size={20} color={C.ink} />
         </TouchableOpacity>
