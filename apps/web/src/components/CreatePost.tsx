@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import PublishMonitor from '@/components/PublishMonitor';
@@ -352,6 +352,9 @@ export default function CreatePost({
   const [types, setTypes] = useState<Record<string, string>>({});
   /** Threads community topic — mobile parity (topic_tag on the target). */
   const [threadsTopic, setThreadsTopic] = useState(initialThreadsTopic || '');
+  /** Community input collapsed by default (mobile parity) — opens with a
+   *  saved topic so a draft edit never hides it. */
+  const [topicOpen, setTopicOpen] = useState(Boolean(initialThreadsTopic));
   /** Social composer vs. rich article editor (website channels only). */
   const [surface, setSurface] = useState<'social' | 'article'>('social');
   const [articleDoc, setArticleDoc] = useState<TipTapDoc | null>(null);
@@ -886,7 +889,8 @@ export default function CreatePost({
               </p>
             ) : null}
 
-            {/* Per-channel format pills (post/reel/story/ghost…) */}
+            {/* Per-channel format pills (post/reel/story/ghost…) — Threads
+                also carries its Community › toggle right after Post. */}
             {chosenNow.some((c) => postTypeOptions(c.provider).length > 1) ? (
               <div className="mt-3 space-y-1.5">
                 {chosenNow
@@ -896,42 +900,64 @@ export default function CreatePost({
                       <span className="w-24 shrink-0 truncate text-[11px] font-bold text-muted">
                         {providerMeta(c.provider).label}
                       </span>
-                      <div className="flex flex-wrap gap-1">
-                        {postTypeOptions(c.provider).map((o) => {
+                      <div className="flex flex-wrap items-center gap-1">
+                        {postTypeOptions(c.provider).map((o, oi) => {
                           const active = (types[c.provider] ?? postTypeOptions(c.provider)[0].id) === o.id;
                           return (
-                            <button
-                              key={o.id}
-                              type="button"
-                              onClick={() => setTypes((prev) => ({ ...prev, [c.provider]: o.id }))}
-                              className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${
-                                active ? 'bg-ink text-paper' : 'border border-line text-muted hover:text-ink'
-                              }`}
-                            >
-                              {o.label}
-                            </button>
+                            <Fragment key={o.id}>
+                              <button
+                                type="button"
+                                onClick={() => setTypes((prev) => ({ ...prev, [c.provider]: o.id }))}
+                                className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${
+                                  active ? 'bg-ink text-paper' : 'border border-line text-muted hover:text-ink'
+                                }`}
+                              >
+                                {o.label}
+                              </button>
+                              {c.provider === 'threads' && oi === 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setTopicOpen((v) => !v)}
+                                  aria-expanded={topicOpen}
+                                  aria-label="Threads community topic"
+                                  title={threadsTopic || 'Community or topic'}
+                                  className="flex max-w-40 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/10"
+                                >
+                                  <span className="truncate">{threadsTopic || 'Community'}</span>
+                                  <span aria-hidden="true" className="text-sm leading-none">›</span>
+                                </button>
+                              ) : null}
+                            </Fragment>
                           );
                         })}
                       </div>
                     </div>
                   ))}
-              </div>
-            ) : null}
-
-            {/* Threads community — optional topic tag, mobile parity */}
-            {chosenNow.some((c) => c.provider === 'threads') ? (
-              <div className="mt-3 flex items-center gap-2">
-                <span className="w-24 shrink-0 truncate text-[11px] font-bold text-muted">
-                  Community
-                </span>
-                <input
-                  value={threadsTopic}
-                  onChange={(e) => setThreadsTopic(e.target.value)}
-                  placeholder="Topic tag (optional)"
-                  aria-label="Threads community topic tag"
-                  maxLength={50}
-                  className="field max-w-56 !py-1.5 !text-xs"
-                />
+                {topicOpen && chosenNow.some((c) => c.provider === 'threads') ? (
+                  <div className="flex items-center gap-2">
+                    <span className="w-24 shrink-0" aria-hidden="true" />
+                    <input
+                      value={threadsTopic}
+                      onChange={(e) => setThreadsTopic(e.target.value.slice(0, 50))}
+                      placeholder="e.g. Photography"
+                      aria-label="Threads community topic tag"
+                      maxLength={50}
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      className="field max-w-56 !py-1.5 !text-xs"
+                    />
+                    {threadsTopic ? (
+                      <button
+                        type="button"
+                        onClick={() => setThreadsTopic('')}
+                        className="shrink-0 text-[11px] font-bold text-muted transition hover:text-ink"
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
