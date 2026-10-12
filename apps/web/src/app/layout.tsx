@@ -6,18 +6,18 @@ import '@schedule-x/theme-default/dist/index.css';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app'),
   title: {
-    default: 'Sosial: Social Media Scheduler and Management for Every Channel',
+    default: 'Sosial: Schedule and manage social media',
     template: '%s · Sosial',
   },
   description:
-    'Plan, write and publish social media posts across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest, from one composer, calendar and queue.',
+    'Plan, write and publish to X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest — one composer, calendar and queue.',
   icons: { icon: '/bolt.png' },
   // Social images resolve from the generated opengraph-image routes
   // (root brand card + per-article cards) — no static images here.
   openGraph: {
     type: 'website',
     siteName: 'Sosial',
-    title: 'Sosial: Social Media Scheduler and Management for Every Channel',
+    title: 'Sosial: Schedule and manage social media',
     description:
       'Plan, write and publish across ten social networks from one composer, calendar and queue, with an AI writer and approvals built in.',
   },
