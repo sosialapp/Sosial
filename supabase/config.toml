@@ -469,3 +469,9 @@ enabled = true
 # Cron-only, same shared-token auth as dormancy-sweep.
 verify_jwt = false
 entrypoint = "./functions/report-cleanup/index.ts"
+
+[functions.profile-avatar]
+enabled = true
+# Browser-invoked with the user's JWT; the function reads identity itself.
+verify_jwt = true
+entrypoint = "./functions/profile-avatar/index.ts"

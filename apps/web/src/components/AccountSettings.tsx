@@ -204,6 +204,108 @@ export default function AccountSettings({
   const [delArmed, setDelArmed] = useState(false);
   const [delWord, setDelWord] = useState('');
   const [delBusy, setDelBusy] = useState(false);
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  /** Load the stored avatar (path → signed URL). */
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      try {
+        const sb = createClient();
+        const { data, error } = await sb.functions.invoke('profile-avatar', { method: 'GET' });
+        if (dead || error) return;
+        const p = (data as { avatar_url?: string | null } | null)?.avatar_url ?? null;
+        setAvatarPath(p);
+        if (p) {
+          const path = p.split('?')[0];
+          const { data: s } = await sb.storage.from('avatars').createSignedUrl(path, 3600);
+          if (!dead && s?.signedUrl) setAvatarUrl(s.signedUrl);
+        }
+      } catch { /* avatar stays empty */ }
+    })();
+    return () => { dead = true; };
+  }, []);
+
+  /** Signed URL refresh whenever the path changes. */
+  useEffect(() => {
+    if (!avatarPath) { setAvatarUrl(null); return; }
+    let dead = false;
+    (async () => {
+      const sb = createClient();
+      const { data: s } = await sb.storage.from('avatars').createSignedUrl(avatarPath.split('?')[0], 3600);
+      if (!dead && s?.signedUrl) setAvatarUrl(s.signedUrl);
+    })();
+    return () => { dead = true; };
+  }, [avatarPath]);
+
+  /** Upload → compress server-side → refresh. */
+  async function changeAvatar(file: File) {
+    if (avatarBusy) return;
+    setAvatarBusy(true);
+    setErr(null);
+    try {
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error('Could not read that file.'));
+        r.readAsDataURL(file);
+      });
+      const sb = createClient();
+      const { data, error } = await sb.functions.invoke('profile-avatar', {
+        body: { image_base64: b64 },
+      });
+      if (error) throw new Error(error.message);
+      const msg = (data as { error?: string } | null)?.error;
+      if (msg) throw new Error(msg);
+      setAvatarPath((data as { avatar_url?: string }).avatar_url ?? null);
+      setNote('Profile picture updated.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not update the picture.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  /** Pull the Google account picture (one click for Google users). */
+  async function useGooglePicture() {
+    if (avatarBusy) return;
+    setAvatarBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const { data, error } = await sb.functions.invoke('profile-avatar', {
+        body: { source: 'google' },
+      });
+      if (error) throw new Error(error.message);
+      const msg = (data as { error?: string } | null)?.error;
+      if (msg) throw new Error(msg);
+      setAvatarPath((data as { avatar_url?: string }).avatar_url ?? null);
+      setNote('Using your Google profile picture.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'No Google picture available.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    if (avatarBusy) return;
+    setAvatarBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const { error } = await sb.functions.invoke('profile-avatar', { method: 'DELETE' });
+      if (error) throw new Error(error.message);
+      setAvatarPath(null);
+      setNote('Profile picture removed.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not remove the picture.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
 
   const initial = (email || workspaceName || 'S')[0].toUpperCase();
   const title =
@@ -433,17 +535,62 @@ export default function AccountSettings({
 
       {view === 'main' ? (
         <>
-          <Card className="mt-4 flex items-center gap-4 p-5">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-ink font-display text-xl font-extrabold text-paper">
-              {initial}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-extrabold">{email || 'No email set'}</span>
-              <span className="block truncate text-xs text-muted">{workspaceName}</span>
-            </span>
-            <span className="shrink-0 rounded-full bg-paper-dim px-2.5 py-1 text-[11px] font-bold text-ink">
-              {role}
-            </span>
+          <Card className="mt-4 p-5">
+            <div className="flex items-center gap-4">
+              <span className="relative shrink-0">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="Profile picture" className="h-14 w-14 rounded-full border border-line object-cover" />
+                ) : (
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-ink font-display text-xl font-extrabold text-paper">
+                    {initial}
+                  </span>
+                )}
+                {avatarBusy ? (
+                  <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40" aria-hidden="true">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  </span>
+                ) : null}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-extrabold">{email || 'No email set'}</span>
+                <span className="block truncate text-xs text-muted">{workspaceName}</span>
+                <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <label className="cursor-pointer rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink">
+                    {avatarUrl ? 'Change' : 'Add photo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = '';
+                        if (f) void changeAvatar(f);
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void useGooglePicture()}
+                    className="rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink"
+                  >
+                    Use Google picture
+                  </button>
+                  {avatarUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => void removeAvatar()}
+                      className="rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-paper-dim px-2.5 py-1 text-[11px] font-bold text-ink">
+                {role}
+              </span>
+            </div>
           </Card>
 
           <Card className="mt-3 p-5">

@@ -354,9 +354,74 @@ async function finishGoogleSession(): Promise<WorkspaceInfo> {
   const sb = supabase();
   const { data, error } = await sb.auth.getSession();
   if (error || !data.session) throw friendly(error, 'Could not finish Google sign-in.');
+  // First sign-in with no picture yet: adopt the Google account photo
+  // (compressed server-side to a few KB). Best-effort, never blocks login.
+  try {
+    const { data: prof } = await sb.from('profiles').select('avatar_url').eq('id', data.session.user.id).maybeSingle();
+    if (!(prof as { avatar_url?: string | null } | null)?.avatar_url) {
+      await callEdgeFunction('profile-avatar', { source: 'google' }).catch(() => null);
+    }
+  } catch { /* cosmetic */ }
   const ws = await myWorkspace(data.session.user.id, data.session.user.email ?? '');
   if (!ws) throw new Error('Signed in, but no workspace — try again.');
   return ws;
+}
+
+/* ---------------- Profile picture (Edge Function) ---------------- */
+
+/** Current avatar path (or null) for the signed-in user. */
+export async function getMyAvatar(): Promise<string | null> {
+  const sb = supabase();
+  const { data } = await sb.auth.getSession();
+  const jwt = data.session?.access_token;
+  if (!jwt) return null;
+  try {
+    const res = await fetch(`${URL}/functions/v1/profile-avatar`, {
+      method: 'GET',
+      headers: { apikey: ANON, Authorization: `Bearer ${jwt}` },
+    });
+    if (!res.ok) return null;
+    const j: any = await res.json().catch(() => ({}));
+    return typeof j?.avatar_url === 'string' && j.avatar_url ? j.avatar_url : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Signed URL for the user's own avatar path. */
+export async function avatarSignedUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  try {
+    const { data, error } = await supabase().storage.from('avatars').createSignedUrl(path.split('?')[0], 3600);
+    return error || !data?.signedUrl ? null : data.signedUrl;
+  } catch {
+    return null;
+  }
+}
+
+/** Upload a local image (uri) as the profile picture — server compresses. */
+export async function setAvatarFromUri(uri: string): Promise<void> {
+  const res = await fetch(uri);
+  const blob = await res.blob();
+  const b64 = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('Could not read that image.'));
+    r.readAsDataURL(blob);
+  });
+  await callEdgeFunction('profile-avatar', { image_base64: b64 });
+}
+
+/** Remove the profile picture. */
+export async function clearMyAvatar(): Promise<void> {
+  const sb = supabase();
+  const { data } = await sb.auth.getSession();
+  const jwt = data.session?.access_token;
+  if (!jwt) return;
+  await fetch(`${URL}/functions/v1/profile-avatar`, {
+    method: 'DELETE',
+    headers: { apikey: ANON, Authorization: `Bearer ${jwt}` },
+  }).catch(() => null);
 }
 
 /**

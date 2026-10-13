@@ -8,7 +8,7 @@ import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import { wipeAllData } from '../utils/account';
 import { TERMS_TEXT } from '../utils/legal';
-import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, callEdgeFunction, WorkspaceInfo } from '../utils/supabase';
+import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, callEdgeFunction, WorkspaceInfo, getMyAvatar, avatarSignedUrl, setAvatarFromUri, clearMyAvatar } from '../utils/supabase';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
@@ -52,6 +52,8 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [repBusy, setRepBusy] = useState(false);
   const [repShots, setRepShots] = useState<{ uri: string; name: string; mime: string }[]>([]);
   const [myTicket, setMyTicket] = useState<UserTicket | null | undefined>(undefined);
+  const [pfpUri, setPfpUri] = useState<string | null>(null);
+  const [pfpBusy, setPfpBusy] = useState(false);
 
   type UserTicket = {
     id: string;
@@ -62,6 +64,58 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     admin_note: string;
     attachments: string[];
     created_at: string;
+  };
+
+  /** Pick a new profile picture from the library. */
+  const changePfp = async () => {
+    if (pfpBusy) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
+      return;
+    }
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
+    if (r.canceled || !r.assets[0]) return;
+    setPfpBusy(true);
+    try {
+      await setAvatarFromUri(r.assets[0].uri);
+      const path = await getMyAvatar();
+      const uri = await avatarSignedUrl(path);
+      setPfpUri(uri);
+      Alert.alert('Updated', 'Profile picture saved.');
+    } catch (e: any) {
+      Alert.alert('Couldn’t update', e?.message ?? 'Try again.');
+    } finally {
+      setPfpBusy(false);
+    }
+  };
+
+  /** Adopt the Google account picture. */
+  const useGooglePfp = async () => {
+    if (pfpBusy) return;
+    setPfpBusy(true);
+    try {
+      await callEdgeFunction('profile-avatar', { source: 'google' });
+      const path = await getMyAvatar();
+      const uri = await avatarSignedUrl(path);
+      setPfpUri(uri);
+      Alert.alert('Updated', 'Using your Google profile picture.');
+    } catch (e: any) {
+      Alert.alert('Not available', e?.message ?? 'No Google picture on this account.');
+    } finally {
+      setPfpBusy(false);
+    }
+  };
+
+  const removePfp = async () => {
+    if (pfpBusy) return;
+    setPfpBusy(true);
+    try {
+      await clearMyAvatar();
+      setPfpUri(null);
+    } finally {
+      setPfpBusy(false);
+    }
   };
 
   /* Self-serve erasure: server wipe (delete-account fn) + local wipe. */
@@ -80,6 +134,17 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [sbAccount, setSbAccount] = useState<{ email: string; workspace: WorkspaceInfo } | null>(null);
   const [cloudImp, setCloudImp] = useState(0);
   const [cloudConn, setCloudConn] = useState(0);
+
+  /* Load the profile picture whenever the cloud account changes. */
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const path = await getMyAvatar();
+      const uri = await avatarSignedUrl(path);
+      if (alive) setPfpUri(uri);
+    })();
+    return () => { alive = false; };
+  }, [sbState, sbAccount?.email]);
 
   /* Owner-push self-check: surfaces registration state instead of failing
    * silently, so a missing device is diagnosable on-device. */
@@ -511,7 +576,24 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
         {view === 'main' ? (
           <>
             <View style={s.head}>
-              <View style={s.avatar}><Text style={s.avatarT}>{initial}</Text></View>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert('Profile picture', pfpUri ? 'Change or remove your picture.' : 'Add a picture, or use your Google account photo.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: pfpUri ? 'Change photo' : 'Add photo', onPress: () => void changePfp() },
+                    { text: 'Use Google picture', onPress: () => void useGooglePfp() },
+                    ...(pfpUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => void removePfp() }] : []),
+                  ]);
+                }}
+                accessibilityLabel="Change profile picture"
+                activeOpacity={0.75}
+              >
+                {pfpUri ? (
+                  <Image source={{ uri: pfpUri }} style={[s.avatar, { borderWidth: 0 }]} />
+                ) : (
+                  <View style={s.avatar}><Text style={s.avatarT}>{initial}</Text></View>
+                )}
+              </TouchableOpacity>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={s.email} numberOfLines={1}>{email || 'No email set'}</Text>
                 <Text style={s.team} numberOfLines={1}>{team}</Text>
