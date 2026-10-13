@@ -141,7 +141,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Questions about these terms? Email support@sosial.app or reach us through the contact link in your workspace. EGATE WORLDWIDE operates Sosial and is fully remote — there is no physical office.',
+          c: 'Something unclear? Write to support@sosial.app — a person reads it. Sosial is operated by EGATE WORLDWIDE.',
         },
       ],
     },
@@ -387,7 +387,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'If this policy changes materially we will tell you in the product before the change takes effect. Questions? Email support@sosial.app or use the contact link in your workspace. The data controller is EGATE WORLDWIDE, the operator of Sosial.',
+          c: 'If anything important changes here, we will tell you in the product first. Questions about your data? Email support@sosial.app. The data controller is EGATE WORLDWIDE.',
         },
       ],
     },

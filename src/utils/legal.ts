@@ -74,6 +74,6 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   },
   {
     title: 'Changes & contact',
-    body: 'If this policy changes materially we will tell you in the product before the change takes effect. Questions? Email support@sosial.app. The data controller is EGATE WORLDWIDE, the operator of Sosial.',
+    body: 'If anything important changes here, we will tell you in the product first. Questions about your data? Email support@sosial.app. The data controller is EGATE WORLDWIDE.',
   },
 ];
