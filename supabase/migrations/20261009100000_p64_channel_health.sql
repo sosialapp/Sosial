@@ -6,7 +6,7 @@
 -- reasons (e.g. missing OAuth client keys on the worker). Clients cannot read
 -- channel_tokens directly (no RLS surface there by design), so this RPC
 -- exposes exactly one derived bit per channel: token_stale (expiry older than
--- 1h — the hourly refresh cron had its chance). Clients treat
+-- 1h, the hourly refresh cron had its chance). Clients treat
 -- status='expired' OR token_stale as "needs reconnect".
 
 create or replace function public.channel_health(p_workspace_id uuid)

@@ -4,7 +4,7 @@
 //   → verifies the caller is an active member of the workspace
 //   → exchanges the OAuth code with Notion (Basic client auth)
 //   → stores the access token in Vault, metadata in notion_connections
-//   (upsert per (workspace, notion workspace) — reconnecting refreshes)
+//   (upsert per (workspace, notion workspace), reconnecting refreshes)
 //
 // Notion tokens do not expire, so there is no refresh path. Disconnect
 // deletes the Vault secret + row (web route, service role).
@@ -92,7 +92,7 @@ serve(async (req: Request): Promise<Response> => {
     });
   } catch {
     t.clear();
-    return bad("Could not reach Notion — try again.", 504);
+    return bad("Could not reach Notion, try again.", 504);
   }
   t.clear();
   const tok: any = await tokenRes.json().catch(() => ({}));

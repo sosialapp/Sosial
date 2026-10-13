@@ -40,7 +40,7 @@ serve(async (req: Request): Promise<Response> => {
   const serviceKey =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SB_SECRET_KEY") ?? "";
   if (!supaUrl || !anonKey || !serviceKey) {
-    return bad("Function misconfigured — missing Supabase env.", 500);
+    return bad("Function misconfigured, missing Supabase env.", 500);
   }
 
   const authHeader = req.headers.get("Authorization") ?? "";

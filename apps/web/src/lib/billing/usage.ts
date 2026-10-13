@@ -71,7 +71,7 @@ export async function getUsage(workspaceId: string, plan: PlanKey): Promise<Usag
     out.aiCreditsUsed = data?.ai_credits ?? 0;
     out.aiCreditsRemaining = limit === null ? null : Math.max(0, limit - out.aiCreditsUsed);
   } catch {
-    // usage read failing must never break the page — treat as zero
+    // usage read failing must never break the page, treat as zero
   }
 
   try {
@@ -87,7 +87,7 @@ export async function getUsage(workspaceId: string, plan: PlanKey): Promise<Usag
     out.channels = [...counts.entries()].map(([channelId, scheduled]) => ({ channelId, scheduled }));
     out.scheduledTotal = out.channels.reduce((sum, c) => sum + c.scheduled, 0);
   } catch {
-    // same — derived usage must not break the page
+    // same, derived usage must not break the page
   }
 
   try {
@@ -97,7 +97,7 @@ export async function getUsage(workspaceId: string, plan: PlanKey): Promise<Usag
       .eq('workspace_id', workspaceId);
     out.channelsConnected = count ?? 0;
   } catch {
-    // same — derived usage must not break the page
+    // same, derived usage must not break the page
   }
 
   return out;

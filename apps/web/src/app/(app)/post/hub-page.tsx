@@ -10,7 +10,7 @@ const VALID_TABS: Tab[] = ['post', 'templates', 'ideas'];
 
 /**
  * Mobile-style Post hub: composer, status lists (?filter=), templates,
- * ideas. One shared server component behind three URLs — /post,
+ * ideas. One shared server component behind three URLs, /post,
  * /post-templates, /post-ideas (/post-publish redirects to /post?filter=all).
  * The legacy ?tab= param still works and only selects the initial tab; the
  * path stays canonical.

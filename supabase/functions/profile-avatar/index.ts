@@ -8,7 +8,7 @@
 //                        same way, store. Idempotent.
 // DELETE → clear the column and remove the stored object.
 //
-// Why server-side: the browser never uploads raw multi-MB photos — the
+// Why server-side: the browser never uploads raw multi-MB photos, the
 // function downsizes to ≤256px so a profile picture is a few KB. Uses
 // createObjectURL-free 100% Deno: decode via ImageMagick-equivalent isn't
 // available, so we re-encode JPEG at fixed width using the pure-Deno
@@ -20,7 +20,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const MAX_DIM = 256; // px — plenty for 56–112px UI at 2x DPR
+const MAX_DIM = 256; // px, plenty for 56–112px UI at 2x DPR
 const JPEG_QUALITY = 0.72;
 const BUCKET = "avatars";
 const OBJECT = "pfp.jpg";
@@ -148,7 +148,7 @@ serve(async (req: Request): Promise<Response> => {
       (typeof meta.picture === "string" && meta.picture) ||
       (typeof meta.avatar_url === "string" && meta.avatar_url) ||
       "";
-    if (!pic) return bad("No Google picture on this account — upload one instead.");
+    if (!pic) return bad("No Google picture on this account, upload one instead.");
     try {
       const res = await fetch(pic, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) return bad(`Google refused the picture fetch (${res.status}).`, 502);
@@ -170,9 +170,9 @@ serve(async (req: Request): Promise<Response> => {
   if (compressed) {
     raw = compressed;
   } else if (raw.byteLength > 300 * 1024) {
-    // No ImageDecoder in this runtime and the source is heavy — refuse
+    // No ImageDecoder in this runtime and the source is heavy, refuse
     // rather than store megabytes under the guise of an avatar.
-    return bad("Could not compress this image — try a smaller one.", 422);
+    return bad("Could not compress this image, try a smaller one.", 422);
   }
 
   try {

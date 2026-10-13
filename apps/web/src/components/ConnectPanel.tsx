@@ -30,7 +30,7 @@ const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'te
 
 const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true, vk: true };
 
-/** Listed but not connectable yet — shows a Soon tag instead of Connect.
+/** Listed but not connectable yet, shows a Soon tag instead of Connect.
  *  gmb: allowlist pending. linkedin/pinterest: production approval pending
  *  (dev-mode connects still work via direct URL for testing). */
 const COMING_SOON: ProviderId[] = ['gmb', 'linkedin', 'pinterest'];
@@ -69,7 +69,7 @@ const DOT: Record<string, string> = {
  * Mobile-style Connect list: one row per provider, tap to expand into its
  * accounts. OAuth rows with no accounts connect immediately; otherwise the
  * row expands to account rows (avatar + name + status + remove), the
- * provider's picker (Facebook Pages), and an "add another account" action —
+ * provider's picker (Facebook Pages), and an "add another account" action -
  * the browser sends whichever account is signed in at the provider, so a
  * second account means switching the login there first.
  */
@@ -90,10 +90,10 @@ export default function ConnectPanel({
   gmbPick: GmbPickLocation[] | null;
   /** Result banners (from ?connected= / ?error=). */
   status: { connected?: string; already?: string; error?: string };
-  /** Owners and admins — they see Remove/disconnect and every connect
+  /** Owners and admins, they see Remove/disconnect and every connect
    *  action. Ordinary members get a read-only list plus a note. */
   canManage: boolean;
-  /** Workspace plan — paywalled providers (X) show an upgrade nudge on free. */
+  /** Workspace plan, paywalled providers (X) show an upgrade nudge on free. */
   plan: PlanKey;
 }) {
   const [open, setOpen] = useState<ProviderId | null>(
@@ -102,7 +102,7 @@ export default function ConnectPanel({
   const [bskyHandle, setBskyHandle] = useState('');
   const [bskyPass, setBskyPass] = useState('');
   /** channel_id → token is stale (expiry older than 1h). A stale token means
-   *  the hourly refresh never landed — the channel is dead even while its
+   *  the hourly refresh never landed, the channel is dead even while its
    *  status row still says 'connected'. Refreshed on mount. */
   const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function ConnectPanel({
           ),
         );
       } catch {
-        // health is advisory — the status column still drives the badges
+        // health is advisory, the status column still drives the badges
       }
     })();
     return () => {
@@ -171,13 +171,13 @@ export default function ConnectPanel({
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; queued_refresh?: number; error?: string };
       if (!r.ok || !j.ok) throw new Error(j.error ?? 'Sync failed.');
       setSyncedNote(
-        `Checking ${j.queued_refresh ?? 0} channel(s) — statuses update shortly.`,
+        `Checking ${j.queued_refresh ?? 0} channel(s), statuses update shortly.`,
       );
       for (let i = 0; i < 5; i++) {
         await new Promise((res) => setTimeout(res, 5000));
         router.refresh();
       }
-      setSyncedNote('Checked — statuses are up to date.');
+      setSyncedNote('Checked, statuses are up to date.');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Sync failed.');
     } finally {
@@ -187,14 +187,14 @@ export default function ConnectPanel({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
-  /** A connect navigation is already in flight — swallow extra taps. */
+  /** A connect navigation is already in flight, swallow extra taps. */
   const [leaving, setLeaving] = useState<ProviderId | null>(null);
   const router = useRouter();
 
   // Consent happens in a new tab; this tab goes stale while the user is
   // away, so refresh the list whenever they come back to it. A return also
   // means any in-flight connect navigation was abandoned (cancelled in the
-  // other tab) or completed elsewhere — either way the tap-lock must reset
+  // other tab) or completed elsewhere, either way the tap-lock must reset
   // or every connect button stays dead.
   useEffect(() => {
     const refresh = () => {
@@ -281,7 +281,7 @@ export default function ConnectPanel({
       return;
     }
     setBusy(true);
-    // Open the tab synchronously in the tap handler — awaiting the
+    // Open the tab synchronously in the tap handler, awaiting the
     // registration first would trip popup blockers.
     const tab = window.open('about:blank', '_blank');
     try {
@@ -342,7 +342,7 @@ export default function ConnectPanel({
       setDcGuild('');
       setDcChannels([]);
       setDcChannel('');
-      if (!(j.guilds ?? []).length) setErr('That bot is in no servers — invite it first.');
+      if (!(j.guilds ?? []).length) setErr('That bot is in no servers, invite it first.');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not reach Discord.');
     } finally {
@@ -361,7 +361,7 @@ export default function ConnectPanel({
       const j = await dcCall({ guild_id: guildId });
       setDcChannels(j.channels ?? []);
       setDcThreads(j.threads ?? []);
-      if (!(j.channels ?? []).length && !(j.threads ?? []).length) setErr('No text channels there — check the bot can see one.');
+      if (!(j.channels ?? []).length && !(j.threads ?? []).length) setErr('No text channels there, check the bot can see one.');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not list channels.');
     } finally {
@@ -427,7 +427,7 @@ export default function ConnectPanel({
       setHnPubs(j.publications ?? []);
       setHnPub('');
       if (!(j.publications ?? []).length) {
-        setErr('No publications on that token — publish from a Hashnode account with a blog.');
+        setErr('No publications on that token, publish from a Hashnode account with a blog.');
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not reach Hashnode.');
@@ -733,7 +733,7 @@ export default function ConnectPanel({
       ) : null}
       {status.already ? (
         <p className="rounded-xl bg-accent-soft px-3.5 py-2.5 text-xs font-bold text-accent-ink">
-          {alreadyLabel} is already connected — nothing new added.
+          {alreadyLabel} is already connected, nothing new added.
         </p>
       ) : null}
       {status.error ? (
@@ -816,9 +816,9 @@ export default function ConnectPanel({
               return;
             }
             // Paywalled providers on free: explain instead of opening OAuth
-            // (the server route enforces the same rule — this just says it first).
+            // (the server route enforces the same rule, this just says it first).
             if (!manual && !hasAny && !canConnectProvider(plan, p)) {
-              setErr('X needs a paid plan — its posting API is paywalled. Upgrade in Billing to connect it.');
+              setErr('X needs a paid plan, its posting API is paywalled. Upgrade in Billing to connect it.');
               return;
             }
             // No accounts yet on an OAuth provider: consent opens in a new
@@ -889,7 +889,7 @@ export default function ConnectPanel({
                         {isDead(c) ? (
                           <span
                             className="flex shrink-0 items-center gap-1 rounded-full bg-[#FDF3D7] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#8a6100] dark:bg-[#2b2417] dark:text-[#e6a417]"
-                            title={c.last_error ?? 'Session expired — reconnect this channel.'}
+                            title={c.last_error ?? 'Session expired, reconnect this channel.'}
                           >
                             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                             Reconnect
@@ -911,7 +911,7 @@ export default function ConnectPanel({
                       </div>
                       {isDead(c) ? (
                         <p className="mt-1 truncate pl-[40px] pr-2 text-[11px] text-[#8a6100] dark:text-[#e6a417]" title={c.last_error ?? undefined}>
-                          {c.last_error ?? 'Session expired — reconnect this channel.'}
+                          {c.last_error ?? 'Session expired, reconnect this channel.'}
                         </p>
                       ) : null}
                     </div>
@@ -920,7 +920,7 @@ export default function ConnectPanel({
                   {p === 'bluesky' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth needed — mint an app password at bsky.app → Settings → App passwords.
+                        No OAuth needed, mint an app password at bsky.app → Settings → App passwords.
                       </p>
                       <input
                         value={bskyHandle}
@@ -947,7 +947,7 @@ export default function ConnectPanel({
                   {p === 'mastodon' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        Your server registers Sosial itself — no app keys needed.
+                        Your server registers Sosial itself, no app keys needed.
                       </p>
                       <input
                         value={mastodonInstance}
@@ -1054,7 +1054,7 @@ export default function ConnectPanel({
                   {p === 'ghost' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No central login — each site issues its own key at Ghost Admin
+                        No central login, each site issues its own key at Ghost Admin
                         → Settings → Integrations.
                       </p>
                       <input
@@ -1089,7 +1089,7 @@ export default function ConnectPanel({
                   {p === 'vk' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        Communities only — mint an access key at Community →
+                        Communities only, mint an access key at Community →
                         Manage → Working with API → Access Tokens (wall + photos
                         rights). Personal-profile posting is gated by VK.
                       </p>
@@ -1124,11 +1124,11 @@ export default function ConnectPanel({
                   {p === 'hashnode' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth — generate a token at hashnode.com → Settings →
+                        No OAuth, generate a token at hashnode.com → Settings →
                         Developer, then pick the publication below.
                       </p>
                       <p className="rounded-lg bg-accent-soft px-2.5 py-1.5 text-[11px] font-bold leading-relaxed text-accent-ink">
-                        Only Hashnode Pro publications can connect — upgrade at your blog dashboard → Billing first.
+                        Only Hashnode Pro publications can connect, upgrade at your blog dashboard → Billing first.
                       </p>
                       <input
                         value={hnToken}
@@ -1178,7 +1178,7 @@ export default function ConnectPanel({
                   {p === 'devto' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth — mint a key at dev.to → Settings → Extensions, then
+                        No OAuth, mint a key at dev.to → Settings → Extensions, then
                         paste it below.
                       </p>
                       <input
@@ -1204,7 +1204,7 @@ export default function ConnectPanel({
                   {p === 'wordpress' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No central login — each site mints its own password at Users →
+                        No central login, each site mints its own password at Users →
                         Profile → Application Passwords (needs WP 5.6+).
                       </p>
                       <input
@@ -1247,7 +1247,7 @@ export default function ConnectPanel({
                   {p === 'telegram' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth — message @BotFather for a bot token, add the bot to your
+                        No OAuth, message @BotFather for a bot token, add the bot to your
                         channel or group as an admin, then paste the destination below.
                       </p>
                       <input
@@ -1310,7 +1310,7 @@ export default function ConnectPanel({
                     <div className="space-y-1.5 rounded-xl border border-accent bg-accent-soft/40 p-3">
                       <p className="text-xs font-bold">Pick a Business Profile location</p>
                       <p className="-mt-1 text-[11px] text-muted">
-                        Each location connects separately — posts publish as local posts on it.
+                        Each location connects separately, posts publish as local posts on it.
                       </p>
                       {gmbPick.map((l) => (
                         <div key={l.name} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
@@ -1355,7 +1355,7 @@ export default function ConnectPanel({
                       </a>
                       {hasAny ? (
                         <p className="mt-1 text-center text-[11px] leading-relaxed text-faint">
-                          The browser sends whichever {label} account is signed in there — switch the login
+                          The browser sends whichever {label} account is signed in there, switch the login
                           on {label} first to add a different one. A login page instead of permissions just
                           means signing in there once; after that Connect goes straight through.
                           {p === 'tiktok' ? ' TikTok always shows the consent page, so you can see exactly which account you are authorizing.' : null}

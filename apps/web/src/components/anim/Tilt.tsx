@@ -9,7 +9,7 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 /**
  * Pointer-tracked 3D tilt. Desktop + fine-pointer only, and skipped entirely
- * under reduced motion — the card is flat and static everywhere else.
+ * under reduced motion, the card is flat and static everywhere else.
  */
 export default function Tilt({
   children,

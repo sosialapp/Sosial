@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * Discord connect passthrough — staged bot-token flow (token → servers →
+ * Discord connect passthrough, staged bot-token flow (token → servers →
  * channels → save), same shape as the Telegram route. The edge function
  * validates each stage against Discord before storing anything.
  */

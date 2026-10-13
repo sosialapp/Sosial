@@ -54,11 +54,11 @@ async function publishOne(a: OnePost): Promise<string> {
     headers: { Authorization: `Bearer ${a.token}` },
   });
   const cj: any = await c.json().catch(() => ({}));
-  if (c.status === 401) throw new Error('Threads session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (c.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
   if (cj.error || !cj.id) throw new Error(gerr(cj, 'Threads container failed', 'container'));
   const creationId = String(cj.id);
 
-  // The container must reach FINISHED before publishing — firing
+  // The container must reach FINISHED before publishing, firing
   // threads_publish immediately races Meta's backend (code 24, subcode
   // 4279009). Poll status, bounded.
   const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -74,7 +74,7 @@ async function publishOne(a: OnePost): Promise<string> {
       throw new Error(gerr(sj, 'Threads container processing failed', `status:${creationId}`));
     }
     if (Date.now() - start > 90000) {
-      throw new Error(`Threads container not ready after 90s (${status || 'unknown'}) — retry shortly.`);
+      throw new Error(`Threads container not ready after 90s (${status || 'unknown'}), retry shortly.`);
     }
     await sleep(4000);
   }
@@ -84,7 +84,7 @@ async function publishOne(a: OnePost): Promise<string> {
     { method: 'POST', headers: { Authorization: `Bearer ${a.token}` } },
   );
   const pj: any = await p.json().catch(() => ({}));
-  if (p.status === 401) throw new Error('Threads session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (p.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
   if (pj.error || !pj.id) throw new Error(gerr(pj, 'Threads publish failed', `publish:${creationId}`));
   return String(pj.id);
 }
@@ -92,10 +92,10 @@ async function publishOne(a: OnePost): Promise<string> {
 export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {
   const b = bundle as Bundle;
   const threadsId = b.channel.external_id;
-  if (!threadsId) throw new Error('Threads channel missing user ID — re-enable cloud publishing.');
-  if (!b.secrets.access_secret_id) throw new Error('Threads token missing — re-enable cloud publishing.');
+  if (!threadsId) throw new Error('Threads channel missing user ID, re-enable cloud publishing.');
+  if (!b.secrets.access_secret_id) throw new Error('Threads token missing, re-enable cloud publishing.');
   const token = await readSecret(b.secrets.access_secret_id);
-  if (!token) throw new Error('Threads session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (!token) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   const first = (b.media ?? [])
@@ -104,7 +104,7 @@ export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: 
   const kind = !first ? 'TEXT' : first.kind === 'video' ? 'VIDEO' : 'IMAGE';
   let mediaUrl = '';
   if (first) {
-    // Threads pulls the file itself — signed URL works (bearer URL, 1h).
+    // Threads pulls the file itself, signed URL works (bearer URL, 1h).
     mediaUrl = await storageSign('post-media', first.storage_path, 3600);
   }
   const tag = String(b.target.options?.threadsTopic ?? '')

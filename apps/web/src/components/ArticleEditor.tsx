@@ -23,7 +23,7 @@ import { normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogCo
 /**
  * Focused long-form editor for website channels (WordPress, Ghost, Dev.to,
  * Hashnode). A slim subset of the blog editor: headings, inline marks, lists,
- * quotes, code, links, dividers and images — the exact node set the article
+ * quotes, code, links, dividers and images, the exact node set the article
  * serializer (`lib/article.ts`) renders to HTML and Markdown. The document is
  * handed upward as TipTap JSON on every change; persistence happens per target.
  */

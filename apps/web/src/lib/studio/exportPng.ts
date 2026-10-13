@@ -58,12 +58,12 @@ async function embeddedFontCss(): Promise<string> {
           for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
           out = out.split(u).join(`data:font/woff2;base64,${btoa(bin)}`);
         } catch {
-          /* single font fails — the rest still embed */
+          /* single font fails, the rest still embed */
         }
       }),
     );
     // An @font-face that still points at a remote URL makes the whole SVG
-    // image refuse to load — drop those faces entirely and fall back to the
+    // image refuse to load, drop those faces entirely and fall back to the
     // local stacks instead.
     out = out.replace(/@font-face\s*{[^}]*url\((?:https?:)?\/\/[^}]*}/g, '');
     fontCssCache = out;
@@ -82,7 +82,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** 1px transparent GIF — stands in for any image that cannot be inlined,
+/** 1px transparent GIF, stands in for any image that cannot be inlined,
  *  so no remote URL ever survives into the export (remote survivors are
  *  what taint the canvas and kill toBlob). */
 const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -115,7 +115,7 @@ async function inlineImages(root: HTMLElement): Promise<void> {
           img.onerror = () => resolve();
         });
       } catch {
-        // Remote host refused (CORS, offline) — a remote URL left inside the
+        // Remote host refused (CORS, offline), a remote URL left inside the
         // export taints the canvas, so swap in a blank instead of failing it.
         blankImage(img);
       }
@@ -124,7 +124,7 @@ async function inlineImages(root: HTMLElement): Promise<void> {
 
   // Belt and braces: the previous build's failure mode was a remote URL that
   // survived this pass and tainted the canvas at toBlob. Nothing that is not
-  // a data URL may reach the serializer — blank it instead.
+  // a data URL may reach the serializer, blank it instead.
   for (const img of Array.from(root.querySelectorAll('img'))) {
     const src = img.getAttribute('src') ?? '';
     if (!src.startsWith('data:')) blankImage(img);
@@ -147,7 +147,7 @@ async function inlineImages(root: HTMLElement): Promise<void> {
 export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Promise<Blob> {
   const rect = node.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) {
-    throw new Error('[measure] Canvas is not rendered yet — try again.');
+    throw new Error('[measure] Canvas is not rendered yet, try again.');
   }
   // Layout happens at the node's natural size (identical to the preview);
   // the SVG viewBox scales that finished layout up to the export width.
@@ -185,7 +185,7 @@ export async function exportCanvasPng(node: HTMLElement, fullWidth: number): Pro
     }
 
     // Chrome taints canvases when the SVG image is loaded from a blob: URL.
-    // html-to-image loads it from a data: URL instead — that path never taints.
+    // html-to-image loads it from a data: URL instead, that path never taints.
     const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     const img = new Image();
     await new Promise<void>((resolve, reject) => {

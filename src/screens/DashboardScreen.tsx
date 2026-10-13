@@ -36,7 +36,7 @@ interface Summary { followers: number; engagement: number; hasFollowers: boolean
 
 /** Cloud mirror of the web dashboard's numbers (same queries, same
  *  definitions) so the tiles read the SAME value on every platform.
- *  Null when signed out or offline — tiles fall back to device-local. */
+ *  Null when signed out or offline, tiles fall back to device-local. */
 interface CloudTiles {
   total: number;
   sentWeek: number;
@@ -58,7 +58,7 @@ interface CloudDashPost {
   post_targets: { provider: string }[] | null;
 }
 
-/** Web parity (apps/web/src/lib/chains.ts): threads read as ONE post —
+/** Web parity (apps/web/src/lib/chains.ts): threads read as ONE post -
  *  head = lowest chain_position. */
 function isChainHead(p: CloudDashPost): boolean {
   return !p.chain_id || (p.chain_position ?? 0) === 0;
@@ -151,14 +151,14 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
       // Cloud tiles carry the SAME numbers the web dashboard computes from
       // the DB; device-local rows are the signed-out fallback.
       setCloud(ct);
-      // Publishable channels only — same truth as the pill and the composer.
+      // Publishable channels only, same truth as the pill and the composer.
       // Cloud-only placeholders count: the worker publishes for them even
       // though this device holds no tokens.
       const accounts = await loadAccounts().catch(() => []);
       const live = [...new Set([...connectedChannelIds(meta), ...schedulableProviders(accounts)])];
       setChannels(ct ? ct.channelsLive : live.length);
       setConnected(ct ? ct.channelsLive > 0 : live.length > 0);
-      // Analytics snapshot (last 7 days) — only when channels exist; the
+      // Analytics snapshot (last 7 days), only when channels exist; the
       // full screen owns ranges, trends and per-channel detail.
       if (live.length > 0) {
         try {
@@ -311,7 +311,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
                         <Text style={s.rowS} numberOfLines={1}>{u.sub}</Text>
                       </TableCell>
                       <TableCell flex={2} align="right">
-                        <Text style={s.rowS} numberOfLines={1}>{u.when ? fmtDateTime(u.when) : '—'}</Text>
+                        <Text style={s.rowS} numberOfLines={1}>{u.when ? fmtDateTime(u.when) : '-'}</Text>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -344,7 +344,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
                         <Text style={s.rowS} numberOfLines={1}>{p.sub}</Text>
                       </TableCell>
                       <TableCell flex={2} align="right">
-                        <Text style={s.rowS} numberOfLines={1}>{p.at ? timeAgo(p.at) : '—'}</Text>
+                        <Text style={s.rowS} numberOfLines={1}>{p.at ? timeAgo(p.at) : '-'}</Text>
                       </TableCell>
                     </TableRow>
                   ))}

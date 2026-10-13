@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * VK connect passthrough — community access key validated by connect-vk
+ * VK connect passthrough, community access key validated by connect-vk
  * against groups.getById. Same shape as the Ghost route.
  */
 export async function POST(req: Request) {

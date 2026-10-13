@@ -3,7 +3,7 @@ import { channelManageError } from '@/lib/channelAccess';
 
 /**
  * POST /api/oauth/bluesky { workspace_id, handle, app_password }
- * Bluesky has no OAuth — handle + app password go straight to a session on
+ * Bluesky has no OAuth, handle + app password go straight to a session on
  * the account's own PDS (server-side, never stored), then import as usual.
  */
 export async function POST(req: Request) {
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   if (fail || !payload.access_token || !payload.external_id) {
     return Response.json({ error: fail ?? 'Bluesky login failed.' }, { status: 502 });
   }
-  // Same account twice is a no-op with a name — but let expired rows heal.
+  // Same account twice is a no-op with a name, but let expired rows heal.
   const { data: existing } = await sb
     .from('connected_channels')
     .select('id,status')

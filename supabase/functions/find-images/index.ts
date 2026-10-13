@@ -198,5 +198,5 @@ serve(async (req: Request): Promise<Response> => {
       /* try the next, narrower query */
     }
   }
-  return bad("No photos found for that topic — try different words.", 502);
+  return bad("No photos found for that topic, try different words.", 502);
 });

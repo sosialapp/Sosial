@@ -7,7 +7,7 @@ function lerr(j: any, fallback: string): string {
   const m = j?.error_description || (typeof j?.error === 'string' ? j.error : undefined) || j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
   if (/redirect_uri|client_id|unauthorized/i.test(base)) {
-    return `${base} — check the Client ID/Secret in liConfig.ts and the redirect URL in the LinkedIn portal.`;
+    return `${base}, check the Client ID/Secret in liConfig.ts and the redirect URL in the LinkedIn portal.`;
   }
   return base;
 }
@@ -58,7 +58,7 @@ export async function exchangeLiCode(code: string): Promise<LiTokens> {
   };
 }
 
-/** Silent mint — LinkedIn rotates the refresh token on use. */
+/** Silent mint, LinkedIn rotates the refresh token on use. */
 export async function refreshLiToken(refreshToken: string): Promise<LiTokens> {
   const r = await fetch(LI_TOKEN_ENDPOINT, {
     method: 'POST',
@@ -71,7 +71,7 @@ export async function refreshLiToken(refreshToken: string): Promise<LiTokens> {
     }),
   });
   const j: any = await r.json().catch(() => ({}));
-  if (!j.access_token) throw new Error(lerr(j, 'LinkedIn session expired — reconnect LinkedIn.'));
+  if (!j.access_token) throw new Error(lerr(j, 'LinkedIn session expired, reconnect LinkedIn.'));
   return {
     accessToken: j.access_token as string,
     refreshToken: (j.refresh_token as string) || refreshToken,
@@ -93,7 +93,7 @@ export async function getValidLi(accountId?: string): Promise<{ token: string; p
   if (access && expiresAt && expiresAt > Date.now() + 600000) {
     return { token: access, personUrn };
   }
-  if (!refresh) throw new Error('LinkedIn session expired — reconnect LinkedIn.');
+  if (!refresh) throw new Error('LinkedIn session expired, reconnect LinkedIn.');
   try {
     const t = await refreshLiToken(refresh);
     await saveProviderFields('linkedin', {
@@ -106,7 +106,7 @@ export async function getValidLi(accountId?: string): Promise<{ token: string; p
     const msg = String(e?.message ?? '');
     if (/invalid_grant|invalid_request|expired|unauthorized/i.test(msg)) {
       await saveProviderFields('linkedin', { liAccessToken: undefined, liRefreshToken: undefined, liExpiresAt: undefined }, accountId);
-      throw new Error('LinkedIn session expired — reconnect LinkedIn.');
+      throw new Error('LinkedIn session expired, reconnect LinkedIn.');
     }
     throw e;
   }
@@ -146,7 +146,7 @@ export interface LiOrg {
   /** numeric org id, e.g. '12345' */
   id: string;
   name: string;
-  /** urn:li:organization:{id} — the author value for org posts */
+  /** urn:li:organization:{id}, the author value for org posts */
   urn: string;
 }
 
@@ -160,7 +160,7 @@ function liHeaders(token: string): Record<string, string> {
 
 /**
  * Company Pages the member administers, via organizational entity ACLs.
- * Needs r_organization_social (Marketing Developer Platform product) — without
+ * Needs r_organization_social (Marketing Developer Platform product), without
  * it LinkedIn 403s and callers fall back to member-only with an honest note.
  */
 export async function fetchLiOrgs(token: string): Promise<LiOrg[]> {
@@ -171,9 +171,9 @@ export async function fetchLiOrgs(token: string): Promise<LiOrg[]> {
   const j: any = await r.json().catch(() => ({}));
   if (!r.ok) {
     const msg = typeof j?.message === 'string' && j.message ? j.message : 'Could not list your Company Pages.';
-    if (r.status === 401) throw new Error('LinkedIn session expired — reconnect LinkedIn.');
+    if (r.status === 401) throw new Error('LinkedIn session expired, reconnect LinkedIn.');
     if (r.status === 403) {
-      throw new Error('LinkedIn blocked the Page list — add the “Marketing Developer Platform” product in the portal and reconnect.');
+      throw new Error('LinkedIn blocked the Page list, add the “Marketing Developer Platform” product in the portal and reconnect.');
     }
     throw new Error(msg);
   }
@@ -204,7 +204,7 @@ export async function pickLiOrg(org: LiOrg | null, accountId?: string): Promise<
   }, accountId);
 }
 
-/** My admin orgs with a fresh token — what the Connect picker calls. */
+/** My admin orgs with a fresh token, what the Connect picker calls. */
 export async function listMyLiOrgs(accountId?: string): Promise<LiOrg[]> {
   const { token } = await getValidLi(accountId);
   return fetchLiOrgs(token);

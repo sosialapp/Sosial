@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 /**
  * OAuth survival kit. Expo Go reloads the project when the provider redirects
  * back to exp://…, which wipes React state and drops the pending promise. So we
- * persist which channel is mid-login and replay the return URL on next launch —
+ * persist which channel is mid-login and replay the return URL on next launch -
  * the Connect screen then finishes the exchange it never got to see.
  */
 export type AuthChannel = 'facebook' | 'instagram' |
@@ -106,7 +106,7 @@ export function flushAuthResults(fn: (r: AuthResult) => void): void {
 
 const DONE_KEY = 'sosial_auth_done_v1';
 
-/** Codes already redeemed successfully — a replayed return URL (e.g. after an
+/** Codes already redeemed successfully, a replayed return URL (e.g. after an
  *  Expo Go reload) must never be exchanged twice; providers burn codes on
  *  first redeem and the duplicate always fails. */
 export async function wasCodeDone(code: string): Promise<boolean> {

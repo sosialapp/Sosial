@@ -22,7 +22,7 @@ const DAY_MS = 24 * 3600 * 1000;
  * login: best-effort re-fetch every missing profile picture via the existing
  * provider fetchers (silent token refresh included), then push the fresh
  * pictures to the cloud so the web combo marks appear. Throttled to once a
- * day, never throws, never blocks — call fire-and-forget on app start.
+ * day, never throws, never blocks, call fire-and-forget on app start.
  */
 async function fetchAvatar(a: ConnectedAccount): Promise<string | undefined> {
   const f = a.fields as Record<string, unknown>;
@@ -114,7 +114,7 @@ async function fetchAvatar(a: ConnectedAccount): Promise<string | undefined> {
 export interface BackfillReport {
   checked: number;
   saved: number;
-  /** provider ids that failed (usually dead tokens — reconnect fixes them) */
+  /** provider ids that failed (usually dead tokens, reconnect fixes them) */
   failed: string[];
 }
 

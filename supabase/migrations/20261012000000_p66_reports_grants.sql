@@ -1,4 +1,4 @@
--- p66 — reports table grants (support form fix).
+-- p66, reports table grants (support form fix).
 -- p11 created `reports` + RLS policies but never GRANTed anything to
 -- `authenticated`, so every support insert from web AND mobile failed with
 -- "permission denied for table reports". RLS policies still scope access:

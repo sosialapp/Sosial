@@ -1,5 +1,5 @@
 /**
- * Writer language menu — 100+ languages across every region.
+ * Writer language menu, 100+ languages across every region.
  *
  * A static list is deliberate: the whole table is a few kilobytes, needs no
  * fetch, no storage and no memory to speak of. `id` is what the model is

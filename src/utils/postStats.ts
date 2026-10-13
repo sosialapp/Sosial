@@ -27,7 +27,7 @@ const num = (v: any): number => {
 
 const zero = (note?: string): SentPostStats => ({ likes: 0, comments: 0, views: null, shares: 0, note });
 
-/** pdsHost is stored as a full URL — never prepend a second scheme. */
+/** pdsHost is stored as a full URL, never prepend a second scheme. */
 function bskyApi(pdsHost: string): string {
   const h = pdsHost.replace(/\/+$/, '');
   return (h.startsWith('http://') || h.startsWith('https://') ? h : `https://${h}`) + '/xrpc';
@@ -35,7 +35,7 @@ function bskyApi(pdsHost: string): string {
 
 /**
  * Live engagement for one published post, looked up by the remote id saved
- * at publish time. Pinterest ids may be comma-joined (one Pin per image) —
+ * at publish time. Pinterest ids may be comma-joined (one Pin per image) -
  * stats read the first. TikTok has no post-read API and returns zeros with
  * an honest note instead of failing.
  */
@@ -48,7 +48,7 @@ export async function fetchPostStats(channel: string, remoteId: string): Promise
         const m = await loadMetaState();
         if (!m.pageToken) throw new Error('Facebook not connected');
         const tok = encodeURIComponent(m.pageToken);
-        // Core field first — `shares` works with pages_read_engagement alone.
+        // Core field first, `shares` works with pages_read_engagement alone.
         const core: any = await (await fetch(graph(`/${id}?fields=shares&access_token=${tok}`))).json().catch(() => ({}));
         if (core?.error) throw new Error(core.error.message ?? 'Could not read post.');
         const out: SentPostStats = { likes: 0, comments: 0, views: null, shares: num(core.shares?.count) };
@@ -144,7 +144,7 @@ export async function fetchPostStats(channel: string, remoteId: string): Promise
       }
       case 'linkedin': {
         // Remote id is the post URN from x-restli-id (urn:li:share:… / urn:li:ugcPost:…).
-        if (!id.startsWith('urn:li:')) return zero('No LinkedIn post id was saved — republish to track this post.');
+        if (!id.startsWith('urn:li:')) return zero('No LinkedIn post id was saved, republish to track this post.');
         const { token } = await getValidLi();
         const j: any = await (
           await fetch(`${LI_API}/rest/socialActions/${encodeURIComponent(id)}`, {
@@ -157,7 +157,7 @@ export async function fetchPostStats(channel: string, remoteId: string): Promise
         ).json().catch(() => ({}));
         if (typeof j?.status === 'number' && j.status >= 400) {
           if (j.status === 401 || j.status === 403) {
-            return zero('LinkedIn read permission not granted — disconnect and reconnect LinkedIn, then retry.');
+            return zero('LinkedIn read permission not granted, disconnect and reconnect LinkedIn, then retry.');
           }
           throw new Error(j?.message ?? 'Could not read post.');
         }
@@ -177,7 +177,7 @@ export async function fetchPostStats(channel: string, remoteId: string): Promise
           comments: 0,
           views: e.impressions || null,
           shares: e.clicks,
-          note: 'Saves count as likes — Pinterest exposes no comment API.',
+          note: 'Saves count as likes, Pinterest exposes no comment API.',
         };
       }
       default:

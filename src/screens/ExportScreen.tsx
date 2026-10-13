@@ -14,7 +14,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
   // free plan forces the badge on; paid defaults it on (toggle removed)
   const wmFor = (p: { showWatermark?: boolean }) => (plan === 'free' ? true : (p.showWatermark ?? true));
   const [busy, setBusy] = useState(false);
-  /** per-page save in flight — the big buttons stay idle so the spinner shows on the tapped page only */
+  /** per-page save in flight, the big buttons stay idle so the spinner shows on the tapped page only */
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [savedUris, setSavedUris] = useState<string[]>([]);
   const refs = useRef<any[]>([]);
@@ -31,7 +31,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
   const pvScale = Math.min(0.66, (SCREEN_W - 96) / CANVAS_W);
   const pvSnap = CANVAS_W * pvScale + 14;
   /** Target ~1080px output. captureRef already captures at full device pixel
-   *  density, so we only scale the hidden layout when the screen is low-density —
+   *  density, so we only scale the hidden layout when the screen is low-density -
    *  blowing it up on a 3x phone produced 2040px PNGs and multi-second saves. */
   const CAP_SCALE = Math.min(3, Math.max(1, 1080 / (CANVAS_W * PixelRatio.get())));
   // center the strip when every preview fits on screen; scroll from the left otherwise
@@ -54,7 +54,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
     try {
       const uris = await saveAllImages(refs.current, post, sizeRatio);
       const n = await saveUrisToGallery(uris);
-      // only tick every page when every file actually landed — a partial
+      // only tick every page when every file actually landed, a partial
       // failure must not mark unsaved pages as saved
       if (n === uris.length) setSavedUris(uris);
     } catch (e: any) {
@@ -96,7 +96,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
     try {
       const uri = await capturePage(refs.current[index], `p${index}`);
       const n = await saveUrisToGallery([uri], { silent: true });
-      // saveUrisToGallery already reports failures — only mark the page and
+      // saveUrisToGallery already reports failures, only mark the page and
       // confirm when the file actually landed, never on a failed write
       if (n > 0) {
         setSavedUris((prev) => {
@@ -126,7 +126,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
         <Text style={[T.small, { color: C.muted, marginTop: 6, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13 }]}>
           {post.pages.length} image{post.pages.length > 1 ? 's' : ''} ready to save and post.
         </Text>
-        {/* hidden renderers for capture — 2x layout for high-resolution exports */}
+        {/* hidden renderers for capture, 2x layout for high-resolution exports */}
         <View style={{ position: 'absolute', left: -9999, top: 0, opacity: 0, pointerEvents: 'none' }}>
           {post.pages.map((p, i) => (
             <View key={p.id} style={{ width: CANVAS_W * CAP_SCALE, height: CANVAS_W * CAP_SCALE * sizeRatio, overflow: 'visible' }}>
@@ -135,7 +135,7 @@ export default function ExportScreen({ onBack, plan }: { onBack: () => void; pla
           ))}
         </View>
 
-        {/* previews — one snap per swipe, scaled to fit with a peek of next */}
+        {/* previews, one snap per swipe, scaled to fit with a peek of next */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

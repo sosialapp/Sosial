@@ -19,7 +19,7 @@ import {
 /**
  * Mirrors the web analytics dashboard (apps/web AnalyticsDashboard): reads
  * the same cloud tables (posts, post_stats, channel_stats snapshots) and
- * renders the same cards — stat grid, pipeline, weekly/weekday rhythm,
+ * renders the same cards, stat grid, pipeline, weekly/weekday rhythm,
  * top posts, recently sent, channel performance.
  */
 
@@ -35,16 +35,16 @@ const PRESETS: { id: RangePreset; label: string }[] = [
 ];
 
 function compact(n: number | null): string {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined) return '-';
   if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
   if (Number.isInteger(n)) return String(n);
   return n.toFixed(1);
 }
 
-/** Exact count with thousands separators — follower totals must match the
+/** Exact count with thousands separators, follower totals must match the
  *  snapshot digit-for-digit. */
 function full(n: number | null): string {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined) return '-';
   try {
     return Math.round(n).toLocaleString('en-US');
   } catch {
@@ -58,15 +58,15 @@ const startOfDay = (t: number): number => {
 };
 
 const fmtDate = (iso: string | null): string => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 export default function AnalyticsScreen({ onConnect, onBack }: {
   onConnect: () => void;
-  /** Present when reached from Home — back chevron. */
+  /** Present when reached from Home, back chevron. */
   onBack?: () => void;
 }) {
   const { C } = useTheme();
@@ -142,7 +142,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const failed = byStatus(['failed']).length;
   const funnelMax = Math.max(1, drafts, queued, sent.length, failed);
 
-  // Engagement aggregates — latest snapshots, not date-bound (like web).
+  // Engagement aggregates, latest snapshots, not date-bound (like web).
   const statsScoped = useMemo(() => (data?.postStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel]);
   const likes = statsScoped.reduce((a, r) => a + (r.likes ?? 0), 0);
   const comments = statsScoped.reduce((a, r) => a + (r.comments ?? 0), 0);
@@ -372,7 +372,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
                 <View style={s.empty}>
                   <Text style={s.emptyT}>No channels connected</Text>
-                  <Text style={s.emptyS}>Connect a channel and publish — audience and engagement land here within a day.</Text>
+                  <Text style={s.emptyS}>Connect a channel and publish, audience and engagement land here within a day.</Text>
                   <TouchableOpacity onPress={onConnect} style={s.connectBtn} activeOpacity={0.8}>
                     <Text style={s.connectBtnT}>Connect a channel</Text>
                   </TouchableOpacity>
@@ -380,15 +380,15 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               </View>
             ) : (
               <>
-                {/* Stat grid — same six cards as web */}
+                {/* Stat grid, same six cards as web */}
                 <View style={[s.kpiWrap, { paddingHorizontal: 24 }]}>
                   {[
                     { label: 'Posts', value: full(sent.length), sub: `Sent in ${range.label.toLowerCase()}` },
-                    { label: 'Followers', value: hasFollowers ? full(followers) : '—', sub: 'Latest daily snapshots' },
+                    { label: 'Followers', value: hasFollowers ? full(followers) : '-', sub: 'Latest daily snapshots' },
                     { label: 'Reactions', value: full(likes), sub: 'Across sent posts' },
                     { label: 'Comments', value: full(comments), sub: 'Across sent posts' },
-                    { label: 'Eng. rate', value: eng ?? '—', sub: 'Interactions ÷ followers' },
-                    { label: 'Views', value: hasViews ? full(views) : '—', sub: 'Where the platform exposes it' },
+                    { label: 'Eng. rate', value: eng ?? '-', sub: 'Interactions ÷ followers' },
+                    { label: 'Views', value: hasViews ? full(views) : '-', sub: 'Where the platform exposes it' },
                   ].map((k) => (
                     <Card key={k.label} style={s.kpi}>
                       <Text style={s.kpiLabel}>{k.label}</Text>
@@ -512,7 +512,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                   <Text style={s.secT}>Channel performance</Text>
                   <Text style={s.secS}>Followers refresh daily · engagement is interactions over followers</Text>
                   {perfRows.length === 0 ? (
-                    <Text style={s.hint}>Connect a channel and publish — audience and engagement land here within a day.</Text>
+                    <Text style={s.hint}>Connect a channel and publish, audience and engagement land here within a day.</Text>
                   ) : (
                     <View style={{ marginTop: 10, gap: 8 }}>
                       {perfRows.map((r) => (
@@ -525,7 +525,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                             <Text style={s.postInter}>{full(r.followers)}</Text>
                           </View>
                           <Text style={s.postMeta}>
-                            {full(r.followers)} followers · {full(r.likes)} likes · {full(r.comments)} comments · {full(r.shares)} shares{r.views !== null ? ` · ${full(r.views)} views` : ''} · {r.eng ?? '—'} eng · {r.sent} sent
+                            {full(r.followers)} followers · {full(r.likes)} likes · {full(r.comments)} comments · {full(r.shares)} shares{r.views !== null ? ` · ${full(r.views)} views` : ''} · {r.eng ?? '-'} eng · {r.sent} sent
                           </Text>
                         </Card>
                       ))}

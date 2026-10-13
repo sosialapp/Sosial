@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * Ghost connect passthrough — per-site Admin API key validated by
+ * Ghost connect passthrough, per-site Admin API key validated by
  * connect-ghost against GET /ghost/api/admin/site/. Same shape as the
  * WordPress route.
  */

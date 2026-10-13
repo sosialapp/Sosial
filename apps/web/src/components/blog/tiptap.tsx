@@ -493,7 +493,7 @@ function ButtonView({
         <input
           value={label}
           onChange={(e) => set({ label: e.target.value })}
-          placeholder="Button label — e.g. Sosial vs Buffer"
+          placeholder="Button label, e.g. Sosial vs Buffer"
           aria-label="Button label"
           className="blog-btn-label"
         />

@@ -19,7 +19,7 @@ import {
 
 const TYPES = ["free", "bullets", "numbered", "table", "bar", "vbar", "pie"] as const;
 
-// Browser preflight must pass before supabase-js can POST at all — without
+// Browser preflight must pass before supabase-js can POST at all, without
 // these headers fetch throws and the client sees "Failed to send a request
 // to the Edge Function" (native apps don't preflight, which is why mobile
 // never noticed).
@@ -36,7 +36,7 @@ function bad(msg: string, status = 400): Response {
 /** Output-language directive: Auto mirrors the user's prompt language. */
 function languageLine(language: string): string {
   if (!language || language === "auto") {
-    return "Write in the SAME language as the user's idea below — mirror it exactly (Bahasa Melayu, 中文, Tamil, Manglish or mixed language included). Switch language only if the idea explicitly asks for another.";
+    return "Write in the SAME language as the user's idea below, mirror it exactly (Bahasa Melayu, 中文, Tamil, Manglish or mixed language included). Switch language only if the idea explicitly asks for another.";
   }
   return `Write everything in ${language}.`;
 }
@@ -49,18 +49,18 @@ function buildPrompt(brief: {
   maxBlocksPerPage: number;
 }): string {
   return [
-    "You write social-media carousel copy with the same storytelling quality as Sosial's post writer: find the story in the idea, open with a hook, build with real substance, land a payoff. Every card must serve the user's idea directly — no generic filler, no invented facts.",
+    "You write social-media carousel copy with the same storytelling quality as Sosial's post writer: find the story in the idea, open with a hook, build with real substance, land a payoff. Every card must serve the user's idea directly, no generic filler, no invented facts.",
     languageLine(brief.language),
     `User's idea: ${brief.prompt}`,
     `Produce exactly ${brief.pages} cards with this anatomy:`,
     `CARD 1 (cover): heading of at most 8 words that earns the next swipe + 1-2 short supporting lines. This card keeps the design's title and social footer.`,
-    `MIDDLE CARDS (full-bleed content): these cards render with NO heading and NO social footer — the content IS the card. Write flowing prose as one "free" block: 4-7 lines, each at most 12 words, building the story with context, evidence, examples or consequences. A middle card may instead be bullets/numbered/table/chart when the idea genuinely provides them.`,
-    `LAST CARD (payoff): no heading — one "free" block of 2-4 lines that lands the takeaway, ends with a natural closing line (a takeaway or soft question, never "follow me").`,
+    `MIDDLE CARDS (full-bleed content): these cards render with NO heading and NO social footer, the content IS the card. Write flowing prose as one "free" block: 4-7 lines, each at most 12 words, building the story with context, evidence, examples or consequences. A middle card may instead be bullets/numbered/table/chart when the idea genuinely provides them.`,
+    `LAST CARD (payoff): no heading, one "free" block of 2-4 lines that lands the takeaway, ends with a natural closing line (a takeaway or soft question, never "follow me").`,
     `Charts/tables only when the idea provides real numbers (at most 5 points, labels of at most 3 words). Never invent numbers, quotes, names or facts to fill a chart or table.`,
     "Never repeat a heading or a line twice across the whole carousel. Every card must read complete on its own.",
     `Hard limits: at most ${brief.maxWordsPerPage} words per card.`,
-    "Do not emit image blocks — photos are added by the user in the editor.",
-    'Return ONLY JSON: {"pages":[{"blocks":[{"type":"free","heading":"...","lines":["..."]}]}]} (heading optional — omit it on middle and last cards).',
+    "Do not emit image blocks, photos are added by the user in the editor.",
+    'Return ONLY JSON: {"pages":[{"blocks":[{"type":"free","heading":"...","lines":["..."]}]}]} (heading optional, omit it on middle and last cards).',
     CONTENT_RULES,
   ].join("\n");
 }
@@ -98,14 +98,14 @@ serve(async (req: Request): Promise<Response> => {
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   if (!apiKey) {
     return bad(
-      "AI is not configured yet — an owner runs: supabase secrets set OPENAI_API_KEY=sk-...",
+      "AI is not configured yet, an owner runs: supabase secrets set OPENAI_API_KEY=sk-...",
       402,
     );
   }
 
   // Charge the credit cost up front; refunded if generation fails before
   // producing output. Credits reset monthly (calendar month) even for annual
-  // subscribers — the billing interval only changes billing. A multi-card
+  // subscribers, the billing interval only changes billing. A multi-card
   // carousel is a long-form generation.
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const requestId =
@@ -176,7 +176,7 @@ serve(async (req: Request): Promise<Response> => {
       .filter((p) => p.blocks.length > 0);
     if (!out.length) throw new Error("empty");
   } catch {
-    return fail("AI returned an unusable reply — try again.");
+    return fail("AI returned an unusable reply, try again.");
   }
 
   return Response.json({ pages: out }, { headers: CORS });

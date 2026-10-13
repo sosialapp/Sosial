@@ -36,7 +36,7 @@ export async function publishHashnode(opts: {
   const { pat, publicationId } = opts;
   if (!pat || !publicationId) throw new Error('Hashnode not connected');
   const text = (opts.text ?? '').trim();
-  if (!text) throw new Error('Hashnode needs article text — this post is empty.');
+  if (!text) throw new Error('Hashnode needs article text, this post is empty.');
   const title = (opts.title ?? '').trim() || text.split('\n')[0].slice(0, 120);
   const created = await gql<{ publishPost: { post: { id: string; slug: string; url: string } } }>(
     pat,

@@ -2,11 +2,11 @@
  * CMS-editable marketing pages, grouped exactly like the footer. The admin
  * Pages section lists this registry; each entry renders a `site_pages` row
  * (TipTap body) in a fixed slot on its route. Only registered slugs are
- * editable — no route sprawl.
+ * editable, no route sprawl.
  *
  * Modes:
- * - `body` — the CMS html REPLACES the page's prose body (resources, legal).
- * - `section` — the CMS html renders as an extra content section in a fixed
+ * - `body`, the CMS html REPLACES the page's prose body (resources, legal).
+ * - `section`, the CMS html renders as an extra content section in a fixed
  *   slot; the page's design is untouched when no row exists.
  */
 export type SitePageGroup = 'Product' | 'Channels' | 'Resources' | 'Company' | 'Custom';
@@ -81,7 +81,7 @@ export function isValidSiteSlug(slug: string): boolean {
 }
 
 /**
- * Top-level URL segments a custom page must never claim — real routes,
+ * Top-level URL segments a custom page must never claim, real routes,
  * system paths and admin words. The renderer only serves single-segment
  * custom slugs, so only first segments matter here.
  */
@@ -94,7 +94,7 @@ export const RESERVED_SLUGS = new Set([
 
 /**
  * Whether `slug` may become a custom page: single URL-safe segment, not a
- * reserved word, not a registry route. Pure — safe to run client-side.
+ * reserved word, not a registry route. Pure, safe to run client-side.
  */
 export function customSlugAvailable(slug: string): boolean {
   const s = slug.trim().toLowerCase();

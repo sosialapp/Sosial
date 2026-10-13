@@ -13,7 +13,7 @@ export async function GET() {
   return Response.json({ connected: !!conn });
 }
 
-/** DELETE: disconnect — Vault secrets + row deleted; imported posts kept. */
+/** DELETE: disconnect, Vault secrets + row deleted; imported posts kept. */
 export async function DELETE() {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });

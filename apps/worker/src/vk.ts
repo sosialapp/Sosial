@@ -14,7 +14,7 @@ import { info } from './logger';
  * - Images: photos.getWallUploadServer → multipart upload →
  *   photos.saveWallPhoto → photo{owner}_{id} (up to 10 per post)
  * Videos need the video.save upload dance + processing poll and are a v1
- * omission (compat declares no video) — VK defaults apply otherwise.
+ * omission (compat declares no video), VK defaults apply otherwise.
  */
 
 interface Bundle {
@@ -52,7 +52,7 @@ async function vk<T>(token: string, method: string, params: Record<string, strin
 function groupId(externalId: string): string {
   const gid = String(externalId ?? '').trim();
   if (!/^\d+$/.test(gid)) {
-    throw new Error('VK community id is missing — reconnect the channel in Connect.');
+    throw new Error('VK community id is missing, reconnect the channel in Connect.');
   }
   return gid;
 }
@@ -99,11 +99,11 @@ export async function publishVkTarget(bundle: Bundle): Promise<{ remoteId: strin
   const b = bundle;
   const gid = groupId(b.channel.external_id);
   if (!b.secrets.access_secret_id) {
-    throw new Error('VK access key is missing — reconnect the channel in Connect.');
+    throw new Error('VK access key is missing, reconnect the channel in Connect.');
   }
   const token = await readSecret(b.secrets.access_secret_id);
   if (!token) {
-    throw new Error('VK access key is missing — reconnect the channel in Connect.');
+    throw new Error('VK access key is missing, reconnect the channel in Connect.');
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
@@ -122,7 +122,7 @@ export async function publishVkTarget(bundle: Bundle): Promise<{ remoteId: strin
   }
 
   if (!text && attachments.length === 0) {
-    throw new Error('VK needs text or a photo — this post has neither.');
+    throw new Error('VK needs text or a photo, this post has neither.');
   }
   const posted = await vk<{ response: { post_id: number } }>(token, 'wall.post', {
     owner_id: `-${gid}`,

@@ -4,7 +4,7 @@ import { getConnection, readToken, getDatabaseSchema, NotionAuthError } from '@/
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/notion/schema?id=<database id> — property list for mapping. */
+/** GET /api/notion/schema?id=<database id>, property list for mapping. */
 export async function GET(req: Request) {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });

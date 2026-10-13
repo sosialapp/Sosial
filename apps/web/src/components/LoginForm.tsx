@@ -33,11 +33,11 @@ export default function LoginForm({
   compact,
 }: {
   externalError?: string | null;
-  /** Post-login destination (e.g. an invite link) — same-origin paths only. */
+  /** Post-login destination (e.g. an invite link), same-origin paths only. */
   next?: string | null;
   /** Starting tab when embedded (e.g. in the auth modal). */
   initialMode?: 'in' | 'up';
-  /** Hide the brand header — the host (e.g. modal) provides its own. */
+  /** Hide the brand header, the host (e.g. modal) provides its own. */
   compact?: boolean;
 }) {
   const router = useRouter();
@@ -100,7 +100,7 @@ export default function LoginForm({
         });
         if (error) throw error;
         if (!data.session) {
-          // Email confirmation is on — there is no dashboard to travel to yet.
+          // Email confirmation is on, there is no dashboard to travel to yet.
           setNote('Check your inbox to confirm your email, then sign in.');
           stopBusy();
           return;

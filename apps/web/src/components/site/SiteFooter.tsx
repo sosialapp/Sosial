@@ -16,11 +16,11 @@ const SOCIALS: BrandProvider[] = [
   'linkedin',
 ];
 
-/** Near-black marks read as invisible on the dark footer — those brands ship white on dark. */
+/** Near-black marks read as invisible on the dark footer, those brands ship white on dark. */
 const DARK_MARKS: BrandProvider[] = ['tiktok', 'x', 'threads'];
 
 export default async function SiteFooter() {
-  // Custom CMS pages flagged "show in footer" (live only — drafts never leak).
+  // Custom CMS pages flagged "show in footer" (live only, drafts never leak).
   const extraPages = await siteFooterPages();
   return (
     <footer className="bg-ink text-paper">

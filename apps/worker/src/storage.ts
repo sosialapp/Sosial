@@ -1,9 +1,9 @@
 /**
- * Cloudflare R2 (S3-compatible) media store — the zero-egress replacement for
+ * Cloudflare R2 (S3-compatible) media store, the zero-egress replacement for
  * Supabase Storage. Objects live in ONE bucket (`R2_BUCKET`, default
  * `sosial-media`) under prefixes that mirror the old bucket names:
- *   post-media/<storage_path>   (private — presigned GET/PUT)
- *   blog-media/<path>           (public — R2_PUBLIC_URL)
+ *   post-media/<storage_path>   (private, presigned GET/PUT)
+ *   blog-media/<path>           (public, R2_PUBLIC_URL)
  *
  * The switch is env-driven (`STORAGE_BACKEND`) so it ships safely before the
  * backfill is done: reads prefer R2 when the object is present and fall back to
@@ -114,7 +114,7 @@ export interface R2ObjectStream {
   contentType?: string;
 }
 
-/** Open a byte range of a private object as a stream — the publishing path for
+/** Open a byte range of a private object as a stream, the publishing path for
  *  large videos. `end` is inclusive (S3/R2 semantics). Never buffers. */
 export async function r2Stream(
   key: string,

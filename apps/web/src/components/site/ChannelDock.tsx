@@ -4,7 +4,7 @@ import { CHANNEL_GUIDES } from '@/content/channels';
 import { channelHref } from '@/content/types';
 import { providerMeta } from '@/lib/providers';
 
-/** Listed but not connectable yet — the tile carries a Soon tag. */
+/** Listed but not connectable yet, the tile carries a Soon tag. */
 const SOON = new Set<BrandProvider>(['gmb', 'linkedin', 'pinterest']);
 
 function SoonTag() {

@@ -17,7 +17,7 @@ const FONT_IDS: FontId[] = ['jakarta', 'inter', 'space-grotesk', 'playfair', 'cr
  * Handle input with local draft state: every keystroke used to hit the post
  * context, re-rendering the whole editor + canvas per character (laggy
  * typing). The draft commits on blur/submit instead; parent changes (page
- * switch) still resync. Autocaps/autocorrect off — handles hate them.
+ * switch) still resync. Autocaps/autocorrect off, handles hate them.
  */
 function DraftTxt({ value, placeholder, onCommit }: {
   value: string;
@@ -217,7 +217,7 @@ export default function PhotoSocialsEditor() {
 
         {visibleSocials.length > 0 ? (
           <View style={{ gap: 14 }}>
-            {/* Handle text lives in each badge row above — its ink and size ride right here. */}
+            {/* Handle text lives in each badge row above, its ink and size ride right here. */}
             <Field label="Handle ink">
               <Swatches colors={[...PALETTE, '#333333', '#666666', '#999999', '#CCCCCC']} value={p.handleColor} onChange={(c) => patchPfp({ handleColor: c })} />
             </Field>

@@ -8,7 +8,7 @@ import type { TargetStatus } from '@/lib/types';
 
 /**
  * Post-now status popup (mobile parity): watches post_targets for the freshly
- * created post(s) and shows per-channel publish progress — a full bar means
+ * created post(s) and shows per-channel publish progress, a full bar means
  * sent, with a link out when the channel returns one. Polls every 2.5s;
  * done-state auto-closes into the queue view.
  */
@@ -25,12 +25,12 @@ export default function PublishMonitor({
   const [note, setNote] = useState<string | null>(null);
   const autoClosed = useRef(false);
   // The dialog opens early in "saving" state (postIds=[]) and receives the
-  // real ids a beat later WITHOUT remounting — so the poller must restart
+  // real ids a beat later WITHOUT remounting, so the poller must restart
   // when the id set changes, or it watches [] forever ("Reading targets…").
   const idsKey = postIds.join(',');
 
   useEffect(() => {
-    if (!postIds.length) return; // Still saving — nothing to watch yet.
+    if (!postIds.length) return; // Still saving, nothing to watch yet.
     autoClosed.current = false;
     setRows([]);
     const sb = createClient();
@@ -98,7 +98,7 @@ export default function PublishMonitor({
   const icon = (s: TargetStatus) => {
     if (s === 'sent') return <span className="text-[#346538] dark:text-[#8fd0a0]">✓</span>;
     if (s === 'failed') return <span className="text-[#9F2F2D] dark:text-[#f2a8a8]">✕</span>;
-    if (s === 'skipped') return <span className="text-faint">—</span>;
+    if (s === 'skipped') return <span className="text-faint">-</span>;
     return null;
   };
 
@@ -120,7 +120,7 @@ export default function PublishMonitor({
               : !settled
                 ? `Publishing to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}…`
                 : failed > 0
-                  ? `Posted — ${failed} failed`
+                  ? `Posted, ${failed} failed`
                   : 'Posted to all channels'}
           </p>
         </div>

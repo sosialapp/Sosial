@@ -2,12 +2,12 @@
  * Real brand marks for every channel Sosial publishes to.
  *
  * The SVG path data is the official artwork from the simple-icons project
- * (CC0) — inlined rather than pulled from an icon package or CDN so the marks
+ * (CC0), inlined rather than pulled from an icon package or CDN so the marks
  * ship in the bundle, render with zero layout shift and paint as a solid
  * brand-colour disc with a white mark (app-icon style).
  *
  * - default (`badge`): circular brand-colour background + white glyph
- * - `mono`: bare glyph in `currentColor` — parent supplies the disc
+ * - `mono`: bare glyph in `currentColor`, parent supplies the disc
  * - `badge={false}`: bare coloured glyph on transparent (legacy / chrome mocks)
  */
 
@@ -124,7 +124,7 @@ export function BrandIcon({
   provider: BrandProvider;
   className?: string;
   title?: string;
-  /** Bare glyph in `currentColor` — parent already paints the disc. */
+  /** Bare glyph in `currentColor`, parent already paints the disc. */
   mono?: boolean;
   /** Circular brand-colour disc + white mark (default). */
   badge?: boolean;
@@ -216,7 +216,7 @@ export function BrandIcon({
 }
 
 /**
- * Optical padding — edge-touching brand paths lose antialiased pixels at
+ * Optical padding, edge-touching brand paths lose antialiased pixels at
  * the svg viewport and read as "cut", worst at small sizes. A 2-unit inset
  * stops the clip everywhere the mark renders.
  */

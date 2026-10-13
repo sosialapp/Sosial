@@ -32,7 +32,7 @@ const SOURCES = [
   { id: 'onedrive', label: 'OneDrive', icon: 'onedrive' },
 ] as const;
 
-// Google media (Drive + Photos) is pending Google OAuth verification — the
+// Google media (Drive + Photos) is pending Google OAuth verification, the
 // restricted scopes cannot be granted until CASA completes. Greyed "Soon"
 // until then; connect code stays intact for instant re-enable.
 const SOON = [
@@ -45,7 +45,7 @@ const PANEL_H = 480;
 /**
  * Add-media dropdown for the web composer (shared by composer + idea editors
  * via PostBox), anchored under the media button through a portal. Stock via
- * edge search fns; Drive/Photos/Dropbox via popup OAuth — tokens stay in
+ * edge search fns; Drive/Photos/Dropbox via popup OAuth, tokens stay in
  * localStorage (this browser only). Downloads resolve to Files for onAddFiles;
  * Unsplash items also return a credit line.
  */
@@ -57,7 +57,7 @@ export default function MediaSourcesDialog({
   onPickLocal,
 }: {
   open: boolean;
-  /** Live anchor — called on every scroll/resize so the panel sticks to the button. */
+  /** Live anchor, called on every scroll/resize so the panel sticks to the button. */
   getAnchor: () => { left: number; topEdge: number; bottom: number } | null;
   onClose: () => void;
   onAttach: (files: File[], credit?: string) => void;
@@ -165,7 +165,7 @@ export default function MediaSourcesDialog({
   };
 
   const loadCloud = async (id: Source, q?: string) => {
-    // Photos opens Google's picker widget from a button — no in-dialog browser.
+    // Photos opens Google's picker widget from a button, no in-dialog browser.
     if (id === 'gphotos') return;
     setBusy(true);
     setErr(null);
@@ -181,7 +181,7 @@ export default function MediaSourcesDialog({
         setCanvaDesigns(r.designs);
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'That source refused — try again.');
+      setErr(e instanceof Error ? e.message : 'That source refused, try again.');
     } finally {
       setBusy(false);
     }
@@ -269,12 +269,12 @@ export default function MediaSourcesDialog({
     setDownloading({ id: item.id, progress: null });
     try {
       const blob = await fetchProgressBlob(item.full, {}, track(item.id)).catch(() => null);
-      if (!blob) throw new Error('Download failed — try another one.');
+      if (!blob) throw new Error('Download failed, try another one.');
       const isVideo = item.kind === 'video';
       const file = new File([blob], `${item.source}-${item.id}.${isVideo ? 'mp4' : 'jpg'}`, { type: isVideo ? 'video/mp4' : 'image/jpeg' });
       const credit = item.source === 'unsplash' ? `Photo by ${item.author} on Unsplash (${item.authorUrl})` : undefined;
       // Unsplash production requirement: a download event fires when a photo
-      // is used. Fire-and-forget — the attach never waits on it.
+      // is used. Fire-and-forget, the attach never waits on it.
       void invokeStock('unsplash-download', { id: item.id }).catch(() => {});
       onAttach([file], credit);
       onClose();
@@ -365,13 +365,13 @@ export default function MediaSourcesDialog({
       }
       if (!done) {
         if (lastPollErr) throw new Error(lastPollErr);
-        setErr('Nothing was picked — open the picker and choose at least one photo.');
+        setErr('Nothing was picked, open the picker and choose at least one photo.');
         return;
       }
       const picked = await listPickedPhotos(session.id);
       console.log('[photos] picked', picked.length, 'items');
       if (!picked.length) {
-        setErr('Nothing was picked — try again.');
+        setErr('Nothing was picked, try again.');
         return;
       }
       // Auto-attach: fetch each picked item once through the proxy (Picker
@@ -388,7 +388,7 @@ export default function MediaSourcesDialog({
           }
         }
         if (!files.length) {
-          setErr('Could not fetch the picked photos — try again.');
+          setErr('Could not fetch the picked photos, try again.');
           return;
         }
         onAttach(files);
@@ -490,7 +490,7 @@ export default function MediaSourcesDialog({
       </button>
     );
 
-  // Anchored dropdown through a portal — ancestors with transforms would
+  // Anchored dropdown through a portal, ancestors with transforms would
   // trap position:fixed. Re-read the live anchor every render (tick bumps on
   // scroll/resize) so the panel sticks to the button. Flips above when the
   // viewport runs out below, clamped to the window edges. The source list is
@@ -728,7 +728,7 @@ export default function MediaSourcesDialog({
                   <div className="py-4 text-center">
                     <p className="text-sm font-bold">Pick from Google Photos</p>
                     <p className="mx-auto mt-1 max-w-[260px] text-xs text-muted">
-                      Google shows its own picker — what you choose attaches here automatically.
+                      Google shows its own picker, what you choose attaches here automatically.
                     </p>
                     <button
                       type="button"

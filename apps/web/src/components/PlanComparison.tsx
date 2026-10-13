@@ -41,11 +41,11 @@ function Cell({ value, featured }: { value: string | boolean; featured?: boolean
   if (value === false) {
     return (
       <span className="text-lg leading-none text-faint/40" aria-label="Not included">
-        —
+        -
       </span>
     );
   }
-  // String values are always ink — even in the tinted popular column, whose
+  // String values are always ink, even in the tinted popular column, whose
   // background stays light (only its header card is dark).
   return (
     <span className="text-[15px] font-semibold text-ink">
@@ -149,7 +149,7 @@ export default function PlanComparison() {
           <Link href="/login" className="font-bold text-ink hover:underline">
             Start free
           </Link>{' '}
-          — upgrade when you outgrow it.
+         , upgrade when you outgrow it.
         </p>
         </>
         ) : null}

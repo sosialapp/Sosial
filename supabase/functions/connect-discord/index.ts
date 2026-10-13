@@ -24,7 +24,7 @@ async function callDiscord<T>(token: string, path: string): Promise<T> {
   const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bot ${token}` } });
   if (res.status === 429) {
     const retry = res.headers.get("retry-after") ?? res.headers.get("x-ratelimit-reset-after") ?? "5";
-    throw new Error(`Discord rate-limited us — retry in ${Math.ceil(Number(retry))}s.`);
+    throw new Error(`Discord rate-limited us, retry in ${Math.ceil(Number(retry))}s.`);
   }
   const json = (await res.json().catch(() => null)) as (T & { message?: string }) | null;
   if (!res.ok || !json) {
@@ -40,7 +40,7 @@ serve(async (req: Request): Promise<Response> => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SB_PUBLISHABLE_KEY") ?? "";
   const serviceKey =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SB_SECRET_KEY") ?? "";
-  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured — missing Supabase env.", 500);
+  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured, missing Supabase env.", 500);
 
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) return bad("Sign in first.", 401);
@@ -139,7 +139,7 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  // Stage 3: validate the channel (or thread — /channels/{id} resolves both),
+  // Stage 3: validate the channel (or thread, /channels/{id} resolves both),
   // then store through the import path. Publishing posts to the stored id,
   // which Discord accepts for threads unchanged.
   let channel: { id: string; name: string; guild_id?: string; parent_id?: string; thread_metadata?: unknown };

@@ -33,7 +33,7 @@ function row(cells: Record<number, string>): string[] {
   return out;
 }
 
-// A date guaranteed to be in the future regardless of when the suite runs —
+// A date guaranteed to be in the future regardless of when the suite runs -
 // a hardcoded "tomorrow" goes stale once the calendar catches up with it.
 function futureDate(): string {
   const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

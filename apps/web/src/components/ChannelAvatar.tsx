@@ -9,7 +9,7 @@ import { providerMeta } from '@/lib/providers';
  * leads as a circular tile; the social logo rides as a larger circular disc
  * stacked in the corner. Brand disc alone when there's no avatar.
  * Small account rows pass badge={false} (mobile parity) so the mini logo
- * never swallows the photo. Plain <img> — avatar hosts are arbitrary, so
+ * never swallows the photo. Plain <img>, avatar hosts are arbitrary, so
  * next/image can't preallow them.
  */
 export default function ChannelAvatar({
@@ -21,7 +21,7 @@ export default function ChannelAvatar({
   provider: string;
   avatar?: string;
   size?: number;
-  /** Corner brand disc over a photo. Off in dense rows — the disc alone shows. */
+  /** Corner brand disc over a photo. Off in dense rows, the disc alone shows. */
   badge?: boolean;
 }) {
   const meta = providerMeta(provider);
@@ -31,7 +31,7 @@ export default function ChannelAvatar({
   const even = (n: number): number => Math.max(8, Math.round(n / 2) * 2);
   const badgeGlyph = even(badgeSize - 6);
   const discGlyph = even(size * 0.6);
-  // Stored avatar URLs die (TikTok/fbcdn sign theirs with expiries) — a dead
+  // Stored avatar URLs die (TikTok/fbcdn sign theirs with expiries), a dead
   // photo must fall back to the brand disc, never a broken-image icon.
   const [dead, setDead] = useState(false);
   useEffect(() => setDead(false), [avatar]);

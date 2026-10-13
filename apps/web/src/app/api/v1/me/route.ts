@@ -4,7 +4,7 @@ import { unauthorized, verifyApiKey } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
-/** Auth probe — Zapier uses this as its "test authentication" call. */
+/** Auth probe, Zapier uses this as its "test authentication" call. */
 export async function GET(req: Request) {
   const ctx = await verifyApiKey(req);
   if (!ctx) return unauthorized();

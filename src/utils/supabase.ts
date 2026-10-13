@@ -5,7 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
 /**
- * Supabase client (staging) — the cloud backend for auth + workspace data.
+ * Supabase client (staging), the cloud backend for auth + workspace data.
  *
  * - Session lives in SecureStore (never AsyncStorage): only the Supabase
  *   session token is on-device; provider OAuth tokens stay server-side (P2).
@@ -37,7 +37,7 @@ let client: SupabaseClient | null = null;
 
 export function supabase(): SupabaseClient {
   if (!isSupabaseConfigured()) {
-    throw new Error('Cloud backend not configured — add EXPO_PUBLIC_SUPABASE_URL/_ANON_KEY to .env and restart Expo.');
+    throw new Error('Cloud backend not configured, add EXPO_PUBLIC_SUPABASE_URL/_ANON_KEY to .env and restart Expo.');
   }
   if (!client) {
     client = createClient(URL, ANON, {
@@ -54,10 +54,10 @@ export function supabase(): SupabaseClient {
 
 function friendly(e: any, fallback: string): Error {
   const m = String(e?.message ?? '');
-  if (/fetch|network|failed/i.test(m)) return new Error('Could not reach the cloud backend — check your connection.');
+  if (/fetch|network|failed/i.test(m)) return new Error('Could not reach the cloud backend, check your connection.');
   if (/invalid login|invalid_credentials/i.test(m)) return new Error('Wrong email or password.');
-  if (/already registered|already exists|duplicate/i.test(m)) return new Error('That email already has an account — sign in instead.');
-  if (/email not confirmed/i.test(m)) return new Error('Confirm your email first — check your inbox for the link.');
+  if (/already registered|already exists|duplicate/i.test(m)) return new Error('That email already has an account, sign in instead.');
+  if (/email not confirmed/i.test(m)) return new Error('Confirm your email first, check your inbox for the link.');
   return new Error(m || fallback);
 }
 
@@ -105,7 +105,7 @@ export async function listMyWorkspaces(userId: string): Promise<WorkspaceSummary
         .eq('status', 'connected');
       liveChannels = count ?? 0;
     } catch {
-      /* count is display-only — never block resolution */
+      /* count is display-only, never block resolution */
     }
     out.push({
       id: w.id,
@@ -136,7 +136,7 @@ export async function switchWorkspace(workspaceId: string): Promise<WorkspaceInf
 /** Workspace for this user. Null when logged out. */
 export async function myWorkspace(userId: string, email: string): Promise<WorkspaceInfo | null> {
   const sb = supabase();
-  // All active memberships — never .limit(1): same-named workspaces made the
+  // All active memberships, never .limit(1): same-named workspaces made the
   // old first-row pick land on an empty workspace while the web (cookie) sat
   // on the live one, and the device silently pulled zero channels.
   let all: WorkspaceSummary[];
@@ -148,7 +148,7 @@ export async function myWorkspace(userId: string, email: string): Promise<Worksp
   if (all.length > 0) {
     const stored = await SecureStore.getItemAsync(WS_KEY).catch(() => null);
     const pinned = stored ? all.find((w) => w.id === stored) : undefined;
-    // Default to the workspace that actually has channels — a fresh empty
+    // Default to the workspace that actually has channels, a fresh empty
     // twin must never shadow the live one.
     const pick =
       pinned ?? [...all].sort((a, b) => b.liveChannels - a.liveChannels)[0]!;
@@ -247,7 +247,7 @@ export async function signInEmail(email: string, password: string): Promise<Work
   const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
   if (error || !data.session) throw friendly(error, 'Sign-in failed.');
   const ws = await myWorkspace(data.session.user.id, data.session.user.email ?? email.trim());
-  if (!ws) throw new Error('Signed in, but no workspace — try again.');
+  if (!ws) throw new Error('Signed in, but no workspace, try again.');
   return ws;
 }
 
@@ -299,7 +299,7 @@ export async function pullProfileFromCloud(): Promise<CloudProfile | null> {
 
 /**
  * Best-effort push after any local profile edit. Never throws, never blocks
- * the UI — local already saved by the caller. No-ops when logged out.
+ * the UI, local already saved by the caller. No-ops when logged out.
  * NOTE: login-email changes are deferred (auth.updateUser confirmation flow);
  * only team name + notification prefs sync upward for now.
  */
@@ -339,7 +339,7 @@ export async function pushProfileToCloud(patch: {
 /**
  * Deep-link target for OAuth return (`sosial://…` in dev/standalone builds,
  * `exp://…` in Expo Go). Google sign-in uses this as its redirectTo and only
- * completes where the scheme returns to the app (dev/standalone) — Expo Go
+ * completes where the scheme returns to the app (dev/standalone), Expo Go
  * is gated in the UI because Google web clients reject non-https returns.
  */
 export function oauthRedirect(): string {
@@ -363,7 +363,7 @@ async function finishGoogleSession(): Promise<WorkspaceInfo> {
     }
   } catch { /* cosmetic */ }
   const ws = await myWorkspace(data.session.user.id, data.session.user.email ?? '');
-  if (!ws) throw new Error('Signed in, but no workspace — try again.');
+  if (!ws) throw new Error('Signed in, but no workspace, try again.');
   return ws;
 }
 
@@ -399,7 +399,7 @@ export async function avatarSignedUrl(path: string | null): Promise<string | nul
   }
 }
 
-/** Upload a local image (uri) as the profile picture — server compresses. */
+/** Upload a local image (uri) as the profile picture, server compresses. */
 export async function setAvatarFromUri(uri: string): Promise<void> {
   const res = await fetch(uri);
   const blob = await res.blob();
@@ -428,14 +428,14 @@ export async function clearMyAvatar(): Promise<void> {
  * Google sign-in through Supabase Auth (browser OAuth).
  * Works in dev/standalone builds where the sosial:// scheme returns to the
  * app. Does NOT work in Expo Go (Google Web clients only accept https
- * redirects, and Go can only receive exp://) — the UI gates it there.
- * No Google IDs in code — the Google Cloud client lives in the Supabase
+ * redirects, and Go can only receive exp://), the UI gates it there.
+ * No Google IDs in code, the Google Cloud client lives in the Supabase
  * dashboard provider config.
  */
 export async function signInWithGoogle(): Promise<WorkspaceInfo> {
   const sb = supabase();
   const redirectTo = oauthRedirect();
-  // Visible in the Metro terminal AND in failure messages — the exact string
+  // Visible in the Metro terminal AND in failure messages, the exact string
   // Supabase must have allowlisted, otherwise it falls back to the Site URL
   // website and the browser never comes back to the app.
   console.log('[oauth] Google redirectTo =', redirectTo);
@@ -453,11 +453,11 @@ export async function signInWithGoogle(): Promise<WorkspaceInfo> {
   if (res.type !== 'success') {
     throw new Error(
       `Google sign-in did not come back to the app (${res.type}). ` +
-        `If Google left you on a website, Supabase doesn't recognise this return address — ` +
+        `If Google left you on a website, Supabase doesn't recognise this return address, ` +
         `allowlist it under Auth → URL Configuration → Redirect URLs: ${redirectTo}`,
     );
   }
-  // Supabase redirects to redirectTo with ?code=… — parse it directly so we
+  // Supabase redirects to redirectTo with ?code=…, parse it directly so we
   // don't depend on URL-constructor typings in RN.
   const cm = /[?&]code=([^&#]+)/.exec(res.url);
   const code = cm ? decodeURIComponent(cm[1]) : null;
@@ -488,14 +488,14 @@ async function callChannelFunction(name: string, body: Record<string, unknown>):
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error('Could not reach the cloud backend — check your connection.');
+    throw new Error('Could not reach the cloud backend, check your connection.');
   }
   const json: any = await res.json().catch(() => ({}));
   if (!res.ok) {
     const m = String(json?.error ?? '');
-    if (res.status === 401) throw new Error('Your cloud session expired — sign in again (Account tab).');
+    if (res.status === 401) throw new Error('Your cloud session expired, sign in again (Account tab).');
     if (res.status === 403) throw new Error('You are not a member of this workspace.');
-    throw new Error(m || 'Cloud request failed — try again.');
+    throw new Error(m || 'Cloud request failed, try again.');
   }
   return json;
 }
@@ -503,7 +503,7 @@ async function callChannelFunction(name: string, body: Record<string, unknown>):
 /** Mirror one channel's device credentials into Vault. Returns the channel id. */
 export async function importChannelToken(body: Record<string, unknown>): Promise<string> {
   const json = await callChannelFunction('import-channel-token', body);
-  if (!json?.channel_id) throw new Error('Cloud did not register the channel — try again.');
+  if (!json?.channel_id) throw new Error('Cloud did not register the channel, try again.');
   return String(json.channel_id);
 }
 
@@ -522,7 +522,7 @@ export async function removeChannelToken(body: {
 
 /**
  * Signed-in Edge Function call. Surfaces the server's `error` message verbatim
- * — the AI gates depend on it ("You're out of AI credits for this month.").
+ *, the AI gates depend on it ("You're out of AI credits for this month.").
  * `name` must be a first-party function; nothing here trusts the caller.
  */
 export async function callEdgeFunction(name: string, body: Record<string, unknown>): Promise<any> {
@@ -542,13 +542,13 @@ export async function callEdgeFunction(name: string, body: Record<string, unknow
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error('Could not reach the cloud backend — check your connection.');
+    throw new Error('Could not reach the cloud backend, check your connection.');
   }
   const json: any = await res.json().catch(() => ({}));
   if (!res.ok) {
     const m = String(json?.error ?? '');
-    if (res.status === 401) throw new Error('Your cloud session expired — sign in again (Account tab).');
-    throw new Error(m || 'Cloud request failed — try again.');
+    if (res.status === 401) throw new Error('Your cloud session expired, sign in again (Account tab).');
+    throw new Error(m || 'Cloud request failed, try again.');
   }
   return json;
 }
@@ -568,7 +568,7 @@ export async function findImages(topic: string): Promise<{ images: FoundImage[];
   const json = await callChannelFunction('find-images', { topic });
   if (json?.error) throw new Error(String(json.error));
   if (!Array.isArray(json?.images) || json.images.length === 0) {
-    throw new Error('No photos found for that topic — try different words.');
+    throw new Error('No photos found for that topic, try different words.');
   }
   return { images: json.images as FoundImage[], keywords: Array.isArray(json.keywords) ? json.keywords : [] };
 }

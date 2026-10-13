@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AiStudioPanel — web port of the mobile AIGenerateSheet for the canvas
+ * AiStudioPanel, web port of the mobile AIGenerateSheet for the canvas
  * studio: idea, language, card count and the per-card budget. Generates through
  * the generate-studio edge function, clamps with the shared rules, then swaps
  * the whole page list (keeping the template's design) on Apply.
@@ -34,7 +34,7 @@ export default function AiStudioPanel({
   onApply,
   onClose,
 }: {
-  /** The current page — its design is reused for every generated card. */
+  /** The current page, its design is reused for every generated card. */
   template: PostPage;
   onApply: (pages: PostPage[]) => void;
   onClose: () => void;
@@ -108,7 +108,7 @@ export default function AiStudioPanel({
         <textarea
           value={brief.prompt}
           onChange={(e) => patch({ prompt: e.target.value })}
-          placeholder="e.g. Why small habits beat big goals — 3 cards"
+          placeholder="e.g. Why small habits beat big goals, 3 cards"
           rows={3}
           aria-label="Your idea"
           className="field min-h-[76px] resize-y !text-xs"
@@ -124,7 +124,7 @@ export default function AiStudioPanel({
             className="flex w-full items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-xs font-bold"
           >
             <span className="flex-1 truncate text-left">
-              {brief.language === 'auto' ? 'Auto — match my idea' : langName(brief.language)}
+              {brief.language === 'auto' ? 'Auto, match my idea' : langName(brief.language)}
             </span>
             <span className="text-[11px] text-faint">{WRITER_LANGUAGES.length} languages</span>
           </button>
@@ -147,7 +147,7 @@ export default function AiStudioPanel({
                   }}
                   className={`mt-1 flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${brief.language === 'auto' ? 'bg-accent-soft text-accent-ink' : ''}`}
                 >
-                  Auto — match my idea
+                  Auto, match my idea
                 </button>
                 {langMatches.map((l) => (
                   <button
@@ -233,7 +233,7 @@ export default function AiStudioPanel({
                 })}
               </div>
               {extras.length ? (
-                <p className="mt-1 text-[11px] text-faint">Added after the AI copy — fill them in the Content step.</p>
+                <p className="mt-1 text-[11px] text-faint">Added after the AI copy, fill them in the Content step.</p>
               ) : null}
             </div>
             {result.warnings.length ? (
@@ -245,7 +245,7 @@ export default function AiStudioPanel({
             ) : null}
           </div>
         ) : (
-          <p className="text-xs font-bold text-[#9F2F2D]">Nothing usable came back — try a more specific idea.</p>
+          <p className="text-xs font-bold text-[#9F2F2D]">Nothing usable came back, try a more specific idea.</p>
         )
       ) : null}
 

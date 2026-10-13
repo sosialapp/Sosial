@@ -4,7 +4,7 @@
 --
 -- Canonical intervals are exactly 'monthly' | 'annual'. Plans are exactly
 -- 'free' | 'starter' | 'pro' | 'business'. A Pro annual subscription is ONE
--- row: plan='pro', billing_interval='annual' — never separate rows per
+-- row: plan='pro', billing_interval='annual', never separate rows per
 -- interval, never "pro_annual" as a plan.
 
 create extension if not exists pgcrypto;

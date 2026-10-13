@@ -1,5 +1,5 @@
 /**
- * StudioCanvas — DOM port of mobile PostCanvas (+ ContentBlockView +
+ * StudioCanvas, DOM port of mobile PostCanvas (+ ContentBlockView +
  * SocialCardChrome). All-inline styles so the export serializer captures
  * the exact tree. Unit system: canvas units, design width 340 (k = width/340).
  */
@@ -64,13 +64,13 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
   dots: <><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" /></>,
   'dots-v': <><circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none" /></>,
   like: <path d="M7 10.5V20H4.5A1.5 1.5 0 0 1 3 18.5v-6.5A1.5 1.5 0 0 1 4.5 10.5H7Zm0 0 4-7c1.4 0 2.2 1.2 1.9 2.6L12.5 9H19a2 2 0 0 1 2 2.4l-1.3 6A2 2 0 0 1 17.7 19H7" />,
-  /* Custom action set — uniform 24 box; odd-grid glyphs scale inside. */
+  /* Custom action set, uniform 24 box; odd-grid glyphs scale inside. */
   'fb-like': <path d="M7 10v12m8-16.12L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88" />,
   'fb-comment': <g transform="translate(24 0) scale(-1 1)"><path d="m3 20 1.3-3.9A9 8 0 1 1 7.7 19z" /></g>,
   'fb-share': <path d="M13 4v4C6.425 9.028 3.98 14.788 3 20c-.037.206 5.384-5.962 10-6v4l8-7z" />,
-  /* Instagram outline glyphs (user-supplied art, 20-unit boxes) — bookmark
+  /* Instagram outline glyphs (user-supplied art, 20-unit boxes), bookmark
      stays as-is. Stroke inherits currentColor via ChromeIcon. */
-  /* Instagram outline glyphs — normalized to the bookmark's footprint
+  /* Instagram outline glyphs, normalized to the bookmark's footprint
      (~19.7/24 grid units, 2.15 margin) so all five icons read as one set.
      Stroke width scaled to match the bookmark's visual weight at size. */
   'ig-heart': <g transform="scale(1.16)"><path d="M10.5167 17.3417C10.2334 17.4417 9.76669 17.4417 9.48335 17.3417C7.06669 16.5167 1.66669 13.075 1.66669 7.24166C1.66669 4.66666 3.74169 2.58333 6.30002 2.58333C7.81669 2.58333 9.15835 3.31666 10 4.45C10.4282 3.87156 10.9858 3.40143 11.6283 3.07728C12.2709 2.75313 12.9804 2.58396 13.7 2.58333C16.2584 2.58333 18.3334 4.66666 18.3334 7.24166C18.3334 13.075 12.9334 16.5167 10.5167 17.3417Z" fill="none" strokeWidth={1.42} /></g>,
@@ -93,7 +93,7 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
   'bsky-heart': <g transform="translate(-2.252 -2.278) scale(0.056)"><path d="M352.92 80C288 80 256 144 256 144s-32-64-96.92-64c-52.76 0-94.54 44.14-95.08 96.81c-1.1 109.33 86.73 187.08 183 252.42a16 16 0 0 0 18 0c96.26-65.34 184.09-143.09 183-252.42c-.54-52.67-42.32-96.81-95.08-96.81" fill="currentColor" stroke="none" /></g>,
   'bsky-bookmark': <g transform="translate(-1.714 -2.178) scale(1.143)"><path d="M5 6.09A3.09 3.09 0 0 1 8.09 3h7.82A3.09 3.09 0 0 1 19 6.09v13.697c0 1.336-1.597 2.024-2.568 1.107L12 16.71l-4.432 4.185c-.97.918-2.568.229-2.568-1.107V6.091ZM8.09 5A1.09 1.09 0 0 0 7 6.09v12.59l3.954-3.735a1.523 1.523 0 0 1 2.091 0L17 18.68V6.09A1.09 1.09 0 0 0 15.91 5z" fill="currentColor" stroke="none" /></g>,
   'bsky-share': <g transform="translate(1.25 1.25) scale(0.018)"><path d="M754.553 35.03v294.208C487.317 329.246 0 332.178 0 1164.97c55.25-556.9 309.061-560.402 754.553-560.408v321.292L1200 480.407z" fill="currentColor" stroke="none" /></g>,
-  /* Threads outline glyphs (user-supplied art, 20-unit boxes) — filled
+  /* Threads outline glyphs (user-supplied art, 20-unit boxes), filled
      crescents stay filled, brackets stay stroked; stroke inherits
      currentColor via ChromeIcon. */
   'th-heart': <g transform="translate(2 2)"><path d="M10.5167 17.3417C10.2334 17.4417 9.76669 17.4417 9.48335 17.3417C7.06669 16.5167 1.66669 13.075 1.66669 7.24166C1.66669 4.66666 3.74169 2.58333 6.30002 2.58333C7.81669 2.58333 9.15835 3.31666 10 4.45C10.4282 3.87156 10.9858 3.40143 11.6283 3.07728C12.2709 2.75313 12.9804 2.58396 13.7 2.58333C16.2584 2.58333 18.3334 4.66666 18.3334 7.24166C18.3334 13.075 12.9334 16.5167 10.5167 17.3417Z" fill="none" strokeWidth={1.5} /></g>,
@@ -244,7 +244,7 @@ function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; wid
     const fx = (focus % 3) - 1;
     const fy = Math.floor(focus / 3) - 1;
     // Manual crop wins over the focal preset: zoom (1-3) + pan (-1..1 each
-    // axis), mirroring mobile ContentBlockView — keep in sync.
+    // axis), mirroring mobile ContentBlockView, keep in sync.
     const crop = block.imageCrop;
     const zoom = Math.min(3, Math.max(1, crop?.zoom ?? 1));
     return (
@@ -262,7 +262,7 @@ function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; wid
                       position: 'absolute', display: 'block',
                       width: `${zoom * 100}%`, height: `${zoom * 100}%`, objectFit: 'cover',
                       // (x-1) mapping: x=-1 shows the left edge, x=+1 the right,
-                      // x=0 centered — always full frame coverage.
+                      // x=0 centered, always full frame coverage.
                       left: `${(crop.x - 1) * (zoom - 1) * 50}%`, top: `${(crop.y - 1) * (zoom - 1) * 50}%`,
                     }
                   : {

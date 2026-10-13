@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 /**
  * shadcn/ui Calendar (react-day-picker v10) on the brand tokens.
  *
- * v10 renders a real `<table>` (thead > tr > th, tbody > tr > td) — so the
+ * v10 renders a real `<table>` (thead > tr > th, tbody > tr > td), so the
  * grid is laid out with table semantics, never flex. The nav is absolutely
  * positioned across the top of the month so prev/next sit symmetrically
  * either side of the centred caption. All colours come from theme tokens, so

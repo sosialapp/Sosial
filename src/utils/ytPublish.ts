@@ -8,11 +8,11 @@ function yerr(j: any, status: number, fallback: string): string {
     (typeof j?.error === 'string' ? j.error : undefined) ||
     j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
-  if (status === 401) return 'YouTube session expired — reconnect YouTube.';
+  if (status === 401) return 'YouTube session expired, reconnect YouTube.';
   if (status === 403) {
-    if (/quota/i.test(base)) return 'YouTube API quota exhausted for today — uploads reset at midnight Pacific.';
+    if (/quota/i.test(base)) return 'YouTube API quota exhausted for today, uploads reset at midnight Pacific.';
     if (/accessNotConfigured|disabled/i.test(base)) return 'YouTube Data API v3 isn’t enabled on your Google Cloud project.';
-    return `${base} — check the API is enabled and your account is a test user.`;
+    return `${base}, check the API is enabled and your account is a test user.`;
   }
   return `${base} (${status})`;
 }
@@ -42,7 +42,7 @@ async function fileSize(uri: string): Promise<number> {
 /**
  * Resumable upload in two hops: POST metadata → session URL in the Location
  * header → PUT the bytes. The file streams from disk natively
- * (`FileSystem.uploadAsync` with BINARY_CONTENT) — base64-decoding a whole
+ * (`FileSystem.uploadAsync` with BINARY_CONTENT), base64-decoding a whole
  * video into a JS byte array blows Hermes memory and stalls the upload.
  * Single PUT (no chunking) keeps memory bounded via the YT_MAX_BYTES cap.
  */
@@ -50,7 +50,7 @@ async function uploadVideo(token: string, uri: string, title: string, descriptio
   const size = await fileSize(uri);
   if (!size) throw new Error('Could not read that video file.');
   if (size > YT_MAX_BYTES) {
-    throw new Error(`That video is ${(size / 1048576).toFixed(0)} MB — keep YouTube uploads under 128 MB.`);
+    throw new Error(`That video is ${(size / 1048576).toFixed(0)} MB, keep YouTube uploads under 128 MB.`);
   }
   const mime = mimeFor(uri);
   const init = await fetch(`${YT_UPLOAD_API}/videos?uploadType=resumable&part=snippet,status`, {
@@ -87,7 +87,7 @@ async function uploadVideo(token: string, uri: string, title: string, descriptio
 }
 
 /**
- * Publish a video to YouTube (unlisted). YouTube is video-only — photos or
+ * Publish a video to YouTube (unlisted). YouTube is video-only, photos or
  * text alone throw a clear error instead of silently skipping the channel.
  * `kind` records intent only: Shorts need no separate API, YouTube
  * auto-classifies vertical ≤3min uploads, so both kinds upload identically.
@@ -97,7 +97,7 @@ export async function publishYouTube(opts: { text: string; videoUri?: string; ki
   const { token } = await getValidYt(opts.accountId);
   const videoUri = opts.videoUri && opts.videoUri.trim() ? opts.videoUri : undefined;
   if (!videoUri) {
-    throw new Error('YouTube needs a video — attach one to post here.');
+    throw new Error('YouTube needs a video, attach one to post here.');
   }
   const firstLine = (opts.text ?? '').trim().split('\n')[0];
   return uploadVideo(token, videoUri, firstLine || 'Sosial video', opts.text ?? '', opts.privacy ?? 'public');

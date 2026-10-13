@@ -1,7 +1,7 @@
 import type { PostWithTargets } from './types';
 
 /**
- * Chain grouping — threads/chains read as ONE post everywhere (calendar,
+ * Chain grouping, threads/chains read as ONE post everywhere (calendar,
  * dashboard, queue). Head = lowest chain_position. Single source of truth
  * so the surfaces can never drift apart.
  */
@@ -26,7 +26,7 @@ export function chainPartsByChain(posts: PostWithTargets[]): Map<string, PostWit
   return m;
 }
 
-/** Only the head renders anywhere — parts collapse into it. */
+/** Only the head renders anywhere, parts collapse into it. */
 export function isChainHead(p: PostWithTargets, parts: Map<string, PostWithTargets[]>): boolean {
   if (!p.chain_id) return true;
   return chainHead(parts.get(p.chain_id) ?? [p]).id === p.id;

@@ -1,7 +1,7 @@
 /**
  * Where "Go to Sosial" points.
  *
- * Today this is the in-app dashboard — the middleware routes signed-out
+ * Today this is the in-app dashboard, the middleware routes signed-out
  * visitors to /login and members straight to /dashboard, so one link is
  * correct for both states. Once dashboard.sosial.app is live, set
  * NEXT_PUBLIC_DASHBOARD_URL to it (e.g. https://dashboard.sosial.app) and

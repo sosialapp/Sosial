@@ -3,7 +3,7 @@
 -- dormancy_candidates(idle_before, limit): auth users with no sign-in and no
 -- post activity since `idle_before`, with their dormancy_warned_at stamp.
 -- The activity proxy is GREATEST(last_sign_in_at, latest post ever created in
--- any workspace they own or belong to) — a mobile user can stay signed in for
+-- any workspace they own or belong to), a mobile user can stay signed in for
 -- months without re-authenticating, so posts count as life.
 --
 -- The sweep itself lives in the dormancy-sweep edge function; pg_cron POSTs

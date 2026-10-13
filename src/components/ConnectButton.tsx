@@ -6,9 +6,9 @@ import { SOCIAL_META } from '../constants';
 import { loadMetaState, loadAccounts, connectedChannelIds } from '../utils/metaStore';
 import { schedulableProviders } from '../utils/socialAccounts';
 
-/** Masthead Connect pill — shows stacked brand tiles for every schedulable
+/** Masthead Connect pill, shows stacked brand tiles for every schedulable
  *  channel (local credentials plus cloud-only placeholders the worker
- *  publishes for — same truth as the composer). */
+ *  publishes for, same truth as the composer). */
 export default function ConnectButton({ onPress }: { onPress: () => void }) {
   const { C } = useTheme();
   const [connected, setConnected] = useState<string[]>([]);
@@ -26,7 +26,7 @@ export default function ConnectButton({ onPress }: { onPress: () => void }) {
     };
     void reload();
     // Channels connected elsewhere (web pull, Connect screen) land after
-    // this pill mounts — refresh on foreground so the logos never go stale.
+    // this pill mounts, refresh on foreground so the logos never go stale.
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'active') void reload();
     });

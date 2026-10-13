@@ -6,7 +6,7 @@ import { createHash, randomBytes } from 'node:crypto';
  *   call 1 → { error_code: 'confirmation_required', confirmation_token }
  *   call 2 (same args + token) → executes.
  * Tokens are single-use, 5-minute TTL, bound to (workspace, key, tool, args
- * hash). Only the SHA-256 hash is stored — the plaintext lives only in the
+ * hash). Only the SHA-256 hash is stored, the plaintext lives only in the
  * agent's hands between the two calls.
  */
 
@@ -53,7 +53,7 @@ export function mcpConfirmGuard(admin: {
       }
       if (rec.args_hash !== ah) {
         await admin.from('mcp_confirmations').delete().eq('id', rec.id);
-        return { required: true, message: 'Arguments changed since the confirmation was issued — confirm the new call.' };
+        return { required: true, message: 'Arguments changed since the confirmation was issued, confirm the new call.' };
       }
       if (Date.parse(rec.expires_at) < Date.now()) {
         await admin.from('mcp_confirmations').delete().eq('id', rec.id);

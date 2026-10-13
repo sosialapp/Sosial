@@ -6,7 +6,7 @@ import { brandColor, brandPath, GLYPH_TRANSFORMS, type BrandProvider } from '@/c
 import type { ProviderKey } from '@/lib/types';
 
 /**
- * Social-logo vortex — the GreenSock canvas-particles pen, reskinned: the
+ * Social-logo vortex, the GreenSock canvas-particles pen, reskinned: the
  * ten channel discs spiral endlessly from the edges into the center on one
  * GSAP timeline (function-based spiral origins, scale 1.1 → 0, negative
  * stagger loop, seeked mid-flight on load), sorted by scale for depth.
@@ -33,7 +33,7 @@ const SPRITE = 128;
 
 function spriteSvg(provider: ProviderKey): string {
   // Bare-glyph transforms where one exists (VK scale); everything else uses
-  // the bundled mark as authored — including Telegram's circled badge.
+  // the bundled mark as authored, including Telegram's circled badge.
   const d = brandPath(provider as BrandProvider);
   const extra =
     GLYPH_TRANSFORMS[provider as BrandProvider]

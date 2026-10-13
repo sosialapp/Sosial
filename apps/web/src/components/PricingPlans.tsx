@@ -12,13 +12,13 @@ import { GridPulse } from '@/components/ui/grid-pulse';
 import SegmentedPills from '@/components/ui/segmented-pills';
 
 /**
- * Pricing band — pastel-header cards with quota fields, a channel/integration
+ * Pricing band, pastel-header cards with quota fields, a channel/integration
  * logo strip, dot-bullet features and Sosial-style CTAs, sitting on the same
  * interactive GridPulse field as the landing hero (channel + tool marks ride
  * inside the lit cells). Prices respond to the monthly/annual toggle.
  */
 
-/** Soft pastel header tints — dark ink reads on all four. */
+/** Soft pastel header tints, dark ink reads on all four. */
 const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, { bg: string; ink: string; sub: string }> = {
   free: { bg: '#DCE6FF', ink: '#1E2B5C', sub: '#42507E' },
   solo: { bg: '#D6EFE0', ink: '#16452C', sub: '#2F5C42' },
@@ -41,7 +41,7 @@ const GRID_LOGOS: BrandProvider[] = [
   'devto', 'hashnode', 'ghost', 'vk', 'gmb',
 ];
 
-/** Listed but not connectable yet — mirrors ConnectPanel's COMING_SOON. */
+/** Listed but not connectable yet, mirrors ConnectPanel's COMING_SOON. */
 const COMING_SOON: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
 
 /** Per-month display price at the given interval (annual is billed yearly).

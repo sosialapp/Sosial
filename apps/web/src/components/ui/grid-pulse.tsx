@@ -35,7 +35,7 @@ export type GridPulseProps = Omit<
    * given area keeps its scale instead of flickering.
    */
   blockSizes?: number[];
-  /** How often each size in `blockSizes` is picked — aligned by index. */
+  /** How often each size in `blockSizes` is picked, aligned by index. */
   blockWeights?: number[];
 };
 
@@ -77,7 +77,7 @@ type Block = {
 const easeOut = (t: number) => 1 - (1 - t) ** 2;
 const easeIn = (t: number) => t * t;
 
-/** Stable 0–1 value for a grid position — same cell always asks for the same
+/** Stable 0–1 value for a grid position, same cell always asks for the same
  *  block size, so the field settles into a readable mix instead of jittering. */
 const jitter = (col: number, row: number) => {
   let h = (Math.imul(col + 1, 73856093) ^ Math.imul(row + 1, 19349663)) >>> 0;
@@ -318,7 +318,7 @@ export function GridPulse({
       if (covered() >= maxLit) return;
       if (lit(col, row)) return;
       // The size this position asks for, shrunk until it fits the grid and
-      // the free space around it — so a big box never clips or overlaps.
+      // the free space around it, so a big box never clips or overlaps.
       let span = spanAt(col, row);
       while (span > 1 && !area(col, row, span)) span--;
       if (span > 1 && (col + span > cols || row + span > rows)) {

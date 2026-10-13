@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * `notionFetch` (fixed api.notion.com host, Notion-Version pinned, timeouts,
  * one 429/5xx retry honoring Retry-After). Row → draft mapping + validation
  * are pure functions (unit-tested); media downloads pass `safeFetchFile`.
- * Tokens live in Vault — only secret ids in notion_connections.
+ * Tokens live in Vault, only secret ids in notion_connections.
  */
 
 const NOTION_API = 'https://api.notion.com/v1';
@@ -161,7 +161,7 @@ export interface NotionRow {
   properties: Record<string, any>;
 }
 
-/** Page body as text (bounded) — for mapping content to "page body". */
+/** Page body as text (bounded), for mapping content to "page body". */
 export async function getPageBodyText(token: string, pageId: string, maxChars = 20000): Promise<string> {
   const out: string[] = [];
   let cursor: string | undefined;
@@ -278,7 +278,7 @@ export function parseNotionDate(start: string, timeZone?: string | null): string
   // Notion date.start is ISO (date-only or datetime, maybe with offset).
   const d = new Date(start);
   if (Number.isNaN(d.getTime())) return null;
-  // Naive datetime: treat as UTC unless Notion gave a named timezone — the
+  // Naive datetime: treat as UTC unless Notion gave a named timezone, the
   // user's schedule timezone is set at scheduling time in the app.
   return d.toISOString();
 }
@@ -308,7 +308,7 @@ export function mapRowToDraft(
     body = (bodyText ?? '').trim();
   } else {
     const c = read(mapping.content);
-    if (c?.kind === 'files') errors.push('Content is mapped to a files property — map it to text or page body.');
+    if (c?.kind === 'files') errors.push('Content is mapped to a files property, map it to text or page body.');
     else body = (c?.text ?? '').trim();
   }
   if (!body) errors.push('Content is empty.');
@@ -341,7 +341,7 @@ export function mapRowToDraft(
   } else if (channels.length === 0) {
     errors.push('No connected channels in this workspace.');
   } else {
-    errors.push('No platform mapping configured — map the platform property or connect exactly one channel.');
+    errors.push('No platform mapping configured, map the platform property or connect exactly one channel.');
   }
 
   // Status → draft/scheduled
@@ -353,7 +353,7 @@ export function mapRowToDraft(
       const mapped = mapping.status_map?.[value];
       if (mapped === 'scheduled') wantsScheduled = true;
       else if (mapped === 'draft') wantsScheduled = false;
-      else warnings.push(`Status value "${value}" is unmapped — importing as draft.`);
+      else warnings.push(`Status value "${value}" is unmapped, importing as draft.`);
     }
   }
 

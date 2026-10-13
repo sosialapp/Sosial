@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * StudioEditor — web port of mobile EditorScreen: top bar (back / name /
+ * StudioEditor, web port of mobile EditorScreen: top bar (back / name /
  * undo / redo / Download all / Save / Use in post), live canvas stage with a
  * vertical page pager beside it, numbered step tabs
  * (01 Background · 02 Title · 03 Photo & socials · 04 Content · 05 Pages).
@@ -39,12 +39,12 @@ const STEPS: { id: Step; label: string }[] = [
 /** One grounded hint per step, shown under the sheet so the panel never ends bare. */
 const STEP_TIPS: Record<Step, string> = {
   background: 'Pick a preset, then tune the pattern size and opacity to keep text readable.',
-  title: 'Keep titles under 6 words — big text and lots of whitespace win the swipe.',
+  title: 'Keep titles under 6 words, big text and lots of whitespace win the swipe.',
   photo: 'Square photos crop best; Center focus keeps faces in frame.',
   content: 'One idea per card. Turn on AI generate to write the copy for you.',
-  pages: 'Hook and takeaway cards stay text-only — put the detail in the middle.',
+  pages: 'Hook and takeaway cards stay text-only, put the detail in the middle.',
 };
-const AI_TIP = 'Rough thoughts are enough — a phrase works. Your design stays untouched.';
+const AI_TIP = 'Rough thoughts are enough, a phrase works. Your design stays untouched.';
 
 type Exporting = null | 'use' | 'all' | 'page';
 
@@ -206,7 +206,7 @@ export default function StudioEditor({
     setPageIndex(next.findIndex((pg) => pg.id === curId));
   };
 
-  /** Swap in AI-written cards — design cloned from the current page. */
+  /** Swap in AI-written cards, design cloned from the current page. */
   const applyAi = (pages: PostPage[]) => {
     commit((p) => ({ ...p, pages }));
     setPageIndex(0);
@@ -343,7 +343,7 @@ export default function StudioEditor({
 
   return (
     <div className="card overflow-hidden">
-      {/* offscreen render host — every page, for exports */}
+      {/* offscreen render host, every page, for exports */}
       <div
         aria-hidden="true"
         style={{ position: 'fixed', left: -99999, top: 0, width: 440, opacity: 0, pointerEvents: 'none' }}
@@ -423,7 +423,7 @@ export default function StudioEditor({
       <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
         {/* stage */}
         <div className="flex flex-col items-center gap-2 border-b border-line bg-bone px-4 py-4 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
-          {/* Page actions — top, icon only */}
+          {/* Page actions, top, icon only */}
           <div className="flex w-full max-w-[420px] flex-wrap items-center gap-1.5">
             <button
               type="button"
@@ -451,10 +451,10 @@ export default function StudioEditor({
             </span>
           </div>
 
-          {/* Filmstrip — always on top */}
+          {/* Filmstrip, always on top */}
           {project.pages.length > 1 ? filmstrip : null}
 
-          {/* Canvas — pagination lives at the bottom, chevrons on the sides */}
+          {/* Canvas, pagination lives at the bottom, chevrons on the sides */}
           <div className="w-full max-w-[420px]">
             <div ref={stageRef} className="mx-auto">
               <div ref={canvasHostRef}>
@@ -463,7 +463,7 @@ export default function StudioEditor({
             </div>
           </div>
 
-          {/* Bottom pagination — chevron on the left, chevron on the right */}
+          {/* Bottom pagination, chevron on the left, chevron on the right */}
           {project.pages.length > 1 ? (
             <div className="flex w-full max-w-[420px] items-center justify-between">
               <button
@@ -503,7 +503,7 @@ export default function StudioEditor({
             </div>
           ) : null}
 
-          {/* Bottom downloads — single page */}
+          {/* Bottom downloads, single page */}
           <div className="flex flex-col items-center gap-1">
             <button
               type="button"
@@ -518,7 +518,7 @@ export default function StudioEditor({
           </div>
         </div>
 
-        {/* sheet — on lg the inner column is absolute, so it adds no height of
+        {/* sheet, on lg the inner column is absolute, so it adds no height of
             its own: the row is as tall as the canvas column and the panel
             scrolls between the tabs and the tip pinned at the canvas bottom. */}
         <div className="relative min-w-0">

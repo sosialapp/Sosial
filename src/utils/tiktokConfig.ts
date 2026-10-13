@@ -2,22 +2,22 @@
  * TikTok Login Kit + Content Posting API config.
  *
  * HOW THIS DIFFERS FROM META (read before touching):
- * 1. TikTok uses `client_key`, NOT `client_id` — every endpoint takes client_key.
+ * 1. TikTok uses `client_key`, NOT `client_id`, every endpoint takes client_key.
  * 2. Access tokens die after 24h. The 365-day refresh token mints new ones
  *    silently, so every call goes through getValidToken() in tiktokAuth.ts.
- * 3. Unaudited apps can only post to PRIVATE accounts — production needs the
+ * 3. Unaudited apps can only post to PRIVATE accounts, production needs the
  *    TikTok app review. Until then it still works end-to-end, just privately.
  * 4. privacy_level is mandatory and must be one of the creator's OWN options
- *    from /creator_info/query/ — the composer shows a picker, never hardcodes.
+ *    from /creator_info/query/, the composer shows a picker, never hardcodes.
  * 5. Local media goes via FILE_UPLOAD (chunked PUT from the device).
- *    PULL_FROM_URL needs a verified domain — our anonymous host won't qualify.
+ *    PULL_FROM_URL needs a verified domain, our anonymous host won't qualify.
  *
- * Client key/secret come from `.env` (`EXPO_PUBLIC_TT_*`) — see `.env.example`.
+ * Client key/secret come from `.env` (`EXPO_PUBLIC_TT_*`), see `.env.example`.
  */
 export const TT_CLIENT_KEY = process.env.EXPO_PUBLIC_TT_CLIENT_KEY ?? '';
 export const TT_CLIENT_SECRET = process.env.EXPO_PUBLIC_TT_CLIENT_SECRET ?? '';
 
-/** Built-in photo host (full upload URL incl. ?key=) — the default for every
+/** Built-in photo host (full upload URL incl. ?key=), the default for every
  *  connected TikTok account. A per-device override in Connect → TikTok wins. */
 export const TT_PHOTO_HOST_DEFAULT = (process.env.EXPO_PUBLIC_TT_PHOTO_HOST ?? '').trim().replace(/\/+$/, '');
 
@@ -27,7 +27,7 @@ export const TT_API = 'https://open.tiktokapis.com';
 
 export const TT_SCOPES = ['user.info.basic', 'user.info.stats', 'video.upload', 'video.publish', 'video.list'];
 
-/** Privacy levels TikTok understands — always intersect with creator_info options. */
+/** Privacy levels TikTok understands, always intersect with creator_info options. */
 export const TT_PRIVACY_LABELS: Record<string, string> = {
   PUBLIC_TO_EVERYONE: 'Public',
   MUTUAL_FOLLOW_FRIENDS: 'Mutual friends',

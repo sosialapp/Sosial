@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 /**
  * Schedule controls in one row: date (shadcn calendar popover) · time (stepper
  * popover) · timezone (searchable dropdown, defaults to the user's zone).
- * Emits the correct UTC instant for the chosen wall time in the chosen zone —
+ * Emits the correct UTC instant for the chosen wall time in the chosen zone -
  * browser offset math, no extra deps. Styling mirrors the analytics range
  * picker: pill triggers + themed Popover/Calendar.
  */
@@ -125,7 +125,7 @@ const fmtTime = (minutes: number): string => {
 
 const clampMinutes = (v: number) => Math.max(0, Math.min(1439, v));
 
-/** Pill trigger — matches the analytics range/channel controls. */
+/** Pill trigger, matches the analytics range/channel controls. */
 const TRIGGER =
   'inline-flex min-w-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition';
 
@@ -311,7 +311,7 @@ export default function DateTimePicker({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {/* Date — shadcn calendar popover */}
+      {/* Date, shadcn calendar popover */}
       <Popover open={open === 'cal'} onOpenChange={(o) => setOpen(o ? 'cal' : null)}>
         <PopoverTrigger asChild>
           <button type="button" aria-label="Pick date" className={`${TRIGGER} border-line bg-card text-muted hover:bg-paper`}>
@@ -334,7 +334,7 @@ export default function DateTimePicker({
         </PopoverContent>
       </Popover>
 
-      {/* Time — stepper popover */}
+      {/* Time, stepper popover */}
       <Popover open={open === 'time'} onOpenChange={(o) => setOpen(o ? 'time' : null)}>
         <PopoverTrigger asChild>
           <button type="button" aria-label="Pick time" className={`${TRIGGER} border-line bg-card text-muted hover:bg-paper`}>
@@ -356,7 +356,7 @@ export default function DateTimePicker({
         </PopoverContent>
       </Popover>
 
-      {/* Timezone — searchable dropdown, defaults to the user's zone */}
+      {/* Timezone, searchable dropdown, defaults to the user's zone */}
       <Popover open={open === 'tz'} onOpenChange={(o) => setOpen(o ? 'tz' : null)}>
         <PopoverTrigger asChild>
           <button type="button" aria-label="Pick timezone" className={`${TRIGGER} border-line bg-card text-muted hover:bg-paper`}>

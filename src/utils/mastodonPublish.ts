@@ -7,9 +7,9 @@ function merr(j: any, status: number, fallback: string): string {
     (typeof j?.error === 'string' ? j.error : j?.error?.message) ||
     j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
-  if (status === 401) return 'Mastodon session expired — reconnect Mastodon.';
-  if (status === 403) return `${base} — the app needs write access; reconnect Mastodon and approve it.`;
-  if (status === 429) return 'Mastodon rate limit hit — wait a few minutes and retry.';
+  if (status === 401) return 'Mastodon session expired, reconnect Mastodon.';
+  if (status === 403) return `${base}, the app needs write access; reconnect Mastodon and approve it.`;
+  if (status === 429) return 'Mastodon rate limit hit, wait a few minutes and retry.';
   return `${base} (${status})`;
 }
 
@@ -31,7 +31,7 @@ function fitText(t: string): string {
 }
 
 /**
- * Multipart uploads must go through XMLHttpRequest — expo/fetch (SDK 57) can't
+ * Multipart uploads must go through XMLHttpRequest, expo/fetch (SDK 57) can't
  * serialize React Native {uri,name,type} FormData parts, while XHR runs on the
  * native networking module and accepts file:// uris.
  */
@@ -46,21 +46,21 @@ function xhrForm(url: string, token: string, form: FormData, timeoutMs = 180000)
       try {
         j = JSON.parse(xhr.responseText);
       } catch {}
-      if (xhr.status === 401) return reject(new Error('Mastodon session expired — reconnect Mastodon.'));
+      if (xhr.status === 401) return reject(new Error('Mastodon session expired, reconnect Mastodon.'));
       if (xhr.status < 200 || xhr.status >= 300) {
         return reject(new Error(merr(j, xhr.status, 'Mastodon media upload failed.')));
       }
       resolve(j);
     };
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('Mastodon upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('Mastodon upload timed out, try again.'));
     xhr.send(form as any);
   });
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Video uploads are processed async — poll until a public url exists. */
+/** Video uploads are processed async, poll until a public url exists. */
 async function waitMediaReady(instance: string, token: string, id: string, timeoutMs = 120000): Promise<void> {
   const start = Date.now();
   let delay = 1000;
@@ -71,14 +71,14 @@ async function waitMediaReady(instance: string, token: string, id: string, timeo
     const j: any = await r.json().catch(() => ({}));
     if (j?.url) return;
     if (Date.now() - start >= timeoutMs) {
-      throw new Error('Mastodon is still processing the video — try publishing again in a minute.');
+      throw new Error('Mastodon is still processing the video, try publishing again in a minute.');
     }
     await sleep(delay);
     delay = Math.min(delay * 2, 5000);
   }
 }
 
-/** POST /api/v2/media — returns the media id to attach to a status. */
+/** POST /api/v2/media, returns the media id to attach to a status. */
 async function uploadMedia(instance: string, token: string, uri: string, kind: 'image' | 'video'): Promise<string> {
   const name = kind === 'video' ? 'sosial.mp4' : 'sosial.jpg';
   const form = new FormData();
@@ -106,7 +106,7 @@ export async function publishMastodon(opts: {
   const videoUri = opts.videoUri && opts.videoUri.trim() ? opts.videoUri : undefined;
   const images = videoUri ? [] : (opts.imageUris ?? []).filter(Boolean).slice(0, MASTODON_MAX_IMAGES);
   if (!text && !videoUri && images.length === 0) {
-    throw new Error('Write something or attach media — Mastodon needs one of them.');
+    throw new Error('Write something or attach media, Mastodon needs one of them.');
   }
   const mediaIds: string[] = [];
   for (let i = 0; i < images.length; i++) {

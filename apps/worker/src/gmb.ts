@@ -14,7 +14,7 @@ import { env } from './env';
  *   {languageCode, summary, topicType:STANDARD}
  *
  * v1 is STANDARD text posts only: offers/events need structured payloads,
- * CTAs need composer fields, media needs the media.startUpload dance — all
+ * CTAs need composer fields, media needs the media.startUpload dance, all
  * declared in compat. Google gates the whole API behind a one-time project
  * allow-list; errors surface verbatim so an un-allowed project is obvious.
  */
@@ -31,7 +31,7 @@ const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const API = 'https://mybusinessaccountmanagement.googleapis.com/v1';
 const API_BI = 'https://mybusinessbusinessinformation.googleapis.com/v1';
 // Local posts live on the v4 Google My Business API, NOT the Business
-// Information host — posting there 404s. Separate console entry below.
+// Information host, posting there 404s. Separate console entry below.
 const API_POSTS = 'https://mybusiness.googleapis.com/v4';
 
 function clientCreds(): { id: string; secret: string } {
@@ -47,10 +47,10 @@ function gerr(j: any, fallback: string): string {
   const m = j?.error?.message ?? j?.error ?? j?.message;
   const base = typeof m === 'string' && m ? m : fallback;
   if (/PERMISSION_DENIED|has not been used|is disabled/i.test(base)) {
-    return `${base} — the Google Cloud project needs Business Profile API access approved (one-time allow-list) before this works.`;
+    return `${base}, the Google Cloud project needs Business Profile API access approved (one-time allow-list) before this works.`;
   }
   if (/UNAUTHENTICATED|invalid_grant/i.test(base)) {
-    return 'Google session expired — reconnect Google Business Profile in Connect.';
+    return 'Google session expired, reconnect Google Business Profile in Connect.';
   }
   return base;
 }
@@ -64,10 +64,10 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
     if (access) return access;
   }
   if (!b.secrets.refresh_secret_id) {
-    throw new Error('Google session expired — reconnect Google Business Profile in Connect.');
+    throw new Error('Google session expired, reconnect Google Business Profile in Connect.');
   }
   const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('Google session expired — reconnect Google Business Profile in Connect.');
+  if (!refresh) throw new Error('Google session expired, reconnect Google Business Profile in Connect.');
   const { id, secret } = clientCreds();
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
@@ -83,12 +83,12 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   const j: any = await r.json().catch(() => ({}));
   if (!j?.access_token) {
     const msg = String(j?.error_description || j?.error || 'Google session expired');
-    throw new Error(`${msg} — reconnect Google Business Profile in Connect.`);
+    throw new Error(`${msg}, reconnect Google Business Profile in Connect.`);
   }
   const newAccess = String(j.access_token);
   const newRefresh = String(j.refresh_token || refresh);
   if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
-  // Google only returns a refresh token on first consent — keep the old one.
+  // Google only returns a refresh token on first consent, keep the old one.
   await updateSecret(b.secrets.refresh_secret_id, newRefresh);
   const { required } = await import('./env');
   const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
@@ -118,7 +118,7 @@ async function api<T>(access: string, url: string, init?: RequestInit): Promise<
 function locationName(externalId: string): string {
   const v = String(externalId ?? '');
   if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(v)) {
-    throw new Error('Google Business location is missing — reconnect the channel in Connect.');
+    throw new Error('Google Business location is missing, reconnect the channel in Connect.');
   }
   return v;
 }
@@ -134,7 +134,7 @@ export async function publishGmbTarget(bundle: Bundle): Promise<{ remoteId: stri
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
-  if (!text) throw new Error('Google Business needs post text — this post is empty.');
+  if (!text) throw new Error('Google Business needs post text, this post is empty.');
   // Local post summary caps at 1500 chars; the first body line reads as the
   // headline but GBP has no separate title field.
   const summary = text.slice(0, 1500);
@@ -160,7 +160,7 @@ export async function publishGmbTarget(bundle: Bundle): Promise<{ remoteId: stri
       { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form) },
     );
   }
-  if (!data?.name) throw new Error('Google accepted the post but returned no id — check the profile before retrying.');
+  if (!data?.name) throw new Error('Google accepted the post but returned no id, check the profile before retrying.');
   info('gmb local post published', { target: b.target.id, post: data.name });
   // searchUrl (the public link) rides back on creation when present.
   return { remoteId: data.name, remoteUrl: (data as any).searchUrl ?? `https://business.google.com/` };
@@ -182,7 +182,7 @@ export async function gmbLocations(access: string): Promise<{ name: string; titl
         out.push({ name: l.name, title: l.title || a.accountName || l.name, storeCode: l.storeCode });
       }
     } catch {
-      /* account without Business Profile access — skip silently */
+      /* account without Business Profile access, skip silently */
     }
   }
   return out;

@@ -66,7 +66,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const stickToCard = page.stickToCard ?? false;
   const dir = dirFor(socialPos);
 
-  // auto-height cards must never exceed the canvas — cap them and let AutoFit scale
+  // auto-height cards must never exceed the canvas, cap them and let AutoFit scale
   // the content down instead of the canvas clipping the bottom off
   const canvasH = H * s;
   const titleLines = hasTitle ? Math.max(1, Math.ceil(page.title.text.trim().length / 26)) : 0;
@@ -77,7 +77,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const socialsOn = !(page.pfp.socialsHidden ?? false) && visibleSocials.length > 0;
   const socialsBelow = socialsOn && socialPos === 'below';
   const socialsAbove = socialsOn && socialPos === 'top';
-  // Photo and socials hide independently — each contributes its own height.
+  // Photo and socials hide independently, each contributes its own height.
   const photoH = pfpVisible
     ? page.pfp.size * s + pad(4) + (page.pfp.username?.trim() ? pad(handleSize) + pad(2) : 0)
     : 0;
@@ -104,7 +104,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
     </View>
   );
 
-  // Photo and socials hide independently — only an empty row is skipped.
+  // Photo and socials hide independently, only an empty row is skipped.
   const photoOff = page.pfp.hidden ?? false;
   const socialsOff = page.pfp.socialsHidden ?? false;
   const pfpRow = photoOff && socialsOff ? null : (
@@ -171,10 +171,10 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
     </View>
   );
 
-  // Full card: the chrome fills the entire canvas — single card, no
+  // Full card: the chrome fills the entire canvas, single card, no
   // backdrop/title/pfp rows. Export captures exactly this.
   // Full-card extras (title row / avatar header / socials footer) render
-  // around the chrome, mirroring web StudioCanvas — keep in sync.
+  // around the chrome, mirroring web StudioCanvas, keep in sync.
   if (page.fullCard) {
     const fullBg = page.cardColor ?? '#FFFFFFF2';
     const fcInk = contrastRatio('#111111', fullBg) >= contrastRatio('#FFFFFF', fullBg) ? '#111111' : '#FFFFFF';
@@ -249,7 +249,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
                 {page.cardH ? (
                   /* fixed: exact height, clamped to what fits so the card can
                      never shove the profile/socials rows off the canvas. The
-                     wrapper must be a flex column — the chrome root is flex:1,
+                     wrapper must be a flex column, the chrome root is flex:1,
                      and in a plain wrapper it would ignore the height and hug
                      its content instead. */
                   <View style={{ height: Math.min(pad(page.cardH), cardMax), flexDirection: 'column' }}>
@@ -258,7 +258,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
                     </SocialCardChrome>
                   </View>
                 ) : (
-                  /* auto height — hugs content, capped so it can never spill off the canvas */
+                  /* auto height, hugs content, capped so it can never spill off the canvas */
                   <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark}>
                     {blocks}
                   </SocialCardChrome>

@@ -1,6 +1,6 @@
 import { ContentBrief, GenBlock, GenPage, GenResult } from './types';
 
-/** Hard cap on what one card can hold. Enforced after generation — never trusted
+/** Hard cap on what one card can hold. Enforced after generation, never trusted
  *  to the model. Tune here; every producer (mock or real API) runs through it. */
 export const RULES = {
   maxBlocksPerPage: 2,
@@ -18,7 +18,7 @@ export const RULES = {
   maxPagesHard: 10,
 };
 
-/** Identity for redundancy checks — case, punctuation and spacing blind. */
+/** Identity for redundancy checks, case, punctuation and spacing blind. */
 function normKey(s: string): string {
   return s.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, '').replace(/\s+/g, ' ').trim();
 }
@@ -97,7 +97,7 @@ function normalizeBlock(raw: any, warn: (m: string) => void, seen?: Set<string>)
       ? raw.series
           .map((d: any) => ({
             label: truncateWords(clean(d?.label), 3),
-            // NOTE: Number('') === 0 — blank values must die, not become zero bars.
+            // NOTE: Number('') === 0, blank values must die, not become zero bars.
             value: d?.value === '' || d?.value == null ? NaN : Number(d?.value),
           }))
           .filter((d: any) => d.label && isFinite(d.value))
@@ -113,9 +113,9 @@ function normalizeBlock(raw: any, warn: (m: string) => void, seen?: Set<string>)
     return { type, heading, series };
   }
 
-  // Image slots render as empty placeholder boxes — photos belong to the editor.
+  // Image slots render as empty placeholder boxes, photos belong to the editor.
   if (type === 'image') {
-    warn('Dropped an image placeholder — add photos in the editor.');
+    warn('Dropped an image placeholder, add photos in the editor.');
     return null;
   }
 
@@ -142,14 +142,14 @@ export function normalizeResult(pages: GenPage[], brief: ContentBrief, provider:
       if (blocks.length >= brief.maxBlocksPerPage) break;
     }
     // Hook and takeaway cards stay text-only: charts/tables there are where
-    // invented numbers hide. Never strand the card — strip only if text remains.
+    // invented numbers hide. Never strand the card, strip only if text remains.
     if (input.length > 1 && (pi === 0 || pi === input.length - 1)) {
       const stripped = blocks.filter((b) => b.type !== 'table' && b.type !== 'bar' && b.type !== 'vbar' && b.type !== 'pie');
       if (stripped.length && stripped.length < blocks.length) {
         blocks = stripped;
         if (!warnedRoles) {
           warnedRoles = true;
-          warnings.push('Hook and takeaway cards stay text-only — dropped their charts/tables.');
+          warnings.push('Hook and takeaway cards stay text-only, dropped their charts/tables.');
         }
       }
     }
@@ -192,7 +192,7 @@ export function normalizeResult(pages: GenPage[], brief: ContentBrief, provider:
 
   if (warnedBlocks) warnings.push('Some blocks were trimmed to fit the card rules.');
   if (warnedWords) warnings.push(`Content trimmed to ${brief.maxWordsPerPage} words per card.`);
-  if (out.length === 0) warnings.push('Nothing usable was generated — try a more specific topic.');
+  if (out.length === 0) warnings.push('Nothing usable was generated, try a more specific topic.');
 
   return { pages: out, provider, warnings };
 }

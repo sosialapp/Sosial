@@ -4,7 +4,7 @@ import { CAPABILITIES } from '@/lib/compat';
 
 /**
  * Google Sheets content-source logic (server-side). Scope: the minimal
- * `spreadsheets.readonly` (paste-URL flow — no Picker, no drive listing).
+ * `spreadsheets.readonly` (paste-URL flow, no Picker, no drive listing).
  * Tokens live in Vault; refresh runs through the sheets-auth edge fn (the
  * Google client secret never enters the web process). Row → draft mapping,
  * date parsing and validation are pure + unit-tested.
@@ -103,7 +103,7 @@ export async function fetchSpreadsheetMeta(
   };
 }
 
-/** Chunked row reads — never loads the whole grid at once. */
+/** Chunked row reads, never loads the whole grid at once. */
 export async function fetchSheetRows(
   token: string,
   spreadsheetId: string,
@@ -264,8 +264,8 @@ export function matchPlatforms(value: string, channels: ChannelLite[]): { ids: s
         c.label.toLowerCase().replace(/\s+/g, '') === tok.replace(/\s+/g, ''),
     );
     if (matches.length === 1) ids.push(matches[0].id);
-    else if (matches.length === 0) errors.push(`Unknown platform "${tok}" — no connected channel matches.`);
-    else errors.push(`"${tok}" matches ${matches.length} connected channels — connect only one per network.`);
+    else if (matches.length === 0) errors.push(`Unknown platform "${tok}", no connected channel matches.`);
+    else errors.push(`"${tok}" matches ${matches.length} connected channels, connect only one per network.`);
   }
   return { ids, errors };
 }
@@ -312,7 +312,7 @@ export function mapSheetRow(
       const mapped = mapping.statusMap[st];
       if (mapped === 'draft') scheduledAt = null;
       else if (mapped === 'scheduled' && !scheduledAt) errors.push(`Status "${st}" says scheduled but the date is missing/invalid.`);
-      else if (mapped === undefined && !scheduledAt) warnings.push(`Status "${st}" is unmapped — importing as draft.`);
+      else if (mapped === undefined && !scheduledAt) warnings.push(`Status "${st}" is unmapped, importing as draft.`);
     }
   }
 
@@ -321,7 +321,7 @@ export function mapSheetRow(
   if (mediaCell) {
     for (const u of mediaCell.split(/[\s,]+/)) {
       if (/^https:\/\//i.test(u)) mediaUrls.push(u);
-      else if (u) warnings.push(`Media value "${u.slice(0, 60)}" is not an https URL — skipped.`);
+      else if (u) warnings.push(`Media value "${u.slice(0, 60)}" is not an https URL, skipped.`);
     }
   }
 

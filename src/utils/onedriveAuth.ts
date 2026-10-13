@@ -1,5 +1,5 @@
 /**
- * OneDrive (Microsoft Graph) OAuth + browse/download — device-side.
+ * OneDrive (Microsoft Graph) OAuth + browse/download, device-side.
  * Confidential client secret is held by the cloud-exchange edge fn (this
  * app only relays the code); tokens live in SecureStore, cloud-synced
  * through media-integration like Dropbox/Canva.
@@ -53,7 +53,7 @@ export async function disconnectOneDrive(): Promise<void> {
 async function clientId(): Promise<string> {
   const j: any = await callEdgeFunction('oauth-config', {});
   const id = j?.onedrive?.client_id;
-  if (!id) throw new Error('OneDrive is not configured yet — try again shortly.');
+  if (!id) throw new Error('OneDrive is not configured yet, try again shortly.');
   return String(id);
 }
 
@@ -86,7 +86,7 @@ export async function loginOneDrive(): Promise<boolean> {
       code,
       redirect_uri: BRIDGE_URL,
     });
-    if (!j?.access_token) throw new Error('Microsoft hid the login — try again.');
+    if (!j?.access_token) throw new Error('Microsoft hid the login, try again.');
     const t: StoredTokens = {
       accessToken: String(j.access_token),
       refreshToken: String(j.refresh_token ?? ''),
@@ -109,7 +109,7 @@ export async function getValidOneDriveToken(): Promise<string> {
     provider: 'onedrive',
     refresh_token: t.refreshToken,
   });
-  if (!j?.access_token) throw new Error('OneDrive session expired — reconnect the source.');
+  if (!j?.access_token) throw new Error('OneDrive session expired, reconnect the source.');
   const next: StoredTokens = {
     accessToken: String(j.access_token),
     refreshToken: typeof j.refresh_token === 'string' && j.refresh_token ? j.refresh_token : t.refreshToken,
@@ -160,8 +160,8 @@ export async function listOneDriveItems(
       ? `${GRAPH}/me/drive/items/${folderId}/children?$top=100`
       : `${GRAPH}/me/drive/root/children?$top=100`;
   const res = await fetch(path, { headers: auth, signal: AbortSignal.timeout(20000) });
-  if (res.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
-  if (!res.ok) throw new Error('OneDrive browse failed — try again.');
+  if (res.status === 401) throw new Error('OneDrive session expired, reconnect the source.');
+  if (!res.ok) throw new Error('OneDrive browse failed, try again.');
   const j: any = await res.json().catch(() => ({}));
   const files: OneDriveItem[] = [];
   const folders: { id: string; name: string }[] = [];
@@ -197,7 +197,7 @@ export async function downloadOneDriveItem(
     if (j?.['@microsoft.graph.downloadUrl']) url = String(j['@microsoft.graph.downloadUrl']);
   }
   // The pre-authed downloadUrl needs no Authorization header; the plain
-  // content endpoint does — send both safely (Graph ignores extra headers).
+  // content endpoint does, send both safely (Graph ignores extra headers).
   const safeName = item.name.replace(/[^A-Za-z0-9._-]/g, '_');
   const ext = item.kind === 'video' ? 'mp4' : 'jpg';
   const dest = `${FileSystem.documentDirectory}onedrive/${Date.now()}_${safeName || `file.${ext}`}`;

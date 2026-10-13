@@ -11,9 +11,9 @@ import { info } from './logger';
  * - POST {site}/wp-json/wp/v2/media               (multipart file → {id})
  * - POST {site}/wp-json/wp/v2/posts               ({title, content, featured_media, status})
  * Auth is Basic base64(user:app-password) on every call. Publishing uses
- * status=publish at the scheduled time — Sosial's worker owns the clock,
+ * status=publish at the scheduled time, Sosial's worker owns the clock,
  * so WP-native scheduling is never used. Categories/tags/excerpt/slug are
- * v1 omissions (no composer fields for them yet) — WordPress defaults apply.
+ * v1 omissions (no composer fields for them yet), WordPress defaults apply.
  */
 
 interface Bundle {
@@ -27,7 +27,7 @@ interface Bundle {
 export function siteBase(instanceUrl: string | null): string {
   const base = String(instanceUrl ?? '').trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(base)) {
-    throw new Error('WordPress site URL must start with http(s) — reconnect the channel.');
+    throw new Error('WordPress site URL must start with http(s), reconnect the channel.');
   }
   return base;
 }
@@ -64,13 +64,13 @@ export async function publishWordPressTarget(bundle: Bundle): Promise<{ remoteId
   const b = bundle;
   const base = siteBase(b.channel.instance_url);
   const username = String(b.channel.metadata?.username ?? '').trim();
-  if (!username) throw new Error('WordPress username is missing — reconnect the channel.');
+  if (!username) throw new Error('WordPress username is missing, reconnect the channel.');
   if (!b.secrets.access_secret_id) {
-    throw new Error('WordPress application password is missing — reconnect the channel.');
+    throw new Error('WordPress application password is missing, reconnect the channel.');
   }
   const appPassword = await readSecret(b.secrets.access_secret_id);
   if (!appPassword) {
-    throw new Error('WordPress application password is missing — reconnect the channel.');
+    throw new Error('WordPress application password is missing, reconnect the channel.');
   }
   const auth = authHeader(username, appPassword);
 
@@ -109,7 +109,7 @@ export async function publishWordPressTarget(bundle: Bundle): Promise<{ remoteId
     : toBlocks(b.post.title ?? '', text);
   const { title, content } = blocks;
   if (!content && !featuredId) {
-    throw new Error('WordPress needs text or a featured image — this post has neither.');
+    throw new Error('WordPress needs text or a featured image, this post has neither.');
   }
   const created = await wp<{ id: number; link: string }>(base, auth, '/wp/v2/posts', {
     method: 'POST',

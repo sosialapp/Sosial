@@ -17,7 +17,7 @@ export async function GET() {
   });
 }
 
-/** DELETE: disconnect — delete Vault secret + row. Imported posts are kept. */
+/** DELETE: disconnect, delete Vault secret + row. Imported posts are kept. */
 export async function DELETE() {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });
@@ -34,7 +34,7 @@ export async function DELETE() {
   return Response.json({ disconnected: true });
 }
 
-/** POST: finish the OAuth popup — exchange the code via the edge fn. */
+/** POST: finish the OAuth popup, exchange the code via the edge fn. */
 export async function POST(req: Request) {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });

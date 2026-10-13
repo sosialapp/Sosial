@@ -7,7 +7,7 @@ import LoginForm from '../LoginForm';
 /**
  * Sign-in popup for the marketing site header. Same form and logic as the
  * /login page (which stays as the fallback for direct visits, invites and
- * auth-gate redirects) — just presented as a modal with focus trap,
+ * auth-gate redirects), just presented as a modal with focus trap,
  * Escape/backdrop close and scroll lock.
  */
 export default function AuthModal({

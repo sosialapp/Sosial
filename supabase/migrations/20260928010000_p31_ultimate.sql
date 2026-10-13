@@ -1,5 +1,5 @@
 -- p31 · Ultimate lifetime plan (mirror of apps/web/src/lib/billing/plans.ts
--- + src/utils/plans.ts — CHANGE ALL TOGETHER):
+-- + src/utils/plans.ts, CHANGE ALL TOGETHER):
 --   - plan_limits gets the ultimate row: every quota NULL (= unlimited),
 --     watermark off. The p27 triggers already return early on NULL limits.
 --   - subscriptions constraints admit plan 'ultimate' + status 'lifetime'.
@@ -7,7 +7,7 @@
 --   - the workspace-cap rank puts ultimate on top.
 -- Ultimate is sold as a one-time $1 Stripe payment (no subscription); the
 -- webhook grants status='lifetime'. It is never advertised on public pricing
--- — only the in-app profile plan sections offer it, admins only.
+--, only the in-app profile plan sections offer it, admins only.
 
 insert into public.plan_limits
   (plan, channels, scheduled_posts_per_channel, ai_credits, users, workspaces, watermark_required)

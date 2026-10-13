@@ -10,7 +10,7 @@
 -- temp table, and the AFTER row trigger enqueues one cleanup_media job per
 -- asset that has NO remaining post_media link (media attached to another post
 -- is never swept). Jobs are idempotent by asset id, worker-side deletes are
--- idempotent — double-enqueue or crash-retry can never orphan or double-hit.
+-- idempotent, double-enqueue or crash-retry can never orphan or double-hit.
 
 create or replace function public.snapshot_post_media_on_delete()
 returns trigger

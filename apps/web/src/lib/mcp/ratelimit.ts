@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 
 /**
  * Per-token rate limiting (in-process; serverless-safe enough for one region
- * — counts reset per isolate, which errs on the generous side rather than
+ *, counts reset per isolate, which errs on the generous side rather than
  * blocking legitimate agents). Window: 60s. Writes are capped tighter than
- * reads. The counters are keyed by keyId only — never by content.
+ * reads. The counters are keyed by keyId only, never by content.
  */
 
 const WINDOW_MS = 60_000;

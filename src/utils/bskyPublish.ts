@@ -12,7 +12,7 @@ function bskyErr(j: any, fallback: string): string {
   const m = j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
   if (/blobtoolarge/i.test(base)) {
-    return 'That photo is over Bluesky’s 1 MB limit — export a smaller size.';
+    return 'That photo is over Bluesky’s 1 MB limit, export a smaller size.';
   }
   return base;
 }
@@ -105,7 +105,7 @@ async function fileSize(uri: string): Promise<number> {
 async function ensureSmallImage(uri: string, mime: string): Promise<{ uri: string; mime: string; cleanup: string[] }> {
   if (mime === 'image/gif') {
     if ((await fileSize(uri)) <= BSKY_BLOB_CAP) return { uri, mime, cleanup: [] };
-    throw new Error('GIFs over 1 MB aren’t accepted by Bluesky — use a smaller one.');
+    throw new Error('GIFs over 1 MB aren’t accepted by Bluesky, use a smaller one.');
   }
   if ((await fileSize(uri)) <= BSKY_BLOB_CAP && (mime === 'image/png' || mime === 'image/jpeg')) {
     return { uri, mime, cleanup: [] };
@@ -140,7 +140,7 @@ async function ensureSmallImage(uri: string, mime: string): Promise<{ uri: strin
     throw new Error(e?.message ?? 'Could not prepare that photo for Bluesky.');
   }
   for (const t of cleanup) await drop(t);
-  throw new Error('That photo won’t squeeze under Bluesky’s 1 MB limit — export a smaller size.');
+  throw new Error('That photo won’t squeeze under Bluesky’s 1 MB limit, export a smaller size.');
 }
 
 async function uploadBlob(creds: BskyCreds, bytes: Uint8Array, mime: string): Promise<any> {
@@ -150,7 +150,7 @@ async function uploadBlob(creds: BskyCreds, bytes: Uint8Array, mime: string): Pr
     body: bytes as any,
   });
   const j: any = await r.json().catch(() => ({}));
-  if (r.status === 401) throw new Error('Bluesky session expired — reconnect Bluesky.');
+  if (r.status === 401) throw new Error('Bluesky session expired, reconnect Bluesky.');
   if (!r.ok || !j?.blob) throw new Error(bskyErr(j, 'Bluesky image upload failed.'));
   return j.blob;
 }
@@ -163,7 +163,7 @@ function videoMimeFor(uri: string): string {
 }
 
 /**
- * The video service does NOT accept the session access token — it needs a
+ * The video service does NOT accept the session access token, it needs a
  * short-lived service token (getServiceAuth) whose audience is the account's
  * own PDS. Mirrors the worker adapter so both paths publish identically.
  */
@@ -177,7 +177,7 @@ async function getBskyServiceToken(creds: BskyCreds): Promise<string> {
     `&exp=${exp}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${creds.token}` } });
   const j: any = await r.json().catch(() => ({}));
-  if (r.status === 401) throw new Error('Bluesky session expired — reconnect Bluesky.');
+  if (r.status === 401) throw new Error('Bluesky session expired, reconnect Bluesky.');
   if (!r.ok || !j?.token) throw new Error(bskyErr(j, 'Bluesky video auth failed.'));
   return String(j.token);
 }
@@ -201,7 +201,7 @@ async function uploadVideo(creds: BskyCreds, uri: string): Promise<any> {
   try {
     uj = JSON.parse(up.body || '{}');
   } catch {}
-  if (up.status === 401) throw new Error('Bluesky session expired — reconnect Bluesky.');
+  if (up.status === 401) throw new Error('Bluesky session expired, reconnect Bluesky.');
   if (up.status < 200 || up.status >= 300 || !uj?.jobId) {
     throw new Error(bskyErr(uj, 'Bluesky video upload failed.'));
   }
@@ -213,20 +213,20 @@ async function uploadVideo(creds: BskyCreds, uri: string): Promise<any> {
       { headers: { Authorization: `Bearer ${svc}` } },
     );
     const j: any = await r.json().catch(() => ({}));
-    if (r.status === 401) throw new Error('Bluesky session expired — reconnect Bluesky.');
+    if (r.status === 401) throw new Error('Bluesky session expired, reconnect Bluesky.');
     // already_exists (and any other response) carrying a blob is usable.
     if (j?.jobStatus?.blob) return j.jobStatus.blob;
     if (String(j?.jobStatus?.state ?? '') === 'JOB_STATE_FAILED') {
-      throw new Error(`Bluesky rejected the video — ${String(j?.jobStatus?.message ?? 'processing failed')}`);
+      throw new Error(`Bluesky rejected the video, ${String(j?.jobStatus?.message ?? 'processing failed')}`);
     }
     if (Date.now() - start > BSKY_VIDEO_POLL_MS) {
-      throw new Error('Bluesky is still processing the video — try again in a few minutes.');
+      throw new Error('Bluesky is still processing the video, try again in a few minutes.');
     }
     await new Promise((res) => setTimeout(res, 3000));
   }
 }
 
-/** A published post reference — the at:// uri plus the CID needed to reply. */
+/** A published post reference, the at:// uri plus the CID needed to reply. */
 export interface BskyRef {
   uri: string;
   cid: string;
@@ -246,10 +246,10 @@ async function publishBskyWith(
   const uris = (opts.imageUris ?? []).filter(Boolean).slice(0, BSKY_MAX_IMAGES);
   const videoUri = opts.videoUri && opts.videoUri.trim() ? opts.videoUri : undefined;
   if (videoUri && uris.length > 0) {
-    throw new Error('Bluesky can’t mix photos and video — send one or the other.');
+    throw new Error('Bluesky can’t mix photos and video, send one or the other.');
   }
   if (!text && uris.length === 0 && !videoUri) {
-    throw new Error('Write something or attach a photo or video — Bluesky needs one of them.');
+    throw new Error('Write something or attach a photo or video, Bluesky needs one of them.');
   }
   let videoBlob: any = null;
   const images: any[] = [];
@@ -310,7 +310,7 @@ async function publishBskyWith(
     body: JSON.stringify({ repo: creds.did, collection: 'app.bsky.feed.post', record }),
   });
   const j: any = await r.json().catch(() => ({}));
-  if (r.status === 401) throw new Error('Bluesky session expired — reconnect Bluesky.');
+  if (r.status === 401) throw new Error('Bluesky session expired, reconnect Bluesky.');
   if (!r.ok || !j?.uri) throw new Error(bskyErr(j, 'Bluesky post failed.'));
   return { uri: String(j.uri), cid: String(j.cid ?? '') };
 }

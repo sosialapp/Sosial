@@ -58,7 +58,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.optT}>Template</Text>
-                <Text style={s.optS}>Design studio — images for posts</Text>
+                <Text style={s.optS}>Design studio, images for posts</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.faint} />
             </TouchableOpacity>
@@ -71,7 +71,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.optT}>Post</Text>
-                <Text style={s.optS}>New post — channels + schedule</Text>
+                <Text style={s.optS}>New post, channels + schedule</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.faint} />
             </TouchableOpacity>
@@ -85,7 +85,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 const makeS = (C: Palette) => StyleSheet.create({
   // Absolutely-positioned dock: no outer background, content scrolls under the pill.
   float: { paddingHorizontal: 22, paddingBottom: 16, paddingTop: 6, backgroundColor: 'transparent' },
-  // Single iOS-style floating pill — SOLID background (no see-through),
+  // Single iOS-style floating pill, SOLID background (no see-through),
   // hairline ring, soft lift.
   pill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',

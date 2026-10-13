@@ -7,7 +7,7 @@ import type { ProviderKey } from '@/lib/types';
 /**
  * Static product previews for the marketing page. These render the same
  * layout language as the real app surfaces (calendar chips, composer rows,
- * approval card) with illustrative sample content — non-interactive.
+ * approval card) with illustrative sample content, non-interactive.
  */
 
 interface SamplePost {

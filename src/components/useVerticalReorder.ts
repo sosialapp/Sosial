@@ -10,9 +10,9 @@ export interface VerticalReorder {
   dy: Animated.Value;
   /** Lift a row (call from a long-press on its grip). */
   begin: (index: number) => void;
-  /** Measure a row — spread on every row wrapper. */
+  /** Measure a row, spread on every row wrapper. */
   onRowLayout: (index: number) => (e: LayoutChangeEvent) => void;
-  /** PanResponder handlers — spread on every row wrapper. */
+  /** PanResponder handlers, spread on every row wrapper. */
   panHandlers: any;
 }
 

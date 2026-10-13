@@ -3,7 +3,7 @@
  *
  * Media in the app is served from a private store through short-lived signed
  * URLs. Legacy Supabase URLs point at `/storage/v1/object/sign/...` and stream
- * the FULL original bytes — a 4 MB phone photo is downloaded even for an 80 px
+ * the FULL original bytes, a 4 MB phone photo is downloaded even for an 80 px
  * grid tile. That was the app's single biggest source of egress.
  *
  * Two mechanisms now keep grids cheap:
@@ -13,7 +13,7 @@
  *      endpoint (`/storage/v1/render/image/sign/...`) as a fallback.
  *
  * R2 URLs are already presigned and can't be server-transformed, so for those
- * assets a stored `thumb_url` is the only cheap option — `mediaThumbUrl` picks
+ * assets a stored `thumb_url` is the only cheap option, `mediaThumbUrl` picks
  * it automatically.
  */
 
@@ -33,7 +33,7 @@ export function imageThumb(url: string | null | undefined, width: number, qualit
   if (at === -1) return url;
   const head = url.slice(0, at);
   const tail = url.slice(at + marker.length); // path + query (token=...)
-  // Already has a query? Preserve it — the token must survive.
+  // Already has a query? Preserve it, the token must survive.
   const sep = tail.includes('?') ? '&' : '?';
   return `${head}/storage/v1/render/image/sign/${tail}${sep}width=${width}&quality=${quality}&resize=contain`;
 }

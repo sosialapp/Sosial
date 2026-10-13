@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 /** Owner console shell. Gated by the global is_app_admin() check (P11):
  *  signed-out → /login; signed-in non-admin → 404 (no existence leak).
- *  Deliberately separate from the (app) shell — no workspace dock here. */
+ *  Deliberately separate from the (app) shell, no workspace dock here. */
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   if (!hasSupabaseEnv()) redirect('/login');
   const sb = await createClient();

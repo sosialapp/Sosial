@@ -37,7 +37,7 @@ function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
   return (c as 'top' | 'middle' | 'bottom' | undefined) ?? undefined;
 }
 
-/** Frame aspect (w/h) of an image block — must match the canvas renderer
+/** Frame aspect (w/h) of an image block, must match the canvas renderer
  *  (blocks.tsx): square 1:1, wide 16:9, custom contentW:imageH. The block is
  *  rendered at design width 340 minus the canvas pad (16×2) and card pad
  *  (13×2) = 282, so a custom frame is 282:imageH. */
@@ -51,7 +51,7 @@ function frameAspectOf(b: ContentBlock): number {
 /**
  * Real crop editor: the photo sits contain-fit in a dark stage, an
  * aspect-locked crop rectangle (matching the block frame) overlays it with
- * draggable corner handles, thirds grid, dimmed outside — like a normal
+ * draggable corner handles, thirds grid, dimmed outside, like a normal
  * image editor. The rect maps to the canvas model {zoom,x,y} so both
  * renderers stay unchanged:
  *   zoom = full width / rect width; x = 1 - 2·z·u0/(z-1) (u0 = rect left
@@ -171,7 +171,7 @@ function CropEditor({
   };
   const onMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
-    // Coalesce to one state update per frame — pointermove fires faster than
+    // Coalesce to one state update per frame, pointermove fires faster than
     // React can paint, and without this the drag stutters.
     lastPt.current = { x: e.clientX, y: e.clientY };
     if (raf.current != null) return;
@@ -220,7 +220,7 @@ function CropEditor({
         />
         {rect ? (
           <>
-            {/* dim outside the rect (4 slabs — a 9999px box-shadow repaints
+            {/* dim outside the rect (4 slabs, a 9999px box-shadow repaints
                 the whole stage every frame and makes the drag stutter) */}
             <div className="pointer-events-none absolute left-0 top-0 w-full" style={{ height: Math.max(0, oy + rect.y), backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <div className="pointer-events-none absolute left-0 w-full" style={{ top: oy + rect.y + rect.h, height: Math.max(0, box.h - (oy + rect.y + rect.h)), backgroundColor: 'rgba(0,0,0,0.55)' }} />
@@ -265,7 +265,7 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
   const [openId, setOpenId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   // Tallest the fixed card may be while the title + profile/socials rows
-  // still fit — the stepper stops here so raising px can never shove them
+  // still fit, the stepper stops here so raising px can never shove them
   // off the canvas.
   const cardMaxH = Math.max(120, Math.min(640, Math.floor(maxCardHeightDesign(page, designH))));
   const blocks = page.blocks;
@@ -299,7 +299,7 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
       try {
         update(id, { imageUri: await fileToDataUrl(f) });
       } catch {
-        /* unreadable — stay put */
+        /* unreadable, stay put */
       }
     };
     input.click();
@@ -315,7 +315,7 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
         const img = await fileToDataUrl(f);
         update(b.id, { chart: (b.chart ?? []).map((c, k) => (k === row ? { ...c, img } : c)) });
       } catch {
-        /* unreadable — stay put */
+        /* unreadable, stay put */
       }
     };
     input.click();
@@ -686,7 +686,7 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
                               onChange={(v) => patchStyle(b, { chartLabelPos: v as 'out' | 'in' })}
                             />
                           </Field>
-                          <Field label="Bar picture" hint="Uses each row's photo — fill the bar or a small tile">
+                          <Field label="Bar picture" hint="Uses each row's photo, fill the bar or a small tile">
                             <Seg
                               options={[{ value: 'none', label: 'None' }, { value: 'fill', label: 'Fill' }, { value: 'tile', label: 'Tile' }]}
                               value={b.style?.chartBarImg ?? 'none'}

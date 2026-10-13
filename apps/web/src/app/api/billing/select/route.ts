@@ -17,7 +17,7 @@ export const runtime = 'nodejs';
  * The single entry point for "user picked plan X on interval Y".
  *
  * Server-side only: the browser's plan/interval are validated against the
- * canonical config and the Stripe Price ID is resolved HERE — the client can
+ * canonical config and the Stripe Price ID is resolved HERE, the client can
  * never submit a price, amount or an interval swap. A user with an existing
  * Stripe subscription gets that ONE subscription updated in place (prorated),
  * so upgrades, downgrades and monthly↔annual switches never create a second
@@ -25,11 +25,11 @@ export const runtime = 'nodejs';
  */
 /**
  * Ultimate lifetime purchase: a single $1 one-time Stripe Checkout
- * (mode=payment — no subscription, no renewal). The webhook grants
+ * (mode=payment, no subscription, no renewal). The webhook grants
  * status='lifetime' on payment. Admins only; the profile plan cards and
  * this gate enforce the same rule, and the offer never appears on public
  * pricing. Refuses when Ultimate is already active or a paid subscription
- * is live (cancel that first — lifetime and subscriptions don't mix).
+ * is live (cancel that first, lifetime and subscriptions don't mix).
  */
 async function ultimateCheckout(
   ctx: NonNullable<Awaited<ReturnType<typeof getWorkspaceContext>>>,
@@ -44,7 +44,7 @@ async function ultimateCheckout(
   const priceId = ultimatePriceId();
   if (!priceId) {
     return NextResponse.json(
-      { error: 'Billing is not configured yet — the Ultimate price ID is missing.' },
+      { error: 'Billing is not configured yet, the Ultimate price ID is missing.' },
       { status: 503 },
     );
   }
@@ -63,7 +63,7 @@ async function ultimateCheckout(
     ['active', 'trialing', 'past_due'].includes(sub.status ?? '')
   ) {
     return NextResponse.json(
-      { error: 'Cancel your current subscription first — lifetime and subscriptions don’t mix.' },
+      { error: 'Cancel your current subscription first, lifetime and subscriptions don’t mix.' },
       { status: 400 },
     );
   }
@@ -105,7 +105,7 @@ async function ultimateCheckout(
 }
 
 export async function POST(req: Request) {
-  // Nothing in this route may fail with an empty body — the client only
+  // Nothing in this route may fail with an empty body, the client only
   // parses JSON, so every crash becomes a readable message instead of
   // "Unexpected end of JSON input".
   try {
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Body must be JSON.' }, { status: 400 });
   }
 
-  // Validate against the canonical config — never trust the browser.
+  // Validate against the canonical config, never trust the browser.
   // Ultimate is a one-time $1 lifetime purchase (no interval, no proration).
   if (body.plan === 'ultimate') {
     return ultimateCheckout(ctx, req);
@@ -133,7 +133,7 @@ export async function POST(req: Request) {
   }
   if (!pricesConfigured()) {
     return NextResponse.json(
-      { error: 'Billing is not configured yet — Stripe price IDs are missing.' },
+      { error: 'Billing is not configured yet, Stripe price IDs are missing.' },
       { status: 503 },
     );
   }
@@ -212,7 +212,7 @@ export async function POST(req: Request) {
         plan: selected.plan,
         interval: selected.interval,
       },
-      // Let customers edit quantity? No — one flat subscription per workspace.
+      // Let customers edit quantity? No, one flat subscription per workspace.
       allow_promotion_codes: true,
       success_url: `${origin}/billing?checkout=success`,
       cancel_url: `${origin}/billing?checkout=cancelled`,

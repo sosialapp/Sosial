@@ -3,18 +3,18 @@
 -- Builds on p56 (storage_backend). Adds everything the direct-to-R2 upload
 -- flow needs:
 --
---   media_assets — the spec's five-state lifecycle plus multipart/thumbnail
+--   media_assets, the spec's five-state lifecycle plus multipart/thumbnail
 --     columns. New columns default so legacy rows keep working unchanged.
---   media_uploads — one row per in-flight multipart upload (R2 UploadId +
+--   media_uploads, one row per in-flight multipart upload (R2 UploadId +
 --     part ETags), so uploads can be listed, resumed or aborted.
---   plan_limits.storage_bytes — permanent-retention goes with a size quota,
+--   plan_limits.storage_bytes, permanent-retention goes with a size quota,
 --     not a time window. workspace_storage_used() sums ready bytes per plan.
 --
 -- Legacy rows (storage_backend='supabase') were written by the old client
 -- insert path and are unaffected: status stays 'ready' and the new columns
 -- are null. Media is now kept forever; nothing here expires it.
 --
--- Mirrors apps/web/src/lib/billing/plans.ts + src/utils/plans.ts —
+-- Mirrors apps/web/src/lib/billing/plans.ts + src/utils/plans.ts -
 -- CHANGE ALL TOGETHER.
 
 -- ------------------------------------------------ media_assets: columns ---

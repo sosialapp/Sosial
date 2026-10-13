@@ -10,7 +10,7 @@ import { info } from './logger';
  * - POST /api/articles { article: { title, body_markdown, published,
  *   series?, main_image?, canonical_url?, description?, tags? } }
  * - tags is a comma-separated string, max 4 (backend rejects more).
- * - published=true at publish time — Sosial's worker owns the clock.
+ * - published=true at publish time, Sosial's worker owns the clock.
  * - main_image needs an absolute public URL. Our media lives in private
  *   storage, so the worker mints a 7-day signed URL at publish time and
  *   hands that to Forem (which fetches + caches it on creation). Any
@@ -53,18 +53,18 @@ function cleanTags(raw: unknown): string | undefined {
 export async function publishDevtoTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {
   const b = bundle;
   if (!b.secrets.access_secret_id) {
-    throw new Error('Dev.to API key is missing — reconnect the channel in Connect.');
+    throw new Error('Dev.to API key is missing, reconnect the channel in Connect.');
   }
   const apiKey = await readSecret(b.secrets.access_secret_id);
   if (!apiKey) {
-    throw new Error('Dev.to API key is missing — reconnect the channel in Connect.');
+    throw new Error('Dev.to API key is missing, reconnect the channel in Connect.');
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
   const articleMarkdown = typeof art?.markdown === 'string' ? art.markdown.trim() : '';
   const body = articleMarkdown || text;
-  if (!body) throw new Error('Dev.to needs article text — this post is empty.');
+  if (!body) throw new Error('Dev.to needs article text, this post is empty.');
   const title = (b.post.title ?? '').trim() || body.replace(/^#+\s*/, '').split('\n')[0].slice(0, 120);
   const opts = (b.target.options ?? {}) as Record<string, unknown>;
   const article: Record<string, unknown> = {
@@ -110,6 +110,6 @@ export async function devtoValidate(apiKey: string): Promise<{ userId: string; u
         'Mint one at dev.to → Settings → Extensions.',
     );
   }
-  if (!me?.id) throw new Error('Dev.to returned no user — check the API key.');
+  if (!me?.id) throw new Error('Dev.to returned no user, check the API key.');
   return { userId: String(me.id), username: me.username ?? '', name: me.name ?? me.username ?? '' };
 }

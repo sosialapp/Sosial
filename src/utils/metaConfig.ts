@@ -3,16 +3,16 @@
  *
  * 1. Create the app at developers.facebook.com → put the App ID in `.env`
  *    (see `.env.example`). Values are inlined at build time via
- *    `EXPO_PUBLIC_*` — nothing secret may live in this file.
+ *    `EXPO_PUBLIC_*`, nothing secret may live in this file.
  * 2. SECURITY NOTE: the app secret is still exchanged on-device in this
  *    personal-MVP build. That moves server-side in P2 (Supabase Edge
- *    Functions) before any store release — and the secrets below are in git
+ *    Functions) before any store release, and the secrets below are in git
  *    history, so they must be ROTATED in the provider dashboards regardless.
  */
 export const META_APP_ID = process.env.EXPO_PUBLIC_META_APP_ID ?? '';
 export const META_APP_SECRET = process.env.EXPO_PUBLIC_META_APP_SECRET ?? '';
 
-// Threads lives in its own Meta app — separate keys, same redirect URI.
+// Threads lives in its own Meta app, separate keys, same redirect URI.
 export const THREADS_APP_ID = process.env.EXPO_PUBLIC_THREADS_APP_ID ?? '';
 export const THREADS_APP_SECRET = process.env.EXPO_PUBLIC_THREADS_APP_SECRET ?? '';
 
@@ -26,7 +26,7 @@ export const FB_SCOPES = [
 ];
 
 // Instagram Business Login is its own OAuth flow (instagram.com) with its own
-// app credentials — these scopes are INVALID on Facebook's dialog.
+// app credentials, these scopes are INVALID on Facebook's dialog.
 export const IG_APP_ID = process.env.EXPO_PUBLIC_IG_APP_ID ?? '';
 export const IG_APP_SECRET = process.env.EXPO_PUBLIC_IG_APP_SECRET ?? '';
 // instagram_manage_insights is deliberately NOT requested: asking for it makes

@@ -1,9 +1,9 @@
 import type { Resource } from './types';
 
 /**
- * The resources hub. Each entry is a self-contained working document — a
+ * The resources hub. Each entry is a self-contained working document, a
  * template you can copy, a checklist you can run through, or a reference you
- * can keep open — rather than a teaser for something else.
+ * can keep open, rather than a teaser for something else.
  */
 export const RESOURCES: Resource[] = [
   {

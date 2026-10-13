@@ -76,7 +76,7 @@ export function SegMediaStrip({ items, onPick, onRemove, onMove, max, size = 104
   };
   const cancel = () => { reset(); setLift(null); };
   // Shift values are keyed by slot INDEX, so zero them in the same layout pass
-  // as the data reorder — otherwise a stale shift flashes for a frame on drop.
+  // as the data reorder, otherwise a stale shift flashes for a frame on drop.
   useLayoutEffect(() => { reset(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [items]);
 
   const live = useRef({ lift, count: items.length, onMove });

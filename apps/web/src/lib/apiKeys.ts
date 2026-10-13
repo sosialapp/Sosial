@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 /**
- * Workspace API key primitives (pure — no server imports, so vitest can
+ * Workspace API key primitives (pure, no server imports, so vitest can
  * cover them). Format: `sos_live_<43 base64url chars>`. Only the SHA-256
  * hash is ever stored; the plaintext is shown once at creation.
  */
@@ -31,7 +31,7 @@ export function apiClientId(keyId: string, idem: string): string {
 }
 
 export function isValidIdempotencyKey(v: unknown): v is string {
-  // Any non-empty token without whitespace (URLs included) — namespaced per
+  // Any non-empty token without whitespace (URLs included), namespaced per
   // key in apiClientId, so collisions across workspaces are impossible.
   return typeof v === 'string' && v.length >= 1 && v.length <= 128 && !/\s/.test(v);
 }

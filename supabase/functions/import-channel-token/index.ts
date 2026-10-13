@@ -2,7 +2,7 @@
 //
 // Why this exists: channel_tokens has NO RLS policies (service_role only, by
 // design) and Vault helpers are service_role-only. The app's anon key can
-// never write tokens directly — it calls this function with the user's JWT,
+// never write tokens directly, it calls this function with the user's JWT,
 // and the function enforces workspace membership before touching secrets.
 //
 // POST { workspace_id, provider, external_id, display_name?, handle?,
@@ -32,7 +32,7 @@ serve(async (req: Request): Promise<Response> => {
   const serviceKey =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SB_SECRET_KEY") ?? "";
   if (!supaUrl || !anonKey || !serviceKey) {
-    return bad("Function misconfigured — missing Supabase env.", 500);
+    return bad("Function misconfigured, missing Supabase env.", 500);
   }
 
   // Caller identity from their own JWT (never trust a body user_id).
@@ -68,7 +68,7 @@ serve(async (req: Request): Promise<Response> => {
   const admin = createClient(supaUrl, serviceKey);
 
   // Role gate: owners and admins only (service client bypasses RLS, so
-  // this check is the entire authorization — never skip it). Ordinary
+  // this check is the entire authorization, never skip it). Ordinary
   // members can neither connect channels nor push device tokens upward.
   const { data: mem } = await admin
     .from("workspace_members")
@@ -106,7 +106,7 @@ serve(async (req: Request): Promise<Response> => {
       const isPaid =
         !!s && s.plan !== "free" && paidStatuses.has(s.status ?? "") && !periodEnded;
       if (!isPaid) {
-        return bad("X needs a paid plan — its posting API is paywalled. Upgrade to connect it.", 402);
+        return bad("X needs a paid plan, its posting API is paywalled. Upgrade to connect it.", 402);
       }
     }
   }
@@ -153,7 +153,7 @@ serve(async (req: Request): Promise<Response> => {
         .eq("workspace_id", workspace_id);
       if ((count ?? 0) >= cap) {
         return bad(
-          `Your plan connects up to ${cap} channels — you're at the cap. Disconnect one or upgrade to add more.`,
+          `Your plan connects up to ${cap} channels, you're at the cap. Disconnect one or upgrade to add more.`,
           402,
         );
       }

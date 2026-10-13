@@ -81,7 +81,7 @@ export default function TeamPicker({
       setName('');
       router.refresh();
     } catch {
-      setErr('Network error — try again.');
+      setErr('Network error, try again.');
     } finally {
       setBusy(false);
     }

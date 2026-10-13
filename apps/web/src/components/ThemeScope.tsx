@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 
 /**
  * Dark-mode boundary. Only subtrees wrapped here (dashboard, login) can go
- * dark — the marketing site never renders one, so it stays light no matter
+ * dark, the marketing site never renders one, so it stays light no matter
  * what the saved theme is. Applies the saved/system theme on mount.
  */
 export const THEME_KEY = 'sosial-theme';

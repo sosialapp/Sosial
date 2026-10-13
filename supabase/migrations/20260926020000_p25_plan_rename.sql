@@ -1,5 +1,5 @@
 -- p25 · Plan rename: STARTER → SOLO, PRO → TEAM (BUSINESS unchanged).
--- Same prices, same limits — keys and labels only. One subscription row per
+-- Same prices, same limits, keys and labels only. One subscription row per
 -- workspace keeps its plan value mapped onto the new key.
 
 alter table public.subscriptions drop constraint subscriptions_plan_check;

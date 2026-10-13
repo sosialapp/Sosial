@@ -3,7 +3,7 @@
  *
  * Ports the mobile app's postStats.ts: one stats read per sent post_target
  * by its saved remote id, upserted into post_stats (one row per target =
- * latest numbers). Per-post failures never kill the run — they're recorded
+ * latest numbers). Per-post failures never kill the run, they're recorded
  * in the row's note; the job only throws when nothing at all succeeded, so
  * systematic breakage still backs off and retries.
  *
@@ -70,10 +70,10 @@ async function getChannel(channelId: string): Promise<{ c: ChannelRow; t: TokenR
 
 async function directToken(c: ChannelRow, t: TokenRow): Promise<string> {
   if (!t.access_token_secret_id) {
-    throw new Error(`${c.provider} token missing — reconnect the channel.`);
+    throw new Error(`${c.provider} token missing, reconnect the channel.`);
   }
   const v = await readSecret(t.access_token_secret_id);
-  if (!v) throw new Error(`${c.provider} token unavailable — reconnect the channel.`);
+  if (!v) throw new Error(`${c.provider} token unavailable, reconnect the channel.`);
   return v;
 }
 
@@ -102,7 +102,7 @@ async function blueskySession(c: ChannelRow, t: TokenRow): Promise<{ token: stri
   return { token: sess.token, pdsHost: sess.pdsHost };
 }
 
-/** pdsHost is stored as a full URL — never prepend a second scheme. */
+/** pdsHost is stored as a full URL, never prepend a second scheme. */
 function bskyApi(pdsHost: string): string {
   const h = pdsHost.replace(/\/+$/, '');
   return (h.startsWith('http://') || h.startsWith('https://') ? h : `https://${h}`) + '/xrpc';
@@ -118,9 +118,9 @@ async function jget(url: string, headers?: Record<string, string>): Promise<any>
 /* --------------------------- follower snapshots --------------------------- */
 
 /**
- * Live follower count per provider — the web mirror of the mobile analytics
+ * Live follower count per provider, the web mirror of the mobile analytics
  * profile reads. Ported from src/utils/analytics.ts; unsupported providers
- * return null so the UI shows "—" instead of a fake zero.
+ * return null so the UI shows "-" instead of a fake zero.
  */
 async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: number | null; note?: string }> {
   const token = async () => accessToken(c, t);
@@ -208,7 +208,7 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
     case 'linkedin': {
       // Only Company Pages expose follower counts to third-party apps.
       const orgId = String((c.metadata as any)?.liOrgId ?? '');
-      if (!orgId) return { followers: null, note: 'LinkedIn exposes no follower count for personal profiles — connect a Company Page to see followers.' };
+      if (!orgId) return { followers: null, note: 'LinkedIn exposes no follower count for personal profiles, connect a Company Page to see followers.' };
       const tok = await token();
       const j = await jget(
         `${LI_API}/rest/organizationalEntityAudienceStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(`urn:li:organization:${orgId}`)}&audienceType0=ORGANIC`,
@@ -330,7 +330,7 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
     }
     case 'linkedin': {
       if (!remoteId.startsWith('urn:li:')) {
-        return { likes: 0, comments: 0, shares: 0, views: null, note: 'No LinkedIn post id was saved — republish to track this post.' };
+        return { likes: 0, comments: 0, shares: 0, views: null, note: 'No LinkedIn post id was saved, republish to track this post.' };
       }
       const token = await accessToken(c, t);
       const j = await jget(`${LI_API}/rest/socialActions/${encodeURIComponent(remoteId)}`, {
@@ -340,7 +340,7 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       });
       if (typeof j?.status === 'number' && j.status >= 400) {
         if (j.status === 401 || j.status === 403) {
-          return { likes: 0, comments: 0, shares: 0, views: null, note: 'LinkedIn read permission not granted — reconnect LinkedIn, then retry.' };
+          return { likes: 0, comments: 0, shares: 0, views: null, note: 'LinkedIn read permission not granted, reconnect LinkedIn, then retry.' };
         }
         throw new Error(j?.message ?? 'Could not read post.');
       }
@@ -380,11 +380,11 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
         comments: 0,
         views: impressions || null,
         shares: sumMetric(['PIN_CLICK', 'OUTBOUND_CLICK']),
-        note: 'Saves count as likes — Pinterest exposes no comment API.',
+        note: 'Saves count as likes, Pinterest exposes no comment API.',
       };
     }
     case 'gmb': {
-      // Google Business Profile local posts have NO per-post metrics API —
+      // Google Business Profile local posts have NO per-post metrics API -
       // the location-level Performance & Performance Images APIs are the
       // only surfaces. Both attach to the LOCATION (external_id), not the
       // post, so the numbers land once per location rather than per post;
@@ -392,7 +392,7 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       const token = await accessToken(c, t);
       const parent = String(c.external_id ?? '');
       if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(parent)) {
-        throw new Error('GBP location missing — reconnect the channel.');
+        throw new Error('GBP location missing, reconnect the channel.');
       }
       const end = new Date();
       const start = new Date(end.getTime() - 30 * 86400000);
@@ -448,7 +448,7 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
         shares: callToActions,
         note:
           note ||
-          'Location-level metrics (clicks + photo views, last 30d) repeat across this profile\u2019s posts — GBP exposes no per-post stats.',
+          'Location-level metrics (clicks + photo views, last 30d) repeat across this profile\u2019s posts, GBP exposes no per-post stats.',
       };
     }
     default:
@@ -471,7 +471,7 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
   const { c, t } = got;
   if (c.status !== 'connected') return { updated: 0, failed: 0, skipped: `channel ${c.status}` };
 
-  // Follower/profile snapshot first — independent of post history, so brand
+  // Follower/profile snapshot first, independent of post history, so brand
   // new channels and post-read-less providers (TikTok) still report audience.
   try {
     await snapshotFollowers(c, t);
@@ -480,7 +480,7 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
   }
 
   if (c.provider === 'tiktok') {
-    // TikTok has no post-read API — skip with a clean no-op (mobile shows zeros).
+    // TikTok has no post-read API, skip with a clean no-op (mobile shows zeros).
     return { updated: 0, failed: 0, skipped: 'tiktok has no post stats API' };
   }
 
@@ -525,7 +525,7 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
     }
   }
   info(`snapshot ${c.provider}/${c.external_id}: ${updated} updated, ${failed} failed`);
-  // Only a total failure is a job failure — a systematic breakage (expired
+  // Only a total failure is a job failure, a systematic breakage (expired
   // token, API change) should back off and retry.
   if (updated === 0 && failed > 0) {
     throw new Error(`all ${failed} stat reads failed for ${c.provider}/${c.external_id}`);

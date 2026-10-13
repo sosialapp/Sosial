@@ -8,7 +8,7 @@ import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { POST_STATUS_META } from '@/lib/providers';
 import type { MediaAssetRow, PostStatus } from '@/lib/types';
 
-/** Plain-JSON post preview — dashboard carousel, analytics tables, anywhere. */
+/** Plain-JSON post preview, dashboard carousel, analytics tables, anywhere. */
 export interface PreviewPostData {
   id: string;
   text: string;
@@ -95,7 +95,7 @@ export default function PostPreviewDialog({
             {post.text}
           </p>
         ) : (
-          <p className="mt-3 text-sm italic text-faint">No text — media only.</p>
+          <p className="mt-3 text-sm italic text-faint">No text, media only.</p>
         )}
 
         {media.length > 0 ? (
@@ -145,7 +145,7 @@ export default function PostPreviewDialog({
             </span>
             <span className="flex items-center gap-1">
               <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-              {post.stats.views === null ? '—' : post.stats.views.toLocaleString('en-US')}
+              {post.stats.views === null ? '-' : post.stats.views.toLocaleString('en-US')}
             </span>
           </div>
         ) : null}

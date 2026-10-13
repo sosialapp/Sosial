@@ -1,7 +1,7 @@
 -- P62 · Notify the workspace when a channel's auth dies.
 --
 -- The worker's refresh job already marks dead channels 'expired' with a
--- last_error — silently. The user finds out only when a publish fails. This
+-- last_error, silently. The user finds out only when a publish fails. This
 -- adds notify_channel_expired(workspace, channel, provider, reason), callable
 -- by service_role (the worker), which inserts a bell notification for the
 -- workspace owner + admins. Idempotent per (channel, day): the hourly refresh
@@ -61,7 +61,7 @@ begin
         when 'gmb' then 'Google Business'
         else initcap(p_provider)
       end) || ' needs reconnecting',
-      coalesce(nullif(p_reason, ''), 'The connection expired — scheduled posts to this channel will fail until you reconnect it.'),
+      coalesce(nullif(p_reason, ''), 'The connection expired, scheduled posts to this channel will fail until you reconnect it.'),
       '/channels?expired=' || p_channel_id::text
     );
   end loop;

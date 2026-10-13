@@ -82,7 +82,7 @@ function MediaThumb({ media }: { media: MediaAttachment }) {
 const TPL_COL_W = (Dimensions.get('window').width - 48 - 12) / 2;
 /**
  * The saved design itself, truly previewed: a miniature of the real canvas
- * (backdrop, title, blocks, chrome — exactly what export produces). Name +
+ * (backdrop, title, blocks, chrome, exactly what export produces). Name +
  * meta + dots below like a project library, no outer card or border.
  */
 function TplPost({ post, kind, builtIn, onOpen, onMenu, width = TPL_COL_W }: {
@@ -245,7 +245,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [projects, setProjects] = useState<QuickPost[]>([]);
   const [presets, setPresets] = useState<ProjectPreset[]>([]);
-  /** Templates saved on the web — text cards (different design format). */
+  /** Templates saved on the web, text cards (different design format). */
   const [foreignTpls, setForeignTpls] = useState<ForeignTemplate[]>([]);
   const { post } = usePost();
 
@@ -355,7 +355,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
     return () => endInline();
   }, [tab, beginInline, endInline]);
 
-  /** Stored successfully — wipe the page clean for the next post. */
+  /** Stored successfully, wipe the page clean for the next post. */
   const resetInline = () => {
     clearDraft();
     setFormKey((k) => k + 1);
@@ -488,7 +488,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
     const texts = segs.map((s) => s.text);
     const med = segs.map((s) => (s.media.length ? s.media.map((m) => ({ uri: m.uri, kind: m.kind })) : null));
     const head = segs[0]?.media?.[0] ?? ideaMedia(idea)[0] ?? null;
-    // Every segment's attachment rides into the composer — chain channels
+    // Every segment's attachment rides into the composer, chain channels
     // publish each reply with its own photo/video.
     openComposer(draftPost({
       body: idea.body,
@@ -530,7 +530,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
   const handleSavePreset = async (item: QuickPost) => {
     const next = await saveProjectPreset(item);
     setPresets(next);
-    Alert.alert('Saved as template', `"${item.name}" is now reusable — size, backdrop, title, photo, socials and content included.`);
+    Alert.alert('Saved as template', `"${item.name}" is now reusable, size, backdrop, title, photo, socials and content included.`);
   };
 
   const handleUsePreset = async (tpl: ProjectPreset) => {
@@ -594,7 +594,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
           <Text style={s.sub}>Catch the idea, let AI shape it, then post it.</Text>
         </View>
 
-        {/* section tabs — sliding thumb glides on every switch */}
+        {/* section tabs, sliding thumb glides on every switch */}
         <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
           <Tabs
             options={[
@@ -612,7 +612,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
 
         {tab === 'ideas' ? (
           <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-            {/* inline composer — same form language as the post tab */}
+            {/* inline composer, same form language as the post tab */}
             <View style={s.composer}>
               <Text style={s.secLabel}>Title</Text>
               <Txt value={cTitle} onChangeText={setCTitle} placeholder="Idea title…" style={s.cTitle} />
@@ -738,12 +738,12 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
                 </View>
               </>
             ) : presets.length === 0 ? (
-              <Text style={[s.hint, { marginTop: 12 }]}>No templates yet — tap ••• on any design and choose “Save as template”.</Text>
+              <Text style={[s.hint, { marginTop: 12 }]}>No templates yet, tap ••• on any design and choose “Save as template”.</Text>
             ) : null}
             {foreignTpls.length ? (
               <>
                 <Text style={[s.secT, { marginTop: 26 }]}>From web</Text>
-                <Text style={[s.hint, { marginTop: 4 }]}>Templates saved on the web — different design format, text carries over.</Text>
+                <Text style={[s.hint, { marginTop: 4 }]}>Templates saved on the web, different design format, text carries over.</Text>
                 <View style={{ gap: 10, marginTop: 12 }}>
                   {foreignTpls.map((f) => (
                     <View key={f.id} style={s.foreignCard}>
@@ -790,7 +790,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
           </View>
         ) : tab === 'post' ? (
           <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
-            {/* The composer itself, inline — no bottom-sheet window. Same form
+            {/* The composer itself, inline, no bottom-sheet window. Same form
                 and submit paths as the sheet, bound to the live draft. */}
             <ScheduleForm
               key={formKey}

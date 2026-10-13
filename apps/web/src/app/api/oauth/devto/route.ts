@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * Dev.to connect passthrough — API key validated by connect-devto against
+ * Dev.to connect passthrough, API key validated by connect-devto against
  * GET /api/users/me. Same shape as the other manual-provider routes.
  */
 export async function POST(req: Request) {

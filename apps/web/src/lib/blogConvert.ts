@@ -70,7 +70,7 @@ export function parseInlineMd(text: string): RichInline[] {
 }
 
 /* --------------------------- legacy → BlockNote --------------------------- */
-/* (Removed with the TipTap swap — legacy bodies now convert straight to
+/* (Removed with the TipTap swap, legacy bodies now convert straight to
  * TipTap via legacyToTipTap below. Old BlockNote JSON still in the database
  * converts via bnToTipTap.) */
 
@@ -381,7 +381,7 @@ export function wordsOfTipTap(doc: TipTapDoc | null | undefined): number {
 /**
  * The single publish pipeline: drops empty custom blocks (unfinished embed /
  * image / chart / button). Both the admin preview AND the save path MUST go
- * through here — otherwise the preview shows blocks the published page drops.
+ * through here, otherwise the preview shows blocks the published page drops.
  */
 export function cleanDocForPublish(doc: TipTapDoc | null | undefined): TipTapDoc {
   return {

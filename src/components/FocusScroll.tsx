@@ -4,7 +4,7 @@ import { Dimensions, Keyboard, ScrollView, TextInput } from 'react-native';
 /**
  * Scroll-a-textbox-into-view, without native deps. Screens that own a
  * ScrollView full of inputs mount `useFocusScrollPanel`, hand its refs to
- * the ScrollView, and expose `ensureVisible` through `FocusScrollBridge` —
+ * the ScrollView, and expose `ensureVisible` through `FocusScrollBridge` -
  * `Txt` calls it on focus, so the typed box always lands above the keyboard.
  *
  * Why not the keyboard-aware-scroll-view lib: it silently mis-measures on
@@ -40,7 +40,7 @@ export function useFocusScrollPanel(extra = 16) {
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
       kbH.current = e.endCoordinates.height;
       // The focused box may have been measured before the keyboard reported
-      // — re-run once the true height is known.
+      //, re-run once the true height is known.
       const input = lastInput.current;
       if (input) ensureVisible(input);
     });
@@ -59,7 +59,7 @@ export function useFocusScrollPanel(extra = 16) {
     (input: TextInput | null) => {
       if (!input || !scrollRef.current) return;
       lastInput.current = input;
-      // onFocus fires before the keyboard reports — retry until it does.
+      // onFocus fires before the keyboard reports, retry until it does.
       let attempts = 0;
       const attempt = () => {
         attempts += 1;

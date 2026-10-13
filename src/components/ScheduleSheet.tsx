@@ -39,7 +39,7 @@ const MEDIA_RULES: Record<string, 'any' | 'video' | 'no-video'> = {
 type TypeChannel = 'facebook' | 'instagram' | 'threads' | 'x' | 'linkedin' | 'youtube' | 'bluesky' | 'mastodon' | 'pinterest' | 'tiktok' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'gmb';
 const TYPE_CHANNELS: TypeChannel[] = ['facebook', 'instagram', 'threads', 'x', 'linkedin', 'youtube', 'bluesky', 'mastodon', 'pinterest', 'tiktok', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb'];
 
-/** YouTube listing options — static, no fetch needed. */
+/** YouTube listing options, static, no fetch needed. */
 const YT_LISTING = [
   { id: 'public', label: 'Public' },
   { id: 'unlisted', label: 'Unlisted' },
@@ -63,7 +63,7 @@ function slotTomorrow(hour: number, min = 0): number {
 /** 4:5 tile pitch: thumb width + strip gap. Drag math depends on it. */
 const THUMB_STEP = 108;
 
-/** Muted looping video tile — the strip preview videos were missing. */
+/** Muted looping video tile, the strip preview videos were missing. */
 function VideoThumb({ uri }: { uri: string }) {
   const { C } = useTheme();
   const st = makeSt(C);
@@ -82,7 +82,7 @@ function VideoThumb({ uri }: { uri: string }) {
   );
 }
 
-/** One strip tile — image cover or live video preview. */
+/** One strip tile, image cover or live video preview. */
 function MediaTile({ it }: { it: SheetMediaItem }) {
   const { C } = useTheme();
   const st = makeSt(C);
@@ -142,7 +142,7 @@ function MediaStrip({ items, onPick, onRemove, onMove, onOpen }: {
   const cancel = () => { reset(); setLift(null); };
   // The shift values are keyed by slot INDEX, so once the data order changes on
   // drop they belong to the wrong tiles. Zero them in the same layout pass as
-  // the reorder (before paint) — otherwise the stale shift flashes for a frame
+  // the reorder (before paint), otherwise the stale shift flashes for a frame
   // and the strip looks like it jumps when two tiles trade places.
   useLayoutEffect(() => { reset(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [items]);
 
@@ -231,13 +231,13 @@ function MediaStrip({ items, onPick, onRemove, onMove, onOpen }: {
         ) : null}
       </ScrollView>
       {items.length > 1 ? (
-        <Text style={st.arrangeHint}>Hold & drag to arrange — first item posts first</Text>
+        <Text style={st.arrangeHint}>Hold & drag to arrange, first item posts first</Text>
       ) : null}
     </View>
   );
 }
 
-/** Real video preview for the viewer modal — own component so the player hook
+/** Real video preview for the viewer modal, own component so the player hook
  *  stays unconditional; keyed by uri so Prev/Next always loads the right file. */
 function VideoPreview({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri, (p) => {
@@ -365,7 +365,7 @@ export interface SheetMediaItem {
 export interface SheetMedia {
   items: SheetMediaItem[];
   onPick: () => void;
-  /** Append externally-sourced items (stock, cloud drives) — same cap rules. */
+  /** Append externally-sourced items (stock, cloud drives), same cap rules. */
   onAdd?: (items: SheetMediaItem[]) => void;
   onRemove: (index: number) => void;
   /** Reorder items (drag-and-drop in the strip). Absent = static order. */
@@ -405,7 +405,7 @@ interface Props {
   /** Sent posts open read-only: static summary + Delete, no editing or re-sending. */
   readOnly?: boolean;
   readOnlyNote?: string;
-  /** per-channel remote ids saved at publish time — drives the Sent analytics section */
+  /** per-channel remote ids saved at publish time, drives the Sent analytics section */
   remoteIds?: Record<string, string>;
   /** Notifies the host when a chain segment drag starts/stops, so an enclosing
    *  ScrollView (bare inline mode) can lock while the row follows the finger. */
@@ -418,7 +418,7 @@ interface Props {
 /**
  * Buffer-style composer: channels (multi) + title/description + time.
  * `bare` renders the same form inline (Create → Post pill) instead of in the
- * bottom-sheet Modal — state and submit paths are identical either way.
+ * bottom-sheet Modal, state and submit paths are identical either way.
  */
 export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange, onConnect }: Props & { bare?: boolean }) {
   const { C, mode: themeMode } = useTheme();
@@ -490,7 +490,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   const vItem = vIdx !== null ? media?.items[vIdx] : undefined;
 
   // Channels connected elsewhere (web pull, Connect screen) land after the
-  // form mounts — refresh on foreground so the chips never go stale and the
+  // form mounts, refresh on foreground so the chips never go stale and the
   // list never degrades to Anywhere-only. Cloud-only placeholders count:
   // the worker publishes for them.
   useEffect(() => {
@@ -503,7 +503,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
           setAccounts(all);
           const sched = new Set<string>(schedulableProviders(all));
           setConnected([...new Set([...connectedChannelIds(m), ...sched])]);
-          // Placeholders need no "reconnect" — the worker publishes for them.
+          // Placeholders need no "reconnect", the worker publishes for them.
           setStale((prev) => prev.filter((c) => !sched.has(c)));
         }).catch(() => {});
       }).catch(() => {});
@@ -515,7 +515,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   // replies. "Anywhere" resolves to the connected set, mirroring publish time,
   // so the segment cap is the strictest channel the post can actually reach.
   // With nothing picked yet the editor stays available under the strictest
-  // cap of all chain channels (280) — segments written now fit everywhere.
+  // cap of all chain channels (280), segments written now fit everywhere.
   const chainPlats = plats.includes('any') ? connected : plats;
   const chainCap = chainLimit(chainPlats) ?? Math.min(...Object.values(THREAD_CAPS));
   const threadOn = !!composer?.thread && composer.thread.length > 0;
@@ -552,7 +552,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
         const c = connectedChannelIds(m);
         setConnected(c);
         setStale(staleChannelKeys(m));
-        // A saved draft can name a channel disconnected since — drop those
+        // A saved draft can name a channel disconnected since, drop those
         // (they can't publish) instead of keeping invisible picks.
         if (!explicit) setPlats([]);
         else if (init) setPlats(init.filter((p) => p === 'any' || c.includes(p)));
@@ -560,14 +560,14 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       // Multi-account providers offer a per-channel account picker.
       loadAccounts().then((all) => {
         setAccounts(all);
-        // Cloud-only placeholders are schedulable via the worker — they must
+        // Cloud-only placeholders are schedulable via the worker, they must
         // be visible chips, not just an Anywhere fallback.
         const sched = new Set<string>(schedulableProviders(all));
         setConnected((prev) => [...new Set([...prev, ...sched])]);
-        // …and they must not nag a "reconnect" — the worker publishes for them.
+        // …and they must not nag a "reconnect", the worker publishes for them.
         setStale((prev) => prev.filter((c) => !sched.has(c)));
         // Saved drafts may name placeholder channels the cred-check above
-        // dropped — restore those (they publish via the worker).
+        // dropped, restore those (they publish via the worker).
         if (explicit && init) setPlats(init.filter((p) => p === 'any' || sched.has(p)));
         const valid = new Set(all.map((a) => a.id));
         const next: Record<string, string[]> = {};
@@ -596,7 +596,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     }
   }, [visible, initialAt, initialTimezone, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, initialAccountIds]);
 
-  // TikTok audience options come from the account itself — load them while the
+  // TikTok audience options come from the account itself, load them while the
   // sheet is open so the choice can be made upfront instead of at publish.
   useEffect(() => {
     if (!visible) return;
@@ -629,10 +629,10 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     const imgs = items.filter((a) => a.kind === 'image').length;
     const vids = items.filter((a) => a.kind === 'video').length;
     const cap = ATTACH_LIMITS[c]?.images ?? MAX_ATTACHMENTS;
-    if (cap === 0 && imgs > 0) return `${label} takes video only — remove the photos.`;
-    if (vids > 0 && imgs > 0) return `${label} takes photos or one video — not both in one post.`;
-    if (vids > 1 || (vids > 0 && c === 'linkedin')) return `${label} doesn’t take ${vids > 1 ? 'more than one video' : 'video'} — attach photos instead.`;
-    if (imgs > cap) return `${label} takes up to ${cap} photo${cap === 1 ? '' : 's'} per post — you’ve attached ${imgs}.`;
+    if (cap === 0 && imgs > 0) return `${label} takes video only, remove the photos.`;
+    if (vids > 0 && imgs > 0) return `${label} takes photos or one video, not both in one post.`;
+    if (vids > 1 || (vids > 0 && c === 'linkedin')) return `${label} doesn’t take ${vids > 1 ? 'more than one video' : 'video'}, attach photos instead.`;
+    if (imgs > cap) return `${label} takes up to ${cap} photo${cap === 1 ? '' : 's'} per post, you’ve attached ${imgs}.`;
     return null;
   };
 
@@ -643,7 +643,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   };
 
   /** Channels this draft can't reach: needs-media rules from the compat
-   *  engine — these chips render grey and explain on tap. */
+   *  engine, these chips render grey and explain on tap. */
   const [chipBlocked, setChipBlocked] = useState<Record<string, string>>({});
   const [chipNote, setChipNote] = useState<string | null>(null);
   useEffect(() => {
@@ -653,13 +653,13 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     if (!items.length) {
       for (const c of connected) {
         const cap = MEDIA_RULES[c];
-        if (cap === 'video') blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} needs a video — this post has none attached.`;
-        else if (cap === 'any') blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} needs a photo or video — text alone can't go there.`;
+        if (cap === 'video') blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} needs a video, this post has none attached.`;
+        else if (cap === 'any') blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} needs a photo or video, text alone can't go there.`;
       }
     } else if (hasVideo) {
       for (const c of connected) {
         if (MEDIA_RULES[c] === 'no-video') {
-          blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} doesn't take video — remove the video or drop the channel.`;
+          blockedNow[c] = `${SOCIAL_META[c]?.label ?? c} doesn't take video, remove the video or drop the channel.`;
         }
       }
     }
@@ -681,7 +681,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     }
     if ((COMING_SOON as string[]).includes(c)) {
       const label = c[0].toUpperCase() + c.slice(1);
-      Alert.alert(`${label} is coming soon`, 'We’re working on it — pick Facebook, Instagram, Threads, TikTok, X, Bluesky, LinkedIn, Mastodon or YouTube for now.');
+      Alert.alert(`${label} is coming soon`, 'We’re working on it, pick Facebook, Instagram, Threads, TikTok, X, Bluesky, LinkedIn, Mastodon or YouTube for now.');
       return;
     }
     if (c !== 'any' && !connected.includes(c)) {
@@ -692,7 +692,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     setPlats((prev) => {
       const without = prev.filter((x) => x !== 'any' && x !== c);
       // Unpicking the last channel leaves nothing picked (never silently
-      // falls back to Anywhere — that posted places the user didn't choose).
+      // falls back to Anywhere, that posted places the user didn't choose).
       if (prev.includes(c)) return without;
       return [...without, c];
     });
@@ -703,7 +703,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     setTypes((prev) => ({ ...prev, [c]: t }));
   };
 
-  /** The explicit pick always wins — auto-detect only fills in while nothing is
+  /** The explicit pick always wins, auto-detect only fills in while nothing is
    *  picked yet. Snapping Video back to Photo until a video is attached made
    *  the choice feel locked; picking the format first, then attaching media,
    *  is the natural order. Publish follows the actual media anyway and errors
@@ -723,7 +723,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     return out as PlatformTypes;
   };
 
-  /** First avatar for a provider (live account first, else placeholder) — brand disc when none. */
+  /** First avatar for a provider (live account first, else placeholder), brand disc when none. */
   const avatarFor = (c: string): string | undefined => {
     const all = accounts.filter((a) => a.provider === c);
     const ranked = [...all.filter((a) => accountConnected(a)), ...all.filter((a) => !accountConnected(a))];
@@ -782,14 +782,14 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     ? Date.now() + 60000
     : tz === devTz
       ? custom.getTime()
-      // Wall reading is in the selected zone — re-anchor it (web parity).
+      // Wall reading is in the selected zone, re-anchor it (web parity).
       : zonedToUtcMs(custom.getFullYear(), custom.getMonth() + 1, custom.getDate(), custom.getHours() * 60 + custom.getMinutes(), tz);
   // Button/sub labels always echo the wall the user picked, with the zone
   // appended whenever it isn't the device zone.
   const wallLabel = fmtDateTime(custom.getTime());
   const zoneSuffix = preset === 'custom' && tz !== devTz ? ` · ${zoneLabel(tz)}` : '';
 
-  // The 5-minute floor slides forward as time passes — a pick that was fine
+  // The 5-minute floor slides forward as time passes, a pick that was fine
   // a minute ago can go stale while the sheet sits open. Re-render on a tick
   // so the warning lights up live instead of only at save time.
   useEffect(() => {
@@ -803,12 +803,12 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   // channel is ticked (which is what tapping it produces)
   const anyOn = plats.includes('any') || (connected.length > 0 && connected.every((c) => plats.includes(c)));
 
-  // The shared strip hides in thread mode when no selected leg needs it —
+  // The shared strip hides in thread mode when no selected leg needs it -
   // chain legs carry their own per-segment images. It reappears the moment a
   // non-chain channel (or Anywhere) is picked, since those legs need it.
   const showSharedStrip = !threadOn || plats.some((p) => p === 'any' || !isChainPlatform(p));
 
-  // Channel chips: Anywhere first, then connected only — unconnected channels
+  // Channel chips: Anywhere first, then connected only, unconnected channels
   // can't publish, so listing them only leads to "isn't connected" dead ends.
   const orderedChannels = ['any', ...CHANNELS.filter((c) => c !== 'any' && connected.includes(c))];
 
@@ -821,7 +821,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     }
     if (!d) return;
     // Past is unpickable on both platforms: Android time pickers ignore
-    // minimumDate, so clamp here — the value snaps forward to the floor.
+    // minimumDate, so clamp here, the value snaps forward to the floor.
     setCustom(new Date(Math.max(d.getTime(), minQueueTime())));
     // Android: pick date, then reopen for time
     if (Platform.OS === 'android') {
@@ -858,7 +858,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
   const needChannels = (): boolean => {
     if (plats.length === 0) {
-      Alert.alert('No channels picked', 'Pick at least one channel first — nothing is selected by default.');
+      Alert.alert('No channels picked', 'Pick at least one channel first, nothing is selected by default.');
       return true;
     }
     return false;
@@ -866,10 +866,10 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
   const save = () => {
     if (needChannels()) return;
-    // Loud stop for custom times under the 5-minute floor (scoped to custom —
+    // Loud stop for custom times under the 5-minute floor (scoped to custom -
     // the Now/bulk path queues at +60s by design and has its own guards).
     if (preset === 'custom' && queueTooSoon(at)) {
-      Alert.alert('Too soon to queue', `Earliest is ${minQueueLabel()} — scheduled posts need at least 5 minutes lead time. Pick a later time.`);
+      Alert.alert('Too soon to queue', `Earliest is ${minQueueLabel()}, scheduled posts need at least 5 minutes lead time. Pick a later time.`);
       return;
     }
     if (at <= Date.now() + 30000) {
@@ -879,7 +879,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds(), tz);
   };
 
-  /** Delete asks twice — queue removals can't be undone. */
+  /** Delete asks twice, queue removals can't be undone. */
   const confirmDelete = () => {
     if (!onDelete) return;
     Alert.alert('Delete this post?', 'It will be removed from the queue.', [
@@ -948,7 +948,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                               <TouchableOpacity onPress={() => {
                                 const next = composer.thread!.filter((_, j) => j !== i);
                                 composer.onThread!(next);
-                                // Drop the removed segment's attachment too — index
+                                // Drop the removed segment's attachment too, index
                                 // realignment alone would glue it to a neighbor.
                                 if (composer.onThreadMedia && composer.threadMedia) {
                                   composer.onThreadMedia(composer.threadMedia.filter((_, j) => j !== i));
@@ -1079,7 +1079,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
           ) : null}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={st.label}>Channels{readOnly ? '' : ' — pick any'}</Text>
+            <Text style={st.label}>Channels{readOnly ? '' : ', pick any'}</Text>
             {!readOnly && plats.length > 0 && !(plats.length === 1 && plats[0] === 'any') ? (
               <TouchableOpacity onPress={() => setPlats([])} activeOpacity={0.7}>
                 <Text style={st.clearAllT}>Clear all</Text>
@@ -1159,7 +1159,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               <Text style={st.staleT} numberOfLines={2}>
                 {stale.map((c) => SOCIAL_META[c]?.label ?? c).join(', ')} connected
                 before but {stale.length === 1 ? 'its login needs' : 'their logins need'} a refresh
-                {onConnect ? ' — tap to reconnect' : ''}
+                {onConnect ? ', tap to reconnect' : ''}
               </Text>
               {onConnect ? <Ionicons name="chevron-forward" size={16} color={C.muted} /> : null}
             </TouchableOpacity>
@@ -1237,7 +1237,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                           <TouchableOpacity key={a.id} onPress={() => {
                             setAccountIds((prev) => {
                               const cur = asIdList(prev[c]);
-                              // Unticking the last account keeps it — a channel
+                              // Unticking the last account keeps it, a channel
                               // always publishes as at least one account.
                               if (cur.includes(a.id) && cur.length <= 1) return prev;
                               const next = cur.includes(a.id) ? cur.filter((id) => id !== a.id) : [...cur, a.id];
@@ -1321,7 +1321,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               <Ionicons name="warning" size={20} color={C.redText} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={st.warnT}>Too soon to queue</Text>
-                <Text style={st.warnS}>Earliest is {minQueueLabel()} — scheduled posts need at least 5 minutes lead time. Pick a later time.</Text>
+                <Text style={st.warnS}>Earliest is {minQueueLabel()}, scheduled posts need at least 5 minutes lead time. Pick a later time.</Text>
               </View>
             </View>
           ) : null}
@@ -1559,7 +1559,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => onClose?.()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <View style={st.bg}>
-            {/* backdrop tap-to-close sits BEHIND the sheet — no pressable may wrap
+            {/* backdrop tap-to-close sits BEHIND the sheet, no pressable may wrap
                 the ScrollView or Android drags die in responder negotiation */}
             <TouchableOpacity activeOpacity={1} onPress={() => onClose?.()} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
             <View style={st.sheet}>

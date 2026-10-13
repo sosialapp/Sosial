@@ -18,9 +18,9 @@ type Rect = { x: number; y: number; w: number; h: number };
 /**
  * Real crop editor: the photo sits contain-fit in a dark stage, an
  * aspect-locked crop rectangle (matching the block frame) overlays it with
- * draggable corner handles, thirds grid, dimmed outside — like a normal
+ * draggable corner handles, thirds grid, dimmed outside, like a normal
  * image editor. The rect maps to the canvas model {zoom,x,y} so both
- * renderers stay unchanged (mirrors web steps2.tsx CropEditor — keep in sync):
+ * renderers stay unchanged (mirrors web steps2.tsx CropEditor, keep in sync):
  *   zoom = full width / rect width; x = 1 - 2·z·u0/(z-1) (u0 = rect left
  *   as a fraction of the image), mirrored for y.
  */
@@ -89,7 +89,7 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
   };
 
   const minW = dispW / 3;
-  /** Aspect-locked resize/move with clamping inside the photo. Pure — returns the next rect. */
+  /** Aspect-locked resize/move with clamping inside the photo. Pure, returns the next rect. */
   const applyDrag = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: Rect): Rect => {
     if (mode === 'move') {
       return { ...start, x: clamp(start.x + dx, 0, dispW - start.w), y: clamp(start.y + dy, 0, dispH - start.h) };

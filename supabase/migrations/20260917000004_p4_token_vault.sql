@@ -5,7 +5,7 @@
 -- store secret ids; the ciphertext itself lives here and is NEVER readable by
 -- authenticated clients (no grants below except to service_role).
 --
--- Prerequisite: none beyond this push — the extension is created here so the
+-- Prerequisite: none beyond this push, the extension is created here so the
 -- db push is self-contained (pg_cron still needs the dashboard step per P3).
 
 create extension if not exists "supabase_vault" with schema "vault";

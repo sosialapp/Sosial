@@ -1,6 +1,6 @@
 -- p32 · Cancel a pending workspace invite (owner/admin only).
 --
--- Until now invites could only expire (7 days) — there was no way to take
+-- Until now invites could only expire (7 days), there was no way to take
 -- one back. cancel_invite deletes a pending (unaccepted) invite row. An
 -- already-accepted invite is a membership: remove the member instead.
 
@@ -17,7 +17,7 @@ begin
     raise exception 'Invite not found.';
   end if;
   if v_accepted is not null then
-    raise exception 'That invite was already accepted — remove the member instead.';
+    raise exception 'That invite was already accepted, remove the member instead.';
   end if;
   if not (
     workspace_role(v_ws) in ('owner', 'admin')

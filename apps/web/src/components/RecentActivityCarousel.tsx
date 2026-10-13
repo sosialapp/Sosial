@@ -6,7 +6,7 @@ import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { POST_STATUS_META } from '@/lib/providers';
 import type { MediaAssetRow, PostStatus } from '@/lib/types';
 
-/** One dashboard carousel slide — plain JSON from the server. */
+/** One dashboard carousel slide, plain JSON from the server. */
 export interface RecentActivityItem {
   id: string;
   text: string;
@@ -40,7 +40,7 @@ export default function RecentActivityCarousel({
   const wrapRef = useRef<HTMLDivElement>(null);
   const cool = useRef(0);
   const touchY = useRef<number | null>(null);
-  // Last swipe/wheel navigation time — a click right after a swipe is the
+  // Last swipe/wheel navigation time, a click right after a swipe is the
   // swipe's own tap, not an open-preview intent.
   const navAt = useRef(0);
 
@@ -119,7 +119,7 @@ export default function RecentActivityCarousel({
               {item.text}
             </p>
           ) : (
-            <p className="mt-2 text-[13px] italic text-faint">No text — media only.</p>
+            <p className="mt-2 text-[13px] italic text-faint">No text, media only.</p>
           )}
 
           {/* Media: centered, natural ratio, rail-sized */}

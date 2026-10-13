@@ -20,7 +20,7 @@ function qs(p: Record<string, string>): string {
     .join('&');
 }
 
-/* ---------------- Login (same bridge page as Meta — it forwards ?code=) ---------------- */
+/* ---------------- Login (same bridge page as Meta, it forwards ?code=) ---------------- */
 
 export async function loginTikTok(accountId?: string): Promise<boolean> {
   const url =
@@ -29,7 +29,7 @@ export async function loginTikTok(accountId?: string): Promise<boolean> {
     `&response_type=code` +
     `&redirect_uri=${encodeURIComponent(BRIDGE_URL)}` +
     // disable_auto_auth=1: always show the consent page instead of silently
-    // auto-approving whoever is logged in — the user sees WHICH account they
+    // auto-approving whoever is logged in, the user sees WHICH account they
     // are authorizing and can back out to switch first.
     `&disable_auto_auth=1` +
     `&state=${encodeURIComponent(appReturnUrl())}`;
@@ -77,7 +77,7 @@ export async function exchangeTikTokCode(code: string): Promise<TikTokTokens> {
   };
 }
 
-/** Silent mint — no user interaction. Handles rotation (new refresh may differ). */
+/** Silent mint, no user interaction. Handles rotation (new refresh may differ). */
 export async function refreshTikTokToken(refreshToken: string): Promise<TikTokTokens> {
   const r = await fetch(TT_TOKEN_ENDPOINT, {
     method: 'POST',
@@ -90,7 +90,7 @@ export async function refreshTikTokToken(refreshToken: string): Promise<TikTokTo
     }),
   });
   const j: any = await r.json().catch(() => ({}));
-  if (!j.access_token) throw new Error(terr(j, 'TikTok session expired — reconnect TikTok.'));
+  if (!j.access_token) throw new Error(terr(j, 'TikTok session expired, reconnect TikTok.'));
   return {
     accessToken: j.access_token as string,
     refreshToken: (j.refresh_token as string) || refreshToken,
@@ -129,7 +129,7 @@ export async function getValidToken(accountId?: string): Promise<string> {
       await saveProviderFields('tiktok', {
         ttAccessToken: undefined, ttRefreshToken: undefined, ttExpiresAt: undefined,
       }, accountId);
-      throw new Error('TikTok session expired — reconnect TikTok.');
+      throw new Error('TikTok session expired, reconnect TikTok.');
     }
     throw e;
   }

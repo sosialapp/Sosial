@@ -25,7 +25,7 @@ type Props<T extends string> = {
   trackStyle?: StyleProp<ViewStyle>;
   /** Sliding thumb behind the active tab. */
   thumbStyle?: StyleProp<ViewStyle>;
-  /** Each tab pressable (layout, padding — no background; the thumb paints it). */
+  /** Each tab pressable (layout, padding, no background; the thumb paints it). */
   tabStyle?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
   activeLabelStyle?: StyleProp<TextStyle>;
@@ -42,7 +42,7 @@ type Props<T extends string> = {
 type Layout = { x: number; y: number; width: number; height: number };
 
 /**
- * Animated segmented control — one sliding thumb glides to the active pill
+ * Animated segmented control, one sliding thumb glides to the active pill
  * on every switch (Post/Queue/Sent tabs, billing rhythm, analytics ranges,
  * AI draft channels, …). Measurement-driven: each tab reports its layout,
  * an Animated.Value pair tweens translateX/width to the active tab.
@@ -70,7 +70,7 @@ export function Segmented<T extends string>({
   const w = useRef(new Animated.Value(0)).current;
   const shown = useRef(false);
   const scroller = useRef<ScrollView>(null);
-  // Identity-stable option key — inline option literals get a fresh identity
+  // Identity-stable option key, inline option literals get a fresh identity
   // every render, so never depend on the array itself.
   const optionKey = options.map((o) => o.value).join('|');
 

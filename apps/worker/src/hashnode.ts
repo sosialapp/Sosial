@@ -42,20 +42,20 @@ async function gql<T>(pat: string, query: string, variables: Record<string, unkn
 export async function publishHashnodeTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {
   const b = bundle;
   if (!b.secrets.access_secret_id) {
-    throw new Error('Hashnode token is missing — reconnect the channel in Connect.');
+    throw new Error('Hashnode token is missing, reconnect the channel in Connect.');
   }
   const pat = await readSecret(b.secrets.access_secret_id);
   if (!pat) {
-    throw new Error('Hashnode token is missing — reconnect the channel in Connect.');
+    throw new Error('Hashnode token is missing, reconnect the channel in Connect.');
   }
   const publicationId = String(b.channel.external_id ?? '').trim();
-  if (!publicationId) throw new Error('Hashnode publication is missing — reconnect the channel in Connect.');
+  if (!publicationId) throw new Error('Hashnode publication is missing, reconnect the channel in Connect.');
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
   const articleMarkdown = typeof art?.markdown === 'string' ? art.markdown.trim() : '';
   const body = articleMarkdown || text;
-  if (!body) throw new Error('Hashnode needs article text — this post is empty.');
+  if (!body) throw new Error('Hashnode needs article text, this post is empty.');
   const title = (b.post.title ?? '').trim() || body.replace(/^#+\s*/, '').split('\n')[0].slice(0, 120);
 
   const created = await gql<{ publishPost: { post: { id: string; slug: string; url: string } } }>(

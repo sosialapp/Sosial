@@ -11,7 +11,7 @@ function scopeRoot(anchor: HTMLElement | null): HTMLElement | null {
   );
 }
 
-/** Light/dark switch. Only works inside a ThemeScope (dashboard, login) —
+/** Light/dark switch. Only works inside a ThemeScope (dashboard, login) -
  *  anywhere else it renders inert so marketing can never go dark. */
 export default function ThemeToggle() {
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -39,7 +39,7 @@ export default function ThemeToggle() {
     try {
       localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
     } catch {
-      /* private mode — theme just won't persist */
+      /* private mode, theme just won't persist */
     }
     // Keep a second toggle on the same page (header + profile) in sync.
     window.dispatchEvent(new Event('sosial-theme'));

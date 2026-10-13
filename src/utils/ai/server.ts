@@ -1,7 +1,7 @@
 import { callEdgeFunction, isSupabaseConfigured, supabase } from '../supabase';
 
 /**
- * The AI assistant is branded to users as one named model — the same label the
+ * The AI assistant is branded to users as one named model, the same label the
  * web app shows. The provider model behind it is internal.
  */
 export const AI_SERVER_LABEL = 'GPT-5.6 Luna';
@@ -35,7 +35,7 @@ export async function serverGenerate(args: ServerGenArgs): Promise<any> {
     action: args.action ?? 'post',
   });
   if (!json || json.raw === undefined || json.raw === null) {
-    throw new Error('The AI returned nothing — try again.');
+    throw new Error('The AI returned nothing, try again.');
   }
   return json.raw;
 }

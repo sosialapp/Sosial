@@ -1,5 +1,5 @@
 /**
- * StudioCanvas — DOM port of mobile PostCanvas. Inline styles throughout so
+ * StudioCanvas, DOM port of mobile PostCanvas. Inline styles throughout so
  * the export serializer captures the tree exactly. k = width / 340.
  */
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -46,7 +46,7 @@ function contrastRatio(a: string, b: string): number {
 
 /** Auto-fit: measures the available body height against the natural content
  *  height and scales the content down (min 45%) so nothing ever clips out of
- *  the fixed card. Port of mobile SocialCardChrome's AutoFit — keep in sync. */
+ *  the fixed card. Port of mobile SocialCardChrome's AutoFit, keep in sync. */
 function AutoFit({ gap, children }: { gap?: number; children: React.ReactNode }) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
@@ -127,7 +127,7 @@ function chromeCtx(page: PostPage): ChromeCtx {
     name: uni || firstHandle.replace(/^@/, ''),
     firstHandle,
     showCheck: page.verified ?? true,
-    // The watermark switch lives on the page — every chrome style honours it.
+    // The watermark switch lives on the page, every chrome style honours it.
     watermark: page.showWatermark ?? true,
   };
 }
@@ -170,7 +170,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
   const watermark = wmProp ?? c.watermark ?? true;
   const bodyPad = 13 * k;
   // Flex column so the AutoFit wrapper inside is height-bounded. The old
-  // `gap` here was dead CSS (gap needs display:flex) — block margins are the
+  // `gap` here was dead CSS (gap needs display:flex), block margins are the
   // real spacing, so dropping it keeps rendering identical.
   const bodyStyle: React.CSSProperties = fit
     ? { padding: bodyPad, flexShrink: 1, maxHeight: maxH, overflow: 'hidden', display: 'flex', flexDirection: 'column' }
@@ -221,7 +221,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
-          {/* Identity reads as one unit — name, seal and handle glued tight
+          {/* Identity reads as one unit, name, seal and handle glued tight
               (the handle truncates, the name never does, like the real app). */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 3 * k, minWidth: 0, flexShrink: 1 }}>
             <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, whiteSpace: 'nowrap', flexShrink: 0 }}>{c.name}</span>
@@ -242,7 +242,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
         </div>
         <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
-            action row — full-width, aspect-preserved, nudged down. */}
+            action row, full-width, aspect-preserved, nudged down. */}
         <div style={{ padding: `2px ${14 * k}px ${10 * k}px`, marginTop: 2 * k }}>
           <svg viewBox="0 0 357 54" style={{ display: 'block', width: '100%', height: 'auto' }} aria-hidden="true">
             <g fill="#6D6D6D">
@@ -311,7 +311,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
       <div style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
-          {/* Identity reads as one unit — handle, seal and time glued tight
+          {/* Identity reads as one unit, handle, seal and time glued tight
               like the real app, instead of the time floating a row-gap away. */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 3 * k, minWidth: 0, flexShrink: 1 }}>
             <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -323,7 +323,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           {c.watermark ? <Watermark font={c.font} size={8} color={c.faint} k={k} /> : null}
           <span style={{ flex: 1 }} />
           {/* Official Threads wordmark (1922×375.61 art normalized into a
-              wide box) — currentColor, theme-aware. The viewBox is padded
+              wide box), currentColor, theme-aware. The viewBox is padded
               ~1.6% on every side: the raw asset's glyphs sit flush against
               its own bounds, and at 40×8 px they get shaved at the box
               edge. The nudge down keeps the glyphs on the handle baseline. */}
@@ -553,7 +553,7 @@ export default function StudioCanvas({
               {page.cardH ? (
                 /* fixed: exact height, clamped to what fits so the card can
                    never shove the profile/socials rows off the canvas. The
-                   wrapper must be a flex column — the Chrome shell is
+                   wrapper must be a flex column, the Chrome shell is
                    flex:1, and in a plain block wrapper it would ignore the
                    height and hug its content instead. */
                 <div style={{ height: Math.min(pad(page.cardH), cardMax), display: 'flex', flexDirection: 'column' }}>
@@ -629,7 +629,7 @@ function AvatarMark({ page, size, k }: { page: PostPage; size: number; k: number
 
 function Watermark(props: { font: FontId; size: number; color: string; k: number }) {
   // "Made with sosial.app" text + bolt, no badge background. data-watermark
-  // lets the export pipeline strip this DOM copy — the server composites its
+  // lets the export pipeline strip this DOM copy, the server composites its
   // own on the downloaded file, so preview and download stay consistent.
   return (
     <span
@@ -682,7 +682,7 @@ function TitleBlock({ page, k }: { page: PostPage; k: number }) {
 }
 
 function PfpRow({ page, k }: { page: PostPage; k: number }) {
-  // Photo and socials hide independently — only an empty row returns null.
+  // Photo and socials hide independently, only an empty row returns null.
   const photoOff = page.pfp.hidden ?? false;
   const socialsOff = page.pfp.socialsHidden ?? false;
   if (photoOff && socialsOff) return null;

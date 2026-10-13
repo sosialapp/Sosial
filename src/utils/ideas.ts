@@ -26,7 +26,7 @@ export interface Idea {
   updatedAt?: number;
 }
 
-/** Legacy ideas stored `thread` as bare strings — normalize on load so old
+/** Legacy ideas stored `thread` as bare strings, normalize on load so old
  *  chains keep working next to the new media-carrying segments. */
 function normThread(t: unknown): ThreadSeg[] | undefined {
   if (!Array.isArray(t) || t.length === 0) return undefined;

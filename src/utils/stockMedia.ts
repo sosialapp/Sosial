@@ -1,5 +1,5 @@
 /**
- * Stock search client (Pexels + Unsplash) via edge functions — keys never
+ * Stock search client (Pexels + Unsplash) via edge functions, keys never
  * touch the device. Unsplash attribution is appended by the caller at attach
  * time (see attachStockItem), never here, so no path can skip it.
  */
@@ -32,14 +32,14 @@ export async function searchStock(
   return items.map((x: any) => ({ ...x, source }));
 }
 
-/** Unsplash license credit line — auto-appended to captions, non-optional.
+/** Unsplash license credit line, auto-appended to captions, non-optional.
  *  Format matches Unsplash's own attribution example. */
 export function unsplashCredit(item: StockItem): string {
   return `Photo by ${item.author} on Unsplash (${item.authorUrl})`;
 }
 
 /** Unsplash production requirement: firing a download event when a photo is
- *  used. Fire-and-forget — the attach never waits on it. */
+ *  used. Fire-and-forget, the attach never waits on it. */
 async function trackUnsplashDownload(id: string): Promise<void> {
   try {
     await callEdgeFunction('unsplash-download', { id });
@@ -58,6 +58,6 @@ export async function downloadStockItem(item: StockItem): Promise<{ uri: string;
     await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}stock/`, { intermediates: true });
   } catch {}
   const dl = await FileSystem.downloadAsync(item.full, dest);
-  if (dl.status !== 200) throw new Error('Stock download failed — try another one.');
+  if (dl.status !== 200) throw new Error('Stock download failed, try another one.');
   return { uri: dl.uri, kind: item.kind };
 }

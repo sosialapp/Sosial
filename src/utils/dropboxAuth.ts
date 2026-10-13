@@ -1,6 +1,6 @@
 /**
  * Dropbox OAuth + browser (device-side SecureStore tokens; app key/secret
- * baked per the TikTok precedent — the owner pasted them explicitly).
+ * baked per the TikTok precedent, the owner pasted them explicitly).
  * Scopes: files.metadata.read + files.content.read (read-only).
  * Downloads happen at pick time and flow through the normal pipeline after.
  */
@@ -25,7 +25,7 @@ async function syncCloud(provider: string, t: { accessToken: string; refreshToke
 
 /** Public identifier (appears in authorize URLs by design). */
 const APP_KEY = process.env.EXPO_PUBLIC_DROPBOX_APP_KEY ?? '';
-/** Confidential half — `.env` / EAS secret, never source (see scan-secrets). */
+/** Confidential half, `.env` / EAS secret, never source (see scan-secrets). */
 const APP_SECRET = process.env.EXPO_PUBLIC_DROPBOX_APP_SECRET ?? '';
 const SCOPES = 'files.metadata.read files.content.read';
 const AUTH_ENDPOINT = 'https://www.dropbox.com/oauth2/authorize';
@@ -162,7 +162,7 @@ export async function getValidDropboxToken(): Promise<string> {
     }),
   });
   const j: any = await r.json().catch(() => ({}));
-  if (!j?.access_token) throw new Error('Dropbox session expired — reconnect Dropbox.');
+  if (!j?.access_token) throw new Error('Dropbox session expired, reconnect Dropbox.');
   const next: StoredTokens = {
     accessToken: String(j.access_token),
     refreshToken: String(j.refresh_token ?? t.refreshToken),
@@ -227,7 +227,7 @@ export async function listDropboxFolder(path?: string): Promise<{ folders: Dropb
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         // Struct params take no entry-level '.tag' (Dropbox 400s on unknown
         // fields); format/size are unions so tagged objects or shorthand
-        // both work. No `mode` — server default converts HEIC etc. Videos
+        // both work. No `mode`, server default converts HEIC etc. Videos
         // always fail thumbnails, so only images go in.
         body: JSON.stringify({
           entries: images.slice(0, 100).map((f) => ({
@@ -299,6 +299,6 @@ export async function downloadDropboxFile(entry: DropboxEntry): Promise<{ uri: s
       'Dropbox-API-Arg': JSON.stringify({ path: entry.path }),
     },
   });
-  if (dl.status !== 200) throw new Error('Dropbox download failed — try another file.');
+  if (dl.status !== 200) throw new Error('Dropbox download failed, try another file.');
   return { uri: dl.uri, kind: entry.kind };
 }

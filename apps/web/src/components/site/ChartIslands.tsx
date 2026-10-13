@@ -28,7 +28,7 @@ interface ChartPayload {
 /**
  * Hydrates the empty <figure class="sosial-chart" data-chart="…"> placeholders
  * the blog serializer emits. Server HTML ships the data; only the drawing
- * happens client-side (charts are visual — all text stays in the HTML).
+ * happens client-side (charts are visual, all text stays in the HTML).
  */
 export default function ChartIslands() {
   useEffect(() => {

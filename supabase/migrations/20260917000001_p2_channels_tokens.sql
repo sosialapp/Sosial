@@ -6,7 +6,7 @@
 -- connected_channels row per connected account (IG/Threads rows point at
 -- their FB Page via parent_id; Bluesky rows carry the PDS in instance_url).
 --
--- SECURITY: channel_tokens + oauth_states have RLS enabled with NO policies —
+-- SECURITY: channel_tokens + oauth_states have RLS enabled with NO policies -
 -- only service_role (Edge Functions + worker) can touch them. Tokens themselves
 -- live in Supabase Vault; these tables store secret ids, never ciphertext the
 -- client can read. (Enable Vault per supabase/README.md before P2 code runs.)
@@ -32,7 +32,7 @@ create table connected_channels (
     check (status in ('connected', 'expired', 'revoked', 'error')),
   last_error text,
   -- non-secret extras: pinBoardId/pinBoardName, ttLastPrivacy, ytPrivacy
-  -- defaults, liOrg selection mirror — never tokens
+  -- defaults, liOrg selection mirror, never tokens
   metadata jsonb not null default '{}',
   connected_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -116,7 +116,7 @@ create policy "channels_owner_admin_write" on connected_channels for all to auth
     or workspace_id in (select id from workspaces where owner_id = auth.uid())
   );
 
--- tokens + oauth states: NO policies — service_role only, by design.
+-- tokens + oauth states: NO policies, service_role only, by design.
 -- (A table with RLS enabled and zero policies denies authenticated + anon.)
 
 -- account grants: mirror the P1 provider-grant policies

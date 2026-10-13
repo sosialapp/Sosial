@@ -2,7 +2,7 @@
 --
 -- Publish-time per-platform guards need the real byte size (YouTube ≤10 GB,
 -- other video ≤1 GB, images ≤10 MB) and duration (YouTube ≤4 h). The bundle
--- previously stopped at storage_path/kind/mime — the worker had to download
+-- previously stopped at storage_path/kind/mime, the worker had to download
 -- bytes to learn the size. byte_size is written by the media edge function on
 -- upload; legacy rows may be NULL (guards fall back to a storage HEAD).
 

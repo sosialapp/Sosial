@@ -36,9 +36,9 @@ function perr(j: any, status: number, fallback: string): string {
     (typeof j?.error === 'string' ? j.error : j?.error?.message) ||
     j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
-  if (status === 401) return 'Pinterest session expired — reconnect Pinterest.';
-  if (status === 403) return `${base} — the app may lack a scope or production access; check developers.pinterest.com.`;
-  if (status === 429) return 'Pinterest rate limit hit — the job will retry shortly.';
+  if (status === 401) return 'Pinterest session expired, reconnect Pinterest.';
+  if (status === 403) return `${base}, the app may lack a scope or production access; check developers.pinterest.com.`;
+  if (status === 429) return 'Pinterest rate limit hit, the job will retry shortly.';
   return `${base} (${status})`;
 }
 
@@ -81,10 +81,10 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
     if (access) return access;
   }
   if (!b.secrets.refresh_secret_id) {
-    throw new Error('Pinterest session expired — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('Pinterest session expired, toggle cloud publishing off and on in Connect to refresh.');
   }
   const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('Pinterest session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (!refresh) throw new Error('Pinterest session expired, toggle cloud publishing off and on in Connect to refresh.');
   const { id, secret } = clientCreds();
   const r = await fetch(PIN_TOKEN_ENDPOINT, {
     method: 'POST',
@@ -102,9 +102,9 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   if (!j?.access_token) {
     const msg = String(j?.error_description || j?.error || j?.message || 'Pinterest session expired');
     if (/invalid_grant|invalid_request|expired|unauthorized/i.test(msg)) {
-      throw new Error('Pinterest session expired — reconnect Pinterest.');
+      throw new Error('Pinterest session expired, reconnect Pinterest.');
     }
-    throw new Error(`${msg} — toggle cloud publishing off and on in Connect to refresh.`);
+    throw new Error(`${msg}, toggle cloud publishing off and on in Connect to refresh.`);
   }
   const newAccess = String(j.access_token);
   const newRefresh = String(j.refresh_token || refresh);
@@ -196,9 +196,9 @@ async function createVideoPin(boardId: string, token: string, title: string, des
     ).json().catch(() => ({}));
     const status = String(st?.status ?? '').toLowerCase();
     if (status === 'succeeded') break;
-    if (status === 'failed') throw new Error('Video: Pinterest could not process that video — try MP4 under 15 minutes.');
+    if (status === 'failed') throw new Error('Video: Pinterest could not process that video, try MP4 under 15 minutes.');
     if (Date.now() - start > MEDIA_POLL_MS) {
-      throw new Error('Video: Pinterest is still processing the video — the job will retry shortly.');
+      throw new Error('Video: Pinterest is still processing the video, the job will retry shortly.');
     }
     await sleep(delay);
     delay = Math.min(delay + 2000, 10000);
@@ -220,7 +220,7 @@ async function createVideoPin(boardId: string, token: string, title: string, des
 }
 
 /**
- * Full target publish. Pinterest has no multi-photo post — one Pin per image
+ * Full target publish. Pinterest has no multi-photo post, one Pin per image
  * (same caption, numbered titles) plus a video Pin when attached.
  * Returns the first Pin id + permalink.
  */
@@ -240,7 +240,7 @@ export async function publishPinterestTarget(bundle: Bundle): Promise<{ remoteId
     .filter((m) => m.kind === 'video')
     .sort((a, z) => a.position - z.position)[0];
   if (images.length === 0 && !video) {
-    throw new Error('Pinterest Pins need a photo or video — attach media first.');
+    throw new Error('Pinterest Pins need a photo or video, attach media first.');
   }
   const ids: string[] = [];
   if (video) {
@@ -248,7 +248,7 @@ export async function publishPinterestTarget(bundle: Bundle): Promise<{ remoteId
     try {
       raw = await storageDownload(await storageSign('post-media', video.storage_path), MAX_VIDEO_BYTES);
     } catch (e: any) {
-      throw new Error(`Video: download failed — ${e?.message ?? 'storage error'}`);
+      throw new Error(`Video: download failed, ${e?.message ?? 'storage error'}`);
     }
     ids.push(await createVideoPin(boardId, token, firstLine || 'Sosial video', caption, raw, videoMime(video.storage_path, video.mime_type)));
   }
@@ -261,7 +261,7 @@ export async function publishPinterestTarget(bundle: Bundle): Promise<{ remoteId
     try {
       raw = await storageDownload(await storageSign('post-media', m.storage_path));
     } catch (e: any) {
-      throw new Error(`Photo ${i + 1}/${images.length}: download failed — ${e?.message ?? 'storage error'}`);
+      throw new Error(`Photo ${i + 1}/${images.length}: download failed, ${e?.message ?? 'storage error'}`);
     }
     ids.push(await createImagePin(boardId, token, title, caption, raw, imageMime(m.storage_path, m.mime_type), `Photo ${i + 1}/${images.length}`));
   }

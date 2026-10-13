@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/** Sosial — brand trio: bolt yellow on black and white.
+/** Sosial, brand trio: bolt yellow on black and white.
  * App chrome type: Space Grotesk display + Inter UI. NOTE: custom families
- * must never be paired with fontWeight (iOS drops the font) — use the Bold
+ * must never be paired with fontWeight (iOS drops the font), use the Bold
  * family files instead.
  *
  * Colors are dynamic: consume via useTheme(), never import C directly.
@@ -126,9 +126,9 @@ export const T = {
   body: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, lineHeight: 21 },
   small: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18 },
   micro: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, lineHeight: 16 },
-  /** eyebrow kicker — the ONLY all-caps style, for screen headers */
+  /** eyebrow kicker, the ONLY all-caps style, for screen headers */
   tag: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, letterSpacing: 1.8 },
 };
 
-/** Muted editorial data palette (charts) — bolt-led trio scale */
+/** Muted editorial data palette (charts), bolt-led trio scale */
 export const DATA = ['#FFC62E', '#8A8A8A', '#3A3A3A', '#C9A227', '#6E6E6E', '#1C1A14', '#E8D48B', '#4A4A4A', '#A8842C', '#B5B5B5', '#5C5C5C', '#F2A400'];

@@ -2,8 +2,8 @@ import ChartIslands from '@/components/site/ChartIslands';
 import { sitePageHtml } from '@/lib/sitePages';
 
 /**
- * CMS content slot for marketing pages. Renders nothing — not even its
- * wrapper — until an admin saves content for the slug in /admin/pages, so
+ * CMS content slot for marketing pages. Renders nothing, not even its
+ * wrapper, until an admin saves content for the slug in /admin/pages, so
  * unwired pages are visually identical, and removing the row restores the
  * default design instantly.
  */

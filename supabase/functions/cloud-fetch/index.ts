@@ -1,14 +1,14 @@
 // cloud-fetch · byte proxy for media-source downloads (web picker)
 //
 // Google Photos original URLs live on lh3.googleusercontent.com, which does
-// not send CORS headers — the browser cannot fetch them directly. This fn
+// not send CORS headers, the browser cannot fetch them directly. This fn
 // streams the bytes through (host-allowlisted, signed-URL only). NOTHING is
 // persisted: bytes pass through to the signed-in caller and are forgotten.
 //
 // POST { url, bearer? }
 // → 200 <bytes> (content-type preserved)
 //   · 401 unauthenticated · 403 host not allow-listed
-// `bearer` (optional): a provider OAuth token forwarded as Authorization —
+// `bearer` (optional): a provider OAuth token forwarded as Authorization -
 // Google Picker base URLs validate the requester's identity.
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 

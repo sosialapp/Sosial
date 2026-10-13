@@ -13,7 +13,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const st = block.style;
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   // chartVariant re-aims the block at any renderer; absent = type default.
-  // Mirrors web blocks.tsx ChartBlock — keep in sync.
+  // Mirrors web blocks.tsx ChartBlock, keep in sync.
   const variant = st?.chartVariant ?? (block.type === 'bar' ? 'hbar' : block.type);
   const showV = st?.chartShowValues ?? true;
   const showL = st?.chartShowLabels ?? true;
@@ -197,7 +197,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable).
- *  Mirrors web blocks.tsx BlockView — keep in sync. */
+ *  Mirrors web blocks.tsx BlockView, keep in sync. */
 export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
   const { block } = props;
   const st = block.style;
@@ -310,7 +310,7 @@ function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = fals
       ? {
           width: `${crop.zoom * 100}%` as any,
           height: `${crop.zoom * 100}%` as any,
-          // (x-1) mapping: -1 shows the left edge, +1 the right, 0 centered —
+          // (x-1) mapping: -1 shows the left edge, +1 the right, 0 centered -
           // always full frame coverage. Matches web blocks.tsx.
           transform: [
             { translateX: ((crop.x - 1) * overX) / 2 },
@@ -329,7 +329,7 @@ function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = fals
           </View>
         ) : (
           <View style={[frame, { width: '100%', borderRadius: radius, borderWidth: hair, borderStyle: 'dashed', borderColor: tc + '66', alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={{ ...F(font), fontSize: sz(10, 0.03), color: tc + '99' }}>No image yet — pick one in the editor</Text>
+            <Text style={{ ...F(font), fontSize: sz(10, 0.03), color: tc + '99' }}>No image yet, pick one in the editor</Text>
           </View>
         )}
       </View>

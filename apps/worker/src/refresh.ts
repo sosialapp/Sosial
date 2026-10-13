@@ -11,7 +11,7 @@
  * - fresh token / successful rotation → job succeeds.
  * - auth-dead (revoked/expired refresh, missing secrets) → the channel is
  *   marked 'expired' with last_error so the UI prompts a reconnect, and the
- *   job succeeds (nothing to retry — a retry would fail identically).
+ *   job succeeds (nothing to retry, a retry would fail identically).
  * - anything else (network, provider 5xx, rate limit) → throw, so the job
  *   backs off and retries.
  */
@@ -56,7 +56,7 @@ async function getChannel(channelId: string): Promise<ChannelRow | null> {
  *  auth-flavoured errors so the shared catch below marks the channel expired. */
 async function pingChannel(c: ChannelRow, t: TokenRow): Promise<void> {
   const secret = t.access_token_secret_id ? await readSecret(t.access_token_secret_id) : null;
-  if (!secret) throw new Error('Token secrets missing — reconnect the channel.');
+  if (!secret) throw new Error('Token secrets missing, reconnect the channel.');
   if (c.provider === 'telegram') {
     const r = await fetch(`https://api.telegram.org/bot${secret}/getMe`);
     const j = (await r.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
@@ -70,7 +70,7 @@ async function pingChannel(c: ChannelRow, t: TokenRow): Promise<void> {
       headers: { Authorization: `Bot ${secret}` },
     });
     if (r.status === 401 || r.status === 403) {
-      throw new Error('Discord rejected the bot token (unauthorized) — reconnect the channel.');
+      throw new Error('Discord rejected the bot token (unauthorized), reconnect the channel.');
     }
     if (!r.ok) throw new Error(`Discord ping failed (${r.status})`);
     return;
@@ -83,12 +83,12 @@ async function pingChannel(c: ChannelRow, t: TokenRow): Promise<void> {
     .replace(/\/+$/, '')
     .split('/')[0]
     .split('?')[0];
-  if (!host || /\s/.test(host)) throw new Error('Mastodon channel missing its instance — reconnect the channel.');
+  if (!host || /\s/.test(host)) throw new Error('Mastodon channel missing its instance, reconnect the channel.');
   const r = await fetch(`https://${host}/api/v1/accounts/verify_credentials`, {
     headers: { Authorization: `Bearer ${secret}` },
   });
   if (r.status === 401 || r.status === 403) {
-    throw new Error('Mastodon rejected the token (unauthorized) — reconnect the channel.');
+    throw new Error('Mastodon rejected the token (unauthorized), reconnect the channel.');
   }
   if (!r.ok) throw new Error(`Mastodon ping failed (${r.status})`);
 }
@@ -114,16 +114,16 @@ export async function refreshChannelToken(
   if (!t.access_token_secret_id && !t.refresh_token_secret_id) {
     await restPatch('connected_channels', c.id, {
       status: 'expired',
-      last_error: 'Token secrets missing — reconnect the channel.',
+      last_error: 'Token secrets missing, reconnect the channel.',
     });
-    await notifyExpired('Token secrets missing — reconnect the channel.');
+    await notifyExpired('Token secrets missing, reconnect the channel.');
     warn(`refresh ${c.provider}/${c.external_id}: no secrets, marked expired`);
     return 'skipped';
   }
 
   const b = bundleFor(c, t);
   try {
-    // Bot-token providers don't rotate — a live ping is the health check.
+    // Bot-token providers don't rotate, a live ping is the health check.
     // Mastodon tokens don't expire either; verify_credentials proves them.
     if (c.provider === 'telegram' || c.provider === 'discord' || c.provider === 'mastodon') {
       await pingChannel(c, t);
@@ -174,7 +174,7 @@ export async function refreshChannelToken(
       return 'skipped';
     }
     // Refresh can never run without the provider's OAuth client keys on the
-    // worker — and lazy refresh at publish time fails identically, so the
+    // worker, and lazy refresh at publish time fails identically, so the
     // channel genuinely cannot publish. Mark + notify with an actionable
     // reason; reconnecting heals it until the next expiry.
     if (/needs .+ on the worker/i.test(msg)) {

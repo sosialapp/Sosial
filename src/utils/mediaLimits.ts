@@ -1,5 +1,5 @@
 /**
- * Product media rules — mobile mirror of apps/web/src/lib/mediaLimits.ts.
+ * Product media rules, mobile mirror of apps/web/src/lib/mediaLimits.ts.
  * The composer pre-checks picks here; the worker re-checks per platform at
  * publish time; the edge `media` function enforces the upload ceilings.
  */
@@ -8,7 +8,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 /** Images: ≤10 MB everywhere they can go. */
 export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
-/** Video upload ceiling — the YouTube limit, also the hard R2 object ceiling. */
+/** Video upload ceiling, the YouTube limit, also the hard R2 object ceiling. */
 export const VIDEO_MAX_BYTES = 10 * 1024 * 1024 * 1024;
 
 /** YouTube: ≤10 GB AND ≤4 hours. */
@@ -45,10 +45,10 @@ export interface MediaFile {
 export function validateUpload(f: MediaFile): string | null {
   if (f.size <= 0) return `${f.name} looks empty.`;
   if (f.kind === 'image' && f.size > IMAGE_MAX_BYTES) {
-    return `${f.name} is ${formatBytes(f.size)} — images can be up to 10 MB.`;
+    return `${f.name} is ${formatBytes(f.size)}, images can be up to 10 MB.`;
   }
   if (f.kind === 'video' && f.size > VIDEO_MAX_BYTES) {
-    return `${f.name} is ${formatBytes(f.size)} — videos can be up to 10 GB.`;
+    return `${f.name} is ${formatBytes(f.size)}, videos can be up to 10 GB.`;
   }
   return null;
 }
@@ -69,7 +69,7 @@ export function targetWarnings(files: MediaFile[], providers: string[]): string[
           out.push(`${f.name} is longer than YouTube's 4-hour limit.`);
         }
       } else if (f.size > VIDEO_PLATFORM_MAX_BYTES) {
-        out.push(`${f.name} is over 1 GB — too big for ${p}.`);
+        out.push(`${f.name} is over 1 GB, too big for ${p}.`);
       }
     }
   }

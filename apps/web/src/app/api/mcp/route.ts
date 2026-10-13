@@ -11,7 +11,7 @@ export const maxDuration = 60;
 /**
  * Sosial MCP endpoint (Streamable HTTP, stateless mode).
  *
- * Auth: existing workspace API key as `Authorization: Bearer <key>` —
+ * Auth: existing workspace API key as `Authorization: Bearer <key>` -
  * the same credential model Zapier uses (hashed, shown once, revocable,
  * per-workspace), extended with scopes + optional expiry for MCP clients.
  * Every request resolves to exactly one workspace before any tool runs;

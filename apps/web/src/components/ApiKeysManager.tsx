@@ -85,7 +85,7 @@ export default function ApiKeysManager({ canManage }: { canManage: boolean }) {
       await navigator.clipboard.writeText(freshKey);
       setCopied(true);
     } catch {
-      setError('Copy failed — select the key manually.');
+      setError('Copy failed, select the key manually.');
     }
   };
 
@@ -94,13 +94,13 @@ export default function ApiKeysManager({ canManage }: { canManage: boolean }) {
       <h2 className="font-display text-base font-extrabold tracking-tight">API keys</h2>
       <p className="mt-1 text-sm text-muted">
         Keys let Zapier, Make or your own code create posts in this workspace. A key posts
-        with owner permissions — keep it secret.
+        with owner permissions, keep it secret.
       </p>
 
       {freshKey ? (
         <div className="mt-4 rounded-2xl border border-line bg-card p-4">
           <p className="text-sm font-bold">
-            Copy this key now — it will never be shown again.
+            Copy this key now, it will never be shown again.
           </p>
           <code className="mt-2 block break-all rounded-xl bg-ink px-3 py-2 font-mono text-sm text-paper">
             {freshKey}
@@ -159,7 +159,7 @@ export default function ApiKeysManager({ canManage }: { canManage: boolean }) {
           </li>
         ))}
         {keys.length === 0 ? (
-          <li className="text-sm text-faint">No keys yet — create one to connect Zapier.</li>
+          <li className="text-sm text-faint">No keys yet, create one to connect Zapier.</li>
         ) : null}
       </ul>
     </section>

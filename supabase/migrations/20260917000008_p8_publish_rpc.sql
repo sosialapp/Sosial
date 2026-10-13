@@ -3,7 +3,7 @@
 -- The worker needs everything for one target in a single round trip, and it
 -- must record terminal state on post_targets (cron only enqueues 'queued'
 -- targets, so without mark_target_sent a success would re-enqueue and
--- double-post). Plaintext tokens are NEVER included — the worker reads them
+-- double-post). Plaintext tokens are NEVER included, the worker reads them
 -- through the P4 vault_read_secret helper using the ids below.
 
 create or replace function get_publish_bundle(target_id uuid)

@@ -1,4 +1,4 @@
--- p67 — analytics stats grants.
+-- p67, analytics stats grants.
 -- The p4x analytics migrations created member-read RLS policies on
 -- post_stats / channel_stats but never GRANTed privileges to `authenticated`
 -- (same defect class as p66/reports). Mobile analytics (cloudAnalytics.ts)

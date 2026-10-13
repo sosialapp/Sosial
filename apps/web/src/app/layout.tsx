@@ -10,10 +10,10 @@ export const metadata: Metadata = {
     template: '%s · Sosial',
   },
   description:
-    'Plan, write and publish to X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest — one composer, calendar and queue.',
+    'Plan, write and publish to X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest, one composer, calendar and queue.',
   icons: { icon: '/bolt.png' },
   // Social images resolve from the generated opengraph-image routes
-  // (root brand card + per-article cards) — no static images here.
+  // (root brand card + per-article cards), no static images here.
   openGraph: {
     type: 'website',
     siteName: 'Sosial',

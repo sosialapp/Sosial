@@ -10,7 +10,7 @@ import {
   isPlanKey,
 } from './plans';
 
-/** The one price book — these numbers are contract. A change here MUST match
+/** The one price book, these numbers are contract. A change here MUST match
  *  apps/web/src/lib/billing/plans.ts and every pricing surface. */
 describe('price book (contract)', () => {
   it('charges the exact published prices', () => {

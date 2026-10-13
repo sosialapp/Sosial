@@ -20,7 +20,7 @@ export function PageHero({
   eyebrow: string;
   title: string;
   lede: string;
-  /** small faint line under the lede — the CMS "Updated …" date. */
+  /** small faint line under the lede, the CMS "Updated …" date. */
   meta?: string;
   primary?: { href: string; label: string };
   secondary?: { href: string; label: string };

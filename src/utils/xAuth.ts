@@ -4,7 +4,7 @@ import { X_CLIENT_ID, X_AUTH_ENDPOINT, X_TOKEN_ENDPOINT, X_API, X_SCOPES } from 
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
 import { loadProviderFields, saveProviderFields } from './metaStore';
 
-/** X nests errors three different ways — normalize to a human string.
+/** X nests errors three different ways, normalize to a human string.
  *  The machine code (invalid_grant etc.) is appended so failures are debuggable. */
 function xerr(j: any, fallback: string): string {
   const m =
@@ -18,7 +18,7 @@ function xerr(j: any, fallback: string): string {
   const withCode =
     typeof code === 'string' && code.length > 0 && !base.includes(code) ? `${base} (${code})` : base;
   if (/client_id|callback|redirect_uri/i.test(withCode)) {
-    return `${withCode} — check the Client ID in xConfig.ts and the Callback URI in the X portal.`;
+    return `${withCode}, check the Client ID in xConfig.ts and the Callback URI in the X portal.`;
   }
   return withCode;
 }
@@ -54,7 +54,7 @@ async function challengeFor(verifier: string): Promise<string> {
 export async function loginX(accountId?: string): Promise<boolean> {
   const verifier = await newVerifier();
   const challenge = await challengeFor(verifier);
-  // the verifier must survive an Expo Go reload mid-login — the code is
+  // the verifier must survive an Expo Go reload mid-login, the code is
   // useless without it, so persist alongside the pending channel
   try {
     await AsyncStorage.setItem(VERIFIER_KEY, verifier);
@@ -88,7 +88,7 @@ export async function exchangeXCode(code: string): Promise<XTokens> {
   try {
     verifier = (await AsyncStorage.getItem(VERIFIER_KEY)) ?? '';
   } catch {}
-  if (!verifier) throw new Error('X login was interrupted — try connecting again.');
+  if (!verifier) throw new Error('X login was interrupted, try connecting again.');
   const r = await fetch(X_TOKEN_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -112,7 +112,7 @@ export async function exchangeXCode(code: string): Promise<XTokens> {
   };
 }
 
-/** Silent mint — X rotates the refresh token on every use, so both tokens
+/** Silent mint, X rotates the refresh token on every use, so both tokens
  *  are persisted in the single write below (the old refresh dies instantly). */
 export async function refreshXToken(refreshToken: string): Promise<XTokens> {
   const r = await fetch(X_TOKEN_ENDPOINT, {
@@ -125,7 +125,7 @@ export async function refreshXToken(refreshToken: string): Promise<XTokens> {
     }),
   });
   const j: any = await r.json().catch(() => ({}));
-  if (!j.access_token) throw new Error(xerr(j, 'X session expired — reconnect X.'));
+  if (!j.access_token) throw new Error(xerr(j, 'X session expired, reconnect X.'));
   return {
     accessToken: j.access_token as string,
     refreshToken: (j.refresh_token as string) || refreshToken,
@@ -159,7 +159,7 @@ export async function getValidXToken(accountId?: string): Promise<string> {
     const msg = String(e?.message ?? '');
     if (/invalid_grant|invalid_request|expired/i.test(msg)) {
       await saveProviderFields('x', { xAccessToken: undefined, xRefreshToken: undefined, xExpiresAt: undefined }, accountId);
-      throw new Error('X session expired — reconnect X.');
+      throw new Error('X session expired, reconnect X.');
     }
     throw e;
   }

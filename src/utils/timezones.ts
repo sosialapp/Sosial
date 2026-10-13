@@ -1,14 +1,14 @@
 /**
  * Timezone helpers for the scheduler (mirrors the web DateTimePicker math).
  * Everything is defensive: Hermes/older engines may lack
- * `supportedValuesOf` or full ICU — every helper falls back to device-zone
+ * `supportedValuesOf` or full ICU, every helper falls back to device-zone
  * behavior instead of throwing.
  */
 
 /**
  * Complete canonical IANA zone set (what `Intl.supportedValuesOf('timeZone')`
  * returns on a full engine). Hermes does not implement supportedValuesOf, so
- * the app must carry its own list — the old 29-entry fallback made the
+ * the app must carry its own list, the old 29-entry fallback made the
  * scheduler's timezone picker feel "not full" on Android and older iOS.
  * Grouped by region; the picker also searches by city, so order is cosmetic.
  */
@@ -163,7 +163,7 @@ export function deviceZone(): string {
 }
 
 export function supportedZones(): string[] {
-  // Union of whatever the engine knows and the canonical list — Hermes has
+  // Union of whatever the engine knows and the canonical list, Hermes has
   // no supportedValuesOf, browsers do; either way every city is present.
   const set = new Set<string>(CANONICAL_ZONES);
   try {
@@ -217,7 +217,7 @@ export function offsetLabel(tz: string, at = Date.now()): string {
 
 /**
  * UTC ms for wall time (y, m 1-12, d, minutes) in tz. The schedule picker
- * value is a wall reading in the selected zone — same re-anchor rule as web.
+ * value is a wall reading in the selected zone, same re-anchor rule as web.
  */
 export function zonedToUtcMs(y: number, m: number, d: number, minutes: number, tz: string): number {
   const guess = Date.UTC(y, m - 1, d, 0, minutes);

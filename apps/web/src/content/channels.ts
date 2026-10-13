@@ -2,7 +2,7 @@ import type { ChannelGuide } from './types';
 
 /**
  * One guide per channel Sosial publishes to. Every number here is the real
- * platform limit at time of writing — if a limit changes, it changes here and
+ * platform limit at time of writing, if a limit changes, it changes here and
  * the composer, channel pages and pricing pages all follow.
  */
 export const CHANNEL_GUIDES: ChannelGuide[] = [
@@ -495,14 +495,14 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     name: 'Telegram',
     tagline: 'Channels and groups that reach subscribers without an algorithm in the way.',
     intro:
-      'Telegram delivers to everyone who opted in — no ranking, no reach throttling. Sosial connects your bot to a channel or group and queues messages with formatting and media intact, so an announcement lands the moment you schedule it.',
+      'Telegram delivers to everyone who opted in, no ranking, no reach throttling. Sosial connects your bot to a channel or group and queues messages with formatting and media intact, so an announcement lands the moment you schedule it.',
     limit: 1024,
     bestFor: ['Product and release announcements', 'Community updates for a channel', 'Time-sensitive drops'],
     facts: [
       { label: 'Message limit', value: '1,024 characters' },
       { label: 'Media', value: 'Photos, video, documents and albums' },
       { label: 'Formatting', value: 'Bold, italic, links and monospace via Markdown' },
-      { label: 'Delivery', value: 'Chronological — no feed algorithm' },
+      { label: 'Delivery', value: 'Chronological, no feed algorithm' },
     ],
     tips: [
       {
@@ -582,7 +582,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'Will it ping a role?',
-        a: 'Only if you include the mention in the message text — Sosial sends exactly what you write.',
+        a: 'Only if you include the mention in the message text, Sosial sends exactly what you write.',
       },
     ],
   },
@@ -622,7 +622,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     faqs: [
       {
         q: 'How does Sosial connect to WordPress?',
-        a: 'With an application password created in your WordPress user profile — no plugin required on recent versions.',
+        a: 'With an application password created in your WordPress user profile, no plugin required on recent versions.',
       },
       {
         q: 'Can I schedule a post for the future?',
@@ -735,7 +735,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
     name: 'Ghost',
     tagline: 'Newsletters and blog posts published from the same calendar.',
     intro:
-      'Ghost pairs a clean blog with a newsletter. Sosial connects over the Ghost Admin API to create and schedule posts — title, body, tags and feature image — and can send them to your subscribers as an email at the same moment.',
+      'Ghost pairs a clean blog with a newsletter. Sosial connects over the Ghost Admin API to create and schedule posts, title, body, tags and feature image, and can send them to your subscribers as an email at the same moment.',
     limit: 100000,
     bestFor: ['Newsletters', 'Membership blogs', 'Long-form publishing with email delivery'],
     facts: [
@@ -770,7 +770,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'How does the connection work?',
-        a: 'With a Ghost Admin API key from your site Integrations settings — no plugin required.',
+        a: 'With a Ghost Admin API key from your site Integrations settings, no plugin required.',
       },
       {
         q: 'Can I schedule posts ahead?',
@@ -822,7 +822,7 @@ export const CHANNEL_GUIDES: ChannelGuide[] = [
       },
       {
         q: 'What about the character limit?',
-        a: 'VK allows up to 16,384 characters — plenty for a full update, with counters in the composer.',
+        a: 'VK allows up to 16,384 characters, plenty for a full update, with counters in the composer.',
       },
     ],
   },
@@ -832,7 +832,7 @@ export function channelGuide(key: string): ChannelGuide | undefined {
   return CHANNEL_GUIDES.find((c) => c.key === key);
 }
 
-/** Ordered keys — used for related-channel strips. */
+/** Ordered keys, used for related-channel strips. */
 export const CHANNEL_KEYS = CHANNEL_GUIDES.map((c) => c.key);
 
 export function relatedChannels(key: string, count = 3): ChannelGuide[] {

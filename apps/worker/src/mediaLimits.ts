@@ -3,13 +3,13 @@
  *
  * Mirrors apps/web/src/lib/mediaLimits.ts: the composer pre-checks uploads,
  * and this module is the final gate at publish time. Rules that a target
- * breaks fail THAT target with a clear reason — siblings still publish.
+ * breaks fail THAT target with a clear reason, siblings still publish.
  */
 
 export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 /** Hard ceiling enforced at upload (edge init). */
 export const VIDEO_MAX_BYTES = 10 * 1024 * 1024 * 1024;
-/** Per-platform video caps — everything except YouTube takes 1 GB. */
+/** Per-platform video caps, everything except YouTube takes 1 GB. */
 export const VIDEO_PLATFORM_MAX_BYTES: Record<string, number> = {
   youtube: 10 * 1024 * 1024 * 1024,
 };
@@ -29,7 +29,7 @@ function videoCapFor(provider: string): number {
 /**
  * Throw when the target's provider cannot take this media set. `sizes`
  * resolves a real byte size for items whose byte_size is unknown (legacy
- * rows) — usually storageHeadSize, so the guard still holds for them.
+ * rows), usually storageHeadSize, so the guard still holds for them.
  */
 export async function assertMediaAllowed<M extends { kind: string; byte_size: number | null | undefined; duration_ms?: number | null | undefined }>(
   provider: string,
@@ -47,7 +47,7 @@ export async function assertMediaAllowed<M extends { kind: string; byte_size: nu
         throw new Error(
           provider === 'youtube'
             ? `Video is over YouTube's ${formatBytes(cap)} limit.`
-            : `Video is over ${provider}'s ${formatBytes(cap)} limit — try YouTube for large files.`,
+            : `Video is over ${provider}'s ${formatBytes(cap)} limit, try YouTube for large files.`,
         );
       }
       if (

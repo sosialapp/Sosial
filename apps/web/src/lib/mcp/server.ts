@@ -12,7 +12,7 @@ import { ok, fail, withLogging } from './respond';
  *   posts:read      get_post, get_scheduled_posts, resources
  *   posts:write     create_post (drafts), update_post
  *   posts:schedule  schedule_post, unschedule_post
- *   posts:delete    delete_post (off by default — do not grant to clients)
+ *   posts:delete    delete_post (off by default, do not grant to clients)
  *   channels:read   get_channels, get_channel_status
  *   media:read      get_media
  *   analytics:read  (unregistered: post_stats has no clean service yet)

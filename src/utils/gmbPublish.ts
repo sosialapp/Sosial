@@ -1,7 +1,7 @@
 /**
  * Native Google Business Profile publishing (local posts, STANDARD topic).
  * Mirrors apps/worker/src/gmb.ts: 1500-char summary per location row.
- * Offers/events/CTAs/media are v1 omissions — compat declares text only.
+ * Offers/events/CTAs/media are v1 omissions, compat declares text only.
  */
 
 import { API_POSTS } from './gmbConfig';
@@ -10,7 +10,7 @@ import { getValidGmb } from './gmbAuth';
 function locationName(externalId: string): string {
   const v = String(externalId ?? '');
   if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(v)) {
-    throw new Error('Google Business Profile location is missing — reconnect the channel in Connect.');
+    throw new Error('Google Business Profile location is missing, reconnect the channel in Connect.');
   }
   return v;
 }
@@ -24,7 +24,7 @@ export async function publishGmb(opts: {
   const token = await getValidGmb(opts.accountId);
   const parent = locationName(opts.locationExternalId);
   const text = (opts.text ?? '').trim();
-  if (!text) throw new Error('Google Business needs post text — this post is empty.');
+  if (!text) throw new Error('Google Business needs post text, this post is empty.');
 
   const res = await fetch(`${API_POSTS}/${parent}/localPosts`, {
     method: 'POST',
@@ -52,7 +52,7 @@ export async function publishGmb(opts: {
   if (!res.ok || !j?.name) {
     const m = j?.error?.message ?? j?.message ?? `HTTP ${res.status}`;
     if (/403|permission|disabled|not been used/i.test(String(m))) {
-      throw new Error(`${m} — the Google Cloud project needs Business Profile API access approved (one-time allow-list).`);
+      throw new Error(`${m}, the Google Cloud project needs Business Profile API access approved (one-time allow-list).`);
     }
     throw new Error(`Google Business refused the post: ${String(m).slice(0, 160)}`);
   }

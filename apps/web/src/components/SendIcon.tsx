@@ -1,5 +1,5 @@
 /**
- * Paper-plane send mark (filled) — rail Post tile, plus-menu entry and the
+ * Paper-plane send mark (filled), rail Post tile, plus-menu entry and the
  * Post now / Schedule post submit button share this one path.
  */
 export default function SendIcon({ className = 'h-4 w-4' }: { className?: string }) {

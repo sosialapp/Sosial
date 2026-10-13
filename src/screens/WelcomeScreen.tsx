@@ -91,7 +91,7 @@ export default function WelcomeScreen({
       return;
     }
     if (mode === 'up' && pw !== pw2) {
-      setErr('Passwords don’t match — retype them.');
+      setErr('Passwords don’t match, retype them.');
       return;
     }
     if (mode === 'up' && !agree) {
@@ -105,7 +105,7 @@ export default function WelcomeScreen({
       if (mode === 'up') {
         const r = await signUpEmail(email, pw, marketing);
         if (r.needsConfirm) {
-          setNotice('Account created — check your inbox for the confirmation link, then sign in.');
+          setNotice('Account created, check your inbox for the confirmation link, then sign in.');
           setPw('');
           setPw2('');
           setMode('in');
@@ -130,7 +130,7 @@ export default function WelcomeScreen({
     if (Constants.appOwnership === 'expo') {
       Alert.alert(
         'Needs a development build',
-        'Google sign-in can’t return to Expo Go. Use email + password here — Google lights up automatically in dev builds.',
+        'Google sign-in can’t return to Expo Go. Use email + password here, Google lights up automatically in dev builds.',
       );
       return;
     }
@@ -167,7 +167,7 @@ export default function WelcomeScreen({
           {!configured ? (
             <>
               <Text style={s.note}>
-                Backend not configured — add the Supabase keys to .env and restart Expo to enable
+                Backend not configured, add the Supabase keys to .env and restart Expo to enable
                 accounts.
               </Text>
               {allowSkip ? (

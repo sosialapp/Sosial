@@ -1,4 +1,4 @@
--- P48: notification bell — DB-side triggers centralize event capture.
+-- P48: notification bell, DB-side triggers centralize event capture.
 --
 -- notifications(
 --   id, workspace_id,
@@ -94,7 +94,7 @@ begin
   perform public.notif_insert(
     v_ws, v_uid, 'member_joined',
     'Welcome to ' || v_wsname,
-    'Your workspace is ready — connect channels or create your first post.',
+    'Your workspace is ready, connect channels or create your first post.',
     '/dashboard'
   );
   perform public.notif_insert(
@@ -256,7 +256,7 @@ begin
       v_ws, v_by, 'approval_changes',
       'Changes requested on your post',
       coalesce(new.comment, 'Open the post to see what to change.')
-      || ' — “' || coalesce(v_title, 'Untitled') || '”',
+      || ', “' || coalesce(v_title, 'Untitled') || '”',
       '/post?filter=drafts'
     );
   end if;

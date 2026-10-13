@@ -2,7 +2,7 @@
 //
 // The browser/server routes need the PUBLIC client ids to build consent
 // URLs, but those must not live in Vercel env (one more dashboard to keep in
-// sync — the exact failure the web connect shipped with). Single source of
+// sync, the exact failure the web connect shipped with). Single source of
 // truth: Supabase secrets, mirrored from the mobile app's credentials.
 // Secrets (the private halves) are NEVER returned here.
 //

@@ -7,11 +7,11 @@ import { info } from './logger';
  *
  * Verified against the official docs (message resource):
  * - POST /channels/{id}/messages, auth `Bot <token>`
- * - Thread ids post exactly like channel ids — no special-casing needed.
- * - content caps at 2000 chars (backend validates — no silent truncation)
+ * - Thread ids post exactly like channel ids, no special-casing needed.
+ * - content caps at 2000 chars (backend validates, no silent truncation)
  * - file uploads via multipart files[n] (25 MB safe cap; boosted guilds
  *   allow more and the API error surfaces if we ever exceed it)
- * - links auto-embed on Discord's side — no embed payload needed
+ * - links auto-embed on Discord's side, no embed payload needed
  *
  * The bot token is long-lived (no refresh endpoint): plain vault read.
  */
@@ -41,7 +41,7 @@ async function callDiscord<T>(token: string, path: string, init?: RequestInit): 
   });
   if (res.status === 429) {
     const retry = Number(res.headers.get('retry-after') ?? res.headers.get('x-ratelimit-reset-after') ?? '5');
-    throw new Error(`Discord rate-limited this channel — retry in ${Math.ceil(retry)}s.`);
+    throw new Error(`Discord rate-limited this channel, retry in ${Math.ceil(retry)}s.`);
   }
   const json = (await res.json().catch(() => null)) as (T & { message?: string; code?: number }) | null;
   if (!res.ok || !json) {
@@ -52,7 +52,7 @@ async function callDiscord<T>(token: string, path: string, init?: RequestInit): 
   return json;
 }
 
-/** discord.com/channels/{guild}/{channel}/{message} — guild from connect-time metadata. */
+/** discord.com/channels/{guild}/{channel}/{message}, guild from connect-time metadata. */
 function postUrl(b: Bundle, channelId: string, messageId: string): string {
   const guild = b.channel.metadata?.guildId;
   return typeof guild === 'string' && guild
@@ -63,19 +63,19 @@ function postUrl(b: Bundle, channelId: string, messageId: string): string {
 export async function publishDiscordTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {
   const b = bundle;
   const channelId = String(b.channel.external_id ?? '').trim();
-  if (!channelId) throw new Error('Discord destination is missing — reconnect the channel in Connect.');
+  if (!channelId) throw new Error('Discord destination is missing, reconnect the channel in Connect.');
   if (!b.secrets.access_secret_id) {
-    throw new Error('Discord bot token is missing — reconnect the channel in Connect.');
+    throw new Error('Discord bot token is missing, reconnect the channel in Connect.');
   }
   const token = await readSecret(b.secrets.access_secret_id);
   if (!token) {
-    throw new Error('Discord bot token is missing — reconnect the channel in Connect.');
+    throw new Error('Discord bot token is missing, reconnect the channel in Connect.');
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   if (text.length > CONTENT_MAX) {
     throw new Error(
-      `Discord messages cap at ${CONTENT_MAX} characters (this one is ${text.length}) — shorten the text.`,
+      `Discord messages cap at ${CONTENT_MAX} characters (this one is ${text.length}), shorten the text.`,
     );
   }
 
@@ -86,7 +86,7 @@ export async function publishDiscordTarget(bundle: Bundle): Promise<{ remoteId: 
 
   // ---- text only ----
   if (media.length === 0) {
-    if (!text) throw new Error('Discord needs text or a file — this post has neither.');
+    if (!text) throw new Error('Discord needs text or a file, this post has neither.');
     const msg = await callDiscord<DiscordMessage>(token, `/channels/${channelId}/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -136,7 +136,7 @@ export async function discordTextChannels(
     `/guilds/${guildId}/channels`,
     { method: 'GET' },
   );
-  // Guild text (0) + announcement (5) channels only — no voice, stages, or categories.
+  // Guild text (0) + announcement (5) channels only, no voice, stages, or categories.
   return (channels ?? [])
     .filter((c) => c.type === 0 || c.type === 5)
     .map((c) => ({ id: c.id, name: c.name, type: c.type }));

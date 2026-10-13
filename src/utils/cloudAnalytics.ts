@@ -1,7 +1,7 @@
 import { supabase, currentSession } from './supabase';
 
 /**
- * Cloud analytics data — the same tables the web dashboard reads
+ * Cloud analytics data, the same tables the web dashboard reads
  * (posts + post_stats + channel_stats snapshots). Mobile previously
  * scraped each platform API with device tokens, which showed nothing
  * whenever a token wasn't on this phone; the cloud snapshots are always

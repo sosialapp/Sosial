@@ -4,7 +4,7 @@
 -- chain_position (0 = lead). Each segment keeps its own targets +
 -- schedule, staggered at compose time, so the existing minutely cron
 -- (enqueue_due_posts) and the worker publish the chain in order with
--- zero worker changes — a failed segment never blocks its siblings.
+-- zero worker changes, a failed segment never blocks its siblings.
 -- RLS/grants ride on the existing posts policies (same table).
 
 alter table posts

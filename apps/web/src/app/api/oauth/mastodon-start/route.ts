@@ -22,7 +22,7 @@ function normalizeInstance(input: string): string {
 
 /**
  * POST /api/oauth/mastodon-start { workspace_id, instance }
- * Mastodon is federated — no portal keys. Register Sosial on the user's own
+ * Mastodon is federated, no portal keys. Register Sosial on the user's own
  * instance, stash the per-instance credentials in the flow cookie (httpOnly,
  * 10 minutes, same sensitivity as mobile's AsyncStorage), and hand back the
  * instance consent URL to open.
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   } catch (e) {
     const why = e instanceof Error ? e.message : 'network unreachable';
     return NextResponse.json(
-      { error: `Could not register on that server — check the address and try again. (${why})` },
+      { error: `Could not register on that server, check the address and try again. (${why})` },
       { status: 502 },
     );
   }

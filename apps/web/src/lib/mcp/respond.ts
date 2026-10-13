@@ -2,7 +2,7 @@ import { logTool } from './log';
 
 /**
  * Stable MCP response envelopes. Success: {success:true, ...data}.
- * Failure: {success:false, error_code, message} — stable codes, no stack
+ * Failure: {success:false, error_code, message}, stable codes, no stack
  * traces, no provider raw errors. Every tool result also writes a log row.
  */
 

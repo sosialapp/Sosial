@@ -1,7 +1,7 @@
 /**
  * Channel capability profiles + the shared compatibility engine (Phase 0).
  *
- * Pure module — zero imports — so the worker can adopt the same file
+ * Pure module, zero imports, so the worker can adopt the same file
  * verbatim later. Limits mirror PROVIDER_META (lib/providers.ts); the chain
  * set mirrors CHAIN_PROVIDERS (lib/posts.ts). If a platform changes its
  * API, update the profile here, not the composer.
@@ -113,7 +113,7 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
   mastodon: {
     label: 'Mastodon',
     // Note: text limit varies by server (500 default); per-server config is
-    // a follow-up — the profile carries the default.
+    // a follow-up, the profile carries the default.
     supports: { text: true, image: true, video: true, carousel: false, document: false, poll: true, link: true },
     thread: true, replyChain: true, article: false,
     requiresMedia: false, requiresVideo: false,
@@ -125,7 +125,7 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
   telegram: {
     label: 'Telegram',
     // Bot API: text, photo, video, albums (sendMediaGroup). No polls on our
-    // publish path and no native scheduling — Sosial's worker owns the clock.
+    // publish path and no native scheduling, Sosial's worker owns the clock.
     supports: { text: true, image: true, video: true, carousel: true, document: false, poll: false, link: true },
     thread: false, replyChain: false, article: false,
     requiresMedia: false, requiresVideo: false,
@@ -187,7 +187,7 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
   vk: {
     label: 'VK',
     // Community wall post as the community: message + up to 10 uploaded
-    // photos. Videos need the video.save dance + processing poll — v1 sends
+    // photos. Videos need the video.save dance + processing poll, v1 sends
     // none. Personal-profile posting is VK-gated, so communities only.
     supports: { text: true, image: true, video: false, carousel: false, document: false, poll: false, link: true },
     thread: false, replyChain: false, article: false,
@@ -199,7 +199,7 @@ export const CAPABILITIES: Record<string, CapabilityProfile> = {
     label: 'Google Business',
     // Local post (STANDARD topic): 1500-char summary. Offers/events need
     // structured payloads, CTAs need composer fields, media needs the
-    // media.startUpload dance — v1 sends text only.
+    // media.startUpload dance, v1 sends text only.
     supports: { text: true, image: false, video: false, carousel: false, document: false, poll: false, link: true },
     thread: false, replyChain: false, article: false,
     requiresMedia: false, requiresVideo: false,
@@ -235,7 +235,7 @@ function boardOf(metadata?: Record<string, unknown> | null): string {
 /**
  * Per-channel verdicts for a draft. Media is read from the head part only
  * (both composers attach uploads to part 1). Unknown providers are skipped
- * — the engine never blocks what it cannot judge.
+ *, the engine never blocks what it cannot judge.
  */
 export function checkCompatibility(
   channels: CompatChannel[],
@@ -254,7 +254,7 @@ export function checkCompatibility(
       issues.push({
         provider: ch.provider,
         level: 'error',
-        message: `${cap.label} doesn't do threads — switch the thread off or drop the channel.`,
+        message: `${cap.label} doesn't do threads, switch the thread off or drop the channel.`,
       });
       continue;
     }
@@ -277,7 +277,7 @@ export function checkCompatibility(
       issues.push({
         provider: ch.provider,
         level: 'error',
-        message: `${cap.label} needs a board — pick one in Connect before scheduling.`,
+        message: `${cap.label} needs a board, pick one in Connect before scheduling.`,
       });
     }
 

@@ -4,7 +4,7 @@ import { createClient, WORKSPACE_COOKIE } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/workspace/switch { workspace_id } — sticks the session to one
+ * POST /api/workspace/switch { workspace_id }, sticks the session to one
  * workspace. Verified against active membership; unknown workspaces are
  * rejected, never defaulted.
  */

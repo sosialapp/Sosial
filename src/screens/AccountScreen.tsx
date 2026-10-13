@@ -123,7 +123,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [delWord, setDelWord] = useState('');
   const [delBusy, setDelBusy] = useState(false);
 
-  /* Sosial Cloud (Supabase staging) — real accounts live alongside the legacy
+  /* Sosial Cloud (Supabase staging), real accounts live alongside the legacy
    * on-device profile until the profile/team migration lands. */
   const [sbState, setSbState] = useState<'checking' | 'off' | 'in' | 'unconfigured'>('checking');
   const [sbEmail, setSbEmail] = useState('');
@@ -169,19 +169,19 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       if (saved) {
         Alert.alert(
           'Device registration',
-          'Registered — /admin/notifications should show 1 device.',
+          'Registered, /admin/notifications should show 1 device.',
         );
         return;
       }
       const why =
         r.stage === 'permission'
-          ? `Permission is "${r.detail ?? 'denied'}" — allow it in Settings → Apps → Sosial → Notifications, then retry.`
+          ? `Permission is "${r.detail ?? 'denied'}", allow it in Settings → Apps → Sosial → Notifications, then retry.`
           : r.stage === 'no-project'
-            ? 'Build has no EAS project id — rebuild from a clean checkout.'
+            ? 'Build has no EAS project id, rebuild from a clean checkout.'
             : r.stage === 'no-token'
               ? `Expo would not mint a token: ${r.detail ?? 'unknown error'} (usually google-services.json missing from this build).`
               : r.stage === 'signed-out'
-                ? 'Token minted but you are signed out — sign in to Sosial Cloud first.'
+                ? 'Token minted but you are signed out, sign in to Sosial Cloud first.'
                 : `Token minted but the save failed: ${r.detail ?? 'unknown error'}`;
       Alert.alert('Device registration', `Not registered.\n\n${why}`);
     } finally {
@@ -302,7 +302,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     try {
       const r = await signUpEmail(sbEmail, sbPw);
       if (r.needsConfirm) {
-        setSbNotice('Account created — check your inbox for the confirmation link, then sign in.');
+        setSbNotice('Account created, check your inbox for the confirmation link, then sign in.');
       } else {
         const s = await currentSession();
         setSbAccount(s ? { email: s.user.email ?? '', workspace: s.workspace } : null);
@@ -319,12 +319,12 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
   const doCloudGoogle = async () => {
     // Google Web clients only accept https redirects and Expo Go can only
-    // receive exp:// — the combination can never complete. Dev builds use the
+    // receive exp://, the combination can never complete. Dev builds use the
     // sosial:// scheme and work with the same code path.
     if (Constants.appOwnership === 'expo') {
       Alert.alert(
         'Needs a development build',
-        'Google sign-in can’t return to Expo Go. Use email + password here — Google lights up automatically in dev builds.',
+        'Google sign-in can’t return to Expo Go. Use email + password here, Google lights up automatically in dev builds.',
       );
       return;
     }
@@ -417,7 +417,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
   const rateApp = () => {
     Linking.openURL('https://play.google.com/store/apps/details?id=com.sosial.app').catch(() => {
-      Alert.alert('Rate Sosial', 'Sosial isn’t on the Play Store yet — this link will work after release.');
+      Alert.alert('Rate Sosial', 'Sosial isn’t on the Play Store yet, this link will work after release.');
     });
   };
 
@@ -482,7 +482,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     return paths;
   };
 
-  /** Owner inbox: bugs, ideas, billing help — straight into the reports table. */
+  /** Owner inbox: bugs, ideas, billing help, straight into the reports table. */
   const sendReport = async () => {
     const body = repBody.trim();
     if (!body) {
@@ -490,14 +490,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       return;
     }
     if (myTicket) {
-      Alert.alert('Ticket already open', 'You have an open ticket — we reply there. Once it is resolved you can raise a new one.');
+      Alert.alert('Ticket already open', 'You have an open ticket, we reply there. Once it is resolved you can raise a new one.');
       return;
     }
     setRepBusy(true);
     try {
       const session = await currentSession();
       if (!session) {
-        Alert.alert('Sign in first', 'Reports send from your cloud account — sign in to Sosial Cloud at the top of this screen, then retry.');
+        Alert.alert('Sign in first', 'Reports send from your cloud account, sign in to Sosial Cloud at the top of this screen, then retry.');
         return;
       }
       const { data: created, error } = await supabase()
@@ -523,7 +523,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       setRepBody('');
       setRepShots([]);
       setView('main');
-      Alert.alert('Ticket submitted', 'We reply by email and update the ticket — find it under Support.');
+      Alert.alert('Ticket submitted', 'We reply by email and update the ticket, find it under Support.');
       void loadTicket();
     } catch (e: any) {
       Alert.alert('Couldn’t send', e?.message ?? 'Try again.');
@@ -559,7 +559,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     if (plan === target) return;
     Alert.alert(`Switch to ${label}?`, target === 'free'
       ? 'You’ll lose paid features on this device.'
-      : 'Billing is stubbed in this build — this flips the local plan flag only. Real Play Billing activates at launch.', [
+      : 'Billing is stubbed in this build, this flips the local plan flag only. Real Play Billing activates at launch.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Confirm', onPress: () => onUpdate({ plan: target }) },
     ]);
@@ -604,7 +604,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 <Text style={s.rowT}>Sosial Cloud (staging)</Text>
                 {sbState === 'checking' ? <Text style={s.rowS}>Checking cloud account…</Text> : null}
                 {sbState === 'unconfigured' ? (
-                  <Text style={s.rowS}>Backend not configured — add the Supabase keys to .env and restart Expo.</Text>
+                  <Text style={s.rowS}>Backend not configured, add the Supabase keys to .env and restart Expo.</Text>
                 ) : null}
                 {sbState === 'off' ? (
                   <>
@@ -659,9 +659,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 'cloud-upload-outline',
                 'Cloud publishing',
                 sbState !== 'in'
-                  ? 'Always on — sign in to Sosial Cloud to activate'
+                  ? 'Always on, sign in to Sosial Cloud to activate'
                   : cloudConn === 0
-                    ? 'Always on — connect a channel and it uploads automatically'
+                    ? 'Always on, connect a channel and it uploads automatically'
                     : `Always on · ${cloudImp} of ${cloudConn} channel${cloudConn === 1 ? '' : 's'} in cloud`,
                 () => Alert.alert(
                   'Cloud publishing',
@@ -672,7 +672,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {plan === 'team' ? row('people-outline', 'Team', 'Roles, channels & invites', onTeam) : null}
               {row('refresh-outline', 'Restore purchase', undefined, () => Alert.alert('Restore purchase', 'No purchases found on this device.'))}
               {row('star-outline', 'Rate Sosial', 'Review on the Play Store', rateApp)}
-              {row('chatbubble-ellipses-outline', 'Support', myTicket ? 'Open ticket — we are on it' : 'Bugs, questions, billing help', () => {
+              {row('chatbubble-ellipses-outline', 'Support', myTicket ? 'Open ticket, we are on it' : 'Bugs, questions, billing help', () => {
                 setRepKind('bug');
                 setRepSubject('');
                 setRepBody('');
@@ -747,14 +747,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
           <View style={{ gap: 12, marginTop: 16 }}>
             <Text style={[s.rowT, { color: C.redText }]}>This permanently erases your account.</Text>
             <Text style={s.note}>
-              {'\u2022'} Workspaces you own are deleted whole — posts, drafts, media, channels and tokens.{'\n'}
+              {'\u2022'} Workspaces you own are deleted whole, posts, drafts, media, channels and tokens.{'\n'}
               {'\u2022'} Teammates in those workspaces lose access too.{'\n'}
               {'\u2022'} Memberships in other people's workspaces are removed.{'\n'}
               {'\u2022'} Media-source tokens (Drive, Photos, Dropbox, Canva) are revoked.{'\n'}
               {'\u2022'} Cancel any paid subscription first.
             </Text>
             {!delArmed ? (
-              <GhostBtn label="I understand — continue" danger onPress={() => setDelArmed(true)} />
+              <GhostBtn label="I understand, continue" danger onPress={() => setDelArmed(true)} />
             ) : (
               <>
                 <View>
@@ -773,7 +773,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
         {view === 'password' ? (
           <View style={{ gap: 12, marginTop: 16 }}>
-            <Text style={s.note}>Sosial accounts live on this device only — there’s no cloud password. Your social accounts keep their own passwords with Meta. Setting one here just confirms it’s you on this phone.</Text>
+            <Text style={s.note}>Sosial accounts live on this device only, there’s no cloud password. Your social accounts keep their own passwords with Meta. Setting one here just confirms it’s you on this phone.</Text>
             <View>
               <Text style={s.label}>New password</Text>
               <Txt value={pw1} onChangeText={setPw1} placeholder="••••••••" secureTextEntry />
@@ -815,7 +815,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                     <Text style={s.note}>{myTicket.admin_note}</Text>
                   </View>
                 ) : (
-                  <Text style={s.note}>We reply by email and update this ticket — you will hear from us shortly.</Text>
+                  <Text style={s.note}>We reply by email and update this ticket, you will hear from us shortly.</Text>
                 )}
                 {myTicket.attachments?.length ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -831,7 +831,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               </>
             ) : (
               <>
-                <Text style={s.note}>Describe what happened — screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are erased with attachments after 30 days.</Text>
+                <Text style={s.note}>Describe what happened, screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are erased with attachments after 30 days.</Text>
                 <Seg<ReportKind>
                   options={[
                     { value: 'bug', label: 'Bug' },
@@ -895,7 +895,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               ) : null}
             </View>
 
-            {/* billing rhythm — interval changes price + renewal only, never limits */}
+            {/* billing rhythm, interval changes price + renewal only, never limits */}
             <View style={[s.plan, { gap: 12 }]}>
               <Field label="Billing">
                 <Seg
@@ -924,14 +924,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Solo"
               current={plan === 'pro'}
               price={soloTotal}
-              sub={yearly ? '≈ $10/mo equivalent — billed yearly' : 'Billed monthly'}
+              sub={yearly ? '≈ $10/mo equivalent, billed yearly' : 'Billed monthly'}
               also="Everything in Free, plus:"
               features={[
                 { text: '6 connected channels' },
                 { text: 'Unlimited scheduled posts' },
                 { text: '500 AI credits a month' },
                 { text: 'Media library and content organization' },
-                { text: 'Watermark you control — turn it off' },
+                { text: 'Watermark you control, turn it off' },
               ]}
               action={plan === 'free'
                 ? { label: `Upgrade to Solo · ${soloTotal}`, onPress: () => choosePlan('pro', 'Solo') }
@@ -944,7 +944,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Team"
               current={plan === 'team'}
               price={teamTotal}
-              sub={yearly ? '≈ $25/mo equivalent — billed yearly' : 'Billed monthly'}
+              sub={yearly ? '≈ $25/mo equivalent, billed yearly' : 'Billed monthly'}
               also="Everything in Solo, plus:"
               features={[
                 { text: '25 connected channels' },
@@ -964,7 +964,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               name="Business"
               current={false}
               price={businessTotal}
-              sub={yearly ? '≈ $66/mo equivalent — billed yearly' : 'Billed monthly'}
+              sub={yearly ? '≈ $66/mo equivalent, billed yearly' : 'Billed monthly'}
               also="Everything in Team, plus:"
               features={[
                 { text: '100 connected channels' },
@@ -972,7 +972,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: '5,000 AI credits a month' },
                 { text: 'Unlimited team members, 6 workspaces' },
               ]}
-              action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch — the web app supports it today.') }}
+              action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch, the web app supports it today.') }}
             />
           </View>
         ) : null}

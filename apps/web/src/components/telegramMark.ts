@@ -1,5 +1,5 @@
 /**
- * Telegram's bundled mark includes its own disc — inside our badge/fallback
+ * Telegram's bundled mark includes its own disc, inside our badge/fallback
  * disc that reads as a small off-center button. The plane is everything after
  * the circle's closing z, rebased from relative to absolute (the circle starts
  * at 11.944,0 so m4.962 7.224 lands on M16.906 7.224). Derived from the path

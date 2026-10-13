@@ -107,9 +107,9 @@ serve(async (req: Request): Promise<Response> => {
   const r2Bucket = Deno.env.get("R2_BUCKET") ?? "sosial-media";
   const publicBase = (Deno.env.get("R2_PUBLIC_URL") ?? "").replace(/\/+$/, "");
   const mediaEnv = (Deno.env.get("MEDIA_ENV") ?? "prod").replace(/[^\w-]/g, "") || "prod";
-  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured — missing Supabase env.", 500);
+  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured, missing Supabase env.", 500);
   if (!accountId || !accessKeyId || !secretAccessKey) {
-    return bad("Function misconfigured — missing R2 env.", 500);
+    return bad("Function misconfigured, missing R2 env.", 500);
   }
 
   let body: Record<string, unknown>;
@@ -149,7 +149,7 @@ serve(async (req: Request): Promise<Response> => {
   const aws = new AwsClient({ accessKeyId, secretAccessKey, service: "s3", region: "auto" });
   const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
   // URL path layout: <endpoint>/<real bucket>/<logical prefix>/<path>. The
-  // first path segment is the BUCKET NAME to R2 — the logical bucket
+  // first path segment is the BUCKET NAME to R2, the logical bucket
   // (post-media/blog-media) is a prefix inside R2_BUCKET, never the bucket.
   const objectUrl = (bucket: string, path: string) => `${endpoint}/${r2Bucket}/${bucket}/${path}`;
 
@@ -361,7 +361,7 @@ serve(async (req: Request): Promise<Response> => {
         if (!cRes.ok) return bad(`R2 complete failed (${cRes.status}).`, 502);
         await admin.from("media_uploads").delete().eq("media_id", mediaId);
       } else if (!asset.upload_id) {
-        // single PUT path — nothing to complete server-side
+        // single PUT path, nothing to complete server-side
       } else {
         return bad("Upload session not found.", 409);
       }
@@ -373,7 +373,7 @@ serve(async (req: Request): Promise<Response> => {
       const { data: row } = await admin.from("media_assets").select("byte_size,kind").eq("id", mediaId).single();
       if (row && landed > 0 && Math.abs(landed - Number(row.byte_size)) > 1024) {
         await admin.from("media_assets").update({ status: "failed" }).eq("id", mediaId);
-        return bad("Uploaded size does not match — try again.", 409);
+        return bad("Uploaded size does not match, try again.", 409);
       }
       const range = await aws.fetch(objectUrl("post-media", storagePath), { headers: { range: "bytes=0-31" } });
       if (range.ok) {
@@ -434,7 +434,7 @@ serve(async (req: Request): Promise<Response> => {
         const path = (it as Record<string, unknown>)["path"];
         if (!BUCKETS.has(bucket) || !validPath(path)) return bad("Invalid path.");
         // post-media paths are workspace-scoped. New keys are
-        // <env>/<workspace_id>/...; legacy keys are <workspace_id>/... — so
+        // <env>/<workspace_id>/...; legacy keys are <workspace_id>/..., so
         // take the first uuid-looking segment as the workspace id.
         if (bucket === "post-media") {
           const ws = String(path).split("/").find((seg) => /^[0-9a-f-]{36}$/i.test(seg)) ?? "";
@@ -497,7 +497,7 @@ serve(async (req: Request): Promise<Response> => {
       const path = body["path"];
       if (!BUCKETS.has(bucket) || !validPath(path)) return bad("Invalid path.");
       if (bucket !== "blog-media") return bad("Only blog-media is public.");
-      if (!publicBase) return bad("Function misconfigured — missing R2_PUBLIC_URL.", 500);
+      if (!publicBase) return bad("Function misconfigured, missing R2_PUBLIC_URL.", 500);
       if (!(await isAdmin())) return bad("App admins only.", 403);
       return Response.json({ url: `${publicBase}/${bucket}/${path}` }, { headers: CORS });
     }

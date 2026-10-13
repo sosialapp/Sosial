@@ -12,7 +12,7 @@ export function JsonLd({ id, data }: { id: string; data: Record<string, unknown>
 }
 
 /** Sitewide entity graph: Organization + WebSite + SoftwareApplication.
- *  Render once in the marketing layout. No ratings/reviews — only facts. */
+ *  Render once in the marketing layout. No ratings/reviews, only facts. */
 export function SiteJsonLd() {
   return (
     <JsonLd

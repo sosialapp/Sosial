@@ -10,7 +10,7 @@
 //
 // Any signed-in user may call it (composing is a member action); the key
 // lives server-side. Caps mirror the mobile app (thread.ts / social.ts) so
-// copy never exceeds the strictest picked channel — the model adapts the
+// copy never exceeds the strictest picked channel, the model adapts the
 // wording per channel while keeping the facts identical. The model returns
 // JSON; we clamp server-side on a word boundary as a second guard.
 
@@ -49,7 +49,7 @@ const PLATFORM_IDS = [
 
 const THREAD_PLATFORM_IDS = ["x", "threads", "mastodon", "bluesky"];
 
-/** How each destination wants to be written — the core message stays identical. */
+/** How each destination wants to be written, the core message stays identical. */
 const PLATFORM_ADAPT: Record<string, string> = {
   any: "write for a general social feed",
   x: "concise and punchy, one idea, no wasted words",
@@ -70,13 +70,13 @@ const EMOJIS = ["auto", "on", "off"] as const;
 const REWRITE_ASKS: Record<string, string> = {
   shorter: "Make every post noticeably shorter. Cut filler, keep every fact.",
   punchier: "Make it punchier: stronger verbs, tighter lines, sharper first words. Keep the meaning.",
-  natural: "Make it sound more natural and human — vary sentence length, remove anything that reads like AI.",
+  natural: "Make it sound more natural and human, vary sentence length, remove anything that reads like AI.",
   context: "Add useful context or a concrete example to each point. Do not invent facts.",
   tone: "Rewrite with a different, more fitting voice for this idea and platform.",
   style: "Restructure it with a different approach while keeping the same facts and message.",
 };
 
-// Browser preflight must pass before supabase-js can POST at all — without
+// Browser preflight must pass before supabase-js can POST at all, without
 // these headers fetch throws and the client sees "Failed to send a request
 // to the Edge Function" (native apps don't preflight, which is why mobile
 // never noticed).
@@ -197,14 +197,14 @@ serve(async (req: Request): Promise<Response> => {
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   if (!apiKey) {
     return bad(
-      "AI is not configured yet — an owner runs: supabase secrets set OPENAI_API_KEY=sk-...",
+      "AI is not configured yet, an owner runs: supabase secrets set OPENAI_API_KEY=sk-...",
       402,
     );
   }
 
   // Charge the action's credit cost up front; it is refunded if generation
   // fails before producing output. Credits reset monthly (calendar month)
-  // even for annual subscribers — the billing interval only changes billing.
+  // even for annual subscribers, the billing interval only changes billing.
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const requestId =
     typeof body["request_id"] === "string" && body["request_id"]
@@ -293,7 +293,7 @@ serve(async (req: Request): Promise<Response> => {
   const cta = body["cta"] !== false;
   const hashtagsWanted = body["hashtags"] === true;
 
-  // Threads only publish as chains on four channels — narrow like the mobile picker.
+  // Threads only publish as chains on four channels, narrow like the mobile picker.
   let platforms = activePlatforms(body["platforms"] ?? body["providers"]);
   if (thread) {
     const kept = platforms.filter((p) => p === "any" || THREAD_PLATFORM_IDS.includes(p));
@@ -321,14 +321,14 @@ serve(async (req: Request): Promise<Response> => {
 
   try {
     if (adapt) {
-      // Same facts everywhere — the wording adapts to each channel.
+      // Same facts everywhere, the wording adapts to each channel.
       const lines = platforms.map((p) => `- ${p}: ${PLATFORM_ADAPT[p] ?? "general social feed"}`);
       const per = platforms.map((p) => capFor(p, thread));
       const system =
         "You are Sosial's social copywriter. Reply with JSON only, no markdown, " +
         'shape {"variants":[{"platform":"...","posts":["..."],"hashtags":["..."]}]}. ' +
         chainShape +
-        " Write one variant per destination platform — the facts, names and numbers stay identical, only the wording and shape adapt:" +
+        " Write one variant per destination platform, the facts, names and numbers stay identical, only the wording and shape adapt:" +
         `\n${lines.join("\n")}\n` +
         `Character caps per platform (including spaces): ${platforms.map((p, i) => `${p} ≤ ${per[i]}`).join(", ")}. ` +
         (chain ? "Every variant uses the same number of parts." : "Every variant is a single post.") +
@@ -358,11 +358,11 @@ serve(async (req: Request): Promise<Response> => {
           };
         })
         .filter((v) => (PLATFORM_IDS as readonly string[]).includes(v.platform) && v.posts.some((s) => s.trim()));
-      if (!variants.length) return fail("AI returned an unusable reply — try again.");
+      if (!variants.length) return fail("AI returned an unusable reply, try again.");
       return Response.json({ variants }, { headers: CORS });
     }
 
-    // Single destination — one variant.
+    // Single destination, one variant.
     const cap = capFor(platforms[0], thread);
     const system =
       "You are Sosial's social copywriter. Reply with JSON only, no markdown, " +
@@ -383,7 +383,7 @@ serve(async (req: Request): Promise<Response> => {
       .filter((s): s is string => typeof s === "string")
       .map((s) => clamp(s, cap))
       .slice(0, chain ? parts : 1);
-    if (!posts.some((s) => s.trim())) return fail("AI returned an unusable reply — try again.");
+    if (!posts.some((s) => s.trim())) return fail("AI returned an unusable reply, try again.");
     return Response.json(
       { variants: [{ platform: platforms[0], posts, hashtags: normHashtags(parsed.hashtags) }] },
       { headers: CORS },

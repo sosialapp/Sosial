@@ -60,7 +60,7 @@ export interface ProjectPreset {
   updatedAt?: number;
 }
 
-/** A template saved on the web — different design format, shown as a text
+/** A template saved on the web, different design format, shown as a text
  *  card ("Use text" drops its words into a new draft). */
 export interface ForeignTemplate {
   id: string;
@@ -243,7 +243,7 @@ export async function syncTemplates(): Promise<{ native: ProjectPreset[]; foreig
 /* ---------------- Starter templates: removed ---------------- */
 
 const SEED_PURGE_KEY = 'quickpost_purged_starter_templates_v1';
-/** Built-in seeds shipped by older versions — deleted on next load. */
+/** Built-in seeds shipped by older versions, deleted on next load. */
 const STARTER_IDS = [
   'starter-launch-v2', 'starter-quote-v2', 'starter-promo-v2',
   'starter-quote-v1', 'starter-sale-v1', 'starter-news-v1',
@@ -263,7 +263,7 @@ export async function purgeStarterTemplates(): Promise<ProjectPreset[]> {
     await AsyncStorage.removeItem('quickpost_seeded_starter_templates_v2');
     await AsyncStorage.setItem(SEED_PURGE_KEY, '1');
   } catch {
-    /* private mode — nothing persists anyway */
+    /* private mode, nothing persists anyway */
   }
   return next;
 }

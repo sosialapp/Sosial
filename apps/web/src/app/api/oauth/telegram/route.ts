@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * Telegram connect — no OAuth. The user pastes a @BotFather token plus the
+ * Telegram connect, no OAuth. The user pastes a @BotFather token plus the
  * destination chat; connect-telegram validates both against the Bot API
  * (getMe + getChat) and stores the channel through import-channel-token.
  */
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // functions.invoke attaches the session JWT — exactly how every other
+  // functions.invoke attaches the session JWT, exactly how every other
   // connect path reaches the edge functions.
   const sb = await createClient();
   const { data, error } = await sb.functions.invoke('connect-telegram', {
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   const payload = (data ?? {}) as { ok?: boolean; error?: string; title?: string };
   if (error || !payload.ok) {
     // FunctionsHttpError carries the raw Response on `context`; platform
-    // rejects use { message }, our handler uses { error } — read both.
+    // rejects use { message }, our handler uses { error }, read both.
     let detail: string | null = null;
     const context = (error as { context?: unknown } | null)?.context;
     if (context instanceof Response) {

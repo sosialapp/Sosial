@@ -2,11 +2,11 @@
 --
 -- set_member_role: owner changes anyone except an owner; admin changes
 -- members only (promotion to admin is allowed because admins can already
--- invite admins directly — no privilege gain). 'owner' can never be granted;
+-- invite admins directly, no privilege gain). 'owner' can never be granted;
 -- ownership does not transfer through this path.
 -- leave_workspace: any active member or admin removes THEMSELVES. The owner
 -- cannot abandon the workspace (it would orphan channels, billing and the
--- team) — transfer ownership first (not yet built: refused loudly instead).
+-- team), transfer ownership first (not yet built: refused loudly instead).
 
 create or replace function set_member_role(p_member_id uuid, p_role team_role)
 returns void
@@ -56,7 +56,7 @@ begin
     raise exception 'You are not a member of this workspace.';
   end if;
   if v_role = 'owner' then
-    raise exception 'Owners cannot leave — transfer ownership first.';
+    raise exception 'Owners cannot leave, transfer ownership first.';
   end if;
   update workspace_members set status = 'removed'
    where workspace_id = p_workspace_id

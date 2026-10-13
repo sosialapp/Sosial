@@ -4,7 +4,7 @@
 // → 200 { invite_id, token } · 401 unauthenticated · 403 not owner/admin
 //
 // Flow: creates (or refreshes) the invite row through the create_invite RPC
-// as the CALLER (single source of truth — the RPC enforces the role check),
+// as the CALLER (single source of truth, the RPC enforces the role check),
 // then sends the email with auth.admin and enqueues a job_queue send_invite
 // job so the worker retries delivery if this call fails after row creation.
 // The emailed link points at the web redeem page: {SITE_URL}/invite/<token>.
@@ -17,7 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ROLES = new Set(["admin", "member"]);
 
-// Browser preflight must pass before supabase-js can POST at all — without
+// Browser preflight must pass before supabase-js can POST at all, without
 // these headers fetch throws and the client sees "Failed to send a request
 // to the Edge Function" (native apps don't preflight, which is why mobile
 // never noticed).
@@ -41,7 +41,7 @@ serve(async (req: Request): Promise<Response> => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SB_SECRET_KEY") ?? "";
   const siteUrl = (Deno.env.get("SITE_URL") ?? "https://sosial.app").replace(/\/+$/, "");
   if (!supaUrl || !anonKey || !serviceKey) {
-    return bad("Function misconfigured — missing Supabase env.", 500);
+    return bad("Function misconfigured, missing Supabase env.", 500);
   }
 
   // Caller identity from their own JWT (never trust a body user_id).
@@ -66,7 +66,7 @@ serve(async (req: Request): Promise<Response> => {
   if (typeof workspace_id !== "string" || !workspace_id) return bad("workspace_id required.");
   if (typeof email !== "string" || !email.includes("@")) return bad("Valid email required.");
 
-  // Invite row via the RPC as the caller — the function itself enforces
+  // Invite row via the RPC as the caller, the function itself enforces
   // owner/admin, so a 428 here means "not allowed", surfaced as 403.
   const { data: invite, error: invErr } = await userClient.rpc("create_invite", {
     p_workspace_id: workspace_id,
@@ -90,7 +90,7 @@ serve(async (req: Request): Promise<Response> => {
   if (mailErr) {
     const msg = String((mailErr as { message?: unknown })?.message ?? mailErr);
     // Already on Sosial: Supabase will never email an existing user, and a
-    // retry could never succeed — hand the invite link back instead so the
+    // retry could never succeed, hand the invite link back instead so the
     // inviter can share it directly. Never queue a retry for this case.
     if (/already (been )?registered|already exists/i.test(msg)) {
       return Response.json(
@@ -103,7 +103,7 @@ serve(async (req: Request): Promise<Response> => {
         { headers: CORS },
       );
     }
-    // Row exists, mail failed: enqueue the retry job and tell the caller —
+    // Row exists, mail failed: enqueue the retry job and tell the caller -
     // the worker re-sends until delivery succeeds or the invite expires.
     await admin.from("job_queue").upsert(
       {
@@ -114,7 +114,7 @@ serve(async (req: Request): Promise<Response> => {
       },
       { onConflict: "idempotency_key" },
     );
-    return bad(`Invite saved but the email failed (${mailErr.message}) — retry queued.`, 502);
+    return bad(`Invite saved but the email failed (${mailErr.message}), retry queued.`, 502);
   }
   await admin.from("invites").update({ emailed_at: new Date().toISOString() }).eq("id", invite.id);
 

@@ -3,7 +3,7 @@
  * text via sendMessage, single photo/video direct, 2–10 items via
  * sendMediaGroup with attach:// uploads.
  *
- * Multipart uploads go through XMLHttpRequest — expo/fetch (SDK 57) can't
+ * Multipart uploads go through XMLHttpRequest, expo/fetch (SDK 57) can't
  * serialize React Native {uri,name,type} FormData parts (see mastodonPublish).
  */
 
@@ -71,8 +71,8 @@ function xhrUpload<T>(
       }
       resolve(j.result as T);
     };
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('Telegram upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('Telegram upload timed out, try again.'));
     xhr.send(form as any);
   });
 }
@@ -102,7 +102,7 @@ export async function publishTelegram(opts: {
   const videoUri = opts.videoUri && opts.videoUri.trim() ? opts.videoUri : undefined;
 
   if (!caption && !videoUri && images.length === 0) {
-    throw new Error('Write something or attach media — Telegram needs one of them.');
+    throw new Error('Write something or attach media, Telegram needs one of them.');
   }
 
   // Text only.

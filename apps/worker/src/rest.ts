@@ -94,7 +94,7 @@ async function supabaseRemove(bucket: string, path: string): Promise<void> {
   if (!r.ok && r.status !== 400 && r.status !== 404) await fail(r, 'storage remove');
 }
 
-/** Download bytes (default cap 25 MB — video channels pass a larger cap). */
+/** Download bytes (default cap 25 MB, video channels pass a larger cap). */
 export async function storageDownload(url: string, maxBytes = 25 * 1024 * 1024): Promise<Buffer> {
   const r = await fetch(url);
   if (!r.ok) await fail(r, 'media download');
@@ -130,7 +130,7 @@ export interface ObjectStream {
   contentType?: string;
 }
 
-/** Stream a byte range of a private object without buffering — the path for
+/** Stream a byte range of a private object without buffering, the path for
  *  multi-GB videos. R2 first (native ranged GET), else Supabase Storage (also
  *  supports the HTTP Range header). Returns null when the object is missing. */
 export async function storageStream(
@@ -187,7 +187,7 @@ export async function storageAbortMultipart(bucket: string, path: string, upload
 
 /**
  * Read a private object in fixed-size sequential chunks WITHOUT holding the
- * whole file in memory — the byte source for TikTok/X style chunked uploads.
+ * whole file in memory, the byte source for TikTok/X style chunked uploads.
  * Each chunk is a fully-materialised Buffer sized `chunkBytes` (the last one
  * may be shorter). `maxBytes` guards against runaway files; exceeded throws.
  */

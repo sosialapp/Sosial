@@ -56,7 +56,7 @@ export async function resolveTelegramChat(
     }>(token, 'getChat', {
       chat_id: chatId.trim(),
     });
-    // Chat photo, best-effort — photo-less chats keep the brand disc.
+    // Chat photo, best-effort, photo-less chats keep the brand disc.
     let avatar: string | undefined;
     try {
       const fileId = chat.photo?.small_file_id;

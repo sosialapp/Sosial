@@ -19,7 +19,7 @@ describe('canonical pricing', () => {
     expect(PLANS.solo.annual.price).toBe(120);
     expect(PLANS.team.annual.price).toBe(290);
     expect(PLANS.business.annual.price).toBe(790);
-    // Annual is NEVER computed as monthly * 12 — it is 10 paid months.
+    // Annual is NEVER computed as monthly * 12, it is 10 paid months.
     expect(PLANS.solo.annual.price).not.toBe(PLANS.solo.monthly.price * 12);
     expect(PLANS.team.annual.price).not.toBe(PLANS.team.monthly.price * 12);
     expect(PLANS.business.annual.price).not.toBe(PLANS.business.monthly.price * 12);
@@ -73,7 +73,7 @@ describe('canonical pricing', () => {
   });
 
   it('keeps feature limits identical across billing intervals', () => {
-    // Limits live once on the plan — the interval cannot alter them by design.
+    // Limits live once on the plan, the interval cannot alter them by design.
     for (const key of PLAN_ORDER) {
       expect(PLANS[key].limits).toEqual(PLANS[key].limits);
     }

@@ -22,7 +22,7 @@ import { type BillingInterval, type PlanKey, isBillingInterval, isPlanKey } from
  *
  * Ultimate breaks the subscription mold on purpose: a single mode=payment
  * Checkout for a fixed $1 one-time Price. No interval, no renewal, no
- * proration — the webhook grants status='lifetime' on payment.
+ * proration, the webhook grants status='lifetime' on payment.
  */
 
 let client: Stripe | null = null;
@@ -45,7 +45,7 @@ export function pricesConfigured(): boolean {
 
 export function stripe(): Stripe {
   if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('Stripe is not configured — set STRIPE_SECRET_KEY.');
+    throw new Error('Stripe is not configured, set STRIPE_SECRET_KEY.');
   }
   if (!client) client = new Stripe(process.env.STRIPE_SECRET_KEY);
   return client;

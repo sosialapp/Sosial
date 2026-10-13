@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom';
 import { Smile, X } from 'lucide-react';
 import { useDismiss } from '@/lib/useDismiss';
 
-/** The only picker UI library — full emoji menu with search, loaded on demand. */
+/** The only picker UI library, full emoji menu with search, loaded on demand. */
 const EmojiPicker = dynamic(() => import('@/components/EmojiPickerClient'), {
   ssr: false,
   loading: () => <div className="p-6 text-center text-xs text-faint">Loading emoji…</div>,

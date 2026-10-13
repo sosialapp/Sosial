@@ -2,7 +2,7 @@
  * Native Ghost publishing (Admin API key). Mirrors apps/worker/src/ghost.ts:
  * title + body as paragraph blocks, published, via /posts/?source=html.
  * Feature images need public URLs (private storage expires), newsletters
- * and authors need composer fields — documented v1 omissions.
+ * and authors need composer fields, documented v1 omissions.
  */
 
 import { ghostJwt } from './ghostAuth';
@@ -32,7 +32,7 @@ export async function publishGhost(opts: {
   const { siteUrl, adminKey } = opts;
   if (!siteUrl || !adminKey) throw new Error('Ghost not connected');
   const text = (opts.text ?? '').trim();
-  if (!text) throw new Error('Ghost needs article text — this post is empty.');
+  if (!text) throw new Error('Ghost needs article text, this post is empty.');
   const { title, html } = toHtml(opts.title ?? '', text);
   const token = ghostJwt(adminKey);
   const res = await fetch(`${siteUrl}/ghost/api/admin/posts/?source=html`, {

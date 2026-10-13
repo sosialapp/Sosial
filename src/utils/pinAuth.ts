@@ -66,7 +66,7 @@ async function tokenRequest(body: Record<string, string>): Promise<PinTokens> {
   });
   const j: any = await r.json().catch(() => ({}));
   if (!j?.access_token) {
-    throw new Error(perr(j, 'Pinterest login exchange failed — check the App ID/secret and redirect URI.'));
+    throw new Error(perr(j, 'Pinterest login exchange failed, check the App ID/secret and redirect URI.'));
   }
   return {
     access: String(j.access_token),
@@ -91,7 +91,7 @@ export async function refreshPinToken(refreshToken: string): Promise<PinTokens> 
   });
 }
 
-/** Single entry every Pinterest call uses — refreshes up to a day before expiry. */
+/** Single entry every Pinterest call uses, refreshes up to a day before expiry. */
 export async function getValidPin(accountId?: string, force = false): Promise<{ token: string }> {
   const f = await loadProviderFields('pinterest', accountId);
   const access = f.pinAccessToken as string | undefined;
@@ -102,7 +102,7 @@ export async function getValidPin(accountId?: string, force = false): Promise<{ 
     return { token: access };
   }
   if (!refresh) {
-    if (!expiresAt || Date.now() >= expiresAt) throw new Error('Pinterest session expired — reconnect Pinterest.');
+    if (!expiresAt || Date.now() >= expiresAt) throw new Error('Pinterest session expired, reconnect Pinterest.');
     return { token: access };
   }
   const t = await refreshPinToken(refresh);

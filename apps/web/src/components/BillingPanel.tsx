@@ -19,7 +19,7 @@ interface EntitlementView {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
@@ -93,7 +93,7 @@ export default function BillingPanel({
         window.location.href = data.url;
         return;
       }
-      setNotice(`Plan updated — ${PLANS[plan].label} ${interval === 'annual' ? 'annual' : 'monthly'} is now active. Changes are prorated by Stripe.`);
+      setNotice(`Plan updated, ${PLANS[plan].label} ${interval === 'annual' ? 'annual' : 'monthly'} is now active. Changes are prorated by Stripe.`);
       router.refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not start billing.');
@@ -137,7 +137,7 @@ export default function BillingPanel({
   };
 
   const plan = PLANS[entitlement.plan];
-  const intervalText = entitlement.billingInterval === 'annual' ? 'Annual' : entitlement.billingInterval === 'monthly' ? 'Monthly' : '—';
+  const intervalText = entitlement.billingInterval === 'annual' ? 'Annual' : entitlement.billingInterval === 'monthly' ? 'Monthly' : '-';
   const paid = entitlement.active;
 
   return (
@@ -170,7 +170,7 @@ export default function BillingPanel({
               )}
             </>
           ) : (
-            'Free plan — no card on file'
+            'Free plan, no card on file'
           )}
         </p>
         {paid && entitlement.plan !== 'ultimate' ? (
@@ -183,7 +183,7 @@ export default function BillingPanel({
               <dt className="text-xs font-bold text-muted">Next billing date</dt>
               <dd>
                 {entitlement.cancelAtPeriodEnd
-                  ? `None — access ends ${fmtDate(entitlement.currentPeriodEnd)}`
+                  ? `None, access ends ${fmtDate(entitlement.currentPeriodEnd)}`
                   : fmtDate(entitlement.currentPeriodEnd)}
               </dd>
             </div>
@@ -199,7 +199,7 @@ export default function BillingPanel({
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
             Your subscription is canceled and will remain active until{' '}
             <strong>{fmtDate(entitlement.currentPeriodEnd)}</strong>. After that the workspace moves to the
-            Free plan — your content and connected accounts stay.
+            Free plan, your content and connected accounts stay.
           </p>
         ) : null}
         {paid && entitlement.plan !== 'ultimate' ? (
@@ -224,7 +224,7 @@ export default function BillingPanel({
       <section className="card p-5" aria-label="Usage this month">
         <p className="eyebrow">Usage · {usage.month}</p>
         <p className="mt-1 text-xs text-muted">
-          AI credits reset every calendar month — even on annual billing, which only changes how you are charged.
+          AI credits reset every calendar month, even on annual billing, which only changes how you are charged.
           Scheduled-post slots count per channel and free up as posts publish.
         </p>
         <div className="mt-3 space-y-3 text-sm">
@@ -277,12 +277,12 @@ export default function BillingPanel({
         </div>
         {usage.aiCreditsLimit !== null && usage.aiCreditsUsed >= usage.aiCreditsLimit ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            You've used every AI credit this month. They reset on the 1st — or{' '}
+            You've used every AI credit this month. They reset on the 1st, or{' '}
             <a className="font-bold underline" href="#change-plan">upgrade for more</a>.
           </p>
         ) : usage.aiCreditsLimit !== null && usage.aiCreditsRemaining !== null && usage.aiCreditsRemaining <= 5 ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            Only <strong>{usage.aiCreditsRemaining.toLocaleString()} AI credits</strong> left this month — they reset on the
+            Only <strong>{usage.aiCreditsRemaining.toLocaleString()} AI credits</strong> left this month, they reset on the
             1st, or <a className="font-bold underline" href="#change-plan">upgrade for a bigger allowance</a>.
           </p>
         ) : null}
@@ -302,8 +302,8 @@ export default function BillingPanel({
             <p className="text-sm font-bold">Sosial watermark</p>
             <p className="mt-0.5 text-xs leading-relaxed text-muted">
               {watermarkRequired
-                ? 'Required on the Free plan — a small “made with Sosial” badge is added to studio exports and published posts. Upgrade to control it.'
-                : 'A small “made with Sosial” badge added to studio exports and published posts. Turn it off any time — it never applies to media you bring in yourself.'}
+                ? 'Required on the Free plan, a small “made with Sosial” badge is added to studio exports and published posts. Upgrade to control it.'
+                : 'A small “made with Sosial” badge added to studio exports and published posts. Turn it off any time, it never applies to media you bring in yourself.'}
             </p>
           </div>
           <button
@@ -340,7 +340,7 @@ export default function BillingPanel({
               aria-pressed={interval === i}
               className={`pill border ${interval === i ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
             >
-              {i === 'monthly' ? 'Monthly' : `Annual — save up to ${annualSavingsPct('team')}%`}
+              {i === 'monthly' ? 'Monthly' : `Annual, save up to ${annualSavingsPct('team')}%`}
             </button>
           ))}
         </div>

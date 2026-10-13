@@ -31,9 +31,9 @@ async function json(r: Response): Promise<any> {
 }
 
 async function token(b: Bundle): Promise<string> {
-  if (!b.secrets.access_secret_id) throw new Error(`${b.target.provider} token missing — reconnect the channel.`);
+  if (!b.secrets.access_secret_id) throw new Error(`${b.target.provider} token missing, reconnect the channel.`);
   const value = await readSecret(b.secrets.access_secret_id);
-  if (!value) throw new Error(`${b.target.provider} token unavailable — reconnect the channel.`);
+  if (!value) throw new Error(`${b.target.provider} token unavailable, reconnect the channel.`);
   return value;
 }
 
@@ -66,7 +66,7 @@ export async function publishFacebookTarget(bundle: Bundle): Promise<{ remoteId:
       if (head === null) throw new Error('Video: could not read its size from storage.');
       return head;
     });
-    // Graph pulls the bytes itself (file_url) — no 128 MB buffer on the worker,
+    // Graph pulls the bytes itself (file_url), no 128 MB buffer on the worker,
     // so multi-GB videos work. The signed URL must outlive the crawl.
     const url = await storageSign('post-media', video.storage_path, 3600);
     const r = await fetch(`${FB_GRAPH}/${pageId}/videos`, {

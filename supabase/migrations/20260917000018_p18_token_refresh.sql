@@ -5,7 +5,7 @@
 -- 10-minute freshness window, so this runs every 15 minutes: any channel
 -- selected here is guaranteed to get a rotation pass before expiry, and
 -- already-fresh channels complete as cheap no-ops. Idempotency is one job
--- per channel per hour — re-running the schedule never double-enqueues.
+-- per channel per hour, re-running the schedule never double-enqueues.
 -- Chords with auth-dead refresh secrets are marked 'expired' by the worker
 -- (UI prompts a reconnect); publish-time lazy refresh is unchanged.
 

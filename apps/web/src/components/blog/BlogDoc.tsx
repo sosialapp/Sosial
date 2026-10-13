@@ -226,7 +226,7 @@ export default function BlogDoc({
 
   return (
     <div className={`tiptap-wrap tiptap-theme-${theme}`}>
-      {/* Sticky toolbar cluster — one pill parked below the editor app bar,
+      {/* Sticky toolbar cluster, one pill parked below the editor app bar,
           so formatting follows while scrolling and never tucks underneath. */}
       <div className="tiptap-bars">
       {/* main toolbar */}
@@ -335,7 +335,7 @@ export default function BlogDoc({
         </span>
       </div>
 
-      {/* table tools — only inside a table */}
+      {/* table tools, only inside a table */}
       {inTable ? (
         <div className="tiptap-bar tiptap-bar-table" role="toolbar" aria-label="Table tools">
           <span className="tiptap-group-label">Cell</span>
@@ -424,7 +424,7 @@ export default function BlogDoc({
 
       <EditorContent editor={editor} />
 
-      {/* Floating format bar — follows the text selection so formatting never
+      {/* Floating format bar, follows the text selection so formatting never
           needs a scroll back to the top toolbar. */}
       <BubbleMenu
         editor={editor}

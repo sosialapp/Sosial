@@ -383,7 +383,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
                     </button>
                   </li>
                 ))}
-                {dbs.length === 0 ? <li className="py-2 text-sm text-faint">No databases yet — search, or share one in Notion first.</li> : null}
+                {dbs.length === 0 ? <li className="py-2 text-sm text-faint">No databases yet, search, or share one in Notion first.</li> : null}
               </ul>
               {dbCursor ? (
                 <button type="button" onClick={() => void loadDbs(dbQuery, dbCursor)} disabled={busy} className="btn btn-ghost mt-2">
@@ -396,7 +396,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
           {step === 'map' && db ? (
             <section className="card p-5" aria-label="Map fields">
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-base font-extrabold tracking-tight">Map fields — {db.title}</h2>
+                <h2 className="font-display text-base font-extrabold tracking-tight">Map fields, {db.title}</h2>
                 <button type="button" onClick={() => setStep('pick')} className="text-xs font-bold text-muted hover:text-ink">
                   Change database
                 </button>
@@ -418,7 +418,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
                       onChange={(e) => setMap(f.key, e.target.value)}
                       className="field !py-2 !text-sm"
                     >
-                      <option value="">— none —</option>
+                      <option value="">- none -</option>
                       {f.key === 'content' ? <option value="__page_body__">Page body (text)</option> : null}
                       {schema.map((p) => (
                         <option key={p.name} value={p.name}>

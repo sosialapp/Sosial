@@ -11,7 +11,7 @@ function xerr(j: any, fallback: string): string {
     j?.errors?.[0]?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
   if (/deplet|exhaust|credit|quota|usage|over.?cap/i.test(base)) {
-    return `${base} — X posting quota is out. Check Usage in the developer portal (resets monthly) or upgrade to Basic.`;
+    return `${base}, X posting quota is out. Check Usage in the developer portal (resets monthly) or upgrade to Basic.`;
   }
   return base;
 }
@@ -22,20 +22,20 @@ const authH = (token: string) => ({ Authorization: `Bearer ${token}` });
 async function xjson(url: string, init: RequestInit, fallback: string): Promise<any> {
   const r = await fetch(url, init);
   const j: any = await r.json().catch(() => ({}));
-  if (r.status === 401) throw new Error('X session expired — reconnect X.');
+  if (r.status === 401) throw new Error('X session expired, reconnect X.');
   if (r.status === 403) {
     throw new Error(
-      'X refused the request (403) — the X app needs Read+Write permission and posting quota (Basic tier or higher), then reconnect.',
+      'X refused the request (403), the X app needs Read+Write permission and posting quota (Basic tier or higher), then reconnect.',
     );
   }
-  if (r.status === 429) throw new Error('X rate limit hit (429) — wait a few minutes and retry.');
+  if (r.status === 429) throw new Error('X rate limit hit (429), wait a few minutes and retry.');
   if (!r.ok) throw new Error(xerr(j, `${fallback} (${r.status})`));
   if (j?.errors?.length) throw new Error(xerr(j, fallback));
   return j;
 }
 
 /**
- * Multipart must go through XMLHttpRequest — expo/fetch (SDK 57) can't
+ * Multipart must go through XMLHttpRequest, expo/fetch (SDK 57) can't
  * serialize React Native {uri,name,type} FormData parts ("Unsupported
  * FormDataPart implementation"), while XHR runs on the native module.
  */
@@ -50,21 +50,21 @@ function xhrForm(url: string, token: string, form: FormData, timeoutMs = 120000)
       try {
         j = JSON.parse(xhr.responseText);
       } catch {}
-      if (xhr.status === 401) return reject(new Error('X session expired — reconnect X.'));
+      if (xhr.status === 401) return reject(new Error('X session expired, reconnect X.'));
       if (xhr.status === 403) {
         return reject(
           new Error(
-            'X refused the upload (403) — the token needs the media.write scope: disconnect X and connect again.',
+            'X refused the upload (403), the token needs the media.write scope: disconnect X and connect again.',
           ),
         );
       }
-      if (xhr.status === 429) return reject(new Error('X rate limit hit (429) — wait a few minutes and retry.'));
+      if (xhr.status === 429) return reject(new Error('X rate limit hit (429), wait a few minutes and retry.'));
       if (xhr.status < 200 || xhr.status >= 300) return reject(new Error(xerr(j, `X upload failed (${xhr.status})`)));
       if (j?.errors?.length) return reject(new Error(xerr(j, 'X upload failed.')));
       resolve(j);
     };
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('X upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('X upload timed out, try again.'));
     xhr.send(form as any);
   });
 }
@@ -97,13 +97,13 @@ async function fileSize(uri: string): Promise<number> {
 
 /**
  * One-shot image upload: multipart `media` bytes + `media_category`.
- * Photos finish synchronously — no INIT/APPEND/FINALIZE dance needed for
+ * Photos finish synchronously, no INIT/APPEND/FINALIZE dance needed for
  * anything under X's 5 MB image cap (which covers everything this app makes).
  */
 async function uploadOneImage(uri: string, token: string): Promise<string> {
   const total = await fileSize(uri);
   if (total > 5 * 1024 * 1024) {
-    throw new Error('That photo is over X’s 5 MB image limit — export a smaller size.');
+    throw new Error('That photo is over X’s 5 MB image limit, export a smaller size.');
   }
   const mime = mimeFor(uri);
   const form = new FormData();
@@ -119,7 +119,7 @@ async function uploadOneImage(uri: string, token: string): Promise<string> {
   return mediaId;
 }
 
-/** STATUS poll for async media (GIFs) — bounded, honors check_after_secs. */
+/** STATUS poll for async media (GIFs), bounded, honors check_after_secs. */
 async function waitReady(mediaId: string, token: string, timeoutMs = 60000): Promise<void> {
   const start = Date.now();
   for (;;) {
@@ -134,7 +134,7 @@ async function waitReady(mediaId: string, token: string, timeoutMs = 60000): Pro
       throw new Error(xerr(info.error, 'X could not process that image.'));
     }
     if (Date.now() - start >= timeoutMs) {
-      throw new Error('X is still processing the image — try publishing again in a minute.');
+      throw new Error('X is still processing the image, try publishing again in a minute.');
     }
     await sleep(Math.min(10000, (Number(info.check_after_secs) || 5) * 1000));
   }
@@ -214,7 +214,7 @@ export function xStatusId(source: string): string {
   if (/^\d+$/.test(s)) return s;
   const m = s.match(/(?:x\.com|twitter\.com)\/\w+\/status(?:es)?\/(\d+)/i);
   if (m) return m[1];
-  throw new Error('Could not read that X URL — paste the full post link or numeric ID.');
+  throw new Error('Could not read that X URL, paste the full post link or numeric ID.');
 }
 
 /**
@@ -233,10 +233,10 @@ export async function publishX(opts: {
   const uris = (opts.imageUris ?? []).filter(Boolean).slice(0, X_MAX_IMAGES);
   const videoUri = (opts.videoUri ?? '').trim() ? opts.videoUri : undefined;
   if (videoUri && uris.length > 0) {
-    throw new Error('X can’t mix photos and a video — send one or the other.');
+    throw new Error('X can’t mix photos and a video, send one or the other.');
   }
   if (!text && uris.length === 0 && !videoUri) {
-    throw new Error('Write something or attach a photo or video — X needs one of them.');
+    throw new Error('Write something or attach a photo or video, X needs one of them.');
   }
   const mediaIds: string[] = [];
   if (videoUri) {

@@ -1,7 +1,7 @@
 import { createClient as createAnonClient } from '@supabase/supabase-js';
 
 /**
- * Public read of CMS pages. Cookie-free anon client like lib/blog — live
+ * Public read of CMS pages. Cookie-free anon client like lib/blog, live
  * rows are public (RLS `site_pages_public_read` only admits published rows
  * whose date is due, so drafts and scheduled-future pages are invisible
  * here) and these run in server components outside request scope.
@@ -64,7 +64,7 @@ export interface SitePageMeta {
 }
 
 /**
- * Editable metadata for any live row (registry or custom) — what Page
+ * Editable metadata for any live row (registry or custom), what Page
  * settings writes. Null when never customized; drafts and scheduled-future
  * rows are already filtered by RLS, so this is always safe to render.
  */

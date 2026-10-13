@@ -5,7 +5,7 @@
 -- atomic, idempotent consume/refund.
 --
 -- Why a DB copy of the limits? Posts, targets, channels and members are
--- inserted by clients under RLS — the only trustworthy gate is a trigger.
+-- inserted by clients under RLS, the only trustworthy gate is a trigger.
 -- The TS config remains canonical for UI + the AI edge gate; this table is
 -- the enforcement mirror. CHANGE BOTH TOGETHER.
 
@@ -123,7 +123,7 @@ begin
   returning id into v_id;
 
   if v_id is null then
-    -- Duplicate request — replay the prior outcome, never charge again.
+    -- Duplicate request, replay the prior outcome, never charge again.
     select status into v_status from public.ai_usage_events where request_id = p_request_id;
     select ai_credits into v_used from public.usage_counters
       where workspace_id = p_workspace_id and month = v_month;
@@ -146,7 +146,7 @@ begin
       'ok', false, 'status', 402, 'used', v_used, 'limit', v_limit,
       'remaining', greatest(0, v_limit - v_used),
       'message', case
-        when v_limit = 0 then 'AI is available on paid plans — upgrade to unlock it.'
+        when v_limit = 0 then 'AI is available on paid plans, upgrade to unlock it.'
         when v_limit - v_used <= 0 then 'You have used all ' || v_limit || ' AI credits this month. They reset on the 1st, or upgrade for more.'
         else 'That needs ' || p_credits || ' credits but only ' || greatest(0, v_limit - v_used) || ' remain this month.'
       end
@@ -252,7 +252,7 @@ begin
     from public.post_targets
     where channel_id = new.channel_id and status not in ('sent', 'skipped');
   if v_count >= v_limit then
-    raise exception 'POST_LIMIT: This channel already has % scheduled posts — your plan''s limit. Publish or remove one, or upgrade.',
+    raise exception 'POST_LIMIT: This channel already has % scheduled posts, your plan''s limit. Publish or remove one, or upgrade.',
       v_limit
       using errcode = 'P0001';
   end if;

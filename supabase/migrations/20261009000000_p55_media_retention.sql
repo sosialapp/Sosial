@@ -4,7 +4,7 @@
 -- and their media_assets rows expire. Each plan gets a retention window
 -- (media_retention_days): Free 30d · Solo 90d · Team 180d · Business 365d ·
 -- Ultimate never (null). Mirrors apps/web/src/lib/billing/plans.ts +
--- src/utils/plans.ts — CHANGE ALL TOGETHER.
+-- src/utils/plans.ts, CHANGE ALL TOGETHER.
 --
 -- A daily cron enqueues one cleanup_media job per expired asset (idempotent by
 -- asset id); the worker deletes the storage object, then the row (post_media

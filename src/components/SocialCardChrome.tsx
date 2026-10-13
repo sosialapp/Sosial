@@ -12,7 +12,7 @@ interface ChromeProps {
   pad: (v: number) => number;
   /** when true the card hugs its content (auto height) instead of filling the canvas */
   fit?: boolean;
-  /** hard ceiling for the auto height — content scales down rather than clipping */
+  /** hard ceiling for the auto height, content scales down rather than clipping */
   maxH?: number;
   /** render the "made with Sosial" badge (free-plan watermark) */
   watermark?: boolean;
@@ -49,7 +49,7 @@ function Watermark({ font, pad, size, color }: { font: FontId; pad: (v: number) 
   );
 }
 
-/** Luminance check — dark cards get light chrome ink, light cards get dark. */
+/** Luminance check, dark cards get light chrome ink, light cards get dark. */
 function isDarkHex(hex: string): boolean {
   const h = (hex || '').replace('#', '');
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
@@ -180,7 +180,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
   if (style === 'x') {
     return (
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(14), borderWidth: pad(1), borderColor: hairline, overflow: 'hidden' }}>
-        {/* author header — identity reads as one tight unit; the handle
+        {/* author header, identity reads as one tight unit; the handle
             truncates, the name never does. Watermark rides with the dots. */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(13), paddingTop: pad(11) }}>
           <Avatar page={page} pad={pad} size={22} />
@@ -201,7 +201,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
         </View>
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
-            action row — full-width, aspect-preserved. */}
+            action row, full-width, aspect-preserved. */}
         <View style={{ paddingHorizontal: pad(14), paddingTop: pad(3), paddingBottom: pad(10) }}>
           <Svg width="100%" height={pad(20)} viewBox="0 0 357 54">
             <Defs>
@@ -268,7 +268,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
       <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(14), borderWidth: pad(1), borderColor: hairline, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(13), paddingTop: pad(11) }}>
           <Avatar page={page} pad={pad} size={20} />
-          {/* Identity reads as one unit — handle, seal and time glued tight. */}
+          {/* Identity reads as one unit, handle, seal and time glued tight. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(3), flexShrink: 1, minWidth: 0 }}>
             <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>
               {firstHandle}
@@ -278,7 +278,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           </View>
           {watermark ? <Watermark font={font} pad={pad} size={8} color={faint} /> : null}
           <View style={{ flex: 1 }} />
-          {/* Official Threads wordmark — currentColor via the ink color
+          {/* Official Threads wordmark, currentColor via the ink color
               prop, theme-aware like the web canvas. Padded viewBox so the
               flush-bound glyphs never shave at the box edge. */}
           <Svg width={pad(40)} height={pad(8)} viewBox="-30 -10.4 1982 396.41" style={{ flexShrink: 0 }}>
@@ -323,7 +323,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           </View>
         </View>
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
-        {/* reply · repost · like · save · share · more — like the app */}
+        {/* reply · repost · like · save · share · more, like the app */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: pad(14), paddingBottom: pad(10), gap: pad(4) }}>
           {[
             { custom: 'bsky-comment' as const, count: '12', color: gray },

@@ -1,6 +1,6 @@
 -- P3b · Worker queue RPC (PostgREST-callable, service_role only)
 --
--- The Railway worker has no pg driver — it claims/completes jobs over HTTPS
+-- The Railway worker has no pg driver, it claims/completes jobs over HTTPS
 -- via these RPCs using the service_role key. SKIP LOCKED lives here so
 -- multiple worker replicas never double-claim. No RLS policies on job_queue
 -- means these SECURITY DEFINER functions are the only access path.

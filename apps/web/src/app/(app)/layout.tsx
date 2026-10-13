@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Masthead Connect pill, same as the mobile app: card pill with a stacked
  * row of brand tiles (20px colour disc + white glyph, max 4 then +n) and
- * "Connect". deliberately photo-free — profile pictures with corner badges
+ * "Connect". deliberately photo-free, profile pictures with corner badges
  * turn to clutter at this size. Stack shows only when channels are connected.
  */
 function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {

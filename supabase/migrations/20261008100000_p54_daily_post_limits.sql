@@ -7,11 +7,11 @@
 -- the API route) to remember them.
 --
 -- Two gates:
---   Gate A — a BEFORE INSERT/UPDATE trigger on post_targets refuses to queue a
+--   Gate A, a BEFORE INSERT/UPDATE trigger on post_targets refuses to queue a
 --            target once the channel has exhausted its window. This is the
 --            friendly, upgrade-free "you're at the limit" the composer shows
 --            (friendlyLimit() strips the POST_LIMIT: tag).
---   Gate B — the worker re-checks at publish time and DEFERS (not fails) a job
+--   Gate B, the worker re-checks at publish time and DEFERS (not fails) a job
 --            when the window is full, so a genuinely scheduled post is delayed
 --            rather than lost. This is the true API-abuse guard.
 --
@@ -29,7 +29,7 @@ create table if not exists public.provider_daily_limits (
 insert into public.provider_daily_limits (provider, max_per_24h) values
   ('facebook',   35),
   ('instagram',  50),
-  ('x',          50),   -- 50 unverified / 100 verified — no verified signal, stay safe
+  ('x',          50),   -- 50 unverified / 100 verified, no verified signal, stay safe
   ('linkedin',   50),
   ('pinterest',   5),   -- 5 unverified / 25 verified email
   ('tiktok',     25),
@@ -93,7 +93,7 @@ begin
 
   if v_sent >= v_limit then
     raise exception
-      'POST_LIMIT: % allows % posts per 24 hours — this channel has reached that limit. It frees up as earlier posts age out of the window.',
+      'POST_LIMIT: % allows % posts per 24 hours, this channel has reached that limit. It frees up as earlier posts age out of the window.',
       new.provider, v_limit
       using errcode = 'P0001';
   end if;
@@ -134,7 +134,7 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- Return a running job to the queue at a chosen time WITHOUT burning an
--- attempt or applying exponential backoff — used by Gate B to wait out a full
+-- attempt or applying exponential backoff, used by Gate B to wait out a full
 -- daily window. distinct from complete_job's failure path.
 create or replace function public.defer_job(p_job_id bigint, p_run_at timestamptz)
 returns void

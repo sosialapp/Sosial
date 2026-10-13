@@ -41,7 +41,7 @@ interface Idea {
   /** Media per part (index 0 = part 1), persisted as data URLs. */
   media?: IdeaMedia[][];
   createdAt: number;
-  /** Which app created it — renders a small badge when foreign. */
+  /** Which app created it, renders a small badge when foreign. */
   origin?: 'web' | 'mobile';
 }
 
@@ -52,13 +52,13 @@ interface Template {
   body: string;
   createdAt: number;
   builtIn?: boolean;
-  /** Which app created it — renders a small badge when foreign. */
+  /** Which app created it, renders a small badge when foreign. */
   origin?: 'web' | 'mobile';
 }
 
 export type Tab = 'post' | 'templates' | 'ideas';
 
-/** Canonical URL per hub tab — tab switches navigate so every tab is linkable. */
+/** Canonical URL per hub tab, tab switches navigate so every tab is linkable. */
 export const TAB_URL: Record<Tab, string> = {
   post: '/post',
   templates: '/post-templates',
@@ -144,7 +144,7 @@ function readMarks(workspaceId: string): SyncMarks {
 const asText = (v: unknown): string => (typeof v === 'string' ? v : '');
 const asNum = (v: unknown, fb: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fb);
 
-/** Portable media only — blob: URLs die with the session that made them. */
+/** Portable media only, blob: URLs die with the session that made them. */
 function portableMedia(url: unknown, kind: 'image' | 'video'): IdeaMedia | null {
   if (typeof url !== 'string' || url.length === 0) return null;
   if (/^(https?:|data:image\/|data:video\/)/.test(url)) return { url, kind };
@@ -197,7 +197,7 @@ function adaptIdea(r: LibraryRow): Idea | null {
 }
 
 /** Cloud row → web template. Mobile rows (a `post` design object) become a
- *  text card with the design name — formats don't cross platforms. */
+ *  text card with the design name, formats don't cross platforms. */
 function adaptTemplate(r: LibraryRow): Template | null {
   const d = (r.data ?? {}) as Record<string, unknown>;
   if (d && typeof d.post === 'object' && d.post !== null) {
@@ -271,12 +271,12 @@ export default function CreateHub({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Tab switches navigate (colocated per-tab URLs) — no tab state to drift.
+  // Tab switches navigate (colocated per-tab URLs), no tab state to drift.
   const tab = initialTab;
   const goTab = (t: Tab) => {
     if (t !== tab) router.push(TAB_URL[t], { scroll: false });
   };
-  // /post hosts the composer plus the status lists (?filter=) — the URL is
+  // /post hosts the composer plus the status lists (?filter=), the URL is
   // the source of truth. ?edit= always means the composer.
   // Filter switches stay fully client-side: the server already sent every
   // post, so pushing a route (full server refetch ≈2s) for a view change is
@@ -358,7 +358,7 @@ export default function CreateHub({
     setRecent(readList<{ project: StudioProject; pageIndex: number; at: number }>(recentKey(workspaceId)).slice(0, 12));
     // Cross-device sync: adopt cloud rows newer than our watermark, drop
     // tombstoned locals, and push locals the cloud has never seen. Skips
-    // nothing when offline — the local lists stand.
+    // nothing when offline, the local lists stand.
     void (async () => {
       try {
         const sb = createClient();
@@ -416,13 +416,13 @@ export default function CreateHub({
           localStorage.setItem(projectsKey(workspaceId), JSON.stringify(mergedProjects));
           localStorage.setItem(syncMarksKey(workspaceId), JSON.stringify(nextMarks));
         } catch {
-          /* private mode — merged lists just won't persist */
+          /* private mode, merged lists just won't persist */
         }
         setIdeas(mergedIdeas.sort((a, b) => b.createdAt - a.createdAt));
         setTemplates(mergedTemplates.sort((a, b) => b.createdAt - a.createdAt));
         setProjects(mergedProjects.sort((a, b) => b.createdAt - a.createdAt));
       } catch {
-        /* offline — local lists stand */
+        /* offline, local lists stand */
       }
     })();
   }, [workspaceId]);
@@ -460,7 +460,7 @@ export default function CreateHub({
         );
       }
     } catch {
-      /* offline — the next save or mount re-pushes */
+      /* offline, the next save or mount re-pushes */
     }
   };
 
@@ -477,7 +477,7 @@ export default function CreateHub({
     try {
       localStorage.setItem(ideasKey(workspaceId), JSON.stringify(next));
     } catch {
-      /* private mode — ideas just won't persist */
+      /* private mode, ideas just won't persist */
     }
     pushAll('idea', next);
   };
@@ -487,7 +487,7 @@ export default function CreateHub({
     try {
       localStorage.setItem(templatesKey(workspaceId), JSON.stringify(next));
     } catch {
-      /* private mode — templates just won't persist */
+      /* private mode, templates just won't persist */
     }
     pushAll('template', next);
   };
@@ -497,7 +497,7 @@ export default function CreateHub({
     try {
       localStorage.setItem(projectsKey(workspaceId), JSON.stringify(next));
     } catch {
-      /* private mode / quota — designs just won't persist */
+      /* private mode / quota, designs just won't persist */
     }
     pushAll('project', next);
   };
@@ -595,14 +595,14 @@ export default function CreateHub({
     try {
       localStorage.setItem(ideasKey(workspaceId), JSON.stringify(next));
     } catch {
-      // Quota — retry without media so the text always survives.
+      // Quota, retry without media so the text always survives.
       try {
         const slim = next.map((i) => ({ ...i, media: undefined }));
         localStorage.setItem(ideasKey(workspaceId), JSON.stringify(slim));
         setIdeas(slim as Idea[]);
         finalList = slim as Idea[];
       } catch {
-        /* private mode — ideas just won't persist */
+        /* private mode, ideas just won't persist */
       }
     }
     pushAll('idea', finalList);
@@ -668,7 +668,7 @@ export default function CreateHub({
       threadsTopic,
       mediaParts,
     });
-    // Edits belong to the composer — bounce list views back to Create.
+    // Edits belong to the composer, bounce list views back to Create.
     if (view !== 'create') router.push('/post');
   };
 
@@ -679,7 +679,7 @@ export default function CreateHub({
     const id = searchParams.get('edit');
     if (!id) return;
     editConsumed.current = true;
-    // Draft edits belong to the composer — bounce there with the id intact,
+    // Draft edits belong to the composer, bounce there with the id intact,
     // then load regardless (same-route replaces don't remount to re-run us).
     if (initialTab !== 'post' || filterView) {
       router.replace(`/post?edit=${encodeURIComponent(id)}`);
@@ -743,7 +743,7 @@ export default function CreateHub({
           }),
         );
       } catch {
-        /* media no longer readable — post without it */
+        /* media no longer readable, post without it */
       }
     }
     const parts = [idea.body, ...(idea.thread ?? [])];
@@ -1049,7 +1049,7 @@ export default function CreateHub({
                 });
                 if (bodies.length > 1) setIdeaThread(true);
               }}
-              appliedNote="Applied to your idea — edit freely, then save."
+              appliedNote="Applied to your idea, edit freely, then save."
             />
           </div>
         </div>
@@ -1093,7 +1093,7 @@ export default function CreateHub({
         </div>
       ) : (
         <div className="mt-4 space-y-5">
-          {/* Mobile-parity CTA — the editor opens beneath it (mobile opens a screen). */}
+          {/* Mobile-parity CTA, the editor opens beneath it (mobile opens a screen). */}
           <button
             type="button"
             onClick={() => setEditing(blankProject('Untitled design'))}
@@ -1102,7 +1102,7 @@ export default function CreateHub({
             + New template design
           </button>
 
-          {/* Your templates — two-column masonry with ••• menus. */}
+          {/* Your templates, two-column masonry with ••• menus. */}
           {projects.length > 0 ? (
             <>
               <p className="eyebrow pt-1">Your templates</p>
@@ -1137,7 +1137,7 @@ export default function CreateHub({
             </>
           ) : null}
 
-          {/* Recent — designs used lately, most recent first. */}
+          {/* Recent, designs used lately, most recent first. */}
           {recent.length > 0 ? (
             <>
               <p className="eyebrow pt-1">Recent</p>
@@ -1177,7 +1177,7 @@ export default function CreateHub({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted">No caption templates yet — save one below.</p>
+                <p className="text-sm text-muted">No caption templates yet, save one below.</p>
               )}
               <div className="space-y-2 rounded-2xl border border-line bg-paper p-3.5">
                 <p className="eyebrow">Save your own</p>
@@ -1220,7 +1220,7 @@ export default function CreateHub({
                         </p>
                         {t.body ? <p className="truncate text-xs text-muted">{t.body}</p> : null}
                         {t.origin === 'mobile' && !t.body ? (
-                          <p className="truncate text-xs text-muted">Saved on mobile — designs stay in the app.</p>
+                          <p className="truncate text-xs text-muted">Saved on mobile, designs stay in the app.</p>
                         ) : null}
                       </div>
                       {t.origin === 'mobile' && !t.body ? (
@@ -1263,7 +1263,7 @@ export default function CreateHub({
             </div>
           </details>
 
-          {/* Rename dialog — mobile parity. */}
+          {/* Rename dialog, mobile parity. */}
           {renaming ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
               <button type="button" aria-hidden="true" tabIndex={-1} onClick={() => setRenaming(null)} className="absolute inset-0 cursor-default bg-black/40" />

@@ -25,7 +25,7 @@ function ago(iso: string): string {
 }
 
 /**
- * Notification bell — masthead slot where the avatar used to sit (web
+ * Notification bell, masthead slot where the avatar used to sit (web
  * NotificationBell parity). Polls `notifications` (RLS: own rows) every
  * 30s for the unread count, lists the latest in a sheet, marks all read
  * on open. Events are written by the P48/P60 DB triggers: team changes,
@@ -50,7 +50,7 @@ export default function NotificationBell() {
       setItems(rows);
       setUnread(rows.filter((r) => !r.read_at).length);
     } catch {
-      // offline or signed out — keep the last list; next tick retries.
+      // offline or signed out, keep the last list; next tick retries.
     }
   }, []);
 
@@ -110,7 +110,7 @@ export default function NotificationBell() {
                   <ActivityIndicator size="small" color={C.accent} />
                 </View>
               ) : items.length === 0 ? (
-                <Text style={s.empty}>Nothing yet — publish results, approvals and team changes land here.</Text>
+                <Text style={s.empty}>Nothing yet, publish results, approvals and team changes land here.</Text>
               ) : (
                 items.map((n) => (
                   <View key={n.id} style={s.row}>

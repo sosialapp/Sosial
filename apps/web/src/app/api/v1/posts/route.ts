@@ -16,7 +16,7 @@ const STATUSES = new Set([
   'failed',
 ]);
 
-/** Recent posts — powers Zapier/Make polling triggers ("new sent post"). */
+/** Recent posts, powers Zapier/Make polling triggers ("new sent post"). */
 export async function GET(req: Request) {
   const ctx = await verifyApiKey(req);
   if (!ctx) return unauthorized();
@@ -99,7 +99,7 @@ async function fetchMedia(urls: string[]): Promise<{ file: File; kind: 'image' |
 }
 
 /**
- * Create a post — the Zapier/Make "create post" action. One call targets
+ * Create a post, the Zapier/Make "create post" action. One call targets
  * every connected account of each listed provider. Retries with the same
  * idempotency_key return the original post.
  */

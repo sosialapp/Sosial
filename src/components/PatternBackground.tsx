@@ -5,7 +5,7 @@ import { BackgroundStyle, BgType } from '../types';
 
 function PatternLayer({ type, color, size, opacity, width, height }: { type: BgType; color: string; size: number; opacity: number; width: number; height: number }) {
   const els = useMemo(() => {
-    // centered tile grid — equal clipping on all sides instead of top-left anchored
+    // centered tile grid, equal clipping on all sides instead of top-left anchored
     const grid = (step: number) => {
       const cols = Math.max(1, Math.ceil(width / step));
       const rows = Math.max(1, Math.ceil(height / step));
@@ -178,7 +178,7 @@ export default function PatternBackground({ bg, width, height }: { bg: Backgroun
       {bg.type === 'image' && bg.imageUri ? (
         <Image source={{ uri: bg.imageUri }} style={[StyleSheet.absoluteFill, { width, height, opacity: 1 - (bg.imageOpacity ?? 0.35) }]} resizeMode="cover" />
       ) : null}
-      {/* base pattern (skip if image-only with no pattern — still allow) */}
+      {/* base pattern (skip if image-only with no pattern, still allow) */}
       {bg.type !== 'image' || !bg.imageUri ? (
         <PatternLayer type={bg.type} color={bg.patternColor} size={bg.patternSize} opacity={bg.patternOpacity} width={width} height={height} />
       ) : (

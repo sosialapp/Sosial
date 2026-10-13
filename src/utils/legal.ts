@@ -1,5 +1,5 @@
 /**
- * Single home for the app's legal copy — the pre-login consent sheet, the
+ * Single home for the app's legal copy. The pre-login consent sheet, the
  * Account → Terms view and the Privacy Policy screen all render from here
  * so the words can never drift apart.
  *
@@ -12,11 +12,13 @@
 export const TERMS_TEXT =
   'Sosial is a social media scheduling and publishing service operated by EGATE WORLDWIDE. You connect social accounts, compose content, schedule it, and Sosial publishes it to those accounts on your behalf using each platform’s official API. By creating a workspace you agree to these terms.\n\n' +
   'You must be old enough to hold an account on each platform you connect, you are responsible for keeping your login credentials secure, and for everything published from a social account while it is connected to your workspace.\n\n' +
-  'Your use of each connected platform — X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile — remains governed by that platform’s own terms and policies. Some channels are shown as "Soon" and cannot yet be connected (Google Business Profile, LinkedIn, Pinterest). X requires a paid plan.\n\n' +
-  'You keep ownership of everything you create — and full responsibility for it. Do not publish content you do not own or have rights to, or that is unlawful, infringing or deceptive. Sosial does not review posts before they go out and is not liable for what you publish: racist, hateful, sexually explicit, defamatory or misleading content, political content, misinformation, or anything else that breaks the law or a platform’s rules. Legal trouble from your posts is yours, not ours. We may remove content or suspend accounts that break these terms or the law.\n\n' +
+  'Your use of each connected platform (X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile) remains governed by that platform’s own terms and policies. Some channels are shown as "Soon" and cannot yet be connected (Google Business Profile, LinkedIn, Pinterest). X requires a paid plan.\n\n' +
+  'You keep ownership of everything you create, and full responsibility for it. Do not publish content you do not own or have rights to, or that is unlawful, infringing or deceptive. Sosial does not review posts before they go out and is not liable for what you publish: racist, hateful, sexually explicit, defamatory or misleading content, political content, misinformation, or anything else that breaks the law or a platform’s rules. Legal trouble from your posts is yours, not ours. We may remove content or suspend accounts that break these terms or the law.\n\n' +
   'Marketing emails (product news and tips) are sent only to users who opt in via the optional checkbox at signup or a preference in account settings. Every marketing email carries a one-click unsubscribe link, and unsubscribing takes effect immediately. Operational emails such as security notices, receipts and publishing confirmations are not marketing and continue regardless.\n\n' +
   'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data. We email a reminder one month before any such deletion, and signing in at any point during that month cancels it. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps the workspace and its data. Accounts with an active paid subscription are never deleted for inactivity.\n\n' +
-  'Sosial is provided as-is, without warranties, and our total liability is limited to the amount you paid in the twelve months before a claim.';
+  'Sosial is provided as-is, without warranties, and our total liability is limited to the amount you paid in the twelve months before a claim.\n\n' +
+  'You can also pull content in from Dropbox, Canva, Unsplash and OneDrive (read-only: Sosial never changes or deletes anything in your storage), import drafts from Notion and Google Sheets, and let your own automations post through Zapier or MCP with an API key you control. The AI writer sends your brief to our AI provider to draft copy; we never use your briefs or drafts to train models.\n\n' +
+  'You can delete your workspace at any time, which removes your content, tokens and personal details. Inactive accounts may be deleted as described above. Cancel any paid subscription first: deletion does not cancel billing.';
 
 export interface LegalSection {
   title: string;
@@ -26,11 +28,11 @@ export interface LegalSection {
 export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'What we store',
-    body: 'Your email address and an encrypted password (or your OAuth identity if you signed in with a provider); your workspace data — posts, captions, schedules, media and templates; your connected channel handles, display names and the access token needed to publish; and import references for Notion and Google Sheets plus any API keys you generate for automation tools and AI agents. Billing is handled by our payment provider — we store only a customer reference, never your card number.',
+    body: 'Your email address and an encrypted password (or your OAuth identity if you signed in with a provider); your workspace data: posts, captions, schedules, media and templates; your connected channel handles, display names and the access token needed to publish; and import references for Notion and Google Sheets plus any API keys you generate for automation tools and AI agents. Billing is handled by our payment provider. We store only a customer reference, never your card number.',
   },
   {
     title: 'Connected social accounts',
-    body: 'Sosial publishes to 18 channels. When you connect one, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We never store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored. We do not read your private messages on any platform. Some channels are shown as "Soon" and cannot yet be connected — Google Business Profile, LinkedIn and Pinterest — and no account is accessed for them until they go live. Connect and disconnect any channel from the Channels screen; disconnecting deletes the stored token.',
+    body: 'Sosial publishes to 18 channels. When you connect one, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We never store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored. We do not read your private messages on any platform. Some channels are shown as "Soon" and cannot yet be connected (Google Business Profile, LinkedIn and Pinterest), and no account is accessed for them until they go live. Connect and disconnect any channel from the Channels screen; disconnecting deletes the stored token.',
   },
   {
     title: 'Connected media & content sources',
@@ -38,7 +40,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   },
   {
     title: 'Content responsibility',
-    body: 'What you publish through Sosial is yours: we store and deliver it on your behalf, but we do not review it and we are not responsible for it. If your content is racist, hateful, sexually explicit, defamatory, misleading or unlawful — including political content or misinformation — any legal consequences fall on you, not on Sosial.',
+    body: 'What you publish through Sosial is yours: we store and deliver it on your behalf, but we do not review it and we are not responsible for it. If your content is racist, hateful, sexually explicit, defamatory, misleading or unlawful (including political content or misinformation), any legal consequences fall on you, not on Sosial.',
   },
   {
     title: 'Where your tokens live',
@@ -66,11 +68,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   },
   {
     title: 'Marketing emails',
-    body: 'Product news and tips are sent only to people who asked for them — via the optional checkbox at signup or a preference in account settings. Consent is stored as a flag on your account, the emails come from our own domain, and every one carries a one-click unsubscribe link that takes effect immediately. We do not share your email address with advertising networks, and unsubscribing from marketing never affects operational emails such as security notices, receipts or publishing confirmations.',
+    body: 'Product news and tips are sent only to people who asked for them, via the optional checkbox at signup or a preference in account settings. Consent is stored as a flag on your account, the emails come from our own domain, and every one carries a one-click unsubscribe link that takes effect immediately. We do not share your email address with advertising networks, and unsubscribing from marketing never affects operational emails such as security notices, receipts or publishing confirmations.',
   },
   {
     title: 'How long we keep it',
-    body: 'We keep your workspace data while your account is active, and delete it when you delete your workspace. If an account is inactive — no sign-in and no activity — for six consecutive months, it and all of its data are deleted; we email a reminder one month before, and signing in at any point cancels the deletion. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps it and its data. Accounts with an active paid subscription are never deleted for inactivity.',
+    body: 'We keep your workspace data while your account is active, and delete it when you delete your workspace. If an account is inactive for six consecutive months (no sign-in and no activity), it and all of its data are deleted; we email a reminder one month before, and signing in at any point cancels the deletion. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps it and its data. Accounts with an active paid subscription are never deleted for inactivity. Support tickets and their screenshots are erased 30 days after the ticket is resolved.',
   },
   {
     title: 'Children',

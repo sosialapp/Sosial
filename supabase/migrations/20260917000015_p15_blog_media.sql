@@ -2,7 +2,7 @@
 --
 -- Bucket is PUBLIC (blog images render for anonymous readers); writes are
 -- app-admin-only via is_app_admin() (P11). Flat random filenames from the
--- editor — no workspace scoping needed (single owner). Same conventions
+-- editor, no workspace scoping needed (single owner). Same conventions
 -- as the P5 post-media bucket.
 
 insert into storage.buckets (id, name, public)

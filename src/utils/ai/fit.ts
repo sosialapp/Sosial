@@ -6,7 +6,7 @@ const W = 340;
 /** body padding is 13 horizontal for every style; only top/bottom change. */
 const INNER_W = W - 26;
 
-/** Fixed chrome measured from SocialCardChrome — header above and footer below the
+/** Fixed chrome measured from SocialCardChrome, header above and footer below the
  *  auto-fit body. Kept in canvas units so it scales with the canvas. */
 interface Metrics { header: number; bodyTop: number; bodyBottom: number; footer: number; }
 const METRICS: Record<CardStyle, Metrics> = {
@@ -87,7 +87,7 @@ function blockH(b: GenBlock, zoom: number): number {
 /**
  * Height of the fixed card that holds these blocks, app-measured (never model-guessed).
  * Deliberately tuned *just* under the natural height so AutoFit fills the card exactly
- * instead of leaving a gap at the bottom — a too-tall card is what made Facebook/IG
+ * instead of leaving a gap at the bottom, a too-tall card is what made Facebook/IG
  * cards show dead space above their like/comment rows.
  */
 export function estimateCardH(blocks: GenBlock[], opts: { contentScale?: number; cardStyle?: CardStyle } = {}): number {

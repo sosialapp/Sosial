@@ -14,7 +14,7 @@ function useWidth() {
   return { w, onLayout };
 }
 
-/** Area chart — gradient fill, gridlines, optional x labels, tap to scrub the
+/** Area chart, gradient fill, gridlines, optional x labels, tap to scrub the
  *  nearest point (shows a value tooltip + vertical guide). SVG only. */
 export function AreaChart({
   data,
@@ -123,7 +123,7 @@ export function AreaChart({
   );
 }
 
-/** Vertical bar chart — gridlines, optional x labels, value labels, tap to
+/** Vertical bar chart, gridlines, optional x labels, value labels, tap to
  *  highlight a bar. SVG only. */
 export function BarsChart({
   data,
@@ -208,7 +208,7 @@ export function BarsChart({
   );
 }
 
-/** Horizontal bar list — the mobile analogue of the web `HBarList`. Each row
+/** Horizontal bar list, the mobile analogue of the web `HBarList`. Each row
  *  is a label + value over a track/fill. */
 export function HBarList({
   rows,

@@ -1,15 +1,15 @@
 // dormancy-sweep · daily cron: warn at 5 months idle, delete at 6.
 //
 // POSTed once a day by pg_cron (net.http_post, service-role header).
-//   1. WARN  — accounts idle 5+ months (and never warned) get a "we will
+//   1. WARN , accounts idle 5+ months (and never warned) get a "we will
 //              delete your account in 1 month" email from no-reply@sosial.app
 //              via Resend; the warn stamp lives in user_metadata.
-//   2. DELETE — accounts idle 6+ months (warned at least 14 days ago, or
+//   2. DELETE, accounts idle 6+ months (warned at least 14 days ago, or
 //              never warned but long past the mark) are purged exactly like
 //              delete-account: owned workspaces wiped whole (Vault secrets,
 //              storage bytes, rows), memberships, media-integration secrets,
 //              then the auth user.
-// Paying accounts (active/trialing subscription) are never deleted — an
+// Paying accounts (active/trialing subscription) are never deleted, an
 // active subscription is activity in every sense that matters.
 // Batch-capped per run so one sweep never times out; cron catches the rest
 // tomorrow. "Idle" = the user AND every workspace they belong to have had no
@@ -52,7 +52,7 @@ async function sendWarnEmail(resendKey: string, to: string): Promise<boolean> {
         to: [to],
         reply_to: "support@sosial.app",
         subject: "Your Sosial account will be deleted in 1 month",
-        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F4F4F4;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F4;padding:40px 16px;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="padding:0 8px 24px 8px;"><img src="https://sosial.app/bolt.png" width="30" height="30" alt="Sosial" style="display:inline-block;vertical-align:middle;border-radius:8px;" /><span style="display:inline-block;vertical-align:middle;margin-left:8px;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;color:#1C1A14;letter-spacing:-0.5px;">Sosial</span></td></tr><tr><td style="background:#FFFFFF;border:1px solid #E6E6E6;border-radius:16px;padding:44px 40px;"><p style="margin:0 0 8px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8A8A8A;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;">Account notice</p><h1 style="margin:0 0 16px;font-size:26px;line-height:1.25;color:#1C1A14;font-weight:700;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;">We haven't seen you in a while.</h1><p style="margin:0 0 32px;font-size:15px;line-height:1.6;color:#55524A;font-family:Helvetica,Arial,sans-serif;">Your Sosial account has been inactive for five months. Per our <a href="https://sosial.app/terms" style="color:#1C1A14;">Terms</a>, accounts inactive for six months are deleted along with all their data — posts, media, templates and connected channels.</p><p style="margin:0 0 32px;font-size:15px;line-height:1.6;color:#55524A;font-family:Helvetica,Arial,sans-serif;"><strong>Your account is scheduled for deletion one month from today.</strong> To keep it, just <a href="https://sosial.app/login" style="color:#1C1A14;font-weight:700;">sign in</a> — no other action needed.</p><a href="https://sosial.app/login" style="display:inline-block;background:#FFC62E;color:#1C1A14;text-decoration:none;font-weight:700;font-size:15px;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;padding:14px 32px;border-radius:999px;">Sign in to keep my account</a></td></tr><tr><td style="padding:24px 8px;font-size:12px;color:#8A8A8A;font-family:Helvetica,Arial,sans-serif;">Questions? Email support@sosial.app.<br>&copy; Sosial &middot; <a href="https://sosial.app" style="color:#8A8A8A;">sosial.app</a></td></tr></table></td></tr></table></body></html>`,
+        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F4F4F4;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F4;padding:40px 16px;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="padding:0 8px 24px 8px;"><img src="https://sosial.app/bolt.png" width="30" height="30" alt="Sosial" style="display:inline-block;vertical-align:middle;border-radius:8px;" /><span style="display:inline-block;vertical-align:middle;margin-left:8px;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;color:#1C1A14;letter-spacing:-0.5px;">Sosial</span></td></tr><tr><td style="background:#FFFFFF;border:1px solid #E6E6E6;border-radius:16px;padding:44px 40px;"><p style="margin:0 0 8px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8A8A8A;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;">Account notice</p><h1 style="margin:0 0 16px;font-size:26px;line-height:1.25;color:#1C1A14;font-weight:700;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;">We haven't seen you in a while.</h1><p style="margin:0 0 32px;font-size:15px;line-height:1.6;color:#55524A;font-family:Helvetica,Arial,sans-serif;">Your Sosial account has been inactive for five months. Per our <a href="https://sosial.app/terms" style="color:#1C1A14;">Terms</a>, accounts inactive for six months are deleted along with all their data, posts, media, templates and connected channels.</p><p style="margin:0 0 32px;font-size:15px;line-height:1.6;color:#55524A;font-family:Helvetica,Arial,sans-serif;"><strong>Your account is scheduled for deletion one month from today.</strong> To keep it, just <a href="https://sosial.app/login" style="color:#1C1A14;font-weight:700;">sign in</a>, no other action needed.</p><a href="https://sosial.app/login" style="display:inline-block;background:#FFC62E;color:#1C1A14;text-decoration:none;font-weight:700;font-size:15px;font-family:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;padding:14px 32px;border-radius:999px;">Sign in to keep my account</a></td></tr><tr><td style="padding:24px 8px;font-size:12px;color:#8A8A8A;font-family:Helvetica,Arial,sans-serif;">Questions? Email support@sosial.app.<br>&copy; Sosial &middot; <a href="https://sosial.app" style="color:#8A8A8A;">sosial.app</a></td></tr></table></td></tr></table></body></html>`,
       }),
     });
     return r.ok;
@@ -92,7 +92,7 @@ async function purgeUser(admin: any, userId: string): Promise<void> {
   for (const ws of (owned ?? []) as { id: string }[]) {
     const wsId = ws.id;
 
-    // Live paid subscription? Never delete — billing must be cancelled first.
+    // Live paid subscription? Never delete, billing must be cancelled first.
     const { data: sub } = await admin
       .from("subscriptions")
       .select("status,stripe_subscription_id")
@@ -183,7 +183,7 @@ serve(async (req: Request): Promise<Response> => {
     if (row.warned_at) continue;
     const sent = await sendWarnEmail(resendKey, row.email);
     // Stamp even if Resend hiccuped: a user who never got the warning is
-    // still covered — deletion additionally requires the warning stamp OR
+    // still covered, deletion additionally requires the warning stamp OR
     // an account well past the 6-month mark with the stamp retried daily.
     if (sent) {
       await (admin as any).auth.admin.updateUserById(row.id, {
@@ -210,7 +210,7 @@ serve(async (req: Request): Promise<Response> => {
       await purgeUser(admin, row.id);
       deleted += 1;
     } catch (e) {
-      // "skip: … has a live subscription" — paying accounts are never deleted.
+      // "skip: … has a live subscription", paying accounts are never deleted.
       const msg = e instanceof Error ? e.message : String(e);
       if (!msg.startsWith("skip:")) errors.push(`${row.id}: ${msg}`);
     }

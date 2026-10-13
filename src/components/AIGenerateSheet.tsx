@@ -30,7 +30,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
   const [result, setResult] = useState<GenResult | null>(null);
 
   const brief: ContentBrief = {
-    // language is always auto — the copy mirrors whatever language the prompt is in
+    // language is always auto, the copy mirrors whatever language the prompt is in
     prompt, language: 'auto',
     pages, maxWordsPerPage: maxWords, maxBlocksPerPage: maxBlocks,
   };
@@ -82,7 +82,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
               <Text style={st.title}>Generate content</Text>
             </View>
             <Text style={st.sub}>
-              Your template stays exactly as it is — the AI only fills the content card, then sizes it to fit.
+              Your template stays exactly as it is, the AI only fills the content card, then sizes it to fit.
             </Text>
 
             <Field label="Prompt" hint="Describe the content you want.">
@@ -158,7 +158,7 @@ export default function AIGenerateSheet({ visible, template, ratio, onClose, onA
                     />
                   </>
                 ) : (
-                  <Text style={st.warn}>Nothing usable was generated — try a more specific prompt.</Text>
+                  <Text style={st.warn}>Nothing usable was generated, try a more specific prompt.</Text>
                 )}
               </View>
             ) : null}

@@ -1,6 +1,6 @@
 -- P12 · Blog CMS: blog_posts table.
 --
--- Body reuses the shared Block[] model (see Prose) as jsonb — the admin
+-- Body reuses the shared Block[] model (see Prose) as jsonb, the admin
 -- editor and the marketing pages speak the same shape, no markdown layer.
 -- Public reads published rows; app admins (is_app_admin, P11) write.
 -- Seed data arrives in P13 (generated, never hand-edited).

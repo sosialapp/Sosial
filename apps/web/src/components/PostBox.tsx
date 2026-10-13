@@ -59,7 +59,7 @@ export default function PostBox({
 
   return (
     <div className="rounded-xl border border-line bg-paper focus-within:border-ink/40">
-      {/* Media strip — above the text, hold + drag to rearrange */}
+      {/* Media strip, above the text, hold + drag to rearrange */}
       {seg.media.length > 0 ? (
         <div className="flex gap-2 overflow-x-auto p-2 pb-0">
           {seg.media.map((f, i) => (

@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const pick = b64d<PickState>(jar.get(PICK_COOKIE)?.value);
   const page = pick?.pages.find((p) => p.id === pageId);
   if (!pick || !page) {
-    return NextResponse.json({ error: 'That login expired — connect Facebook again.' }, { status: 400 });
+    return NextResponse.json({ error: 'That login expired, connect Facebook again.' }, { status: 400 });
   }
 
   const sb = await createClient();
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     return res;
   }
 
-  // Same Page twice is a no-op with a name — but let expired rows heal.
+  // Same Page twice is a no-op with a name, but let expired rows heal.
   const { data: existing } = await sb
     .from('connected_channels')
     .select('id,status')

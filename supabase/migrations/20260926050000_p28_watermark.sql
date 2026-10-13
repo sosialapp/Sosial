@@ -9,7 +9,7 @@
 alter table public.workspaces
   add column if not exists show_watermark boolean not null default true;
 
--- Free (and any watermark-required plan) always has it on — flip the switch
+-- Free (and any watermark-required plan) always has it on, flip the switch
 -- back whenever a write tries to turn it off.
 create or replace function public.enforce_watermark_required()
 returns trigger language plpgsql security definer set search_path = public as $$

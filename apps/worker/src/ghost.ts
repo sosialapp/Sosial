@@ -10,9 +10,9 @@ import { info } from './logger';
  * `{id}:{secret}` as issued under Ghost Admin → Integrations.
  * - Validation: GET {site}/ghost/api/admin/site/
  * - Publish: POST {site}/ghost/api/admin/posts/?source=html
- *   {posts:[{title, html, status:published}]} — paragraph blocks.
+ *   {posts:[{title, html, status:published}]}, paragraph blocks.
  * Feature images need public URLs (private storage expires), newsletters
- * and authors need composer fields — all documented v1 omissions.
+ * and authors need composer fields, all documented v1 omissions.
  */
 
 interface Bundle {
@@ -26,7 +26,7 @@ interface Bundle {
 export function siteBase(instanceUrl: string | null): string {
   const base = String(instanceUrl ?? '').trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(base)) {
-    throw new Error('Ghost site URL must start with http(s) — reconnect the channel.');
+    throw new Error('Ghost site URL must start with http(s), reconnect the channel.');
   }
   return base;
 }
@@ -38,7 +38,7 @@ function b64url(input: Buffer | string): string {
 
 export function ghostJwt(adminKey: string): string {
   const sep = adminKey.indexOf(':');
-  if (sep < 1) throw new Error('Ghost Admin API key looks wrong (expected id:secret) — reconnect the channel.');
+  if (sep < 1) throw new Error('Ghost Admin API key looks wrong (expected id:secret), reconnect the channel.');
   const id = adminKey.slice(0, sep);
   const secret = Buffer.from(adminKey.slice(sep + 1), 'hex');
   const now = Math.floor(Date.now() / 1000);
@@ -77,11 +77,11 @@ export async function publishGhostTarget(bundle: Bundle): Promise<{ remoteId: st
   const b = bundle;
   const base = siteBase(b.channel.instance_url);
   if (!b.secrets.access_secret_id) {
-    throw new Error('Ghost Admin API key is missing — reconnect the channel in Connect.');
+    throw new Error('Ghost Admin API key is missing, reconnect the channel in Connect.');
   }
   const adminKey = await readSecret(b.secrets.access_secret_id);
   if (!adminKey) {
-    throw new Error('Ghost Admin API key is missing — reconnect the channel in Connect.');
+    throw new Error('Ghost Admin API key is missing, reconnect the channel in Connect.');
   }
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
@@ -90,7 +90,7 @@ export async function publishGhostTarget(bundle: Bundle): Promise<{ remoteId: st
   const { title, html } = articleHtml
     ? { title: (b.post.title ?? '').trim() || 'Untitled', html: articleHtml }
     : toHtml(b.post.title ?? '', text);
-  if (!html) throw new Error('Ghost needs article text — this post is empty.');
+  if (!html) throw new Error('Ghost needs article text, this post is empty.');
   const token = ghostJwt(adminKey);
   const created = await ghost<{ posts: { id: string; url: string }[] }>(base, token, '/posts/?source=html', {
     method: 'POST',

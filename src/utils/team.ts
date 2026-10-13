@@ -30,7 +30,7 @@ export interface Actor {
 
 const KEY = 'zap_team_v1';
 
-/** Local roster for now — invites/sync need the backend; roles are enforced once sync lands. */
+/** Local roster for now, invites/sync need the backend; roles are enforced once sync lands. */
 export async function loadTeam(): Promise<TeamMember[]> {
   try {
     const raw = await AsyncStorage.getItem(KEY);

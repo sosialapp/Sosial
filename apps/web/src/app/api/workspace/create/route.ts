@@ -28,10 +28,10 @@ export async function POST(req: Request) {
     const trimmed = typeof body.name === 'string' ? body.name.trim() : '';
     if (trimmed) name = trimmed.slice(0, 80);
   } catch {
-    /* no body — default name */
+    /* no body, default name */
   }
 
-  // Plan gate — same resolution as the trigger: the caller's best active
+  // Plan gate, same resolution as the trigger: the caller's best active
   // plan across the workspaces they already own (else free).
   const { data: owned } = await sb
     .from('workspaces')
@@ -60,8 +60,8 @@ export async function POST(req: Request) {
       {
         error:
           plan === 'free' || plan === 'solo'
-            ? 'Creating teams needs a Team, Business or Ultimate plan — upgrade in Billing to create your first team.'
-            : `Your plan allows ${limit} teams — upgrade to create more.`,
+            ? 'Creating teams needs a Team, Business or Ultimate plan, upgrade in Billing to create your first team.'
+            : `Your plan allows ${limit} teams, upgrade to create more.`,
       },
       { status: 403 },
     );

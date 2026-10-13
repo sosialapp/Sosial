@@ -3,7 +3,7 @@ import { embedUrl, renderInline } from '@/lib/richtext';
 
 /**
  * Renders the shared Block[] content model used by blog posts, resources and
- * legal pages. Server component — no client JS (and no server-only imports,
+ * legal pages. Server component, no client JS (and no server-only imports,
  * so the admin preview may reuse it inside a client component).
  */
 export default function Prose({ blocks, className = '' }: { blocks: Block[]; className?: string }) {

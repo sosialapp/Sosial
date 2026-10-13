@@ -1,8 +1,8 @@
 // generate-social · metered model relay for the mobile AI writers.
 //
 // The mobile app builds rich, channel-aware prompts on-device (social.ts /
-// carousel.ts). Rather than ship a provider key in the bundle — the exact
-// bypass that left mobile AI unmetered — the app posts the finished prompt
+// carousel.ts). Rather than ship a provider key in the bundle, the exact
+// bypass that left mobile AI unmetered, the app posts the finished prompt
 // here and the key stays server-side. Every call is gated against the same
 // AI credit ledger the web app uses, so Free gets its 20 credits and paid
 // plans draw from their allowance.
@@ -14,7 +14,7 @@
 //
 // `action` picks the credit cost (post 2, thread 3, adapt 2, rewrite 1,
 // longform 5 …); unknown values fall back to the cheapest cost. `grounding`
-// turns on OpenAI web search for time-sensitive topics — search + JSON mode
+// turns on OpenAI web search for time-sensitive topics, search + JSON mode
 // can't coexist, so grounded calls go out as text and the JSON is extracted
 // from the reply, exactly like the old on-device OpenAI path.
 
@@ -47,14 +47,14 @@ function isAction(v: unknown): v is AiAction {
 function providerErr(status: number, j: any): string {
   const msg = String(j?.error?.message ?? j?.message ?? "");
   if (status === 401 || /incorrect api key|invalid.*api key|unauthorized/i.test(msg)) {
-    return "The AI key was rejected — an owner must update OPENAI_API_KEY.";
+    return "The AI key was rejected, an owner must update OPENAI_API_KEY.";
   }
   if (/insufficient_quota|exceeded.*quota|billing|credit/i.test(msg)) {
     return "AI is temporarily unavailable.";
   }
-  if (status === 429 || /rate limit/i.test(msg)) return "Rate limit hit — wait a minute and retry.";
+  if (status === 429 || /rate limit/i.test(msg)) return "Rate limit hit, wait a minute and retry.";
   if ((status >= 500 && status < 600) || /overload|server error/i.test(msg)) {
-    return "The model is busy right now — try again in a moment.";
+    return "The model is busy right now, try again in a moment.";
   }
   return msg || "Something went wrong while writing your post.";
 }
@@ -62,7 +62,7 @@ function providerErr(status: number, j: any): string {
 /** Pull the first top-level JSON object out of model text. */
 function extractJson(text: string): any {
   const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error("The model returned unusable JSON — try again.");
+  if (!m) throw new Error("The model returned unusable JSON, try again.");
   return JSON.parse(m[0]);
 }
 
@@ -132,7 +132,7 @@ serve(async (req: Request): Promise<Response> => {
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   if (!apiKey) {
     return bad(
-      "AI is not configured yet — an owner runs: supabase secrets set OPENAI_API_KEY=sk-...",
+      "AI is not configured yet, an owner runs: supabase secrets set OPENAI_API_KEY=sk-...",
       402,
     );
   }

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * POST /api/sheets/preview — read the first rows, auto-suggest mapping from
+ * POST /api/sheets/preview, read the first rows, auto-suggest mapping from
  * the header, and return raw rows (for the mapping UI) plus validated
  * drafts. No writes. `start_row` lets the UI page through larger sheets.
  */

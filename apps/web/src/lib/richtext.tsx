@@ -3,12 +3,12 @@ import type { ReactNode } from 'react';
 export { embedUrl, resolveEmbed } from '@/lib/embeds';
 
 /**
- * Tiny inline formatter for blog text (client-safe — no server imports, so
+ * Tiny inline formatter for blog text (client-safe, no server imports, so
  * both Prose and the admin preview use it). Supports **bold**, *italic*,
  * [label](https://…) external links and [label](/path) internal links;
  * anything unmatched renders as literal text.
  * React element construction (never innerHTML) keeps stored content XSS-safe
- * by construction. No nesting — inner markers stay literal.
+ * by construction. No nesting, inner markers stay literal.
  */
 export function renderInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];

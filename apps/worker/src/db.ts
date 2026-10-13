@@ -1,6 +1,6 @@
 /**
  * Supabase access over HTTPS (PostgREST + RPC) with the service_role key.
- * No pg driver — SKIP LOCKED lives inside the claim_job RPC, so this stays
+ * No pg driver, SKIP LOCKED lives inside the claim_job RPC, so this stays
  * a plain Node fetch client that Railway can run anywhere.
  */
 import { required, env } from './env';
@@ -48,7 +48,7 @@ export async function callRpc<T>(fn: string, args: Record<string, any>): Promise
   return (await r.json().catch(() => null)) as T;
 }
 
-/** Oldest due queued job, marked running — null when the queue is empty. */
+/** Oldest due queued job, marked running, null when the queue is empty. */
 export function claimJob(workerId: string): Promise<Job | null> {
   return callRpc<Job | null>('claim_job', { worker_id: workerId });
 }
@@ -59,7 +59,7 @@ export function completeJob(jobId: number, ok: boolean, error?: string): Promise
 }
 
 /** Return a running job to the queue at a chosen time without burning an
- *  attempt — the daily-limit Gate B parks a job until its window reopens. */
+ *  attempt, the daily-limit Gate B parks a job until its window reopens. */
 export function deferJob(jobId: number, runAt: string): Promise<void> {
   return callRpc<void>('defer_job', { p_job_id: jobId, p_run_at: runAt });
 }
@@ -88,7 +88,7 @@ export function updateSecret(secretId: string, secret: string): Promise<void> {
   return callRpc<void>('vault_update_secret', { secret_id: secretId, secret });
 }
 
-/** Fetch the publish bundle for one target — null when unknown. */
+/** Fetch the publish bundle for one target, null when unknown. */
 export function getPublishBundle(targetId: string): Promise<any | null> {
   return callRpc<any | null>('get_publish_bundle', { target_id: targetId });
 }
@@ -103,7 +103,7 @@ export interface InviteRow {
   accepted_at: string | null;
 }
 
-/** Raw REST helper (service_role bypasses RLS — callers own authorization). */
+/** Raw REST helper (service_role bypasses RLS, callers own authorization). */
 export async function rest<T>(path: string, init?: any): Promise<T> {
   const r = await fetch(`${base}${path}`, {
     ...(init ?? {}),
@@ -121,7 +121,7 @@ export async function rest<T>(path: string, init?: any): Promise<T> {
   return (await r.json().catch(() => null)) as T;
 }
 
-/** Invite row for the retry loop — null when deleted. */
+/** Invite row for the retry loop, null when deleted. */
 export async function getInvite(inviteId: string): Promise<InviteRow | null> {
   const rows = await rest<InviteRow[]>(
     `/rest/v1/invites?id=eq.${encodeURIComponent(inviteId)}&select=id,email,token,expires_at,accepted_at`,
@@ -140,7 +140,7 @@ export interface MediaAssetRow {
   storage_backend: string;
 }
 
-/** Media row for cleanup/delete flows — null when already deleted. */
+/** Media row for cleanup/delete flows, null when already deleted. */
 export async function getMediaAsset(mediaId: string): Promise<MediaAssetRow | null> {
   const rows = await rest<MediaAssetRow[]>(
     `/rest/v1/media_assets?id=eq.${encodeURIComponent(mediaId)}&select=id,workspace_id,storage_path,status,pinned,storage_backend`,

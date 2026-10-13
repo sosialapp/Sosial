@@ -6,7 +6,7 @@ import type { TMark, TNode, TipTapDoc } from '@/lib/blogConvert';
  * TipTap JSON → published HTML. Pure and deterministic so the exact string
  * saved with the post is what the public page server-renders (full SEO, zero
  * client JS for readers). Charts emit an empty <figure class="sosial-chart">
- * carrying its data — the reader page hydrates those with recharts.
+ * carrying its data, the reader page hydrates those with recharts.
  */
 
 const esc = (s: string): string =>

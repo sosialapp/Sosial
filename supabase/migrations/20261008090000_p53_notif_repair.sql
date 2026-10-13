@@ -2,7 +2,7 @@
 --
 -- P48 shipped four runtime faults (all 42703-class: references to columns
 -- that do not exist), found because notif_on_target_status rolled back
--- every mark_target_sent call — posts published, DB never flipped, jobs
+-- every mark_target_sent call, posts published, DB never flipped, jobs
 -- retried into duplicates:
 --   1. notif_on_target_status read NEW.workspace_id, but post_targets has no
 --      workspace_id column (it joins via posts). Resolve via posts instead.
@@ -76,7 +76,7 @@ begin
   perform public.notif_insert(
     v_ws, v_uid, 'member_joined',
     'Welcome to ' || v_wsname,
-    'Your workspace is ready — connect channels or create your first post.',
+    'Your workspace is ready, connect channels or create your first post.',
     '/dashboard'
   );
   for v_admin in

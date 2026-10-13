@@ -7,7 +7,7 @@ import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { customSlugAvailable, normalizeCustomSlug } from '@/content/sitePages';
 
-/** Owner "new page" — title + URL, created as a draft custom page. */
+/** Owner "new page", title + URL, created as a draft custom page. */
 export default function AdminPageNew() {
   const router = useRouter();
   const [title, setTitle] = useState('');
@@ -28,13 +28,13 @@ export default function AdminPageNew() {
     try {
       const sb = createClient();
       const { data: taken } = await sb.from('site_pages').select('slug').eq('slug', next).maybeSingle();
-      if (taken) throw new Error('That URL is already taken — try another.');
+      if (taken) throw new Error('That URL is already taken, try another.');
       const { data: redir } = await sb
         .from('site_redirects')
         .select('from_slug')
         .eq('from_slug', next)
         .maybeSingle();
-      if (redir) throw new Error('That URL redirects elsewhere — try another.');
+      if (redir) throw new Error('That URL redirects elsewhere, try another.');
       const { error } = await sb.from('site_pages').insert({
         slug: next,
         title: title.trim() || null,

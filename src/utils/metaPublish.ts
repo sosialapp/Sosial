@@ -41,9 +41,9 @@ function toAttachments(imageUri?: string, videoUri?: string, attachments?: Media
 function gerr(j: any, fallback: string): string {
   const m = j?.error?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
-  // Threads fails opaquely — translate their catch-all into something actionable
+  // Threads fails opaquely, translate their catch-all into something actionable
   if (/an unknown error occurred/i.test(base)) {
-    return 'Threads gave no details — usually the photo URL it can’t fetch, text over 500 chars, or a rate limit. Try text-only to isolate.';
+    return 'Threads gave no details, usually the photo URL it can’t fetch, text over 500 chars, or a rate limit. Try text-only to isolate.';
   }
   return base;
 }
@@ -62,7 +62,7 @@ function rawErr(j: any, r: { status: number; text: string }, fallback: string): 
 
 /**
  * expo/fetch (SDK 57 global fetch) can't serialize React Native's
- * {uri,name,type} FormData parts — it throws "Unsupported FormDataPart
+ * {uri,name,type} FormData parts, it throws "Unsupported FormDataPart
  * implementation". XMLHttpRequest still runs on the native Networking
  * module, which fully supports file:// uri parts. All multipart uploads
  * must go through here.
@@ -73,8 +73,8 @@ function xhrSend(method: string, url: string, body?: any): Promise<{ status: num
     xhr.open(method, url);
     xhr.timeout = 60000; // fail fast instead of hanging forever on an unresponsive host
     xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText });
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('Upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out, try again.'));
     xhr.send(body);
   });
 }
@@ -90,7 +90,7 @@ async function postFormJson(url: string, form: FormData): Promise<any> {
 }
 
 /**
- * MVP public hosts for IG/Threads/TikTok media (they demand a public URL —
+ * MVP public hosts for IG/Threads/TikTok media (they demand a public URL -
  * local files can't go direct). Tries three anonymous hosts in order; all
  * expire files eventually. Swap in your own storage when ready.
  */
@@ -98,7 +98,7 @@ export async function uploadPublic(uri: string, kind: 'image' | 'video'): Promis
   const name = kind === 'video' ? 'sosial.mp4' : 'sosial.jpg';
   const type = kind === 'video' ? 'video/mp4' : 'image/jpeg';
 
-  // 1. 0x0.st — plain-text URL response
+  // 1. 0x0.st, plain-text URL response
   try {
     const form = new FormData();
     form.append('file', { uri, name, type } as any);
@@ -107,7 +107,7 @@ export async function uploadPublic(uri: string, kind: 'image' | 'video'): Promis
     if (r.status >= 200 && r.status < 300 && url.startsWith('http')) return url;
   } catch {}
 
-  // 2. catbox.moe — plain-text URL response
+  // 2. catbox.moe, plain-text URL response
   try {
     const form = new FormData();
     form.append('reqtype', 'fileupload');
@@ -117,7 +117,7 @@ export async function uploadPublic(uri: string, kind: 'image' | 'video'): Promis
     if (r.status >= 200 && r.status < 300 && url.startsWith('http')) return url;
   } catch {}
 
-  // 3. tmpfiles.org — JSON response, page URL → direct via /dl/
+  // 3. tmpfiles.org, JSON response, page URL → direct via /dl/
   try {
     const form = new FormData();
     form.append('file', { uri, name, type } as any);
@@ -129,7 +129,7 @@ export async function uploadPublic(uri: string, kind: 'image' | 'video'): Promis
     }
   } catch {}
 
-  throw new Error('Image hosts rejected the upload — check your connection, or post manually.');
+  throw new Error('Image hosts rejected the upload, check your connection, or post manually.');
 }
 
 function extFor(uri: string, kind: string): string {
@@ -140,16 +140,16 @@ function extFor(uri: string, kind: string): string {
 }
 
 /**
- * Public URL for Threads/IG media (they fetch from URL — local files can't go
+ * Public URL for Threads/IG media (they fetch from URL, local files can't go
  * direct). Own Supabase storage FIRST: scheduled posts are mirrored there at
- * save time, so the bytes are usually already in our bucket — a signed URL
+ * save time, so the bytes are usually already in our bucket, a signed URL
  * beats the anonymous hosts on reliability and keeps video off third-party
  * servers. Falls back to the anonymous hosts when signed out or unmirrored.
  * `mirror.index` is the attachment's position in postAttachments() (mirror
  * paths are <workspace>/<client_id>/<index>.<ext>).
  */
 /** Exact mirrored asset for one attachment position (DB truth, not a
- *  guessed `<index>.<ext>` filename — pushes now use unique names). */
+ *  guessed `<index>.<ext>` filename, pushes now use unique names). */
 async function mirrorAsset(
   clientId: string,
   index: number,
@@ -229,7 +229,7 @@ export async function hostedMediaUrl(
           const url = await signedMirrorUrl(exact.path);
           if (url.startsWith('http')) return url;
         } else {
-          console.log(`[media] mirror stale for ${mirror.clientId}#${mirror.index} — uploading current file`);
+          console.log(`[media] mirror stale for ${mirror.clientId}#${mirror.index}, uploading current file`);
         }
       }
     } catch {}
@@ -254,7 +254,7 @@ export async function hostedMediaUrl(
               .maybeSingle();
             const bs = (asset as any)?.byte_size;
             if (staleMirror(typeof bs === 'number' ? bs : null, local)) {
-              console.log(`[media] legacy mirror stale for ${mirror.clientId}#${mirror.index} — uploading current file`);
+              console.log(`[media] legacy mirror stale for ${mirror.clientId}#${mirror.index}, uploading current file`);
             } else {
               const url = await signedMirrorUrl(full);
               if (url.startsWith('http')) return url;
@@ -272,14 +272,14 @@ export async function hostedMediaUrl(
 
 /**
  * TikTok photo posts must be PULL_FROM_URL from a domain you own and verify
- * in the TikTok developer portal — anonymous hosts are rejected with
+ * in the TikTok developer portal, anonymous hosts are rejected with
  * url_ownership_unverified. Upload to the configured endpoint (multipart
  * field "file"); it returns a JSON { url } or a plain-text URL.
  */
 export async function uploadTikTokPhoto(uri: string): Promise<string> {
   const m = await loadMetaState();
   // Per-device override wins; otherwise every TikTok account shares the
-  // built-in host from EXPO_PUBLIC_TT_PHOTO_HOST — nothing to paste.
+  // built-in host from EXPO_PUBLIC_TT_PHOTO_HOST, nothing to paste.
   const host = (m.ttPhotoHost ?? '').trim().replace(/\/+$/, '') || TT_PHOTO_HOST_DEFAULT;
   if (host) {
     try {
@@ -295,12 +295,12 @@ export async function uploadTikTokPhoto(uri: string): Promise<string> {
           if (u.startsWith('http')) return u;
         } catch {}
       }
-      throw new Error('unexpected response — expected a URL');
+      throw new Error('unexpected response, expected a URL');
     } catch (e: any) {
       throw new Error(`TikTok photo host failed: ${e?.message ?? 'upload error'}`);
     }
   }
-  throw new Error('TikTok photo host is not configured — set EXPO_PUBLIC_TT_PHOTO_HOST in .env (or an override in Connect → TikTok) to post photos. Video posts work without it.');
+  throw new Error('TikTok photo host is not configured, set EXPO_PUBLIC_TT_PHOTO_HOST in .env (or an override in Connect → TikTok) to post photos. Video posts work without it.');
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -311,7 +311,7 @@ async function igStatus(id: string, tok: string): Promise<string> {
   return String(sj.status_code ?? '');
 }
 
-/** Poll a container until FINISHED — check immediately, then back off. Bounded total wait. */
+/** Poll a container until FINISHED, check immediately, then back off. Bounded total wait. */
 async function waitIgContainer(id: string, tok: string, label: string, timeoutMs = 30000): Promise<void> {
   const start = Date.now();
   let delay = 1000;
@@ -320,7 +320,7 @@ async function waitIgContainer(id: string, tok: string, label: string, timeoutMs
     if (status === 'FINISHED') return;
     if (status === 'ERROR') throw new Error(`Instagram could not process the ${label}.`);
     if (Date.now() - start >= timeoutMs) {
-      throw new Error(`Instagram is still processing the ${label} — try publishing again in a minute.`);
+      throw new Error(`Instagram is still processing the ${label}, try publishing again in a minute.`);
     }
     await sleep(delay);
     delay = Math.min(delay * 2, 4000);
@@ -330,9 +330,9 @@ async function waitIgContainer(id: string, tok: string, label: string, timeoutMs
 /**
  * Threads processes media containers asynchronously. Publishing before the
  * container reaches FINISHED races Meta's backend and fails with an opaque
- * "The requested resource does not exist" — video (slower to transcode) loses
+ * "The requested resource does not exist", video (slower to transcode) loses
  * the race almost every time. The worker already polls; mirror it here so
- * video posts stop bouncing. Text containers publish instantly — caller skips.
+ * video posts stop bouncing. Text containers publish instantly, caller skips.
  */
 async function waitThreadsContainer(id: string, token: string, timeoutMs = 90000): Promise<void> {
   const start = Date.now();
@@ -346,17 +346,17 @@ async function waitThreadsContainer(id: string, token: string, timeoutMs = 90000
     const status = String(sj?.status ?? '').toUpperCase();
     if (status === 'FINISHED' || status === 'PUBLISHED') return;
     if (status === 'ERROR' || status === 'EXPIRED') {
-      throw new Error(gerr(sj, 'Threads could not process the media — try a different file or publish again.'));
+      throw new Error(gerr(sj, 'Threads could not process the media, try a different file or publish again.'));
     }
     if (Date.now() - start >= timeoutMs) {
-      throw new Error(`Threads is still processing the media (${status || 'unknown'}) — try again shortly.`);
+      throw new Error(`Threads is still processing the media (${status || 'unknown'}), try again shortly.`);
     }
     await sleep(delay);
     delay = Math.min(delay * 2, 4000);
   }
 }
 
-/* ---------------- Facebook Page (bytes go direct — no host needed) ---------------- */
+/* ---------------- Facebook Page (bytes go direct, no host needed) ---------------- */
 
 export async function publishFacebook(opts: {
   pageId: string;
@@ -424,7 +424,7 @@ export async function publishFacebook(opts: {
   return String(j.id);
 }
 
-/* ---------------- Facebook Page (video goes direct — no host needed) ---------------- */
+/* ---------------- Facebook Page (video goes direct, no host needed) ---------------- */
 
 export async function publishFacebookReel(opts: {
   pageId: string;
@@ -436,7 +436,7 @@ export async function publishFacebookReel(opts: {
   const atts = toAttachments(undefined, opts.videoUri, opts.attachments);
   const video = atts.find((a) => a.kind === 'video');
   if (!video) throw new Error('Facebook Reels need a video.');
-  // Reels need the same 3-phase resumable flow as stories — a plain
+  // Reels need the same 3-phase resumable flow as stories, a plain
   // video_url POST fails with "(#100) upload_phase is required". Bytes go
   // direct, so no public host is needed.
   const { videoId, upRaw } = await fbUploadSession(opts.pageId, opts.pageToken, video.uri, 'video_reels', 'Facebook Reel');
@@ -474,7 +474,7 @@ export async function publishFacebookStory(opts: {
 }
 
 /**
- * Raw-byte POST over XMLHttpRequest — expo/fetch mangles binary bodies and
+ * Raw-byte POST over XMLHttpRequest, expo/fetch mangles binary bodies and
  * custom upload headers (the same reason TikTok/Media uploads use XHR).
  */
 function xhrBytes(url: string, headers: Record<string, string>, body: any, timeoutMs = 180000): Promise<{ status: number; text: string }> {
@@ -488,15 +488,15 @@ function xhrBytes(url: string, headers: Record<string, string>, body: any, timeo
     }
     xhr.timeout = timeoutMs;
     xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText ?? '' });
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('Facebook story upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('Facebook story upload timed out, try again.'));
     xhr.send(body);
   });
 }
 
 /**
  * Read a local file as a Blob via XHR (native Networking). Sending a Blob is
- * the one binary body React Native serializes correctly — a raw typed array
+ * the one binary body React Native serializes correctly, a raw typed array
  * falls through to String(data) and corrupts the upload. Also yields the true
  * byte size, unlike a base64 length estimate.
  */
@@ -507,14 +507,14 @@ function xhrBlob(url: string, timeoutMs = 180000): Promise<any> {
     xhr.responseType = 'blob';
     xhr.timeout = timeoutMs;
     xhr.onload = () => resolve(xhr.response);
-    xhr.onerror = () => reject(new Error('Could not read the video file — re-attach it and try again.'));
-    xhr.ontimeout = () => reject(new Error('Reading the video file timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Could not read the video file, re-attach it and try again.'));
+    xhr.ontimeout = () => reject(new Error('Reading the video file timed out, try again.'));
     xhr.send();
   });
 }
 
 /**
- * Resumable upload session shared by video stories + reels — init
+ * Resumable upload session shared by video stories + reels, init
  * (upload_phase=start) returns a video id + rupload URL, bytes (or a
  * file_url header for remote files) go to rupload. A plain video_url POST
  * fails with "(#100) upload_phase is required".
@@ -527,7 +527,7 @@ async function fbUploadSession(
   failLabel: string,
 ): Promise<{ videoId: string; upRaw: string }> {
   const remote = uri.startsWith('http');
-  // 1. init — query-string params like every other working Meta call in this
+  // 1. init, query-string params like every other working Meta call in this
   // file (this edge rejects JSON bodies with #100)
   const init = await fetch(graph(`/${pageId}/${edge}?upload_phase=start&access_token=${encodeURIComponent(pageToken)}`), {
     method: 'POST',
@@ -538,7 +538,7 @@ async function fbUploadSession(
   if (!init.ok || ij?.error || !videoId || !uploadUrl) {
     throw new Error(gerr(ij, `${failLabel} upload init failed.`));
   }
-  // 2. bytes — rupload authenticates with an OAuth header (the init call's
+  // 2. bytes, rupload authenticates with an OAuth header (the init call's
   // query token doesn't carry over), plus offset/file_size.
   const auth = { Authorization: `OAuth ${pageToken}` };
   let upRaw = '';
@@ -555,7 +555,7 @@ async function fbUploadSession(
   } else {
     const blob = await xhrBlob(uri);
     const size = Number(blob?.size ?? 0);
-    if (size <= 0) throw new Error('Could not read that video file — re-attach it and try again.');
+    if (size <= 0) throw new Error('Could not read that video file, re-attach it and try again.');
     const up = await xhrBytes(
       uploadUrl,
       { ...auth, offset: '0', file_size: String(size), 'Content-Type': 'application/octet-stream' },
@@ -574,7 +574,7 @@ async function fbUploadSession(
 }
 
 /**
- * Facebook processes video asynchronously — a story/reel stays invisible
+ * Facebook processes video asynchronously, a story/reel stays invisible
  * until status flips to ready. Wait (bounded) and surface failures instead
  * of reporting a false success off a bare {success:true}.
  */
@@ -592,7 +592,7 @@ async function waitFbVideo(pageToken: string, videoId: string, failLabel: string
       const j: any = JSON.parse(txt || '{}');
       code = String(j?.status?.video_status ?? '');
       // processing failures live nested under processing_phase.errors (code
-      // 1363040 = aspect ratio) — not top-level.
+      // 1363040 = aspect ratio), not top-level.
       const procErrs = j?.status?.processing_phase?.errors;
       detail = String(procErrs?.[0]?.message ?? j?.status?.errors?.[0]?.message ?? j?.error?.message ?? '');
     } catch {}
@@ -600,7 +600,7 @@ async function waitFbVideo(pageToken: string, videoId: string, failLabel: string
     if (code === 'error') {
       if (/aspect ratio/i.test(detail)) {
         throw new Error(
-          `${failLabel} needs a 9:16-ish video — this one is outside the allowed aspect range, so the processor rejected it. Fit it to 9:16 (1080×1920) and retry.`,
+          `${failLabel} needs a 9:16-ish video, this one is outside the allowed aspect range, so the processor rejected it. Fit it to 9:16 (1080×1920) and retry.`,
         );
       }
       const bits = [`${failLabel} rejected during processing${detail ? `: ${detail}` : '.'}`];
@@ -608,7 +608,7 @@ async function waitFbVideo(pageToken: string, videoId: string, failLabel: string
       if (statusRaw) bits.push(`[status: ${statusRaw}]`);
       throw new Error(bits.join(' '));
     }
-    if (Date.now() - start >= 60000) return; // still processing — it will appear shortly
+    if (Date.now() - start >= 60000) return; // still processing, it will appear shortly
     await sleep(delay);
     delay = Math.min(delay * 1.5, 5000);
   }
@@ -667,13 +667,13 @@ export async function publishInstagram(opts: {
   imageUri?: string;
   videoUri?: string;
   attachments?: MediaAttachment[];
-  /** local post id — lets media resolve from our own storage before anon hosts */
+  /** local post id, lets media resolve from our own storage before anon hosts */
   mirrorClientId?: string;
 }): Promise<string> {
   const atts = toAttachments(opts.imageUri, opts.videoUri, opts.attachments);
   const videos = atts.filter((a) => a.kind === 'video');
   const images = atts.filter((a) => a.kind === 'image');
-  if (!atts.length) throw new Error('Instagram needs a photo or video — text-only is not allowed by their API.');
+  if (!atts.length) throw new Error('Instagram needs a photo or video, text-only is not allowed by their API.');
   const tok = encodeURIComponent(opts.igToken);
   const mirrorFor = (a: MediaAttachment) =>
     opts.mirrorClientId
@@ -688,7 +688,7 @@ export async function publishInstagram(opts: {
     );
     const cj: any = await gjson(c);
     if (cj.error || !cj.id) throw new Error(gerr(cj, 'Instagram reel container failed.'));
-    // reels transcode async — poll until ready, then publish
+    // reels transcode async, poll until ready, then publish
     await waitIgContainer(String(cj.id), tok, 'video', 60000);
     const p = await fetch(`${IG_GRAPH}/${opts.igId}/media_publish?creation_id=${encodeURIComponent(String(cj.id))}&access_token=${tok}`, { method: 'POST' });
     const pj: any = await gjson(p);
@@ -705,7 +705,7 @@ export async function publishInstagram(opts: {
       cleanups.push(...f.cleanup);
       uri = f.uri;
     }
-    // ext from the ORIGINAL uri — that's what the mirror stored
+    // ext from the ORIGINAL uri, that's what the mirror stored
     urls.push(await hostedMediaUrl(uri, 'image', mirrorFor(img)));
   }
   if (urls.length === 1) {
@@ -732,7 +732,7 @@ export async function publishInstagram(opts: {
     if (cj.error || !cj.id) throw new Error(gerr(cj, 'Instagram carousel item failed.'));
     children.push(String(cj.id));
   }
-  // children transcode independently — wait for all in parallel, not one at a time
+  // children transcode independently, wait for all in parallel, not one at a time
   await Promise.all(children.map((id) => waitIgContainer(id, tok, 'photo', 20000)));
   const c = await fetch(
     `${IG_GRAPH}/${opts.igId}/media?media_type=CAROUSEL&children=${children.map(encodeURIComponent).join(',')}&caption=${encodeURIComponent(opts.caption)}&access_token=${tok}`,
@@ -760,7 +760,7 @@ export async function publishInstagramStory(opts: {
   imageUri?: string;
   videoUri?: string;
   attachments?: MediaAttachment[];
-  /** local post id — lets media resolve from our own storage before anon hosts */
+  /** local post id, lets media resolve from our own storage before anon hosts */
   mirrorClientId?: string;
 }): Promise<string> {
   const atts = toAttachments(opts.imageUri, opts.videoUri, opts.attachments);
@@ -779,7 +779,7 @@ export async function publishInstagramStory(opts: {
   );
   const cj: any = await gjson(c);
   if (cj.error || !cj.id) throw new Error(gerr(cj, 'Instagram story container failed.'));
-  // video stories transcode for a while — 2 min beats failing at 30s
+  // video stories transcode for a while, 2 min beats failing at 30s
   await waitIgContainer(String(cj.id), tok, 'story', 120000);
   const p = await fetch(`${IG_GRAPH}/${opts.igId}/media_publish?creation_id=${encodeURIComponent(String(cj.id))}&access_token=${tok}`, { method: 'POST' });
   const pj: any = await gjson(p);
@@ -797,18 +797,18 @@ export async function publishThreads(opts: {
   videoUri?: string;
   attachments?: MediaAttachment[];
   ghost?: boolean;
-  /** community/topic pill — 1–50 chars, no periods or ampersands (API rule) */
+  /** community/topic pill, 1–50 chars, no periods or ampersands (API rule) */
   topicTag?: string;
-  /** local post id — lets media resolve from our own storage before anon hosts */
+  /** local post id, lets media resolve from our own storage before anon hosts */
   mirrorClientId?: string;
   /** thread chain: publish this container as a reply to an earlier post */
   replyToId?: string;
 }): Promise<string> {
   const tok = encodeURIComponent(opts.token);
   const atts = toAttachments(opts.imageUri, opts.videoUri, opts.attachments);
-  // Threads caps text at 500 chars — over-length posts fail opaquely server-side
+  // Threads caps text at 500 chars, over-length posts fail opaquely server-side
   const text = opts.text.length > 500 ? opts.text.slice(0, 499) + '…' : opts.text;
-  // Threads takes a single attachment — first item wins
+  // Threads takes a single attachment, first item wins
   const first = atts[0];
   const kind = !first ? 'TEXT' : first.kind === 'video' ? 'VIDEO' : 'IMAGE';
   let mediaUrl = '';
@@ -834,7 +834,7 @@ export async function publishThreads(opts: {
   });
   const cj: any = await gjson(c);
   if (cj.error || !cj.id) throw new Error(gerr(cj, 'Threads container failed.'));
-  // Media containers transcode async — wait for FINISHED or the publish call
+  // Media containers transcode async, wait for FINISHED or the publish call
   // races Meta and 404s. Text is ready immediately, so no wasted request there.
   if (kind !== 'TEXT') await waitThreadsContainer(String(cj.id), opts.token);
   const p = await fetch(`${THREADS_API}/v1.0/${opts.threadsId}/threads_publish?creation_id=${encodeURIComponent(String(cj.id))}&access_token=${tok}`, {
@@ -853,7 +853,7 @@ function threadsMediaId(source: string): string {
   if (/^\d+$/.test(s)) return s;
   const m = s.match(/(?:threads\.net\/[^/]+\/post\/)([A-Za-z0-9_-]+)\/?$/) || s.match(/(?:threads\.net\/[^/]+)([A-Za-z0-9_-]+)\/?$/);
   if (m) return m[1];
-  throw new Error('Could not read that Threads URL — paste the full post link or numeric ID.');
+  throw new Error('Could not read that Threads URL, paste the full post link or numeric ID.');
 }
 
 export async function publishThreadsRepost(opts: { token: string; source: string }): Promise<string> {
@@ -863,7 +863,7 @@ export async function publishThreadsRepost(opts: { token: string; source: string
     { method: 'POST', headers: { Authorization: `Bearer ${opts.token}` } },
   );
   const j: any = await gjson(r);
-  if (j.error || !j.id) throw new Error(gerr(j, 'Threads repost failed — paste the numeric post ID from the Graph API, or verify the URL.'));
+  if (j.error || !j.id) throw new Error(gerr(j, 'Threads repost failed, paste the numeric post ID from the Graph API, or verify the URL.'));
   return String(j.id);
 }
 

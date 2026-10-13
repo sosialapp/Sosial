@@ -87,7 +87,7 @@ const tsOf = (v: any): number => {
   return isNaN(t) ? 0 : t;
 };
 
-/** Mastodon returns status content as HTML — collapse to plain text. */
+/** Mastodon returns status content as HTML, collapse to plain text. */
 function stripHtml(html: string): string {
   return String(html ?? '')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -130,7 +130,7 @@ async function fbStats(m: MetaState, start: number, end: number): Promise<Channe
           .filter((p) => p.ts > 0 && p.value > 0);
       }
     } catch {}
-    // base list uses only fields that work with pages_read_engagement alone —
+    // base list uses only fields that work with pages_read_engagement alone -
     // likes/comments .summary() aggregations throw (#10) on some apps even
     // WITH the permission granted (documented Meta platform quirk, Feb 2026).
     const feed: any = await jget(
@@ -280,12 +280,12 @@ async function thStats(m: MetaState, start: number, end: number): Promise<Channe
   const tok = encodeURIComponent(m.threadsToken);
   const tth = { Authorization: `Bearer ${m.threadsToken}` };
   try {
-    // follower counts aren't in the documented profile fields — best-effort only
+    // follower counts aren't in the documented profile fields, best-effort only
     try {
       const f: any = await jget(`${THREADS_API}/v1.0/me?fields=followers_count&access_token=${tok}`, tth);
       if (!f.error && typeof f.followers_count === 'number') base.followers = f.followers_count;
     } catch {}
-    // followers_count is a Total Value metric: { total_value: { value } } —
+    // followers_count is a Total Value metric: { total_value: { value } } -
     // no values[] array, and per docs it rejects since/until params.
     if (base.followers === null) {
       try {
@@ -350,14 +350,14 @@ export async function thComments(m: MetaState, stats: PerPost[]): Promise<FeedCo
   return out;
 }
 
-/* ---------------- TikTok (Display API — counts only, no reply threads) ---------------- */
+/* ---------------- TikTok (Display API, counts only, no reply threads) ---------------- */
 
 async function ttGet(path: string, token: string): Promise<{ status: number; body: any }> {
   let r: Response;
   try {
     r = await fetch(`${TT_API}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   } catch {
-    throw new Error('Could not reach TikTok — check your connection and retry.');
+    throw new Error('Could not reach TikTok, check your connection and retry.');
   }
   const body: any = await r.json().catch(() => ({}));
   return { status: r.status, body };
@@ -381,7 +381,7 @@ async function ttStats(m: MetaState, start: number, end: number): Promise<Channe
   try {
     token = await getValidToken();
   } catch (e: any) {
-    return { ...base, note: e?.message ?? 'TikTok session expired — reconnect TikTok.' };
+    return { ...base, note: e?.message ?? 'TikTok session expired, reconnect TikTok.' };
   }
   // Identity + stats in ONE call. Firing two back-to-back requests at the same
   // rate-limited user/info endpoint could let the stats half drop (leaving
@@ -393,7 +393,7 @@ async function ttStats(m: MetaState, start: number, end: number): Promise<Channe
     const fields = 'open_id,display_name,avatar_url,follower_count,following_count,likes_count,video_count';
     let r = await ttGet(`/v2/user/info/?fields=${fields}`, token);
     let u = r.body?.data?.user;
-    // An old grant (or a flake) can return the identity without counts — retry
+    // An old grant (or a flake) can return the identity without counts, retry
     // stats alone once, sequentially, before declaring the scope missing.
     if (u?.open_id && u.follower_count == null) {
       const rs = await ttGet(`/v2/user/info/?fields=follower_count,following_count,likes_count,video_count`, token).catch(() => null);
@@ -404,21 +404,21 @@ async function ttStats(m: MetaState, start: number, end: number): Promise<Channe
       r = await ttGet(`/v2/user/info/?fields=open_id,display_name,avatar_url`, token);
       u = r.body?.data?.user;
       if (!u?.open_id) throw new Error(`Could not read your TikTok profile (${ttDetail(r)}).`);
-      base.note = 'TikTok isn’t sharing follower stats with this login — reconnect TikTok in Connect to grant access.';
+      base.note = 'TikTok isn’t sharing follower stats with this login, reconnect TikTok in Connect to grant access.';
     }
     openId = String(u.open_id);
     // The token decides whose counts these are: if it belongs to a different
     // account than the one recorded at connect time, say so instead of showing
     // a "wrong" number next to the old name.
     if (m.ttOpenId && openId !== m.ttOpenId) {
-      base.note = `TikTok is reporting for a different account${u.display_name ? ` (@${u.display_name})` : ''} — reconnect TikTok to fix the counts.`;
+      base.note = `TikTok is reporting for a different account${u.display_name ? ` (@${u.display_name})` : ''}, reconnect TikTok to fix the counts.`;
     } else if (u.display_name) base.label = `@${u.display_name}`;
     if (u.follower_count != null) base.followers = num(u.follower_count) || null;
-    else if (!base.note) base.note = 'TikTok isn’t sharing follower stats with this login — reconnect TikTok in Connect to grant access.';
+    else if (!base.note) base.note = 'TikTok isn’t sharing follower stats with this login, reconnect TikTok in Connect to grant access.';
   } catch (e: any) {
     return { ...base, note: e?.message ?? 'TikTok request failed.' };
   }
-  // per-video stats need the video.list scope — tokens granted before it existed skip this
+  // per-video stats need the video.list scope, tokens granted before it existed skip this
   if (openId) {
     try {
       // `fields` is a QUERY param on this endpoint (comma-separated); passing it
@@ -541,7 +541,7 @@ export async function mastodonComments(m: MetaState, stats: PerPost[]): Promise<
 /**
  * Followers from /user_account, recent Pins from /pins, per-Pin engagement
  * (impressions/saves/clicks) from /pins/{id}/analytics. Analytics 403s on
- * apps without production access — then titles still rank with an honest
+ * apps without production access, then titles still rank with an honest
  * note. Pinterest exposes no comment-read API, so comments stay empty.
  */
 async function pinStats(m: MetaState, start: number, end: number): Promise<ChannelStats> {
@@ -568,7 +568,7 @@ async function pinStats(m: MetaState, start: number, end: number): Promise<Chann
       const t = tsOf(x.created_at);
       return t >= start && t < end;
     });
-    // One analytics call per Pin — cap so a big range can't hammer it.
+    // One analytics call per Pin, cap so a big range can't hammer it.
     const capped = inRange.slice(0, 15);
     let denied = false;
     const eng = await Promise.all(
@@ -596,11 +596,11 @@ async function pinStats(m: MetaState, start: number, end: number): Promise<Chann
     base.views = eng.reduce((a, e) => a + e.views, 0) || null;
     base.shares = eng.reduce((a, e) => a + e.shares, 0);
     if (denied) {
-      base.note = 'Pinterest shows Pins only — Pin-level engagement needs production access on developers.pinterest.com.';
+      base.note = 'Pinterest shows Pins only, Pin-level engagement needs production access on developers.pinterest.com.';
     } else if (inRange.length > capped.length) {
-      base.note = `Showing engagement for the ${capped.length} most recent of ${inRange.length} Pins in range. Saves count as likes — Pinterest exposes no comment API.`;
+      base.note = `Showing engagement for the ${capped.length} most recent of ${inRange.length} Pins in range. Saves count as likes, Pinterest exposes no comment API.`;
     } else {
-      base.note = 'Saves count as likes — Pinterest exposes no comment API.';
+      base.note = 'Saves count as likes, Pinterest exposes no comment API.';
     }
   } catch (e: any) {
     base.note = e?.message ?? 'Pinterest request failed.';
@@ -612,7 +612,7 @@ async function pinStats(m: MetaState, start: number, end: number): Promise<Chann
 
 /**
  * Post listing + per-post likes/comments via Social Actions. Needs the
- * r_member_social scope (LI_SCOPES) — connections made before it was added
+ * r_member_social scope (LI_SCOPES), connections made before it was added
  * must disconnect + reconnect to grant it, otherwise the finder/social calls
  * 403 and the channel degrades to the honest note below.
  * Follower counts are intentionally null: LinkedIn exposes no member
@@ -626,7 +626,7 @@ async function liPostEngagement(
   h: Record<string, string>,
   inRange: any[],
 ): Promise<{ perPost: PerPost[]; reactions: number; comments: number; denied: boolean; truncated: boolean }> {
-  // Social Actions is one call per post — cap so a big range can't hammer it.
+  // Social Actions is one call per post, cap so a big range can't hammer it.
   const capped = inRange.slice(0, 15);
   let denied = false;
   const eng = await Promise.all(
@@ -661,7 +661,7 @@ async function liPostEngagement(
   };
 }
 
-/** Page follower count. Members have no follower API — orgs do (networkSizes). */
+/** Page follower count. Members have no follower API, orgs do (networkSizes). */
 async function liOrgFollowers(h: Record<string, string>, orgId: string): Promise<number | null> {
   try {
     const j: any = await jget(
@@ -675,8 +675,8 @@ async function liOrgFollowers(h: Record<string, string>, orgId: string): Promise
 }
 
 /**
- * Member posts + engagement via Social Actions (needs r_member_social), or —
- * when a Company Page is picked — the Page's posts + its follower count
+ * Member posts + engagement via Social Actions (needs r_member_social), or -
+ * when a Company Page is picked, the Page's posts + its follower count
  * (needs r_organization_social). Connections made before the scopes were added
  * must disconnect + reconnect to grant them; otherwise the finder/social calls
  * 403 and the channel degrades to the honest note below.
@@ -718,15 +718,15 @@ async function liStats(m: MetaState, start: number, end: number): Promise<Channe
     base.comments = e.comments;
     if (orgMode && m.liOrgId) base.followers = await liOrgFollowers(h, m.liOrgId);
     if (e.denied) {
-      base.note = 'LinkedIn shows posts only — disconnect and reconnect LinkedIn to grant the read permission for likes & comments.';
+      base.note = 'LinkedIn shows posts only, disconnect and reconnect LinkedIn to grant the read permission for likes & comments.';
     } else if (e.truncated) {
       base.note = `Showing engagement for the ${e.perPost.length} most recent of ${inRange.length} posts in range.`;
     } else if (!orgMode) {
-      base.note = 'LinkedIn exposes no follower count for personal profiles — pick a Company Page to see followers.';
+      base.note = 'LinkedIn exposes no follower count for personal profiles, pick a Company Page to see followers.';
     }
   } catch (e: any) {
     base.note = /403|not.*permis|denied|restrict/i.test(e?.message ?? '')
-      ? 'LinkedIn shows your profile only — post & engagement reads need an approved API permission (r_member_social). Posting works fine.'
+      ? 'LinkedIn shows your profile only, post & engagement reads need an approved API permission (r_member_social). Posting works fine.'
       : (e?.message ?? 'LinkedIn request failed.');
   }
   return base;
@@ -803,7 +803,7 @@ async function ytStats(m: MetaState, start: number, end: number): Promise<Channe
 }
 
 /** Google Business Profile: location-level Performance API (the only
- *  surface — local posts expose no per-post metrics). Call-to-action clicks
+ *  surface, local posts expose no per-post metrics). Call-to-action clicks
  *  + photo views over the range repeat on the single channel row. */
 async function gmbStats(m: MetaState, start: number, end: number): Promise<ChannelStats> {
   const base: ChannelStats = {
@@ -848,7 +848,7 @@ async function gmbStats(m: MetaState, start: number, end: number): Promise<Chann
     base.note =
       clicks + views > 0
         ? `Location metrics (last ${Math.max(1, Math.round((end - start) / 86400000))}d): ${clicks} call/website/booking clicks · GBP exposes no per-post stats.`
-        : 'GBP exposes no per-post stats — connect the Business Profile Performance & Images APIs on your Google project to see location metrics.';
+        : 'GBP exposes no per-post stats, connect the Business Profile Performance & Images APIs on your Google project to see location metrics.';
   } catch (e: any) {
     base.note = e?.message ?? 'Google Business request failed.';
   }
@@ -889,7 +889,7 @@ export async function ytComments(m: MetaState, stats: PerPost[]): Promise<FeedCo
 /**
  * Profile + recent posts with public metrics. Reply COUNTS come through;
  * reply TEXT needs conversation search (paid tier), so the comment feed
- * stays empty for X — counts still drive engagement.
+ * stays empty for X, counts still drive engagement.
  */
 async function xStats(m: MetaState, start: number, end: number): Promise<ChannelStats> {
   const base: ChannelStats = {
@@ -943,7 +943,7 @@ async function xStats(m: MetaState, start: number, end: number): Promise<Channel
 
 /* ---------------- Bluesky (PDS appview, fully open) ---------------- */
 
-/** pdsHost is stored as a full URL — never prepend a second scheme. */
+/** pdsHost is stored as a full URL, never prepend a second scheme. */
 function bskyApi(pdsHost: string): string {
   const h = pdsHost.replace(/\/+$/, '');
   return (h.startsWith('http://') || h.startsWith('https://') ? h : `https://${h}`) + '/xrpc';

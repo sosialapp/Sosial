@@ -15,12 +15,12 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * POST /api/sheets/import — start the job + first chunk.
- * PUT  /api/sheets/import — process the next chunk (resumable).
+ * POST /api/sheets/import, start the job + first chunk.
+ * PUT  /api/sheets/import, process the next chunk (resumable).
  * Dedupe via post_sources (source_type='sheets', source_id=spreadsheetId,
  * external_row_id=`r<rowNumber>`); content hash decides duplicate vs changed.
  * Row-number keys are inherently shift-prone: a shift surfaces as "changed",
- * which updates the draft — never a silent duplicate. No hidden-ID column
+ * which updates the draft, never a silent duplicate. No hidden-ID column
  * write-back in v1 (read-only scope), so this is the documented tradeoff.
  */
 
@@ -163,7 +163,7 @@ async function processChunk(
         continue;
       }
       result.changed++;
-      result.errors.push(`Row ${rowNumber} changed after import — not updated (post no longer a draft or row invalid).`);
+      result.errors.push(`Row ${rowNumber} changed after import, not updated (post no longer a draft or row invalid).`);
       continue;
     }
 

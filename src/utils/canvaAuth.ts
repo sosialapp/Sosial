@@ -147,7 +147,7 @@ async function exchangeCanvaCode(code: string, verifier: string): Promise<Stored
     code_verifier: verifier,
   });
   const t = toTokens(j, '');
-  if (!t.refreshToken) throw new Error('Canva did not return a lasting login — try again.');
+  if (!t.refreshToken) throw new Error('Canva did not return a lasting login, try again.');
   await writeStored(t);
   void syncCloud(t);
   return t;
@@ -188,7 +188,7 @@ export interface CanvaDesign {
 }
 
 /** Designs (newest first), optionally matching a query. Note: Canva has no
- *  list-folders endpoint, so there is no folder navigation — designs only. */
+ *  list-folders endpoint, so there is no folder navigation, designs only. */
 export async function listCanvaDesigns(query?: string): Promise<{ designs: CanvaDesign[]; folders: { id: string; name: string }[] }> {
   const token = await getValidCanvaToken();
   const headers = { Authorization: `Bearer ${token}` };
@@ -237,12 +237,12 @@ export async function downloadCanvaDesign(d: CanvaDesign, kind: 'image' | 'video
         await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}canva/`, { intermediates: true });
       } catch {}
       const dl = await FileSystem.downloadAsync(url, dest);
-      if (dl.status !== 200) throw new Error('Download failed — try another design.');
+      if (dl.status !== 200) throw new Error('Download failed, try another design.');
       return { uri: dl.uri, kind };
     }
     if (status === 'failed') {
       throw new Error(`Canva could not export that design (${String(pj?.job?.error?.message ?? 'unknown error').slice(0, 100)}).`);
     }
-    if (Date.now() > deadline) throw new Error('Canva is taking too long — try again.');
+    if (Date.now() > deadline) throw new Error('Canva is taking too long, try again.');
   }
 }

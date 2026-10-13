@@ -101,7 +101,7 @@ const SECTIONS: { title: string; blocks: Block[] }[] = [
       },
       {
         t: 'p',
-        c: '**How do I get in touch?** Email support@sosial.app — help, billing, feedback, anything. Support inside the app reaches the same team. Security and privacy matters are documented under [Transparency](/transparency) and [Privacy](/privacy).',
+        c: '**How do I get in touch?** Email support@sosial.app, help, billing, feedback, anything. Support inside the app reaches the same team. Security and privacy matters are documented under [Transparency](/transparency) and [Privacy](/privacy).',
       },
     ],
   },

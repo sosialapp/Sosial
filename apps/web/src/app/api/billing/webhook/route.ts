@@ -19,7 +19,7 @@ export const runtime = 'nodejs';
  * - Idempotent: event ids are recorded in billing_events; duplicates are
  *   acknowledged and skipped, so repeated deliveries never double-apply.
  * - Plan + billing interval are derived from the subscription's PRICE ID via
- *   the canonical map — never from the browser and never from the amount.
+ *   the canonical map, never from the browser and never from the amount.
  * - Out-of-order-safe: every handler upserts the full current state of the
  *   subscription, so late-arriving stale events converge to the same row.
  * - Cancellation/expiry lands here as customer.subscription.deleted (or an
@@ -78,14 +78,14 @@ async function resolveWorkspaceId(
 async function syncSubscription(sub: Stripe.Subscription, fallbackWorkspaceId: string | null) {
   const admin = supabaseAdmin();
   const workspaceId = await resolveWorkspaceId(sub, fallbackWorkspaceId);
-  if (!workspaceId) return; // not ours / unattributable — ignore
+  if (!workspaceId) return; // not ours / unattributable, ignore
 
   const priceId = primaryPriceId(sub);
   const resolved = resolveFromPriceId(priceId);
   const period = subscriptionPeriod(sub);
 
   // Plan + interval come from the PRICE (Stripe data). Our own checkout
-  // metadata is only a fallback for legacy/unknown prices — still
+  // metadata is only a fallback for legacy/unknown prices, still
   // server-side data, never anything the browser sent.
   const metaPlan = sub.metadata?.plan;
   const metaInterval = sub.metadata?.interval;
@@ -125,11 +125,11 @@ async function retrieveSubscription(id: string): Promise<Stripe.Subscription | n
 
 /**
  * Ultimate lifetime grant: a paid one-time $1 checkout becomes a perpetual
- * entitlement. No subscription exists, nothing renews, nothing can cancel —
+ * entitlement. No subscription exists, nothing renews, nothing can cancel -
  * status='lifetime' with no period end, enforced by workspace_plan().
  */
 async function grantLifetime(workspaceId: string | null, customerId: string | null) {
-  if (!workspaceId) return; // not ours / unattributable — ignore
+  if (!workspaceId) return; // not ours / unattributable, ignore
   const admin = supabaseAdmin();
   await admin.from('subscriptions').upsert(
     {
@@ -218,11 +218,11 @@ export async function POST(req: Request) {
         break;
       }
       default:
-        // Unhandled types are fine — recorded and acknowledged.
+        // Unhandled types are fine, recorded and acknowledged.
         break;
     }
   } catch (e) {
-    // Release the claim so Stripe's retry is not swallowed as a duplicate —
+    // Release the claim so Stripe's retry is not swallowed as a duplicate -
     // handlers are idempotent upserts, so re-application always converges.
     await releaseEvent(event.id).catch(() => {});
     return NextResponse.json(

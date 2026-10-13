@@ -9,9 +9,9 @@ function perr(j: any, status: number, fallback: string): string {
     (typeof j?.error === 'string' ? j.error : j?.error?.message) ||
     j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
-  if (status === 401) return 'Pinterest session expired — reconnect Pinterest.';
-  if (status === 403) return `${base} — the app may lack a scope or production access; check developers.pinterest.com.`;
-  if (status === 429) return 'Pinterest rate limit hit — wait a few minutes and retry.';
+  if (status === 401) return 'Pinterest session expired, reconnect Pinterest.';
+  if (status === 403) return `${base}, the app may lack a scope or production access; check developers.pinterest.com.`;
+  if (status === 429) return 'Pinterest rate limit hit, wait a few minutes and retry.';
   return `${base} (${status})`;
 }
 
@@ -20,7 +20,7 @@ export interface PinBoard {
   name: string;
 }
 
-/** Boards the account owns — the user picks one as the default Pin target. */
+/** Boards the account owns, the user picks one as the default Pin target. */
 export async function listPinBoards(accountId?: string): Promise<PinBoard[]> {
   const { token } = await getValidPin(accountId);
   const out: PinBoard[] = [];
@@ -60,7 +60,7 @@ function fit(s: string, max: number): string {
 async function createImagePin(boardId: string, token: string, title: string, description: string, uri: string): Promise<string> {
   const info: any = await FileSystem.getInfoAsync(uri).catch(() => null);
   if (info?.size && info.size > PIN_MAX_BYTES) {
-    throw new Error('That photo is over 10 MB — shrink it and try again.');
+    throw new Error('That photo is over 10 MB, shrink it and try again.');
   }
   const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
   const r = await fetch(`${PIN_API}/pins`, {
@@ -84,7 +84,7 @@ async function createImagePin(boardId: string, token: string, title: string, des
 
 /**
  * Create one Pin per image on the user's default board. Pinterest has no
- * multi-photo post — each image becomes its own Pin with the same caption.
+ * multi-photo post, each image becomes its own Pin with the same caption.
  * A video gets its own video Pin (register → PUT bytes → poll → create).
  * Returns the created Pin ids.
  */
@@ -101,7 +101,7 @@ export async function publishPinterest(opts: {
   if (!pinBoardId) throw new Error('Pick a Pinterest board in Connect first.');
   const images = (opts.imageUris ?? []).filter(Boolean).slice(0, PIN_MAX_IMAGES);
   if (images.length === 0 && !opts.videoUri) {
-    throw new Error('Pinterest Pins need a photo or video — attach media first.');
+    throw new Error('Pinterest Pins need a photo or video, attach media first.');
   }
   const { token } = await getValidPin(opts.accountId);
   const firstLine = (opts.text ?? '').trim().split('\n')[0];
@@ -129,9 +129,9 @@ export async function publishPinterest(opts: {
 /* ---------------- Pin analytics (/v5/pins/{id}/analytics) ---------------- */
 
 export interface PinEngagement {
-  /** IMPRESSION — the closest Pinterest has to views */
+  /** IMPRESSION, the closest Pinterest has to views */
   impressions: number;
-  /** SAVE — the closest Pinterest has to likes */
+  /** SAVE, the closest Pinterest has to likes */
   saves: number;
   /** PIN_CLICK + OUTBOUND_CLICK */
   clicks: number;
@@ -149,7 +149,7 @@ function clampWindow(start: number, end: number): { startDate: string; endDate: 
   return { startDate: ymd(s), endDate: ymd(e) };
 }
 
-/** Shape-tolerant metric sum — walks daily_metrics when present, else the body. */
+/** Shape-tolerant metric sum, walks daily_metrics when present, else the body. */
 function sumMetric(scope: any, names: string[]): number {
   let total = 0;
   const walk = (v: any, key?: string): void => {
@@ -171,7 +171,7 @@ function sumMetric(scope: any, names: string[]): number {
 
 /**
  * Engagement for one Pin. Throws on HTTP errors (callers degrade to zeros +
- * an honest note) — analytics 403s on apps without production access.
+ * an honest note), analytics 403s on apps without production access.
  */
 export async function pinAnalytics(token: string, pinId: string, start: number, end: number): Promise<PinEngagement> {
   const { startDate, endDate } = clampWindow(start, end);
@@ -201,7 +201,7 @@ function videoMime(uri: string): string {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * S3-style PUT must go through XMLHttpRequest — expo/fetch (SDK 57) can't
+ * S3-style PUT must go through XMLHttpRequest, expo/fetch (SDK 57) can't
  * serialize React Native {uri,name,type} FormData parts. No auth header here:
  * the signed upload URL is the auth.
  */
@@ -219,8 +219,8 @@ function xhrPutForm(uploadUrl: string, params: Record<string, string>, uri: stri
       }
       resolve();
     };
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('Video upload timed out — try a shorter video or stronger connection.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('Video upload timed out, try a shorter video or stronger connection.'));
     xhr.send(form as any);
   });
 }
@@ -228,7 +228,7 @@ function xhrPutForm(uploadUrl: string, params: Record<string, string>, uri: stri
 async function createVideoPin(boardId: string, token: string, title: string, description: string, uri: string): Promise<string> {
   const info: any = await FileSystem.getInfoAsync(uri).catch(() => null);
   if (info?.size && info.size > PIN_MAX_VIDEO_BYTES) {
-    throw new Error('That video is over 200 MB — shrink it and try again.');
+    throw new Error('That video is over 200 MB, shrink it and try again.');
   }
   const h = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   // 1. register the upload
@@ -258,9 +258,9 @@ async function createVideoPin(boardId: string, token: string, title: string, des
     ).json().catch(() => ({}));
     const status = String(st?.status ?? '').toLowerCase();
     if (status === 'succeeded') break;
-    if (status === 'failed') throw new Error('Pinterest could not process that video — try MP4 under 15 minutes.');
+    if (status === 'failed') throw new Error('Pinterest could not process that video, try MP4 under 15 minutes.');
     if (Date.now() - start > 180000) {
-      throw new Error('Pinterest is still processing the video — wait a minute, then check your board (the Pin may still land).');
+      throw new Error('Pinterest is still processing the video, wait a minute, then check your board (the Pin may still land).');
     }
     await sleep(delay);
     delay = Math.min(delay + 2000, 10000);

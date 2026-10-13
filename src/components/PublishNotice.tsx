@@ -36,7 +36,7 @@ function RowIcon({ state }: { state: PubRow['state'] }) {
   );
 }
 
-/** In-app publishing notice — replaces EVERY native Alert during/after publish.
+/** In-app publishing notice, replaces EVERY native Alert during/after publish.
  *  loading: spinner + live per-channel rows. result: summary card.
  *  info: simple card. privacy: tappable TikTok audience options. */
 export default function PublishNotice({
@@ -101,7 +101,7 @@ export default function PublishNotice({
             </View>
           ) : null}
           {message ? <Text style={s.message}>{message}</Text> : null}
-          {mode === 'loading' ? <Text style={s.sub}>Uploading and posting — keep the app open.</Text> : null}
+          {mode === 'loading' ? <Text style={s.sub}>Uploading and posting, keep the app open.</Text> : null}
           {rows && rows.length > 0 ? (
             <ScrollView style={mode === 'privacy' ? s.privWrap : s.rowsWrap} showsVerticalScrollIndicator={false}>
               <View style={s.rows}>

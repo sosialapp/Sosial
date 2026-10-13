@@ -1,5 +1,5 @@
 /**
- * Canvas studio model — faithful port of the mobile design engine
+ * Canvas studio model, faithful port of the mobile design engine
  * (types.ts + constants + presets). Unit system: canvas units where the
  * design width is 340 (matches mobile CANVAS_W, so all sizing math ports).
  */
@@ -145,13 +145,13 @@ export interface SocialLink {
 
 export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar' | 'free' | 'image';
 
-/** Per-block presentation overrides. Every field is optional — absent means
+/** Per-block presentation overrides. Every field is optional, absent means
  *  "use the block type's default", so old designs keep rendering as-is. */
 export interface BlockStyle {
   /** fraction of the content width the block occupies (0.3–1) */
   width?: number;
   align?: 'left' | 'center' | 'right';
-  /** chart orientation — overrides the block type's default */
+  /** chart orientation, overrides the block type's default */
   chartVariant?: 'hbar' | 'vbar' | 'pie';
   /** bar/donut thickness, relative (0.25–1) */
   chartThickness?: number;
@@ -226,7 +226,7 @@ export interface PostPage {
   font: FontId;
   cardStyle: CardStyle;
   fullCard?: boolean;
-  /** Full-card extras — when on, the card itself renders the title row,
+  /** Full-card extras, when on, the card itself renders the title row,
    *  avatar header and/or socials footer (mainly for Minimal full-card). */
   fullCardTitle?: boolean;
   fullCardAvatar?: boolean;
@@ -259,7 +259,7 @@ export function uid(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 
-/** Detect the first number anywhere in the line — "$45000", "Jan $40", "40%" all work. */
+/** Detect the first number anywhere in the line, "$45000", "Jan $40", "40%" all work. */
 export function parseChartLine(line: string): { label: string; value: number } {
   const m = line.match(/-?[\d,]*\.?\d+/);
   if (!m || m[0].replace(/[.,-]/g, '') === '') return { label: line.trim() || 'Item', value: 0 };
@@ -271,7 +271,7 @@ export function parseChartLine(line: string): { label: string; value: number } {
 /**
  * Tallest a card may be (design units) while the title + profile/socials
  * rows still fit on a canvas of design height `designH`. Same estimate as
- * the renderers' px `cardMax` (which is this × k, floored at 90px) — used
+ * the renderers' px `cardMax` (which is this × k, floored at 90px), used
  * to clamp the Fixed-height stepper so raising px can never shove the
  * profile/socials rows off the canvas. Unfloored; callers apply floors.
  */

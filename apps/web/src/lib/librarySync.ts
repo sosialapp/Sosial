@@ -3,7 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Cross-device content library (ideas / templates / projects) — the web half.
+ * Cross-device content library (ideas / templates / projects), the web half.
  * The web app keeps these in localStorage; the mobile app in AsyncStorage;
  * both converge through the `library_items` table (mobile mirrors this file
  * in src/utils/librarySync.ts). One row per (workspace, client_id):
@@ -27,7 +27,7 @@ export function stampOf(data: Record<string, unknown> | null | undefined): numbe
 }
 
 function withEnvelope(data: Record<string, unknown>): Record<string, unknown> {
-  // Creation origin sticks forever — a re-push by the other device must not
+  // Creation origin sticks forever, a re-push by the other device must not
   // flip the badge or the last-write-wins comparison.
   const origin = (data as { _origin?: unknown })._origin === 'mobile' ? 'mobile' : 'web';
   return { ...data, _origin: origin, _updatedAt: Math.max(stampOf(data), Date.now()) };

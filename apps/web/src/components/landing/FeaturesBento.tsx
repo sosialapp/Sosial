@@ -1,5 +1,5 @@
 /**
- * Feature bento (Tenner architecture): the five-card grid in code — first
+ * Feature bento (Tenner architecture): the five-card grid in code, first
  * row generate / schedule / templates, second row AI automate / connect.
  * Plus Jakarta Sans throughout. Each card has a marked illustration slot
  * where supplied artwork will be placed.

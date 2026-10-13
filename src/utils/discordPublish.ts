@@ -2,7 +2,7 @@
  * Native Discord publishing (bot token). Mirrors apps/worker/src/discord.ts:
  * text via JSON, files via multipart files[n]. Links auto-embed server-side.
  *
- * Multipart uploads go through XMLHttpRequest — expo/fetch (SDK 57) can't
+ * Multipart uploads go through XMLHttpRequest, expo/fetch (SDK 57) can't
  * serialize React Native {uri,name,type} FormData parts (see mastodonPublish).
  */
 
@@ -29,7 +29,7 @@ async function callDiscord<T>(token: string, path: string, body: Record<string, 
   });
   if (res.status === 429) {
     const retry = Number(res.headers.get('retry-after') ?? '5');
-    throw new Error(`Discord rate-limited this channel — retry in ${Math.ceil(retry)}s.`);
+    throw new Error(`Discord rate-limited this channel, retry in ${Math.ceil(retry)}s.`);
   }
   const json = (await res.json().catch(() => null)) as (T & { message?: string }) | null;
   if (!res.ok || !json) throw derr(json, res.status);
@@ -73,15 +73,15 @@ function xhrMessage(
         j = JSON.parse(xhr.responseText);
       } catch {}
       if (xhr.status === 429) {
-        return reject(new Error('Discord rate-limited this channel — wait a few minutes and retry.'));
+        return reject(new Error('Discord rate-limited this channel, wait a few minutes and retry.'));
       }
       if (xhr.status < 200 || xhr.status >= 300 || !j?.id) {
         return reject(derr(j, xhr.status));
       }
       resolve(j as DiscordMessage);
     };
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('Discord upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('Discord upload timed out, try again.'));
     xhr.send(form as any);
   });
 }
@@ -102,7 +102,7 @@ export async function publishDiscord(opts: {
   const text = (opts.text ?? '').trim();
   if (text.length > CONTENT_MAX) {
     throw new Error(
-      `Discord messages cap at ${CONTENT_MAX} characters (this one is ${text.length}) — shorten the text.`,
+      `Discord messages cap at ${CONTENT_MAX} characters (this one is ${text.length}), shorten the text.`,
     );
   }
   const files = [
@@ -111,7 +111,7 @@ export async function publishDiscord(opts: {
   ].slice(0, MAX_FILES);
 
   if (!text && files.length === 0) {
-    throw new Error('Write something or attach a file — Discord needs one of them.');
+    throw new Error('Write something or attach a file, Discord needs one of them.');
   }
   if (files.length === 0) {
     const msg = await callDiscord<DiscordMessage>(botToken, `/channels/${channelId}/messages`, {

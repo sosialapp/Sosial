@@ -10,7 +10,7 @@ import { supabase, currentSession } from './supabase';
  * device is never resurrected by the other side's next push.
  *
  * Payloads are the stores' own JSON untouched (plus _origin/_updatedAt
- * envelope fields). Device-local file:// media URIs ride along harmlessly —
+ * envelope fields). Device-local file:// media URIs ride along harmlessly -
  * they simply don't resolve on the other device; remote http(s) media works
  * everywhere.
  */
@@ -46,13 +46,13 @@ export function stampOf(data: any): number {
 }
 
 function withEnvelope(data: Record<string, any>): Record<string, any> {
-  // Creation origin sticks forever — a re-push by the other device must not
+  // Creation origin sticks forever, a re-push by the other device must not
   // flip the badge or the last-write-wins comparison.
   const origin = data?._origin === 'web' ? 'web' : 'mobile';
   return { ...data, _origin: origin, _updatedAt: Math.max(stampOf(data), Date.now()) };
 }
 
-/** Push one item (upsert by client_id). Never throws — callers fire-and-forget. */
+/** Push one item (upsert by client_id). Never throws, callers fire-and-forget. */
 export async function pushLibraryItem(
   kind: LibraryKind,
   id: string,

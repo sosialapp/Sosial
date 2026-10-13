@@ -17,13 +17,13 @@ export function mockGenerate(brief: ContentBrief): GenPage[] {
   for (let i = 0; i < n; i++) {
     const blocks: GenBlock[] = [];
 
-    // block 1 — text: heading + description, unique per card
+    // block 1, text: heading + description, unique per card
     blocks.push(textBlock(i, s));
 
-    // block 2 — context block, unique per card
+    // block 2, context block, unique per card
     if (max >= 2) blocks.push(contextBlock(i, s));
 
-    pages.push({ blocks, imagePrompt: `${idea} — illustrative photo ${i + 1}` });
+    pages.push({ blocks, imagePrompt: `${idea}, illustrative photo ${i + 1}` });
   }
 
   return pages;
@@ -38,7 +38,7 @@ function textBlock(i: number, s: string): GenBlock {
     { heading: `${s}, simplified`, lines: ['Pick one outcome you actually care about.', 'Track it for a week before changing anything.'] },
     { heading: `Common ${s} mistakes`, lines: ['Chasing perfect instead of simply starting.', 'Changing the plan every few days.'] },
     { heading: `${s} quick wins`, lines: ['Ten focused minutes a day compounds fast.', 'Review weekly, adjust once, repeat.'] },
-    { heading: `Make ${s} stick`, lines: ['Attach it to something you already do daily.', 'Miss once, never twice — then move on.'] },
+    { heading: `Make ${s} stick`, lines: ['Attach it to something you already do daily.', 'Miss once, never twice, then move on.'] },
     { heading: `The truth about ${s}`, lines: ['Results come from boring repetition, not hacks.', 'Keep the system, change the details.'] },
   ];
   // page number keeps every card's copy different even past the list length

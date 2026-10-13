@@ -1,6 +1,6 @@
 /**
  * supabase-js throws FunctionsHttpError("Edge Function returned a non-2xx
- * status code") with the server's JSON body on `context` — dig out our
+ * status code") with the server's JSON body on `context`, dig out our
  * `error` message so the user sees the real reason (out of credits, not
  * signed in, …) instead of the generic wrapper text.
  */

@@ -29,7 +29,7 @@ export async function publishDevto(opts: {
   const { apiKey } = opts;
   if (!apiKey) throw new Error('Dev.to not connected');
   const text = (opts.text ?? '').trim();
-  if (!text) throw new Error('Dev.to needs article text — this post is empty.');
+  if (!text) throw new Error('Dev.to needs article text, this post is empty.');
   const title = (opts.title ?? '').trim() || text.split('\n')[0].slice(0, 120);
   const article: Record<string, unknown> = {
     title,

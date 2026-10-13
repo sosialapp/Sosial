@@ -1,12 +1,12 @@
--- P49: MCP support — key expiry, confirmation tokens, tool-call logs.
+-- P49: MCP support, key expiry, confirmation tokens, tool-call logs.
 --
--- workspace_api_keys gains expires_at (null = never) — the Zapier keys stay
+-- workspace_api_keys gains expires_at (null = never), the Zapier keys stay
 -- forever-valid; MCP clients may set an expiry when minting.
 -- mcp_confirmations: hashed single-use tokens for the anti-footgun two-step
 --   (destructive / imminent actions). 5-minute TTL enforced by the app and
 --   swept by the existing worker cleanup pattern (rows are tiny; a cron
 --   delete keeps the table empty).
--- mcp_logs: one row per MCP tool call — tool, outcome, latency. No content,
+-- mcp_logs: one row per MCP tool call, tool, outcome, latency. No content,
 --   no tokens. Correlation via key_id + created_at.
 
 alter table public.workspace_api_keys

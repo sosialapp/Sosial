@@ -7,9 +7,9 @@ export type PostStatus = 'draft' | 'queued' | 'approval' | 'sent' | 'failed';
 export interface MediaAttachment {
   uri: string;
   kind: 'image' | 'video';
-  /** Bytes on disk (set at pick time) — powers size warnings. */
+  /** Bytes on disk (set at pick time), powers size warnings. */
   size?: number;
-  /** Video length in ms (set at pick time) — YouTube 4 h check. */
+  /** Video length in ms (set at pick time), YouTube 4 h check. */
   durationMs?: number;
 }
 
@@ -60,7 +60,7 @@ export const POST_TYPE_OPTIONS: Record<'facebook' | 'instagram' | 'threads' | 'x
   ],
   youtube: [
     { id: 'video', label: 'Video' },
-    // Same upload — YouTube auto-classifies vertical ≤3min clips as Shorts.
+    // Same upload, YouTube auto-classifies vertical ≤3min clips as Shorts.
     // No separate API exists, so this just records intent.
     { id: 'short', label: 'Short' },
   ],
@@ -136,7 +136,7 @@ export interface ManagedPost {
   /** Threads repost/quote source post URL or numeric media ID */
   sourceUrl?: string;
   scheduledAt?: number;
-  /** IANA zone the wall time was chosen in (web parity) — cloud + worker use
+  /** IANA zone the wall time was chosen in (web parity), cloud + worker use
    *  the instant; the zone is display context. Absent = device zone. */
   timezone?: string;
   createdAt: number;
@@ -146,31 +146,31 @@ export interface ManagedPost {
   sentAt?: number;
   /** Fingerprint of the cloud row this local copy was pulled from (body +
    *  media asset ids). When it matches the fresh cloud row, the pull skips
-   *  re-downloading every attachment — the single biggest sync egress cost. */
+   *  re-downloading every attachment, the single biggest sync egress cost. */
   cloudSig?: string;
   /** per-channel remote ids returned at publish time (post/media/tweet/video id
-   *  or at:// URI) — powers the per-post analytics in the Sent view.
+   *  or at:// URI), powers the per-post analytics in the Sent view.
    *  ALSO the duplicate guard: a channel recorded here is never reposted. */
   remoteIds?: Record<string, string>;
   /** lowercase channel → last failure note (cleared when that leg succeeds).
    *  Survives across attempts so the queue row can say WHY it's stuck. */
   channelErr?: Record<string, string>;
   /** lowercase channel → timestamp: auto-retry must not touch that leg before
-   *  then. Set when a leg times out — its promise may still land. */
+   *  then. Set when a leg times out, its promise may still land. */
   retryAfter?: Record<string, number>;
   /** sweep attempts so far; parked (not retried) past MAX_AUTO_TRIES. */
   autoTries?: number;
   /** Thread chain segments, in order (manual or auto-split). When there's more
    *  than one, chain-capable channels (X/Threads/Bluesky/Mastodon) publish them
-   *  as replies; every other channel gets `body` — the segments re-joined. */
+   *  as replies; every other channel gets `body`, the segments re-joined. */
   thread?: string[];
-  /** Per-segment image (local uri or http), aligned to `thread` by index —
+  /** Per-segment image (local uri or http), aligned to `thread` by index -
    *  null/undefined = no image on that segment. Only the phone publisher reads
    *  these for now; the cloud mirror ignores them (text-only chains there).
-   *  @deprecated — replaced by threadMedia; still read as a fallback. */
+   *  @deprecated, replaced by threadMedia; still read as a fallback. */
   threadImages?: (string | null)[];
   /** Per-segment attachments (one or more images/videos), aligned to `thread`
-   *  by index — null = none. Phone publisher attaches each to its reply. */
+   *  by index, null = none. Phone publisher attaches each to its reply. */
   threadMedia?: (ThreadSegmentMedia[] | null)[];
 }
 
@@ -204,18 +204,18 @@ export function postSegments(p: ManagedPost): string[] {
 }
 
 /** Raw per-segment attachments aligned to p.thread by index (no text filtering)
- *  — for loading the editor. Legacy threadImages read through as images. */
+ * , for loading the editor. Legacy threadImages read through as images. */
 export function postThreadMedia(p: ManagedPost): (ThreadSegmentMedia[] | null)[] {
   const n = p.thread?.length ?? 0;
   const raw = (p.threadMedia ?? (p.threadImages ?? []).map((u) => (u ? { uri: u, kind: 'image' as const } : null))) as any[];
-  // Pre-multi-attach records stored a bare object per slot — normalise to arrays.
+  // Pre-multi-attach records stored a bare object per slot, normalise to arrays.
   const norm = raw.map((m) => (m == null ? null : Array.isArray(m) ? m.filter(Boolean) : [m]));
   return alignThreadMedia(norm, n);
 }
 
 /** Chain segments paired with their per-segment attachment, in order. Empty-text
  *  segments drop WITH their attachment so indices stay aligned with
- *  postSegments — the same trim/drop rule the cloud mirror applies to text.
+ *  postSegments, the same trim/drop rule the cloud mirror applies to text.
  *  Legacy threadImages records read through as image attachments. */
 export function postThreadSegments(p: ManagedPost): ThreadSegment[] {
   const med = postThreadMedia(p);
@@ -231,7 +231,7 @@ export function isThread(p: ManagedPost): boolean {
 
 /** Cooldown after a channel times out (its promise may still land) before auto-retry touches it again. */
 export const LEG_COOLDOWN_MS = 30 * 60 * 1000;
-/** Sweep gives up auto-retrying a post after this many attempts — parks loud for manual retry. */
+/** Sweep gives up auto-retrying a post after this many attempts, parks loud for manual retry. */
 export const MAX_AUTO_TRIES = 5;
 /** Per-channel publish caps: video uploads + processing polls run long. */
 export const VIDEO_CHANNEL_MS = 20 * 60 * 1000;
@@ -256,7 +256,7 @@ export function withStatus(p: ManagedPost): ManagedPost {
 export const MIN_QUEUE_LEAD_MS = 5 * 60 * 1000;
 
 /**
- * Earliest queueable instant, floored to the minute — pickers are
+ * Earliest queueable instant, floored to the minute, pickers are
  * minute-granular, so without flooring the exact +5min minute would almost
  * always be (seconds-)blocked. 7:51:37 → 7:56:00 allowed, 7:55 blocked.
  */
@@ -278,7 +278,7 @@ export function minQueueLabel(now: number = Date.now()): string {
   }
 }
 
-/** A post with neither text nor media is unpublishable (drafts excepted — scratch is allowed). */
+/** A post with neither text nor media is unpublishable (drafts excepted, scratch is allowed). */
 export function isEmptyPost(p: {
   title?: string;
   body?: string;
@@ -350,7 +350,7 @@ async function writeManagedPost(p: ManagedPost): Promise<{ list: ManagedPost[]; 
 }
 
 /**
- * Local-only save — same AsyncStorage write, NO cloud mirror.
+ * Local-only save, same AsyncStorage write, NO cloud mirror.
  * Progress writes (per-leg results, cooldowns, retry counters) must use this:
  * a full push re-uploads every media byte and upserts targets, which would
  * clobber worker verdicts and waste video bandwidth on every attempt.

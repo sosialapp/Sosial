@@ -2,9 +2,9 @@
  * Native WordPress publishing (per-site Application Password). Mirrors
  * apps/worker/src/wordpress.ts: featured image via /wp/v2/media, then the
  * post as paragraph blocks with status=publish. Categories/tags/excerpt are
- * v1 omissions (no composer fields yet) — WordPress defaults apply.
+ * v1 omissions (no composer fields yet), WordPress defaults apply.
  *
- * Multipart uploads go through XMLHttpRequest — expo/fetch (SDK 57) can't
+ * Multipart uploads go through XMLHttpRequest, expo/fetch (SDK 57) can't
  * serialize React Native {uri,name,type} FormData parts (see mastodonPublish).
  */
 
@@ -51,8 +51,8 @@ function xhrUpload<T>(
       }
       resolve(j as T);
     };
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('WordPress upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('WordPress upload timed out, try again.'));
     xhr.send(form as any);
   });
 }
@@ -108,7 +108,7 @@ export async function publishWordPress(opts: {
   const title = (opts.title ?? '').trim() || (opts.text ?? '').trim().split('\n')[0].slice(0, 80);
   const { title: finalTitle, content } = toBlocks(title, opts.text ?? '');
   if (!content && !featuredId) {
-    throw new Error('Write something or attach a featured image — WordPress needs one of them.');
+    throw new Error('Write something or attach a featured image, WordPress needs one of them.');
   }
   const created = await wpJson<{ id: number }>(base, auth, '/wp/v2/posts', {
     title: finalTitle,

@@ -45,7 +45,7 @@ export default function PageSortList({ pages, currentIndex, onSelect, onCommit, 
   // created fresh each render so closures never go stale
   const pan = PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    // Android: let the native touchable receive taps — only steal real drags
+    // Android: let the native touchable receive taps, only steal real drags
     onShouldBlockNativeResponder: () => false,
     onMoveShouldSetPanResponder: (_, g) => dragId !== null && Math.abs(g.dy) > 6,
     onPanResponderMove: (_, g) => {

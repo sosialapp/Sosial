@@ -1,5 +1,5 @@
 /**
- * Pattern engine — direct port of mobile PatternBackground math to web SVG.
+ * Pattern engine, direct port of mobile PatternBackground math to web SVG.
  * All sizes in canvas units; the caller scales via width/height + viewBox.
  * Every layer receives `scale` (render width / 340) so pattern density and
  * stroke weight look identical at preview size and at 1080px export.
@@ -21,7 +21,7 @@ function rowY(height: number, step: number) {
   return { rows, first };
 }
 
-/** Solid plain heart — single bezier path, no emoji. s = half width. */
+/** Solid plain heart, single bezier path, no emoji. s = half width. */
 function heartPath(cx: number, cy: number, s: number): string {
   return (
     `M${cx} ${cy + s * 0.95} ` +
@@ -45,7 +45,7 @@ export function PatternLayer({
   opacity: number;
   width: number;
   height: number;
-  /** Render scale (width / 340) — keeps stroke weight and density faithful. */
+  /** Render scale (width / 340), keeps stroke weight and density faithful. */
   scale?: number;
 }) {
   if (type === 'solid') return null;
@@ -82,7 +82,7 @@ export function PatternLayer({
     return <>{els}</>;
   }
   if (type === 'zigzag') {
-    // Independent zigzag rows spanning past both edges — full coverage, clean peaks.
+    // Independent zigzag rows spanning past both edges, full coverage, clean peaks.
     const amp = s * 0.35;
     const half = s * 0.5;
     const rowH = s * 0.8;
@@ -225,5 +225,5 @@ export function PatternBackground({ bg, width, height }: { bg: BackgroundStyle; 
   );
 }
 
-/** patternOpacity has no mobile stepper — fixed sensible default with a slider in our editor. */
+/** patternOpacity has no mobile stepper, fixed sensible default with a slider in our editor. */
 export const DEFAULT_PATTERN_OPACITY = 0.5;

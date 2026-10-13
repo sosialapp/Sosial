@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'Sosial — social media scheduler for every channel';
+export const alt = 'Sosial, social media scheduler for every channel';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -54,7 +54,7 @@ export default function OgImage() {
           Plan, write and publish across ten social networks.
         </div>
         <div style={{ marginTop: 28, fontSize: 30, color: '#B9B2A3' }}>
-          One composer, calendar and queue — with an AI writer built in.
+          One composer, calendar and queue, with an AI writer built in.
         </div>
       </div>
     ),

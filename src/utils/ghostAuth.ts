@@ -1,7 +1,7 @@
 /**
  * Ghost Admin API key validation + a tiny HS256 JWT signer (device-side).
  *
- * React Native has no node:crypto — HMAC-SHA256 is implemented in pure JS
+ * React Native has no node:crypto, HMAC-SHA256 is implemented in pure JS
  * (RFC 4231 test vectors pin its correctness in ghostJwt.test.ts). Token
  * shape per Ghost docs: {id}:{hex secret} → JWT {alg:HS256,typ:JWT,kid:id},
  * payload {iat, exp:+5min, aud:'/admin/'}, Authorization: Ghost <jwt>.
@@ -50,7 +50,7 @@ function utf8Bytes(str: string): number[] {
   return out;
 }
 
-/** HMAC-SHA256 (RFC 4231) over byte arrays — pure JS, RN-safe. */
+/** HMAC-SHA256 (RFC 4231) over byte arrays, pure JS, RN-safe. */
 export function hmacSha256(key: number[], message: number[]): number[] {
   const BLOCK = 64;
   let k = key.slice();
@@ -65,7 +65,7 @@ function rotl(n: number, b: number): number {
   return ((n << b) | (n >>> (32 - b))) >>> 0;
 }
 
-/** SHA-256 over byte arrays — pure JS (FIPS 180-4). */
+/** SHA-256 over byte arrays, pure JS (FIPS 180-4). */
 export function sha256(bytes: number[]): number[] {
   const H = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,

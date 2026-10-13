@@ -44,12 +44,12 @@ import { validateUpload, targetWarnings, statSize } from '../utils/mediaLimits';
 const RETRY_MS = 5 * 60 * 1000;
 
 /** Hard ceiling on any single channel's publish. Without it one stalled
- *  network call keeps Promise.allSettled pending forever — the publish lock
+ *  network call keeps Promise.allSettled pending forever, the publish lock
  *  stays held and the loading overlay never clears, so the app looks frozen. */
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: any;
   const guard = new Promise<T>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} took too long and was given up on — it may still finish, check the app.`)), ms);
+    timer = setTimeout(() => reject(new Error(`${label} took too long and was given up on, it may still finish, check the app.`)), ms);
   });
   return Promise.race([p, guard]).finally(() => clearTimeout(timer));
 }
@@ -59,7 +59,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
  * head, each later segment replies to the one before it. `post` receives the
  * segment, the previous ref (null for the head), and the segment index so
  * callers can attach per-segment media; `idOf` extracts the remote id.
- * Returns the HEAD's id — the head is the canonical post for analytics, and
+ * Returns the HEAD's id, the head is the canonical post for analytics, and
  * recording it is what stops retries from re-chaining.
  */
 async function publishChain<T>(
@@ -105,7 +105,7 @@ interface ComposerCtx {
   pickDraftMedia: () => void;
   removeDraftMedia: (index: number) => void;
   moveDraftMedia: (from: number, to: number) => void;
-  /** queue / draft / post-now against the live draft — true when stored */
+  /** queue / draft / post-now against the live draft, true when stored */
   saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string) => Promise<boolean>;
   stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
   postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
@@ -140,7 +140,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   // source of truth while chain mode is on; `tBody` mirrors them joined so the
   // rest of the pipeline (title, guards, body) never needs to know.
   const [tThread, setTThread] = useState<string[] | null>(null);
-  /** Per-segment attachments (images/videos), aligned to tThread by index —
+  /** Per-segment attachments (images/videos), aligned to tThread by index -
    *  null = none. Survives save/load on the record; chain legs attach each to
    *  its own reply and ignore the shared media strip. */
   const [tThreadMedia, setTThreadMedia] = useState<(ThreadSegmentMedia[] | null)[]>([]);
@@ -149,7 +149,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const [privacyAsk, setPrivacyAsk] = useState<{ options: { value: string; label: string }[]; resolve: (v: string) => void } | null>(null);
   const sheetRef = useRef(sheet);
   sheetRef.current = sheet;
-  /** true while the inline Post-pill form is mounted — sheet-gated saves may
+  /** true while the inline Post-pill form is mounted, sheet-gated saves may
    *  run sheetless (the modal stays shut; only one composer is ever live). */
   const inlineRef = useRef(false);
   const publishingRef = useRef(false);
@@ -203,7 +203,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: remaining, orderedSelection: true, quality: 0.9 });
     if (res.canceled || !res.assets?.length) return;
-    // Same size gate as the shared strip — chain segments upload too.
+    // Same size gate as the shared strip, chain segments upload too.
     const rejected: string[] = [];
     const picked: ThreadSegmentMedia[] = [];
     for (const a of res.assets) {
@@ -285,7 +285,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: remaining, orderedSelection: true, quality: 0.9 });
     if (res.canceled || !res.assets?.length) return;
-    // Size gate before anything attaches — oversized files can never upload.
+    // Size gate before anything attaches, oversized files can never upload.
     const rejected: string[] = [];
     const picked: MediaAttachment[] = [];
     for (const a of res.assets) {
@@ -308,7 +308,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  /** Externally-sourced items (stock, cloud drives) — same cap rules. */
+  /** Externally-sourced items (stock, cloud drives), same cap rules. */
   const addMedia = (items: { uri: string; kind: 'image' | 'video' }[]) => {
     const remaining = MAX_ATTACHMENTS - tMedia.length;
     if (remaining <= 0) {
@@ -331,7 +331,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setTMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
-  /** Drag-to-arrange in the sheet strip — first item posts first. */
+  /** Drag-to-arrange in the sheet strip, first item posts first. */
   const moveMedia = (from: number, to: number) => {
     setTMedia((prev) => {
       if (from < 0 || to < 0 || from >= prev.length || to >= prev.length || from === to) return prev;
@@ -358,7 +358,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setTMedia(p ? postAttachments(p) : []);
   }, []);
 
-  /** Inline Post-pill form lifecycle — lets sheet-gated saves run sheetless. */
+  /** Inline Post-pill form lifecycle, lets sheet-gated saves run sheetless. */
   const beginInline = useCallback(() => {
     inlineRef.current = true;
   }, []);
@@ -387,13 +387,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setAiOpen(false);
   }, [onThread, tMedia, tThreadMedia]);
 
-  /** Title is no longer typed — it's the first line of the post text, kept for lists + reminders. */
+  /** Title is no longer typed, it's the first line of the post text, kept for lists + reminders. */
   const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): ManagedPost => {
     const firstImage = tMedia.find((m) => m.kind === 'image')?.uri;
     const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri;
     // Pair text+attachment BEFORE dropping empties so indices stay aligned.
     const pairs = (tThread ?? []).map((s, i) => ({ text: (s ?? '').trim(), med: tThreadMedia[i] ?? null })).filter((x) => x.text);
-    // A chain only survives when some selected channel can actually thread —
+    // A chain only survives when some selected channel can actually thread -
     // otherwise the (possibly edited) single body is the post, not stale segments.
     const chainAllowed = plats.includes('any') || plats.some(isChainPlatform);
     const chain = chainAllowed && pairs.length > 1 ? pairs.map((p) => p.text) : undefined;
@@ -405,7 +405,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       title: firstLine.slice(0, 80),
       body,
       thread: chain,
-      // Store only when at least one segment carries an attachment — keeps old
+      // Store only when at least one segment carries an attachment, keeps old
       // records byte-identical when the feature is unused.
       threadMedia: chainMedia && chainMedia.some((m) => m && m.length) ? chainMedia : undefined,
       imageUri: firstImage,
@@ -429,7 +429,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Serialize progress writes. Channel legs run concurrently (Promise.allSettled)
-   * and late-finishing promises outlive their run — without this, concurrent
+   * and late-finishing promises outlive their run, without this, concurrent
    * read-modify-writes drop each other's remoteIds on the floor.
    */
   const serRef = useRef<Promise<void>>(Promise.resolve());
@@ -442,7 +442,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return nxt;
   };
 
-  /** Load-fresh, patch, local-save (no mirror — progress writes must not
+  /** Load-fresh, patch, local-save (no mirror, progress writes must not
    *  re-upload media or clobber worker verdicts). Returns the fresh record. */
   const mergePost = async (postId: string, patch: (f: ManagedPost) => ManagedPost): Promise<ManagedPost | null> =>
     serialize(async () => {
@@ -457,7 +457,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   /** Every channel with live credentials right now. */
   const connectedChannels = (m: MetaState): string[] => connectedChannelIds(m);
 
-  /** "Anywhere" means every reachable channel — local credentials plus
+  /** "Anywhere" means every reachable channel, local credentials plus
    *  cloud-only placeholders the worker publishes for. Resolve to a concrete
    *  list at publish time. */
   const resolvePlats = (plats: string[], m: MetaState, accounts: ConnectedAccount[]): string[] => {
@@ -468,7 +468,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return plats;
   };
 
-  /** Channels that need media — and YouTube additionally needs it to be video.
+  /** Channels that need media, and YouTube additionally needs it to be video.
    *  Returns the offending channels (for brand tiles) plus the message. */
   const mediaBlock = (resolved: string[]): { channels: string[]; message: string } | null => {
     const flagged = [...new Set(resolved.filter((p) => p === 'tiktok' || p === 'instagram' || p === 'pinterest' || p === 'youtube'))];
@@ -478,8 +478,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return {
       channels: missing,
       message: onlyYt
-        ? 'YouTube needs a video — photos or text alone can’t go there.'
-        : 'Attach a photo or video — text-only posts can’t go to those channels.',
+        ? 'YouTube needs a video, photos or text alone can’t go there.'
+        : 'Attach a photo or video, text-only posts can’t go to those channels.',
     };
   };
 
@@ -501,7 +501,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
-      showInfo('Too soon', `Earliest is ${minQueueLabel()} — scheduled posts need at least 5 minutes lead time.`);
+      showInfo('Too soon', `Earliest is ${minQueueLabel()}, scheduled posts need at least 5 minutes lead time.`);
       return false;
     }
     if (isEmptyPost({ body: tBody, attachments: tMedia })) {
@@ -518,7 +518,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const warnings = await mediaWarnings(resolved);
       if (warnings.length) {
         sizeWarnRef.current = true;
-        showInfo('Size warning — tap save again to queue', warnings.join('\n'));
+        showInfo('Size warning, tap save again to queue', warnings.join('\n'));
         return false;
       }
     }
@@ -607,15 +607,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       if (!r) return;
       await finishPublish(p, r);
     } catch (e: any) {
-      // runPublish rethrows only for pre-blast failures — never reset silently
+      // runPublish rethrows only for pre-blast failures, never reset silently
       setNotice({ mode: 'result', title: 'Publish failed', rows: [{ id: 'post', label: 'Post', state: 'fail' as const, note: e?.message ?? 'Try again.' }] });
     }
   };
 
-  /** "Post now": publish immediately — no queueing, no scheduledAt. */
+  /** "Post now": publish immediately, no queueing, no scheduledAt. */
   const postNow = async (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
-    // A stuck or background publish used to swallow taps silently here —
+    // A stuck or background publish used to swallow taps silently here -
     // say so, so a held lock is diagnosable instead of invisible.
     if (publishing || publishingRef.current) {
       showInfo('Already publishing', 'Wait for the current publish to finish before posting again.');
@@ -636,12 +636,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const warnings = await mediaWarnings(resolved);
         if (warnings.length) {
           sizeWarnRef.current = true;
-          showInfo('Size warning — tap post again to continue', warnings.join('\n'));
+          showInfo('Size warning, tap post again to continue', warnings.join('\n'));
           return false;
         }
       }
       sizeWarnRef.current = false;
-      // Members can't publish directly — their "post now" becomes a pending approval.
+      // Members can't publish directly, their "post now" becomes a pending approval.
       if (canSubmit(await loadActor())) {
         const rec = buildRec(undefined, plats, 'approval', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
         await saveManagedPost(rec);
@@ -659,7 +659,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const cloudOnly =
         r.cloud.length > 0 && r.done.length === 0 && r.errs.length === 0 && r.manual.length === 0;
       if (cloudOnly) {
-        // Nothing for this device to attempt — hand the whole post over so
+        // Nothing for this device to attempt, hand the whole post over so
         // it goes out within a minute or so.
         await saveManagedPost({ ...rec, status: 'queued' as PostStatus });
         bump();
@@ -678,7 +678,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
       const ok = r.done.length > 0 && r.errs.length === 0 && r.manual.length === 0;
       if (!ok) {
-        // failed — keep it as a draft so nothing is lost; user can retry from Drafts.
+        // failed, keep it as a draft so nothing is lost; user can retry from Drafts.
         // Sheetless (inline page): stay put with content intact. Sheet open:
         // reopen onto the draft so the failure stays visible with its rows.
         const draft = { ...rec, status: 'draft' as PostStatus, scheduledAt: undefined };
@@ -700,7 +700,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   // cancel hook for a pending privacy ask (ref survives re-renders, unlike a fn property)
   const privacyCancelRef = React.useRef<(() => void) | null>(null);
 
-  /** In-app TikTok audience picker — replaces the native Alert. Resolves one option. */
+  /** In-app TikTok audience picker, replaces the native Alert. Resolves one option. */
   const askPrivacy = (options: string[]): Promise<string> =>
     new Promise((resolve, reject) => {
       setPrivacyAsk({
@@ -731,11 +731,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const runPublish = async (p: ManagedPost, opts?: { silent?: boolean }): Promise<RunResult | null> => {
     const m = await loadMetaState();
     const accounts = await loadAccounts();
-    /** Per-account remote-id key — lets a channel be partially done (account
+    /** Per-account remote-id key, lets a channel be partially done (account
      *  A posted, account B still missing) instead of only done/not-done. */
     const acctKey = (ch: string, aid: string) => `${ch}:${aid}`;
     // Seed from already-recorded legs: any account with a remote id never
-    // reposts — foreground retries and sweep passes alike skip done accounts;
+    // reposts, foreground retries and sweep passes alike skip done accounts;
     // timed-out legs park in cooldown.
     const prevIds: Record<string, string> = {};
     for (const [k, v] of Object.entries(p.remoteIds ?? {})) if (v) prevIds[k] = String(v);
@@ -750,7 +750,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const any = findAccountForProvider(accounts, ch as ProviderKey);
       return any ? [any] : [];
     };
-    /** Channel fully posted: every resolved account has a per-account id — or,
+    /** Channel fully posted: every resolved account has a per-account id, or,
      *  for pre-multi records, a channel-level id with no per-account keys.
      *  (The second clause ignores the current picks on purpose: a legacy
      *  record can't attribute its id, so the old skip-whole-channel rule
@@ -764,11 +764,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       if (!hasAnyAcctKeys && prevIds[ch]) return true;
       return false;
     };
-    /** Accounts still missing a post this run — the only ones a leg attempts. */
+    /** Accounts still missing a post this run, the only ones a leg attempts. */
     const accountsFor = (ch: string): ConnectedAccount[] =>
       resolvedAll(ch).filter((a) => !prevIds[acctKey(ch, a.id)]);
     /** Worker-owned channel: every resolved account is a cloud-only
-     *  placeholder — the device holds no tokens, so it must never attempt a
+     *  placeholder, the device holds no tokens, so it must never attempt a
      *  device leg (that would fail loudly every sweep). The cloud mirror
      *  already carries the post; worker verdicts flip it sent. */
     const workerOnly = (ch: string): boolean => {
@@ -778,7 +778,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     };
     const accountFor = (ch: string): ConnectedAccount | undefined => accountsFor(ch)[0] ?? resolvedAll(ch)[0];
     const acctFields = (ch: string): Record<string, unknown> => accountFor(ch)?.fields ?? {};
-    /** A channel's accounts published concurrently — successes keep their ids
+    /** A channel's accounts published concurrently, successes keep their ids
      *  (channel key stays comma-joined for the Sent view); a partial failure
      *  throws naming the missing accounts so the retry posts only those. */
     const throwIfPartial = (ch: string, label: string, accts: ConnectedAccount[], res: PromiseSettledResult<unknown>[]) => {
@@ -794,10 +794,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       if (badIdx.length === accts.length) throw first instanceof Error ? first : new Error(String((first as any)?.message ?? first ?? 'failed'));
       const names = badIdx.map((i) => accountName(accts[i]) ?? `account ${i + 1}`).join(', ');
       const why = first instanceof Error ? first.message : String((first as any)?.message ?? first ?? 'failed');
-      throw new Error(`Posted to ${accts.length - badIdx.length} of ${accts.length} accounts — ${names} failed: ${why}. Retry posts only the missing ones.`);
+      throw new Error(`Posted to ${accts.length - badIdx.length} of ${accts.length} accounts, ${names} failed: ${why}. Retry posts only the missing ones.`);
     };
     let plats = resolvePlats(p.platforms, m, accounts);
-    // buildRec derives title from the body's first line — posting title + body
+    // buildRec derives title from the body's first line, posting title + body
     // would print that line twice. Independent titles (e.g. design names from
     // Export) still prefix the body.
     const bodyText = (p.body ?? '').trim();
@@ -889,7 +889,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         await mergePost(p.id, (f) => ({ ...f, channelErr: { ...(f.channelErr ?? {}), [ch]: note } }));
       } catch {}
     };
-    // silent background runs must not touch the visible flag — it was set
+    // silent background runs must not touch the visible flag, it was set
     // unconditionally but only cleared for foreground runs, sticking the UI
     // in "Posting…" and silently killing every later tap at the entry guard.
     if (!silent) setPublishing(true);
@@ -902,15 +902,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       });
     }
     try {
-      // TikTok won't accept a hardcoded audience — prefer the upfront pick,
+      // TikTok won't accept a hardcoded audience, prefer the upfront pick,
       // fall back to asking once at publish time
       let ttPrivacy: string | null = p.ttPrivacy ?? null;
       if (pending.includes('tiktok') && plats.includes('tiktok') && !ttPrivacy && silent) {
-        // Background runs must never prompt — without a saved audience the
+        // Background runs must never prompt, without a saved audience the
         // post needs the user, so skip TikTok quietly this pass instead of
         // hanging on a modal no one asked for.
-        errs.push('TikTok: audience not chosen — TikTok skipped');
-        void noteLegErr('tiktok', 'audience not chosen — TikTok skipped');
+        errs.push('TikTok: audience not chosen, TikTok skipped');
+        void noteLegErr('tiktok', 'audience not chosen, TikTok skipped');
         plats = plats.filter((p) => p !== 'tiktok');
       }
       if (pending.includes('tiktok') && plats.includes('tiktok') && !ttPrivacy) {
@@ -933,11 +933,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             'SELF_ONLY';
         } catch (e: any) {
           // Backing out of the audience pick (or any pre-flight failure) must
-          // never kill the whole publish silently — fail TikTok alone with a
+          // never kill the whole publish silently, fail TikTok alone with a
           // visible row and keep blasting the rest.
           const note =
             String(e?.message ?? '') === 'Login was cancelled.'
-              ? 'audience not chosen — TikTok skipped'
+              ? 'audience not chosen, TikTok skipped'
               : (e?.message ?? 'failed');
           errs.push(`TikTok: ${note}`);
           void noteLegErr('tiktok', note);
@@ -945,7 +945,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           plats = plats.filter((p) => p !== 'tiktok');
         }
       }
-      // TikTok pre-flight above may narrow plats — keep the blast in sync.
+      // TikTok pre-flight above may narrow plats, keep the blast in sync.
       pending = pending.filter((c) => plats.includes(c));
       if (silent && pending.length > 0) {
         // Count the attempt first (local-only write): unbounded silent retries
@@ -956,10 +956,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       // blast: every channel publishes concurrently, rows flip independently.
       // Each channel is capped so one stalled call can't hold the whole blast
       // (and its loading overlay) open forever. Video uploads + processing
-      // polls run an order of magnitude longer than photos — an 8-minute cap
+      // polls run an order of magnitude longer than photos, an 8-minute cap
       // turned every slow video into a false failure (the post still landed,
       // the row stuck overdue, the retry duplicated it).
-      // Videos upload + process an order of magnitude slower — a segment video
+      // Videos upload + process an order of magnitude slower, a segment video
       // needs the long cap too, or a slow leg false-fails (and retries dupe).
       const segHasVideo = (chain ?? []).some((s) => (s.media ?? []).some((mm) => mm.kind === 'video'));
       const perChannelMs = atts.some((a) => a.kind === 'video') || segHasVideo ? VIDEO_CHANNEL_MS : PHOTO_CHANNEL_MS;
@@ -1003,7 +1003,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             throwIfPartial(ch, 'Instagram', igAccts, igRes);
             done.push('Instagram');
           } else if (ch === 'threads') {
-            // Narrow into consts — TS drops property narrowing inside callbacks.
+            // Narrow into consts, TS drops property narrowing inside callbacks.
             const thAccts = accountsFor('threads');
             if (thAccts.length === 0) throw new Error('Threads not connected');
             const thRes = await Promise.allSettled(thAccts.map(async (thAcct) => {
@@ -1016,10 +1016,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               } else {
                 keepAcct(ch, thAcct.id, chain
                   ? await publishChain<string>(chain, (seg, parent) => {
-                      // Chain legs use segment attachments only — the shared strip is
+                      // Chain legs use segment attachments only, the shared strip is
                       // hidden in thread mode, so shared media must not leak in
                       // invisibly. Non-chain legs below still use it.
-                      // Threads accepts a single attachment per post — take the first.
+                      // Threads accepts a single attachment per post, take the first.
                       const med = (seg.media ?? []).slice(0, 1).map((mm) => ({ uri: mm.uri, kind: mm.kind }));
                       return publishThreads({
                         threadsId: thId, token: thToken, text: seg.text,
@@ -1042,11 +1042,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               const tt = ttAcct.fields;
               if (!tt.ttRefreshToken && !tt.ttAccessToken) throw new Error('TikTok not connected');
               if (firstVideo && atts.some((a) => a.kind === 'image')) {
-                throw new Error('TikTok can’t mix photos and video — send one or the other (a Live Photo counts as a photo).');
+                throw new Error('TikTok can’t mix photos and video, send one or the other (a Live Photo counts as a photo).');
               }
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.tiktok.images);
               if (type === 'photo' || !firstVideo) {
-                // photo carousel — TikTok pulls from public URLs
+                // photo carousel, TikTok pulls from public URLs
                 if (!imgs.length) throw new Error(type === 'photo' ? 'Attach at least one photo for a TikTok photo post.' : 'TikTok needs a photo or video');
                 const urls: string[] = [];
                 for (const img of imgs) {
@@ -1068,7 +1068,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               }
               ttSaved.push(ttAcct.id);
             }));
-            // remember the audience that actually published — an unaudited app
+            // remember the audience that actually published, an unaudited app
             // can only post SELF_ONLY, and re-defaulting to Public would fail
             // every future post the same way. Sequential: the store is
             // read-modify-write, so concurrent saves would clobber each other.
@@ -1082,7 +1082,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               const xf = xAcct.fields;
               if (!xf.xUserId || (!xf.xAccessToken && !xf.xRefreshToken)) throw new Error('X not connected');
               if (firstVideo && atts.some((a) => a.kind === 'image')) {
-                throw new Error('X can’t mix photos and video — send one or the other.');
+                throw new Error('X can’t mix photos and video, send one or the other.');
               }
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.x.images);
               const imgUris = imgs.map((a) => a.uri);
@@ -1109,7 +1109,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               const bs = bsAcct.fields;
               if (!bs.bskyDid || (!bs.bskyAccessJwt && !bs.bskyRefreshJwt)) throw new Error('Bluesky not connected');
               if (firstVideo && atts.some((a) => a.kind === 'image')) {
-                throw new Error('Bluesky can’t mix photos and video — send one or the other.');
+                throw new Error('Bluesky can’t mix photos and video, send one or the other.');
               }
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.bluesky.images);
               const bsImgUris = imgs.map((a) => a.uri);
@@ -1139,7 +1139,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             const maRes = await Promise.allSettled(maAccts.map(async (maAcct) => {
               const ma = maAcct.fields;
               if (!ma.mastodonAccessToken || !ma.mastodonInstance) throw new Error('Mastodon not connected');
-              // Mastodon takes either a single video or up to 4 images — never both
+              // Mastodon takes either a single video or up to 4 images, never both
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.mastodon.images);
               const mImgUris = imgs.map((a) => a.uri);
               keepAcct(ch, maAcct.id, chain
@@ -1188,7 +1188,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             const ytRes = await Promise.allSettled(ytAccts.map(async (ytAcct) => {
               const yt = ytAcct.fields;
               if (!yt.ytRefreshToken && !yt.ytAccessToken) throw new Error('YouTube not connected');
-              // Video-only — photos/text alone throw a clear error
+              // Video-only, photos/text alone throw a clear error
               keepAcct(ch, ytAcct.id, await publishYouTube({ text: caption, videoUri: firstVideo?.uri, kind: (type as 'video' | 'short' | undefined) ?? 'video', privacy: (p.ytPrivacy as 'public' | 'unlisted' | 'private' | undefined) ?? 'public', accountId: ytAcct.id }));
             }));
             throwIfPartial(ch, 'YouTube', ytAccts, ytRes);
@@ -1341,7 +1341,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         perChannelMs,
         labelFor(ch),
       ).catch(async (e: any) => {
-        // Only the timeout rejection lands here — the body swallows its own
+        // Only the timeout rejection lands here, the body swallows its own
         // errors. Timeout ≠ failure: the promise is still running and may
         // land. Park the leg in cooldown so no retry duplicates it, and only
         // record the error if the leg hasn't recorded success meanwhile.
@@ -1378,7 +1378,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
-   * Settle a run against the STORED record (not just this run's arrays — legs
+   * Settle a run against the STORED record (not just this run's arrays, legs
    * may have landed late from an earlier timed-out run). Sent iff at least one
    * real channel exists and every real channel has a remote id. Manual-only
    * posts never auto-flip. Always persists merged progress + bump, so the
@@ -1397,7 +1397,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const mergedIds = { ...(fresh.remoteIds ?? {}), ...run.remoteIds };
     const real = resolved.filter((c) => c !== 'any');
     const flippable = (fresh.status ?? 'queued') === 'queued' || fresh.status === 'approval';
-    // A channel counts as sent only with a remote id AND no outstanding error —
+    // A channel counts as sent only with a remote id AND no outstanding error -
     // a partially-posted multi-account channel keeps its error note so the
     // retry finishes the missing accounts instead of flipping sent early.
     const storedErr = fresh.channelErr ?? {};
@@ -1410,7 +1410,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       sentAt: sent ? (fresh.sentAt ?? Date.now()) : fresh.sentAt,
     };
     if (sent && !found) {
-      // brand-new row (Post Now) — full save so the cloud mirror is created sent
+      // brand-new row (Post Now), full save so the cloud mirror is created sent
       await saveManagedPost(next);
     } else {
       await saveManagedPostLocal(next);
@@ -1449,12 +1449,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const allGood = done.length > 0 && errs.length === 0 && manual.length === 0;
     if (!opts?.silent) setNotice({ mode: 'result', title: allGood ? 'Published' : 'Publish result', rows });
     // The sent verdict comes from the STORED record (late legs included), not
-    // just this run's arrays — a timed-out-then-landed video still flips sent.
+    // just this run's arrays, a timed-out-then-landed video still flips sent.
     const { rec, sent } = await settlePost(p, run.resolved, run, opts);
     if (sent) {
       // On iOS keep the composer open on the sent record: the result then shows
       // inside the one modal. Closing here would try to present the standalone
-      // notice modal during the sheet's dismissal — on iOS that double-modal
+      // notice modal during the sheet's dismissal, on iOS that double-modal
       // hand-off leaves the whole app untouchable. Android closes as before.
       if (Platform.OS === 'ios' && sheetRef.current) setSheet({ post: rec });
       else setSheet(null);
@@ -1473,7 +1473,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => (a.scheduledAt ?? 0) - (b.scheduledAt ?? 0));
     for (const p of due) {
       // Healer: late-recorded legs (a timed-out promise that landed after its
-      // run) may have completed the set — flip sent without reposting.
+      // run) may have completed the set, flip sent without reposting.
       try {
         const fresh0 = (await loadManagedPosts()).find((x) => x.id === p.id);
         const resolved0 = resolvePlats((fresh0 ?? p).platforms, meta, await loadAccounts().catch(() => []));
@@ -1485,7 +1485,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           await settlePost(fresh0, resolved0, { done: [], errs: [], manual: [], cloud: [], remoteIds: {}, resolved: resolved0 }, { silent: true });
           continue;
         }
-        // Parked: auto-retry gave up — the row says why; only a manual tap re-arms.
+        // Parked: auto-retry gave up, the row says why; only a manual tap re-arms.
         if ((fresh0?.autoTries ?? p.autoTries ?? 0) >= MAX_AUTO_TRIES) continue;
       } catch {}
       // retry a failed/overdue post every few minutes while the app is open,
@@ -1502,7 +1502,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  /** Reminder tap: the post is due — publish it now. */
+  /** Reminder tap: the post is due, publish it now. */
   const publishPostById = useCallback(
     async (id: string) => {
       const all = await loadManagedPosts();
@@ -1585,7 +1585,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         statusMessage={notice?.message}
       />
       {/* One native modal at a time: iOS can't reliably present the notice
-          Modal on top of the composer sheet's Modal — the second presentation
+          Modal on top of the composer sheet's Modal, the second presentation
           fails and leaves the whole app untouchable (frozen incl. the bottom
           nav). While the sheet is open on iOS the same content is mirrored
           inside it, so the standalone notice modal stays out of the way.

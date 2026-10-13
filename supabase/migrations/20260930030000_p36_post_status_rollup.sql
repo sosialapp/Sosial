@@ -2,8 +2,8 @@
 --
 -- Until now mark_target_sent/mark_target_failed only touched post_targets,
 -- so published posts stayed 'queued' in every queue UI on every channel.
--- The rollup runs inside both RPCs (the single funnel every publisher —
--- all 10 existing channels plus Telegram — already calls), and only for
+-- The rollup runs inside both RPCs (the single funnel every publisher -
+-- all 10 existing channels plus Telegram, already calls), and only for
 -- posts already in the publishing lifecycle: drafts and approvals are
 -- never touched.
 
@@ -27,7 +27,7 @@ begin
          count(*) filter (where status = 'failed')
     into total, active, sent, failed
     from post_targets where post_id = p_post_id;
-  -- Nothing to judge, or still working — leave the post alone.
+  -- Nothing to judge, or still working, leave the post alone.
   if total = 0 or active > 0 then
     return;
   end if;

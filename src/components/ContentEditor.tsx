@@ -20,7 +20,7 @@ function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
 /**
  * Tallest a card may be (design units) while the title + profile/socials
  * rows still fit on a canvas of design height `designH`. Mirrors web
- * maxCardHeightDesign in apps/web/src/lib/studio/model.ts — keep in sync.
+ * maxCardHeightDesign in apps/web/src/lib/studio/model.ts, keep in sync.
  * Unfloored; callers apply floors.
  */
 function maxCardHeightDesign(page: PostPage, designH: number): number {
@@ -62,7 +62,7 @@ const TYPES: { id: BlockType; label: string }[] = [
   { id: 'image', label: 'Image' },
 ];
 
-/** Detect the first number anywhere in the line — "$45000", "Jan $40", "40%" all work. */
+/** Detect the first number anywhere in the line, "$45000", "Jan $40", "40%" all work. */
 function parseChartLine(line: string): { label: string; value: number } {
   const m = line.match(/-?[\d,]*\.?\d+/);
   if (!m || m[0].replace(/[.,-]/g, '') === '') return { label: line.trim() || 'Item', value: 0 };
@@ -104,7 +104,7 @@ export default function ContentEditor() {
   useEffect(() => { loadAccount().then((a) => setPlan(a.plan)); }, []);
   if (!page) return null;
   // Tallest the fixed card may be while the title + profile/socials rows
-  // still fit — the stepper stops here so raising px can never shove them
+  // still fit, the stepper stops here so raising px can never shove them
   // off the canvas.
   const cardMaxH = Math.max(120, Math.min(640, Math.floor(maxCardHeightDesign(page, 340 * sizeRatio))));
   const wmOn = page.showWatermark ?? true;
@@ -150,7 +150,7 @@ export default function ContentEditor() {
     const img = res.assets[0].uri;
     update(b.id, { chart: (b.chart ?? []).map((c, k) => (k === row ? { ...c, img } : c)) });
   };
-  // raw text drafts for table/chart editors — parsed into the model on blur,
+  // raw text drafts for table/chart editors, parsed into the model on blur,
   // so normalization never fights the cursor mid-typing
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draftKey = (b: ContentBlock, kind: 'table' | 'chart') => `${b.id}:${kind}`;
@@ -175,7 +175,7 @@ export default function ContentEditor() {
         }),
       });
     }
-    // keep the raw text in the box — no surprise rewrite after typing
+    // keep the raw text in the box, no surprise rewrite after typing
   };
   const move = (id: string, dir: -1 | 1) => {
     const i = blocks.findIndex((b) => b.id === id);
@@ -228,7 +228,7 @@ export default function ContentEditor() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Full card</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Content card fills the whole canvas — single card</Text>
+            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Content card fills the whole canvas, single card</Text>
           </View>
           <PillToggle on={page.fullCard ?? false} onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })} />
         </View>
@@ -395,7 +395,7 @@ export default function ContentEditor() {
                 ) : null}
                 {(b.type === 'bar' || b.type === 'pie' || b.type === 'vbar') ? (
                   <>
-                    <Text style={st.hint}>One per line, any format — the number is detected. Example: Jan $40</Text>
+                    <Text style={st.hint}>One per line, any format, the number is detected. Example: Jan $40</Text>
                     <Txt
                       value={draftFor(b, 'chart')}
                       onChangeText={(v) => setDrafts((d) => ({ ...d, [draftKey(b, 'chart')]: v }))}
@@ -489,7 +489,7 @@ export default function ContentEditor() {
                         <Field label="Labels sit">
                           <Seg options={[{ value: 'out', label: 'Outside' }, { value: 'in', label: 'In bar' }]} value={b.style?.chartLabelPos ?? 'out'} onChange={(v) => patchStyle(b, { chartLabelPos: v as 'out' | 'in' })} />
                         </Field>
-                        <Field label="Bar picture" hint="Uses each row's photo — fill the bar or a small tile">
+                        <Field label="Bar picture" hint="Uses each row's photo, fill the bar or a small tile">
                           <Seg options={[{ value: 'none', label: 'None' }, { value: 'fill', label: 'Fill' }, { value: 'tile', label: 'Tile' }]} value={b.style?.chartBarImg ?? 'none'} onChange={(v) => patchStyle(b, { chartBarImg: v as 'none' | 'fill' | 'tile' })} />
                         </Field>
                         {(b.style?.chartBarImg ?? 'none') === 'tile' ? (

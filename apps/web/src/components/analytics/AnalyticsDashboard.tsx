@@ -65,7 +65,7 @@ const fmtDate = (iso: string | null): string => {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-const full = (n: number | null): string => (n === null ? '—' : n.toLocaleString('en-US'));
+const full = (n: number | null): string => (n === null ? '-' : n.toLocaleString('en-US'));
 
 const startOfDay = (t: number): number => {
   const d = new Date(t);
@@ -211,7 +211,7 @@ export default function AnalyticsDashboard({
     return { from, to, label: `${fmt(from)} – ${fmt(to)}` };
   }, [preset, custom, now]);
 
-  /** Connected channels on the account — one filter pill per account. */
+  /** Connected channels on the account, one filter pill per account. */
   const connectedChannels = useMemo(
     () =>
       channels
@@ -276,14 +276,14 @@ export default function AnalyticsDashboard({
     { label: 'Failed', value: failed, href: '/queue', color: '#E60023' },
   ];
 
-  // Stat cards are display-only (not links) — the ⓘ explains each number.
+  // Stat cards are display-only (not links), the ⓘ explains each number.
   const stats: { label: string; value: string; icon: typeof Send; hint: string }[] = [
     { label: 'Posts', value: full(sent.length), icon: Send, hint: `Posts sent in ${range.label.toLowerCase()}.` },
     {
       label: 'Total Followers',
-      value: hasFollowers ? full(followers) : '—',
+      value: hasFollowers ? full(followers) : '-',
       icon: Users,
-      hint: 'Latest follower total across the selected channels. Snapshots refresh daily — never rounded.',
+      hint: 'Latest follower total across the selected channels. Snapshots refresh daily, never rounded.',
     },
     {
       label: 'Reactions',
@@ -299,15 +299,15 @@ export default function AnalyticsDashboard({
     },
     {
       label: 'Eng. Rate',
-      value: eng ?? '—',
+      value: eng ?? '-',
       icon: Percent,
       hint: '(Reactions + Comments + Shares) ÷ Followers, from the latest snapshots.',
     },
     {
       label: 'Views',
-      value: hasViews ? full(views) : '—',
+      value: hasViews ? full(views) : '-',
       icon: Eye,
-      hint: 'Latest view totals where the platform exposes them (— where it does not).',
+      hint: 'Latest view totals where the platform exposes them (- where it does not).',
     },
   ];
 
@@ -460,10 +460,10 @@ export default function AnalyticsDashboard({
 
   const exportMarkdown = (): void => {
     const md = [
-      `# Sosial analytics — ${range.label}`,
+      `# Sosial analytics, ${range.label}`,
       `Exported ${stamp}`,
       '',
-      `**Posts:** ${sent.length} · **Followers:** ${hasFollowers ? followers.toLocaleString('en-US') : '—'} · **Reactions:** ${likes.toLocaleString('en-US')} · **Comments:** ${comments.toLocaleString('en-US')} · **Eng. rate:** ${eng ?? '—'} · **Views:** ${hasViews ? views.toLocaleString('en-US') : '—'}`,
+      `**Posts:** ${sent.length} · **Followers:** ${hasFollowers ? followers.toLocaleString('en-US') : '-'} · **Reactions:** ${likes.toLocaleString('en-US')} · **Comments:** ${comments.toLocaleString('en-US')} · **Eng. rate:** ${eng ?? '-'} · **Views:** ${hasViews ? views.toLocaleString('en-US') : '-'}`,
       '',
       '## Channels',
       '',
@@ -471,7 +471,7 @@ export default function AnalyticsDashboard({
       '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
       ...perfRows.map(
         (r) =>
-          `| ${r.label} | ${r.followers ?? '—'} | ${r.likes} | ${r.comments} | ${r.shares} | ${r.views ?? '—'} | ${chanEng(r) ?? '—'} | ${r.sent} |`,
+          `| ${r.label} | ${r.followers ?? '-'} | ${r.likes} | ${r.comments} | ${r.shares} | ${r.views ?? '-'} | ${chanEng(r) ?? '-'} | ${r.sent} |`,
       ),
       '',
       '## Top posts',
@@ -480,7 +480,7 @@ export default function AnalyticsDashboard({
       '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |',
       ...topPosts.map(
         (p) =>
-          `| ${p.title.replace(/\|/g, '\\|').slice(0, 80)} | ${p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '—'} | ${p.providers.map((pv) => providerMeta(pv).label).join(' + ')} | ${p.likes} | ${p.comments} | ${p.shares} | ${p.views ?? '—'} | ${p.interactions} |`,
+          `| ${p.title.replace(/\|/g, '\\|').slice(0, 80)} | ${p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-'} | ${p.providers.map((pv) => providerMeta(pv).label).join(' + ')} | ${p.likes} | ${p.comments} | ${p.shares} | ${p.views ?? '-'} | ${p.interactions} |`,
       ),
       '',
     ];
@@ -490,17 +490,17 @@ export default function AnalyticsDashboard({
   const exportPdf = (): void => {
     const row = (cells: string[]): string =>
       `<tr>${cells.map((c, i) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;${i > 0 ? 'text-align:right;' : ''}font-size:12px;">${c}</td>`).join('')}</tr>`;
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Sosial analytics — ${range.label}</title></head><body style="font-family:system-ui,sans-serif;color:#1C1A14;max-width:900px;margin:32px auto;padding:0 24px;">
-<h1 style="font-size:22px;">Sosial analytics — ${range.label}</h1>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Sosial analytics, ${range.label}</title></head><body style="font-family:system-ui,sans-serif;color:#1C1A14;max-width:900px;margin:32px auto;padding:0 24px;">
+<h1 style="font-size:22px;">Sosial analytics, ${range.label}</h1>
 <p style="color:#666;font-size:12px;">Exported ${stamp}${chanSel.length ? ` · Channels: ${chanSelLabels().join(', ')}` : ''}</p>
-<p style="font-size:13px;"><b>Posts:</b> ${sent.length} · <b>Followers:</b> ${hasFollowers ? followers.toLocaleString('en-US') : '—'} · <b>Reactions:</b> ${likes.toLocaleString('en-US')} · <b>Comments:</b> ${comments.toLocaleString('en-US')} · <b>Eng. rate:</b> ${eng ?? '—'} · <b>Views:</b> ${hasViews ? views.toLocaleString('en-US') : '—'}</p>
+<p style="font-size:13px;"><b>Posts:</b> ${sent.length} · <b>Followers:</b> ${hasFollowers ? followers.toLocaleString('en-US') : '-'} · <b>Reactions:</b> ${likes.toLocaleString('en-US')} · <b>Comments:</b> ${comments.toLocaleString('en-US')} · <b>Eng. rate:</b> ${eng ?? '-'} · <b>Views:</b> ${hasViews ? views.toLocaleString('en-US') : '-'}</p>
 <h2 style="font-size:16px;margin-top:28px;">Channels</h2>
 <table style="border-collapse:collapse;width:100%;"><thead><tr>${['Channel', 'Followers', 'Likes', 'Comments', 'Shares', 'Views', 'Engagement', 'Sent'].map((h, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
-${perfRows.map((r) => row([r.label, r.followers === null ? '—' : String(r.followers), String(r.likes), String(r.comments), String(r.shares), r.views === null ? '—' : String(r.views), chanEng(r) ?? '—', String(r.sent)])).join('')}
+${perfRows.map((r) => row([r.label, r.followers === null ? '-' : String(r.followers), String(r.likes), String(r.comments), String(r.shares), r.views === null ? '-' : String(r.views), chanEng(r) ?? '-', String(r.sent)])).join('')}
 </tbody></table>
 <h2 style="font-size:16px;margin-top:28px;">Top posts</h2>
 <table style="border-collapse:collapse;width:100%;"><thead><tr>${['Post', 'Sent', 'Channels', 'Likes', 'Comments', 'Shares', 'Views', 'Interactions'].map((h, i) => `<th style="text-align:${i < 3 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
-${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '—', p.providers.map((pv) => providerMeta(pv).label).join(' + ')].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;">${c}</td>`).join('')}${[p.likes, p.comments, p.shares, p.views ?? '—', p.interactions].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;text-align:right;">${c}</td>`).join('')}</tr>`).join('')}
+${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-', p.providers.map((pv) => providerMeta(pv).label).join(' + ')].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;">${c}</td>`).join('')}${[p.likes, p.comments, p.shares, p.views ?? '-', p.interactions].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;text-align:right;">${c}</td>`).join('')}</tr>`).join('')}
 </tbody></table>
 <p style="color:#666;font-size:11px;margin-top:24px;">Engagement = (likes + comments + shares) ÷ followers. Follower and engagement figures are the latest daily snapshots.</p>
 </body></html>`;
@@ -562,7 +562,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <ExportOption
                 icon={<FileDown className="h-4 w-4" aria-hidden="true" />}
                 title="PDF"
-                subtitle="Print-ready — save as PDF"
+                subtitle="Print-ready, save as PDF"
                 onClick={() => {
                   exportPdf();
                   setExportOpen(false);
@@ -768,7 +768,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                     <TableCell className="text-right text-muted">{full(p.likes)}</TableCell>
                     <TableCell className="text-right text-muted">{full(p.comments)}</TableCell>
                     <TableCell className="text-right text-muted">{full(p.shares)}</TableCell>
-                    <TableCell className="text-right text-muted">{p.views === null ? '—' : full(p.views)}</TableCell>
+                    <TableCell className="text-right text-muted">{p.views === null ? '-' : full(p.views)}</TableCell>
                     <TableCell className="text-right font-display font-extrabold">{full(p.interactions)}</TableCell>
                   </TableRow>
                 ))}
@@ -907,7 +907,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           <CardContent className="pt-1">
             {perfRows.length === 0 ? (
               <p className="text-sm text-muted">
-                Connect a channel and publish — audience and engagement land here within a day.
+                Connect a channel and publish, audience and engagement land here within a day.
               </p>
             ) : (
               <Table>
@@ -945,8 +945,8 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                         <TableCell className="text-right text-muted">{full(r.likes)}</TableCell>
                         <TableCell className="text-right text-muted">{full(r.comments)}</TableCell>
                         <TableCell className="text-right text-muted">{full(r.shares)}</TableCell>
-                        <TableCell className="text-right text-muted">{r.views === null ? '—' : full(r.views)}</TableCell>
-                        <TableCell className="text-right font-bold">{eng ?? '—'}</TableCell>
+                        <TableCell className="text-right text-muted">{r.views === null ? '-' : full(r.views)}</TableCell>
+                        <TableCell className="text-right font-bold">{eng ?? '-'}</TableCell>
                         <TableCell className="text-right text-muted">{r.sent}</TableCell>
                       </TableRow>
                     );

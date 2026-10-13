@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 
 /**
  * Instant publish: purge the ISR cache for freshly saved blog posts and CMS
- * pages so "Publish" means live now, not live within 5 minutes. Admin-only —
+ * pages so "Publish" means live now, not live within 5 minutes. Admin-only -
  * the caller's JWT must belong to app_admins.
  *
  * POST { paths: string[] } → 200 { ok: true, revalidated: string[] }

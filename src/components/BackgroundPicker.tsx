@@ -35,7 +35,7 @@ const MIX_TYPES: { value: BgType; label: string }[] = [
   { value: 'doodle', label: 'Doodle' },
 ];
 
-/** Wrapping chip grid — Seg only fits a handful of options. */
+/** Wrapping chip grid, Seg only fits a handful of options. */
 function PatternGrid({ options, value, onChange }: { options: { value: BgType; label: string }[]; value: BgType; onChange: (v: BgType) => void }) {
   const { C } = useTheme();
   return (
@@ -108,7 +108,7 @@ export default function BackgroundPicker() {
       </View>
 
       <View style={{ gap: 14 }}>
-        <Section no="03" title="Presets" hint="One-tap starting points — or save your own look." />
+        <Section no="03" title="Presets" hint="One-tap starting points, or save your own look." />
         <View style={{ backgroundColor: C.card, borderRadius: R.lg, overflow: 'hidden' }}>
           {BG_PRESETS.map((p, i) => (
             <TouchableOpacity key={p.label} onPress={() => patchBackground({ color: p.color, patternColor: p.patternColor })} style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 15, paddingVertical: 13 }, i > 0 && { borderTopWidth: 1, borderTopColor: C.lineSoft }]} activeOpacity={0.7}>

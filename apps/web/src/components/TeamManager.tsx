@@ -173,7 +173,7 @@ export default function TeamManager({
     setInviteLink(null);
     try {
       const sb = createClient();
-      // Row + email go through send-invite — the raw create_invite RPC
+      // Row + email go through send-invite, the raw create_invite RPC
       // writes the row but sends nothing, so invitees never hear about it.
       const { data, error } = await sb.functions.invoke('send-invite', {
         body: {
@@ -193,7 +193,7 @@ export default function TeamManager({
         typeof url === 'string' &&
         url
       ) {
-        // Already on Sosial — no email can reach them, hand over the link.
+        // Already on Sosial, no email can reach them, hand over the link.
         setInviteLink(url);
       }
       router.refresh();
@@ -419,7 +419,7 @@ export default function TeamManager({
                   </div>
                   {channels.length === 0 ? (
                     <p className="mt-2 text-xs text-muted">
-                      Connect an account first — there are no channels to appoint yet.
+                      Connect an account first, there are no channels to appoint yet.
                     </p>
                   ) : null}
                   <button
@@ -454,7 +454,7 @@ export default function TeamManager({
                         onClick={() => void navigator.clipboard?.writeText(`https://sosial.app/invite/${inv.token}`)}
                         className="font-bold text-accent-ink hover:underline"
                       >
-                        Email pending — copy invite link
+                        Email pending, copy invite link
                       </button>
                     </span>
                   )}
@@ -522,7 +522,7 @@ export default function TeamManager({
             {err ? <p className="text-sm font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p> : null}
             {inviteLink ? (
               <div className="rounded-xl border border-line bg-surface/60 p-3 text-sm">
-                <p className="font-bold">They&rsquo;re already on Sosial — no email needed.</p>
+                <p className="font-bold">They&rsquo;re already on Sosial, no email needed.</p>
                 <p className="mt-1 break-all text-xs text-muted">{inviteLink}</p>
                 <button
                   type="button"

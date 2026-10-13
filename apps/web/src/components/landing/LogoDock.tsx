@@ -7,13 +7,13 @@ import { SourceMark, AiMark } from '@/components/SourceMarks';
 
 /**
  * Logo dock (GreenSock macOS-dock pen, calmed down): channel + integration
- * icons magnify gently as the cursor travels each strip — wide falloff,
+ * icons magnify gently as the cursor travels each strip, wide falloff,
  * small boost, slow ease, so hovering never feels twitchy. Static rows
  * under reduced motion and touch. Two labeled panels side by side on
  * desktop (Integrate | Channels), stacked on mobile.
  */
 
-/** Live channels — the coming-soon ones are listed after these. */
+/** Live channels, the coming-soon ones are listed after these. */
 const CHANNELS: BrandProvider[] = [
   'instagram',
   'tiktok',
@@ -32,7 +32,7 @@ const CHANNELS: BrandProvider[] = [
   'vk',
 ];
 
-/** Listed but not connectable yet — mirrors ConnectPanel's COMING_SOON. */
+/** Listed but not connectable yet, mirrors ConnectPanel's COMING_SOON. */
 const SOON_CHANNELS: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
 
 const INTEGRATIONS = ['canva', 'unsplash', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
@@ -111,7 +111,7 @@ export default function LogoDock() {
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:pt-16">
         <div className="flex justify-center">
           <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">
-            {/* Integrate — tools that feed the composer plus the AI agents
+            {/* Integrate, tools that feed the composer plus the AI agents
                 that can operate Sosial through MCP: one tight 9×2 grid.
                 Same flex footprint as Channels so the wall reads symmetric. */}
             <div className="flex min-w-0 flex-1 flex-col items-center">
@@ -128,12 +128,12 @@ export default function LogoDock() {
                   </span>
                 ))}
                 {AGENTS.map((a) => (
-                  <span key={a.id} className="block shrink-0 will-change-transform" title={`${a.label} — via MCP`}>
+                  <span key={a.id} className="block shrink-0 will-change-transform" title={`${a.label}, via MCP`}>
                     <AiMark id={a.id} className="block h-6 w-6 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
                 {SOON_TOOLS.map((t) => (
-                  <span key={t} className="relative block shrink-0 will-change-transform" title={`${t} — coming soon`}>
+                  <span key={t} className="relative block shrink-0 will-change-transform" title={`${t}, coming soon`}>
                     <SourceMark id={t} className="block h-6 w-6 opacity-55 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                     <SoonBadge />
                   </span>
@@ -144,7 +144,7 @@ export default function LogoDock() {
             {/* Divider: vertical on desktop, horizontal on mobile */}
             <div className="mx-auto h-px w-24 shrink-0 bg-line md:mx-0 md:h-24 md:w-px md:self-center" aria-hidden="true" />
 
-            {/* Channels — where posts land: same 9×2 footprint as Integrate. */}
+            {/* Channels, where posts land: same 9×2 footprint as Integrate. */}
             <div className="flex min-w-0 flex-1 flex-col items-center">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
                 Channels
@@ -159,7 +159,7 @@ export default function LogoDock() {
                   </span>
                 ))}
                 {SOON_CHANNELS.map((c) => (
-                  <span key={c} className="relative block shrink-0 will-change-transform" title={`${c} — coming soon`}>
+                  <span key={c} className="relative block shrink-0 will-change-transform" title={`${c}, coming soon`}>
                     <BrandIcon provider={c} className="h-6 w-6 opacity-55 sm:h-8 sm:w-8" />
                     <SoonBadge />
                   </span>

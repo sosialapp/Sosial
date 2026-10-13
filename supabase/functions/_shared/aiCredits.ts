@@ -1,5 +1,5 @@
 // _shared/aiCredits.ts · canonical AI credit costs for the edge functions.
-// Mirror of apps/web/src/lib/billing/aiCredits.ts — KEEP IN LOCKSTEP.
+// Mirror of apps/web/src/lib/billing/aiCredits.ts, KEEP IN LOCKSTEP.
 
 export type AiAction =
   | "rewrite" | "shorten" | "expand" | "tone" | "hashtags" | "idea"

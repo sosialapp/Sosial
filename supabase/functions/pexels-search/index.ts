@@ -1,6 +1,6 @@
 // pexels-search · stock photo/video search (any signed-in member)
 //
-// Pexels API key lives in Supabase secrets (PEXELS_API_KEY) — never shipped
+// Pexels API key lives in Supabase secrets (PEXELS_API_KEY), never shipped
 // to clients, and the same endpoint serves web (CORS) + mobile uniformly.
 // Photos AND videos; attribution appreciated but not required.
 //

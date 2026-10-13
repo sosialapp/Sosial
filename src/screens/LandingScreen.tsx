@@ -7,7 +7,7 @@ import { PrimaryBtn, SocialGlyph } from '../components/ui';
 /** All ten channels, one circle around the bolt. */
 const NODES = ['x', 'instagram', 'tiktok', 'facebook', 'threads', 'youtube', 'bluesky', 'mastodon', 'linkedin', 'pinterest'];
 
-/** Each channel ignites in its own brand color — no house orange anywhere. */
+/** Each channel ignites in its own brand color, no house orange anywhere. */
 const BRAND: Record<string, string> = {
   x: '#000000',
   instagram: '#E1306C',
@@ -62,7 +62,7 @@ function OrbitIllustration() {
   const marchOffset = march.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
   const orbitRotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const nodeCounter = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
-  // Spokes begin just outside the center glow — never buried under it.
+  // Spokes begin just outside the center glow, never buried under it.
   const TRIM = 58 / ORBIT_R;
   const trim = (p: { x: number; y: number }) => ({ x: ORBIT_C + (p.x - ORBIT_C) * TRIM, y: ORBIT_C + (p.y - ORBIT_C) * TRIM });
   const heartScale = heart.interpolate({ inputRange: [0, 0.1, 0.2, 0.32, 0.42, 1], outputRange: [1, 1.12, 1, 1.07, 1, 1] });

@@ -9,7 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * Invite redeem (the cookie-setting half). Server Components cannot write
  * cookies, so the invite page hands signed-in users here: accept the token,
- * remember the joined workspace, land in the team — never in a stray
+ * remember the joined workspace, land in the team, never in a stray
  * personal workspace.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -34,7 +34,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
     if (!/already accepted/i.test(String(error?.message ?? ''))) {
       return fail(String(error?.message ?? 'The invite is invalid or expired.'));
     }
-    // Already a member — find the invite's workspace so the landing sticks.
+    // Already a member, find the invite's workspace so the landing sticks.
     const { data: inv } = await sb
       .from('invites')
       .select('workspace_id')

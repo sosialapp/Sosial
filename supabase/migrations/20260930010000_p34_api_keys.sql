@@ -1,6 +1,6 @@
 -- P34 · Workspace API keys for the public inbound API (Zapier/Make/webhooks)
 --
--- One row per key. Only the SHA-256 hash is stored — the plaintext key is
+-- One row per key. Only the SHA-256 hash is stored, the plaintext key is
 -- shown once at creation and never again. RLS enabled with NO policies
 -- (service-role only, like channel_tokens); the /api/keys management routes
 -- and /api/v1 verification run through supabaseAdmin() with cookie-role

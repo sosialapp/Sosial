@@ -57,7 +57,7 @@ function agoShort(iso: string): string {
 function shortRel(iso: string | null): string {
   if (!iso) return 'unscheduled';
   const t = Date.parse(iso);
-  if (Number.isNaN(t)) return '—';
+  if (Number.isNaN(t)) return '-';
   const s = Math.round((Date.now() - t) / 1000);
   if (s < 60) return `${Math.max(1, s)}s`;
   const m = Math.round(s / 60);
@@ -153,7 +153,7 @@ function uniqueTargets(parts: PostWithTargets[]): { provider: string; channel_id
 }
 
 /**
- * Full-post preview dialog. Read-only except an Edit shortcut for drafts —
+ * Full-post preview dialog. Read-only except an Edit shortcut for drafts -
  * actions (approve, publish, delete) stay on the card behind it.
  *
  * Sent posts additionally render a per-target performance panel: publish
@@ -377,7 +377,7 @@ export default function PostList({
   workspaceId: string;
   /** Optional: open the draft in the composer. Defaults to /post?edit=<id>. */
   onEdit?: (postId: string) => void;
-  /** Channel avatar URLs by channel id — brand discs render without photos. */
+  /** Channel avatar URLs by channel id, brand discs render without photos. */
   avatars?: Record<string, string>;
   /** Connected channels, for author name + @handle on the card head. */
   channels?: ConnectedChannel[];
@@ -415,7 +415,7 @@ export default function PostList({
     const c = channelById.get(channelId);
     const display = c?.display_name?.trim() || providerMeta(provider).label;
     // Real handles only: never fall back to external_id (Threads stores the
-    // numeric user id there, Ghost stores the site URL — neither is a handle).
+    // numeric user id there, Ghost stores the site URL, neither is a handle).
     const cleanHandle = (raw: string | null | undefined): string | null => {
       if (!raw) return null;
       const t = raw.trim().replace(/^@+/, '');
@@ -425,7 +425,7 @@ export default function PostList({
       if (t.length > 64) return null;
       return `@${t}`;
     };
-    // Threads/Mastodon/X stash "@user" in display_name with handle null —
+    // Threads/Mastodon/X stash "@user" in display_name with handle null -
     // surface that as the handle instead of the numeric id.
     const handle = cleanHandle(c?.handle) ?? (display.startsWith('@') ? cleanHandle(display) : null);
     const name = display.replace(/^@+/, '') || display;
@@ -503,7 +503,7 @@ export default function PostList({
     setMediaSel('all');
   };
 
-  /** Chain parts render as ONE card — a thread draft is a single post. */
+  /** Chain parts render as ONE card, a thread draft is a single post. */
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = posts
@@ -852,7 +852,7 @@ export default function PostList({
                       ) : null}
                     </>
                   ) : (
-                    <p className="mt-0.5 text-sm italic text-faint">No text — media only.</p>
+                    <p className="mt-0.5 text-sm italic text-faint">No text, media only.</p>
                   )}
                   {comment && (
                     <p className="mt-1.5 text-xs text-ink">Changes requested: “{comment}”</p>
@@ -864,7 +864,7 @@ export default function PostList({
                   )}
                 </div>
 
-                {/* Media: social sizing — full-width single, square grid for many */}
+                {/* Media: social sizing, full-width single, square grid for many */}
                 {cardMedia.length > 0 && (
                   <div
                     className={`mt-2.5 flex flex-wrap gap-1.5 px-4 ${cardMedia.length > 1 ? 'max-w-[420px]' : ''} justify-center`}

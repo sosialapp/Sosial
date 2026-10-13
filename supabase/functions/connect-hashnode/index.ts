@@ -24,7 +24,7 @@ async function gql<T>(pat: string, query: string, variables: Record<string, unkn
       body: JSON.stringify({ query, variables }),
     });
   } catch {
-    throw new Error("Could not reach Hashnode — check the connection and retry.");
+    throw new Error("Could not reach Hashnode, check the connection and retry.");
   }
   const text = await res.text().catch(() => "");
   // Since May 2026 Hashnode retired free API access: the endpoint 301s to an
@@ -55,7 +55,7 @@ async function gql<T>(pat: string, query: string, variables: Record<string, unkn
   if (!json || !json.data) {
     throw new Error(
       `Hashnode answered 200 with no data${text ? `: ${text.slice(0, 120)}` : " (empty body)"}. ` +
-        "The token looks invalid — generate a fresh one at hashnode.com → Settings → Developer.",
+        "The token looks invalid, generate a fresh one at hashnode.com → Settings → Developer.",
     );
   }
   return json.data as T;
@@ -68,7 +68,7 @@ serve(async (req: Request): Promise<Response> => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SB_PUBLISHABLE_KEY") ?? "";
   const serviceKey =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SB_SECRET_KEY") ?? "";
-  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured — missing Supabase env.", 500);
+  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured, missing Supabase env.", 500);
 
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) return bad("Sign in first.", 401);
@@ -90,7 +90,7 @@ serve(async (req: Request): Promise<Response> => {
   const publication_id = body["publication_id"];
   if (typeof workspace_id !== "string" || !workspace_id) return bad("workspace_id required.");
   if (typeof pat !== "string" || !pat.trim()) return bad("Personal access token required.");
-  // Strip ALL whitespace — dashboard copy-paste smuggles in line breaks.
+  // Strip ALL whitespace, dashboard copy-paste smuggles in line breaks.
   const token = pat.replace(/\s+/g, "");
 
   const admin = createClient(supaUrl, serviceKey, { auth: { persistSession: false } });

@@ -40,7 +40,7 @@ function xerr(j: any, fallback: string): string {
     j?.errors?.[0]?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
   if (/deplet|exhaust|credit|quota|usage|over.?cap/i.test(base)) {
-    return `${base} — X posting quota is out (resets monthly) or needs Basic tier.`;
+    return `${base}, X posting quota is out (resets monthly) or needs Basic tier.`;
   }
   return base;
 }
@@ -52,7 +52,7 @@ async function xjson(url: string, init: RequestInit, fallback: string): Promise<
   const j: any = await r.json().catch(() => ({}));
   if (r.status === 401) throw new Error('__EXPIRED__');
   if (r.status === 403) {
-    throw new Error('X refused (403) — the X app needs Read+Write permission and posting quota, then reconnect.');
+    throw new Error('X refused (403), the X app needs Read+Write permission and posting quota, then reconnect.');
   }
   if (r.status === 429) throw new Error('X rate limit hit (429).');
   if (!r.ok) throw new Error(xerr(j, `${fallback} (${r.status})`));
@@ -68,14 +68,14 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
     if (access) return access;
   }
   if (!b.secrets.refresh_secret_id) {
-    throw new Error('X session expired — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('X session expired, toggle cloud publishing off and on in Connect to refresh.');
   }
   const clientId = String(b.channel.metadata?.xClientId ?? '');
   if (!clientId) {
-    throw new Error('X channel imported before client-id metadata — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('X channel imported before client-id metadata, toggle cloud publishing off and on in Connect to refresh.');
   }
   const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('X session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (!refresh) throw new Error('X session expired, toggle cloud publishing off and on in Connect to refresh.');
   const body = new URLSearchParams({
     client_id: clientId,
     grant_type: 'refresh_token',
@@ -88,7 +88,7 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   });
   const j: any = await r.json().catch(() => ({}));
   if (!j.access_token) {
-    throw new Error(`${xerr(j, 'X session expired')} — toggle cloud publishing off and on in Connect to refresh.`);
+    throw new Error(`${xerr(j, 'X session expired')}, toggle cloud publishing off and on in Connect to refresh.`);
   }
   const newAccess = String(j.access_token);
   const newRefresh = String(j.refresh_token || refresh);
@@ -149,7 +149,7 @@ async function waitVideoReady(mediaId: string, token: string, timeoutMs = 15 * 6
     const info = s?.data?.processing_info;
     if (!info || info.state === 'succeeded') return;
     if (info.state === 'failed') throw new Error(xerr(info.error, 'X could not process that video.'));
-    if (Date.now() - start >= timeoutMs) throw new Error('X is still processing the video — try again in a few minutes.');
+    if (Date.now() - start >= timeoutMs) throw new Error('X is still processing the video, try again in a few minutes.');
     await sleep(Math.min(10000, (Number(info.check_after_secs) || 5) * 1000));
   }
 }
@@ -203,7 +203,7 @@ async function uploadVideo(
 async function uploadImage(buf: Buffer, mime: string, token: string): Promise<string> {
   if (buf.length > X_IMG_CAP) throw new Error('Photo over X’s 5 MB image limit.');
   const form = new FormData();
-  // Uint8Array.from copies into a fresh ArrayBuffer — satisfies BlobPart
+  // Uint8Array.from copies into a fresh ArrayBuffer, satisfies BlobPart
   // typing across @types/node versions (Buffer<ArrayBufferLike> doesn't).
   form.append('media', new Blob([Uint8Array.from(buf)], { type: mime }), 'sosial');
   form.append('media_category', mime === 'image/gif' ? 'tweet_gif' : 'tweet_image');
@@ -226,7 +226,7 @@ async function uploadImage(buf: Buffer, mime: string, token: string): Promise<st
       const st = s?.data?.processing_info;
       if (!st || st.state === 'succeeded') break;
       if (st.state === 'failed') throw new Error(xerr(st.error, 'X could not process that image.'));
-      if (Date.now() - start > 60000) throw new Error('X is still processing the image — retry in a minute.');
+      if (Date.now() - start > 60000) throw new Error('X is still processing the image, retry in a minute.');
       await sleep(Math.min(10000, (Number(st.check_after_secs) || 5) * 1000));
     }
   }
@@ -259,7 +259,7 @@ export async function publishXTarget(bundle: Bundle): Promise<{ tweetId: string;
   const all = (b.media ?? []).sort((a, z) => a.position - z.position);
   const video = all.find((m) => m.kind === 'video');
   if (video && all.some((m) => m.kind !== 'video')) {
-    throw new Error('X can’t mix photos and video — attach one or the other.');
+    throw new Error('X can’t mix photos and video, attach one or the other.');
   }
   const media = video ? [] : all.slice(0, X_MAX_IMAGES);
 
@@ -277,7 +277,7 @@ export async function publishXTarget(bundle: Bundle): Promise<{ tweetId: string;
     .filter(Boolean);
   const chain = segments.length > 1 ? segments : null;
   const headText = chain ? chain[0] : text;
-  if (!headText && all.length === 0) throw new Error('Nothing to publish — empty text and no media.');
+  if (!headText && all.length === 0) throw new Error('Nothing to publish, empty text and no media.');
   info(`x target ${b.target.id}: ${chain ? `THREAD ${chain.length}` : video ? '1 video' : `${media.length} image(s)`}`);
 
   const attempt = async (force: boolean): Promise<{ tweetId: string; tweetUrl: string }> => {
@@ -303,7 +303,7 @@ export async function publishXTarget(bundle: Bundle): Promise<{ tweetId: string;
       try {
         raw = await storageDownload(await storageSign('post-media', media[i].storage_path));
       } catch (e: any) {
-        throw new Error(`Photo ${i + 1}: download failed — ${e?.message ?? 'storage error'}`);
+        throw new Error(`Photo ${i + 1}: download failed, ${e?.message ?? 'storage error'}`);
       }
       try {
         mediaIds.push(await uploadImage(raw, mimeFor(media[i].storage_path, media[i].mime_type), token));
@@ -324,7 +324,7 @@ export async function publishXTarget(bundle: Bundle): Promise<{ tweetId: string;
     } catch (e: any) {
       if (String(e?.message ?? '') === '__EXPIRED__' && !force) return attempt(true);
       if (String(e?.message ?? '') === '__EXPIRED__') {
-        throw new Error('X session expired — toggle cloud publishing off and on in Connect to refresh.');
+        throw new Error('X session expired, toggle cloud publishing off and on in Connect to refresh.');
       }
       throw e;
     }

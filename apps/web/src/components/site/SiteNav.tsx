@@ -27,7 +27,7 @@ const RESOURCES: MenuLink[] = [
   { href: '/resources', title: 'Resource library', desc: 'Templates, playbooks and cheat sheets' },
 ];
 
-/** Soft rounded chevron — no sharp triangles. */
+/** Soft rounded chevron, no sharp triangles. */
 function Chevron({ className = '' }: { className?: string }) {
   return <ChevronDown aria-hidden="true" className={`h-3 w-3 ${className}`} />;
 }

@@ -28,7 +28,7 @@ interface ExchangePayload {
 
 /**
  * supabase-js throws FunctionsHttpError("Edge Function returned a non-2xx
- * status code") with the server's JSON body on `context` — dig out our
+ * status code") with the server's JSON body on `context`, dig out our
  * `error` message so the user sees the real reason, not the generic text.
  */
 async function edgeDetail(err: unknown): Promise<string | null> {
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
 
   // Media-source picker landing (state `cloud:<provider>:<nonce>` from the
   // composer's add-media dialog) and the Notion content-source connect popup.
-  // Nothing is imported or persisted here — the code is posted to the opener,
+  // Nothing is imported or persisted here, the code is posted to the opener,
   // which swaps it through the matching route. The opener matches on nonce.
   if (incomingState?.startsWith('cloud:')) {
     return cloudPickerResult(url, origin);
@@ -75,7 +75,7 @@ export async function GET(req: Request) {
   const flow = b64d<FlowState>(jar.get(FLOW_COOKIE)?.value);
   const state = url.searchParams.get('state');
   if (!flow || !isOAuthProvider(flow.provider) || !flow.workspace_id || !flow.nonce || flow.nonce !== state) {
-    return done(`?error=${encodeURIComponent('That login expired — try connecting again.')}`);
+    return done(`?error=${encodeURIComponent('That login expired, try connecting again.')}`);
   }
   const providerErr = url.searchParams.get('error');
   const code = url.searchParams.get('code');
@@ -107,7 +107,7 @@ export async function GET(req: Request) {
   const fail = payload.error ?? (await edgeDetail(fnErr)) ?? fnErr?.message;
   if (fail) return done(`?error=${encodeURIComponent(fail)}`);
 
-  // Meta tokens are per-Page — stash the list and let the user pick one.
+  // Meta tokens are per-Page, stash the list and let the user pick one.
   if (flow.provider === 'facebook') {
     if (!payload.pages?.length) {
       return done(`?error=${encodeURIComponent('No Facebook Pages found on that account.')}`);
@@ -119,11 +119,11 @@ export async function GET(req: Request) {
     return res;
   }
 
-  // GBP posts per-location — stash tokens + locations, the panel picks one.
+  // GBP posts per-location, stash tokens + locations, the panel picks one.
   if (flow.provider === 'gmb') {
     const gg = payload as ExchangePayload & { locations?: { name: string; title: string }[] };
     if (!payload.access_token || !Array.isArray(gg.locations)) {
-      return done(`?error=${encodeURIComponent('Google hid the login — try connecting again.')}`);
+      return done(`?error=${encodeURIComponent('Google hid the login, try connecting again.')}`);
     }
     const pick: PickState = {
       workspace_id: flow.workspace_id,
@@ -143,13 +143,13 @@ export async function GET(req: Request) {
   }
 
   if (!payload.access_token || !payload.external_id) {
-    return done(`?error=${encodeURIComponent('The provider hid the account — try again.')}`);
+    return done(`?error=${encodeURIComponent('The provider hid the account, try again.')}`);
   }
 
   // Ghost sweep (instagram/threads only): a past id-less exchange may have
   // left a username-keyed row for this same @handle. Usernames are globally
   // unique on those networks, so same display_name + different key ⇒ stale
-  // ghost. Best-effort — never breaks the connect.
+  // ghost. Best-effort, never breaks the connect.
   if (
     (flow.provider === 'instagram' || flow.provider === 'threads') &&
     payload.display_name &&
@@ -208,7 +208,7 @@ export async function GET(req: Request) {
 /**
  * Media-source picker landing (state `cloud:<provider>:<nonce>` from the
  * composer's "add media" dialog). Swaps the code for tokens via
- * cloud-exchange — nothing is imported or stored — and hands the result to
+ * cloud-exchange, nothing is imported or stored, and hands the result to
  * the opener window, which keeps tokens in sessionStorage (device-only).
  */
 async function cloudPickerResult(url: URL, origin: string) {
@@ -222,7 +222,7 @@ async function cloudPickerResult(url: URL, origin: string) {
         `try{var bc=new BroadcastChannel("sosial-cloud");bc.postMessage(${safe});bc.close();}catch(e){}` +
         `try{window.opener&&window.opener.postMessage(${safe},"${origin}");}catch(e){}` +
         `setTimeout(function(){window.close();},400);` +
-        `document.body.innerHTML="<p style='font-family:sans-serif'>Done — you can close this tab.</p>";` +
+        `document.body.innerHTML="<p style='font-family:sans-serif'>Done, you can close this tab.</p>";` +
         `</script></body></html>`,
       { headers: { 'Content-Type': 'text/html' } },
     );
@@ -232,7 +232,7 @@ async function cloudPickerResult(url: URL, origin: string) {
 
   const [, provider, nonce] = (url.searchParams.get('state') ?? '').split(':');
   if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva' && provider !== 'notion' && provider !== 'sheets' && provider !== 'onedrive') || !nonce) {
-    return fail('That login expired — try connecting again.', '');
+    return fail('That login expired, try connecting again.', '');
   }
   const providerErr = url.searchParams.get('error');
   const code = url.searchParams.get('code');
@@ -264,7 +264,7 @@ async function cloudPickerResult(url: URL, origin: string) {
   const errMsg =
     (data as { error?: string } | null)?.error ?? (await edgeDetail(fnErr)) ?? fnErr?.message;
   if (errMsg || !tokens.access_token) {
-    return fail(errMsg || 'The provider hid the login — try again.', nonce);
+    return fail(errMsg || 'The provider hid the login, try again.', nonce);
   }
   return page({
     type: 'sosial-cloud',

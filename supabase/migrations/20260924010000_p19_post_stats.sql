@@ -4,7 +4,7 @@
 --
 -- Enqueue policy mirrors P18: one snapshot_analytics job per connected
 -- channel per day (idempotency 'snapshot:<channel_id>:<YYYYMMDD>'), cron at
--- 05:20 UTC. TikTok has no post-read API — the worker skips it as a no-op.
+-- 05:20 UTC. TikTok has no post-read API, the worker skips it as a no-op.
 
 create table if not exists public.post_stats (
   post_target_id uuid primary key references public.post_targets(id) on delete cascade,

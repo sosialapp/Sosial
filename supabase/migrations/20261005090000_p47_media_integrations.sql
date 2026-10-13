@@ -1,4 +1,4 @@
--- p47 · media_integrations — user-scoped cloud state for composer media
+-- p47 · media_integrations, user-scoped cloud state for composer media
 -- sources (Drive/Photos, Dropbox, Canva). Secrets live in Vault (same trust
 -- model as channel_tokens); the table holds only secret *ids* + metadata, so
 -- RLS-guarded reads never expose tokens.

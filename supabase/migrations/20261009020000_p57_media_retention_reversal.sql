@@ -3,15 +3,15 @@
 -- The p55 janitor expired media bytes after a plan window (Free 30d · Solo
 -- 90d · Team 180d · Business 365d). That policy is removed: uploaded media is
 -- kept for the life of the workspace and never auto-deleted. This forward
--- migration (p55 is already recorded in remote history — never edit it)
+-- migration (p55 is already recorded in remote history, never edit it)
 -- unschedules the cron, drops the expiry logic, and removes the per-plan
 -- retention column.
 --
 -- Kept:
---   * media_assets.pinned — harmless safety flag; no expiry reads it now.
---   * the cleanup_media job kind — still used for explicit user deletes and
+--   * media_assets.pinned, harmless safety flag; no expiry reads it now.
+--   * the cleanup_media job kind, still used for explicit user deletes and
 --     abandoned/failed uploads (see apps/worker/src/dispatch.ts).
---   * purge_expired_media() (p5) — clears rows that never reached 'ready'.
+--   * purge_expired_media() (p5), clears rows that never reached 'ready'.
 --
 -- Storage is bounded by plan_limits.storage_bytes (p58) instead of by time.
 

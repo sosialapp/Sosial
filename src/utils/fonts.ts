@@ -19,7 +19,7 @@ export interface FontMeta {
 /**
  * IMPORTANT: fontFamily values must be the registered family NAME strings
  * (matching the keys used in useFonts below), NOT the imported asset objects.
- * The @expo-google-fonts exports are numeric asset IDs — passing those as
+ * The @expo-google-fonts exports are numeric asset IDs, passing those as
  * fontFamily silently fails and falls back to the system font.
  */
 export const FONTS: Record<FontId, FontMeta> = {
@@ -70,7 +70,7 @@ export function fontFamily(id: FontId | undefined, weight: 'regular' | 'bold' | 
 
 /**
  * Correctly-paired text style fragment. NEVER pair a custom fontFamily with
- * fontWeight on iOS (the font silently drops) — bold comes from the family file.
+ * fontWeight on iOS (the font silently drops), bold comes from the family file.
  */
 export function F(id: FontId | undefined, bold = false, italic = false): { fontFamily?: string; fontWeight?: '400' | '700'; fontStyle?: 'normal' | 'italic' } {
   const fam = fontFamily(id, bold ? 'bold' : 'regular');

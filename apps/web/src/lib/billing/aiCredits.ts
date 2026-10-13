@@ -1,5 +1,5 @@
 /**
- * Canonical AI credit costs — the ONE source of truth for what each AI action
+ * Canonical AI credit costs, the ONE source of truth for what each AI action
  * costs. Server gates, UI previews and the upgrade prompt all read this table.
  *
  * A "credit" is the only AI unit the product exposes. Model tokens, provider
@@ -23,22 +23,22 @@ export type AiAction =
 
 /** Credits consumed per completed generation, by action. */
 export const AI_CREDIT_COSTS: Record<AiAction, number> = {
-  // light edits — 1 credit
+  // light edits, 1 credit
   rewrite: 1,
   shorten: 1,
   expand: 1,
   tone: 1,
   hashtags: 1,
   idea: 1,
-  // standard generation — 2 credits
+  // standard generation, 2 credits
   caption: 2,
   post: 2,
   adapt: 2,
-  // heavier generation — 3 credits
+  // heavier generation, 3 credits
   thread: 3,
   repurpose: 3,
   variations: 3,
-  // long-form — 5 credits
+  // long-form, 5 credits
   longform: 5,
 };
 

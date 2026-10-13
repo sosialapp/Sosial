@@ -6,7 +6,7 @@ function berr(j: any, fallback: string): string {
   const m = j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
   if (/invalid identifier|invalid password|account is takendown|deactivated/i.test(base)) {
-    return 'Wrong handle or app password — mint a fresh one at bsky.app → Settings → App passwords.';
+    return 'Wrong handle or app password, mint a fresh one at bsky.app → Settings → App passwords.';
   }
   return base;
 }
@@ -70,7 +70,7 @@ async function pdsForDid(did: string): Promise<string> {
       if (endpoint) return endpoint;
     } catch {}
   }
-  throw new Error('Could not find that account’s server — is the handle right?');
+  throw new Error('Could not find that account’s server, is the handle right?');
 }
 
 export interface BskySession {
@@ -110,7 +110,7 @@ export async function refreshBskySession(refreshJwt: string, pdsHost: string, fa
     headers: { Authorization: `Bearer ${refreshJwt}` },
   });
   const j: any = await bjson(r);
-  if (!j.accessJwt) throw new Error(berr(j, 'Bluesky session expired — reconnect Bluesky.'));
+  if (!j.accessJwt) throw new Error(berr(j, 'Bluesky session expired, reconnect Bluesky.'));
   return {
     accessJwt: j.accessJwt as string,
     refreshJwt: (j.refreshJwt as string) || refreshJwt,
@@ -161,7 +161,7 @@ export async function getValidBsky(accountId?: string, force = false): Promise<B
       await saveProviderFields('bluesky', {
         bskyAccessJwt: undefined, bskyRefreshJwt: undefined, bskyExpiresAt: undefined,
       }, accountId);
-      throw new Error('Bluesky session expired — reconnect Bluesky.');
+      throw new Error('Bluesky session expired, reconnect Bluesky.');
     }
     throw e;
   }

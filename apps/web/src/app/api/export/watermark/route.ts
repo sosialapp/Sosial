@@ -6,13 +6,13 @@ export const runtime = 'nodejs';
 const MAX_BYTES = 15 * 1024 * 1024;
 
 /**
- * Server-side watermarking for studio exports — PASS-THROUGH.
+ * Server-side watermarking for studio exports, PASS-THROUGH.
  *
  * The preview renders the mark inside the canvas DOM (data-watermark), and
  * the export pipeline rasterises that DOM as-is, so the downloaded file is
  * pixel-identical to the live preview. This route used to composite its own
  * server mark, which produced a second, differently-styled watermark at the
- * bottom — wrong. The workspace's show_watermark setting is honoured in the
+ * bottom, wrong. The workspace's show_watermark setting is honoured in the
  * canvas itself (StudioEditor hides the DOM mark for paid workspaces that
  * opted out), so this endpoint just relays the client bytes.
  */

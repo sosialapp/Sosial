@@ -3,7 +3,7 @@ import * as Clipboard from 'expo-clipboard';
 
 /**
  * No-API sharing strategy (as requested):
- * We CANNOT silently push images into someone else's Facebook/IG composer —
+ * We CANNOT silently push images into someone else's Facebook/IG composer -
  * those apps don't accept it. Instead we:
  *  1. Save PNGs / hand the image file to the OS share sheet (which lists FB, IG, TikTok…)
  *  2. Copy title+caption to clipboard so user can paste

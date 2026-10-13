@@ -8,7 +8,7 @@ import { BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
 
 /**
  * Fold (Tenner architecture, Sosial brand): eyebrow, headline with a rotated
- * highlight word, dual CTAs, proof checklist, and the devices render —
+ * highlight word, dual CTAs, proof checklist, and the devices render -
  * floating over an interactive GridPulse field whose lit cells occasionally
  * carry channel marks. No stock.
  */

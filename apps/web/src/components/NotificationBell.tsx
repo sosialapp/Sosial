@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Notification bell — header island. Polls `notifications` (RLS: own rows)
+ * Notification bell, header island. Polls `notifications` (RLS: own rows)
  * every 30s for unread count, lists the latest in a WorkspaceSwitcher-style
  * dropdown, marks all read on open, clicks navigate via the notification's
  * href. Events are written by P48/P60 DB triggers: team changes, approvals
@@ -83,7 +83,7 @@ export default function NotificationBell() {
       setItems(rows);
       setUnread(rows.filter((r) => !r.read_at).length);
     } catch {
-      // offline — keep the last list; the next tick retries.
+      // offline, keep the last list; the next tick retries.
     }
   }, []);
 
@@ -233,7 +233,7 @@ export default function NotificationBell() {
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (
               <p className="px-4 py-8 text-center text-xs text-muted">
-                Nothing yet — publish results, approvals and team changes land here.
+                Nothing yet, publish results, approvals and team changes land here.
               </p>
             ) : (
               items.map((n) => {

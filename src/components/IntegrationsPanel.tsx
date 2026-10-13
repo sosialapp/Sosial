@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } fr
 import { useTheme, Palette } from '../theme';
 import SourceMark, { type SourceMarkId } from './SourceMarks';
 
-/** Drive + Photos side by side — the Google row carries both logos. */
+/** Drive + Photos side by side, the Google row carries both logos. */
 function GoogleStacked({ size }: { size: number }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -26,7 +26,7 @@ const ROWS: { id: RowId; label: string; sub: string; mark: SourceMarkId; soon?: 
 ];
 
 /**
- * Integrations tab of the Connect screen — media sources (composer inputs),
+ * Integrations tab of the Connect screen, media sources (composer inputs),
  * not publishing channels. Logins are device-local by design (SecureStore),
  * so this tab manages THIS device only; channels stay workspace-wide.
  */
@@ -87,7 +87,7 @@ export default function IntegrationsPanel() {
 
   return (
     <View style={{ gap: 10 }}>
-      <Text style={s.note}>Media sources attach photos and videos to your posts. Logins live on this device only — reconnect on each device you post from.</Text>
+      <Text style={s.note}>Media sources attach photos and videos to your posts. Logins live on this device only, reconnect on each device you post from.</Text>
       {ROWS.map((r) => {
         const on = status[r.id];
         const loading = busy === r.id;

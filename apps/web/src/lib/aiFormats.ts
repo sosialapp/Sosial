@@ -1,7 +1,7 @@
 /**
  * AI Generate structure presets: named content shapes the model follows so a
  * short topic is enough. `detectFormat` guesses the shape from the topic with
- * cheap client-side pattern matching (no AI call, no credits) — the card
+ * cheap client-side pattern matching (no AI call, no credits), the card
  * surfaces it as a one-tap suggestion, never an auto-apply.
  */
 
@@ -42,7 +42,7 @@ export const AI_FORMATS: AiFormat[] = [
     label: 'Story',
     blurb: 'Hook, turning points in order, lesson at the end.',
     instructions:
-      'Structure: personal story arc. First post: the hook — where things stood and what was ' +
+      'Structure: personal story arc. First post: the hook, where things stood and what was ' +
       'at stake. Middle posts: what happened in order, one turning point each, honest about ' +
       'setbacks. Final post: where things stand now and the one lesson for your past self. ' +
       'First-person voice, specific details over generalities.',
@@ -53,7 +53,7 @@ const RULES: { id: AiFormatId; res: RegExp[] }[] = [
   {
     id: 'breakdown',
     res: [
-      /(19|20)\d{2}\s*[–—-]\s*(19|20)\d{2}/, // 2010-2026
+      /(19|20)\d{2}\s*[–\u2014-]\s*(19|20)\d{2}/, // 2010-2026
       /\bsince\s+(19|20)\d{2}\b/,
       /\bfrom\b.{0,32}\b(19|20)\d{2}\b/,
       /\bevery\s+(month|week|day|year)\b/,

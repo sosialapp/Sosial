@@ -12,7 +12,7 @@ import { info, warn } from './logger';
  * - sendMediaGroup     album of up to 10 photos/videos (uploaded by attach://)
  *
  * The bot token is long-lived (no refresh endpoint), so the token path is a
- * plain vault read — same as every other provider, minus expiry handling.
+ * plain vault read, same as every other provider, minus expiry handling.
  * Telegram's own API has no scheduling; Sosial's worker publishes at the
  * scheduled time, which is the existing pipeline behaviour for all channels.
  */
@@ -51,7 +51,7 @@ async function callBot<T>(token: string, method: string, payload: Record<string,
   return json.result as T;
 }
 
-/** Multipart upload — Telegram only accepts files via form-data, never JSON. */
+/** Multipart upload, Telegram only accepts files via form-data, never JSON. */
 async function callBotUpload<T>(
   token: string,
   method: string,
@@ -91,13 +91,13 @@ function postUrl(b: Bundle, messageId: number | string): string {
 export async function publishTelegramTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {
   const b = bundle;
   const chatId = String(b.channel.external_id ?? '').trim();
-  if (!chatId) throw new Error('Telegram destination is missing — reconnect the channel in Connect.');
+  if (!chatId) throw new Error('Telegram destination is missing, reconnect the channel in Connect.');
   if (!b.secrets.access_secret_id) {
-    throw new Error('Telegram bot token is missing — reconnect the channel in Connect.');
+    throw new Error('Telegram bot token is missing, reconnect the channel in Connect.');
   }
   const token = await readSecret(b.secrets.access_secret_id);
   if (!token) {
-    throw new Error('Telegram bot token is missing — reconnect the channel in Connect.');
+    throw new Error('Telegram bot token is missing, reconnect the channel in Connect.');
   }
 
   const media = [...(b.media ?? [])].sort((a, z) => a.position - z.position);

@@ -27,7 +27,7 @@ export default function TitleEditor() {
   const t = page.title;
   return (
     <View style={{ gap: 16 }}>
-      {/* 01 · Headline — text and its ink live together */}
+      {/* 01 · Headline, text and its ink live together */}
       <View style={st.group}>
         <Section no="01" title="Headline" hint="The first thing people read." />
         <Txt value={t.text} onChangeText={(v) => patchTitle({ text: v })} placeholder="Type your headline…" multiline />
@@ -58,7 +58,7 @@ export default function TitleEditor() {
         </Field>
       </View>
 
-      {/* 02 · Subtitle — its own copy + sizing */}
+      {/* 02 · Subtitle, its own copy + sizing */}
       <View style={st.group}>
         <Section no="02" title="Subtitle" hint="A smaller line under the headline." />
         <Txt value={t.subtitle ?? ''} onChangeText={(v) => patchTitle({ subtitle: v })} placeholder="Smaller line under the headline…" multiline />
@@ -70,7 +70,7 @@ export default function TitleEditor() {
         </Field>
       </View>
 
-      {/* 03 · Type — font, weight, size */}
+      {/* 03 · Type, font, weight, size */}
       <View style={st.group}>
         <Section no="03" title="Type" hint="Font and weight for both lines." />
         <Field label="Font">

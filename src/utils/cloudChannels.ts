@@ -8,7 +8,7 @@ import { supabase, currentSession, importChannelToken, removeChannelToken } from
  * Cloud publishing opt-in (Phase 1 → 2 bridge).
  *
  * Each connected channel can be mirrored into Vault via the
- * import-channel-token Edge Function. Device tokens stay put — the cloud copy
+ * import-channel-token Edge Function. Device tokens stay put, the cloud copy
  * is independent, per-channel, and revocable. Local flags record which
  * channels the user enabled; the server is source of truth for nothing here.
  */
@@ -72,7 +72,7 @@ async function fetchYtChannelId(token: string): Promise<string | null> {
 
 /**
  * Build the import body from device state. Null = nothing importable
- * (channel not connected, or a required id is missing) — caller alerts.
+ * (channel not connected, or a required id is missing), caller alerts.
  */
 export async function buildImportPayload(
   key: CloudChannelKey,
@@ -119,11 +119,11 @@ export async function buildImportPayload(
         provider: 'x', external_id: f.xUserId, display_name: f.xName,
         access_token: f.xAccessToken ?? f.xRefreshToken ?? '',
         refresh_token: f.xRefreshToken, expires_at: iso(f.xExpiresAt),
-        // Public OAuth client id — the worker needs it for silent refresh.
+        // Public OAuth client id, the worker needs it for silent refresh.
         metadata: withAvatar({ xClientId: process.env.EXPO_PUBLIC_X_CLIENT_ID ?? '' }),
       };
     case 'bluesky': {
-      // Session tokens only — the app password itself is never stored on
+      // Session tokens only, the app password itself is never stored on
       // device. When the refresh JWT dies, the user re-enables to refresh.
       if (!f.bskyDid || (!f.bskyAccessJwt && !f.bskyRefreshJwt)) return null;
       return {
@@ -209,7 +209,7 @@ export async function buildImportPayload(
       };
     }
     case 'devto': {
-      // Numeric user id only — the username is mutable and would duplicate
+      // Numeric user id only, the username is mutable and would duplicate
       // rows against the web's id-keyed external_id.
       if (!f.devApiKey || !f.devUserId) return null;
       return {
@@ -274,12 +274,12 @@ export async function buildImportPayload(
  */
 export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
   const session = await currentSession();
-  if (!session) throw new Error('Sign in to Sosial Cloud first (Account tab) — cloud publishing needs your workspace.');
+  if (!session) throw new Error('Sign in to Sosial Cloud first (Account tab), cloud publishing needs your workspace.');
   const accounts = await loadAccounts();
   const targets = connectedAccounts(accounts).filter((a) => a.provider === key);
   if (targets.length === 0) {
     const payload = await buildImportPayload(key, await loadMetaState());
-    if (!payload) throw new Error('Reconnect this channel first — there are no credentials on this device to send.');
+    if (!payload) throw new Error('Reconnect this channel first, there are no credentials on this device to send.');
     await importChannelToken({ workspace_id: session.workspace.id, ...payload });
   } else {
     for (const a of targets) {
@@ -292,7 +292,7 @@ export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
 
 /**
  * Disable cloud publishing: best-effort server removal, guaranteed local
- * flag clear. Never throws — the toggle must always move. Pass the
+ * flag clear. Never throws, the toggle must always move. Pass the
  * pre-clear snapshot when called from a disconnect handler (avoids a
  * load-vs-clear race on SecureStore).
  */export async function disableCloudChannel(key: CloudChannelKey, snapshot?: MetaState): Promise<void> {
@@ -307,7 +307,7 @@ export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
         external_id: payload.external_id,
       });
     } else if (session) {
-      // Tokens already gone (disconnect cleared first) — provider-wide sweep.
+      // Tokens already gone (disconnect cleared first), provider-wide sweep.
       await removeChannelToken({ workspace_id: session.workspace.id, provider: key });
     }
   } catch {
@@ -337,7 +337,7 @@ export async function removeCloudChannelAccount(account: ConnectedAccount): Prom
 
 const PULL_LAST_KEY = 'sosial_cloud_pull_last_v1';
 const PULL_MS = 5 * 60 * 1000;
-/** Cloud rows seen on the last pull — the removal safety net only ever
+/** Cloud rows seen on the last pull, the removal safety net only ever
  *  deletes accounts it has previously seen as cloud rows, so purely-local
  *  accounts (never synced) are untouchable. */
 const PULL_SEEN_KEY = 'sosial_cloud_seen_v2';
@@ -366,7 +366,7 @@ const NAME_FIELD: Record<string, string> = {
 
 /**
  * Local MetaState key holding the provider's stable external id (mirrors
- * accountExternalId; '' where no such field exists — youtube matches by
+ * accountExternalId; '' where no such field exists, youtube matches by
  * provider only).
  */
 const IDENTITY_FIELD: Record<string, string> = {
@@ -412,7 +412,7 @@ export interface PullResult {
   created: string[];
   /** local accounts removed because the web removed the cloud row */
   removed: string[];
-  /** cloud rows ignored (unknown provider — never happens today) */
+  /** cloud rows ignored (unknown provider, never happens today) */
   skipped: string[];
   /** failures for the log (never thrown) */
   failed: { ch: string; message: string }[];
@@ -421,11 +421,11 @@ export interface PullResult {
 /**
  * Cloud → device pull: adopt workspace channels imported from other devices
  * AND retract ones the web removed. Adopted rows are metadata-only
- * placeholders (fields.cloudOnly) — tokens never leave Vault — until the
+ * placeholders (fields.cloudOnly), tokens never leave Vault, until the
  * user connects the same account on this device, which upgrades the row in
  * place. Removal: a cloud row that vanished (web disconnect/delete) removes
  * its local counterpart too, but only when a previous pull saw it as a cloud
- * row — purely-local accounts are never touched. Idempotent; throttled to
+ * row, purely-local accounts are never touched. Idempotent; throttled to
  * once per 5 minutes; pass force to skip the throttle.
  */
 export async function pullCloudChannels(force = false): Promise<PullResult> {
@@ -490,7 +490,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         same.find((a) => !accountExternalId(a));
       const avatar = str(row.metadata?.avatar);
       if (match) {
-        // Enrich display fields only — credentials are never touched, and
+        // Enrich display fields only, credentials are never touched, and
         // identity fields are only filled, never overwritten.
         const fields: Record<string, unknown> = { ...match.fields };
         let changed = false;
@@ -569,7 +569,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
       const id = externalId ? `${provider}:${externalId}` : `${provider}:`;
       const wasSeen =
         seen.has(id) || (!externalId && [...seen].some((s) => s.startsWith(`${provider}:`)));
-      if (!wasSeen) continue; // never a cloud row — purely local, leave it
+      if (!wasSeen) continue; // never a cloud row, purely local, leave it
       if ([...cloudIds].some((c) => c === id || (!externalId && c.startsWith(`${provider}:`)))) {
         continue; // still present in the cloud
       }
@@ -585,7 +585,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     // The worker marks dead channels 'expired'; stamp matching local rows so
     // Connect can badge them. Stale stamps clear when the cloud recovers.
     // A channel still 'connected' with a token expiry older than 1h is dead
-    // too (the hourly refresh never landed) — the health RPC flags it via
+    // too (the hourly refresh never landed), the health RPC flags it via
     // token_stale, covering refresh failures that never got marked.
     const deadRows = ((dead.data ?? []) as ExpiredChannelRow[]).filter(
       (r) =>
@@ -621,7 +621,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         if (!(PROVIDER_KEYS as readonly string[]).includes(provider)) continue;
         const ext = accountExternalId(a);
         const stamp = matchesDead(provider, ext)
-          ? reasonFor(provider, ext ?? '') ?? 'Session expired — reconnect this channel.'
+          ? reasonFor(provider, ext ?? '') ?? 'Session expired, reconnect this channel.'
           : undefined;
         if (stamp !== a.fields.cloudExpired) {
           const fields: Record<string, unknown> = { ...a.fields };
@@ -686,7 +686,7 @@ export interface CloudSyncResult {
 
 /**
  * Reconciler: makes reality match the master switch. Idempotent and safe to
- * call on every MetaState change — imports only what's missing, removes only
+ * call on every MetaState change, imports only what's missing, removes only
  * what's flagged, never throws (failures are collected, not raised).
  */
 export async function syncCloudChannels(): Promise<CloudSyncResult> {

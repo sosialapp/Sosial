@@ -14,7 +14,7 @@ const ROWS: { id: CloudProvider | 'onedrive'; label: string; sub: string; mark: 
 ];
 
 /**
- * Integrations tab of the channels page — media sources (composer inputs),
+ * Integrations tab of the channels page, media sources (composer inputs),
  * not publishing channels. Logins live in this browser only (never our
  * servers), so this tab manages THIS browser; channels stay workspace-wide.
  */
@@ -64,7 +64,7 @@ export default function IntegrationsTab() {
   return (
     <div className="space-y-2">
       <p className="px-1 text-xs text-muted">
-        Media sources attach photos and videos to your posts. Logins stay in this browser only — reconnect in each browser you post from.
+        Media sources attach photos and videos to your posts. Logins stay in this browser only, reconnect in each browser you post from.
       </p>
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">

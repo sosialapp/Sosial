@@ -1,6 +1,6 @@
 // delete-account · self-serve erasure (Profile → Danger zone, /delete-data)
 //
-// The caller must be signed in and POST { confirmation: "confirm" } — the
+// The caller must be signed in and POST { confirmation: "confirm" }, the
 // typed word is re-checked here so the endpoint can never fire by accident.
 // What it wipes, in order:
 //   1. Pending invites the user sent (their FK would otherwise block the delete)
@@ -12,7 +12,7 @@
 //   4. Their user-scoped media-integration Vault secrets + rows
 //   5. The auth user itself (cascades profile, push tokens, reports)
 // Blocks with 409 while an owned workspace still has a live Stripe
-// subscription — billing must be cancelled first so nobody pays for a
+// subscription, billing must be cancelled first so nobody pays for a
 // deleted account. Multi-member owned workspaces are deleted whole; the UI
 // warns about this before the typed confirmation.
 
@@ -87,7 +87,7 @@ serve(async (req: Request): Promise<Response> => {
   const userId = user.id;
 
   try {
-    // 0. Pending invites they sent — the invited_by FK would block user delete.
+    // 0. Pending invites they sent, the invited_by FK would block user delete.
     await admin.from("invites").delete().eq("invited_by", userId);
 
     // 1. Owned workspaces, wiped whole.
@@ -95,7 +95,7 @@ serve(async (req: Request): Promise<Response> => {
     for (const ws of (owned ?? []) as { id: string }[]) {
       const wsId = ws.id;
 
-      // Live paid subscription? Stop — cancel billing first.
+      // Live paid subscription? Stop, cancel billing first.
       const { data: sub } = await admin
         .from("subscriptions")
         .select("status,stripe_subscription_id")

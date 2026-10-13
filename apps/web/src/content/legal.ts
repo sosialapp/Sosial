@@ -2,7 +2,7 @@ import type { Block } from './types';
 
 /**
  * Web legal copy. The mobile app's `src/utils/legal.ts` describes a local-first
- * app with no accounts — that is no longer true of Sosial, which has workspaces,
+ * app with no accounts. That is no longer true of Sosial, which has workspaces,
  * a shared calendar and a publishing worker. These pages are the accurate
  * public version and are what the footer and signup consent link to.
  */
@@ -91,12 +91,25 @@ export const TERMS: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'What you publish is your responsibility alone. Sosial does not review content before it goes out, and we are not liable for posts that are racist, hateful, sexually explicit, defamatory, misleading or unlawful — including political content, misinformation, or anything else that breaks the law or a platform\'s rules. If your content causes legal trouble, that trouble is yours, not ours. We may remove content or suspend accounts that violate these terms or the law.',
+          c: 'What you publish is your responsibility alone. Sosial does not review content before it goes out, and we are not liable for posts that are racist, hateful, sexually explicit, defamatory, misleading or unlawful, including political content, misinformation, or anything else that breaks the law or a platform\'s rules. If your content causes legal trouble, that trouble is yours, not ours. We may remove content or suspend accounts that violate these terms or the law.',
         },
       ],
     },
     {
-      title: '5. Team workspaces',
+      title: '5. Content sources, automation and AI',
+      blocks: [
+        {
+          t: 'p',
+          c: 'You can also pull content in from other tools. Media from Dropbox, Canva, Unsplash and OneDrive is read-only: Sosial never uploads, edits, moves or deletes anything in your storage, and only downloads the file you pick. Imports from Notion and Google Sheets are one-way, into drafts. Your own automations can create posts through Zapier or MCP using an API key you generate and can revoke at any time.',
+        },
+        {
+          t: 'p',
+          c: 'When you use the AI writer, your brief goes to our AI provider to draft the copy, and the result comes back to your workspace. We do not use your briefs or drafts to train models. If you switch on web research, the writer runs a live search to ground the copy and shows the sources it used.',
+        },
+      ],
+    },
+    {
+      title: '6. Team workspaces',
       blocks: [
         {
           t: 'p',
@@ -105,7 +118,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '6. Availability and changes',
+      title: '7. Availability and changes',
       blocks: [
         {
           t: 'p',
@@ -114,7 +127,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '7. Liability',
+      title: '8. Liability',
       blocks: [
         {
           t: 'p',
@@ -123,29 +136,38 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '8. Marketing emails',
+      title: '9. Marketing emails',
       blocks: [
         {
           t: 'p',
-          c: 'Product news and tips are sent only to users who explicitly opt in — the checkbox at signup or a preference in your account settings. Opting in is optional and never affects how the product works. Every marketing email carries a one-click unsubscribe link, and unsubscribing takes effect immediately. We never send marketing email to addresses that have not consented, and operational emails (security notices, billing receipts, publishing confirmations) are not marketing and continue regardless of this choice.',
+          c: 'Product news and tips are sent only to users who explicitly opt in with the checkbox at signup or a preference in your account settings. Opting in is optional and never affects how the product works. Every marketing email carries a one-click unsubscribe link, and unsubscribing takes effect immediately. We never send marketing email to addresses that have not consented, and operational emails (security notices, billing receipts, publishing confirmations) are not marketing and continue regardless of this choice.',
         },
       ],
     },
     {
-      title: '9. Inactive accounts',
+      title: '10. Inactive accounts',
       blocks: [
         {
           t: 'p',
-          c: 'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data — posts, media, templates, connected channels and workspace records. Before any deletion we email the account holder a reminder one month in advance. Signing in at any point during that month cancels the deletion. A shared workspace is only deleted once every member has been inactive: activity by any teammate — signing in or posting — keeps the workspace and its data. Paid accounts with an active subscription are never treated as inactive. This policy exists so we do not hold personal data indefinitely for people who have left.',
+          c: 'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data: posts, media, templates, connected channels and workspace records. Before any deletion we email the account holder a reminder one month in advance. Signing in at any point during that month cancels the deletion. A shared workspace is only deleted once every member has been inactive: activity by any teammate, signing in or posting, keeps the workspace and its data. Paid accounts with an active subscription are never treated as inactive. This policy exists so we do not hold personal data indefinitely for people who have left.',
         },
       ],
     },
     {
-      title: '10. Contact',
+      title: '11. Deleting your data',
       blocks: [
         {
           t: 'p',
-          c: 'Something unclear? Write to support@sosial.app — a person reads it. Sosial is operated by EGATE WORLDWIDE.',
+          c: 'You can delete your workspace at any time, which removes your content, connected tokens and personal details. Some records may linger briefly in backups or where the law requires us to keep them. Inactive accounts may also be deleted as described above. Cancel any paid subscription first: deletion does not cancel billing.',
+        },
+      ],
+    },
+    {
+      title: '12. Contact',
+      blocks: [
+        {
+          t: 'p',
+          c: 'Something unclear? Write to support@sosial.app. A real person reads it. Sosial is operated by EGATE WORLDWIDE.',
         },
       ],
     },
@@ -279,7 +301,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'What you publish through Sosial is yours: we store and deliver it on your behalf, but we do not review it and we are not responsible for it. If your content is racist, hateful, sexually explicit, defamatory, misleading or unlawful — including political content or misinformation — any legal consequences fall on you, not on Sosial.',
+          c: 'What you publish through Sosial is yours: we store and deliver it on your behalf, but we do not review it and we are not responsible for it. If your content is racist, hateful, sexually explicit, defamatory, misleading or unlawful (including political content or misinformation), any legal consequences fall on you, not on Sosial.',
         },
       ],
     },
@@ -351,7 +373,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'If an account is inactive — no sign-in and no activity — for six consecutive months, it and all of its data are deleted. We email a reminder one month before any such deletion, and signing in at any point cancels it. Accounts with an active paid subscription are never deleted for inactivity. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps it and its data. You can also delete everything yourself at any time from your profile or via [Request deletion](/delete-data).',
+          c: 'If an account is inactive, no sign-in and no activity, for six consecutive months, it and all of its data are deleted. We email a reminder one month before any such deletion, and signing in at any point cancels it. Accounts with an active paid subscription are never deleted for inactivity. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps it and its data. Support tickets and their screenshots are erased 30 days after the ticket is resolved. You can also delete everything yourself at any time from your profile or via [Request deletion](/delete-data).',
         },
       ],
     },
@@ -360,7 +382,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'We send product news and tips only to people who asked for them — via the optional checkbox at signup or a preference in account settings. Consent is stored as a flag on your account, the emails come from our own domain, and every one carries a one-click unsubscribe link that takes effect immediately. We do not share your email address with advertising networks, and unsubscribing from marketing never affects operational emails such as security notices, receipts or publishing confirmations.',
+          c: 'We send product news and tips only to people who asked for them, via the optional checkbox at signup or a preference in account settings. Consent is stored as a flag on your account, the emails come from our own domain, and every one carries a one-click unsubscribe link that takes effect immediately. We do not share your email address with advertising networks, and unsubscribing from marketing never affects operational emails such as security notices, receipts or publishing confirmations.',
         },
       ],
     },

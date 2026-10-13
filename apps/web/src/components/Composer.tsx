@@ -51,10 +51,10 @@ export default function Composer({
   workspaceId: string;
   userId: string;
   role: WorkspaceInfo['role'];
-  /** Prefill for "post this idea" — parent remounts (key) to apply. */
+  /** Prefill for "post this idea", parent remounts (key) to apply. */
   initialTitle?: string;
   initialBody?: string;
-  /** Files attached by a design template — parent remounts (key) to apply. */
+  /** Files attached by a design template, parent remounts (key) to apply. */
   initialFiles?: File[];
 }) {
   const router = useRouter();
@@ -92,7 +92,7 @@ export default function Composer({
   const [aiBusy, setAiBusy] = useState(false);
   const [aiErr, setAiErr] = useState<string | null>(null);
 
-  /** Live per-channel verdicts (Phase 0 engine) — panel display + submit gates. */
+  /** Live per-channel verdicts (Phase 0 engine), panel display + submit gates. */
   const compat = useMemo(() => {
     const chs = ready.filter((c) => picked.includes(c.id));
     const headKinds = files.map((f) => f.kind);
@@ -120,7 +120,7 @@ export default function Composer({
 
   /**
    * Inline gating: chips the draft can't satisfy render grey and explain on
-   * tap — the standalone panel is gone.
+   * tap, the standalone panel is gone.
    */
   const allReady = useMemo(() => {
     const totalMedia = files.length;
@@ -131,16 +131,16 @@ export default function Composer({
       const base = { id: c.id, reason: '' as string };
       if (!cap) return { ...base, blocked: false };
       if (cap.requiresVideo && !hasVideo) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a video — this post has none attached.` };
+        return { ...base, blocked: true, reason: `${cap.label} needs a video, this post has none attached.` };
       }
       if (cap.requiresMedia && totalMedia === 0) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video — text alone can't go there.` };
+        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video, text alone can't go there.` };
       }
       if (hasVideo && cap.supports.video === false) {
-        return { ...base, blocked: true, reason: `${cap.label} doesn't take video — remove the video or drop the channel.` };
+        return { ...base, blocked: true, reason: `${cap.label} doesn't take video, remove the video or drop the channel.` };
       }
       if (hasImage && cap.supports.image === false) {
-        return { ...base, blocked: true, reason: `${cap.label} takes text and links only — remove the image or drop the channel.` };
+        return { ...base, blocked: true, reason: `${cap.label} takes text and links only, remove the image or drop the channel.` };
       }
       return { ...base, blocked: false };
     });
@@ -337,7 +337,7 @@ export default function Composer({
       setErr('Write at least one part of the chain first.');
       return;
     }
-    // Media rides on part 1 — the media channels judge the chain by it.
+    // Media rides on part 1, the media channels judge the chain by it.
     const blockedChain = mediaBlock(
       chosen.map((c) => c.provider),
       files,
@@ -647,7 +647,7 @@ export default function Composer({
                   key={m.id}
                   type="button"
                   onClick={() => {
-                    // Flipping to schedule always lands on a valid time —
+                    // Flipping to schedule always lands on a valid time -
                     // fresh default when empty, refreshed when gone stale.
                     if (m.id === 'schedule' && (!whenIso || queueTooSoon(whenIso))) {
                       setWhenIso(new Date(minQueueTime()).toISOString());

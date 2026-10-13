@@ -12,7 +12,7 @@ import { info } from './logger';
 
 const MAX_IMAGES = 4;
 const MAX_TEXT = 500;
-/** Same single-file cap as the YouTube/TikTok adapters — Buffers are held whole. */
+/** Same single-file cap as the YouTube/TikTok adapters, Buffers are held whole. */
 const VIDEO_MAX_BYTES = 128 * 1024 * 1024;
 /** Media processing poll ceiling: the status post happens once at the end, so
  *  a retry re-uploads attachments but never double-posts. */
@@ -32,9 +32,9 @@ function merr(j: any, status: number, fallback: string): string {
     (typeof j?.error === 'string' ? j.error : j?.error?.message) ||
     j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
-  if (status === 401) return 'Mastodon session expired — reconnect Mastodon in Connect.';
-  if (status === 403) return `${base} — the app needs write access; reconnect Mastodon and approve it.`;
-  if (status === 429) return 'Mastodon rate limit hit — the job will retry shortly.';
+  if (status === 401) return 'Mastodon session expired, reconnect Mastodon in Connect.';
+  if (status === 403) return `${base}, the app needs write access; reconnect Mastodon and approve it.`;
+  if (status === 429) return 'Mastodon rate limit hit, the job will retry shortly.';
   return `${base} (${status})`;
 }
 
@@ -47,7 +47,7 @@ function normalizeBase(instanceUrl: string | null): string {
     .split('/')[0]
     .split('?')[0];
   if (!host || /\s/.test(host)) {
-    throw new Error('Mastodon channel missing its instance — toggle cloud publishing off and on in Connect.');
+    throw new Error('Mastodon channel missing its instance, toggle cloud publishing off and on in Connect.');
   }
   return `https://${host}`;
 }
@@ -89,7 +89,7 @@ async function uploadMedia(base: string, token: string, buf: Buffer, mime: strin
     const sj: any = await s.json().catch(() => ({}));
     if (s.ok && sj?.url) return id;
     if (Date.now() - start >= MEDIA_POLL_MS) {
-      throw new Error(`${tag}: Mastodon is still processing the media — the job will retry shortly.`);
+      throw new Error(`${tag}: Mastodon is still processing the media, the job will retry shortly.`);
     }
     await sleep(delay);
     delay = Math.min(delay * 2, 5000);
@@ -114,9 +114,9 @@ async function postStatus(base: string, token: string, text: string, mediaIds: s
 export async function publishMastodonTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {
   const b = bundle as Bundle;
   const base = normalizeBase(b.channel.instance_url);
-  if (!b.secrets.access_secret_id) throw new Error('Mastodon token missing — re-enable cloud publishing.');
+  if (!b.secrets.access_secret_id) throw new Error('Mastodon token missing, re-enable cloud publishing.');
   const token = await readSecret(b.secrets.access_secret_id);
-  if (!token) throw new Error('Mastodon session expired — reconnect Mastodon in Connect.');
+  if (!token) throw new Error('Mastodon session expired, reconnect Mastodon in Connect.');
 
   const items = (b.media ?? [])
     .filter((m) => m.kind === 'image' || m.kind === 'video')
@@ -128,7 +128,7 @@ export async function publishMastodonTarget(bundle: Bundle): Promise<{ remoteId:
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   if (!text && !video && images.length === 0) {
-    throw new Error('Write something or attach media — Mastodon needs one of them.');
+    throw new Error('Write something or attach media, Mastodon needs one of them.');
   }
 
   const mediaIds: string[] = [];
@@ -138,7 +138,7 @@ export async function publishMastodonTarget(bundle: Bundle): Promise<{ remoteId:
     try {
       raw = await storageDownload(await storageSign('post-media', m.storage_path));
     } catch (e: any) {
-      throw new Error(`Photo ${i + 1}/${images.length}: download failed — ${e?.message ?? 'storage error'}`);
+      throw new Error(`Photo ${i + 1}/${images.length}: download failed, ${e?.message ?? 'storage error'}`);
     }
     mediaIds.push(await uploadMedia(base, token, raw, mimeFor(m.storage_path, m.mime_type, 'image'), 'image', `Photo ${i + 1}`));
   }
@@ -147,7 +147,7 @@ export async function publishMastodonTarget(bundle: Bundle): Promise<{ remoteId:
     try {
       raw = await storageDownload(await storageSign('post-media', video.storage_path), VIDEO_MAX_BYTES);
     } catch (e: any) {
-      throw new Error(`Video: download failed — ${e?.message ?? 'storage error'}`);
+      throw new Error(`Video: download failed, ${e?.message ?? 'storage error'}`);
     }
     mediaIds.push(await uploadMedia(base, token, raw, mimeFor(video.storage_path, video.mime_type, 'video'), 'video', 'Video'));
   }

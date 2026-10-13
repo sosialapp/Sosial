@@ -4,8 +4,8 @@ import { Platform } from 'react-native';
 
 // expo-notifications is NEVER statically imported: since SDK 53 the module
 // throws at load time inside Android Expo Go (push removed there), which
-// kills the whole bundle before first paint. Lazy import keeps Go alive —
-// reminders just report unsupported — while the standalone APK works fully.
+// kills the whole bundle before first paint. Lazy import keeps Go alive -
+// reminders just report unsupported, while the standalone APK works fully.
 let _mod: any = null;
 let _tried = false;
 let _support: boolean | null = null;
@@ -14,7 +14,7 @@ async function N(): Promise<any | null> {
   if (_mod) return _mod;
   if (_tried) return null;
   _tried = true;
-  // Android Expo Go removed the module (SDK 53+) — don't even attempt the
+  // Android Expo Go removed the module (SDK 53+), don't even attempt the
   // import: even a caught attempt surfaces a LogBox. Everything else loads it.
   if (Constants.appOwnership === 'expo' && Platform.OS === 'android') return null;
   try {
@@ -110,4 +110,4 @@ export async function cancelNotification(identifier: string): Promise<void> {
   } catch {}
 }
 
-export const NO_NOTIF_MSG = 'Android Expo Go removed notifications (SDK 53+) — reminders fire in the installed app and on iPhone.';
+export const NO_NOTIF_MSG = 'Android Expo Go removed notifications (SDK 53+), reminders fire in the installed app and on iPhone.';

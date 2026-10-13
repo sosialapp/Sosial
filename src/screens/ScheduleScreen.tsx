@@ -50,7 +50,7 @@ function Cover({ uri, kind }: { uri?: string; kind?: 'image' | 'video' }) {
   );
 }
 
-/** Post manager: every post — title + photo + description + channels + time. */
+/** Post manager: every post, title + photo + description + channels + time. */
 export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => void; onConnect: () => void }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -70,7 +70,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
     setMeta(await loadMetaState());
   };
 
-  // the silent due-sweep publishes with no UI of its own — refresh here so a
+  // the silent due-sweep publishes with no UI of its own, refresh here so a
   // post that just went out disappears from the queue instead of going stale.
   useEffect(() => {
     reload();
@@ -130,7 +130,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
   ) => {
     if (!sheet) return;
     if (queueTooSoon(at)) {
-      Alert.alert('Too soon', `Earliest is ${minQueueLabel()} — scheduled posts need at least 5 minutes lead time.`);
+      Alert.alert('Too soon', `Earliest is ${minQueueLabel()}, scheduled posts need at least 5 minutes lead time.`);
       return;
     }
     if (!tBody.trim() && !tUri) {
@@ -138,7 +138,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
       return;
     }
     if (plats.some((p) => p === 'tiktok' || p === 'instagram') && !tUri) {
-      Alert.alert('TikTok & Instagram need media', 'Attach a photo or video — text-only posts can’t go to those channels.');
+      Alert.alert('TikTok & Instagram need media', 'Attach a photo or video, text-only posts can’t go to those channels.');
       return;
     }
     if (!(await notificationsSupported())) {
@@ -242,7 +242,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
     meta.threadsName ? `Threads ${meta.threadsName}` : '',
   ].filter(Boolean).join(' · ') || 'No accounts connected';
 
-  // sent posts leave the queue — without the status filter a published post
+  // sent posts leave the queue, without the status filter a published post
   // keeps its past scheduledAt and renders as a stuck red "Overdue" row.
   const scheduled = posts
     .filter((p) => !!p.scheduledAt && (p.status ?? 'queued') !== 'sent')
@@ -264,7 +264,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
     const lead = plats.includes('any') ? 'any' : plats[0];
     const overdue = !!p.scheduledAt && p.scheduledAt <= Date.now();
     // Loud stuck reason: the stored per-leg error, or the parked notice when
-    // auto-retry gave up — never a bare red "Overdue" with no explanation.
+    // auto-retry gave up, never a bare red "Overdue" with no explanation.
     const legErr = Object.values(p.channelErr ?? {})[0] as string | undefined;
     const parked = (p.autoTries ?? 0) >= MAX_AUTO_TRIES;
     return (
@@ -283,7 +283,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
             <Text style={s.meta}>Not scheduled · {platformsLabel(plats)}</Text>
           )}
           {legErr ? <Text style={s.errT} numberOfLines={2}>⚠ {legErr}</Text> : null}
-          {!legErr && parked ? <Text style={s.errT} numberOfLines={2}>Auto-retry stopped — open to retry manually</Text> : null}
+          {!legErr && parked ? <Text style={s.errT} numberOfLines={2}>Auto-retry stopped, open to retry manually</Text> : null}
         </TableCell>
         <TableCell flex={0} style={{ width: 28 }} align="right">
           {lead === 'any' ? (
@@ -306,7 +306,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Manager</Text>
         <Text style={s.sub}>
           {scheduled.length === 0
-            ? 'Nothing scheduled yet — create your first post below.'
+            ? 'Nothing scheduled yet, create your first post below.'
             : `${scheduled.length} post${scheduled.length === 1 ? '' : 's'} queued.`}{' '}
           Tap the alert when it fires to jump back here.
         </Text>

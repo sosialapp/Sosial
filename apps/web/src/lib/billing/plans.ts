@@ -1,10 +1,10 @@
 /**
- * Canonical billing configuration — the ONE source of truth for plans,
+ * Canonical billing configuration, the ONE source of truth for plans,
  * prices, billing intervals and feature limits across the whole product.
  *
  * Rules encoded here (do not violate downstream):
  * - A plan and its billing interval are SEPARATE concepts (plan = "team",
- *   billingInterval = "annual" — never "team_annual").
+ *   billingInterval = "annual", never "team_annual").
  * - Annual prices are explicit values (10 paid months = 2 months free).
  *   NEVER compute annual = monthly * 12.
  * - Feature limits are identical between monthly and annual of the same
@@ -15,7 +15,7 @@
  *   (calendar month). AI credits reset every calendar month even for annual
  *   subscribers; scheduled-post slots free up when a post is published.
  * - Ultimate is a LIFETIME plan: one $1 payment, no interval, never on
- *   public pricing. PLAN_ORDER deliberately excludes it — only the in-app
+ *   public pricing. PLAN_ORDER deliberately excludes it, only the in-app
  *   profile plan sections (admin-gated) may offer it.
  */
 
@@ -35,7 +35,7 @@ export interface PlanLimits {
   /** workspaces (brands) the user may own; null = unlimited */
   workspaces: number | null;
   /** total bytes of media a workspace may store; null = unlimited. Media is
-   *  retained permanently — this caps how much can be uploaded, never expiry. */
+   *  retained permanently, this caps how much can be uploaded, never expiry. */
   storageBytes: number | null;
   /** true ⇒ the Sosial watermark is forced ON and cannot be disabled */
   watermarkRequired: boolean;
@@ -56,16 +56,16 @@ export interface PlanDef {
   featured?: boolean;
   monthly: PlanPrice;
   annual: PlanPrice;
-  /** one-time lifetime price — set only for Ultimate (never interval-billed) */
+  /** one-time lifetime price, set only for Ultimate (never interval-billed) */
   lifetime?: PlanPrice;
   limits: PlanLimits;
   points: string[];
 }
 
-/** 1 GiB in bytes — storage quotas are written in whole GiB. */
+/** 1 GiB in bytes, storage quotas are written in whole GiB. */
 export const GiB = 1024 ** 3;
 
-/** The canonical price book. Prices are explicit — never derived. */
+/** The canonical price book. Prices are explicit, never derived. */
 export const PLANS: Record<PlanKey, PlanDef> = {
   free: {
     key: 'free',
@@ -189,12 +189,12 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'Unlimited AI credits a month',
       'Unlimited team members and workspaces',
       'No watermark, ever',
-      'Pay once — yours for life',
+      'Pay once, yours for life',
     ],
   },
 };
 
-/** Canonical display order, cheapest first. Ultimate is intentionally absent —
+/** Canonical display order, cheapest first. Ultimate is intentionally absent -
  *  public pricing, comparison tables and change-plan lists iterate this. */
 export const PLAN_ORDER: PlanKey[] = ['free', 'solo', 'team', 'business'];
 
@@ -213,7 +213,7 @@ export function priceFor(plan: PlanKey, interval: BillingInterval): number {
   return PLANS[plan][interval].price;
 }
 
-/** What the annual price works out to per month (display only — the charge is
+/** What the annual price works out to per month (display only, the charge is
  *  annual). Rounded UP to the next whole dollar so the shown per-month is never
  *  lower than what is actually charged (e.g. $290/yr → $25/mo, not $24.17). */
 export function monthlyEquivalent(plan: PlanKey): number {
@@ -229,7 +229,7 @@ export function annualSavingsPct(plan: PlanKey): number {
   return Math.round(((full - PLANS[plan].annual.price) / full) * 100);
 }
 
-/** "$12" / "$120" — whole dollars, no decimals needed at these price points. */
+/** "$12" / "$120", whole dollars, no decimals needed at these price points. */
 export function formatUsd(amount: number): string {
   return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
@@ -259,7 +259,7 @@ export function limitsFor(plan: PlanKey): PlanLimits {
   return PLANS[plan].limits;
 }
 
-/** Providers whose API bills Sosial per connected account — X's posting API
+/** Providers whose API bills Sosial per connected account, X's posting API
  *  is paywalled, so free plans cannot connect it. Existing connections keep
  *  working; only new connects are gated. */
 export const PAID_ONLY_PROVIDERS: string[] = ['x'];

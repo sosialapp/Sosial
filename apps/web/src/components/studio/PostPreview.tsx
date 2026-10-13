@@ -4,7 +4,7 @@ import { ChromeIcon, VERIFIED_SEAL } from '@/components/studio/blocks';
 import { providerMeta } from '@/lib/providers';
 
 /**
- * Pure single-card post preview in each network's own post style — no
+ * Pure single-card post preview in each network's own post style, no
  * canvas background, no bottom avatar row, no watermark. Only the five
  * networks with a faithful sealed style get one; everything else renders
  * an honest "no preview" note instead of a fake mock.
@@ -87,7 +87,7 @@ function Media({ imageUrl, videoUrl, provider }: { imageUrl?: string; videoUrl?:
 
 /**
  * Natural dimensions of the attached file (measured in-browser, never
- * uploaded). Null while loading — callers fall back to a provider default.
+ * uploaded). Null while loading, callers fall back to a provider default.
  */
 function useNaturalSize(url: string | undefined, kind: 'image' | 'video'): { w: number; h: number } | null {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -181,9 +181,9 @@ export default function PostPreview({
   videoUrl?: string;
   /**
    * Verified badge glued right after the handle (short names pull it left
-   * with them — never a fixed offset). True when the channel metadata says
+   * with them, never a fixed offset). True when the channel metadata says
    * verified; X also defaults on because the preview mocks the connected
-   * account itself — tighten per-account once connect flows record status.
+   * account itself, tighten per-account once connect flows record status.
    */
   verified?: boolean;
 }) {
@@ -192,7 +192,7 @@ export default function PostPreview({
     return (
       <div className="rounded-2xl border border-dashed border-line px-4 py-5 text-center">
         <p className="text-[13px] font-bold">{meta.label}</p>
-        <p className="mt-1 text-xs text-muted">No preview for this channel — it will still post normally.</p>
+        <p className="mt-1 text-xs text-muted">No preview for this channel, it will still post normally.</p>
       </div>
     );
   }

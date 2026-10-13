@@ -35,11 +35,11 @@ const vH = (token: string): Record<string, string> => ({
 /** LinkedIn publish errors look like { message, status }. */
 function lpubErr(j: any, status: number, fallback: string): string {
   const m = typeof j?.message === 'string' && j.message ? j.message : fallback;
-  if (status === 401) return 'LinkedIn session expired — reconnect LinkedIn.';
+  if (status === 401) return 'LinkedIn session expired, reconnect LinkedIn.';
   if (status === 403) {
-    return `${m} — check the “Share on LinkedIn” product is added in the portal (posting as a Page also needs the Marketing Developer Platform product).`;
+    return `${m}, check the “Share on LinkedIn” product is added in the portal (posting as a Page also needs the Marketing Developer Platform product).`;
   }
-  if (status === 429) return 'LinkedIn rate limit hit — the job will retry shortly.';
+  if (status === 429) return 'LinkedIn rate limit hit, the job will retry shortly.';
   if (status === 422) return m;
   return `${m} (${status})`;
 }
@@ -83,10 +83,10 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
     if (access) return access;
   }
   if (!b.secrets.refresh_secret_id) {
-    throw new Error('LinkedIn session expired — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('LinkedIn session expired, toggle cloud publishing off and on in Connect to refresh.');
   }
   const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('LinkedIn session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (!refresh) throw new Error('LinkedIn session expired, toggle cloud publishing off and on in Connect to refresh.');
   const { id, secret } = clientCreds();
   const r = await fetch(LI_TOKEN_ENDPOINT, {
     method: 'POST',
@@ -102,9 +102,9 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   if (!j?.access_token) {
     const msg = String(j?.error_description || j?.error || j?.message || 'LinkedIn session expired');
     if (/invalid_grant|invalid_request|expired|unauthorized/i.test(msg)) {
-      throw new Error('LinkedIn session expired — reconnect LinkedIn.');
+      throw new Error('LinkedIn session expired, reconnect LinkedIn.');
     }
-    throw new Error(`${msg} — toggle cloud publishing off and on in Connect to refresh.`);
+    throw new Error(`${msg}, toggle cloud publishing off and on in Connect to refresh.`);
   }
   const newAccess = String(j.access_token);
   const newRefresh = String(j.refresh_token || refresh);
@@ -132,7 +132,7 @@ function fitText(t: string): string {
 
 /**
  * One image, 3 steps: initializeUpload → PUT raw bytes to the signed URL
- * (no auth header — the URL is the auth) → urn:li:image:… for the post.
+ * (no auth header, the URL is the auth) → urn:li:image:… for the post.
  */
 async function uploadImage(token: string, owner: string, buf: Buffer, mime: string, tag: string): Promise<string> {
   if (buf.byteLength > MAX_BYTES) {
@@ -166,7 +166,7 @@ export async function publishLinkedInTarget(bundle: Bundle): Promise<{ remoteId:
   // Post author: picked Company Page when one is set, else the member. Image
   // upload owner must match the author, or LinkedIn 403s the post.
   const author = orgId ? `urn:li:organization:${orgId}` : personUrn;
-  if (!author) throw new Error('LinkedIn not connected — re-enable cloud publishing.');
+  if (!author) throw new Error('LinkedIn not connected, re-enable cloud publishing.');
   const token = await ensureToken(b);
 
   const text = fitText(b.target.caption ?? b.post.body ?? '');
@@ -175,7 +175,7 @@ export async function publishLinkedInTarget(bundle: Bundle): Promise<{ remoteId:
     .sort((a, z) => a.position - z.position)
     .slice(0, MAX_IMAGES);
   if (!text && images.length === 0) {
-    throw new Error('Write something or attach a photo — LinkedIn needs one of them.');
+    throw new Error('Write something or attach a photo, LinkedIn needs one of them.');
   }
   const alt = text.slice(0, 200) || 'Image';
   const urns: string[] = [];
@@ -185,7 +185,7 @@ export async function publishLinkedInTarget(bundle: Bundle): Promise<{ remoteId:
     try {
       raw = await storageDownload(await storageSign('post-media', m.storage_path));
     } catch (e: any) {
-      throw new Error(`Photo ${i + 1}/${images.length}: download failed — ${e?.message ?? 'storage error'}`);
+      throw new Error(`Photo ${i + 1}/${images.length}: download failed, ${e?.message ?? 'storage error'}`);
     }
     urns.push(await uploadImage(token, author, raw, mimeFor(m.storage_path, m.mime_type), `Photo ${i + 1}/${images.length}`));
   }

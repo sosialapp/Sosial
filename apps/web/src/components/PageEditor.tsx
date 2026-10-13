@@ -12,7 +12,7 @@ import { cleanDocForPublish, normalizeInitialDoc, wordsOfTipTap, type TipTapDoc 
 import { defaultDocForSlug } from '@/content/siteDefaults';
 import { customSlugAvailable, normalizeCustomSlug, type SitePageDef } from '@/content/sitePages';
 
-/** Editable page metadata — everything about a page except its body. */
+/** Editable page metadata, everything about a page except its body. */
 export interface AdminPageMeta {
   title: string | null;
   metaTitle: string | null;
@@ -35,7 +35,7 @@ function toLocalInput(iso: string | null): string {
 }
 
 /**
- * CMS page editor — the TipTap document surface from the blog editor, plus
+ * CMS page editor, the TipTap document surface from the blog editor, plus
  * Page settings (title, URL, SEO, date, draft/publish, footer) for full
  * control. Save upserts the site_pages row; registry pages keep "Restore
  * default" (delete → falls back to the hardcoded design) while custom pages
@@ -49,14 +49,14 @@ export default function PageEditor({
 }: {
   def: SitePageDef;
   initial: unknown;
-  /** updated_at the editor opened with — the save aborts if the row moved on. */
+  /** updated_at the editor opened with, the save aborts if the row moved on. */
   loadedAt: string | null;
   meta: AdminPageMeta;
 }) {
   const router = useRouter();
   const isCustom = meta.isCustom;
   // Never-customized registry pages open with their current live copy
-  // pre-loaded, so editing means changing what visitors see today — not
+  // pre-loaded, so editing means changing what visitors see today, not
   // writing from zero. Custom pages start from their row (or empty).
   const seeded = normalizeInitialDoc(initial ?? (isCustom ? null : defaultDocForSlug(def.slug))) ?? null;
   const [doc, setDoc] = useState<TipTapDoc | null>(seeded);
@@ -107,7 +107,7 @@ export default function PageEditor({
     const content: TipTapDoc | null = doc ? cleanDocForPublish(doc) : null;
     const bodyHtml = content ? tiptapToProseHtml(content) : '';
     if (!bodyHtml.trim() && !(title.trim() && isCustom)) {
-      setErr('The document is still empty — write something first.');
+      setErr('The document is still empty, write something first.');
       return;
     }
     setSaving(true);
@@ -125,7 +125,7 @@ export default function PageEditor({
         (fresh as { updated_at?: unknown } | null)?.updated_at ?? null;
       if (loadedAt !== (typeof freshAt === 'string' ? freshAt : null)) {
         throw new Error(
-          'This page changed since you opened it — reload the editor to avoid overwriting. Your current edits stay in place.',
+          'This page changed since you opened it, reload the editor to avoid overwriting. Your current edits stay in place.',
         );
       }
       const { error } = await sb.from('site_pages').upsert(
@@ -174,7 +174,7 @@ export default function PageEditor({
       return;
     }
     if (!customSlugAvailable(next)) {
-      setErr('That URL is taken or reserved — try another.');
+      setErr('That URL is taken or reserved, try another.');
       return;
     }
     if (!confirm(`Move this page to /${next}? The old URL redirects automatically.`)) return;
@@ -183,13 +183,13 @@ export default function PageEditor({
     try {
       const sb = createClient();
       const { data: taken } = await sb.from('site_pages').select('slug').eq('slug', next).maybeSingle();
-      if (taken) throw new Error('That URL was just taken — try another.');
+      if (taken) throw new Error('That URL was just taken, try another.');
       const { data: redir } = await sb
         .from('site_redirects')
         .select('from_slug')
         .eq('from_slug', next)
         .maybeSingle();
-      if (redir) throw new Error('That URL redirects elsewhere — try another.');
+      if (redir) throw new Error('That URL redirects elsewhere, try another.');
       const content: TipTapDoc | null = doc ? cleanDocForPublish(doc) : null;
       const bodyHtml = content ? tiptapToProseHtml(content) : '';
       // Re-point any redirect chain that landed on the old slug first.
@@ -232,7 +232,7 @@ export default function PageEditor({
     }
   };
 
-  // Preview renders the exact publish pipeline — what you see is what ships.
+  // Preview renders the exact publish pipeline, what you see is what ships.
   const previewHtml = doc ? tiptapToProseHtml(cleanDocForPublish(doc)) : '';
 
   return (
@@ -318,7 +318,7 @@ export default function PageEditor({
       <details className="border-b border-line bg-card" open={!initial}>
         <summary className="mx-auto flex max-w-5xl cursor-pointer list-none items-center gap-2 px-4 py-3 text-xs font-bold text-soft sm:px-6">
           <Settings2 className="h-4 w-4" aria-hidden="true" />
-          Page settings — title, URL, SEO, date, visibility
+          Page settings, title, URL, SEO, date, visibility
         </summary>
         <div className="mx-auto grid max-w-5xl gap-3 px-4 pb-5 sm:grid-cols-2 sm:px-6">
           <label className="block">
@@ -365,7 +365,7 @@ export default function PageEditor({
           )}
           {isCustom ? (
             <label className="block">
-              <span className="text-xs font-bold text-muted">Date — future dates schedule the page</span>
+              <span className="text-xs font-bold text-muted">Date, future dates schedule the page</span>
               <input
                 type="datetime-local"
                 value={dateInput}
@@ -397,7 +397,7 @@ export default function PageEditor({
               {status === 'draft'
                 ? isCustom
                   ? 'Hidden from the site until you publish.'
-                  : 'Hides your customized section — visitors see the default design.'
+                  : 'Hides your customized section, visitors see the default design.'
                 : scheduled
                   ? 'Goes live automatically when the date arrives.'
                   : 'Live on the site after you save.'}
@@ -465,8 +465,8 @@ export default function PageEditor({
                 {initial
                   ? def.hint
                   : isCustom
-                    ? 'Blank page — write the content, set the title and date above, then publish.'
-                    : 'Pre-loaded with the page’s current copy — edit freely, then publish to replace the CMS section.'}
+                    ? 'Blank page, write the content, set the title and date above, then publish.'
+                    : 'Pre-loaded with the page’s current copy, edit freely, then publish to replace the CMS section.'}
               </p>
               <div className="mt-2">
                 <BlogDoc initial={doc} onChange={onDocChange} onError={setErr} />

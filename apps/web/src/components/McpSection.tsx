@@ -3,7 +3,7 @@
 /**
  * MCP section (Team → AI & Developer): what MCP is, the server URL to paste
  * into an AI client, and a permission checklist used when minting a scoped
- * key. Reuses the /api/keys surface — an MCP key IS a workspace API key with
+ * key. Reuses the /api/keys surface, an MCP key IS a workspace API key with
  * scopes; the delete scope is opt-in and off by default (least privilege).
  */
 import { useState } from 'react';
@@ -39,7 +39,7 @@ export default function McpSection({ canManage }: { canManage: boolean }) {
       setCopied(what);
       setTimeout(() => setCopied(null), 1600);
     } catch {
-      setErr('Copy failed — select the text manually.');
+      setErr('Copy failed, select the text manually.');
     }
   };
 
@@ -66,8 +66,8 @@ export default function McpSection({ canManage }: { canManage: boolean }) {
   };
 
   return (
-    <section className="card mt-4 p-5" aria-label="AI and developer — MCP">
-      <h2 className="font-display text-base font-extrabold tracking-tight">AI &amp; Developer — MCP</h2>
+    <section className="card mt-4 p-5" aria-label="AI and developer, MCP">
+      <h2 className="font-display text-base font-extrabold tracking-tight">AI &amp; Developer, MCP</h2>
       <p className="mt-1 text-sm text-muted">
         Connect AI assistants (Claude, Cursor, or any MCP client) to create, schedule and
         inspect this workspace&apos;s posts. Every action runs through the same checks as the
@@ -94,7 +94,7 @@ export default function McpSection({ canManage }: { canManage: boolean }) {
 
       {freshKey ? (
         <div className="mt-4 rounded-2xl border border-line bg-card p-4">
-          <p className="text-sm font-bold">Copy this key now — it will never be shown again.</p>
+          <p className="text-sm font-bold">Copy this key now, it will never be shown again.</p>
           <code className="mt-2 block break-all rounded-xl bg-ink px-3 py-2 font-mono text-sm text-paper">
             {freshKey}
           </code>

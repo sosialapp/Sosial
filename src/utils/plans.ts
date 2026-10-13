@@ -1,5 +1,5 @@
 /**
- * Canonical pricing — mobile mirror of apps/web/src/lib/billing/plans.ts.
+ * Canonical pricing, mobile mirror of apps/web/src/lib/billing/plans.ts.
  * Keep both files numerically identical: one price book across the product.
  *
  * Rules: annual prices are explicit (2 months free, never monthly * 12);
@@ -8,7 +8,7 @@
  * number; the Free watermark is forced ON and locked.
  *
  * Ultimate is lifetime-only ($1 once, never interval-billed) and never
- * appears on public pricing — PLAN_ORDER deliberately excludes it.
+ * appears on public pricing, PLAN_ORDER deliberately excludes it.
  */
 
 export type BillingInterval = 'monthly' | 'annual';
@@ -21,7 +21,7 @@ export interface PlanLimits {
   users: number | null;
   workspaces: number | null;
   /** total bytes of media a workspace may store; null = unlimited. Media is
-   *  retained permanently — this caps how much can be uploaded, never expiry. */
+   *  retained permanently, this caps how much can be uploaded, never expiry. */
   storageBytes: number | null;
   watermarkRequired: boolean;
 }
@@ -34,13 +34,13 @@ export interface PlanDef {
   featured?: boolean;
   monthly: number;
   annual: number;
-  /** one-time lifetime price — Ultimate only */
+  /** one-time lifetime price, Ultimate only */
   lifetime?: number;
   limits: PlanLimits;
   points: string[];
 }
 
-/** 1 GiB in bytes — storage quotas are written in whole GiB. */
+/** 1 GiB in bytes, storage quotas are written in whole GiB. */
 export const GiB = 1024 ** 3;
 
 export const PLANS: Record<PlanKey, PlanDef> = {
@@ -124,7 +124,7 @@ export const PLANS: Record<PlanKey, PlanDef> = {
       'Unlimited AI credits a month',
       'Unlimited team members and workspaces',
       'No watermark, ever',
-      'Pay once — yours for life',
+      'Pay once, yours for life',
     ],
   },
 };
@@ -140,7 +140,7 @@ export function priceFor(key: PlanKey, interval: BillingInterval): number {
   return interval === 'monthly' ? PLANS[key].monthly : PLANS[key].annual;
 }
 
-/** What the annual price works out to per month (display only — billed yearly).
+/** What the annual price works out to per month (display only, billed yearly).
  *  Rounds UP to the next whole dollar so the shown figure is never below the
  *  actual charge (e.g. $290/yr → $25, not $24.17). */
 export function monthlyEquivalent(key: PlanKey): string {
@@ -175,7 +175,7 @@ export function labelForInternal(key: 'free' | 'pro' | 'team'): string {
   return 'Team';
 }
 
-/** AI credits consumed per action — mirror of web's aiCredits.ts. */
+/** AI credits consumed per action, mirror of web's aiCredits.ts. */
 export const AI_CREDIT_COSTS: Record<string, number> = {
   rewrite: 1, shorten: 1, expand: 1, tone: 1, hashtags: 1, idea: 1,
   caption: 2, post: 2, adapt: 2,
@@ -185,7 +185,7 @@ export const AI_CREDIT_COSTS: Record<string, number> = {
 
 export const AI_MODEL_LABEL = 'GPT-5.6 Luna';
 
-/** Providers whose API bills Sosial per account — mirror of web's
+/** Providers whose API bills Sosial per account, mirror of web's
  *  PAID_ONLY_PROVIDERS. X's posting API is paywalled: free can't connect it. */
 export const PAID_ONLY_PROVIDERS: string[] = ['x'];
 

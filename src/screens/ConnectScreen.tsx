@@ -47,7 +47,7 @@ function ChannelIcon({ platform }: { platform: string }) {
   return <ChannelAvatar platform={platform} size={56} badge={false} />;
 }
 
-/** One compact row per provider — tap to connect, tap again to manage its accounts. */
+/** One compact row per provider, tap to connect, tap again to manage its accounts. */
 export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => void; onTeam: () => void; plan?: 'free' | 'pro' | 'team' }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -97,11 +97,11 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
 
   useEffect(() => {
     // Backfill first so the push below already carries fresh pictures, then
-    // push local channels up and pull cloud-only channels down — one visit
+    // push local channels up and pull cloud-only channels down, one visit
     // converges both directions before the list paints.
     void (async () => {
       await backfillMissingAvatars().catch(() => null);
-      // Force: this screen exists to reflect the cloud — never serve a stale
+      // Force: this screen exists to reflect the cloud, never serve a stale
       // throttled pull here. Pull BEFORE pushing so an account the owner
       // disconnected elsewhere is retracted locally first and never re-imported.
       await pullCloudChannels(true).catch(() => null);
@@ -124,7 +124,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   }, []);
 
   // Master-switch reconciler: any credential change auto-imports (master on)
-  // or stays inert (master off / signed out). Idempotent — safe per change.
+  // or stays inert (master off / signed out). Idempotent, safe per change.
   useEffect(() => {
     void syncCloudChannels();
   }, [meta]);
@@ -137,11 +137,11 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   // a scary "login failed" over an already-connected account.
   const claimingRef = useRef<Set<string>>(new Set());
 
-  /** Finishes an OAuth login no matter which app instance received the code —
+  /** Finishes an OAuth login no matter which app instance received the code -
    *  the one that opened the browser, or a fresh one after Expo Go reloaded. */
   const completeAuth = async (r: AuthResult) => {
     // the same return URL can arrive twice (browser-session result + OS link
-    // event, or a replay after an Expo Go reload) — providers burn codes on
+    // event, or a replay after an Expo Go reload), providers burn codes on
     // first redeem, so a second exchange of the same code always fails with
     // "authorization code was invalid"
     if (r.code) {
@@ -181,7 +181,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
         setOpenProvider('facebook');
         setSelId((s) => ({ ...s, facebook: r.accountId ?? 'acct_facebook' }));
         if (pgs.length === 0) {
-          Alert.alert('No Pages found', 'Create a Facebook Page you manage first — posts publish as the Page.');
+          Alert.alert('No Pages found', 'Create a Facebook Page you manage first, posts publish as the Page.');
         }
       } else if (r.channel === 'instagram') {
         const { token, userId } = await exchangeInstagramCode(r.code);
@@ -211,17 +211,17 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
         const { name } = await completeTikTokLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('tiktok');
-        if (!name) Alert.alert('Connected', 'TikTok connected — we couldn’t read the display name yet.');
+        if (!name) Alert.alert('Connected', 'TikTok connected, we couldn’t read the display name yet.');
       } else if (r.channel === 'x') {
         const { name } = await completeXLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('x');
-        if (!name) Alert.alert('Connected', 'X connected — we couldn’t read the handle yet.');
+        if (!name) Alert.alert('Connected', 'X connected, we couldn’t read the handle yet.');
       } else if (r.channel === 'mastodon') {
         const { name } = await completeMastodonLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('mastodon');
-        if (!name) Alert.alert('Connected', 'Mastodon connected — we couldn’t read the handle yet.');
+        if (!name) Alert.alert('Connected', 'Mastodon connected, we couldn’t read the handle yet.');
       } else if (r.channel === 'linkedin') {
         const { name } = await completeLiLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
@@ -231,18 +231,18 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
           const orgs = await listMyLiOrgs(r.accountId ?? 'acct_linkedin');
           setLiOrgs(orgs);
           if (orgs.length === 0) {
-            Alert.alert('No Company Pages found', 'Posting as yourself — admin a LinkedIn Page to post as the business.');
+            Alert.alert('No Company Pages found', 'Posting as yourself, admin a LinkedIn Page to post as the business.');
           }
         } catch {
           // org list needs the Marketing Developer Platform product; member
           // posting + stats still work, the picker just stays empty.
         }
-        if (!name) Alert.alert('Connected', 'LinkedIn connected — we couldn’t read the name yet.');
+        if (!name) Alert.alert('Connected', 'LinkedIn connected, we couldn’t read the name yet.');
       } else if (r.channel === 'youtube') {
         const { name } = await completeYtLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('youtube');
-        if (!name) Alert.alert('Connected', 'YouTube connected — we couldn’t read the channel yet.');
+        if (!name) Alert.alert('Connected', 'YouTube connected, we couldn’t read the channel yet.');
       } else if (r.channel === 'pinterest') {
         const { name } = await completePinLogin(r.code, r.accountId);
         const accts = await loadAccounts();
@@ -253,7 +253,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
         setPinBoards(null);
         const acct = accts.find((a) => a.id === pid);
         if (acct) void loadPinBoardsFor(acct);
-        if (!name) Alert.alert('Connected', 'Pinterest connected — we couldn’t read the handle yet. Pick a board below.');
+        if (!name) Alert.alert('Connected', 'Pinterest connected, we couldn’t read the handle yet. Pick a board below.');
       } else if (r.channel === 'gmb') {
         // Exchange first, then stage the location pick.
         const pid = r.accountId ?? 'acct_gmb';
@@ -269,10 +269,10 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
             setGgOpen(true);
             setOpenProvider('gmb');
           } else {
-            Alert.alert('Connected', 'Google connected — reconnect to pick a location.');
+            Alert.alert('Connected', 'Google connected, reconnect to pick a location.');
           }
         } catch (e: any) {
-          Alert.alert('Connected', e?.message ?? 'Google connected — pick your location below.');
+          Alert.alert('Connected', e?.message ?? 'Google connected, pick your location below.');
           setGgOpen(true);
           setOpenProvider('gmb');
         }
@@ -299,7 +299,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     setBusy(null);
     Alert.alert(
       `${label} login closed`,
-      'If the browser showed a login page instead of a permission screen, sign in there — after that one sign-in, Connect goes straight through every time.'
+      'If the browser showed a login page instead of a permission screen, sign in there, after that one sign-in, Connect goes straight through every time.'
     );
   };
 
@@ -318,7 +318,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     const cap = caps[plan ?? 'free'];
     Alert.alert(
       'Channel limit reached',
-      `Your plan connects up to ${cap} accounts — you're at the cap. Disconnect one or upgrade to add more.`,
+      `Your plan connects up to ${cap} accounts, you're at the cap. Disconnect one or upgrade to add more.`,
     );
   };
   const doFacebook = async (accountId?: string) => {
@@ -354,13 +354,13 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
 
   const disconnectAccount = async (account: ConnectedAccount) => {
     if (isCloudOnly(account)) {
-      // Placeholder only — the live channel belongs to another device, so
+      // Placeholder only, the live channel belongs to another device, so
       // just drop the local row. Never run the cloud sweep here: it would
       // revoke the other device's working channel.
       setAccounts(await removeAccount(account.id));
       return;
     }
-    // Disconnect revokes the cloud copy too — provider-wide sweep when it's the
+    // Disconnect revokes the cloud copy too, provider-wide sweep when it's the
     // last account (precise external_id removal lands with Slice 4).
     const remaining = accounts.filter((a) => a.provider === account.provider && a.id !== account.id);
     if (remaining.length === 0) void disableCloudChannel(account.provider, meta);
@@ -374,7 +374,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   /**
    * Remove a cloud-synced account for the whole workspace: deletes the cloud
    * channel (and its stored tokens), then the local placeholder. This is the
-   * path that makes cloud-owned channels removable — without it they are
+   * path that makes cloud-owned channels removable, without it they are
    * locked to the workspace forever.
    */
   const removeCloudAccount = async (account: ConnectedAccount) => {
@@ -403,7 +403,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   const doTikTok = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
     if (!ttConfigured) {
-      Alert.alert('Keys missing', 'TikTok client key is empty — check .env, then restart Expo (env loads at startup).');
+      Alert.alert('Keys missing', 'TikTok client key is empty, check .env, then restart Expo (env loads at startup).');
       return;
     }
     setBusy('Opening TikTok…');
@@ -501,7 +501,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
       setDcChannels([]);
       setDcThreads([]);
       setDcChannel('');
-      if (!guilds.length) Alert.alert('No servers', 'That bot is in no servers — invite it first.');
+      if (!guilds.length) Alert.alert('No servers', 'That bot is in no servers, invite it first.');
     } catch (e: any) {
       Alert.alert('Discord failed', e?.message ?? 'Try again.');
     } finally {
@@ -655,7 +655,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
       setHnPubs(id.publications);
       setHnPub('');
       if (!id.publications.length) {
-        Alert.alert('No publications', 'That token sees no publications — publish from an account with a blog.');
+        Alert.alert('No publications', 'That token sees no publications, publish from an account with a blog.');
       }
     } catch (e: any) {
       Alert.alert('Hashnode failed', e?.message ?? 'Try again.');
@@ -748,7 +748,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
         accounts.find((a) => a.provider === 'gmb' && a.fields.gmRefreshToken);
       const f = src?.fields ?? {};
       if (!f.gmRefreshToken) {
-        throw new Error('Google login is missing — connect Google Business first.');
+        throw new Error('Google login is missing, connect Google Business first.');
       }
       await saveProviderFields(
         'gmb',
@@ -894,10 +894,10 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     x: { label: 'X', manual: false, configured: xConfigured, connect: doX },
     bluesky: { label: 'Bluesky', manual: true, configured: true, connect: doBsky },
     mastodon: { label: 'Mastodon', manual: true, configured: true, connect: doMastodon },
-    // Soon on web too (production approval pending) — parity by design.
+    // Soon on web too (production approval pending), parity by design.
     linkedin: { label: 'LinkedIn', manual: false, configured: liConfigured, soon: true, connect: doLinkedin },
     youtube: { label: 'YouTube', manual: false, configured: ytConfigured, connect: doYoutube },
-    // Soon on web too — parity by design.
+    // Soon on web too, parity by design.
     pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, soon: true, connect: doPinterest },
     telegram: { label: 'Telegram', manual: true, configured: true, connect: doTelegram },
     discord: { label: 'Discord', manual: true, configured: true, connect: doDiscord },
@@ -913,7 +913,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     const n = accountName(a);
     if (n) return n;
     if (a.provider === 'facebook') return 'Choose a Page';
-    if (a.provider === 'pinterest') return 'Connected — pick a board';
+    if (a.provider === 'pinterest') return 'Connected, pick a board';
     return 'Connected';
   };
 
@@ -925,14 +925,14 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
 
   const selectAccount = (p: ProviderKey, a: ConnectedAccount) => {
     setSelId((s) => ({ ...s, [p]: a.id }));
-    if (isCloudOnly(a)) return; // no device tokens — pickers below can't load
+    if (isCloudOnly(a)) return; // no device tokens, pickers below can't load
     if (p === 'facebook') void loadPagesFor(a);
     else if (p === 'linkedin') void loadLiOrgsFor(a);
     else if (p === 'pinterest') void loadPinBoardsFor(a);
   };
 
   /** Managers-only gate for every connect/remove tap (the token functions
-   *  enforce the same rule server-side — this just explains it first).
+   *  enforce the same rule server-side, this just explains it first).
    *  Signed-out users only touch device-local channels: always allowed. */
   const needManager = (): boolean => {
     if (!cloudUser || isManager) return true;
@@ -1031,7 +1031,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
           <View style={s.helpCard}>
             <Text style={s.helpTitle}>How to connect Mastodon</Text>
             {[
-              'Type your username — or a full server like fosstodon.org',
+              'Type your username, or a full server like fosstodon.org',
               'Sign in and approve the app on that server',
               'Posts and analytics then go to your account there',
             ].map((step, i) => (
@@ -1143,7 +1143,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
             {[
               'On your site: Users → Profile → Application Passwords',
               'Name it “Sosial”, copy the generated password',
-              'Each site connects separately — no central approval',
+              'Each site connects separately, no central approval',
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1165,7 +1165,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
             <Text style={s.helpTitle}>How to connect Dev.to</Text>
             {[
               'dev.to → Settings → Extensions → generate a key',
-              'Paste it above — articles publish under your account',
+              'Paste it above, articles publish under your account',
               'Tags cap at 4, covers come later',
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
@@ -1186,7 +1186,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
           <Txt value={hnToken} onChangeText={(v) => { setHnToken(v); setHnPubs([]); setHnPub(''); }} placeholder="Personal access token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={[s.helpCard, { borderColor: C.accent, borderWidth: 1 }]}>
             <Text style={[s.helpTitle, { color: C.accentInk }]}>Hashnode Pro required</Text>
-            <Text style={s.helpText}>Only Pro publications can connect — upgrade at your blog dashboard → Billing first.</Text>
+            <Text style={s.helpText}>Only Pro publications can connect, upgrade at your blog dashboard → Billing first.</Text>
           </View>
           <View style={s.helpCard}>
             <Text style={s.helpTitle}>How to connect Hashnode</Text>
@@ -1233,7 +1233,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
             {[
               'Ghost Admin → Settings → Integrations → Add custom',
               'Copy the Admin API Key (not the content key)',
-              'Each site connects separately — no central approval',
+              'Each site connects separately, no central approval',
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1257,7 +1257,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
             {[
               'Community → Manage → Working with API → Access Tokens',
               'Create a key with wall + photos rights (never expires)',
-              'Communities only — personal-profile posting is VK-gated',
+              'Communities only, personal-profile posting is VK-gated',
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1462,7 +1462,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
       setAccounts(await loadAccounts().catch(() => []));
       Alert.alert(
         'Health check started',
-        `Re-checking ${j?.queued_refresh ?? 'your'} channel(s) — expired tokens will show up here shortly.`,
+        `Re-checking ${j?.queued_refresh ?? 'your'} channel(s), expired tokens will show up here shortly.`,
       );
     } catch (e: any) {
       Alert.alert('Sync failed', e?.message ?? 'Could not start the health check.');
@@ -1687,13 +1687,13 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
                     {!cfg.manual && !cfg.soon ? renderSubPanel(p) : null}
                     {cfg.soon ? (
                       <View style={s.pageRow}>
-                        <Text style={s.pageT} numberOfLines={3}>Coming soon — Google still has to approve the API access. It will light up here the moment it does.</Text>
+                        <Text style={s.pageT} numberOfLines={3}>Coming soon, Google still has to approve the API access. It will light up here the moment it does.</Text>
                       </View>
                     ) : null}
                     {p === 'tiktok' && list.length > 0 ? (
                       <View style={s.switchBox}>
                         <Text style={s.switchT}>
-                          TikTok signs in with whoever is logged in — to add a different account, switch it on tiktok.com first, then add below.
+                          TikTok signs in with whoever is logged in, to add a different account, switch it on tiktok.com first, then add below.
                         </Text>
                         <TouchableOpacity onPress={() => void openTikTokSite()} activeOpacity={0.7} style={s.switchBtn}>
                           <Ionicons name="open-outline" size={14} color={C.accentInk} />

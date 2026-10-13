@@ -11,17 +11,17 @@ import type { QuickPost } from '../types';
  * - new Go (notably iOS): only `ExpoMediaLibraryNext` (root entry works)
  * A top-level import crashes launch on whichever side lacks the module.
  * We probe root first, then legacy. Also note the root `saveToLibraryAsync`
- * is a stub that THROWS — the new API saves via `Asset.create()`.
+ * is a stub that THROWS, the new API saves via `Asset.create()`.
  */
 type MLHandle = { kind: 'next' | 'legacy'; mod: any };
 
-// resolved once per session — probing the module and asking for permission on
+// resolved once per session, probing the module and asking for permission on
 // every save added seconds to each tap
 let mlHandle: MLHandle | null | undefined;
 let mlGranted = false;
 
 /** The JS package loads even when the native side isn't in the binary
- *  (Expo Go versions, dev builds made before the package was added) — the
+ *  (Expo Go versions, dev builds made before the package was added), the
  *  failure then surfaces as a native-module error at call time. */
 function isNativeMissing(e: any): boolean {
   return /cannot find native module|ExpoMediaLibrary|requireNativeModule/i.test(
@@ -35,7 +35,7 @@ async function probeMediaLibrary(): Promise<MLHandle | null> {
     if (!mod.Asset || !mod.requestPermissionsAsync) throw new Error('no next api');
     return { kind: 'next', mod };
   } catch (e) {
-    if (isNativeMissing(e)) return null; // no legacy entry can help — same native piece is missing
+    if (isNativeMissing(e)) return null; // no legacy entry can help, same native piece is missing
     // fall through to legacy
   }
   try {
@@ -52,7 +52,7 @@ async function getMediaLibrary(): Promise<MLHandle | null> {
   return mlHandle;
 }
 
-/** 'granted' | 'denied' | 'unavailable' — unavailable means the native module
+/** 'granted' | 'denied' | 'unavailable', unavailable means the native module
  *  itself is missing and the caller should use its fallbacks. */
 async function requestPermission(ML: MLHandle | null): Promise<'granted' | 'denied' | 'unavailable'> {
   if (!ML) return 'unavailable';
@@ -78,13 +78,13 @@ export async function ensureMediaPermission(): Promise<boolean> {
   return (await requestPermission(await getMediaLibrary())) === 'granted';
 }
 
-/** Rejects if `p` hasn't settled in `ms` — native capture/save calls have
+/** Rejects if `p` hasn't settled in `ms`, native capture/save calls have
  *  hung forever on some devices, leaving the UI spinner stuck with no error.
  *  A timeout converts that into a named failure the UI can report. */
 function withTimeout<T>(p: Promise<T>, ms: number, stage: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
   const guard = new Promise<never>((_, rej) => {
-    t = setTimeout(() => rej(new Error(`${stage} timed out — please try again.`)), ms);
+    t = setTimeout(() => rej(new Error(`${stage} timed out, please try again.`)), ms);
   });
   return Promise.race([p, guard]).finally(() => {
     if (t !== undefined) clearTimeout(t);
@@ -99,9 +99,9 @@ async function saveOne(ML: MLHandle, uri: string): Promise<void> {
 }
 
 /** Capture a single ViewShot ref to a tmp png file.
- *  The tmpfile is returned as-is — an extra copy just doubled the file I/O. */
+ *  The tmpfile is returned as-is, an extra copy just doubled the file I/O. */
 export async function capturePage(ref: any, tag: string): Promise<string> {
-  if (!ref) throw new Error('Nothing to capture — the page view is missing.');
+  if (!ref) throw new Error('Nothing to capture, the page view is missing.');
   try {
     return await withTimeout(
       captureRef(ref, { format: 'png', quality: 1, result: 'tmpfile' }),
@@ -167,7 +167,7 @@ export async function saveAllImages(refs: any[], post: QuickPost, _sizeRatio: nu
 }
 
 /** Save captured tmp files to the gallery. Returns how many landed.
- *  Reports failures itself (alert) unless { silent } — callers only mark
+ *  Reports failures itself (alert) unless { silent }, callers only mark
  *  pages saved when the count matches. Falls back to a SAF folder pick on
  *  Android when the gallery native module is missing. */
 export async function saveUrisToGallery(uris: string[], opts?: { silent?: boolean }): Promise<number> {

@@ -2,7 +2,7 @@
 //
 // Dropbox + Google (Drive/Photos read-only) secrets live here server-side.
 // NOTHING is persisted: tokens go straight back to the browser, which keeps
-// them in sessionStorage (device-only — our DB never sees them). The web
+// them in sessionStorage (device-only, our DB never sees them). The web
 // dialog then calls Drive/Photos/Dropbox REST directly.
 //
 // POST { provider: 'dropbox'|'google'|'canva', code?, refresh_token?, redirect_uri?, code_verifier? }

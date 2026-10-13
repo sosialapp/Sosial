@@ -5,13 +5,13 @@ import { buildCarouselPrompt } from './carousel';
 import { serverGenerate, serverLabel, cloudSessionReady } from './server';
 
 export interface GenOpts {
-  /** Live web research for fresh facts — metered per call, so opt-in only */
+  /** Live web research for fresh facts, metered per call, so opt-in only */
   grounding?: boolean;
 }
 
 /**
  * AI runs on the server (metered against the plan's monthly credits) via the
- * generate-social Edge Function — the provider key never ships in the app.
+ * generate-social Edge Function, the provider key never ships in the app.
  * Signed-out devices fall back to the offline draft engine so the flow still
  * works without a session. Either way the output goes through normalizeResult,
  * so card rules hold no matter who wrote the copy.

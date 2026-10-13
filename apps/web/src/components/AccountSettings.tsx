@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Account settings — web port of the mobile Account screen: identity header,
+ * Account settings, web port of the mobile Account screen: identity header,
  * cloud session, notification/email/password rows, connect + plan + team,
  * report inbox, changelog, legal. Writes go to the real backend (profiles,
  * workspaces, auth, reports), so the phone picks them up on next sync.
@@ -340,7 +340,7 @@ export default function AccountSettings({
       const sb = createClient();
       const { error } = await sb.from('workspaces').update({ name }).eq('id', workspaceId);
       if (error) throw new Error(error.message);
-      setNote('Workspace name saved — the phone picks it up on next sync.');
+      setNote('Workspace name saved, the phone picks it up on next sync.');
       router.refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not save the name.');
@@ -365,7 +365,7 @@ export default function AccountSettings({
       if (error) throw new Error(error.message);
       const msg = (data as { error?: string } | null)?.error;
       if (msg) throw new Error(msg);
-      // Server data is gone — drop this browser's cloud tokens, then sign out.
+      // Server data is gone, drop this browser's cloud tokens, then sign out.
       try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
           const k = localStorage.key(i);
@@ -436,7 +436,7 @@ export default function AccountSettings({
         break;
       }
       if (!f.type.startsWith('image/')) {
-        setErr('Screenshots only — images please.');
+        setErr('Screenshots only, images please.');
         continue;
       }
       if (f.size > MAX_FILE_MB * 1024 * 1024) {
@@ -471,7 +471,7 @@ export default function AccountSettings({
       return;
     }
     if (openTicket) {
-      setErr('You already have an open ticket — we reply there. Close or resolve it first to raise a new one.');
+      setErr('You already have an open ticket, we reply there. Close or resolve it first to raise a new one.');
       return;
     }
     setRepBusy(true);
@@ -500,7 +500,7 @@ export default function AccountSettings({
       setRepBody('');
       setRepFiles([]);
       setView('ticket');
-      setNote('Ticket submitted — we reply by email. Track it under Your ticket.');
+      setNote('Ticket submitted, we reply by email. Track it under Your ticket.');
       await loadTickets();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not send the report.');
@@ -616,7 +616,7 @@ export default function AccountSettings({
             <Row
               icon={<CloudUpload className="h-5 w-5" aria-hidden="true" />}
               label="Cloud publishing"
-              sub="Always on — tokens stay encrypted in the vault"
+              sub="Always on, tokens stay encrypted in the vault"
               onClick={() => setCloudInfo((v) => !v)}
             />
             {cloudInfo ? (
@@ -630,7 +630,7 @@ export default function AccountSettings({
               <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label="Team" sub="Roles, channels & invites" href="/team" />
             ) : null}
             <Row icon={<Star className="h-5 w-5" aria-hidden="true" />} label="Rate Sosial" sub="Tell us how we are doing" onClick={() => setView('report')} />
-            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label="Support" sub={openTicket ? 'Open ticket — we are on it' : 'Bugs, questions, billing help'} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
+            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label="Support" sub={openTicket ? 'Open ticket, we are on it' : 'Bugs, questions, billing help'} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
             <Row icon={<Sparkles className="h-5 w-5" aria-hidden="true" />} label="What's new" sub="Changelog" onClick={() => setView('changelog')} />
           </Card>
 
@@ -680,7 +680,7 @@ export default function AccountSettings({
             </div>
           ))}
           <p className="px-5 py-3 text-xs leading-relaxed text-muted">
-            Saved to your profile{notifSaved ? ' ✓' : ''} — the phone picks these up on next sync. Reminder
+            Saved to your profile{notifSaved ? ' ✓' : ''}, the phone picks these up on next sync. Reminder
             alerts need the installed app with notifications allowed.
           </p>
         </Card>
@@ -691,7 +691,7 @@ export default function AccountSettings({
           <div>
             <p className="text-xs font-bold text-muted">Email</p>
             <p className="mt-1 text-sm font-bold">{email || 'No email set'}</p>
-            <p className="mt-0.5 text-[11px] text-faint">Managed by sign-in — contact support to change it.</p>
+            <p className="mt-0.5 text-[11px] text-faint">Managed by sign-in, contact support to change it.</p>
           </div>
           <div>
             <p className="text-xs font-bold text-muted">Team / organization</p>
@@ -752,7 +752,7 @@ export default function AccountSettings({
 
       {view === 'plan' ? (
         <div className="mt-4 space-y-3">
-          {/* Plan cards derive from the canonical price book — never hardcoded. */}
+          {/* Plan cards derive from the canonical price book, never hardcoded. */}
           {PLAN_ORDER.map((key, i) => {
             const def = PLANS[key];
             const p = {
@@ -761,7 +761,7 @@ export default function AccountSettings({
               sub:
                 key === 'free'
                   ? undefined
-                  : `${priceLabel(key, 'annual')} annual — ≈ $${monthlyEquivalent(key)}/month, billed yearly`,
+                  : `${priceLabel(key, 'annual')} annual, ≈ $${monthlyEquivalent(key)}/month, billed yearly`,
               also: i === 0 ? undefined : `Everything in ${PLANS[PLAN_ORDER[i - 1]].label}, plus:`,
               features: def.points,
             };
@@ -825,19 +825,19 @@ export default function AccountSettings({
                   <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-soft">{openTicket.admin_note}</p>
                 </div>
               ) : (
-                <p className="mt-4 text-xs text-muted">We reply by email and update this ticket — you will hear from us shortly.</p>
+                <p className="mt-4 text-xs text-muted">We reply by email and update this ticket, you will hear from us shortly.</p>
               )}
             </Card>
             <Card className="p-5">
               <p className="text-xs leading-relaxed text-muted">
-                Need to add something? Reply by email — one ticket at a time keeps the conversation in one place. The ticket closes automatically once it is resolved, and is erased with its attachments 30 days later.
+                Need to add something? Reply by email, one ticket at a time keeps the conversation in one place. The ticket closes automatically once it is resolved, and is erased with its attachments 30 days later.
               </p>
             </Card>
           </div>
         ) : (
           <Card className="mt-4 space-y-3 p-5">
             <p className="text-xs leading-relaxed text-muted">
-              Describe what happened — screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are kept for 30 days, then erased with their attachments.
+              Describe what happened, screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are kept for 30 days, then erased with their attachments.
             </p>
             <div className="flex gap-1.5" role="group" aria-label="Report kind">
               {(['bug', 'idea', 'billing', 'other'] as const).map((k) => (
@@ -930,7 +930,7 @@ export default function AccountSettings({
             This permanently erases your account.
           </p>
           <ul className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
-            <li>• Workspaces you own are deleted whole — posts, drafts, media, channels and tokens.</li>
+            <li>• Workspaces you own are deleted whole, posts, drafts, media, channels and tokens.</li>
             <li>• Teammates in those workspaces lose access to them too.</li>
             <li>• Your memberships in other people's workspaces are removed.</li>
             <li>• Media-source tokens (Drive, Photos, Dropbox, Canva) are revoked.</li>
@@ -942,7 +942,7 @@ export default function AccountSettings({
               className="mt-4 w-full border-red-500/50 text-red-500 hover:bg-red-500/10"
               onClick={() => { setDelArmed(true); setErr(null); }}
             >
-              I understand — continue
+              I understand, continue
             </Button>
           ) : (
             <>

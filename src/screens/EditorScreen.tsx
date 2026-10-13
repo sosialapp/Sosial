@@ -75,11 +75,11 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
     if (id && finalOrder.length) orderCommitR.current(finalOrder);
   };
 
-  // PanResponder in a ref — reads from refs, never recreated
+  // PanResponder in a ref, reads from refs, never recreated
   const panRef = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      // Android: let the native touchable receive taps — only steal real drags
+      // Android: let the native touchable receive taps, only steal real drags
       onShouldBlockNativeResponder: () => false,
       // Capture phase: once a page is lifted, claim the pan BEFORE the
       // horizontal pager ScrollView so reordering isn't swallowed by a swipe.
@@ -149,7 +149,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
   const saveWholePreset = async () => {
     if (!post) return;
     await saveProjectPreset(post);
-    Alert.alert('Saved as preset', 'The entire post — size, pages, backdrop, title, photo, socials and content — is now a reusable preset on Home.');
+    Alert.alert('Saved as preset', 'The entire post, size, pages, backdrop, title, photo, socials and content, is now a reusable preset on Home.');
   };
 
   const sendToPosts = async () => {
@@ -189,7 +189,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
         </TouchableOpacity>
       </View>
 
-      {/* preview stage — swipeable pager */}
+      {/* preview stage, swipeable pager */}
       <View style={[s.stage, expanded && { flex: 1 }]}>
         {multi ? (
           <ScrollView
@@ -267,7 +267,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
         </View>
       </View>
 
-      {/* sheet — the aware scrollview below owns keyboard insets, so this
+      {/* sheet, the aware scrollview below owns keyboard insets, so this
           wrapper stays a plain layout box (an iOS padding behavior here
           double-handles the keyboard and hides the focused input). */}
       <KeyboardAvoidingView style={expanded ? { height: 50 } : { flex: 1 }}>

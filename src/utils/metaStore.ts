@@ -21,26 +21,26 @@ export interface MetaState {
   threadsToken?: string;
   threadsId?: string;
   threadsName?: string;
-  // TikTok — access token dies in 24h, so we keep the expiry + refresh token
+  // TikTok, access token dies in 24h, so we keep the expiry + refresh token
   // and mint silently via getValidToken() in tiktokAuth.ts
   ttAccessToken?: string;
   ttRefreshToken?: string;
   ttExpiresAt?: number;
   ttOpenId?: string;
   ttName?: string;
-  /** last audience that actually published — preferred over the Public default */
+  /** last audience that actually published, preferred over the Public default */
   ttLastPrivacy?: string;
   // Verified-domain upload endpoint for TikTok photo posts (TikTok rejects
   // anonymous hosts for photos via url_ownership_unverified).
   ttPhotoHost?: string;
-  // X (OAuth 2.0 PKCE) — access token dies in 2h, so we keep the expiry +
+  // X (OAuth 2.0 PKCE), access token dies in 2h, so we keep the expiry +
   // rotating refresh token and mint silently via getValidXToken() in xAuth.ts
   xAccessToken?: string;
   xRefreshToken?: string;
   xExpiresAt?: number;
   xUserId?: string;
   xName?: string;
-  // Bluesky (AT Protocol) — handle + app password, no OAuth. accessJwt lives
+  // Bluesky (AT Protocol), handle + app password, no OAuth. accessJwt lives
   // ~2h; the PDS host is per-account (resolved at login) and every call goes
   // there. Silent refresh via getValidBsky() in bskyAuth.ts.
   bskyAccessJwt?: string;
@@ -50,10 +50,10 @@ export interface MetaState {
   bskyHandle?: string;
   bskyName?: string;
   bskyPdsHost?: string;
-  // LinkedIn (OAuth 2.0 code flow) — ~60-day access token + rotating refresh.
+  // LinkedIn (OAuth 2.0 code flow), ~60-day access token + rotating refresh.
   // Silent refresh via getValidLi() in liAuth.ts. Posts as the member by
   // default; liOrgId/liOrgName pick a Company Page you admin (org picker in
-  // ConnectScreen) — publish + analytics then target the org instead.
+  // ConnectScreen), publish + analytics then target the org instead.
   liAccessToken?: string;
   liRefreshToken?: string;
   liExpiresAt?: number;
@@ -61,13 +61,13 @@ export interface MetaState {
   liName?: string;
   liOrgId?: string;
   liOrgName?: string;
-  // Mastodon (per-instance OAuth) — access token is long-lived and doesn't
+  // Mastodon (per-instance OAuth), access token is long-lived and doesn't
   // expire, so there's no refresh dance; the instance is the account's server.
   mastodonAccessToken?: string;
   mastodonInstance?: string;
   mastodonAccountId?: string;
   mastodonName?: string;
-  // Pinterest (OAuth 2.0 code flow, Basic-auth exchange) — ~30-day access
+  // Pinterest (OAuth 2.0 code flow, Basic-auth exchange), ~30-day access
   // token + non-expiring refresh; silent refresh via getValidPin() in
   // pinAuth.ts. Pins must land on a board (pinBoardId, picked after connect).
   pinAccessToken?: string;
@@ -76,47 +76,47 @@ export interface MetaState {
   pinUsername?: string;
   pinBoardId?: string;
   pinBoardName?: string;
-  // YouTube (Google OAuth code flow) — 1-hour access token + refresh token.
+  // YouTube (Google OAuth code flow), 1-hour access token + refresh token.
   // Silent refresh via getValidYt() in ytAuth.ts. Video-only uploads.
   ytAccessToken?: string;
   ytRefreshToken?: string;
   ytExpiresAt?: number;
   ytChannelName?: string;
-  // Telegram (bot token, no OAuth) — long-lived, no refresh. Destination chat
+  // Telegram (bot token, no OAuth), long-lived, no refresh. Destination chat
   // id + title ride alongside; publishing goes straight at the Bot API.
   tgBotToken?: string;
   tgChatId?: string;
   tgChatTitle?: string;
-  // Discord (bot token, no OAuth) — long-lived, no refresh. Server + channel
+  // Discord (bot token, no OAuth), long-lived, no refresh. Server + channel
   // picked at connect time; publishing posts to the channel id.
   dcBotToken?: string;
   dcGuildId?: string;
   dcGuildName?: string;
   dcChannelId?: string;
   dcChannelName?: string;
-  // WordPress (per-site Application Password, no OAuth) — long-lived, no
+  // WordPress (per-site Application Password, no OAuth), long-lived, no
   // refresh. Each site is its own channel: URL + username + app password.
   wpSiteUrl?: string;
   wpUsername?: string;
   wpAppPassword?: string;
   wpSiteName?: string;
-  // Dev.to (API key, no OAuth) — long-lived, no refresh. Numeric user id is
+  // Dev.to (API key, no OAuth), long-lived, no refresh. Numeric user id is
   // the stable cloud identity (web stores it as external_id).
   devApiKey?: string;
   devUsername?: string;
   devName?: string;
   devUserId?: string;
-  // Hashnode (PAT, no OAuth) — long-lived, no refresh. Publication picked at
+  // Hashnode (PAT, no OAuth), long-lived, no refresh. Publication picked at
   // connect time; publishing posts markdown to it.
   hnToken?: string;
   hnPublicationId?: string;
   hnPublicationTitle?: string;
-  // Ghost (per-site Admin API key, no OAuth) — long-lived, no refresh. Each
+  // Ghost (per-site Admin API key, no OAuth), long-lived, no refresh. Each
   // site is its own channel: URL + key (JWT signed per request, 5-min expiry).
   ghSiteUrl?: string;
   ghAdminKey?: string;
   ghSiteName?: string;
-  // VK (community access key, no OAuth) — unlimited, no refresh. Each
+  // VK (community access key, no OAuth), unlimited, no refresh. Each
   // community is its own channel: numeric group id + key (wall + photos).
   vkToken?: string;
   vkGroupId?: string;
@@ -263,7 +263,7 @@ export async function saveProviderFields(
 
 /**
  * Read one account's provider fields (multi-account) or, when no accountId is
- * given, the provider's single default account (id `acct_${provider}`) —
+ * given, the provider's single default account (id `acct_${provider}`) -
  * matching the old flat loadMetaState view. Returns an empty object when the
  * account isn't present.
  */
@@ -305,7 +305,7 @@ export function connectedChannelIds(m: MetaState): string[] {
  * Channels the device knows by identity but cannot publish to right now:
  * expired/cleared tokens, or cloud-only placeholders adopted from the web
  * (identity rides along, credentials never leave Vault). These are the
- * rows the Connect pill must NOT show as live — and the composer names
+ * rows the Connect pill must NOT show as live, and the composer names
  * them in a reconnect hint instead of silently hiding them.
  */
 export function staleChannelKeys(m: MetaState): string[] {

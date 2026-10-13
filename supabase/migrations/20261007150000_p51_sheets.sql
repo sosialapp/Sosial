@@ -2,12 +2,12 @@
 --
 -- sheets_connections: one Google account per workspace for Sheets imports
 --   (reconnect swaps it). Tokens in Vault; only secret ids here. RLS on,
---   no policies — service-role routes only (channel_tokens pattern).
+--   no policies, service-role routes only (channel_tokens pattern).
 -- sheets_imports: chunked/resumable import jobs with the column mapping,
 --   date options and progress; the UI polls the row.
 -- post_sources (p50) is reused with source_type='sheets'; the unique
 --   (workspace, source, source_id, external_row_id) constraint is the
---   idempotency key. Rows are keyed r<rowNumber> + content hash — sheet
+--   idempotency key. Rows are keyed r<rowNumber> + content hash, sheet
 --   shifts surface as "changed", never silent duplicates.
 
 create table if not exists public.sheets_connections (

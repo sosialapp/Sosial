@@ -2,7 +2,7 @@
 -- and 30-day cleanup of solved tickets.
 --
 -- Model: a report IS a ticket. Users keep exactly one open (or triaged)
--- ticket at a time — the trigger refuses a second until support resolves or
+-- ticket at a time, the trigger refuses a second until support resolves or
 -- closes the first. Users can read their own tickets (status view); admins
 -- keep triage control. Solved tickets (resolved/closed) and their uploaded
 -- media are purged 30 days after the last update by the report-cleanup

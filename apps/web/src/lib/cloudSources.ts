@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 
 /**
  * Cloud media sources for the web composer (Drive / Photos / Dropbox).
- * Tokens live in localStorage (this browser only — the DB never sees them);
+ * Tokens live in localStorage (this browser only, the DB never sees them);
  * code↔token swaps run through the cloud-exchange edge fn, which persists
  * nothing. Google Photos originals stream through cloud-fetch (its CDN host
  * sends no CORS headers); Drive + Dropbox download directly.
@@ -121,7 +121,7 @@ async function authedInvoke(fn: string, body: Record<string, unknown>) {
 
 /**
  * Stock-function invoke that throws the server's own error text instead of
- * supabase-js's generic "non-2xx" wrapper — otherwise every stock failure
+ * supabase-js's generic "non-2xx" wrapper, otherwise every stock failure
  * looks identical and nobody can tell rate-limit from misconfiguration.
  */
 export async function invokeStock(fn: string, body: Record<string, unknown>): Promise<any> {
@@ -158,7 +158,7 @@ async function pkcePair(): Promise<{ verifier: string; challenge: string }> {
 /** Popup consent via the shared bridge; resolves with fresh tokens. */
 export async function loginCloud(provider: CloudProvider): Promise<boolean> {
   if (GOOGLE_MEDIA_DISABLED && provider === 'google') {
-    throw new Error('Google Drive and Photos are coming soon — pending Google verification.');
+    throw new Error('Google Drive and Photos are coming soon, pending Google verification.');
   }
   const sb = await createClient();
   const { data: config } = await sb.functions.invoke('oauth-config', { method: 'GET' });
@@ -227,7 +227,7 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
       } catch {}
       if (!d?.ok) {
         // Provider refusals (bad redirect URI, scope, etc.) carry the real
-        // reason — stash it so the caller throws it instead of "cancelled".
+        // reason, stash it so the caller throws it instead of "cancelled".
         providerError = typeof d?.error === 'string' && d.error ? d.error : null;
         resolve(null);
         return;
@@ -248,21 +248,21 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
             redirect_uri: redirectUri,
             code_verifier: pkce.verifier,
           });
-          if (!j.access_token) throw new Error('Canva hid the login — try again.');
+          if (!j.access_token) throw new Error('Canva hid the login, try again.');
           resolve({
             access: String(j.access_token),
             refresh: typeof j.refresh_token === 'string' ? j.refresh_token : '',
             expiresAt: Date.now() + Number(j.expires_in ?? 14400) * 1000,
           });
         } else if (d.code && provider === 'onedrive') {
-          // Microsoft: same shape as Canva — the client secret stays in the
+          // Microsoft: same shape as Canva, the client secret stays in the
           // edge fn; this tab only relays the code.
           const j = await authedInvoke('cloud-exchange', {
             provider: 'onedrive',
             code: String(d.code),
             redirect_uri: redirectUri,
           });
-          if (!j.access_token) throw new Error('Microsoft hid the login — try again.');
+          if (!j.access_token) throw new Error('Microsoft hid the login, try again.');
           resolve({
             access: String(j.access_token),
             refresh: typeof j.refresh_token === 'string' ? j.refresh_token : '',
@@ -274,7 +274,7 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
       } catch (e) {
         // Surface the real reason (bad client secret, redirect URI, scope…)
         // instead of letting the caller report a generic "cancelled".
-        providerError = e instanceof Error && e.message ? e.message : 'Could not finish sign-in — try again.';
+        providerError = e instanceof Error && e.message ? e.message : 'Could not finish sign-in, try again.';
         resolve(null);
       }
     };
@@ -285,7 +285,7 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
       void finish(d);
     };
     window.addEventListener('message', onMsg);
-    // Same-origin broadcast fallback — works even when the provider severs
+    // Same-origin broadcast fallback, works even when the provider severs
     // window.opener on the way back (Canva's COOP headers do exactly that).
     let bc: BroadcastChannel | null = null;
     try {
@@ -310,7 +310,7 @@ export async function loginCloud(provider: CloudProvider): Promise<boolean> {
     const timer = window.setInterval(() => {
       try {
         // Cross-origin popups (Google/Dropbox/Canva) make Chrome log a COOP
-        // warning on .closed access — harmless; the postMessage handshake
+        // warning on .closed access, harmless; the postMessage handshake
         // below is what actually settles the flow.
         if (pop.closed) {
           window.clearInterval(timer);
@@ -369,7 +369,7 @@ export async function ensureCloudSynced(provider: CloudProvider): Promise<boolea
   writeTokens(provider, {
     access: String(j.access_token),
     refresh: String(j.refresh_token),
-    expiresAt: Date.now() + 60_000, // unknown server expiry — refresh-first
+    expiresAt: Date.now() + 60_000, // unknown server expiry, refresh-first
   });
   return true;
 }
@@ -469,7 +469,7 @@ export async function downloadDriveFile(f: CloudDriveFile, onProgress?: (pct: nu
     { headers: { Authorization: `Bearer ${token}` } },
     onProgress,
   ).catch(() => null);
-  if (!blob) throw new Error('Drive download failed — try another file.');
+  if (!blob) throw new Error('Drive download failed, try another file.');
   return new File([blob], f.name || `drive-${f.id}.${f.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: f.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
@@ -477,7 +477,7 @@ export async function downloadDriveFile(f: CloudDriveFile, onProgress?: (pct: nu
 
 /* --------------------------- Photos (Picker API) --------------------------- */
 // The Library API no longer lists a user's library (Google removed those
-// scopes April 2025) — selection goes through the Picker API instead: create
+// scopes April 2025), selection goes through the Picker API instead: create
 // a session, the user picks in Google's UI, then we read back only what was
 // picked. Scope: photospicker.mediaitems.readonly (non-sensitive by design).
 
@@ -512,7 +512,7 @@ export async function createPhotosSession(): Promise<PhotosPickerSession> {
   const j = await pickerAuthed('/sessions', { method: 'POST', body: '{}' });
   const id = String(j?.id ?? '');
   const pickerUri = String(j?.pickerUri ?? '');
-  if (!id || !pickerUri) throw new Error('Photos picker did not start — try again.');
+  if (!id || !pickerUri) throw new Error('Photos picker did not start, try again.');
   return { id, pickerUri };
 }
 
@@ -575,7 +575,7 @@ export async function downloadPickedPhoto(p: CloudPhoto): Promise<File> {
   }
   if (!r.ok) {
     const j: any = await r.json().catch(() => ({}));
-    throw new Error(String(j?.error ?? 'Photos download failed — try again.'));
+    throw new Error(String(j?.error ?? 'Photos download failed, try again.'));
   }
   const blob = await r.blob();
   return new File([blob], p.name.includes('.') ? p.name : `photos-${p.id}.${p.kind === 'video' ? 'mp4' : 'jpg'}`, {
@@ -584,7 +584,7 @@ export async function downloadPickedPhoto(p: CloudPhoto): Promise<File> {
 }
 
 /** Fetch once through cloud-fetch and hand back a local object URL for
- *  previews — Picker thumbnails 403 when the browser loads them directly. */
+ *  previews, Picker thumbnails 403 when the browser loads them directly. */
 export async function pickerThumbUrl(p: CloudPhoto): Promise<string> {
   const file = await downloadPickedPhoto(p);
   return URL.createObjectURL(file);
@@ -611,7 +611,7 @@ async function canvaGet(path: string): Promise<any> {
 }
 
 /** Designs (newest first), optionally matching a query. Note: Canva has no
- *  list-folders endpoint, so there is no folder navigation — designs only. */
+ *  list-folders endpoint, so there is no folder navigation, designs only. */
 export async function listCanvaDesigns(query?: string): Promise<{ designs: CloudCanvaDesign[]; folders: { id: string; name: string }[] }> {
   const params = new URLSearchParams({ limit: '50' });
   if (query?.trim()) params.set('query', query.trim());
@@ -650,13 +650,13 @@ export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | '
       const url = String(pj?.job?.urls?.[0] ?? '');
       if (!url) throw new Error('Canva finished with no file.');
       const blob = await fetchProgressBlob(url, {}, onProgress).catch(() => null);
-      if (!blob) throw new Error('Download failed — try another design.');
+      if (!blob) throw new Error('Download failed, try another design.');
       return new File([blob], `canva-${d.id}.${kind === 'video' ? 'mp4' : 'jpg'}`, {
         type: kind === 'video' ? 'video/mp4' : 'image/jpeg',
       });
     }
     if (status === 'failed') throw new Error(`Canva could not export that design (${String(pj?.job?.error?.message ?? 'unknown error').slice(0, 100)}).`);
-    if (Date.now() > deadline) throw new Error('Canva is taking too long — try again.');
+    if (Date.now() > deadline) throw new Error('Canva is taking too long, try again.');
   }
 }
 
@@ -708,7 +708,7 @@ export async function listDropboxFolder(path?: string): Promise<{ folders: Cloud
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         // Struct params take no entry-level '.tag' (Dropbox 400s on unknown
         // fields); format/size are unions so tagged objects or shorthand
-        // both work. No `mode` — server default converts HEIC etc. Videos
+        // both work. No `mode`, server default converts HEIC etc. Videos
         // always fail thumbnails, so only images go in.
         body: JSON.stringify({
           entries: images.slice(0, 100).map((f) => ({
@@ -767,7 +767,7 @@ export async function downloadDropboxFile(e: CloudDropboxEntry, onProgress?: (pc
     },
     onProgress,
   ).catch(() => null);
-  if (!blob) throw new Error('Dropbox download failed — try another file.');
+  if (!blob) throw new Error('Dropbox download failed, try another file.');
   return new File([blob], e.name || `dropbox.${e.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: e.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
@@ -848,8 +848,8 @@ export async function listOneDriveFiles(
     // Graph search across the drive; media types only.
     const q = encodeURIComponent(`${query.trim().replace(/"/g, '')}`);
     const res = await odList(`/me/drive/root/search(q='${q}')?$top=50`, auth);
-    if (res.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
-    if (!res.ok) throw new Error(`OneDrive search failed (${res.status}) — try again.`);
+    if (res.status === 401) throw new Error('OneDrive session expired, reconnect the source.');
+    if (!res.ok) throw new Error(`OneDrive search failed (${res.status}), try again.`);
     const j: any = await res.json().catch(() => ({}));
     const items: CloudOneDriveItem[] = [];
     const folders: { id: string; name: string }[] = [];
@@ -866,8 +866,8 @@ export async function listOneDriveFiles(
 
   const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
   const res = await fetch(`${GRAPH_API}${path}?$top=100`, { headers: auth, signal: AbortSignal.timeout(20000) });
-  if (res.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
-  if (!res.ok) throw new Error(`OneDrive browse failed (${res.status}) — try again.`);
+  if (res.status === 401) throw new Error('OneDrive session expired, reconnect the source.');
+  if (!res.ok) throw new Error(`OneDrive browse failed (${res.status}), try again.`);
   const j: any = await res.json().catch(() => ({}));
   const items: CloudOneDriveItem[] = [];
   const folders: { id: string; name: string }[] = [];
@@ -895,13 +895,13 @@ export async function downloadOneDriveFile(
       type: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
     });
   // @microsoft.graph.downloadUrl (pre-authed) when we can get it. It carries
-  // its own signature, so it must be fetched WITHOUT our bearer — sending
+  // its own signature, so it must be fetched WITHOUT our bearer, sending
   // both makes the file host reject the request.
   const metaRes = await fetch(
     `${GRAPH_API}/me/drive/items/${item.id}?$select=id,name,@microsoft.graph.downloadUrl`,
     { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) },
   );
-  if (metaRes.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
+  if (metaRes.status === 401) throw new Error('OneDrive session expired, reconnect the source.');
   if (metaRes.ok) {
     const j: any = await metaRes.json().catch(() => null);
     const dl = j?.['@microsoft.graph.downloadUrl'];
@@ -914,6 +914,6 @@ export async function downloadOneDriveFile(
   const blob = await fetchProgressBlob(`${GRAPH_API}/me/drive/items/${item.id}/content`, {
     headers: { Authorization: `Bearer ${token}` },
   }, onProgress).catch(() => null);
-  if (!blob) throw new Error('OneDrive download failed — try another file.');
+  if (!blob) throw new Error('OneDrive download failed, try another file.');
   return toFile(blob);
 }

@@ -21,7 +21,7 @@ type DockItem = {
   label: string;
   match: (pathname: string) => boolean;
   icon: React.ReactNode;
-  /** Pastel icon colour — icons only; selection stays yellowish. */
+  /** Pastel icon colour, icons only; selection stays yellowish. */
   tint?: string;
   hero?: boolean;
   popup?: boolean;
@@ -257,7 +257,7 @@ export default function Dock() {
   );
 }
 
-/** Sign-out tile pinned under Profile — asks first, then POSTs to /auth/signout. */
+/** Sign-out tile pinned under Profile, asks first, then POSTs to /auth/signout. */
 function SignOutItem({ onOpen }: { onOpen: () => void }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);

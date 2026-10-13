@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 export const metadata = { title: 'Calendar' };
 
 
-/** Old agenda URL — the schedule now lives in the Day view. */
+/** Old agenda URL, the schedule now lives in the Day view. */
 export default async function CalendarLinePage({
   searchParams,
 }: {

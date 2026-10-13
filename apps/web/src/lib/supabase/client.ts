@@ -6,7 +6,7 @@ export function hasSupabaseEnv(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
-/** Browser Supabase client — shares the session cookie with the server client. */
+/** Browser Supabase client, shares the session cookie with the server client. */
 export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

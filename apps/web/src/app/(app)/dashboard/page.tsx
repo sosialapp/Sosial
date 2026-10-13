@@ -133,7 +133,7 @@ export default async function DashboardPage() {
     .sort((a, b) => b.t.localeCompare(a.t))
     .slice(0, 5);
 
-  // Carousel slides: social-style author (real handles only — never numeric
+  // Carousel slides: social-style author (real handles only, never numeric
   // ids or site URLs) + signed media for just these posts.
   const channelById = new Map(channels.map((c) => [c.id, c]));
   const cleanHandle = (raw: string | null | undefined): string | null => {
@@ -268,7 +268,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Content calendar — full width, Schedule-X week in the same skin as /calendar */}
+      {/* Content calendar, full width, Schedule-X week in the same skin as /calendar */}
       <Card className="mt-4 overflow-hidden" aria-label="Content calendar">
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-4">
           <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>

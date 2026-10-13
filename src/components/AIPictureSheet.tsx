@@ -10,7 +10,7 @@ import { Txt, PrimaryBtn, GhostBtn, Field } from './ui';
 import { findImages, type FoundImage } from '../utils/supabase';
 
 /**
- * Picture picker — real topical photos from the web for the post's topic.
+ * Picture picker, real topical photos from the web for the post's topic.
  * onPick hands the remote URL back; the caller downloads it on Apply.
  */
 export default function AIPictureSheet({ visible, initialTopic = '', onPick, onClose }: {
@@ -39,7 +39,7 @@ export default function AIPictureSheet({ visible, initialTopic = '', onPick, onC
 
   const searchPictures = async () => {
     if (!topic.trim()) {
-      setErr('Write the topic first — the search finds photos for it.');
+      setErr('Write the topic first, the search finds photos for it.');
       return;
     }
     setErr('');
@@ -66,7 +66,7 @@ export default function AIPictureSheet({ visible, initialTopic = '', onPick, onC
           <View style={{ width: 22 }} />
         </View>
         <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <Text style={s.hint}>Real photos matched to the topic — maps, people, places.</Text>
+          <Text style={s.hint}>Real photos matched to the topic, maps, people, places.</Text>
 
           <Field label="Topic">
             <Txt value={topic} onChangeText={setTopic} placeholder="What should the photo show?" multiline />

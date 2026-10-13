@@ -26,7 +26,7 @@ async function syncMarketingOptIn(email: string | undefined): Promise<void> {
   }
 }
 
-/** OAuth/PKCE + email-confirm landing — exchanges the ?code for a session cookie. */
+/** OAuth/PKCE + email-confirm landing, exchanges the ?code for a session cookie. */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     const { data, error } = await sb.auth.exchangeCodeForSession(code);
     if (!error) {
       // Signup consent: both platforms' confirmation links land here, so this
-      // single hook covers web and mobile signups (and Google sign-ins —
+      // single hook covers web and mobile signups (and Google sign-ins -
       // their users simply never set the flag, so nothing fires).
       const optedIn = (data?.user?.user_metadata as Record<string, unknown> | undefined)?.[
         'marketing_opt_in'

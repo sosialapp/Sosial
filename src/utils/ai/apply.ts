@@ -31,7 +31,7 @@ export interface ApplyOptions {
 
 /**
  * Build the replacement page list: one page per generated page, each cloned from
- * the template so the *design* is untouched. Card height is auto — the card hugs
+ * the template so the *design* is untouched. Card height is auto, the card hugs
  * its generated content instead of a guessed fixed height. Page ids are fresh;
  * the caller swaps the whole list in atomically.
  */
@@ -46,7 +46,7 @@ export function applyGenResult(gen: GenResult, opts: ApplyOptions): PostPage[] {
     page.cardAuto = true;
     page.cardY = page.cardY ?? 'bottom';
     // Carousel anatomy (web parity): card 1 keeps full chrome; middle cards
-    // go full-bleed content — no title, no socials; last card keeps the
+    // go full-bleed content, no title, no socials; last card keeps the
     // photo + socials footer, title off so content fills the card.
     if (total > 2 && i > 0 && i < total - 1) {
       page.fullCard = true;

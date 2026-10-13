@@ -1,12 +1,12 @@
 // _shared/usage.ts · AI credit gate for the AI edge functions.
 //
 // USAGE PERIOD ≠ BILLING PERIOD: credits reset every calendar month
-// ('YYYY-MM', UTC) even for annual subscribers — the billing interval only
+// ('YYYY-MM', UTC) even for annual subscribers, the billing interval only
 // changes price and renewal. The allowance and the atomic, idempotent charge
 // both live in the database (plan_limits + ai_consume_credits), so the edge
 // function never has to trust the client or race another invocation.
 //
-// Uses only fetch/PostgREST — no supabase-js dependency in the bundle.
+// Uses only fetch/PostgREST, no supabase-js dependency in the bundle.
 
 import { type AiAction, AI_MODEL_ID, costOf } from "./aiCredits.ts";
 
@@ -106,7 +106,7 @@ export async function gateAiCredits(
     });
     payload = (await json(res)) as typeof payload;
   } catch {
-    // A gate failure must not silently give away paid AI — fail closed.
+    // A gate failure must not silently give away paid AI, fail closed.
     return { ok: false, message: "Could not check your AI credits. Try again.", status: 503 };
   }
 

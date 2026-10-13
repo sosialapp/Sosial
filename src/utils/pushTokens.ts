@@ -8,7 +8,7 @@ import { supabase, currentSession } from './supabase';
  * expo-notifications is NEVER statically imported: since SDK 53 the module
  * throws at load time inside Android Expo Go (remote push removed there),
  * which redboxes the whole bundle before first paint. Same lazy pattern as
- * reminders.ts — Expo Go callers get a clean "use a dev build" answer while
+ * reminders.ts, Expo Go callers get a clean "use a dev build" answer while
  * the standalone APK works fully. Banner presentation is set once the
  * module loads (tap behavior unchanged).
  */
@@ -19,7 +19,7 @@ async function N(): Promise<any | null> {
   if (_mod) return _mod;
   if (_tried) return null;
   _tried = true;
-  // Android Expo Go removed the module (SDK 53+) — don't even attempt the
+  // Android Expo Go removed the module (SDK 53+), don't even attempt the
   // import: even a caught attempt surfaces a LogBox. Everything else loads it.
   if (Constants.appOwnership === 'expo' && Platform.OS === 'android') return null;
   try {
@@ -59,7 +59,7 @@ async function ensureAndroidChannel(NN: any): Promise<void> {
 export interface PushDiag {
   /** OS permission state: granted | denied | undetermined | unavailable */
   permission: string;
-  /** token minted on-device (unsaved counts too — proves FCM works) */
+  /** token minted on-device (unsaved counts too, proves FCM works) */
   token: string | null;
   /** whether the build carries the EAS project id */
   projectId: boolean;
@@ -106,7 +106,7 @@ export async function registerPushTokenFull(): Promise<PushRegResult> {
         token: null,
         stage: 'no-token',
         detail: isExpoGo()
-          ? 'Expo Go has no remote push — use a development build.'
+          ? 'Expo Go has no remote push, use a development build.'
           : 'Notifications module unavailable on this device.',
       };
     }

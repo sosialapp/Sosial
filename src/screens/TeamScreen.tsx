@@ -14,7 +14,7 @@ import {
 } from '../utils/teamCloud';
 
 /**
- * Workspace roster — real cloud membership (same source as the web Team page).
+ * Workspace roster, real cloud membership (same source as the web Team page).
  * Owners appoint which connected accounts each teammate may post to; only the
  * owner can disconnect a connected account (that lives on the Channels screen).
  *
@@ -57,7 +57,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
         setWorkspaces(await listMyWorkspaces(sess.session.user.id));
       }
     } catch {
-      /* workspace list is a nicety — team still loads */
+      /* workspace list is a nicety, team still loads */
     }
     return t;
   };
@@ -93,7 +93,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   useEffect(() => { void reload(); }, []);
 
   /** Create a team, land in it, pull its channels. Teams are a paid-plan
-   *  feature (Team, Business, Ultimate) — the plan gate below hides the
+   *  feature (Team, Business, Ultimate), the plan gate below hides the
    *  button for free/solo, and the DB trigger stays the backstop. */
   const canCreateTeam = plan === 'team';
   const createTeam = async () => {
@@ -166,10 +166,10 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
       setMProviders([]);
       await reload();
       if (res.alreadyRegistered && res.inviteUrl) {
-        // On Sosial already — no email can reach them, hand over the link.
+        // On Sosial already, no email can reach them, hand over the link.
         Alert.alert(
           "They're already on Sosial",
-          `No email needed — send them this invite link:\n${res.inviteUrl}`,
+          `No email needed, send them this invite link:\n${res.inviteUrl}`,
           [
             { text: 'Done', style: 'cancel' },
             { text: 'Copy link', onPress: () => { void Clipboard.setStringAsync(res.inviteUrl!); } },
@@ -282,7 +282,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   };
 
   const initial = (email || teamName || 'Z')[0].toUpperCase();
-  // The header above already shows the current user — the roster lists teammates only.
+  // The header above already shows the current user, the roster lists teammates only.
   const others = (team?.members ?? []).filter((m) => !(m.user_id && team?.myUserId && m.user_id === team.myUserId));
 
   return (
@@ -321,7 +321,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
         <View style={[s.member, { marginTop: 12 }]}>
           <View style={{ flex: 1, gap: 8 }}>
             <Text style={s.rowT}>Your workspaces</Text>
-            <Text style={s.rowS}>Same login can hold several — pick the one with your channels.</Text>
+            <Text style={s.rowS}>Same login can hold several, pick the one with your channels.</Text>
             {workspaces.map((w) => {
               const current = team ? w.id === team.workspaceId : false;
               return (
@@ -395,7 +395,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
           <View style={{ marginTop: 16, gap: 12 }}>
             <Text style={s.note}>
               Owners appoint which accounts each teammate can post to. Only the owner can disconnect a connected
-              account — do that on the Channels screen.
+              account, do that on the Channels screen.
             </Text>
 
             <View style={s.head}>
@@ -465,7 +465,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                           })}
                         </View>
                         {team.channels.length === 0 ? (
-                          <Text style={s.hint}>Connect an account first — there are no channels to appoint yet.</Text>
+                          <Text style={s.hint}>Connect an account first, there are no channels to appoint yet.</Text>
                         ) : null}
                         <TouchableOpacity onPress={() => saveGrants(m)} disabled={busy} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
                           <Text style={s.saveT}>{busy ? 'Saving…' : 'Save channels'}</Text>
@@ -510,7 +510,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                           ) : null}
                         </View>
                         <Text style={[s.rowS, { color: inv.emailed_at ? C.faint : C.accentInk }]}>
-                          {inv.emailed_at ? 'Invite sent' : 'Email pending — tap for the link'}
+                          {inv.emailed_at ? 'Invite sent' : 'Email pending, tap for the link'}
                         </Text>
                       </View>
                     </View>
@@ -585,7 +585,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   );
 }
 
-/** Compact pill action — one quiet row per member instead of stacked full-width buttons. */
+/** Compact pill action, one quiet row per member instead of stacked full-width buttons. */
 function MiniBtn({ label, onPress, danger, disabled }: { label: string; onPress: () => void; danger?: boolean; disabled?: boolean }) {
   const { C } = useTheme();
   return (

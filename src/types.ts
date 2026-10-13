@@ -80,9 +80,9 @@ export interface SocialLink {
 
 export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar' | 'free' | 'image';
 
-/** Per-block presentation overrides. Every field is optional — absent means
+/** Per-block presentation overrides. Every field is optional, absent means
  *  "use the block type's default", so old designs keep rendering as-is.
- *  Mirrored from apps/web/src/lib/studio/model.ts — keep in sync. */
+ *  Mirrored from apps/web/src/lib/studio/model.ts, keep in sync. */
 export interface BlockStyle {
   width?: number; // fraction of the content width the block occupies (0.3-1)
   align?: 'left' | 'center' | 'right';
@@ -135,22 +135,22 @@ export interface PostPage {
   cardStyle: CardStyle; // content card template
   /** full card: the content card IS the whole canvas (no backdrop/title/pfp rows) */
   fullCard?: boolean;
-  /** Full-card extras — when on, the card itself renders the title row,
+  /** Full-card extras, when on, the card itself renders the title row,
    *  avatar header and/or socials footer (mainly for Minimal full-card). */
   fullCardTitle?: boolean;
   fullCardAvatar?: boolean;
   fullCardSocials?: boolean;
   cardColor?: string; // content card background
   cardH?: number | null; // fixed card height px, null = auto fill
-  cardAuto?: boolean; // card hugs its content — height grows/shrinks with the blocks
+  cardAuto?: boolean; // card hugs its content, height grows/shrinks with the blocks
   cardY?: 'top' | 'middle' | 'bottom'; // card placement in free space (fixed height)
   stickToCard?: boolean; // pfp+socials group attaches to the card and follows it
   contentScale?: number; // content text zoom, 1 = 100%
   verified?: boolean; // show verified check after handle in card chrome
-  showWatermark?: boolean; // "made with Sosial" badge in the card — undefined = on; free plan forces on
+  showWatermark?: boolean; // "made with Sosial" badge in the card, undefined = on; free plan forces on
   caption?: string;
   scheduledAt?: number; // reminder fire time (ms), undefined = not scheduled
-  scheduledPlatform?: string; // legacy single channel — superseded by scheduledPlatforms
+  scheduledPlatform?: string; // legacy single channel, superseded by scheduledPlatforms
   scheduledPlatforms?: string[]; // channel keys, ['any'] = anywhere
 }
 

@@ -1,11 +1,11 @@
 /**
- * Web OAuth registry — mirrors the mobile connect flow (src/utils/*Config.ts
+ * Web OAuth registry, mirrors the mobile connect flow (src/utils/*Config.ts
  * + *Auth.ts) for the browser. Authorize URLs are built here (public client
  * IDs only); the code↔token exchange plus profile fetch live in the
  * `oauth-exchange` edge function where the secrets stay server-side.
  *
  * Public client ids come from the `oauth-config` edge function (Supabase
- * secrets, mirrored from the mobile app) — the start route fetches them with
+ * secrets, mirrored from the mobile app), the start route fetches them with
  * the user's session, so no Vercel env is needed. The matching private
  * secrets live as Supabase secrets for oauth-exchange.
  * Every provider already allow-lists the bridge redirect below.
@@ -42,7 +42,7 @@ export const isOAuthProvider = (v: unknown): v is OAuthProvider =>
 export const oauthLabel = (p: string): string =>
   OAUTH_PROVIDERS.find((x) => x.id === p)?.label ?? p;
 
-/** The redirect URI — the shared mobile/web bridge, already allow-listed
+/** The redirect URI, the shared mobile/web bridge, already allow-listed
  *  everywhere. Origin-aware so local dev serves its own copy. */
 export function redirectUri(origin: string): string {
   return `${origin.replace(/\/+$/, '')}/auth.html`;
@@ -69,7 +69,7 @@ const LI_SCOPES = [
   'w_organization_social', 'r_organization_social',
 ];
 const PIN_SCOPES = ['boards:read', 'boards:write', 'pins:read', 'pins:write', 'user_accounts:read'];
-// business.manage — same Google client as YouTube, so one consent can cover
+// business.manage, same Google client as YouTube, so one consent can cover
 // both (YT_SCOPES + this when connecting GBP).
 const GMB_SCOPES = ['https://www.googleapis.com/auth/business.manage'];
 
@@ -122,7 +122,7 @@ export interface AuthorizeArgs {
   /** Public ids from oauth-config. */
   config: OAuthConfig;
   redirectUri: string;
-  /** Opaque CSRF nonce — echoed back as `state`. */
+  /** Opaque CSRF nonce, echoed back as `state`. */
   state: string;
   /** PKCE challenge (X only). */
   challenge?: string;
@@ -131,7 +131,7 @@ export interface AuthorizeArgs {
 /** Provider consent URL. Throws when the provider isn't configured. */
 export function authorizeUrl({ provider, config, redirectUri: redir, state, challenge }: AuthorizeArgs): string {
   if (provider === 'mastodon') {
-    throw new Error('Enter your instance first — Mastodon registers per server.');
+    throw new Error('Enter your instance first, Mastodon registers per server.');
   }
   const id = clientIdFor(provider, config);
   if (!id) throw new Error(`${oauthLabel(provider)} is not configured yet.`);
@@ -139,7 +139,7 @@ export function authorizeUrl({ provider, config, redirectUri: redir, state, chal
     case 'tiktok':
       // TikTok takes client_key, NOT client_id. disable_auto_auth=1 always
       // shows the consent page instead of silently auto-approving whoever is
-      // logged in — the user sees which account they are authorizing.
+      // logged in, the user sees which account they are authorizing.
       return (
         'https://www.tiktok.com/v2/auth/authorize/' +
         `?${q({ client_key: id, scope: TT_SCOPES.join(','), response_type: 'code', redirect_uri: redir, state, disable_auto_auth: '1' })}`

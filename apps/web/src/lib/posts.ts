@@ -7,7 +7,7 @@ import type { ConnectedChannel, MediaAssetRow, PostMediaRow, PostWithTargets, Wo
 /** Ordered media + targets for every post in a workspace (RLS-scoped).
  *  Media bytes live in a private store, so each asset gets a short-lived
  *  signed URL for previews. R2 assets are signed through the `media` edge
- *  function; legacy Supabase assets through Storage — a post can mix both. */
+ *  function; legacy Supabase assets through Storage, a post can mix both. */
 export async function fetchPosts(sb: SupabaseClient, workspaceId: string): Promise<PostWithTargets[]> {
   const { data, error } = await sb
     .from('posts')
@@ -31,7 +31,7 @@ export async function fetchPosts(sb: SupabaseClient, workspaceId: string): Promi
 }
 
 /** Fill signed_url/thumb_url on media assets (Supabase bucket + R2 edge sign).
- *  Shared by fetchPosts and fetchMediaForPosts — same rules, one place. */
+ *  Shared by fetchPosts and fetchMediaForPosts, same rules, one place. */
 async function signAssetUrls(sb: SupabaseClient, assets: MediaAssetRow[]): Promise<void> {
   const supabasePaths = new Set<string>();
   const r2Paths = new Set<string>();
@@ -116,7 +116,7 @@ export async function fetchMediaForPosts(
   return out;
 }
 
-/** Exact columns the app reads — nothing outside ConnectedChannel. */
+/** Exact columns the app reads, nothing outside ConnectedChannel. */
 const CHANNEL_COLUMNS =
   'id, workspace_id, provider, external_id, display_name, handle, instance_url, status, metadata, last_error';
 
@@ -141,7 +141,7 @@ export async function fetchChannels(sb: SupabaseClient, workspaceId: string): Pr
 }
 
 /**
- * Live channels only — mobile pull parity
+ * Live channels only, mobile pull parity
  * (pullCloudChannels: same columns, status='connected'). For the Connect
  * pill, the composers and anything else that can only act on a live
  * channel; the management surfaces keep fetchChannels (all rows).
@@ -160,7 +160,7 @@ export async function fetchLiveChannels(sb: SupabaseClient, workspaceId: string)
 const MEDIA_PROVIDERS = ['tiktok', 'instagram', 'pinterest', 'youtube'];
 
 /**
- * Text-only posts can't go to media channels — YouTube additionally needs
+ * Text-only posts can't go to media channels, YouTube additionally needs
  * video. Returns the message to show, or null when the media passes.
  */
 export function mediaBlock(
@@ -175,8 +175,8 @@ export function mediaBlock(
   const onlyYt = missing.length === 1 && missing[0] === 'youtube';
   return {
     message: onlyYt
-      ? 'YouTube needs a video — photos or text alone can’t go there.'
-      : 'Attach a photo or video — text-only posts can’t go to those channels.',
+      ? 'YouTube needs a video, photos or text alone can’t go there.'
+      : 'Attach a photo or video, text-only posts can’t go to those channels.',
   };
 }
 
@@ -186,12 +186,12 @@ export type ComposeMode = 'draft' | 'schedule' | 'now';
 
 /**
  * Providers that publish a chain as ONE connected thread (replies), not as
- * separate scheduled posts — mirrors mobile THREAD_CAPS. Everything else
+ * separate scheduled posts, mirrors mobile THREAD_CAPS. Everything else
  * publishes each part on its own schedule.
  */
 export const CHAIN_PROVIDERS = ['x', 'threads', 'mastodon', 'bluesky'];
 
-/** Non-empty segment bodies — the worker replays these as one connected thread. */
+/** Non-empty segment bodies, the worker replays these as one connected thread. */
 export function threadSegments(bodies: string[]): string[] {
   return bodies.map((s) => (s ?? '').trim()).filter(Boolean);
 }
@@ -310,7 +310,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
   if (pErr || !prow) throw new Error(`Could not save the post: ${pErr?.message ?? 'no row'}`);
   const postId = String((prow as { id: string }).id);
 
-  // Media first — uploaded straight to R2 via the `media` edge function, which
+  // Media first, uploaded straight to R2 via the `media` edge function, which
   // creates the media_assets row (service role) and marks it ready on complete.
   // Ordering matches mobile (media before targets) so the worker never sees a
   // queued target whose media is still missing.
@@ -333,7 +333,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
     }
   }
 
-  // Targets last (atomicity — see cloudPosts.ts). Dedupe by channel id: a
+  // Targets last (atomicity, see cloudPosts.ts). Dedupe by channel id: a
   // duplicate entry would insert the same idempotency_key twice and trip
   // post_targets' unique constraint on it.
   const seen = new Set<string>();
@@ -391,7 +391,7 @@ export interface ChainArgs {
   /** Per-provider format for the head targets (see ComposeArgs.formats). */
   formats?: Record<string, string>;
   /** Per-provider target options for the head targets (e.g. threads
-   *  community topic) — merged under the chain `{ thread }` options. */
+   *  community topic), merged under the chain `{ thread }` options. */
   targetOptions?: Record<string, Record<string, unknown>>;
 }
 
@@ -403,7 +403,7 @@ export interface ChainArgs {
  *
  * Chain-capable providers (x/threads/mastodon/bluesky) publish the whole
  * chain as ONE connected thread: only the head part gets their targets, with
- * `options.thread` carrying every segment — exactly what the mobile app
+ * `options.thread` carrying every segment, exactly what the mobile app
  * writes. Later parts keep targets for the remaining providers only, and a
  * part with no providers left is skipped (no ghost rows).
  */
@@ -448,7 +448,7 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
       body: seg.body,
       mode: args.mode === 'now' ? 'schedule' : args.mode,
       scheduleIso: iso,
-      // 'now' chains queue from this instant by design — no lead check.
+      // 'now' chains queue from this instant by design, no lead check.
       leadCheck: args.mode !== 'now',
       targetOptions,
       formats: args.formats,
@@ -561,7 +561,7 @@ export async function submitForApproval(
   await openApproval(sb, args.postId, args.workspaceId, args.userId);
 }
 
-/** Owner/admin: approve — the post queues (or stays queued at its slot). */
+/** Owner/admin: approve, the post queues (or stays queued at its slot). */
 export async function approvePost(
   sb: SupabaseClient,
   args: { postId: string; userId: string; comment?: string },
@@ -592,7 +592,7 @@ export async function approvePost(
     .eq('status', 'pending');
 }
 
-/** Owner/admin: send back with a comment — the post returns to drafts. */
+/** Owner/admin: send back with a comment, the post returns to drafts. */
 export async function requestChanges(
   sb: SupabaseClient,
   args: { postId: string; userId: string; comment?: string },

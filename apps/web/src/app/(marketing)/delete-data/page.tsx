@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 /**
  * Standalone data-deletion instructions. Linked from the privacy policy's
- * deletion bullet — and the URL Meta's app dashboard wants for the Data
+ * deletion bullet, and the URL Meta's app dashboard wants for the Data
  * Deletion Request field. States the process plainly: what, how, how long.
  */
 export default function DeleteDataPage() {
@@ -19,7 +19,7 @@ export default function DeleteDataPage() {
       <p className="eyebrow">Privacy</p>
       <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight">Delete your data</h1>
       <p className="mt-5 text-lg leading-relaxed text-muted">
-        You own your content. Export it or delete it any time — here is exactly how.
+        You own your content. Export it or delete it any time, here is exactly how.
       </p>
 
       <hr className="my-10 border-line" />
@@ -77,7 +77,7 @@ export default function DeleteDataPage() {
               Self-serve deletions in Profile settings complete immediately. Email requests:
               exports go out within 7 days, deletions within 30 days of your confirmed
               request. A few records may be kept briefly where the law requires it (tax, fraud
-              prevention, security logs) — never your content.
+              prevention, security logs), never your content.
             </p>
           </div>
         </section>
@@ -87,7 +87,7 @@ export default function DeleteDataPage() {
           <div className="prose-sosial mt-3">
             <p>
               Removing a social account from the Channels page revokes Sosial&apos;s access
-              immediately. Already-published posts stay on the networks — delete those on each
+              immediately. Already-published posts stay on the networks, delete those on each
               network itself.
             </p>
           </div>

@@ -266,7 +266,7 @@ function blockText(node: TNode): string {
   return (node.content ?? []).map(blockText).join('');
 }
 
-/** Flattened plain text — the caption/body fallback for non-article targets. */
+/** Flattened plain text, the caption/body fallback for non-article targets. */
 export function articlePlainText(doc: TipTapDoc | null | undefined): string {
   if (!doc || !Array.isArray(doc.content)) return '';
   const out: string[] = [];
@@ -278,7 +278,7 @@ export function articlePlainText(doc: TipTapDoc | null | undefined): string {
   return out.join('\n\n');
 }
 
-/** No meaningful block (text, list or image) — nothing to publish. */
+/** No meaningful block (text, list or image), nothing to publish. */
 export function articleIsEmpty(doc: TipTapDoc | null | undefined): boolean {
   if (!doc || !Array.isArray(doc.content)) return true;
   return !doc.content.some((b) => {

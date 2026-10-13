@@ -77,7 +77,7 @@ export default function SizeScreen({ onDone, onBack }: { onDone: () => void; onB
         </View>
         <View style={s.specimen}>
           <Text style={{ fontFamily: fontFamily(font, 'bold'), fontSize: 19, color: C.ink }}>The quick brown fox</Text>
-          <Text style={{ fontFamily: fontFamily(font, 'regular'), fontSize: 13.5, color: C.muted, marginTop: 5, lineHeight: 20 }}>jumps over the lazy dog — 0123456789</Text>
+          <Text style={{ fontFamily: fontFamily(font, 'regular'), fontSize: 13.5, color: C.muted, marginTop: 5, lineHeight: 20 }}>jumps over the lazy dog, 0123456789</Text>
         </View>
       </ScrollView>
       <View style={s.footer}>

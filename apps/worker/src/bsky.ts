@@ -79,7 +79,7 @@ async function xrpc(pdsHost: string, method: string, token: string, body: any, c
 export async function ensureSession(b: Bundle, force = false): Promise<Session> {
   const pdsHost = b.channel.instance_url || 'https://bsky.social';
   const did = b.channel.external_id;
-  if (!did) throw new Error('Bluesky channel missing DID — re-enable cloud publishing.');
+  if (!did) throw new Error('Bluesky channel missing DID, re-enable cloud publishing.');
   const fresh =
     !force &&
     b.secrets.expires_at &&
@@ -89,17 +89,17 @@ export async function ensureSession(b: Bundle, force = false): Promise<Session> 
     if (access) return { token: access, did, pdsHost };
   }
   if (!b.secrets.refresh_secret_id) {
-    throw new Error('Bluesky session expired — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('Bluesky session expired, toggle cloud publishing off and on in Connect to refresh.');
   }
   const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('Bluesky session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (!refresh) throw new Error('Bluesky session expired, toggle cloud publishing off and on in Connect to refresh.');
   const r = await xrpc(pdsHost, 'com.atproto.server.refreshSession', refresh, '', 'application/json');
   if (!r.ok || !r.json?.accessJwt) {
-    throw new Error('Bluesky session expired — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('Bluesky session expired, toggle cloud publishing off and on in Connect to refresh.');
   }
   const newAccess = String(r.json.accessJwt);
   const newRefresh = String(r.json.refreshJwt || refresh);
-  // Rotate in place — secret ids stay stable, worker + app keep working.
+  // Rotate in place, secret ids stay stable, worker + app keep working.
   if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
   await updateSecret(b.secrets.refresh_secret_id, newRefresh);
   await restPatchByChannel(b.channel.id, {
@@ -110,7 +110,7 @@ export async function ensureSession(b: Bundle, force = false): Promise<Session> 
 }
 
 async function restPatchByChannel(channelId: string, body: Record<string, any>): Promise<void> {
-  // channel_tokens is keyed by channel_id (not id) — small dedicated PATCH.
+  // channel_tokens is keyed by channel_id (not id), small dedicated PATCH.
   const { required } = await import('./env');
   const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
   const k = required('WORKER_SERVICE_ROLE_KEY');
@@ -173,7 +173,7 @@ async function publishWith(
   replyTo?: BskyReply,
 ): Promise<BskyRef> {
   if (!text && imageBuffers.length === 0) {
-    throw new Error('Nothing to publish — empty text and no images.');
+    throw new Error('Nothing to publish, empty text and no images.');
   }
   const images: any[] = [];
   for (let i = 0; i < imageBuffers.length; i++) {
@@ -210,7 +210,7 @@ async function publishWith(
 /**
  * Video path: upload to the dedicated video service, poll the processing
  * job to COMPLETED, embed the blob. Auth is a SERVICE token
- * (getServiceAuth, aud = own PDS, 30 min) — the session accessJwt is NOT
+ * (getServiceAuth, aud = own PDS, 30 min), the session accessJwt is NOT
  * accepted by the video service. already_exists responses still carry a
  * usable blob. Size is already capped at 25 MB by the storage downloader;
  * duration/aspect rejections surface from the service.
@@ -241,7 +241,7 @@ async function uploadVideoBlob(sess: Session, buf: Buffer, mime: string): Promis
         'Content-Type': mime,
         'Content-Length': String(buf.length),
       },
-      // Fresh ArrayBuffer view — satisfies BodyInit across @types/node versions.
+      // Fresh ArrayBuffer view, satisfies BodyInit across @types/node versions.
       body: Uint8Array.from(buf),
     },
   );
@@ -261,10 +261,10 @@ async function uploadVideoBlob(sess: Session, buf: Buffer, mime: string): Promis
     if (sj?.jobStatus?.blob) return sj.jobStatus.blob;
     const state = String(sj?.jobStatus?.state ?? '');
     if (state === 'JOB_STATE_FAILED') {
-      throw new Error(`Bluesky rejected the video — ${String(sj?.jobStatus?.message ?? 'processing failed')}`);
+      throw new Error(`Bluesky rejected the video, ${String(sj?.jobStatus?.message ?? 'processing failed')}`);
     }
     if (Date.now() - start > VIDEO_POLL_MS) {
-      throw new Error('Bluesky is still processing the video — retry in a few minutes.');
+      throw new Error('Bluesky is still processing the video, retry in a few minutes.');
     }
     await new Promise((r) => setTimeout(r, 3000));
   }
@@ -280,10 +280,10 @@ async function publishVideoWith(
   try {
     raw = await storageDownload(await storageSign('post-media', video.storage_path), BSKY_MAX_VIDEO_BYTES);
   } catch (e: any) {
-    throw new Error(`Video download failed — ${e?.message ?? 'storage error'}`);
+    throw new Error(`Video download failed, ${e?.message ?? 'storage error'}`);
   }
   const mime = mimeFor(video.storage_path, video.mime_type);
-  if (!/^video\//.test(mime)) throw new Error(`Unsupported video type ${mime} — use MP4 or MOV.`);
+  if (!/^video\//.test(mime)) throw new Error(`Unsupported video type ${mime}, use MP4 or MOV.`);
   const blob = await uploadVideoBlob(sess, raw, mime);
   const record: Record<string, any> = {
     $type: 'app.bsky.feed.post',
@@ -316,14 +316,14 @@ export async function publishBlueskyTarget(bundle: Bundle): Promise<string> {
     .filter((m) => m.kind === 'video')
     .sort((a, z) => a.position - z.position);
   if (videos.length > 1) {
-    throw new Error('Bluesky takes one video per post — split extras into their own post.');
+    throw new Error('Bluesky takes one video per post, split extras into their own post.');
   }
   const imgs = (b.media ?? [])
     .filter((m) => m.kind === 'image')
     .sort((a, z) => a.position - z.position)
     .slice(0, BSKY_MAX_IMAGES);
   if (videos.length > 0 && imgs.length > 0) {
-    throw new Error('Bluesky can’t mix photos and video in one post — send one or the other.');
+    throw new Error('Bluesky can’t mix photos and video in one post, send one or the other.');
   }
   info(`bluesky target ${b.target.id}: ${imgs.length} image(s)`);
   const prepared: { buf: Buffer; mime: string }[] = [];
@@ -333,7 +333,7 @@ export async function publishBlueskyTarget(bundle: Bundle): Promise<string> {
     try {
       raw = await storageDownload(await storageSign('post-media', m.storage_path));
     } catch (e: any) {
-      throw new Error(`Photo ${i + 1}: download failed — ${e?.message ?? 'storage error'}`);
+      throw new Error(`Photo ${i + 1}: download failed, ${e?.message ?? 'storage error'}`);
     }
     try {
       prepared.push(await prepareImage(raw, mimeFor(m.storage_path, m.mime_type)));
@@ -359,7 +359,7 @@ export async function publishBlueskyTarget(bundle: Bundle): Promise<string> {
           return await publishWith(sess2, opts.images, opts.text, opts.replyTo);
         }
         if (String(e?.message ?? '') === '__EXPIRED__') {
-          throw new Error('Bluesky session expired — toggle cloud publishing off and on in Connect to refresh.');
+          throw new Error('Bluesky session expired, toggle cloud publishing off and on in Connect to refresh.');
         }
         throw e;
       }

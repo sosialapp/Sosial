@@ -1,5 +1,5 @@
 /**
- * Studio AI — web port of the mobile carousel writer contract
+ * Studio AI, web port of the mobile carousel writer contract
  * (src/utils/ai/types.ts + rules.ts + apply.ts). The model only ever decides
  * words + block shape; ids, colors, sizes and photos stay with the template.
  * Generation runs through the `generate-studio` edge function (key stays
@@ -155,7 +155,7 @@ function normalizeBlock(raw: RawBlock, warn: (m: string) => void, seen: Set<stri
       ? (raw.series as RawSeries[])
           .map((d) => ({
             label: truncateWords(clean(d?.label), 3),
-            // NOTE: Number('') === 0 — blank values must die, not become zero bars.
+            // NOTE: Number('') === 0, blank values must die, not become zero bars.
             value: d?.value === '' || d?.value == null ? NaN : Number(d?.value),
           }))
           .filter((d) => d.label && isFinite(d.value))
@@ -171,9 +171,9 @@ function normalizeBlock(raw: RawBlock, warn: (m: string) => void, seen: Set<stri
     return { type, heading, series };
   }
 
-  // Image slots render as empty placeholder boxes — photos belong to the editor.
+  // Image slots render as empty placeholder boxes, photos belong to the editor.
   if (type === 'image') {
-    warn('Dropped an image placeholder — add photos in the editor.');
+    warn('Dropped an image placeholder, add photos in the editor.');
     return null;
   }
 
@@ -205,14 +205,14 @@ export function normalizeResult(pages: GenPage[], brief: ContentBrief, provider:
       if (blocks.length >= brief.maxBlocksPerPage) break;
     }
     // Hook and takeaway cards stay text-only: charts/tables there are where
-    // invented numbers hide. Never strand the card — strip only if text remains.
+    // invented numbers hide. Never strand the card, strip only if text remains.
     if (input.length > 1 && (pi === 0 || pi === input.length - 1)) {
       const stripped = blocks.filter((b) => b.type !== 'table' && b.type !== 'bar' && b.type !== 'vbar' && b.type !== 'pie');
       if (stripped.length && stripped.length < blocks.length) {
         blocks = stripped;
         if (!warnedRoles) {
           warnedRoles = true;
-          warnings.push('Hook and takeaway cards stay text-only — dropped their charts/tables.');
+          warnings.push('Hook and takeaway cards stay text-only, dropped their charts/tables.');
         }
       }
     }
@@ -256,7 +256,7 @@ export function normalizeResult(pages: GenPage[], brief: ContentBrief, provider:
 
   if (warnedBlocks) warnings.push('Some blocks were trimmed to fit the card rules.');
   if (warnedWords) warnings.push(`Content trimmed to ${brief.maxWordsPerPage} words per card.`);
-  if (out.length === 0) warnings.push('Nothing usable was generated — try a more specific topic.');
+  if (out.length === 0) warnings.push('Nothing usable was generated, try a more specific topic.');
 
   return { pages: out, provider, warnings };
 }
@@ -313,7 +313,7 @@ export function toContentBlock(b: GenBlock): ContentBlock {
 
 /**
  * Build the replacement page list: one page per generated page, each cloned
- * from the template so the *design* is untouched. Card height is auto — the
+ * from the template so the *design* is untouched. Card height is auto, the
  * card hugs its generated content. Page ids are fresh; the caller swaps the
  * whole list in atomically.
  */
@@ -327,7 +327,7 @@ export function applyGenResult(gen: GenResult, template: PostPage): PostPage[] {
     page.cardAuto = true;
     page.cardY = page.cardY ?? 'bottom';
     // Carousel anatomy: card 1 keeps the full chrome (title top, avatar +
-    // socials bottom); middle cards go full-bleed content — no title, no
+    // socials bottom); middle cards go full-bleed content, no title, no
     // socials; the last card keeps the photo + socials footer but loses the
     // title so the content fills the card. Single-card results keep the
     // template untouched.

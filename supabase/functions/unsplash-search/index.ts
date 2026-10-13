@@ -2,7 +2,7 @@
 //
 // Unsplash Access Key lives in Supabase secrets (UNSPLASH_ACCESS_KEY).
 // Photos only (Unsplash has no video API). LICENSE TERMS ARE LOAD-BEARING:
-// every photo used MUST credit the photographer + link back — the clients
+// every photo used MUST credit the photographer + link back, the clients
 // auto-append "📷 {author} on Unsplash ({url})" to the caption at attach
 // time, non-optional. Only full-size `raw`/`full` URLs are handed out.
 

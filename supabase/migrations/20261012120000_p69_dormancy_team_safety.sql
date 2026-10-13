@@ -31,7 +31,7 @@ as $$
             u.last_sign_in_at,
             -- Latest activity across every workspace this user belongs to:
             -- any post, or any active member's sign-in. A live teammate
-            -- keeps the whole workspace — and everyone in it — off the list.
+            -- keeps the whole workspace, and everyone in it, off the list.
             (
               select max(ws.activity)
               from (

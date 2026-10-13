@@ -4,7 +4,7 @@
  * Studio exports are watermarked SERVER-SIDE. The rendered PNG is posted to
  * /api/export/watermark, which reads the workspace's plan + watermark setting
  * from the database and returns the composited image. The client can't opt out,
- * and the clean bytes never leave the request — devtools can't strip the mark.
+ * and the clean bytes never leave the request, devtools can't strip the mark.
  *
  * Fails closed: if the round-trip fails, no file is produced rather than an
  * un-watermarked one.

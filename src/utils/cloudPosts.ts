@@ -11,7 +11,7 @@ import { findAccount, findAccountForProvider, accountExternalId, asIdList, type 
 /**
  * App → cloud write path (post-Wave-A slice). Every local save/delete
  * mirrors to Supabase best-effort: the device is source of truth, the cloud
- * is a follower. Never throws — callers fire-and-forget after local write.
+ * is a follower. Never throws, callers fire-and-forget after local write.
  *
  * Identity: posts.client_id = local ManagedPost.id (P3 unique key), so
  * re-saves upsert instead of duplicating. Media uses deterministic storage
@@ -37,8 +37,8 @@ function mapStatus(p: ManagedPost): CloudStatus {
 }
 
 /**
- * Target-level twin of mapStatus. post_targets has no 'draft'/'approval' —
- * those are 'pending'/'needs_approval' per leg — so reusing the post status
+ * Target-level twin of mapStatus. post_targets has no 'draft'/'approval' -
+ * those are 'pending'/'needs_approval' per leg, so reusing the post status
  * violates post_targets_status_check and the whole push fails loudly.
  */
 function mapTargetStatus(p: ManagedPost): 'pending' | 'needs_approval' | CloudStatus {
@@ -69,7 +69,7 @@ async function makeThumb(uri: string): Promise<string | null> {
 export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   const session = await currentSession().catch(() => null);
   if (!session) {
-    console.log('[cloud] skip push — signed out');
+    console.log('[cloud] skip push, signed out');
     return; // signed out: local-only, syncs on next save after sign-in
   }
   const sb = supabase();
@@ -82,7 +82,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
       ? new Date(post.scheduledAt).toISOString()
       : null;
 
-  // Post row (upsert on client_id — the P3 idempotency key).
+  // Post row (upsert on client_id, the P3 idempotency key).
   const { data: prow, error: pErr } = await sb
     .from('posts')
     .upsert(
@@ -139,10 +139,10 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
 
   // ORDER MATTERS (atomicity): media uploads + asset rows FIRST, targets
   // LAST. If any media step throws, no targets exist, so the worker can
-  // never publish a half-built (e.g. text-only) post — the failure stays
+  // never publish a half-built (e.g. text-only) post, the failure stays
   // loud in Metro instead of masquerading as success.
 
-  // Media: canonical accessor only — `attachments` already contains EVERY
+  // Media: canonical accessor only, `attachments` already contains EVERY
   // item, and legacy imageUri/videoUri just mirror it. Concatenating all
   // three uploaded each mirrored file twice (2 rows → worker saw "2 videos").
   //
@@ -168,7 +168,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
       } catch {}
       thumbUri = (await makeThumb(a.uri)) ?? undefined;
     }
-    // Bytes go straight from disk to R2 via a presigned URL — no Blob, no
+    // Bytes go straight from disk to R2 via a presigned URL, no Blob, no
     // base64 round-trip through Hermes. The edge `media` function owns the
     // `media_assets` insert/status; the device never inserts the row itself.
     const res = await uploadMediaFromFile(wsId, a.uri, { kind, width, height, thumbUri });
@@ -181,9 +181,9 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
 
   // Links BEFORE targets (atomicity): the worker only ever sees queued
   // targets, so a target must never exist while its media links are still
-  // the previous push's rows — that window published the old video.
+  // the previous push's rows, that window published the old video.
   // Remember the previous links first so stale objects/rows can be swept
-  // after the new ones land (best-effort — never fails the push).
+  // after the new ones land (best-effort, never fails the push).
   let prevPaths: string[] = [];
   try {
     const { data: prev } = await sb
@@ -203,7 +203,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   }
 
   // Targets: one per (platform × account) that is BOTH selected AND
-  // cloud-connected. Platforms with no cloud row stay local-only (correct —
+  // cloud-connected. Platforms with no cloud row stay local-only (correct -
   // nothing to publish with). The (post_id, channel_id) upsert converges on
   // re-push, so re-saving never duplicates targets.
   let made = 0;
@@ -224,7 +224,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
         if (segs.length > 1) options.thread = segs;
       }
       const format = (post.platformTypes as any)?.[platform];
-      // idempotency_key is NOT NULL with no default — deterministic so
+      // idempotency_key is NOT NULL with no default, deterministic so
       // retries and re-saves converge instead of violating.
       const { error: tErr } = await sb.from('post_targets').upsert(
         {
@@ -246,7 +246,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   }
 
   // Sweep superseded objects/rows from earlier pushes of THIS post only
-  // (best-effort — a leftover media object in this prefix is exactly how a
+  // (best-effort, a leftover media object in this prefix is exactly how a
   // replaced video haunted the next publish). New uploads live in R2, so the
   // edge `delete` action removes the object + marks the row deleted.
   try {
@@ -263,7 +263,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
       }
     }
   } catch {}
-  // Record the successful push — the pull uses this allowlist to retract
+  // Record the successful push, the pull uses this allowlist to retract
   // rows the web deleted (never-pushed local drafts are untouchable).
   await markPushed(post.id);
   console.log(
@@ -272,7 +272,7 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
 }
 
 /**
- * Mark one mirrored leg sent (light PATCH — no media re-upload). Called when a
+ * Mark one mirrored leg sent (light PATCH, no media re-upload). Called when a
  * LOCAL leg lands so the worker won't republish that channel if the app dies
  * mid-queue. Never throws.
  */
@@ -321,7 +321,7 @@ export async function deleteCloudPost(clientId: string): Promise<void> {
 /**
  * Back-sync (the reason pull-to-refresh exists): cloud is the publishing
  * authority, so local Queued flips to Sent only when EVERY cloud target for
- * the post reached sent — collecting remote_ids for the Sent view.
+ * the post reached sent, collecting remote_ids for the Sent view.
  * Anything else (pending/failed targets) stays queued. Never throws.
  */
 export async function pullCloudStatus(): Promise<{ updated: number }> {
@@ -369,7 +369,7 @@ export async function pullCloudStatus(): Promise<{ updated: number }> {
       // Local save + LIGHT cloud PATCH only: saveManagedPost here would
       // re-upload every attachment on every status flip (sent-flips arrive
       // per sweep), which burned egress forever. The verdict already lives
-      // in the cloud — the posts.status patch is all the mirror needs.
+      // in the cloud, the posts.status patch is all the mirror needs.
       await saveManagedPostLocal({ ...p, status: 'sent', sentAt: Date.now(), remoteIds });
       await markCloudPostSent(p.id);
       updated += 1;
@@ -431,7 +431,7 @@ async function unmarkPushed(clientId: string): Promise<void> {
  * Push every local post that never reached the cloud (saved offline,
  * signed-out, or written by a local-only path). This is the other half of
  * web/mobile parity: without it the phone keeps rows the web never sees.
- * Best-effort per row — one failure must not block the rest. Never throws.
+ * Best-effort per row, one failure must not block the rest. Never throws.
  */
 export async function pushPendingPosts(): Promise<number> {
   try {
@@ -574,7 +574,7 @@ interface CloudMediaRow {
 /**
  * Cloud → device post pull: the missing half of post sync. Adopts posts
  * created on the web (tracked by cloud UUID so each is adopted once) and
- * reconciles existing rows — publishing verdicts (sent/failed/…) always win,
+ * reconciles existing rows, publishing verdicts (sent/failed/…) always win,
  * everything else is last-write-wins by updated_at. Media downloads
  * best-effort (videos over 25 MB stay cloud-only). Never throws.
  */
@@ -762,7 +762,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
 
     await markAdopted(newlyAdopted);
 
-    // Retraction: a pushed row the web deleted disappears locally too — but
+    // Retraction: a pushed row the web deleted disappears locally too, but
     // only with no newer local edits, and never for never-pushed drafts or
     // adopted-but-unclaimed rows (their client_id isn't in the cloud list).
     const cloudClients = new Set(

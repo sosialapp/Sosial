@@ -1,7 +1,7 @@
 /**
  * Server-side avatar backfill. Every cloud channel's tokens live in Vault, so
  * the worker can fetch each provider's profile picture itself and write it to
- * connected_channels.metadata.avatar — the field the web app renders. This is
+ * connected_channels.metadata.avatar, the field the web app renders. This is
  * what lets avatars appear without the user ever opening the mobile app.
  *
  * Failure policy: best-effort. A dead/expired token logs a warning and leaves
@@ -90,10 +90,10 @@ export function bundleFor(c: ChannelRow, t: TokenRow): any {
 
 async function directToken(c: ChannelRow, t: TokenRow): Promise<string> {
   if (!t.access_token_secret_id) {
-    throw new Error(`${c.provider} token missing — reconnect the channel.`);
+    throw new Error(`${c.provider} token missing, reconnect the channel.`);
   }
   const v = await readSecret(t.access_token_secret_id);
-  if (!v) throw new Error(`${c.provider} token unavailable — reconnect the channel.`);
+  if (!v) throw new Error(`${c.provider} token unavailable, reconnect the channel.`);
   return v;
 }
 
@@ -161,7 +161,7 @@ async function avatarUrl(c: ChannelRow, token: string): Promise<string> {
       return firstString(j?.data?.user?.avatar_url);
     }
     case 'discord': {
-      // Guild icon is public CDN — no token needed in the URL itself.
+      // Guild icon is public CDN, no token needed in the URL itself.
       // Servers without an icon honestly return nothing (brand disc stays).
       const guildId = c.metadata?.guildId;
       if (typeof guildId !== 'string' || !guildId) return '';
@@ -213,7 +213,7 @@ async function avatarUrl(c: ChannelRow, token: string): Promise<string> {
       // Photo-less locations honestly return nothing (brand disc stays).
       const parent = String(c.external_id ?? '');
       if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(parent)) {
-        throw new Error('GBP location missing — reconnect the channel.');
+        throw new Error('GBP location missing, reconnect the channel.');
       }
       const r = await fetch(
         `https://mybusiness.googleapis.com/v4/${parent}/media?pageSize=1`,
@@ -302,7 +302,7 @@ async function listChannels(): Promise<ChannelRow[]> {
 }
 
 /** Cheap liveness probe for a stored avatar URL. Hosts that refuse HEAD
- *  (405/501) are assumed alive — only clear rot triggers a refetch. */
+ *  (405/501) are assumed alive, only clear rot triggers a refetch. */
 async function urlAlive(url: string): Promise<boolean> {
   try {
     const r = await fetch(url, { method: 'HEAD', redirect: 'follow' });
@@ -332,7 +332,7 @@ export async function syncWorkspaceAvatars(
     if (existing && !force) {
       // Stored URLs rot (IG/TikTok sign theirs with expiries; Telegram file
       // paths die when the bot token rotates). A dead URL must be refetched,
-      // not kept forever — probe it first.
+      // not kept forever, probe it first.
       if (await urlAlive(existing)) continue;
     }
     checked++;

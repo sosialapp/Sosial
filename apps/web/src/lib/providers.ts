@@ -2,13 +2,13 @@ import type { ProviderKey, PostStatus, TargetStatus } from './types';
 
 export interface ProviderInfo {
   label: string;
-  /** Brand colour — matches the mobile app so both surfaces read the same. */
+  /** Brand colour, matches the mobile app so both surfaces read the same. */
   color: string;
   /** Two-letter fallback mark (used in dense table rows). */
   glyph: string;
   /** Real per-post character limit for the feed caption. */
   limit: number;
-  /** What the channel is best at — drives the composer's channel hints. */
+  /** What the channel is best at, drives the composer's channel hints. */
   kind: 'social' | 'video' | 'professional' | 'visual';
 }
 
@@ -49,7 +49,7 @@ export function providerMeta(p: string): ProviderInfo {
 export const ALL_PROVIDERS = Object.keys(PROVIDER_META) as ProviderKey[];
 
 /**
- * Per-channel post formats (mobile parity — managed.ts POST_TYPE_OPTIONS).
+ * Per-channel post formats (mobile parity, managed.ts POST_TYPE_OPTIONS).
  * Channels with more than one option get a picker in the composer; the choice
  * lands in post_targets.format and the worker picks the publisher from it.
  */

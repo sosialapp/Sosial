@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * Hashnode connect passthrough — staged PAT flow (token → publications →
+ * Hashnode connect passthrough, staged PAT flow (token → publications →
  * save), same shape as the Discord route.
  */
 export async function POST(req: Request) {

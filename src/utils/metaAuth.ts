@@ -12,7 +12,7 @@ import { setPendingAuth, clearPendingAuth, handleAuthUrl, AuthChannel } from './
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Meta rejects custom schemes (sosial://…) as OAuth redirect URIs — every one
+// Meta rejects custom schemes (sosial://…) as OAuth redirect URIs, every one
 // of the three dashboards requires https. So we bounce through a tiny static
 // bridge page (auth.html, hosted on GitHub Pages) which forwards ?code=…
 // straight back into sosial://redirect, where openAuthSessionAsync captures it.
@@ -22,7 +22,7 @@ export const BRIDGE_URL = 'https://sosial.app/auth.html';
 
 /**
  * Where the bridge page must send the user back. Expo Go can't receive the
- * custom scheme — it needs its exp:// URL — while standalone builds use
+ * custom scheme, it needs its exp:// URL, while standalone builds use
  * sosial://redirect. Linking.createURL resolves correctly in both, and the
  * address travels to the bridge inside the OAuth `state` param.
  */
@@ -48,7 +48,7 @@ export async function openAuth(authUrl: string, channel: AuthChannel, accountId?
   await setPendingAuth(channel, accountId);
   if (__DEV__) console.log(`[auth] opening ${channel}:`, authUrl.split('?')[0]);
   // A Custom Tab left over from the previous login can hijack the return path
-  // of the next one (fully exiting the app on some devices) — make sure any
+  // of the next one (fully exiting the app on some devices), make sure any
   // stale browser/auth session is dead before opening a fresh one.
   try {
     await (WebBrowser as any).dismissBrowser?.();
@@ -57,7 +57,7 @@ export async function openAuth(authUrl: string, channel: AuthChannel, accountId?
     await (WebBrowser as any).dismissAuthSession?.();
   } catch {}
   try {
-    // iOS runs each login in a private (ephemeral) session — no cookies leak
+    // iOS runs each login in a private (ephemeral) session, no cookies leak
     // between channels, so a stale Facebook/Instagram/Google identity can never
     // hijack the next connect. Cost: credentials are retyped every time.
     // Android has no equivalent API (Custom Tabs always share Chrome's jar).
@@ -118,7 +118,7 @@ export async function fetchPages(userToken: string): Promise<FbPage[]> {
 }
 
 export async function pickPage(p: FbPage, accountId?: string): Promise<void> {
-  // FB only — never touch the Instagram keys; it has its own login and its own
+  // FB only, never touch the Instagram keys; it has its own login and its own
   // token, and clearing it here used to silently disconnect Instagram.
   await saveProviderFields('facebook', {
     pageId: p.id,
@@ -213,7 +213,7 @@ export async function exchangeThreadsCode(code: string): Promise<{ token: string
   });
   const j1: any = await r1.json().catch(() => ({}));
   if (!j1.access_token) throw new Error(errMsg(j1, 'Threads login exchange failed.'));
-  // NOTE: this endpoint is GET-only per docs — POSTing here makes the router
+  // NOTE: this endpoint is GET-only per docs, POSTing here makes the router
   // treat "access_token" as an object ID ("Unsupported post request…").
   const q2 = `grant_type=th_exchange_token&client_secret=${encodeURIComponent(THREADS_APP_SECRET)}&access_token=${encodeURIComponent(j1.access_token)}`;
   const r2 = await fetch(`${THREADS_API}/access_token?${q2}`);

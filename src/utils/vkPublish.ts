@@ -2,9 +2,9 @@
  * Native VK publishing (community access key). Mirrors
  * apps/worker/src/vk.ts: wall.post as the community (owner_id:-gid,
  * from_group:1) with up to 10 uploaded photos. Videos need the video.save
- * dance + processing poll and are a v1 omission — compat declares no video.
+ * dance + processing poll and are a v1 omission, compat declares no video.
  *
- * Multipart uploads go through XMLHttpRequest — expo/fetch (SDK 57) can't
+ * Multipart uploads go through XMLHttpRequest, expo/fetch (SDK 57) can't
  * serialize React Native {uri,name,type} FormData parts (see mastodonPublish).
  */
 
@@ -65,8 +65,8 @@ function xhrUpload<T>(uploadUrl: string, uri: string, mime: string, timeoutMs = 
       }
       resolve(j as T);
     };
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('VK upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('VK upload timed out, try again.'));
     xhr.send(form as any);
   });
 }
@@ -112,7 +112,7 @@ export async function publishVk(opts: {
     attachments.push(await uploadWallPhoto(token, String(groupId), uri));
   }
   if (!text && attachments.length === 0) {
-    throw new Error('VK needs text or a photo — this post has neither.');
+    throw new Error('VK needs text or a photo, this post has neither.');
   }
   const posted = await vk<{ post_id: number }>(token, 'wall.post', {
     owner_id: `-${groupId}`,

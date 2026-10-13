@@ -15,7 +15,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 
 async function main(): Promise<void> {
   initDb();
-  // Fail fast when pointed at the wrong project — service key is per-project.
+  // Fail fast when pointed at the wrong project, service key is per-project.
   required('WORKER_SERVICE_ROLE_KEY');
   const workerId = `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const idleMs = Number(env('WORKER_IDLE_MS', '30000')) || 30000;

@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /**
  * Channel write access: owners and admins may connect/disconnect channels,
  * ordinary members may not. Every channel-mutating route and edge function
- * enforces this — the UIs hide the buttons, the servers reject the calls.
+ * enforces this, the UIs hide the buttons, the servers reject the calls.
  * Returns an error message when the caller lacks access, null when allowed.
  */
 export async function channelManageError(

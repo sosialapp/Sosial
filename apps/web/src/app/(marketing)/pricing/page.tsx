@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: meta?.metaTitle ?? meta?.title ?? 'Pricing',
     description:
       meta?.metaDescription ??
-      'A free plan that stays free, Solo for creators, Team for approvals, Business for scale — with 3, 6, 25 and 100 channels. Monthly or annual, and annual gives you two months free. Cancel any time.',
+      'A free plan that stays free, Solo for creators, Team for approvals, Business for scale, with 3, 6, 25 and 100 channels. Monthly or annual, and annual gives you two months free. Cancel any time.',
     alternates: { canonical: '/pricing' },
   };
 }
@@ -42,7 +42,7 @@ export default async function PricingPage() {
           },
           {
             q: 'How many channels can I connect?',
-            a: 'Free connects 3, Solo 6, Team 25 and Business 100. Connecting Instagram costs the same as connecting X — there are no per-channel fees.',
+            a: 'Free connects 3, Solo 6, Team 25 and Business 100. Connecting Instagram costs the same as connecting X, there are no per-channel fees.',
           },
           {
             q: 'How do AI credits work?',
@@ -54,15 +54,15 @@ export default async function PricingPage() {
           },
           {
             q: 'What is the Sosial watermark?',
-            a: 'Free posts carry a small “made with Sosial” badge. On Solo, Team and Business you control it and can turn it off in the studio — it never applies to content you bring in yourself.',
+            a: 'Free posts carry a small “made with Sosial” badge. On Solo, Team and Business you control it and can turn it off in the studio, it never applies to content you bring in yourself.',
           },
           {
             q: 'Do you charge for team seats on Team or Business?',
-            a: 'No. Team and Business are flat prices for the whole workspace — up to 5 members and 3 workspaces on Team, unlimited members and 6 workspaces on Business.',
+            a: 'No. Team and Business are flat prices for the whole workspace, up to 5 members and 3 workspaces on Team, unlimited members and 6 workspaces on Business.',
           },
           {
             q: 'How does annual billing work?',
-            a: 'You pay once a year — annual costs the same as ten months, so you get two months free. AI credits still reset on the 1st of every month.',
+            a: 'You pay once a year, annual costs the same as ten months, so you get two months free. AI credits still reset on the 1st of every month.',
           },
         ]}
       />

@@ -11,7 +11,7 @@ export type Block =
 
 export type Category = 'Publishing' | 'Strategy' | 'AI' | 'Teams' | 'Growth' | 'Product';
 
-/** Blog tag filter options (client-safe — no server imports). */
+/** Blog tag filter options (client-safe, no server imports). */
 export const BLOG_TAGS = ['Publishing', 'Strategy', 'AI', 'Teams', 'Growth', 'Product'] as const;
 
 /** Soft pastel chip per tag: light fill, dark ink for contrast on both themes. */
@@ -46,14 +46,14 @@ export interface Article {
   slug: string;
   title: string;
   description: string;
-  /** ISO date — used for ordering, display and sitemap lastmod. */
+  /** ISO date, used for ordering, display and sitemap lastmod. */
   date: string;
   tag: Category;
   minutes: number;
   body: Block[];
-  /** Pre-serialized HTML from the editor — null for legacy posts. */
+  /** Pre-serialized HTML from the editor, null for legacy posts. */
   bodyHtml: string | null;
-  /** Cover thumbnail (public blog-media URL) — null when unset. */
+  /** Cover thumbnail (public blog-media URL), null when unset. */
   coverUrl: string | null;
   coverAlt: string | null;
   /** Show the cover on the homepage News cards. Defaults true. */

@@ -25,7 +25,7 @@ function deviceZone(): string {
 }
 
 /**
- * Quick post: type, pick channels, ship. No media, no title, no AI —
+ * Quick post: type, pick channels, ship. No media, no title, no AI -
   * the full composer lives at /post.
  */
 export default function QuickPost({
@@ -41,7 +41,7 @@ export default function QuickPost({
 }) {
   const router = useRouter();
   // Quick post is text-only: media-mandatory channels (IG/TikTok/YouTube/
-  // Pinterest) are hidden here — they live in the full composer.
+  // Pinterest) are hidden here, they live in the full composer.
   const ready = channels.filter(
     (c) => c.status === 'connected' && !CAPABILITIES[c.provider]?.requiresMedia,
   );
@@ -51,12 +51,12 @@ export default function QuickPost({
   const [when, setWhen] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
   const [busy, setBusy] = useState(false);
-  /** Channels currently picked — drives the format pills. */
+  /** Channels currently picked, drives the format pills. */
   const chosenNow = ready.filter((c) => picked.includes(c.id));
   /** Live publish monitor (post-now). */
   const [monitorId, setMonitorId] = useState<string | null>(null);
   const [monitorOpen, setMonitorOpen] = useState(false);
-  /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
+  /** Per-channel post format (post/reel/story/ghost…), mobile parity. */
   const [types, setTypes] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -160,7 +160,7 @@ export default function QuickPost({
           <p className="mt-0.5 text-xs text-muted">Type, pick channels, ship.</p>
         </div>
         <span className="flex-1" />
-        {/* Mode pill — top, dashboard style */}
+        {/* Mode pill, top, dashboard style */}
         <SegmentedPills
           ariaLabel="Post mode"
           value={mode}
@@ -185,7 +185,7 @@ export default function QuickPost({
         />
       </div>
 
-      {/* Schedule row — top */}
+      {/* Schedule row, top */}
       {mode === 'schedule' && ready.length > 0 ? (
         <div className="mt-3">
           <DateTimePicker
@@ -400,7 +400,7 @@ export default function QuickPost({
             </div>
           ) : null}
 
-          {/* Action stays put — only the label changes. */}
+          {/* Action stays put, only the label changes. */}
           <div className="mt-3 flex items-center gap-2">
             <span className="flex-1" />
             <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">

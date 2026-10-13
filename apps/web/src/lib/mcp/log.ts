@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * Structured MCP observability: one row per tool call with outcome and
- * latency — never content bodies, never tokens. Backed by a dedicated
+ * latency, never content bodies, never tokens. Backed by a dedicated
  * table (p49) so it survives serverless isolation; failures to log are
  * swallowed (observability must never fail a user call).
  */

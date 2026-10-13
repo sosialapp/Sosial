@@ -2,7 +2,7 @@
 --
 -- Root cause (verified from function error payloads): tables created by db
 -- push carry grants to `authenticated` only. service_role bypasses RLS but
--- still needs table privileges — without them every service-side read
+-- still needs table privileges, without them every service-side read
 -- (Edge Functions, Railway worker direct reads) fails with
 -- "permission denied for table …", surfacing as phantom 403s.
 -- SECURITY DEFINER functions (claim_job, vault_*, purge_expired_media) were

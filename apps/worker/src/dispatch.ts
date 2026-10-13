@@ -1,8 +1,8 @@
 /**
- * Job dispatch by kind. Handlers are stubs in this scaffold — each one gets
+ * Job dispatch by kind. Handlers are stubs in this scaffold, each one gets
  * its real implementation (ported publisher adapters, refresh logic,
  * analytics snapshots) in the next slice. A stub throws, which routes the
- * job to backoff/dead-letter via complete_job — never a silent success.
+ * job to backoff/dead-letter via complete_job, never a silent success.
  */
 import type { Job } from './db';
 import {
@@ -43,7 +43,7 @@ import { snapshotChannel } from './stats';
 import { info, debug } from './logger';
 
 function notPorted(kind: string): Error {
-  return new Error(`job kind '${kind}' not ported yet — see apps/worker/README.md`);
+  return new Error(`job kind '${kind}' not ported yet, see apps/worker/README.md`);
 }
 
 /** Private bucket holding post media bytes (p5_media_storage). */
@@ -54,21 +54,21 @@ async function handlePublishTarget(job: Job): Promise<void> {
   if (!targetId) throw new Error(`job ${job.id}: missing post_target_id`);
   debug(`publish_target ${targetId} (job ${job.id})`);
   const bundle = await getPublishBundle(targetId);
-  if (!bundle) throw new Error(`target ${targetId} not found — nothing to publish`);
+  if (!bundle) throw new Error(`target ${targetId} not found, nothing to publish`);
   const status = String(bundle?.target?.status ?? '');
   // Terminal states never re-fire: sent = idempotent success (cron only
   // enqueues 'queued', so reaching here sent means a retry after success).
   if (status === 'sent') {
-    debug(`target ${targetId} already sent — skipping`);
+    debug(`target ${targetId} already sent, skipping`);
     return;
   }
   if (status !== 'queued' && status !== 'publishing') {
-    throw new Error(`target ${targetId} in status '${status}' — refusing to publish`);
+    throw new Error(`target ${targetId} in status '${status}', refusing to publish`);
   }
   const provider = String(bundle?.target?.provider ?? '');
   const channelId = String(bundle?.channel?.id ?? '');
 
-  // Gate B — daily anti-abuse guard. The provider caps posts per rolling 24h;
+  // Gate B, daily anti-abuse guard. The provider caps posts per rolling 24h;
   // if this channel's window is full, park the job (no attempt burned) until
   // the oldest send ages out, so the post is delayed, never lost or throttled.
   if (channelId) {
@@ -78,7 +78,7 @@ async function handlePublishTarget(job: Job): Promise<void> {
       const runAt = nextSlot && new Date(nextSlot).getTime() > Date.now()
         ? nextSlot
         : new Date(Date.now() + 60_000).toISOString();
-      info(`target ${targetId} deferred — ${provider} daily window full (job ${job.id}, run_at ${runAt})`);
+      info(`target ${targetId} deferred, ${provider} daily window full (job ${job.id}, run_at ${runAt})`);
       await deferJob(job.id, runAt);
       return;
     }
@@ -88,7 +88,7 @@ async function handlePublishTarget(job: Job): Promise<void> {
     // Publish-time ruleset: this target's provider must be able to take the
     // attached media (≤1 GB video everywhere but YouTube; YouTube ≤10 GB and
     // ≤4 h; images ≤10 MB). A broken rule fails THIS target with a clear
-    // reason — other targets on the post still publish.
+    // reason, other targets on the post still publish.
     const media = (bundle?.media ?? []) as {
       kind: string;
       storage_path: string;
@@ -262,14 +262,14 @@ async function handleCleanupMedia(job: Job): Promise<void> {
     debug(`media ${mediaId} already gone`);
     return;
   }
-  // Media is retained permanently — this kind only runs for an explicit user
+  // Media is retained permanently, this kind only runs for an explicit user
   // delete or an abandoned/failed upload. Objects are R2 (`storage_backend`
   // 'r2'/'both') or the legacy Supabase bucket; storageRemove routes by path.
   // Object first, then the row: a crash between the two leaves an orphan row
   // the next sweep re-enqueues, never an orphan object with no way to find it.
   if (asset.storage_path) await storageRemove(MEDIA_BUCKET, asset.storage_path);
   await deleteMediaAsset(mediaId);
-  debug(`media ${mediaId} deleted — object + row removed`);
+  debug(`media ${mediaId} deleted, object + row removed`);
 }
 
 async function handleSendInvite(job: Job): Promise<void> {
@@ -280,7 +280,7 @@ async function handleSendInvite(job: Job): Promise<void> {
   // need no email. Anything live gets a real re-send (GoTrue invite is
   // idempotent per email), so Edge-side mail failures heal here.
   if (!inv) {
-    debug(`invite ${inviteId} gone — nothing to do`);
+    debug(`invite ${inviteId} gone, nothing to do`);
     return;
   }
   if (inv.accepted_at) {
@@ -294,11 +294,11 @@ async function handleSendInvite(job: Job): Promise<void> {
   try {
     await resendInviteEmail(inv);
   } catch (e) {
-    // Already on Sosial: GoTrue will never email an existing user — the
+    // Already on Sosial: GoTrue will never email an existing user, the
     // invite link goes out through the inviter instead. Complete the job;
     // retrying could never succeed.
     if (/already (been )?registered|already exists/i.test(e instanceof Error ? e.message : String(e))) {
-      debug(`invite ${inviteId} already registered — link handoff, no retry`);
+      debug(`invite ${inviteId} already registered, link handoff, no retry`);
       return;
     }
     throw e;

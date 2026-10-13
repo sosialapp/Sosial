@@ -19,13 +19,13 @@ import { ok, fail } from './respond';
 import { logTool } from './log';
 
 /**
- * MCP tool implementations — thin adapters over the same service layer the
+ * MCP tool implementations, thin adapters over the same service layer the
  * web app uses (`lib/posts.ts` + `lib/compat.ts`). No DB access here beyond
  * what those services already do; no raw SQL; no passthrough. Every tool:
  *  1. is scope-gated by the caller (registerTool wiring in server.ts)
  *  2. enforces confirmation for destructive/imminent actions (mcpConfirmGuard)
  *  3. is rate-limited per token (mcpRate)
- *  4. logs tool/user/outcome/latency — never content or credentials
+ *  4. logs tool/user/outcome/latency, never content or credentials
  */
 
 /* ------------------------------- schemas ------------------------------- */
@@ -143,7 +143,7 @@ export function createMcpTools(opts: {
         const g = await guardTyped('create_post', args, {
           summary: () => {
             const when = args.scheduled_at ? resolveTime(args.scheduled_at, args.timezone) : null;
-            return `${when ? 'Schedule' : 'Create'} a post on ${args.channel_ids.length} channel(s): “${args.content.slice(0, 80)}${args.content.length > 80 ? '…' : ''}—${when ? ` at ${when.local} (${when.zone})` : ''}`;
+            return `${when ? 'Schedule' : 'Create'} a post on ${args.channel_ids.length} channel(s): “${args.content.slice(0, 80)}${args.content.length > 80 ? '…' : ''}-${when ? ` at ${when.local} (${when.zone})` : ''}`;
           },
         });
         if (g.blocked) return g.blocked;
@@ -178,7 +178,7 @@ export function createMcpTools(opts: {
         const files: ComposeArgs['files'] = [];
         const mediaBlock = mediaIds.length > 0 ? null : null;
         if (mediaIds.length > 0) {
-          return fail('validation_failed', 'media_ids are not supported yet — attach media in the app, or omit media_ids.');
+          return fail('validation_failed', 'media_ids are not supported yet, attach media in the app, or omit media_ids.');
         }
         void mediaBlock;
 
@@ -229,7 +229,7 @@ export function createMcpTools(opts: {
           write: true,
           summary: async () => {
             const { data: p } = await admin.from('posts').select('title, body, scheduled_at').eq('id', args.post_id).eq('workspace_id', workspaceId).maybeSingle();
-            return `Edit post “${(p as { title?: string } | null)?.title ?? (p as { body?: string } | null)?.body?.slice(0, 60) ?? args.post_id}—`;
+            return `Edit post “${(p as { title?: string } | null)?.title ?? (p as { body?: string } | null)?.body?.slice(0, 60) ?? args.post_id}-`;
           },
         });
         if (g.blocked) return g.blocked;
@@ -245,7 +245,7 @@ export function createMcpTools(opts: {
 
         if (args.scheduled_at !== undefined) {
           if (post.status !== 'draft' && post.status !== 'queued') {
-            return fail('validation_failed', `Cannot reschedule a post with status “${post.status}—.`);
+            return fail('validation_failed', `Cannot reschedule a post with status “${post.status}-.`);
           }
           const when = resolveTime(args.scheduled_at, args.timezone ?? post.timezone ?? undefined);
           if (!when) return fail('validation_failed', 'scheduled_at is not a valid ISO 8601 datetime.');
@@ -328,7 +328,7 @@ export function createMcpTools(opts: {
           destructive: true,
           summary: async () => {
             const { data: p } = await admin.from('posts').select('title, body').eq('id', args.post_id).eq('workspace_id', workspaceId).maybeSingle();
-            return `Return post “${(p as { title?: string } | null)?.title ?? (p as { body?: string } | null)?.body?.slice(0, 60) ?? args.post_id.slice(0, 8)}— to draft`;
+            return `Return post “${(p as { title?: string } | null)?.title ?? (p as { body?: string } | null)?.body?.slice(0, 60) ?? args.post_id.slice(0, 8)}- to draft`;
           },
         });
         if (g.blocked) return g.blocked;
@@ -365,7 +365,7 @@ export function createMcpTools(opts: {
           summary: async () => {
             const { data: p } = await admin.from('posts').select('title, body, status').eq('id', args.post_id).eq('workspace_id', workspaceId).maybeSingle();
             const pp = p as { title?: string; body?: string; status?: string } | null;
-            return `Delete ${pp?.status ?? ''} post “${pp?.title ?? pp?.body?.slice(0, 60) ?? args.post_id.slice(0, 8)}—`;
+            return `Delete ${pp?.status ?? ''} post “${pp?.title ?? pp?.body?.slice(0, 60) ?? args.post_id.slice(0, 8)}-`;
           },
         });
         if (g.blocked) return g.blocked;
@@ -481,7 +481,7 @@ export function createMcpTools(opts: {
         type: z.enum(['image', 'video']).optional(),
         limit: z.number().int().min(1).max(50).optional(),
       },
-      summaryText: 'Browse media uploaded to this workspace. Returns ids, type and size — never storage credentials.',
+      summaryText: 'Browse media uploaded to this workspace. Returns ids, type and size, never storage credentials.',
       run: async (args: { search?: string; type?: 'image' | 'video'; limit?: number }) => {
         const g = await guardTyped('get_media', args, { summary: () => 'Browse media' });
         if (g.blocked) return g.blocked;

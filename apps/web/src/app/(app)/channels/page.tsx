@@ -85,7 +85,7 @@ export default async function ChannelsPage({
       </div>
 
       <p className="mx-auto w-full max-w-2xl px-6 py-6 text-xs text-faint">
-        Only the team owner can disconnect an account here — its tokens are deleted from the vault.
+        Only the team owner can disconnect an account here, its tokens are deleted from the vault.
         Members see the accounts they are assigned on the Team page.
       </p>
     </div>

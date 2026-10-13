@@ -3,14 +3,14 @@
 // The browser never touches secrets: Next.js /api/oauth/* routes collect the
 // ?code= and call this function with the caller's JWT. Each driver mirrors
 // the mobile exchange in src/utils/*Auth.ts (endpoints, params, profile
-// reads), then returns an import-ready payload — the route finishes the job
+// reads), then returns an import-ready payload, the route finishes the job
 // through import-channel-token with the same user JWT.
 //
 // POST { provider, code?, verifier?, redirect_uri?, workspace_id?,
 ///        handle?, app_password? } → 200 payload (per provider below)
 //   · 401 unauthenticated · 402 provider not configured · 502 upstream failure
 //
-// facebook returns { pages: [{ id, name, access_token, picture?, ig? }] } —
+// facebook returns { pages: [{ id, name, access_token, picture?, ig? }] } -
 // the web route shows a Page picker and imports the chosen Page (tokens are
 // per-Page on Meta, there is no user-level channel to store).
 //
@@ -51,7 +51,7 @@ async function json(r: Response): Promise<Record<string, unknown>> {
 }
 
 /** Provider ids are strings on most networks but numbers on some (Threads
- *  user_id) — coerce rather than blanking them, or the exchange wrongly
+ *  user_id), coerce rather than blanking them, or the exchange wrongly
  *  reports a hidden account. */
 const str = (v: unknown): string =>
   typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
@@ -121,7 +121,7 @@ async function tiktok(b: ExchangeBody): Promise<Response> {
       if (nick) name = `@${nick}`;
     } catch { /* best-effort */ }
   }
-  if (!openId) return bad("TikTok hid the account id — try again.", 502);
+  if (!openId) return bad("TikTok hid the account id, try again.", 502);
   return ok({
     access_token: access,
     refresh_token: refresh || undefined,
@@ -163,7 +163,7 @@ async function instagram(b: ExchangeBody): Promise<Response> {
   const j2 = await json(r2);
   const token = str(j2.access_token);
   if (!token) return bad("Instagram would not issue a long-lived token.", 502);
-  // Mobile parity: the STABLE profile id keys the row — never the username.
+  // Mobile parity: the STABLE profile id keys the row, never the username.
   // (A username-keyed row from an id-less exchange would ghost-duplicate the
   // numeric row on every reconnect, invisible to the upsert.)
   let profileId = "";
@@ -181,7 +181,7 @@ async function instagram(b: ExchangeBody): Promise<Response> {
     }
   } catch { /* best-effort */ }
   const externalId = profileId || userId;
-  if (!externalId) return bad("Instagram hid the account id — try again.", 502);
+  if (!externalId) return bad("Instagram hid the account id, try again.", 502);
   return ok({
     access_token: token,
     external_id: externalId,
@@ -247,7 +247,7 @@ async function facebook(b: ExchangeBody): Promise<Response> {
 async function xAuth(b: ExchangeBody): Promise<Response> {
   const id = Deno.env.get("X_CLIENT_ID") ?? "";
   if (!id) return bad("X is not configured yet.", 402);
-  if (!b.verifier) return bad("X login was interrupted — try connecting again.", 400);
+  if (!b.verifier) return bad("X login was interrupted, try connecting again.", 400);
   const r = await fetch("https://api.x.com/2/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -281,14 +281,14 @@ async function xAuth(b: ExchangeBody): Promise<Response> {
       if (u.profile_image_url) picture = String(u.profile_image_url).replace("_normal.", ".");
     }
   } catch { /* best-effort */ }
-  if (!uid) return bad("X hid the account id — try again.", 502);
+  if (!uid) return bad("X hid the account id, try again.", 502);
   return ok({
     access_token: access,
     refresh_token: refresh || undefined,
     expires_at: iso(expiresAt),
     external_id: uid,
     display_name: name,
-    // Public OAuth client id — the worker needs it for silent refresh.
+    // Public OAuth client id, the worker needs it for silent refresh.
     metadata: { ...(picture ? { avatar: picture } : {}), xClientId: id },
   });
 }
@@ -332,7 +332,7 @@ async function youtube(b: ExchangeBody): Promise<Response> {
       if (url) avatar = String(url);
     }
   } catch { /* best-effort */ }
-  if (!channelId) return bad("Google hid the channel — try again.", 502);
+  if (!channelId) return bad("Google hid the channel, try again.", 502);
   return ok({
     access_token: access,
     refresh_token: refresh || undefined,
@@ -370,7 +370,7 @@ async function linkedin(b: ExchangeBody): Promise<Response> {
   });
   const pj = await json(pr);
   const sub = str(pj.sub);
-  if (!sub) return bad("LinkedIn hid the member id — try again.", 502);
+  if (!sub) return bad("LinkedIn hid the member id, try again.", 502);
   const full = `${str(pj.given_name)} ${str(pj.family_name)}`.trim();
   return ok({
     access_token: access,
@@ -422,7 +422,7 @@ async function bluesky(b: ExchangeBody): Promise<Response> {
       pdsHost = String(svc?.serviceEndpoint ?? "").replace(/\/+$/, "");
     } catch { /* falls through */ }
   }
-  if (!pdsHost) return bad("Could not find that account's server — is the handle right?", 400);
+  if (!pdsHost) return bad("Could not find that account's server, is the handle right?", 400);
   const sr = await fetch(`${pdsHost}/xrpc/com.atproto.server.createSession`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -430,7 +430,7 @@ async function bluesky(b: ExchangeBody): Promise<Response> {
   });
   const sj = await json(sr);
   if (!sj.accessJwt) {
-    return bad("Wrong handle or app password — mint a fresh one at bsky.app → Settings → App passwords.", 401);
+    return bad("Wrong handle or app password, mint a fresh one at bsky.app → Settings → App passwords.", 401);
   }
   const handle = String(sj.handle ?? identifier).replace(/^@/, "");
   let avatar: string | undefined;
@@ -443,7 +443,7 @@ async function bluesky(b: ExchangeBody): Promise<Response> {
     if (gj.avatar) avatar = String(gj.avatar);
   } catch { /* best-effort */ }
   return ok({
-    // Session tokens only — the app password itself is never stored.
+    // Session tokens only, the app password itself is never stored.
     access_token: String(sj.accessJwt),
     refresh_token: str(sj.refreshJwt) || undefined,
     expires_at: iso(Date.now() + 110 * 60 * 1000),
@@ -476,7 +476,7 @@ async function threads(b: ExchangeBody): Promise<Response> {
     const e = j1.error as { message?: string } | undefined;
     return bad(`Threads refused the login. ${str(e?.message).slice(0, 140)}`, 502);
   }
-  // NOTE: this endpoint is GET-only per docs — POSTing makes the router treat
+  // NOTE: this endpoint is GET-only per docs, POSTing makes the router treat
   // "access_token" as an object ID ("Unsupported post request…").
   const r2 = await fetch(
     `${API}/access_token?${form({
@@ -502,9 +502,9 @@ async function threads(b: ExchangeBody): Promise<Response> {
       if (pj.threads_profile_picture_url) picture = String(pj.threads_profile_picture_url);
     }
   } catch { /* best-effort */ }
-  // Mobile parity: the exchange user id keys the row — a username-keyed row
+  // Mobile parity: the exchange user id keys the row, a username-keyed row
   // would ghost-duplicate it on reconnect, invisible to the upsert.
-  if (!userId) return bad("Threads hid the account — try again.", 502);
+  if (!userId) return bad("Threads hid the account, try again.", 502);
   return ok({
     access_token: token,
     external_id: userId,
@@ -519,7 +519,7 @@ function mastodonBase(instance: string): string {
 
 async function mastodon(b: ExchangeBody): Promise<Response> {
   const instance = b.instance.trim().toLowerCase();
-  if (!instance || !b.client_id) return bad("Mastodon login was interrupted — try connecting again.", 400);
+  if (!instance || !b.client_id) return bad("Mastodon login was interrupted, try connecting again.", 400);
   const base = mastodonBase(instance);
   const r = await fetch(`${base}/oauth/token`, {
     method: "POST",
@@ -537,10 +537,10 @@ async function mastodon(b: ExchangeBody): Promise<Response> {
   const access = str(j.access_token);
   if (!access) {
     const desc = str(j.error_description ?? (typeof j.error === "string" ? j.error : ""));
-    // Burned/replayed codes surface as invalid_grant — almost always a double
+    // Burned/replayed codes surface as invalid_grant, almost always a double
     // delivery of the same login, so say so instead of quoting server text.
     if (/invalid_grant|authorization grant/i.test(desc)) {
-      return bad("That login link was already used — if Mastodon shows Connected below, you're all set.", 502);
+      return bad("That login link was already used, if Mastodon shows Connected below, you're all set.", 502);
     }
     return bad(`Mastodon refused the login. ${desc.slice(0, 140)}`, 502);
   }
@@ -631,7 +631,7 @@ async function gmb(b: ExchangeBody): Promise<Response> {
   }
   const refresh = str(j.refresh_token);
   const expiresAt = Date.now() + (Number(j.expires_in) || 3600) * 1000;
-  // Locations across every accessible account — the picker stages like
+  // Locations across every accessible account, the picker stages like
   // Facebook Pages.
   const out: { name: string; title: string }[] = [];
   try {
@@ -651,7 +651,7 @@ async function gmb(b: ExchangeBody): Promise<Response> {
     const msg = String((e as Error)?.message ?? e);
     if (/403|permission|disabled|not been used/i.test(msg)) {
       return bad(
-        "Your Google Cloud project doesn't have Business Profile API access yet — approve it once in the Google API console, then reconnect.",
+        "Your Google Cloud project doesn't have Business Profile API access yet, approve it once in the Google API console, then reconnect.",
         502,
       );
     }
@@ -740,7 +740,7 @@ serve(async (req: Request): Promise<Response> => {
         return await threads(b);
       case "mastodon":
         if (!b.code || !b.redirect_uri || !b.instance || !b.client_id) {
-          return bad("Mastodon login was interrupted — try connecting again.", 400);
+          return bad("Mastodon login was interrupted, try connecting again.", 400);
         }
         return await mastodon(b);
       case "pinterest":

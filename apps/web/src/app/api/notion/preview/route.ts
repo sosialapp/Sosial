@@ -5,7 +5,7 @@ import { getConnection, readToken, queryDatabaseRows, mapRowToDraft, getPageBody
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-/** POST /api/notion/preview — first N rows mapped + validated, no writes. */
+/** POST /api/notion/preview, first N rows mapped + validated, no writes. */
 export async function POST(req: Request) {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });

@@ -1,5 +1,5 @@
 /**
- * Shared OAuth helpers (pure — safe to unit-test in node).
+ * Shared OAuth helpers (pure, safe to unit-test in node).
  *
  * Web Google sign-in lands on /auth/callback, which exchanges ?code for a
  * session cookie. NEXT_PUBLIC_SITE_URL pins the redirect target so preview
@@ -21,7 +21,7 @@ export function oauthErrorMessage(code: string | null | undefined): string | nul
   return 'Something went wrong signing you in. Please try again.';
 }
 
-/** Only allow same-origin relative paths — blocks open-redirect via ?next=. */
+/** Only allow same-origin relative paths, blocks open-redirect via ?next=. */
 export function safeNextPath(next: string | null | undefined): string {
   if (next && next.startsWith('/') && !next.startsWith('//')) return next;
   return '/dashboard';

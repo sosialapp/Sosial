@@ -15,11 +15,11 @@ export type SegmentedPillOption<T extends string | number> = {
 type ThumbRect = { left: number; top: number; width: number; height: number; ready: boolean };
 
 const VARIANTS = {
-  /** Dark ink thumb — Post now/Schedule, pricing, AI card. */
+  /** Dark ink thumb, Post now/Schedule, pricing, AI card. */
   ink: { thumb: 'bg-ink shadow-sm', active: 'text-paper', idle: 'text-muted hover:text-ink' },
-  /** Brand yellow thumb — composer kind, calendar-adjacent switches. */
+  /** Brand yellow thumb, composer kind, calendar-adjacent switches. */
   accent: { thumb: 'bg-accent shadow-sm', active: 'text-on-accent', idle: 'text-muted hover:text-ink' },
-  /** Paper thumb on a dim track — calendar Day/Week/Month/Year/List. */
+  /** Paper thumb on a dim track, calendar Day/Week/Month/Year/List. */
   paper: { thumb: 'bg-paper shadow-sm', active: 'text-ink', idle: 'text-muted hover:text-ink' },
 } as const;
 

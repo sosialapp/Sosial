@@ -54,7 +54,7 @@ export async function verifyApiKey(req: Request): Promise<ApiKeyContext | null> 
 
 export function unauthorized(): Response {
   return Response.json(
-    { error: 'Unauthorized — pass a workspace API key as `Authorization: Bearer <key>`.' },
+    { error: 'Unauthorized, pass a workspace API key as `Authorization: Bearer <key>`.' },
     { status: 401 },
   );
 }

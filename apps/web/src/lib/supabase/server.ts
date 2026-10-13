@@ -24,7 +24,7 @@ export async function createClient() {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
           } catch {
-            // Server Components cannot set cookies — the middleware refreshes
+            // Server Components cannot set cookies, the middleware refreshes
             // the session on the next request instead.
           }
         },
@@ -39,7 +39,7 @@ export const WORKSPACE_COOKIE = 'sosial_ws';
 
 /** Signed-in user + workspace, bootstrapping the workspace on first login
  *  exactly like the mobile app's myWorkspace(). Null when signed out.
- *  Cached per request — the layout and every page call this, but the auth +
+ *  Cached per request, the layout and every page call this, but the auth +
  *  member lookups run once per navigation. */
 export const getWorkspaceContext = cache(async (): Promise<{
   user: User;
@@ -74,7 +74,7 @@ export const getWorkspaceContext = cache(async (): Promise<{
       }
     }
   } catch {
-    // Non-request contexts have no cookies — fall through to the default.
+    // Non-request contexts have no cookies, fall through to the default.
   }
 
   const { data: mem } = await sb

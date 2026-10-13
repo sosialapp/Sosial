@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
@@ -28,7 +28,7 @@ import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 
-/** Native reply-chains exist on these four channels only — same as the app. */
+/** Native reply-chains exist on these four channels only, same as the app. */
 const THREAD_PROVIDERS = ['x', 'threads', 'mastodon', 'bluesky'];
 
 function deviceZone(): string {
@@ -171,7 +171,7 @@ function RailPanel({
           </div>
           {tplKind === 'text' ? (
             captions.length === 0 ? (
-              <p className="text-sm text-muted">No caption templates yet — save one on the Templates tab.</p>
+              <p className="text-sm text-muted">No caption templates yet, save one on the Templates tab.</p>
             ) : (
               <div className="max-h-[480px] space-y-2 overflow-y-auto">
                 {captions.map((t) => (
@@ -190,7 +190,7 @@ function RailPanel({
               </div>
             )
           ) : designs.length === 0 ? (
-            <p className="text-sm text-muted">No designs yet — make one on the Templates tab.</p>
+            <p className="text-sm text-muted">No designs yet, make one on the Templates tab.</p>
           ) : (
             <div className="max-h-[480px] space-y-5 overflow-y-auto pb-1">
               <div>
@@ -305,7 +305,7 @@ export default function CreatePost({
   editingIds?: string[];
   /** Draft edit: called after the replacement saves. */
   onEdited?: () => void;
-  /** Library for the rail Template tab (passed from the hub — no duplication). */
+  /** Library for the rail Template tab (passed from the hub, no duplication). */
   libraryCaptions?: { id: string; name: string; title: string; body: string }[];
   libraryDesigns?: StudioProject[];
 }) {
@@ -344,15 +344,15 @@ export default function CreatePost({
         return live;
       }
     }
-    // Fresh composer: nothing pre-picked — the user chooses destinations.
+    // Fresh composer: nothing pre-picked, the user chooses destinations.
     return [];
   });
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
-  /** Per-channel post format (post/reel/story/ghost…) — mobile parity. */
+  /** Per-channel post format (post/reel/story/ghost…), mobile parity. */
   const [types, setTypes] = useState<Record<string, string>>({});
-  /** Threads community topic — mobile parity (topic_tag on the target). */
+  /** Threads community topic, mobile parity (topic_tag on the target). */
   const [threadsTopic, setThreadsTopic] = useState(initialThreadsTopic || '');
-  /** Community input collapsed by default (mobile parity) — opens with a
+  /** Community input collapsed by default (mobile parity), opens with a
    *  saved topic so a draft edit never hides it. */
   const [topicOpen, setTopicOpen] = useState(Boolean(initialThreadsTopic));
   /** Social composer vs. rich article editor (website channels only). */
@@ -368,7 +368,7 @@ export default function CreatePost({
   const [busy, setBusy] = useState(false);
   /** Live publish monitor (post-now): watches these post ids settle. */
   const [monitorIds, setMonitorIds] = useState<string[]>([]);
-  /** Shown the instant Post-now is pressed — ids land once saving finishes. */
+  /** Shown the instant Post-now is pressed, ids land once saving finishes. */
   const [monitorOpen, setMonitorOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
@@ -450,7 +450,7 @@ export default function CreatePost({
           prev.map((s, i) => ({ ...s, media: [...s.media, ...(loaded[i] ?? [])].slice(0, 10) })),
         );
       } else {
-        setErr('Draft media could not be reloaded — re-attach it before saving.');
+        setErr('Draft media could not be reloaded, re-attach it before saving.');
       }
       setMediaLoading(false);
     })();
@@ -464,7 +464,7 @@ export default function CreatePost({
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
     [ready, picked],
   );
-  /** Channels currently picked — drives the format pills. */
+  /** Channels currently picked, drives the format pills. */
   const chosenNow = useMemo(() => ready.filter((c) => picked.includes(c.id)), [ready, picked]);
   /** Website channels (WordPress/Ghost/Dev.to/Hashnode) among the picks. */
   const articlePicked = useMemo(
@@ -482,7 +482,7 @@ export default function CreatePost({
     return ls.length ? Math.min(...ls) : 2200;
   }, [ready, picked]);
 
-  /** Live per-channel verdicts — powers the grey pills + tap messages. */
+  /** Live per-channel verdicts, powers the grey pills + tap messages. */
   const compat = useMemo(() => {
     const chs = ready.filter((c) => picked.includes(c.id));
     return {
@@ -497,7 +497,7 @@ export default function CreatePost({
     };
   }, [ready, picked, segs, thread]);
 
-  /** Non-blocking size warnings — "over 1 GB won't reach X, tap YouTube too". */
+  /** Non-blocking size warnings, "over 1 GB won't reach X, tap YouTube too". */
   const sizeWarnings = useMemo(() => {
     const files = segs
       .flatMap((s) => s.media)
@@ -510,7 +510,7 @@ export default function CreatePost({
   /**
    * Inline gating: a channel the draft can't satisfy renders grey with its
    * reason on tap (instead of a separate panel below). "Unselected" chips
-   * judge the CURRENT draft — picking them mid-compose is allowed so the
+   * judge the CURRENT draft, picking them mid-compose is allowed so the
    * user sees exactly what's missing and fixes it in place.
    */
   const allReady = useMemo(() => {
@@ -524,16 +524,16 @@ export default function CreatePost({
       if (!base.chainOk) return { ...base, blocked: true, reason: 'Thread posts go to X, Threads, Mastodon and Bluesky only' };
       if (!cap) return { ...base, blocked: false, reason: '' };
       if (cap.requiresVideo && !hasVideo) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a video — this post has none attached.` };
+        return { ...base, blocked: true, reason: `${cap.label} needs a video, this post has none attached.` };
       }
       if (cap.requiresMedia && totalMedia === 0) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video — text alone can't go there.` };
+        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video, text alone can't go there.` };
       }
       if (hasVideo && cap.supports.video === false) {
-        return { ...base, blocked: true, reason: `${cap.label} doesn't take video — remove the video or drop the channel.` };
+        return { ...base, blocked: true, reason: `${cap.label} doesn't take video, remove the video or drop the channel.` };
       }
       if (hasImage && cap.supports.image === false) {
-        return { ...base, blocked: true, reason: `${cap.label} takes text and links only — remove the image or drop the channel.` };
+        return { ...base, blocked: true, reason: `${cap.label} takes text and links only, remove the image or drop the channel.` };
       }
       return { ...base, blocked: false, reason: '' };
     });
@@ -669,7 +669,7 @@ export default function CreatePost({
       return;
     }
     // Capability gate: per-channel blockers (limits, media, threads,
-    // destinations). Drafts save freely — the panel still shows the issues.
+    // destinations). Drafts save freely, the panel still shows the issues.
     if (submitMode !== 'draft') {
       const blockers = compat.issues.filter((i) => i.level === 'error');
       if (blockers.length) {
@@ -683,7 +683,7 @@ export default function CreatePost({
       return;
     }
     nowConfirmed.current = false;
-    // Post-now shows the monitor instantly (mobile parity) — it starts in
+    // Post-now shows the monitor instantly (mobile parity), it starts in
     // "saving" mode and flips to per-channel progress once ids land.
     if (submitMode === 'now') {
       setMonitorIds([]);
@@ -750,14 +750,14 @@ export default function CreatePost({
           targetOptions: chainTargetOptions,
         });
       }
-      // Draft edit: the replacement saved — retire the original rows, then
+      // Draft edit: the replacement saved, retire the original rows, then
       // hand back to a fresh composer.
       if (editingIds?.length) {
         await Promise.allSettled(editingIds.map((id) => deletePost(sb, id)));
         onEdited?.();
       }
       if (submitMode === 'now') {
-        // Monitor is already open — hand it the ids so it flips to progress.
+        // Monitor is already open, hand it the ids so it flips to progress.
         setBusy(false);
         setMonitorIds(newIds);
         return;
@@ -797,7 +797,7 @@ export default function CreatePost({
                 </span>
               ) : null}
               <span className="flex-1" />
-              {/* Mode pill — top, dashboard style */}
+              {/* Mode pill, top, dashboard style */}
               <SegmentedPills
                 ariaLabel="Post mode"
                 value={mode}
@@ -818,7 +818,7 @@ export default function CreatePost({
               />
             </div>
 
-            {/* Schedule row — top, next to the title */}
+            {/* Schedule row, top, next to the title */}
             {mode === 'schedule' ? (
               <div className="mt-3">
                 <DateTimePicker
@@ -830,7 +830,7 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* Channel pills — dashboard style; thread narrows the cast */}
+            {/* Channel pills, dashboard style; thread narrows the cast */}
             <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Channels">
               {ready.length === 0 ? (
                 <p className="text-xs text-muted">
@@ -885,11 +885,11 @@ export default function CreatePost({
             {thread ? (
               <p className="mt-2 flex items-center gap-1.5 text-[11px] text-faint">
                 <BranchIcon className="h-3 w-3" />
-                Thread posts go to X, Threads, Mastodon and Bluesky — parts publish as one reply chain.
+                Thread posts go to X, Threads, Mastodon and Bluesky, parts publish as one reply chain.
               </p>
             ) : null}
 
-            {/* Per-channel format pills (post/reel/story/ghost…) — Threads
+            {/* Per-channel format pills (post/reel/story/ghost…), Threads
                 also carries its Community › toggle right after Post. */}
             {chosenNow.some((c) => postTypeOptions(c.provider).length > 1) ? (
               <div className="mt-3 space-y-1.5">
@@ -961,7 +961,7 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* Social composer vs. rich article editor — only when a website
+            {/* Social composer vs. rich article editor, only when a website
                 channel is picked; the toggle defaults to Article in that case. */}
             {articlePicked ? (
               <div className="mt-3">
@@ -977,7 +977,7 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* Part 1 — same box as every other part */}
+            {/* Part 1, same box as every other part */}
             <div className="mt-3">
               {err ? (
                 <div className="mb-2 flex items-start gap-2 rounded-xl bg-[#FDEBEC] px-3 py-2 dark:bg-[#2c1b1b]" role="alert">
@@ -1067,7 +1067,7 @@ export default function CreatePost({
                       </div>
                     ) : (
                       <p className="mt-1 text-xs text-faint">
-                        Optional — used as the featured image where the platform supports it.
+                        Optional, used as the featured image where the platform supports it.
                       </p>
                     )}
                     <input
@@ -1277,7 +1277,7 @@ export default function CreatePost({
               </div>
             ) : null}
 
-            {/* One row: thread link · save draft · post — aligned */}
+            {/* One row: thread link · save draft · post, aligned */}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {surface === 'article' ? (
                 <span className="text-xs text-faint">Publishing as an article.</span>
@@ -1344,7 +1344,7 @@ export default function CreatePost({
                     return next;
                   });
                 }}
-                appliedNote="Applied to the composer — edit freely, then post."
+                appliedNote="Applied to the composer, edit freely, then post."
               />
             }
           />

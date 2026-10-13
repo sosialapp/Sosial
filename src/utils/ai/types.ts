@@ -1,6 +1,6 @@
 import { BlockType } from '../../types';
 
-/** AI output schema — deliberately narrower than ContentBlock: no ids, no colors,
+/** AI output schema, deliberately narrower than ContentBlock: no ids, no colors,
  *  no pixel sizes. The model only decides words + block shape. */
 export type GenBlock =
   | { type: 'free'; heading?: string; lines: string[] }
@@ -29,12 +29,12 @@ export const AI_LANGUAGES: { id: AiLanguage; label: string }[] = [
 /** Output-language directive: Auto mirrors the user's prompt language. */
 export function languageLine(language: AiLanguage): string {
   if (language === 'auto')
-    return "Write in the SAME language as the user's idea below — mirror it exactly (Bahasa Melayu, 中文, Tamil, Manglish or mixed language included). Switch language only if the idea explicitly asks for another.";
+    return "Write in the SAME language as the user's idea below, mirror it exactly (Bahasa Melayu, 中文, Tamil, Manglish or mixed language included). Switch language only if the idea explicitly asks for another.";
   return `Write everything in ${language}.`;
 }
 
 export interface ContentBrief {
-  /** free-form prompt — the user's idea, in their words */
+  /** free-form prompt, the user's idea, in their words */
   prompt: string;
   language: AiLanguage;
   pages: number;
@@ -45,7 +45,7 @@ export interface ContentBrief {
 export interface GenResult {
   pages: GenPage[];
   provider: string;
-  /** anything the normalizer had to clamp or drop — surfaced to the user */
+  /** anything the normalizer had to clamp or drop, surfaced to the user */
   warnings: string[];
 }
 

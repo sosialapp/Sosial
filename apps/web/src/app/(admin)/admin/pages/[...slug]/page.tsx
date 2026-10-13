@@ -17,7 +17,7 @@ type MetaRow = {
 };
 
 /**
- * Owner page editor — registry slugs plus admin-created custom slugs.
+ * Owner page editor, registry slugs plus admin-created custom slugs.
  * Metadata loads with the admin session (not the public anon path) so
  * drafts open here even though they are invisible publicly.
  */
@@ -72,7 +72,7 @@ export default async function AdminPageEdit({ params }: { params: Promise<{ slug
       group: 'Custom',
       route: `/${full}`,
       mode: 'body',
-      hint: 'Standalone page — title, date and SEO live in Page settings below.',
+      hint: 'Standalone page, title, date and SEO live in Page settings below.',
     };
     initial = (r.body as unknown) ?? null;
     loadedAt = str(r.updated_at);

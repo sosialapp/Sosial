@@ -1,6 +1,6 @@
 /**
  * Google Drive + Google Photos OAuth (device-side, same confidential Google
- * client as YouTube — secrets already baked per the TikTok precedent).
+ * client as YouTube, secrets already baked per the TikTok precedent).
  * drive.readonly + photoslibrary.readonly are requested together so one
  * consent covers both pickers. Tokens live in SecureStore (never the cloud);
  * downloads happen at pick time and flow through the normal pipeline after.
@@ -86,7 +86,7 @@ export async function disconnectGoogleFiles(): Promise<void> {
 /** System-browser consent; returns true when the provider redirected back. */
 export async function loginGoogleFiles(): Promise<boolean> {
   if (GOOGLE_MEDIA_DISABLED) {
-    throw new Error('Google Drive and Photos are coming soon — pending Google verification.');
+    throw new Error('Google Drive and Photos are coming soon, pending Google verification.');
   }
   const url =
     `${YT_AUTH_ENDPOINT}?response_type=code` +
@@ -170,7 +170,7 @@ export async function getValidGoogleFilesToken(): Promise<string> {
     }),
   });
   const j: any = await r.json().catch(() => ({}));
-  if (!j?.access_token) throw new Error('Google session expired — reconnect Drive / Photos.');
+  if (!j?.access_token) throw new Error('Google session expired, reconnect Drive / Photos.');
   const next: StoredTokens = {
     accessToken: String(j.access_token),
     refreshToken: String(j.refresh_token ?? t.refreshToken),
@@ -261,7 +261,7 @@ export async function createPhotosSession(): Promise<{ id: string; pickerUri: st
   if (!r.ok) throw new Error(j?.error?.message ?? `Photos picker refused (HTTP ${r.status}).`);
   const id = String(j?.id ?? '');
   const pickerUri = String(j?.pickerUri ?? '');
-  if (!id || !pickerUri) throw new Error('Photos picker did not start — try again.');
+  if (!id || !pickerUri) throw new Error('Photos picker did not start, try again.');
   return { id, pickerUri };
 }
 
@@ -324,7 +324,7 @@ export async function downloadDriveFile(file: DriveFile): Promise<{ uri: string;
     dest,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  if (dl.status !== 200) throw new Error('Drive download failed — try another file.');
+  if (dl.status !== 200) throw new Error('Drive download failed, try another file.');
   return { uri: dl.uri, kind: file.kind };
 }
 
@@ -346,6 +346,6 @@ export async function downloadPhotosItem(item: PhotosItem): Promise<{ uri: strin
       headers: { Authorization: `Bearer ${token}` },
     });
   }
-  if (dl.status !== 200) throw new Error('Photos download failed — try another one.');
+  if (dl.status !== 200) throw new Error('Photos download failed, try another one.');
   return { uri: dl.uri, kind: item.kind };
 }

@@ -2,7 +2,7 @@
 //
 // Uses the SAME confidential Google client as YouTube (YT_CLIENT_ID/SECRET
 // in edge secrets) with an incremental scope: spreadsheets.readonly. The
-// user's Google account is shared across Sosial features per account — a
+// user's Google account is shared across Sosial features per account, a
 // second consent adds the Sheets scope without touching YouTube grants.
 //
 // POST { workspace_id, code, redirect_uri }  → exchange, Vault store, upsert
@@ -95,7 +95,7 @@ serve(async (req: Request): Promise<Response> => {
     });
   } catch {
     t.clear();
-    return bad("Could not reach Google — try again.", 504);
+    return bad("Could not reach Google, try again.", 504);
   }
   t.clear();
   const tok: any = await tokenRes.json().catch(() => ({}));

@@ -1,5 +1,5 @@
 /**
- * Shared redesign building blocks — used identically on landing + dashboard
+ * Shared redesign building blocks, used identically on landing + dashboard
  * so a user never feels like they switched products. See redesign brief.
  */
 import Link from 'next/link';
@@ -9,7 +9,7 @@ import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import type { ProviderKey } from '@/lib/types';
 
-/** 1. Bolt stat card — one per screen max, only for real numbers. */
+/** 1. Bolt stat card, one per screen max, only for real numbers. */
 export function StatCard({
   value,
   label,
@@ -36,7 +36,7 @@ export function StatCard({
   return <div className={cls}>{inner}</div>;
 }
 
-/** 2. Channel pill — small chip per network with an accent dot. Same vocabulary
+/** 2. Channel pill, small chip per network with an accent dot. Same vocabulary
  *  in composer, calendar, analytics, dashboard, profile. */
 export function ChannelPill({
   provider,
@@ -56,7 +56,7 @@ export function ChannelPill({
   );
 }
 
-/** Compact stacked channel dots — replaces the old stacked-icon avatar circle
+/** Compact stacked channel dots, replaces the old stacked-icon avatar circle
  *  in tight rows (upcoming post, recent sends). One chip per channel up to 4. */
 export function ChannelStack({
   providers,
@@ -84,7 +84,7 @@ export function ChannelStack({
   );
 }
 
-/** 3. Image placeholder slot — empty until the user uploads real assets.
+/** 3. Image placeholder slot, empty until the user uploads real assets.
  *  Renders a clean upload icon centered in a bordered paper-dim fill. */
 export function ImageSlot({
   className = '',
@@ -109,7 +109,7 @@ export function ImageSlot({
   );
 }
 
-/** 4. Step marker — numbered 1/2/3, reserved for genuinely sequential content. */
+/** 4. Step marker, numbered 1/2/3, reserved for genuinely sequential content. */
 export function StepMarker({ n }: { n: number | string }) {
   return (
     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink font-display text-xs font-extrabold text-paper">
@@ -118,7 +118,7 @@ export function StepMarker({ n }: { n: number | string }) {
   );
 }
 
-/** 5. CTA button — verb-first, no arrow glyph. Use 'ink' (default) for the
+/** 5. CTA button, verb-first, no arrow glyph. Use 'ink' (default) for the
  *  single most important action per screen; 'bolt' for landing hero / new post;
  *  'ghost' for secondary. The verb reappears in the resulting toast. */
 export function CTA({

@@ -39,7 +39,7 @@ export default function DisconnectChannel({
       });
       if (error) throw new Error(error.message);
       // functions.invoke can resolve with the error in the body instead of
-      // throwing — never treat that as a success or the row silently stays.
+      // throwing, never treat that as a success or the row silently stays.
       const bodyError =
         data && typeof data === 'object' && 'error' in data
           ? String((data as { error?: unknown }).error ?? '')

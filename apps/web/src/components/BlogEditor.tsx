@@ -17,13 +17,13 @@ export interface BlogDraft {
   slug: string;
   title: string;
   description: string;
-  /** Stored body: legacy blocks, old BlockNote JSON or TipTap JSON — normalized on open. */
+  /** Stored body: legacy blocks, old BlockNote JSON or TipTap JSON, normalized on open. */
   body: unknown;
   tag: Category;
   minutes: number;
   status: 'draft' | 'published';
   published_at: string | null;
-  /** updated_at the editor opened with — the save aborts if the row moved on. */
+  /** updated_at the editor opened with, the save aborts if the row moved on. */
   updatedAt?: string | null;
   coverUrl?: string | null;
   coverAlt?: string | null;
@@ -117,7 +117,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
     }
     const bodyHtml = tiptapToProseHtml(content);
     if (!bodyHtml.trim()) {
-      setErr('The document is still empty — write something first.');
+      setErr('The document is still empty, write something first.');
       return;
     }
     setSaving(true);
@@ -152,7 +152,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
         const freshAt = (fresh as { updated_at?: unknown } | null)?.updated_at ?? null;
         if ((initial.updatedAt ?? null) !== (typeof freshAt === 'string' ? freshAt : null)) {
           throw new Error(
-            'This post changed since you opened it — reload the editor to avoid overwriting. Your current edits stay in place.',
+            'This post changed since you opened it, reload the editor to avoid overwriting. Your current edits stay in place.',
           );
         }
         const { error } = await sb.from('blog_posts').update(payload).eq('id', initial.id);
@@ -192,7 +192,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
     }
   };
 
-  // Preview renders the exact publish pipeline — what you see is what ships.
+  // Preview renders the exact publish pipeline, what you see is what ships.
   const previewHtml = tiptapToProseHtml(cleanDocForPublish(doc));
 
   return (
@@ -299,7 +299,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
               <input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Standfirst — one line under the title…"
+                placeholder="Standfirst, one line under the title…"
                 aria-label="Description"
                 className="mt-2 w-full border-0 bg-transparent text-[17px] leading-relaxed text-muted outline-none placeholder:text-faint/50"
               />
@@ -340,7 +340,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
                       e.target.value = '';
                     }}
                   />
-                  {coverBusy ? 'Uploading…' : 'Upload cover — 16:9 works best, under 5 MB'}
+                  {coverBusy ? 'Uploading…' : 'Upload cover, 16:9 works best, under 5 MB'}
                 </label>
               )}
               <input

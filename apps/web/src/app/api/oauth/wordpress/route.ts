@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * WordPress connect passthrough — per-site Application Passwords, validated
+ * WordPress connect passthrough, per-site Application Passwords, validated
  * by connect-wordpress against the site's own REST API. Same shape as the
  * Telegram/Discord routes.
  */

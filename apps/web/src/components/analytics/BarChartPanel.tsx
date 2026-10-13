@@ -4,7 +4,7 @@ import { ChartBar } from '@/components/ui/chart';
 
 /**
  * Client boundary for a bar chart. Exists so server pages can render a chart
- * without passing a formatter function across the RSC boundary — only plain,
+ * without passing a formatter function across the RSC boundary, only plain,
  * serializable props cross here.
  */
 export default function BarChartPanel({

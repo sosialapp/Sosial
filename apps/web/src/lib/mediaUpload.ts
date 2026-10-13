@@ -245,7 +245,7 @@ export async function uploadMedia(
 
 /**
  * Upload a public blog asset (cover, inline image, doc image) to the public
- * `blog-media/` R2 prefix and return its public URL. App-admin only — the edge
+ * `blog-media/` R2 prefix and return its public URL. App-admin only, the edge
  * enforces it. `path` is the prefix (e.g. `covers`).
  */
 export async function uploadBlogMedia(sb: SupabaseClient, path: string, file: File): Promise<string> {

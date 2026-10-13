@@ -77,7 +77,7 @@ function ChartTooltipContent({
 
 type Datum = Record<string, string | number | null>;
 
-/** Vertical bars on a shared axis — the workhorse for per-day / per-week counts. */
+/** Vertical bars on a shared axis, the workhorse for per-day / per-week counts. */
 function ChartBar({
   data,
   dataKey,
@@ -177,7 +177,7 @@ export interface HBarRow {
   trailing?: React.ReactNode;
 }
 
-/** Horizontal bar list for funnels and leaderboards — server-safe (no SVG). */
+/** Horizontal bar list for funnels and leaderboards, server-safe (no SVG). */
 function HBarList({ rows, className }: { rows: HBarRow[]; className?: string }) {
   return (
     <ul className={cn('space-y-3', className)}>

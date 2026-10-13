@@ -3,9 +3,9 @@
 -- media_assets.storage_path keeps its exact logical key
 -- (<workspace_id>/<client_id>/<index>-<stamp>.<ext>); only WHERE the bytes live
 -- changes. storage_backend records that:
---   'supabase' — bytes only in the post-media bucket (legacy / not yet moved)
---   'r2'       — bytes only in R2 (sosial-media/post-media/<storage_path>)
---   'both'     — dual-written during the transition (reads prefer R2)
+--   'supabase', bytes only in the post-media bucket (legacy / not yet moved)
+--   'r2'      , bytes only in R2 (sosial-media/post-media/<storage_path>)
+--   'both'    , dual-written during the transition (reads prefer R2)
 -- Reads prefer R2 whenever the flag allows and fall back to Supabase on miss,
 -- so this is safe to ship before the backfill finishes. Blog media keeps its own
 -- public bucket/prefix and is not tracked here.

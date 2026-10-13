@@ -37,7 +37,7 @@ export const SOCIAL_PLATFORMS: { id: string; label: string }[] = [
 
 export const THREAD_PLATFORM_IDS = ['x', 'threads', 'mastodon', 'bluesky'];
 
-/** Below this a thread part reads as filler on X — mirrors the mobile rule. */
+/** Below this a thread part reads as filler on X, mirrors the mobile rule. */
 export const THREAD_POST_MIN = 230;
 
 export function capFor(platform: string, thread = false): number {
@@ -60,7 +60,7 @@ export type RewriteOp = 'shorter' | 'punchier' | 'natural' | 'context' | 'tone' 
 
 export interface AiGenerateArgs {
   topic: string;
-  /** Destination ids ('any' = general feed) — the model adapts wording per channel. */
+  /** Destination ids ('any' = general feed), the model adapts wording per channel. */
   platforms: string[];
   /** true = connected thread chain. */
   thread: boolean;
@@ -105,7 +105,7 @@ export async function rewritePosts(
   if (error) throw new Error((await edgeErrorMessage(error)) ?? error.message);
   const payload = data as { posts?: string[]; error?: string } | null;
   if (!payload?.posts?.length) {
-    throw new Error(payload?.error ?? 'The rewrite came back empty — kept your original.');
+    throw new Error(payload?.error ?? 'The rewrite came back empty, kept your original.');
   }
   return payload.posts;
 }

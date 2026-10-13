@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Analytics loader: posts + channels + engagement snapshots + follower
  * snapshots, all server-side. Snapshot queries degrade to empty on error
- * (cards show "—") — they must never take the page down.
+ * (cards show "-"), they must never take the page down.
  */
 export default async function AnalyticsPage() {
   const ctx = await getWorkspaceContext();

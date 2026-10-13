@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Lightweight hover/focus tooltip on brand tokens. Renders inline (no portal)
- * so it stays inside the dashboard's `.theme-dark` scope. CSS-only — shows on
+ * so it stays inside the dashboard's `.theme-dark` scope. CSS-only, shows on
  * hover and keyboard focus, hides on Escape.
  */
 export function Tooltip({

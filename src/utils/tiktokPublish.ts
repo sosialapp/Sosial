@@ -1,7 +1,7 @@
 import { TT_API } from './tiktokConfig';
 import { getValidToken } from './tiktokAuth';
 
-const CHUNK = 8 * 1024 * 1024; // 8MB parts — bounded memory, no giant buffers
+const CHUNK = 8 * 1024 * 1024; // 8MB parts, bounded memory, no giant buffers
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function friendly(code: string, fallback: string): string {
@@ -9,23 +9,23 @@ function friendly(code: string, fallback: string): string {
   const tag = code && code !== 'ok' ? ` [${code}]` : '';
   switch (code) {
     case 'unaudited_client_can_only_post_to_private_accounts':
-      return 'TikTok rejected it: an unaudited app can only post from accounts added as test users — even “Only me” fails otherwise. Add this TikTok account as a test user in your TikTok developer portal, reconnect TikTok, and retry. Public posting needs TikTok app review.' + tag;
+      return 'TikTok rejected it: an unaudited app can only post from accounts added as test users, even “Only me” fails otherwise. Add this TikTok account as a test user in your TikTok developer portal, reconnect TikTok, and retry. Public posting needs TikTok app review.' + tag;
     case 'privacy_level_option_mismatch':
-      return 'That privacy setting isn’t allowed for this account — pick another.' + tag;
+      return 'That privacy setting isn’t allowed for this account, pick another.' + tag;
     case 'spam_risk_too_many_posts':
-      return 'TikTok daily post limit reached — try again tomorrow.' + tag;
+      return 'TikTok daily post limit reached, try again tomorrow.' + tag;
     case 'spam_risk_user_banned_from_posting':
       return 'TikTok blocked this account from posting.' + tag;
     case 'reached_active_user_cap':
-      return 'TikTok daily publishing quota for this app is reached — try tomorrow.' + tag;
+      return 'TikTok daily publishing quota for this app is reached, try tomorrow.' + tag;
     case 'scope_not_authorized':
-      return 'TikTok is missing the video.publish permission — disconnect and reconnect TikTok.' + tag;
+      return 'TikTok is missing the video.publish permission, disconnect and reconnect TikTok.' + tag;
     case 'access_token_invalid':
-      return 'TikTok session expired — reconnect TikTok.' + tag;
+      return 'TikTok session expired, reconnect TikTok.' + tag;
     case 'url_ownership_unverified':
-      return 'TikTok only pulls photos from a domain you own and have verified — photo posts need a verified domain (video posts don’t).' + tag;
+      return 'TikTok only pulls photos from a domain you own and have verified, photo posts need a verified domain (video posts don’t).' + tag;
     case 'picture_size_check_failed':
-      return 'TikTok rejected the photo size — photos must fit 1080p (longest side ≤ 1920px). The photo host now resizes automatically, so retry.' + tag;
+      return 'TikTok rejected the photo size, photos must fit 1080p (longest side ≤ 1920px). The photo host now resizes automatically, so retry.' + tag;
     default:
       return fallback + tag;
   }
@@ -42,7 +42,7 @@ function contentTypeFor(uri: string): string {
   return 'video/mp4';
 }
 
-/** Poll a TikTok publish until terminal — check immediately, then back off. */
+/** Poll a TikTok publish until terminal, check immediately, then back off. */
 async function pollTikTokStatus(publishId: string, token: string, kind: string): Promise<string> {
   const start = Date.now();
   let delay = 2000;
@@ -57,19 +57,19 @@ async function pollTikTokStatus(publishId: string, token: string, kind: string):
     if (status === 'FAILED') {
       const code = String(sJ?.error?.code ?? '');
       // TikTok puts the human-readable cause in data.fail_reason (error.code is
-      // often empty on failures) — without it we can only guess.
+      // often empty on failures), without it we can only guess.
       const reason = String(sJ?.data?.fail_reason ?? '').trim();
-      const detail = reason ? ` — ${reason}` : '';
+      const detail = reason ? `, ${reason}` : '';
       if (!code || code === 'ok') {
         if (reason) throw new Error(`TikTok failed to process the ${kind}${detail}`);
         throw new Error(
-          `TikTok could not download the ${kind} — check the domain is verified in the TikTok developer portal and the photo-host file is still live (links expire after 24h).`,
+          `TikTok could not download the ${kind}, check the domain is verified in the TikTok developer portal and the photo-host file is still live (links expire after 24h).`,
         );
       }
       throw new Error(friendly(code, `TikTok failed to process the ${kind}.`) + detail);
     }
     if (Date.now() - start >= 60000) {
-      throw new Error('TikTok is still processing — check your TikTok app in a few minutes.');
+      throw new Error('TikTok is still processing, check your TikTok app in a few minutes.');
     }
     await sleep(delay);
     delay = Math.min(Math.round(delay * 1.5), 8000);
@@ -78,7 +78,7 @@ async function pollTikTokStatus(publishId: string, token: string, kind: string):
 
 /**
  * expo/fetch (SDK 57 global fetch) has no file:// support and drops
- * Content-Range/Content-Length headers — both required by TikTok's
+ * Content-Range/Content-Length headers, both required by TikTok's
  * chunked upload. XMLHttpRequest still runs on the native Networking
  * module: it can read file:// URIs as Blobs and sends every header.
  */
@@ -95,17 +95,17 @@ function xhrRequest(
     }
     if (opts?.responseType) xhr.responseType = opts.responseType;
     // Without this the request can hang forever on a stalled connection
-    // (timeout defaults to 0 = never) — the app then sits on an
+    // (timeout defaults to 0 = never), the app then sits on an
     // undismissable spinner and looks frozen.
     if (opts?.timeoutMs) xhr.timeout = opts.timeoutMs;
     xhr.onload = () => resolve(xhr);
-    xhr.onerror = () => reject(new Error('Network request failed — check your connection.'));
-    xhr.ontimeout = () => reject(new Error('Upload timed out — try again.'));
+    xhr.onerror = () => reject(new Error('Network request failed, check your connection.'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out, try again.'));
     xhr.send(opts?.body);
   });
 }
 
-/** fetch with a hard ceiling — plain fetch has no timeout and a dropped
+/** fetch with a hard ceiling, plain fetch has no timeout and a dropped
  *  connection would await forever behind the loading overlay. */
 async function fetchJson(url: string, init: RequestInit, timeoutMs: number): Promise<any> {
   const c = new AbortController();
@@ -114,7 +114,7 @@ async function fetchJson(url: string, init: RequestInit, timeoutMs: number): Pro
     const r = await fetch(url, { ...init, signal: c.signal });
     return await r.json().catch(() => ({}));
   } catch (e: any) {
-    if (e?.name === 'AbortError') throw new Error('TikTok took too long to answer — try again.');
+    if (e?.name === 'AbortError') throw new Error('TikTok took too long to answer, try again.');
     throw e;
   } finally {
     clearTimeout(t);
@@ -133,12 +133,12 @@ export async function publishTikTokVideo(opts: {
 }): Promise<string> {
   const token = await getValidToken(opts.accountId);
 
-  // XHR (native Networking) can read file:// URIs — one Blob, sliced per
+  // XHR (native Networking) can read file:// URIs, one Blob, sliced per
   // chunk, never the whole file decoded in JS memory.
   const fileXhr = await xhrRequest('GET', opts.videoUri, { responseType: 'blob', timeoutMs: 60000 });
   const blob: any = fileXhr.response;
   const size: number = blob?.size ?? 0;
-  if (!size) throw new Error('Could not read the video file — re-attach it and try again.');
+  if (!size) throw new Error('Could not read the video file, re-attach it and try again.');
   const totalChunks = Math.max(1, Math.ceil(size / CHUNK));
   const chunkSize = Math.min(CHUNK, size);
 
@@ -183,16 +183,16 @@ export async function publishTikTokVideo(opts: {
     });
     // TikTok answers chunk PUTs with 200/201/206 and usually an empty body
     if (putXhr.status !== 200 && putXhr.status !== 201 && putXhr.status !== 206) {
-      throw new Error(`TikTok upload stalled on part ${i + 1}/${totalChunks} — try again.`);
+      throw new Error(`TikTok upload stalled on part ${i + 1}/${totalChunks}, try again.`);
     }
   }
 
-  // processing is async — poll until terminal (fast backoff, no fixed 10s waits)
+  // processing is async, poll until terminal (fast backoff, no fixed 10s waits)
   return pollTikTokStatus(publishId, token, 'video');
 }
 
 /**
- * Direct Post photos (carousel): /content/init/ with PULL_FROM_URL —
+ * Direct Post photos (carousel): /content/init/ with PULL_FROM_URL -
  * TikTok pulls the images itself, so every uri must already be public.
  * Same status endpoint as video, so poll until PUBLISH_COMPLETE.
  */

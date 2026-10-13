@@ -1,5 +1,5 @@
 /**
- * Pure URL → embed transforms (no JSX — safe to import from tests, the
+ * Pure URL → embed transforms (no JSX, safe to import from tests, the
  * serializer and client components alike).
  */
 
@@ -17,7 +17,7 @@ export function embedUrl(url: string): string | null {
   return null;
 }
 
-/** Static social/video/music embeds — pure URL transforms, no JS SDKs, so
+/** Static social/video/music embeds, pure URL transforms, no JS SDKs, so
  *  the published HTML renders them without any client script. Returns the
  *  iframe src plus the aspect box the embed wants, or null when the platform
  *  has no static iframe (X, LinkedIn, …) and a link card should render. */
@@ -30,7 +30,7 @@ export function resolveEmbed(
   if (video) return { src: video, ratio: '16 / 9' };
 
   let m: RegExpMatchArray | null;
-  // Spotify — player height differs per kind.
+  // Spotify, player height differs per kind.
   m = u.match(/^(?:https?:\/\/)?open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|episode|show)\/([\w]+)/);
   if (m) {
     const [, kind, id] = m;

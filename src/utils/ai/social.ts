@@ -6,12 +6,12 @@ import { AiLanguage } from './types';
 /**
  * Caption + thread writer.
  *
- * Contract v2 — the model does the thinking, the UI stays quiet:
+ * Contract v2, the model does the thinking, the UI stays quiet:
  *  - one idea in → voice / style / structure / length are inferred (Auto)
  *  - optional multi-platform output: same facts, adapted presentation per channel
  *  - optional live web research (Google Search grounding) for time-sensitive news,
  *    with confirmed-fact vs claim separation and source links
- *  - every result is clamped to platform caps afterwards — never trusted
+ *  - every result is clamped to platform caps afterwards, never trusted
  *
  * The legacy `caption` / `thread` / `hashtags` fields stay on SocialResult so the
  * composer keeps working untouched.
@@ -22,7 +22,7 @@ export type SocialPlatform =
   | 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'pinterest'
   | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'gmb';
 
-/** 'auto' lets the model pick the voice. All voices sit side by side — no hidden rows. */
+/** 'auto' lets the model pick the voice. All voices sit side by side, no hidden rows. */
 export type SocialTone = 'auto' | 'story' | 'punchy' | 'friendly' | 'professional' | 'bold';
 
 export const SOCIAL_TONES: { id: SocialTone; label: string }[] = [
@@ -56,7 +56,7 @@ export const SOCIAL_PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'gmb', label: 'Google Business' },
 ];
 
-/** How each destination wants to be written — the core message stays identical. */
+/** How each destination wants to be written, the core message stays identical. */
 export const PLATFORM_ADAPT: Record<SocialPlatform, string> = {
   any: 'write for a general social feed',
   x: 'concise and punchy, one idea, no wasted words',
@@ -110,20 +110,20 @@ export const SOCIAL_STYLES: SocialStyleMeta[] = [
     sampleZh: 'AI 会为你的想法选择最合适的结构。',
     sampleTa: 'உங்கள் யோசனைக்கு ஏற்ற அமைப்பை AI தேர்ந்தெடுக்கும்.' },
   { id: 'breaking', label: 'Breaking', hint: 'Urgent news update',
-    sample: 'JUST IN: Council passes the transit bill 7–2. It takes effect in March — here is what changes.',
-    sampleMs: 'TERKINI: Majlis meluluskan rang undang-undang transit 7–2. Berkuat kuasa Mac — ini yang berubah.',
-    sampleZh: '突发：市议会以7比2通过交通法案，三月生效——以下是变化。',
-    sampleTa: 'அவசரம்: போக்குவரத்து மசோதா 7–2 என நிறைவேறியது. மார்ச் முதல் அமல் — மாற்றங்கள் இவை.' },
+    sample: 'JUST IN: Council passes the transit bill 7–2. It takes effect in March, here is what changes.',
+    sampleMs: 'TERKINI: Majlis meluluskan rang undang-undang transit 7–2. Berkuat kuasa Mac, ini yang berubah.',
+    sampleZh: '突发：市议会以7比2通过交通法案，三月生效--以下是变化。',
+    sampleTa: 'அவசரம்: போக்குவரத்து மசோதா 7–2 என நிறைவேறியது. மார்ச் முதல் அமல், மாற்றங்கள் இவை.' },
   { id: 'thread', label: 'Deep thread', hint: 'Story, one idea per post',
     sample: 'I wasted 2 years overthinking content. Here is the system that actually works:',
     sampleMs: 'Saya bazirkan 2 tahun fikir pasal kandungan. Ini sistem yang betul-betul berkesan:',
     sampleZh: '我花了两年时间纠结内容。这是真正有效的方法：',
     sampleTa: 'உள்ளடக்கத்தைப் பற்றி யோசித்து 2 ஆண்டுகளை வீணாக்கினேன். உண்மையில் வேலை செய்யும் முறை இது:' },
   { id: 'listicle', label: 'Listicle', hint: 'Saveable value stack',
-    sample: '5 free tools that cut my editing time in half — save this:',
-    sampleMs: '5 alat percuma yang potong separuh masa suntingan saya — simpan ini:',
-    sampleZh: '5 个免费工具让我的剪辑时间减半——收藏：',
-    sampleTa: 'எனது எடிட்டிங் நேரத்தை பாதியாகக் குறைத்த 5 இலவச கருவிகள் — சேமியுங்கள்:' },
+    sample: '5 free tools that cut my editing time in half, save this:',
+    sampleMs: '5 alat percuma yang potong separuh masa suntingan saya, simpan ini:',
+    sampleZh: '5 个免费工具让我的剪辑时间减半--收藏：',
+    sampleTa: 'எனது எடிட்டிங் நேரத்தை பாதியாகக் குறைத்த 5 இலவச கருவிகள், சேமியுங்கள்:' },
   { id: 'teardown', label: 'Teardown', hint: 'Feature → business value',
     sample: 'This checkout added one button and lifted sales 18%. Teardown:',
     sampleMs: 'Checkout ini tambah satu butang dan naikkan jualan 18%. Ulasan:',
@@ -135,10 +135,10 @@ export const SOCIAL_STYLES: SocialStyleMeta[] = [
     sampleZh: '你的信息流如何在200毫秒内加载而不崩溃：请求→排序→缓存。',
     sampleTa: 'உங்கள் ஃபீட் 200ms-இல் செயலிழக்காமல் ஏற்றுவது எப்படி: கோரிக்கை → தரவரிசை → கேச்.' },
   { id: 'compare', label: 'X vs Y', hint: 'Old way vs modern way',
-    sample: 'Posting daily vs posting well — the difference:',
-    sampleMs: 'Pos setiap hari vs pos yang berkualiti — bezanya:',
-    sampleZh: '天天发和发得好——区别在这里：',
-    sampleTa: 'தினமும் பதிவிடுவது vs நன்றாகப் பதிவிடுவது — வித்தியாசம்:' },
+    sample: 'Posting daily vs posting well, the difference:',
+    sampleMs: 'Pos setiap hari vs pos yang berkualiti, bezanya:',
+    sampleZh: '天天发和发得好--区别在这里：',
+    sampleTa: 'தினமும் பதிவிடுவது vs நன்றாகப் பதிவிடுவது, வித்தியாசம்:' },
   { id: 'casestudy', label: 'Case study', hint: 'Metric-led social proof',
     sample: 'How a 12-person team cut churn 31% in 60 days:',
     sampleMs: 'Macam mana pasukan 12 orang potong churn 31% dalam 60 hari:',
@@ -177,7 +177,7 @@ export function styleSampleFor(s: SocialStyleMeta, language: string): string {
 /** Thread posts must feel substantial: floor per post (X's 280 cap still fits above it). */
 export const THREAD_POST_MIN = 230;
 
-/** Only these channels support native reply-chains — the thread destination set. */
+/** Only these channels support native reply-chains, the thread destination set. */
 export const THREAD_PLATFORM_IDS: SocialPlatform[] = ['x', 'threads', 'mastodon', 'bluesky'];
 
 /** Styles that only make sense as multi-post threads. */
@@ -504,18 +504,18 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
     thread = primary.posts.slice(0, Math.max(2, Math.min(12, brief.parts)));
     if (primary.posts.length > thread.length) warnings.push(`Trimmed the thread to ${thread.length} posts.`);
     const short = thread.map((p, i) => (p.length < THREAD_POST_MIN ? i + 1 : 0)).filter(Boolean);
-    if (short.length) warnings.push(`Post${short.length > 1 ? 's' : ''} ${short.slice(0, 4).join(', ')} came back under ${THREAD_POST_MIN} characters — expand ${short.length > 1 ? 'them' : 'it'} or Regenerate.`);
+    if (short.length) warnings.push(`Post${short.length > 1 ? 's' : ''} ${short.slice(0, 4).join(', ')} came back under ${THREAD_POST_MIN} characters, expand ${short.length > 1 ? 'them' : 'it'} or Regenerate.`);
     caption = thread[0] ?? '';
   } else {
     thread = [];
     caption = primary.posts.join('\n\n');
     if (caption.length > CAPTION_MAX) {
       caption = clampChars(caption, CAPTION_MAX);
-      warnings.push('The caption was trimmed — it was longer than any platform accepts.');
+      warnings.push('The caption was trimmed, it was longer than any platform accepts.');
     }
     // Thread requested but the model returned 0–1 posts: never fail silently.
     if (wantsThread && primary.posts.length <= 1) {
-      warnings.push(`Asked for a ${Math.max(2, Math.min(12, brief.parts))}-post thread but got a single post — tap Regenerate to try again.`);
+      warnings.push(`Asked for a ${Math.max(2, Math.min(12, brief.parts))}-post thread but got a single post, tap Regenerate to try again.`);
     }
   }
 
@@ -524,7 +524,7 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
   const uncertainties = normUncertainties(raw?.uncertainties);
   const researchUsed = !!raw?.__researched || sources.length > 0;
 
-  if (!caption && !thread.length && !hashtags.length) warnings.push('Nothing usable came back — try rephrasing the idea.');
+  if (!caption && !thread.length && !hashtags.length) warnings.push('Nothing usable came back, try rephrasing the idea.');
 
   return {
     caption,
@@ -544,7 +544,7 @@ export function normalizeSocial(raw: any, brief: SocialBrief, provider: string):
 
 const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
   breaking: [
-    'STYLE: breaking news update. Open with a plain, accurate line — an alert marker (JUST IN / BREAKING / UPDATE) only if the facts justify it.',
+    'STYLE: breaking news update. Open with a plain, accurate line, an alert marker (JUST IN / BREAKING / UPDATE) only if the facts justify it.',
     'Lead with what happened, where and when, then who confirmed it and what is still unclear. End with why it matters.',
     'Only state facts you can source. Attribute claims to who made them. Never upgrade a claim into a confirmed fact for impact.',
   ].join(' '),
@@ -554,12 +554,12 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
   ].join(' '),
   listicle: [
     'STYLE: listicle / value stack. Hook with a concrete promise ("5 tools that cut my editing time in half").',
-    'Scannable items as "Name — one line on why it matters". Close with one save/share prompt.',
+    'Scannable items as "Name, one line on why it matters". Close with one save/share prompt.',
   ].join(' '),
   teardown: [
     'STYLE: feature teardown. Open on the workflow pain, then the feature in ONE sentence.',
     'Follow with 2-3 metric-led value bullets and a single try-it call-to-action.',
-    'Use only numbers from the idea — if there are none, write the value without numbers. Never invent metrics.',
+    'Use only numbers from the idea, if there are none, write the value without numbers. Never invent metrics.',
   ].join(' '),
   deepdive: [
     'STYLE: technical deep-dive thread. Hook with the architectural puzzle ("How X handles Y without falling over").',
@@ -569,7 +569,7 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
   compare: [
     'STYLE: old-way vs modern-way comparison. Hook: "The difference between A and B:".',
     'Then the legacy flaws (2-3, marked ❌) against the modern habits (2-3, marked ✅).',
-    'Close with ONE sentence naming the mindset shift. Steelman the old way — no strawmen.',
+    'Close with ONE sentence naming the mindset shift. Steelman the old way, no strawmen.',
   ].join(' '),
   casestudy: [
     'STYLE: metric-led case study. Hook with the headline result ("How a 12-person SaaS cut churn 31% in 60 days").',
@@ -577,19 +577,19 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
     'Use only numbers from the idea. If there are no numbers, write it as a process story, not a results story.',
   ].join(' '),
   postmortem: [
-    'STYLE: founder post-mortem. Open with the failure, plainly owned — no humblebrag.',
+    'STYLE: founder post-mortem. Open with the failure, plainly owned, no humblebrag.',
     'Then what actually went wrong, the structural fix that followed, and one open question inviting shared experiences.',
   ].join(' '),
   roundup: [
     'STYLE: resource roundup. Hook with invested effort ("I spent 6 years on X. These N resources save you 100+ hours:").',
-    'Group items by category, each as "Name — what it does in one line". Close with one bookmark prompt.',
+    'Group items by category, each as "Name, what it does in one line". Close with one bookmark prompt.',
   ].join(' '),
   hottake: [
-    'STYLE: contrarian take. Open with the unpopular claim, stated cleanly — no insults, no dunking on real people.',
+    'STYLE: contrarian take. Open with the unpopular claim, stated cleanly, no insults, no dunking on real people.',
     'Then 2-3 myth-vs-reality beats, and close with a genuine agree/disagree question.',
   ].join(' '),
   question: [
-    'STYLE: question-led post. Open with ONE sharp question that names the reader\'s pain or curiosity — no throat-clearing before it.',
+    'STYLE: question-led post. Open with ONE sharp question that names the reader\'s pain or curiosity, no throat-clearing before it.',
     'Answer it in 2-3 short beats with a concrete payoff, then close with a genuine question that invites replies.',
     'Never stack multiple opening questions, and never use "Ever wondered…?", "What if I told you…?" or "Here\'s the truth:".',
   ].join(' '),
@@ -597,34 +597,34 @@ const STYLE_BLOCKS: Record<Exclude<SocialStyle, 'auto'>, string> = {
 
 const HUMAN_RULES = [
   'HUMAN VOICE (non-negotiable): you sound like a person, never a brand deck.',
-  'Banned words — never emit: delve, unpack, tapestry, landscape, paradigm, beacon, game-changer, revolutionary, testament, elevate, foster, seamless, unlock/unlocking, next-gen, synergize, supercharge, "in an era of", "in today\'s fast-paced world", "let\'s dive in", "here\'s everything you need to know".',
+  'Banned words, never emit: delve, unpack, tapestry, landscape, paradigm, beacon, game-changer, revolutionary, testament, elevate, foster, seamless, unlock/unlocking, next-gen, synergize, supercharge, "in an era of", "in today\'s fast-paced world", "let\'s dive in", "here\'s everything you need to know".',
   'Banned constructions: "It\'s not X, it\'s Y" contrasts, "Here\'s the truth:" throat-clearing, "Ever wondered…?" openers, and "whether X, Y, or Z" triplets.',
   'Rhythm: alternate short punchy lines with medium explainers; break lines liberally; no paragraph longer than 3 lines. Do not overuse em dashes.',
   'Always use contractions (it\'s, don\'t, can\'t, you\'re, we\'ve). Open sentences with verbs or natural transitions (Look, Here\'s the thing, Honestly, Turns out).',
   'Show, don\'t tell: concrete specifics over adjectives ("cut render time from 450ms to 42ms", not "blazing fast").',
   'One idea per paragraph. Never repeat a point to fill space. Do not force a hook if the topic does not need one.',
-  'At most ONE call-to-action per post or thread-close, and keep it soft — an invitation, not a demand.',
+  'At most ONE call-to-action per post or thread-close, and keep it soft, an invitation, not a demand.',
 ].join('\n');
 
 const HONESTY_RULES = [
   'HONESTY: never invent metrics, quotes, names, studies, dates or links.',
-  'If the idea gives you numbers, use them; if not, write around them — never fabricate.',
+  'If the idea gives you numbers, use them; if not, write around them, never fabricate.',
 ].join('\n');
 
 /**
- * Universal editorial charter — distilled from docs/UNIVERSAL_CONTENT_RULES.md.
+ * Universal editorial charter, distilled from docs/UNIVERSAL_CONTENT_RULES.md.
  * The parts the other rule blocks don't already cover: unlimited niche scope,
  * story-finding, format discipline and subject-specific integrity rules.
  */
 const CHARTER_RULES = [
   'CHARTER (always in force):',
-  'UNIVERSAL SCOPE: no fixed niche — never assume finance/tech/AI. Auto-detect the subject (sports, celebrity, music, gaming, cars, fashion, memes, science, history, politics, gambling, anything else — even a random weird question) and adapt sources, tone and terminology to it. NEVER say a topic is outside your niche: any understandable subject with available information has an editorial angle — surprising, new, controversial, unusual, expensive, human, hidden explanation, unexpected consequence.',
-  'FIND THE STORY: do not merely answer the topic — find the story inside it. Lead with the most interesting true detail, not a chronology. "Ferrari released a car" is weak; "it costs more than a house, and the price is not even the interesting part" is the move. The angle depends on the actual facts.',
-  'SHORT PROMPTS ARE VALID: "latest F1 news", "Taylor Swift latest", "history of Rolex" — work with whatever the user gives. Never demand more input unless truly necessary.',
+  'UNIVERSAL SCOPE: no fixed niche, never assume finance/tech/AI. Auto-detect the subject (sports, celebrity, music, gaming, cars, fashion, memes, science, history, politics, gambling, anything else, even a random weird question) and adapt sources, tone and terminology to it. NEVER say a topic is outside your niche: any understandable subject with available information has an editorial angle, surprising, new, controversial, unusual, expensive, human, hidden explanation, unexpected consequence.',
+  'FIND THE STORY: do not merely answer the topic, find the story inside it. Lead with the most interesting true detail, not a chronology. "Ferrari released a car" is weak; "it costs more than a house, and the price is not even the interesting part" is the move. The angle depends on the actual facts.',
+  'SHORT PROMPTS ARE VALID: "latest F1 news", "Taylor Swift latest", "history of Rolex", work with whatever the user gives. Never demand more input unless truly necessary.',
   'STORY SHAPE (invisible framework): hook → context → curiosity gap (always answered later) → development → payoff/takeaway. No "Introduction / Key Points / Conclusion" scaffolding, no labels, no template sameness across topics.',
-  'THREAD/CARD FITTING: output EXACTLY the requested number of posts — never more, never fewer, never an empty one. One coherent story, not disconnected posts. Compress by rewriting (merge facts, cut secondary detail); expand with real value (context, evidence, timeline, consequences). Never truncate, never pad. Prioritize: hook, core context, key evidence, main development, payoff.',
-  'INTEGRITY BY SUBJECT: politics stays factual and neutral — never persuade. Gambling is a subject to discuss (industry, history, controversies), never instructions to gamble. Celebrities: public info only — never speculate about health, relationships or motives; label rumors as rumors. Sports results and scores are never invented. Controversy separates verified facts from allegations ("X accused… Y denied…").',
-  'NO FORCED DRAMA: no ALL-CAPS hype ("THIS CHANGES EVERYTHING!!!") unless the material genuinely earns it. No information dumps — choose the facts that strengthen the story. Virality is not the goal; a true, interesting story is.',
+  'THREAD/CARD FITTING: output EXACTLY the requested number of posts, never more, never fewer, never an empty one. One coherent story, not disconnected posts. Compress by rewriting (merge facts, cut secondary detail); expand with real value (context, evidence, timeline, consequences). Never truncate, never pad. Prioritize: hook, core context, key evidence, main development, payoff.',
+  'INTEGRITY BY SUBJECT: politics stays factual and neutral, never persuade. Gambling is a subject to discuss (industry, history, controversies), never instructions to gamble. Celebrities: public info only, never speculate about health, relationships or motives; label rumors as rumors. Sports results and scores are never invented. Controversy separates verified facts from allegations ("X accused… Y denied…").',
+  'NO FORCED DRAMA: no ALL-CAPS hype ("THIS CHANGES EVERYTHING!!!") unless the material genuinely earns it. No information dumps, choose the facts that strengthen the story. Virality is not the goal; a true, interesting story is.',
 ].join('\n');
 
 const RESEARCH_RULES = [
@@ -633,20 +633,20 @@ const RESEARCH_RULES = [
   'Separate CONFIRMED FACT from CLAIM from ANALYSIS from UNVERIFIED REPORT. Attribute each claim to who made it ("X claimed…", "authorities confirmed…").',
   'Never turn an allegation into a confirmed fact. If sources conflict, say so plainly in `uncertainties`.',
   'Include the relevant date/time when it helps. Discard outdated information.',
-  'Return the sources you actually used in `sources` (real URLs only — never invent one).',
+  'Return the sources you actually used in `sources` (real URLs only, never invent one).',
 ].join('\n');
 
 function emojiRule(brief: SocialBrief): string {
   if (brief.emoji === 'off') return 'Emoji: none at all.';
-  if (brief.emoji === 'on') return 'Emoji: sparing — at most one per post, structural only (🚨 ❌ ✅ 👇), never mid-sentence, never as word substitutes.';
-  return 'Emoji: only if the topic and platform genuinely call for them — otherwise none. Never mid-sentence, never as word substitutes.';
+  if (brief.emoji === 'on') return 'Emoji: sparing, at most one per post, structural only (🚨 ❌ ✅ 👇), never mid-sentence, never as word substitutes.';
+  return 'Emoji: only if the topic and platform genuinely call for them, otherwise none. Never mid-sentence, never as word substitutes.';
 }
 
 function languageRule(brief: SocialBrief): string {
   if (brief.language !== 'auto') return `Write everything in ${brief.language}.`;
   return [
     "LANGUAGE: match the language of the user's idea exactly.",
-    'If it is Malaysian Malay, write natural Malaysian Malay — never convert it to Indonesian (use kau/korang/sebenarnya/benda ni/macam mana/tak semestinya/sebab tu naturally, not as decoration).',
+    'If it is Malaysian Malay, write natural Malaysian Malay, never convert it to Indonesian (use kau/korang/sebenarnya/benda ni/macam mana/tak semestinya/sebab tu naturally, not as decoration).',
     'If it is English, write natural English. If it is mixed Malay + English, preserve that natural mix.',
     'Match their formality level; never force slang, never overdo it.',
   ].join(' ');
@@ -654,13 +654,13 @@ function languageRule(brief: SocialBrief): string {
 
 function platformsLine(platforms: SocialPlatform[]): string {
   if (platforms.length === 1 && platforms[0] === 'any') {
-    return 'DESTINATIONS: general — write one version that works anywhere.';
+    return 'DESTINATIONS: general, write one version that works anywhere.';
   }
   const parts = platforms.map((p) => `${p} (${PLATFORM_ADAPT[p]})`);
   if (platforms.length === 1) return `DESTINATION: ${parts[0]}.`;
   return [
     `DESTINATIONS: ${parts.join('; ')}.`,
-    'Write ONE entry in `variants` per destination above. Keep the facts and core message identical across them — only the presentation changes (length, tone, structure, opening).',
+    'Write ONE entry in `variants` per destination above. Keep the facts and core message identical across them, only the presentation changes (length, tone, structure, opening).',
   ].join(' ');
 }
 
@@ -693,20 +693,20 @@ function buildPrompt(brief: SocialBrief, opts: { platforms: SocialPlatform[]; li
     lines.push(RESEARCH_RULES);
     lines.push(opts.sources
       ? 'Attach the sources you used in `sources` (real URLs only).'
-      : 'Do not attach source links — return an empty sources array, and fold any essential attribution into the copy.');
+      : 'Do not attach source links, return an empty sources array, and fold any essential attribution into the copy.');
   }
 
   if (brief.thread) {
     lines.push(
-      `FORMAT: a NATURAL THREAD of EXACTLY ${brief.parts} connected posts — that count is a hard requirement, not a suggestion. One long post instead of a thread is a failure.`,
+      `FORMAT: a NATURAL THREAD of EXACTLY ${brief.parts} connected posts, that count is a hard requirement, not a suggestion. One long post instead of a thread is a failure.`,
       'Open with a line that earns the next tap. One idea per post, rising order, real payoff in the last one.',
       THREAD_STRUCTURES,
       'Never number the posts, never write "1/", never use "🧵", never say "thread", "in this thread" or "let me explain". No hashtags inside the posts.',
-      `BUDGET PER POST: at least ${THREAD_POST_MIN} characters and at most ${opts.limit}. Spend nearly the whole budget on every post — develop each point fully instead of writing short one-liners. Every post outside this range gets flagged.`,
+      `BUDGET PER POST: at least ${THREAD_POST_MIN} characters and at most ${opts.limit}. Spend nearly the whole budget on every post, develop each point fully instead of writing short one-liners. Every post outside this range gets flagged.`,
     );
   } else {
     lines.push(
-      'FORMAT: ONE tight caption — a strong first line, one or two beats of value, a soft close. No numbered lists unless the idea is genuinely a list.',
+      'FORMAT: ONE tight caption, a strong first line, one or two beats of value, a soft close. No numbered lists unless the idea is genuinely a list.',
       `Keep it under ${opts.limit} characters, and shorter is better.`,
     );
   }
@@ -722,7 +722,7 @@ function buildPrompt(brief: SocialBrief, opts: { platforms: SocialPlatform[]; li
   return lines.join('\n');
 }
 
-/** Prompt + research flag both engines share — one computation, no drift. */
+/** Prompt + research flag both engines share, one computation, no drift. */
 function socialPromptArgs(brief: SocialBrief): { prompt: string; research: boolean } {
   const platforms = activePlatforms(brief);
   const limit = Math.min(...platforms.map((p) => capFor(p, brief.thread)));
@@ -742,7 +742,7 @@ export function mockSocial(brief: SocialBrief): any {
   const hooks: Record<SocialTone, string> = {
     auto: `Here's what actually changed my mind about ${t}.`,
     story: `Let me tell you about ${t}.`,
-    punchy: `${cap(t)} — but not how you think.`,
+    punchy: `${cap(t)}, but not how you think.`,
     friendly: `Okay, let's actually talk about ${t}.`,
     professional: `A quick note on ${t}.`,
     bold: `Most advice about ${t} is wrong.`,
@@ -751,7 +751,7 @@ export function mockSocial(brief: SocialBrief): any {
     hooks[brief.tone] ?? hooks.story,
     `For a long time I treated ${t} like a checklist. More effort, more tabs open, more noise. It didn't work.`,
     `What finally moved things was smaller than I expected: one habit, done on the days I didn't feel like it.`,
-    `Here's the part most people skip — you don't need a new system. You need to keep the one you have for longer than it feels exciting.`,
+    `Here's the part most people skip, you don't need a new system. You need to keep the one you have for longer than it feels exciting.`,
     `So pick the smallest version, attach it to something you already do, and let it be boring for a while.`,
     `If ${t} has been on your mind, save this and start today.`,
   ];
@@ -804,17 +804,17 @@ export async function generateSocial(brief: SocialBrief, onPhase?: PhaseHandler)
 
     // Research was requested but search came back empty → say so, never imply we checked.
     if (research && !(Array.isArray(raw.sources) && raw.sources.length) && !raw.uncertainties?.length) {
-      raw = { ...raw, uncertainties: ['Live research returned no sources — verify the facts before publishing.'] };
+      raw = { ...raw, uncertainties: ['Live research returned no sources, verify the facts before publishing.'] };
     }
     return normalizeSocial(raw, brief, serverLabel(research));
   } catch (e: any) {
-    // If the grounded pass failed, retry straight generation so the user still gets copy —
+    // If the grounded pass failed, retry straight generation so the user still gets copy -
     // with an honest warning that research did not run.
     if (research) {
       try {
         const { raw } = await runOnce({ ...brief, research: 'off' });
         const result = normalizeSocial(raw, brief, serverLabel(false));
-        return { ...result, researchUsed: false, warnings: ['Live research is temporarily unavailable — this was written without it.', ...result.warnings] };
+        return { ...result, researchUsed: false, warnings: ['Live research is temporarily unavailable, this was written without it.', ...result.warnings] };
       } catch {
         /* fall through to the shared error result */
       }
@@ -835,7 +835,7 @@ export type RewriteOp = 'shorter' | 'punchier' | 'natural' | 'context' | 'tone' 
 const REWRITE_ASKS: Record<RewriteOp, string> = {
   shorter: 'Make every post noticeably shorter. Cut filler, keep every fact.',
   punchier: 'Make it punchier: stronger verbs, tighter lines, sharper first words. Keep the meaning.',
-  natural: 'Make it sound more natural and human — vary sentence length, remove anything that reads like AI.',
+  natural: 'Make it sound more natural and human, vary sentence length, remove anything that reads like AI.',
   context: 'Add useful context or a concrete example to each point. Do not invent facts.',
   tone: 'Rewrite with a different, more fitting voice for this idea and platform.',
   style: 'Restructure it with a different approach while keeping the same facts and message.',
@@ -848,7 +848,7 @@ export async function rewritePosts(
   op: RewriteOp,
 ): Promise<{ posts: string[]; warning?: string }> {
   if (!(await cloudSessionReady())) {
-    return { posts, warning: 'Editing needs a live model — sign in to Sosial Cloud and try again.' };
+    return { posts, warning: 'Editing needs a live model, sign in to Sosial Cloud and try again.' };
   }
   const limit = Math.min(...activePlatforms(brief).map((p) => capFor(p, brief.thread)));
   const prompt = [
@@ -863,9 +863,9 @@ export async function rewritePosts(
   try {
     const raw = await serverGenerate({ prompt, action: 'rewrite' });
     const out = rawPosts(raw);
-    if (!out.length) return { posts, warning: 'The rewrite came back empty — kept your original.' };
+    if (!out.length) return { posts, warning: 'The rewrite came back empty, kept your original.' };
     return { posts: clampVariant(out, activePlatforms(brief)[0], brief.thread).posts };
   } catch (e: any) {
-    return { posts, warning: e?.message ?? 'Could not rewrite — kept your original.' };
+    return { posts, warning: e?.message ?? 'Could not rewrite, kept your original.' };
   }
 }

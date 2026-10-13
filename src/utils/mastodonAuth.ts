@@ -5,8 +5,8 @@ import { loadProviderFields, saveProviderFields } from './metaStore';
 
 /**
  * Mastodon apps are registered per instance, and the client id/secret are
- * needed again at code-exchange time — possibly after an Expo Go reload wiped
- * React state — so they're parked in AsyncStorage next to the pending channel.
+ * needed again at code-exchange time, possibly after an Expo Go reload wiped
+ * React state, so they're parked in AsyncStorage next to the pending channel.
  */
 const PENDING_KEY = 'sosial_mastodon_pending_v1';
 
@@ -22,10 +22,10 @@ function merr(j: any, fallback: string): string {
     (typeof j?.error === 'string' ? j.error : j?.error?.message) ||
     j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
-  // Burned/replayed codes surface as invalid_grant — almost always a double
+  // Burned/replayed codes surface as invalid_grant, almost always a double
   // delivery of the same login, so say so instead of quoting server text.
   if (/invalid_grant|authorization grant/i.test(base)) {
-    return 'That login link was already used — if Mastodon shows Connected below, you’re all set.';
+    return 'That login link was already used, if Mastodon shows Connected below, you’re all set.';
   }
   return base;
 }
@@ -75,7 +75,7 @@ export async function loginMastodon(instanceInput: string, accountId?: string): 
   });
   const j: any = await r.json().catch(() => ({}));
   if (!j?.client_id) {
-    throw new Error(merr(j, 'Could not register on that server — check the address and try again.'));
+    throw new Error(merr(j, 'Could not register on that server, check the address and try again.'));
   }
   await setPending({
     instance,
@@ -96,7 +96,7 @@ export async function loginMastodon(instanceInput: string, accountId?: string): 
 /** code -> long-lived access token (API-registered apps don't get refresh tokens). */
 async function exchangeMastodonCode(code: string): Promise<{ token: string; instance: string }> {
   const pending = await getPending();
-  if (!pending) throw new Error('Mastodon login was interrupted — try connecting again.');
+  if (!pending) throw new Error('Mastodon login was interrupted, try connecting again.');
   const r = await fetch(`${mastodonBase(pending.instance)}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -146,7 +146,7 @@ export async function completeMastodonLogin(code: string, accountId?: string): P
   return { name };
 }
 
-/** Mastodon tokens don't expire — the single entry every call uses. */
+/** Mastodon tokens don't expire, the single entry every call uses. */
 export async function getValidMastodon(accountId?: string): Promise<{ token: string; instance: string; accountId: string }> {
   const f = await loadProviderFields('mastodon', accountId);
   const token = f.mastodonAccessToken as string | undefined;

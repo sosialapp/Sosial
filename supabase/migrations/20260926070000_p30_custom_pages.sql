@@ -1,14 +1,14 @@
 -- p30 · Custom CMS pages: metadata, scheduling and redirects.
 --
 -- site_pages gains the fields /admin/pages edits for every page:
---   title / meta_title / meta_description — custom pages render them; the
+--   title / meta_title / meta_description, custom pages render them; the
 --     registry keeps its designed heroes (title still recorded for the list)
---   published_at — display date; a future date schedules the page (hidden
+--   published_at, display date; a future date schedules the page (hidden
 --     until due, like a draft)
---   status draft|published — drafts (and scheduled-future rows) are invisible
+--   status draft|published, drafts (and scheduled-future rows) are invisible
 --     to the public API; the editor still loads them for admins
---   show_in_footer — custom pages opt into the footer Resources column
---   is_custom — true for admin-created slugs (renamable + deletable);
+--   show_in_footer, custom pages opt into the footer Resources column
+--   is_custom, true for admin-created slugs (renamable + deletable);
 --     registry slugs stay code-owned
 -- site_redirects keeps renamed slugs working with a 301.
 --

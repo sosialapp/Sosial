@@ -20,7 +20,7 @@ async function gql<T>(pat: string, query: string, variables: Record<string, unkn
       body: JSON.stringify({ query, variables }),
     });
   } catch {
-    throw new Error('Could not reach Hashnode — check your connection.');
+    throw new Error('Could not reach Hashnode, check your connection.');
   }
   const text = await res.text().catch(() => '');
   // Since May 2026 Hashnode retired free API access: the endpoint 301s to an
@@ -51,7 +51,7 @@ async function gql<T>(pat: string, query: string, variables: Record<string, unkn
   if (!json.data) {
     throw new Error(
       `Hashnode answered 200 with no data${text ? `: ${text.slice(0, 120)}` : ' (empty body)'}. ` +
-        'The token looks invalid — generate a fresh one at hashnode.com → Settings → Developer.',
+        'The token looks invalid, generate a fresh one at hashnode.com → Settings → Developer.',
     );
   }
   return json.data;

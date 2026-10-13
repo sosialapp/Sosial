@@ -12,7 +12,7 @@ export const MASTODON_SCOPES = ['read', 'write'];
 export const MASTODON_MAX_IMAGES = 4;
 export const MASTODON_MAX_VIDEOS = 1;
 
-/** Default cap on most servers — many raise it, but this keeps text safe. */
+/** Default cap on most servers, many raise it, but this keeps text safe. */
 export const MASTODON_MAX_TEXT = 500;
 
 /** Username like "alice" (or "@alice") lands on mastodon.social; a full

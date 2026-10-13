@@ -23,13 +23,13 @@ const REFINEMENTS: [RewriteOp, string][] = [
   ['style', 'Change style'],
 ];
 
-/** Destination pill — brand dot when the platform is a known provider. */
+/** Destination pill, brand dot when the platform is a known provider. */
 function PlatformGlyph({ id }: { id: string }) {
   const meta = providerMeta(id);
   return <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: meta.color }} aria-hidden="true" />;
 }
 
-/** iOS-style toggle — yellow when on. */
+/** iOS-style toggle, yellow when on. */
 function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
   return (
     <button
@@ -48,7 +48,7 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
 }
 
 /**
- * Write with AI — the mobile studio's behavior on web. The idea owns the
+ * Write with AI, the mobile studio's behavior on web. The idea owns the
  * card; destinations follow the connected channels; an optional structure
  * preset (Breakdown / How-to / Story, suggested from the topic) shapes the
  * output; the result comes back as editable per-channel drafts with counters
@@ -62,9 +62,9 @@ export default function AiCard({
   parts,
   onPartsChange,
   onResult,
-  appliedNote = 'Applied — edit freely.',
+  appliedNote = 'Applied, edit freely.',
 }: {
-  /** Provider keys of the connected channels — preselects the destinations. */
+  /** Provider keys of the connected channels, preselects the destinations. */
   providers: string[];
   thread: boolean;
   onThreadChange: (v: boolean) => void;
@@ -106,19 +106,19 @@ export default function AiCard({
     }
   }
 
-  /** One-tap suggestion from the topic — shown, never auto-applied. */
+  /** One-tap suggestion from the topic, shown, never auto-applied. */
   const suggested = format === 'auto' ? detectFormat(topic) : null;
   const showSuggestion = suggested !== null && dismissedSuggestion !== topic;
   const suggestedFormat = suggested ? AI_FORMATS.find((f) => f.id === suggested) : undefined;
 
-  /* Destinations follow the connected channels — no picker in the card. */
+  /* Destinations follow the connected channels, no picker in the card. */
   const known = useMemo(
     () => providers.filter((p) => SOCIAL_PLATFORMS.some((s) => s.id === p)),
     [providers],
   );
   const [platforms, setPlatforms] = useState<string[]>(() => (known.length ? known : ['any']));
 
-  // Threads only publish as chains on four channels — narrow like mobile.
+  // Threads only publish as chains on four channels, narrow like mobile.
   useMemo(() => {
     if (!thread) return;
     setPlatforms((prev) => {
@@ -208,7 +208,7 @@ export default function AiCard({
       setDraft((d) => d.map((v, i) => (i === tab ? { ...v, posts } : v)));
       setDirty(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not rewrite — kept your original.');
+      setErr(e instanceof Error ? e.message : 'Could not rewrite, kept your original.');
     } finally {
       setBusy(false);
     }
@@ -260,7 +260,7 @@ export default function AiCard({
         aria-label="Your idea"
         className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5"
       />
-      <p className="mt-1 text-[11px] text-muted">Rough thoughts are enough — a phrase works.</p>
+      <p className="mt-1 text-[11px] text-muted">Rough thoughts are enough, a phrase works.</p>
 
       {/* Language */}
       <p className="mt-4 text-xs font-bold text-soft">Language</p>
@@ -272,7 +272,7 @@ export default function AiCard({
           className="flex w-full items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 text-xs font-bold text-ink dark:border-white/10 dark:bg-white/5"
         >
           <span className="flex-1 truncate text-left">
-            {language === 'auto' ? 'Auto — match my idea' : langName(language)}
+            {language === 'auto' ? 'Auto, match my idea' : langName(language)}
           </span>
           <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${langOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
@@ -295,7 +295,7 @@ export default function AiCard({
                 }}
                 className={`mt-1 flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${language === 'auto' ? 'bg-accent-soft text-accent-ink' : ''}`}
               >
-                Auto — match my idea
+                Auto, match my idea
               </button>
               {langMatches.map((l) => (
                 <button
@@ -428,7 +428,7 @@ export default function AiCard({
         </div>
       ) : null}
 
-      {/* Structure preset — suggested from the topic, applied by tap */}
+      {/* Structure preset, suggested from the topic, applied by tap */}
       <p className="mt-4 text-xs font-bold text-soft">Structure</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Structure preset">
         {(['auto', ...AI_FORMATS.map((f) => f.id)] as const).map((id) => {
@@ -459,7 +459,7 @@ export default function AiCard({
         <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 dark:border-white/10 dark:bg-white/5">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#5B3DF0] dark:text-[#B9A6F7]" aria-hidden="true" />
           <p className="min-w-0 flex-1 text-[11px] text-soft">
-            Looks like a <strong>{suggestedFormat.label}</strong> — {suggestedFormat.blurb}
+            Looks like a <strong>{suggestedFormat.label}</strong>, {suggestedFormat.blurb}
           </p>
           <button
             type="button"
@@ -538,7 +538,7 @@ export default function AiCard({
         </div>
       ) : null}
 
-      {/* Result — editable drafts, like the mobile sheet */}
+      {/* Result, editable drafts, like the mobile sheet */}
       {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{err}</p> : null}
 
       {draft.length > 0 && !busy ? (

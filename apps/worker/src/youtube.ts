@@ -2,7 +2,7 @@
  * YouTube publish adapter (Wave C). Ports src/utils/ytPublish.ts to the
  * worker: Google OAuth refresh from the Vault-backed token, then a resumable
  * upload (POST metadata → session URL in Location → single PUT of the bytes).
- * YouTube is video-only — photos/text alone throw a clear error instead of
+ * YouTube is video-only, photos/text alone throw a clear error instead of
  * silently skipping the channel.
  */
 import { readSecret, updateSecret } from './db';
@@ -41,9 +41,9 @@ function yerr(j: any, status: number, fallback: string): string {
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
   if (status === 401) return '__EXPIRED__';
   if (status === 403) {
-    if (/quota/i.test(base)) return 'YouTube API quota exhausted for today — uploads reset at midnight Pacific.';
+    if (/quota/i.test(base)) return 'YouTube API quota exhausted for today, uploads reset at midnight Pacific.';
     if (/accessNotConfigured|disabled/i.test(base)) return 'YouTube Data API v3 isn’t enabled on your Google Cloud project.';
-    return `${base} — check the API is enabled and your account is a test user.`;
+    return `${base}, check the API is enabled and your account is a test user.`;
   }
   return `${base} (${status})`;
 }
@@ -68,7 +68,7 @@ async function patchExpiry(channelId: string, expiresAt: Date): Promise<void> {
   }
 }
 
-/** Google client id/secret — same pair the app ships as EXPO_PUBLIC_YT_*. */
+/** Google client id/secret, same pair the app ships as EXPO_PUBLIC_YT_*. */
 function clientCreds(): { id: string; secret: string } {
   const id = env('YT_CLIENT_ID') || env('GOOGLE_CLIENT_ID');
   const secret = env('YT_CLIENT_SECRET') || env('GOOGLE_CLIENT_SECRET');
@@ -87,10 +87,10 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
     if (access) return access;
   }
   if (!b.secrets.refresh_secret_id) {
-    throw new Error('YouTube session expired — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('YouTube session expired, toggle cloud publishing off and on in Connect to refresh.');
   }
   const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('YouTube session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (!refresh) throw new Error('YouTube session expired, toggle cloud publishing off and on in Connect to refresh.');
   const { id, secret } = clientCreds();
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
@@ -106,12 +106,12 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   const j: any = await r.json().catch(() => ({}));
   if (!j?.access_token) {
     const msg = String(j?.error_description || j?.error || 'YouTube session expired');
-    throw new Error(`${msg} — toggle cloud publishing off and on in Connect to refresh.`);
+    throw new Error(`${msg}, toggle cloud publishing off and on in Connect to refresh.`);
   }
   const newAccess = String(j.access_token);
   const newRefresh = String(j.refresh_token || refresh);
   if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
-  // Google only returns a refresh token on first consent — keep the old one.
+  // Google only returns a refresh token on first consent, keep the old one.
   await updateSecret(b.secrets.refresh_secret_id, newRefresh);
   const expiresIn = Number(j.expires_in) || 3600;
   await patchExpiry(b.channel.id, new Date(Date.now() + expiresIn * 1000));
@@ -134,7 +134,7 @@ function fit(s: string, max: number): string {
 
 /**
  * Resumable upload: init POST → PUT the bytes to the session URL. The body
- * streams straight from storage — a multi-GB video never sits in memory.
+ * streams straight from storage, a multi-GB video never sits in memory.
  * `totalBytes` must be exact (drives X-Upload-Content-Length and retry
  * accounting); `open` re-opens the stream so a retry after an auth refresh
  * can replay from byte 0.
@@ -187,7 +187,7 @@ export async function publishYouTubeTarget(bundle: Bundle): Promise<{ videoId: s
   const video = (b.media ?? [])
     .filter((m) => m.kind === 'video')
     .sort((a, z) => a.position - z.position)[0];
-  if (!video) throw new Error('YouTube needs a video — attach one to post here.');
+  if (!video) throw new Error('YouTube needs a video, attach one to post here.');
   const caption = (b.target.caption ?? b.post.body ?? '').trim();
   const title = caption.split('\n')[0];
   const privacy = (String(b.target.options?.ytPrivacy ?? 'public') as Privacy) ?? 'public';
@@ -228,7 +228,7 @@ export async function publishYouTubeTarget(bundle: Bundle): Promise<{ videoId: s
     } catch (e: any) {
       if (String(e?.message ?? '') === '__EXPIRED__' && !force) return attempt(true);
       if (String(e?.message ?? '') === '__EXPIRED__') {
-        throw new Error('YouTube session expired — toggle cloud publishing off and on in Connect to refresh.');
+        throw new Error('YouTube session expired, toggle cloud publishing off and on in Connect to refresh.');
       }
       throw e;
     }

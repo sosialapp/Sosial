@@ -4,7 +4,7 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/channels/sync — on-demand health check. Enqueues refresh_token
+ * POST /api/channels/sync, on-demand health check. Enqueues refresh_token
  * jobs (the worker marks auth-dead channels expired) plus an avatar refresh,
  * then the UI polls a few times while the worker catches up.
  */

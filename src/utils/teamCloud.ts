@@ -2,7 +2,7 @@ import { supabase, currentSession, callEdgeFunction } from './supabase';
 import { SOCIAL_META } from '../constants';
 
 /**
- * Cloud team roster — the real, cross-device workspace membership. Mirrors the
+ * Cloud team roster, the real, cross-device workspace membership. Mirrors the
  * web TeamManager exactly: members + pending invites from Supabase, invites via
  * create_invite, removal via remove_member, and per-member channel appointments
  * via set_member_grants (owner/admin only, enforced server-side).
@@ -26,7 +26,7 @@ export interface CloudInvite {
   role: TeamRole;
   all_channels: boolean;
   expires_at: string | null;
-  /** Bearer redeem token (members can read it — owners share it as a link). */
+  /** Bearer redeem token (members can read it, owners share it as a link). */
   token: string;
   /** Set when an invite email actually left; null = share the link instead. */
   emailed_at: string | null;
@@ -133,11 +133,11 @@ export async function createInvite(
   role: 'member' | 'admin',
   allChannels: boolean,
 ): Promise<{ alreadyRegistered: boolean; inviteUrl: string | null }> {
-  // Row + email go through the send-invite function — the raw create_invite
+  // Row + email go through the send-invite function, the raw create_invite
   // RPC writes the row but sends nothing, which is why invites used to
   // arrive with no email. callEdgeFunction surfaces the server's message
   // verbatim (including mail failures, which the function queues for retry).
-  // Existing Sosial users can't be emailed an invite — the function hands
+  // Existing Sosial users can't be emailed an invite, the function hands
   // back a shareable link instead.
   const res = (await callEdgeFunction('send-invite', {
     workspace_id: workspaceId,
@@ -152,7 +152,7 @@ export async function createInvite(
 }
 
 export async function removeMember(workspaceId: string, userId: string | null): Promise<void> {
-  if (!userId) throw new Error('This teammate has not joined yet — cancel the invite instead.');
+  if (!userId) throw new Error('This teammate has not joined yet, cancel the invite instead.');
   const { error } = await supabase().rpc('remove_member', {
     p_workspace_id: workspaceId,
     p_user_id: userId,
@@ -174,7 +174,7 @@ export async function setMemberGrants(
 }
 
 /** Withdraw a pending invite (owner/admin only). Accepted invites are
- *  memberships — remove the member instead. */
+ *  memberships, remove the member instead. */
 export async function cancelInvite(inviteId: string): Promise<void> {
   const { error } = await supabase().rpc('cancel_invite', {
     p_invite_id: inviteId,

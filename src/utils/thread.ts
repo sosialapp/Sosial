@@ -18,7 +18,7 @@ export function isChainPlatform(ch: string): boolean {
 }
 
 /**
- * Lowest cap across the SELECTED chain-capable channels — every segment has to
+ * Lowest cap across the SELECTED chain-capable channels, every segment has to
  * fit each one, so the strictest wins. Null when none are selected.
  */
 export function chainLimit(platforms: string[]): number | null {
@@ -43,8 +43,8 @@ function lastSentenceBreak(window: string): number {
 
 /**
  * Split `text` into segments each ≤ `limit` chars. Breaks on the strongest
- * boundary available near the limit — paragraph gap, then sentence end, then
- * word gap — and only hard-cuts when a single unbroken run exceeds the limit.
+ * boundary available near the limit, paragraph gap, then sentence end, then
+ * word gap, and only hard-cuts when a single unbroken run exceeds the limit.
  * Per-segment whitespace is trimmed. Returns [] for empty input.
  */
 export function splitThread(text: string, limit: number): string[] {
@@ -63,7 +63,7 @@ export function splitThread(text: string, limit: number): string[] {
       lastSentenceBreak(window),
       window.lastIndexOf(' '),
     );
-    if (cut <= 0) cut = max; // one long unbreakable token — hard cut it
+    if (cut <= 0) cut = max; // one long unbreakable token, hard cut it
     cut = Math.min(cut, max);
     const piece = rest.slice(0, cut).trim();
     if (piece) out.push(piece);

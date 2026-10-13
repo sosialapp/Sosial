@@ -238,7 +238,7 @@ export function isCloudOnly(a: ConnectedAccount): boolean {
 /**
  * The worker marked this channel's cloud auth dead (refresh failed). Carries
  * the worker's reason; cleared automatically when the cloud recovers. Only
- * cloud-linked rows get it — device-local credentials are judged locally.
+ * cloud-linked rows get it, device-local credentials are judged locally.
  */
 export function accountExpired(a: ConnectedAccount): string | undefined {
   const v = a.fields.cloudExpired;
@@ -291,7 +291,7 @@ export function accountHandle(a: ConnectedAccount): string | undefined {
  * Every provider this device can reach right now: live local credentials
  * PLUS cloud-only placeholders adopted from another device. Placeholders
  * carry no device tokens, but the cloud row behind them holds Vault tokens,
- * so the worker publishes for them — scheduling (and Anywhere fan-out)
+ * so the worker publishes for them, scheduling (and Anywhere fan-out)
  * must include them. Device-side instant legs still need a local connect;
  * runPublish skips cloud-only legs for the worker instead of failing them.
  */

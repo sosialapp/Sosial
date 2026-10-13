@@ -40,7 +40,7 @@ const SOURCES: { id: Source; label: string; icon: string; mark: SourceMarkId; no
   { id: 'onedrive', label: 'OneDrive', icon: 'cloud-outline', mark: 'onedrive', note: 'Your Microsoft cloud files' },
 ];
 
-/** Not yet wired — Google media awaits Google OAuth verification (restricted
+/** Not yet wired, Google media awaits Google OAuth verification (restricted
  *  scopes + CASA). Shown greyed as roadmap. */
 const SOON: { label: string; mark: SourceMarkId; note: string }[] = [
   { label: 'Google Drive', mark: 'drive', note: 'Coming soon' },
@@ -57,7 +57,7 @@ const LABEL: Record<Source, string> = {
 };
 
 /**
- * Media sources browser (inline view — never a Modal, because iOS cannot
+ * Media sources browser (inline view, never a Modal, because iOS cannot
  * reliably present a modal over the composer sheet's Modal). Hosts render it
  * full-screen (a Modal of their own) or swap it into their layout.
  * Emits composer-ready attachments; Unsplash items also return a credit line
@@ -155,7 +155,7 @@ export default function MediaSources({
       }
       const picked = await listPickedPhotos(session.id);
       if (!picked.length) {
-        Alert.alert('Nothing picked', 'Try again — pick at least one photo.');
+        Alert.alert('Nothing picked', 'Try again, pick at least one photo.');
         return;
       }
       // Auto-attach: download each picked item straight into the composer.
@@ -168,7 +168,7 @@ export default function MediaSources({
         }
       }
       if (!items.length) {
-        Alert.alert('Could not fetch', 'The picked photos would not download — try again.');
+        Alert.alert('Could not fetch', 'The picked photos would not download, try again.');
         return;
       }
       onAttach(items);
@@ -225,7 +225,7 @@ export default function MediaSources({
       if (source === 'drive') {
         await loadDrive(folderStack.length ? folderStack[folderStack.length - 1].id : undefined, query.trim());
       } else if (source === 'gphotos') {
-        // Picker has its own search UI — the dialog search box is hidden.
+        // Picker has its own search UI, the dialog search box is hidden.
         return;
       } else if (source === 'dropbox') {
         setBusy(true);
@@ -362,7 +362,7 @@ export default function MediaSources({
       const ok = await filesConnected();
       setFilesAuthed(ok);
       if (ok && id === 'drive') await loadDrive();
-      // gphotos needs no preload — the picker button opens Google's UI.
+      // gphotos needs no preload, the picker button opens Google's UI.
     }
     if (id === 'dropbox') {
       const ok = await dropboxConnected();
@@ -422,7 +422,7 @@ export default function MediaSources({
       }
       setFilesAuthed(true);
       if (source === 'drive') await loadDrive();
-      // gphotos needs no preload — the picker button opens Google's UI.
+      // gphotos needs no preload, the picker button opens Google's UI.
     } catch (e: any) {
       Alert.alert('Could not connect', e?.message ?? 'Try again.');
     } finally {
@@ -513,7 +513,7 @@ export default function MediaSources({
           {SOON.map((src) => (
             <TouchableOpacity
               key={src.label}
-              onPress={() => Alert.alert(`${src.label} is coming soon`, 'We are wiring it up next — check back shortly.')}
+              onPress={() => Alert.alert(`${src.label} is coming soon`, 'We are wiring it up next, check back shortly.')}
               activeOpacity={0.75}
               style={[s.tile, { opacity: 0.55 }]}
             >
@@ -707,7 +707,7 @@ export default function MediaSources({
               ) : source === 'gphotos' ? (
                 <View style={{ alignItems: 'center', paddingVertical: 18 }}>
                   <Text style={[s.connectT, { marginTop: 0 }]}>Pick from Google Photos</Text>
-                  <Text style={s.connectS}>Google shows its own picker — what you choose attaches here automatically.</Text>
+                  <Text style={s.connectS}>Google shows its own picker, what you choose attaches here automatically.</Text>
                   <TouchableOpacity
                     onPress={() => void openPhotosPicker()}
                     disabled={picking}

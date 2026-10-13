@@ -1,5 +1,5 @@
 -- p29 · Quota changes (mirror of apps/web/src/lib/billing/plans.ts +
--- src/utils/plans.ts — CHANGE BOTH TOGETHER):
+-- src/utils/plans.ts, CHANGE BOTH TOGETHER):
 --   - paid plans get UNLIMITED scheduled posts per channel (NULL = unlimited;
 --     the p27 triggers already return early on a NULL limit, so no trigger
 --     changes are needed)

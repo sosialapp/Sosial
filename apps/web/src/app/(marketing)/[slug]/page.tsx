@@ -6,7 +6,7 @@ import { siteCustomPage, siteRedirectFor } from '@/lib/sitePages';
 import { RESERVED_SLUGS, sitePageDef } from '@/content/sitePages';
 
 /**
- * Custom CMS pages — admin-created slugs served at top-level URLs.
+ * Custom CMS pages, admin-created slugs served at top-level URLs.
  * Static and registry routes win over this dynamic segment by Next.js
  * precedence; the guards below are a second lock. Renamed slugs 301 via
  * site_redirects; drafts and scheduled-future rows 404 until due.

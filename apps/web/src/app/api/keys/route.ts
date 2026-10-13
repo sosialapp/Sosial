@@ -23,7 +23,7 @@ export async function GET() {
   return Response.json({ keys: data ?? [] });
 }
 
-/** Mint a key — the plaintext is returned once, right here. */
+/** Mint a key, the plaintext is returned once, right here. */
 export async function POST(req: Request) {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   return Response.json({ ...(data as object), key }, { status: 201 });
 }
 
-/** Revoke a key — in-flight Zapier calls start failing closed. */
+/** Revoke a key, in-flight Zapier calls start failing closed. */
 export async function DELETE(req: Request) {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });

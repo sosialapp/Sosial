@@ -1,5 +1,5 @@
 /**
- * Queue lead-time rule — mobile parity (MIN_QUEUE_LEAD_MS in
+ * Queue lead-time rule, mobile parity (MIN_QUEUE_LEAD_MS in
  * src/utils/managed.ts). Scheduled posts need >= 5 minutes of lead so the
  * worker never receives a target that is already overdue on arrival.
  * Applies to user-picked schedule times only: post-now, drafts and
@@ -8,7 +8,7 @@
 export const MIN_QUEUE_LEAD_MS = 5 * 60 * 1000;
 
 /**
- * Earliest queueable instant, floored to the minute — pickers are
+ * Earliest queueable instant, floored to the minute, pickers are
  * minute-granular, so without flooring the exact +5min minute would almost
  * always be (seconds-)blocked. 7:51:37 -> 7:56:00 allowed, 7:55 blocked.
  */
@@ -33,7 +33,7 @@ export function minQueueLabel(now: number = Date.now()): string {
 
 /** The exact guard sentence the mobile app shows (kept identical). */
 export function leadTimeMessage(now: number = Date.now()): string {
-  return `Earliest is ${minQueueLabel(now)} — scheduled posts need at least 5 minutes lead time. Pick a later time.`;
+  return `Earliest is ${minQueueLabel(now)}, scheduled posts need at least 5 minutes lead time. Pick a later time.`;
 }
 
 /** Throw for a missing, unparseable or too-soon schedule instant. */

@@ -20,7 +20,7 @@ import AIPictureSheet from './AIPictureSheet';
 import MediaSources from './MediaSources';
 
 /**
- * Write with AI — the studio.
+ * Write with AI, the studio.
  *
  * The idea owns the screen. Voice, style, format and destination are one tap away;
  * everything genuinely advanced (live research, sources, emoji, CTA, language,
@@ -94,7 +94,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     return () => clearTimeout(t);
   }, [visible, initialPrompt]);
 
-  // Thread chains only exist on four channels — drop anything else on switch.
+  // Thread chains only exist on four channels, drop anything else on switch.
   useEffect(() => {
     if (!thread) return;
     setPlatforms((prev) => {
@@ -148,7 +148,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
 
   const mediaKey = (vi: number, pi: number) => `${vi}:${pi}`;
 
-  /** Picture picker target (variant + post) — real topical photos. */
+  /** Picture picker target (variant + post), real topical photos. */
   const [picTarget, setPicTarget] = useState<{ vi: number; pi: number } | null>(null);
 
   const attachPicture = (uri: string) => {
@@ -158,7 +158,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
     setPicTarget(null);
   };
 
-  /** "Add own" target (variant + post) — browses every source, not just the roll. */
+  /** "Add own" target (variant + post), browses every source, not just the roll. */
   const [ownTarget, setOwnTarget] = useState<{ vi: number; pi: number } | null>(null);
 
   const attachOwnMediaTo = (t: { vi: number; pi: number } | null, items: { uri: string; kind: 'image' | 'video' }[], credit?: string) => {
@@ -345,9 +345,9 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 style={st.idea}
                 accessibilityLabel="Your idea"
               />
-              <Text style={st.ideaHint}>Rough thoughts are enough — a phrase works.</Text>
+              <Text style={st.ideaHint}>Rough thoughts are enough, a phrase works.</Text>
 
-              {/* language first — voice, style and examples all follow it */}
+              {/* language first, voice, style and examples all follow it */}
               <View style={{ gap: 9 }}>
                 <Text style={st.label}>Language</Text>
                 <TouchableOpacity onPress={() => setLangOpen((v) => !v)} style={st.rowBtn} activeOpacity={0.8} accessibilityRole="button">
@@ -371,7 +371,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                         style={[st.langRow, language === 'auto' && st.langRowOn]}
                         activeOpacity={0.75}
                       >
-                        <Text style={[st.langRowT, language === 'auto' && st.langRowTOn]}>Auto — match my idea</Text>
+                        <Text style={[st.langRowT, language === 'auto' && st.langRowTOn]}>Auto, match my idea</Text>
                         {language === 'auto' ? <View style={{ flex: 1 }} /> : null}
                         {language === 'auto' ? <Ionicons name="checkmark" size={14} color={C.accentInk} /> : null}
                       </TouchableOpacity>
@@ -396,7 +396,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 )}
               </View>
 
-              {/* voice — every option visible, nothing hidden behind "More" */}
+              {/* voice, every option visible, nothing hidden behind "More" */}
               <View style={{ gap: 9 }}>
                 <Text style={st.label}>How should it sound?</Text>
                 <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
@@ -418,7 +418,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 </ScrollView>
               </View>
 
-              {/* style — collapsed by default, Autopicks */}
+              {/* style, collapsed by default, Autopicks */}
               <View style={{ gap: 9 }}>
                 <TouchableOpacity onPress={() => setStyleOpen((v) => !v)} style={st.rowBtn} activeOpacity={0.8} accessibilityRole="button">
                   <Text style={st.label}>Style</Text>
@@ -472,7 +472,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                 ) : null}
               </View>
 
-              {/* destination — threads only go where reply-chains exist */}
+              {/* destination, threads only go where reply-chains exist */}
               <View style={{ gap: 9 }}>
                 <Text style={st.label}>Post to{thread ? ' (thread channels)' : ''}</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -497,7 +497,7 @@ export default function AICopySheet({ visible, initialPrompt = '', onClose, onAp
                   })}
                 </View>
                 {destCount > 1 ? (
-                  <Text style={st.helper}>Same facts everywhere — the wording adapts to each channel.</Text>
+                  <Text style={st.helper}>Same facts everywhere, the wording adapts to each channel.</Text>
                 ) : null}
               </View>
 

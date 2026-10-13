@@ -7,7 +7,7 @@ import { BOLT_PNG_BASE64 } from './watermarkAsset';
  *
  * The client never receives an un-watermarked file when the watermark is
  * required: it posts the rendered PNG to /api/export/watermark and only the
- * composited result comes back. There is no font dependency — the mark is the
+ * composited result comes back. There is no font dependency, the mark is the
  * Sosial bolt inside a translucent rounded badge, drawn with vectors + the
  * embedded logo, so it renders identically on any host.
  */

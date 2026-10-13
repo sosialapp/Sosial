@@ -166,7 +166,7 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
   const handleSavePreset = async (item: QuickPost) => {
     const next = await saveProjectPreset(item);
     setPresets(next);
-    Alert.alert('Saved as template', `"${item.name}" is now a reusable template — size, backdrop, title, photo, socials and content included.`);
+    Alert.alert('Saved as template', `"${item.name}" is now a reusable template, size, backdrop, title, photo, socials and content included.`);
   };
 
   const handleUsePreset = async (tpl: ProjectPreset) => {
@@ -204,7 +204,7 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
           </View>
         </View>
 
-        {/* hero — manager first */}
+        {/* hero, manager first */}
         <View style={{ paddingHorizontal: 24, marginTop: 26 }}>
           <Text style={[T.display, { color: C.ink, fontSize: 34, lineHeight: 40 }]}>
             Never miss{'\n'}a post.
@@ -245,7 +245,7 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
           </View>
         ) : null}
 
-        {/* library — designs + templates under one roof */}
+        {/* library, designs + templates under one roof */}
         <View style={{ paddingHorizontal: 24, marginTop: 36 }}>
           <View style={s.secHead}>
             <Text style={s.secT}>Library</Text>
@@ -262,7 +262,7 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
           </View>
           {libTab === 'templates' ? (
             presets.length === 0 ? (
-              <Text style={s.presetHint}>No templates yet — tap ••• on any design and choose “Save as template”.</Text>
+              <Text style={s.presetHint}>No templates yet, tap ••• on any design and choose “Save as template”.</Text>
             ) : (
               <View>
                 {presets.map((tpl, idx) => (
@@ -320,7 +320,7 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
         </View>
       </ScrollView>
 
-      {/* action sheet — tap outside, Close, or back button to dismiss */}
+      {/* action sheet, tap outside, Close, or back button to dismiss */}
       <Modal visible={menu !== null} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
         <TouchableOpacity activeOpacity={1} onPress={() => setMenu(null)} style={s.sheetBg}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={s.sheet}>
@@ -347,7 +347,7 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
         </TouchableOpacity>
       </Modal>
 
-      {/* rename dialog — centered + keyboard-aware so the field never hides */}
+      {/* rename dialog, centered + keyboard-aware so the field never hides */}
       <Modal visible={renaming !== null} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <TouchableOpacity activeOpacity={1} onPress={() => setRenaming(null)} style={[s.sheetBg, { justifyContent: 'center', paddingHorizontal: 24 }]}>

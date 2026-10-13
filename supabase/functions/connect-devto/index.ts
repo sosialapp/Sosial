@@ -22,7 +22,7 @@ serve(async (req: Request): Promise<Response> => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SB_PUBLISHABLE_KEY") ?? "";
   const serviceKey =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SB_SECRET_KEY") ?? "";
-  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured — missing Supabase env.", 500);
+  if (!supaUrl || !anonKey || !serviceKey) return bad("Function misconfigured, missing Supabase env.", 500);
 
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) return bad("Sign in first.", 401);

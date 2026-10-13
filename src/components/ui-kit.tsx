@@ -5,7 +5,7 @@ import { Segmented } from './segmented';
 
 /** shadcn-flavoured primitives for React Native, on the app's theme tokens.
  *  Mirrors the web kit (Card / Table / Badge / Tabs) so both surfaces read
- *  the same. All colours come from useTheme() — never module scope. */
+ *  the same. All colours come from useTheme(), never module scope. */
 
 type Align = 'left' | 'right' | 'center';
 
@@ -52,7 +52,7 @@ export function CardContent({ children, style }: { children?: React.ReactNode; s
   return <View style={[s.cardContent, style]}>{children}</View>;
 }
 
-/** Badge — tonal pill. Mirrors the web badge variants. */
+/** Badge, tonal pill. Mirrors the web badge variants. */
 export function Badge({
   children,
   variant = 'default',
@@ -78,7 +78,7 @@ export function Badge({
   );
 }
 
-/** Tabs — pill segmented control (ink-filled active tab), web parity.
+/** Tabs, pill segmented control (ink-filled active tab), web parity.
  *  The thumb slides to the active pill on every switch. */
 export function Tabs<T extends string>({
   options,

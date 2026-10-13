@@ -1,5 +1,5 @@
 /**
- * YouTube — Google OAuth 2.0 + YouTube Data API v3 (resumable uploads).
+ * YouTube, Google OAuth 2.0 + YouTube Data API v3 (resumable uploads).
  *
  * SETUP (console.cloud.google.com → your project):
  * 1. Enable the "YouTube Data API v3" (APIs & Services → Library).
@@ -19,10 +19,10 @@
  * 2. access_type=offline + prompt=consent on every login so Google always
  *    returns a refresh_token (without it you only get one, once, ever).
  * 3. Uploads are resumable: POST metadata → session URL in the Location
- *    header → PUT raw bytes. Single PUT, no chunking — capped at 128 MB.
- * 4. Uploads cost ~1600 quota units; default project quota is 10,000/day —
+ *    header → PUT raw bytes. Single PUT, no chunking, capped at 128 MB.
+ * 4. Uploads cost ~1600 quota units; default project quota is 10,000/day -
  *    fine for personal use, don't loop retries blindly.
- * 5. New videos go up as PUBLIC by default — change per post in the
+ * 5. New videos go up as PUBLIC by default, change per post in the
  *    YouTube post-type row (Listing link).
  */
 
@@ -41,7 +41,7 @@ export const YT_SCOPES = [
   'https://www.googleapis.com/auth/youtube.force-ssl',
 ];
 
-/** Single-PUT resumable upload cap — base64 inflates ~33% in memory. */
+/** Single-PUT resumable upload cap, base64 inflates ~33% in memory. */
 export const YT_MAX_BYTES = 128 * 1024 * 1024;
 export const YT_MAX_TITLE = 100;
 export const YT_MAX_DESC = 5000;

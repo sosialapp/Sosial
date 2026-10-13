@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * POST /api/notion/import — create the import job and process the first
- * chunk.  PUT — process the next chunk (client-driven continuation: keeps
+ * POST /api/notion/import, create the import job and process the first
+ * chunk.  PUT, process the next chunk (client-driven continuation: keeps
  * the import logic in this one module, resumable, no worker dependency).
  * Progress + results live on the notion_imports row the UI polls.
  */
@@ -157,7 +157,7 @@ async function processChunk(
       }
       result.changed++;
       (result.changed_rows as string[]) ?? (result.changed_rows = []);
-      (result.changed_rows as string[]).push(`Page ${row.id.slice(0, 8)} changed after import — not updated (post no longer a draft).`);
+      (result.changed_rows as string[]).push(`Page ${row.id.slice(0, 8)} changed after import, not updated (post no longer a draft).`);
       continue;
     }
 

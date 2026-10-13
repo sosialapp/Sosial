@@ -4,7 +4,7 @@ import { getConnection, readToken, searchDatabases, NotionAuthError, NotionRateE
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/notion/databases?q=&cursor= — paginated database discovery. */
+/** GET /api/notion/databases?q=&cursor=, paginated database discovery. */
 export async function GET(req: Request) {
   const ctx = await getWorkspaceContext();
   if (!ctx) return Response.json({ error: 'Sign in first.' }, { status: 401 });
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     return Response.json(res);
   } catch (e) {
     if (e instanceof NotionAuthError) return Response.json({ error: e.message, code: 'auth_expired' }, { status: 401 });
-    if (e instanceof NotionRateError) return Response.json({ error: 'Notion is rate limiting us — try again in a moment.', code: 'rate_limited' }, { status: 429 });
+    if (e instanceof NotionRateError) return Response.json({ error: 'Notion is rate limiting us, try again in a moment.', code: 'rate_limited' }, { status: 429 });
     return Response.json({ error: e instanceof Error ? e.message : 'Could not list databases.' }, { status: 502 });
   }
 }

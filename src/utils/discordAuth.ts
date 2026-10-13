@@ -25,7 +25,7 @@ export interface DiscordThread {
 async function botGet<T>(token: string, path: string): Promise<T> {
   const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bot ${token}` } });
   if (res.status === 401 || res.status === 403) {
-    throw new Error('Discord rejected that bot token — check it in the Developer Portal.');
+    throw new Error('Discord rejected that bot token, check it in the Developer Portal.');
   }
   const json = (await res.json().catch(() => null)) as (T & { message?: string }) | null;
   if (!res.ok || !json) {

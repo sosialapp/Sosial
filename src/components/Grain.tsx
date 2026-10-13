@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Rect, Filter, FeTurbulence } from 'react-native-svg';
 
-/** Subtle film grain — breaks digital flatness. Static overlay, never captured. */
+/** Subtle film grain, breaks digital flatness. Static overlay, never captured. */
 export default function Grain({ opacity = 0.05 }: { opacity?: number }) {
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity }]}>

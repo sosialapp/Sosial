@@ -13,9 +13,9 @@ const vH = (token: string) => ({
 /** LinkedIn publish errors look like { message, status }. */
 function lpubErr(j: any, status: number, fallback: string): string {
   const m = typeof j?.message === 'string' && j.message ? j.message : fallback;
-  if (status === 401) return 'LinkedIn session expired — reconnect LinkedIn.';
-  if (status === 403) return `${m} — check the “Share on LinkedIn” product is added in the portal (posting as a Page also needs the Marketing Developer Platform product).`;
-  if (status === 429) return 'LinkedIn rate limit hit — wait and retry.';
+  if (status === 401) return 'LinkedIn session expired, reconnect LinkedIn.';
+  if (status === 403) return `${m}, check the “Share on LinkedIn” product is added in the portal (posting as a Page also needs the Marketing Developer Platform product).`;
+  if (status === 429) return 'LinkedIn rate limit hit, wait and retry.';
   if (status === 422) return m;
   return `${m} (${status})`;
 }
@@ -46,7 +46,7 @@ async function fileSize(uri: string): Promise<number> {
 
 /**
  * One image, 3 steps: initializeUpload → PUT raw bytes to the signed URL
- * (no auth header — the URL is the auth) → urn:li:image:… for the post.
+ * (no auth header, the URL is the auth) → urn:li:image:… for the post.
  */
 async function uploadLiImage(
   token: string,
@@ -93,7 +93,7 @@ export async function publishLinkedIn(opts: { text: string; imageUris?: string[]
   const text = fitText(opts.text);
   const uris = (opts.imageUris ?? []).filter(Boolean).slice(0, LI_MAX_IMAGES);
   if (!text && uris.length === 0) {
-    throw new Error('Write something or attach a photo — LinkedIn needs one of them.');
+    throw new Error('Write something or attach a photo, LinkedIn needs one of them.');
   }
   const alt = text.slice(0, 200) || 'Image';
   const urns: string[] = [];

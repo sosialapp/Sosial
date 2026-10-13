@@ -50,7 +50,7 @@ export default async function AdminPagesList() {
           <p className="eyebrow">Owner console</p>
           <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Pages</h1>
           <p className="mt-1 text-sm text-muted">
-            {rows.size} customized · {custom.length} custom — the rest show their default design.
+            {rows.size} customized · {custom.length} custom, the rest show their default design.
           </p>
         </div>
         <Link href="/admin/pages/new" className="btn btn-primary shrink-0 !px-4 !py-2 !text-sm">

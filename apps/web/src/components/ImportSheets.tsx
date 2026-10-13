@@ -99,7 +99,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
     setErr(null);
     const nonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
     nonceRef.current = nonce;
-    // Client id comes from oauth-config (public ids served by the edge fn —
+    // Client id comes from oauth-config (public ids served by the edge fn -
     // the same source the media pickers use); no client secret client-side.
     void (async () => {
       try {
@@ -109,7 +109,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
         const clientId =
           (config as { youtube?: { client_id?: string } } | null)?.youtube?.client_id ?? '';
         if (!clientId) {
-          setErr('Google is not configured yet — try again shortly.');
+          setErr('Google is not configured yet, try again shortly.');
           return;
         }
         const params = new URLSearchParams({
@@ -123,7 +123,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
         });
         window.open(`https://accounts.google.com/o/oauth2/v2/auth?${params}`, 'sosial-sheets', 'width=640,height=720');
       } catch {
-        setErr('Could not start the Google connection — try again.');
+        setErr('Could not start the Google connection, try again.');
         return;
       }
     })();
@@ -382,7 +382,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
                           onChange={(e) => setCol(f.key as keyof SheetsMapping, e.target.value === '' ? null : Number(e.target.value))}
                           className="field !py-2 !text-sm"
                         >
-                          <option value="">— none —</option>
+                          <option value="">- none -</option>
                           {header.map((h, i) => (
                             <option key={i} value={i}>
                               {COLS[i] ?? `col${i}`} · {h || '(untitled)'}

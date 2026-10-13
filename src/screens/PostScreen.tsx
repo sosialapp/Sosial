@@ -71,7 +71,7 @@ function ChannelStack({ plats, C }: { plats: string[]; C: Palette }) {
 }
 
 /** Post pipeline: channel drawer + queue/drafts/approvals/sent + sorting.
- *  The composer lives at app level — this screen only lists and opens it. */
+ *  The composer lives at app level, this screen only lists and opens it. */
 export default function PostScreen({ onConnect, bare }: {
   onConnect: () => void;
   bare?: boolean;
@@ -152,7 +152,7 @@ export default function PostScreen({ onConnect, bare }: {
   const matchChannel = (p: ManagedPost) =>
     channel === 'all' ? true : (p.platforms?.length ? p.platforms : ['any']).includes(channel);
 
-  /** Failed tab: publishing verdicts (web parity — failed + partial both
+  /** Failed tab: publishing verdicts (web parity, failed + partial both
    *  mean "some leg did not go out"). */
   const inTab = posts.filter((p) => {
     const s = p.status ?? 'draft';
@@ -241,7 +241,7 @@ export default function PostScreen({ onConnect, bare }: {
           {tab === 'queued' && !legErr && parked ? (
             <View style={st.errBar}>
               <Ionicons name="pause-circle" size={13} color={C.redText} />
-              <Text style={st.errT} numberOfLines={2}>Auto-retry stopped — open to retry manually</Text>
+              <Text style={st.errT} numberOfLines={2}>Auto-retry stopped, open to retry manually</Text>
             </View>
           ) : null}
         </TouchableOpacity>
@@ -296,7 +296,7 @@ export default function PostScreen({ onConnect, bare }: {
         })}
       </ScrollView>
 
-      {/* toolbar — channel filter, sort, refresh */}
+      {/* toolbar, channel filter, sort, refresh */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: pad, marginTop: 12 }}>
         <TouchableOpacity onPress={() => setDrawer(true)} style={st.tool} activeOpacity={0.75}>
           {channel === 'all' ? (

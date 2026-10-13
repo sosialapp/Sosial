@@ -70,7 +70,7 @@ export async function validateWordPress(
   try {
     const root = await wp<{ name?: string; site_icon?: number }>(base, header, '/');
     if (root.name) siteName = root.name;
-    // Site icon, best-effort — icon-less sites keep the brand disc.
+    // Site icon, best-effort, icon-less sites keep the brand disc.
     const iconId = Number(root.site_icon ?? 0);
     if (iconId > 0) {
       try {

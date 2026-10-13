@@ -86,7 +86,7 @@ serve(async (req: Request): Promise<Response> => {
   const provider = body["provider"];
   if (typeof provider !== "string" || !PROVIDERS.has(provider)) return bad("Unknown provider.");
 
-  // POST { status: true, provider } — same payload as GET, client-friendly.
+  // POST { status: true, provider }, same payload as GET, client-friendly.
   if (body["status"] === true) return statusFor(user.id, provider, admin);
 
   if (body["remove"] === true) {

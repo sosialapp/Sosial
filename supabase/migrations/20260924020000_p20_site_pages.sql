@@ -2,7 +2,7 @@
 -- BlockNote body per registered page (product, channels, resources, company
 -- groups in the footer); public pages render the serialized HTML in a fixed
 -- slot when a row exists and fall back to their hardcoded design otherwise.
--- Only registered slugs are editable — the admin UI lists the registry, so
+-- Only registered slugs are editable, the admin UI lists the registry, so
 -- no route sprawl is possible.
 
 create table if not exists public.site_pages (

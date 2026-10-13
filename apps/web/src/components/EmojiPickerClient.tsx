@@ -10,7 +10,7 @@ import { THEME_CLASS } from './ThemeScope';
  * picker follows the app's light/dark theme.
  *
  * Theme.AUTO follows the OS colour scheme, which is wrong whenever the user
- * forces light or dark in the app — so resolve the ThemeScope class directly
+ * forces light or dark in the app, so resolve the ThemeScope class directly
  * and stay in sync through the same `sosial-theme` event ThemeToggle fires.
  */
 function appDark(): boolean {

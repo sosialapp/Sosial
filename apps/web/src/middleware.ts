@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 /** App UI that requires a session. Everything else is public: marketing pages
  *  (including the custom CMS pages at the root), auth flows and API routes.
  *  API routes authenticate themselves (401 or Stripe signature), so this gate
- *  is a UX layer only — every page and RLS policy still re-verifies with
+ *  is a UX layer only, every page and RLS policy still re-verifies with
  *  getUser() server-side. */
 const GATED_PREFIXES = [
   '/admin',
@@ -37,7 +37,7 @@ function isGated(path: string): boolean {
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Marketing + public pages need nothing from Supabase here — skip the
+  // Marketing + public pages need nothing from Supabase here, skip the
   // client and the getSession round-trip entirely (this runs on EVERY
   // navigation). /login stays on the slow path (signed-in redirect).
   if (path !== '/login' && !isGated(path)) {
@@ -63,7 +63,7 @@ export async function middleware(request: NextRequest) {
   });
 
   // Cookie-only read: no network round-trip (getUser() phones home on every
-  // tap). A forged cookie only gets past this UX gate — every page and RLS
+  // tap). A forged cookie only gets past this UX gate, every page and RLS
   // policy re-verifies with getUser() server-side, which bounces to /login.
   const {
     data: { session },

@@ -31,7 +31,7 @@ export function ProgressBar({ value, height = 8 }: { value: number; height?: num
   );
 }
 
-/** Filled circle-check (Ionicons checkmark-circle shape, 512 viewBox) — the
+/** Filled circle-check (Ionicons checkmark-circle shape, 512 viewBox), the
  *  shared "connected/done" icon used everywhere ✓ used to be typed. */
 export function CheckIcon({ size = 16, color }: { size?: number; color?: string }) {
   return (
@@ -44,7 +44,7 @@ export function CheckIcon({ size = 16, color }: { size?: number; color?: string 
   );
 }
 
-/** Filled circle-cross (Ionicons close-circle shape) — the shared "remove"
+/** Filled circle-cross (Ionicons close-circle shape), the shared "remove"
  *  icon used everywhere ✕/× used to be typed. */
 export function CrossIcon({ size = 16, color }: { size?: number; color?: string }) {
   return (
@@ -57,7 +57,7 @@ export function CrossIcon({ size = 16, color }: { size?: number; color?: string 
   );
 }
 
-/** Real brand glyph for a social platform — optically balanced per brand */
+/** Real brand glyph for a social platform, optically balanced per brand */
 const GLYPH_SCALE: Record<string, number> = {
   instagram: 1,
   tiktok: 1.08,
@@ -82,7 +82,7 @@ const GLYPH_SCALE: Record<string, number> = {
 export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform: string; size?: number; color?: string }) {
   const s = size * (GLYPH_SCALE[platform] ?? 1);
   if (platform === 'x') {
-    // Official X logo path (24x24), same as web BrandIcon — FA's x-twitter
+    // Official X logo path (24x24), same as web BrandIcon, FA's x-twitter
     // renders optically smaller inside its em box.
     return (
       <Svg width={s} height={s} viewBox="0 0 24 24">
@@ -180,7 +180,7 @@ export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { p
   const { C } = useTheme();
   const bg = SOCIAL_META[platform]?.bg ?? C.ink;
   const badgeSize = Math.max(12, Math.round(size * 0.48));
-  // Stored avatar URLs die (fbcdn/TikTok sign theirs with expiries) — a dead
+  // Stored avatar URLs die (fbcdn/TikTok sign theirs with expiries), a dead
   // photo falls back to the brand disc, never a blank hole (web parity).
   const [dead, setDead] = useState(false);
   useEffect(() => setDead(false), [avatar]);
@@ -254,7 +254,7 @@ export function AccountStack({ platform, avatars, size = 22, max = 3, ring }: { 
   );
 }
 
-/** Numbered editorial section header — "01 · Photo" */
+/** Numbered editorial section header, "01 · Photo" */
 export function Section({ no, title, hint }: { no: string; title: string; hint?: string }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -284,7 +284,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-/** iOS-style segmented control — tonal track, paper thumb with shadow.
+/** iOS-style segmented control, tonal track, paper thumb with shadow.
  *  The thumb slides to the active pill on every switch. */
 export function Seg<T extends string>({
   options,
@@ -356,7 +356,7 @@ export function Swatches({ colors, value, onChange, size = 30 }: { colors: strin
   );
 }
 
-/** Round stepper — tap −/+ or tap the number to type a value */
+/** Round stepper, tap −/+ or tap the number to type a value */
 export function Stepper({ value, onChange, step = 1, min = 0, max = 200, format }: { value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; format?: (v: number) => string }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -420,7 +420,7 @@ export function GhostBtn({ label, onPress, danger, left, disabled }: { label: st
   );
 }
 
-/** Native aspect probe (clamped) — thumbs follow the file instead of forcing a box. */
+/** Native aspect probe (clamped), thumbs follow the file instead of forcing a box. */
 export function useProbedRatio(uri: string, min: number, max: number): number | null {
   const [ratio, setRatio] = useState<number | null>(null);
   useEffect(() => {
@@ -468,7 +468,7 @@ export function FeedVideo({ uri, width = 88, radius = 11, aspect = 4 / 5 }: { ur
   );
 }
 
-/** Multicolor Google "G" — Ionicons has no brand-color mark, so draw it. */
+/** Multicolor Google "G", Ionicons has no brand-color mark, so draw it. */
 export function GoogleGlyph({ size = 16 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -492,7 +492,7 @@ export function GoogleGlyph({ size = 16 }: { size?: number }) {
   );
 }
 
-/** Tonal inset text input — reports focus to the FocusScrollBridge (if any),
+/** Tonal inset text input, reports focus to the FocusScrollBridge (if any),
  *  so the typed box scrolls above the keyboard on every screen that mounts
  *  `useFocusScrollPanel`. Screens without the bridge behave exactly as before. */
 export function Txt(props: TextInputProps) {
@@ -534,7 +534,7 @@ export const VERIFIED_SEAL =
   'M22.02 11.164a1.84 1.84 0 0 0-.57-.67l-1.33-1a.35.35 0 0 1-.14-.2a.36.36 0 0 1 0-.25l.55-1.63a2 2 0 0 0 .06-.9a1.8 1.8 0 0 0-.36-.84a1.86 1.86 0 0 0-.7-.57a1.75 1.75 0 0 0-.85-.17h-1.5a.41.41 0 0 1-.39-.3l-.43-1.5a1.9 1.9 0 0 0-.46-.81a2 2 0 0 0-.78-.49a2 2 0 0 0-.92-.06a1.9 1.9 0 0 0-.83.39l-1.14.9a.35.35 0 0 1-.23.09a.36.36 0 0 1-.22-.05l-1.13-.9a1.85 1.85 0 0 0-.8-.38a1.9 1.9 0 0 0-.88 0a1.9 1.9 0 0 0-.78.43a2.1 2.1 0 0 0-.51.79l-.43 1.51a.38.38 0 0 1-.15.22a.4.4 0 0 1-.27.07H5.41a1.9 1.9 0 0 0-.89.18a1.8 1.8 0 0 0-.71.57a1.9 1.9 0 0 0-.36.83c-.05.293-.03.595.06.88L4 8.993a.41.41 0 0 1-.14.45l-1.33 1c-.242.18-.44.412-.58.68a1.93 1.93 0 0 0 0 1.71a2 2 0 0 0 .58.68l1.33 1a.41.41 0 0 1 .14.45l-.55 1.63a2 2 0 0 0-.07.91c.05.298.174.58.36.82c.183.25.428.45.71.58c.265.126.557.184.85.17h1.49a.38.38 0 0 1 .25.08a.34.34 0 0 1 .14.21l.43 1.51a2 2 0 0 0 .46.8a1.89 1.89 0 0 0 2.54.17l1.15-.91a.39.39 0 0 1 .49 0l1.13.9c.24.202.53.337.84.39q.17.015.34 0a1.9 1.9 0 0 0 .58-.09a1.87 1.87 0 0 0 1.24-1.28l.44-1.52a.34.34 0 0 1 .14-.21a.4.4 0 0 1 .27-.08h1.43a2 2 0 0 0 .89-.17a1.91 1.91 0 0 0 1.06-1.4a1.9 1.9 0 0 0-.07-.92l-.54-1.62a.36.36 0 0 1 0-.25a.35.35 0 0 1 .14-.2l1.33-1a1.9 1.9 0 0 0 .57-.68a1.8 1.8 0 0 0 .21-.86a1.9 1.9 0 0 0-.23-.78';
 
 /**
- * Custom card action icons — uniform 24 box; odd-grid glyphs scale inside so
+ * Custom card action icons, uniform 24 box; odd-grid glyphs scale inside so
  * every icon renders at the passed size. Mirrors the web ICON_PATHS set.
  */
 export type ActionIconName =

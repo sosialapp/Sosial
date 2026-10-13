@@ -62,7 +62,7 @@ begin
   if v_by is null then return null; end if;
   select coalesce(nullif(title, ''), left(body, 60)) into v_title from public.posts where id = new.post_id;
 
-  -- "X @handle" — handle from the channel row, blank when unset.
+  -- "X @handle", handle from the channel row, blank when unset.
   select coalesce(
     nullif(public.notif_provider_label(new.provider::text), '')
       || case when coalesce(c.handle, '') <> '' then ' @' || ltrim(c.handle, '@') else '' end,

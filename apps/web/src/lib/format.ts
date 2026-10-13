@@ -1,4 +1,4 @@
-/** Local-time date helpers for the calendar. No timezone library — the browser's
+/** Local-time date helpers for the calendar. No timezone library, the browser's
  *  own clock is the source of truth, matching how the app schedules. */
 
 export function startOfMonth(d: Date): Date {
@@ -19,7 +19,7 @@ export function addDays(d: Date, n: number): Date {
   return x;
 }
 
-/** 'YYYY-MM-DD' in local time (not UTC — toISOString would shift the day). */
+/** 'YYYY-MM-DD' in local time (not UTC, toISOString would shift the day). */
 export function dayKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');

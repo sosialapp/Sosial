@@ -7,7 +7,7 @@
 -- service; this migration is the contract it programs against).
 --
 -- Channel-grant enforcement (who may publish where) happens in the worker/API
--- at publish time, not in RLS — RLS below governs workspace data access.
+-- at publish time, not in RLS, RLS below governs workspace data access.
 -- Prerequisite: pg_cron enabled (Dashboard → Database → Extensions, or the
 -- CREATE EXTENSION below on self-hosted) before pushing, or this fails loudly.
 
@@ -65,7 +65,7 @@ create table post_media (
 
 -- One row per (post, connected account): format, per-channel options,
 -- publish state, provider remote id for analytics. unique(post, channel)
--- is the double-post guard — the worker upserts results against it.
+-- is the double-post guard, the worker upserts results against it.
 create table post_targets (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references posts (id) on delete cascade,
@@ -143,7 +143,7 @@ create trigger trg_job_queue_touch
   for each row execute function touch_updated_at();
 
 -- Minutely enqueue: due queued targets become publish_target jobs.
--- Idempotent via idempotency_key — safe to run every minute.
+-- Idempotent via idempotency_key, safe to run every minute.
 create or replace function enqueue_due_posts()
 returns integer
 language plpgsql security definer set search_path = public as $$
@@ -167,7 +167,7 @@ begin
   return n;
 end $$;
 
--- Re-running schedule() with the same name upserts — push-safe.
+-- Re-running schedule() with the same name upserts, push-safe.
 select cron.schedule('sosial-enqueue-due', '* * * * *', 'select public.enqueue_due_posts()');
 
 -- ------------------------------------------------------------------ RLS ---
@@ -229,7 +229,7 @@ create policy "approvals_owner_admin_decide" on approvals for update to authenti
   using (workspace_role(workspace_id) in ('owner', 'admin'))
   with check (workspace_role(workspace_id) in ('owner', 'admin'));
 
--- job_queue: NO policies — service_role (worker) only, by design.
+-- job_queue: NO policies, service_role (worker) only, by design.
 
 -- --------------------------------------------------------------- grants ---
 grant select, insert, update, delete

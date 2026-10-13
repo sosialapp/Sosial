@@ -25,7 +25,7 @@ function yerr(j: any, fallback: string): string {
     j?.message;
   const base = typeof m === 'string' && m.length > 0 ? m : fallback;
   if (/redirect_uri|client_id|unauthorized_client/i.test(base)) {
-    return `${base} — check the Client ID/Secret in ytConfig.ts and the redirect URI in Google Cloud.`;
+    return `${base}, check the Client ID/Secret in ytConfig.ts and the redirect URI in Google Cloud.`;
   }
   return base;
 }
@@ -76,16 +76,16 @@ export async function refreshYtToken(refreshToken: string): Promise<YtTokens> {
     }),
   });
   const j: any = await r.json().catch(() => ({}));
-  if (!j?.access_token) throw new Error(yerr(j, 'YouTube session expired — reconnect YouTube.'));
+  if (!j?.access_token) throw new Error(yerr(j, 'YouTube session expired, reconnect YouTube.'));
   return {
     access: String(j.access_token),
-    // Google only returns a refresh token on first consent — keep the old one
+    // Google only returns a refresh token on first consent, keep the old one
     refresh: String(j.refresh_token ?? refreshToken),
     expiresAt: Date.now() + (Number(j.expires_in) || 3600) * 1000,
   };
 }
 
-/** Single entry every YouTube call uses — refreshes 10 min before expiry. */
+/** Single entry every YouTube call uses, refreshes 10 min before expiry. */
 export async function getValidYt(accountId?: string, force = false): Promise<{ token: string }> {
   const f = await loadProviderFields('youtube', accountId);
   const access = f.ytAccessToken as string | undefined;
@@ -97,7 +97,7 @@ export async function getValidYt(accountId?: string, force = false): Promise<{ t
   }
   if (!refresh) {
     if (access && expiresAt && Date.now() < expiresAt) return { token: access };
-    throw new Error('YouTube session expired — reconnect YouTube.');
+    throw new Error('YouTube session expired, reconnect YouTube.');
   }
   const t = await refreshYtToken(refresh);
   await saveProviderFields('youtube', {

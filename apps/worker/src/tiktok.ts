@@ -3,7 +3,7 @@
  * refreshTikTokToken to the worker: Vault-backed token (24h access, rotating
  * 1-year refresh), FILE_UPLOAD video flow (init → 8MB chunked PUTs → poll),
  * and PULL_FROM_URL photo posts via the user's verified photo host (synced
- * into channel metadata — TikTok rejects any host the user hasn't verified).
+ * into channel metadata, TikTok rejects any host the user hasn't verified).
  */
 import { readSecret, updateSecret } from './db';
 import { storageChunks, storageHeadSize, storageSign, storageDownload } from './rest';
@@ -38,23 +38,23 @@ function friendly(code: string, fallback: string): string {
   const tag = code && code !== 'ok' ? ` [${code}]` : '';
   switch (code) {
     case 'unaudited_client_can_only_post_to_private_accounts':
-      return 'TikTok rejected it: an unaudited app can only post from accounts added as test users — even “Only me” fails otherwise. Add this TikTok account as a test user in your TikTok developer portal, reconnect TikTok, and retry. Public posting needs TikTok app review.' + tag;
+      return 'TikTok rejected it: an unaudited app can only post from accounts added as test users, even “Only me” fails otherwise. Add this TikTok account as a test user in your TikTok developer portal, reconnect TikTok, and retry. Public posting needs TikTok app review.' + tag;
     case 'privacy_level_option_mismatch':
-      return 'That privacy setting isn’t allowed for this account — pick another audience and re-queue.' + tag;
+      return 'That privacy setting isn’t allowed for this account, pick another audience and re-queue.' + tag;
     case 'spam_risk_too_many_posts':
-      return 'TikTok daily post limit reached — try again tomorrow.' + tag;
+      return 'TikTok daily post limit reached, try again tomorrow.' + tag;
     case 'spam_risk_user_banned_from_posting':
       return 'TikTok blocked this account from posting.' + tag;
     case 'reached_active_user_cap':
-      return 'TikTok daily publishing quota for this app is reached — try tomorrow.' + tag;
+      return 'TikTok daily publishing quota for this app is reached, try tomorrow.' + tag;
     case 'scope_not_authorized':
-      return 'TikTok is missing the video.publish permission — disconnect and reconnect TikTok.' + tag;
+      return 'TikTok is missing the video.publish permission, disconnect and reconnect TikTok.' + tag;
     case 'access_token_invalid':
-      return 'TikTok session expired — toggle cloud publishing off and on in Connect to refresh.' + tag;
+      return 'TikTok session expired, toggle cloud publishing off and on in Connect to refresh.' + tag;
     case 'url_ownership_unverified':
-      return 'TikTok only pulls photos from a domain you own and have verified — set the photo host in Connect → TikTok (video posts don’t need it).' + tag;
+      return 'TikTok only pulls photos from a domain you own and have verified, set the photo host in Connect → TikTok (video posts don’t need it).' + tag;
     case 'picture_size_check_failed':
-      return 'TikTok rejected the photo size — photos must fit 1080p (longest side ≤ 1920px). The photo host now resizes automatically, so retry.' + tag;
+      return 'TikTok rejected the photo size, photos must fit 1080p (longest side ≤ 1920px). The photo host now resizes automatically, so retry.' + tag;
     default:
       return fallback + tag;
   }
@@ -83,7 +83,7 @@ async function patchExpiry(channelId: string, expiresAt: Date): Promise<void> {
   }
 }
 
-/** TikTok client key/secret — same pair the app ships as EXPO_PUBLIC_TT_*. */
+/** TikTok client key/secret, same pair the app ships as EXPO_PUBLIC_TT_*. */
 function clientCreds(): { key: string; secret: string } {
   const key = env('TT_CLIENT_KEY') || env('TIKTOK_CLIENT_KEY');
   const secret = env('TT_CLIENT_SECRET') || env('TIKTOK_CLIENT_SECRET');
@@ -102,10 +102,10 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
     if (access) return access;
   }
   if (!b.secrets.refresh_secret_id) {
-    throw new Error('TikTok session expired — toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('TikTok session expired, toggle cloud publishing off and on in Connect to refresh.');
   }
   const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('TikTok session expired — toggle cloud publishing off and on in Connect to refresh.');
+  if (!refresh) throw new Error('TikTok session expired, toggle cloud publishing off and on in Connect to refresh.');
   const { key, secret } = clientCreds();
   const r = await fetch(TT_TOKEN_ENDPOINT, {
     method: 'POST',
@@ -121,9 +121,9 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   if (!j?.access_token) {
     const msg = String(j?.error?.message || j?.error?.code || 'TikTok session expired');
     if (/invalid_grant|invalid_request/i.test(msg)) {
-      throw new Error('TikTok session expired — reconnect TikTok.');
+      throw new Error('TikTok session expired, reconnect TikTok.');
     }
-    throw new Error(`${msg} — toggle cloud publishing off and on in Connect to refresh.`);
+    throw new Error(`${msg}, toggle cloud publishing off and on in Connect to refresh.`);
   }
   const newAccess = String(j.access_token);
   const newRefresh = String(j.refresh_token || refresh);
@@ -141,7 +141,7 @@ function videoMimeFor(path: string, declared: string | null): string {
   return 'video/mp4';
 }
 
-/** Poll one publish until terminal (bounded — see POLL_MS). */
+/** Poll one publish until terminal (bounded, see POLL_MS). */
 async function pollStatus(publishId: string, token: string, kind: string): Promise<void> {
   const start = Date.now();
   let delay = 3000;
@@ -157,13 +157,13 @@ async function pollStatus(publishId: string, token: string, kind: string): Promi
     if (status === 'FAILED') {
       const code = String(sj?.error?.code ?? '');
       // TikTok puts the human-readable cause in data.fail_reason (error.code is
-      // often empty on failures) — without it we can only guess.
+      // often empty on failures), without it we can only guess.
       const reason = String(sj?.data?.fail_reason ?? '').trim();
-      const detail = reason ? ` — ${reason}` : '';
+      const detail = reason ? `, ${reason}` : '';
       // Empty/'ok' code with no reason means the crawler never fetched the file.
       if ((!code || code === 'ok') && !reason) {
         throw new Error(
-          `TikTok could not download the ${kind} from your photo host — check (1) the domain is verified in the TikTok developer portal, (2) the photos.sosial.app DNS record is DNS-only (grey cloud, not proxied), (3) the file is still live (host links expire after 24h).`,
+          `TikTok could not download the ${kind} from your photo host, check (1) the domain is verified in the TikTok developer portal, (2) the photos.sosial.app DNS record is DNS-only (grey cloud, not proxied), (3) the file is still live (host links expire after 24h).`,
         );
       }
       if (!code || code === 'ok') {
@@ -172,7 +172,7 @@ async function pollStatus(publishId: string, token: string, kind: string): Promi
       throw new Error(friendly(code, `TikTok failed to process the ${kind}.`) + detail);
     }
     if (Date.now() - start > POLL_MS) {
-      throw new Error('TikTok is still processing — check the TikTok app in a few minutes (the post may still land).');
+      throw new Error('TikTok is still processing, check the TikTok app in a few minutes (the post may still land).');
     }
     await sleep(delay);
     delay = Math.min(Math.round(delay * 1.5), 10000);
@@ -182,7 +182,7 @@ async function pollStatus(publishId: string, token: string, kind: string): Promi
 /**
  * FILE_UPLOAD flow: init (JSON) → sequential 8 MB PUTs streamed from storage →
  * poll. Only one chunk is in memory at a time, so multi-GB videos work.
- * `totalBytes` must be exact — it drives chunk math and TikTok's own check.
+ * `totalBytes` must be exact, it drives chunk math and TikTok's own check.
  */
 async function publishVideo(
   token: string,
@@ -192,7 +192,7 @@ async function publishVideo(
   title: string,
   privacy: string,
 ): Promise<string> {
-  if (!totalBytes) throw new Error('Video is empty — re-attach it and re-queue.');
+  if (!totalBytes) throw new Error('Video is empty, re-attach it and re-queue.');
   const totalChunks = Math.max(1, Math.ceil(totalBytes / CHUNK));
   const chunkSize = Math.min(CHUNK, totalBytes);
   const init = await fetch(`${TT_API}/v2/post/publish/video/init/`, {
@@ -226,12 +226,12 @@ async function publishVideo(
     });
     await put.arrayBuffer().catch(() => null);
     if (put.status !== 200 && put.status !== 201 && put.status !== 206) {
-      throw new Error(`TikTok upload stalled on part ${start / chunkSize + 1}/${totalChunks} — the job will retry shortly.`);
+      throw new Error(`TikTok upload stalled on part ${start / chunkSize + 1}/${totalChunks}, the job will retry shortly.`);
     }
     sent = end;
   }
   if (sent !== totalBytes) {
-    throw new Error(`TikTok upload delivered ${sent}/${totalBytes} bytes — the job will retry shortly.`);
+    throw new Error(`TikTok upload delivered ${sent}/${totalBytes} bytes, the job will retry shortly.`);
   }
   await pollStatus(publishId, token, 'video');
   return publishId;
@@ -251,7 +251,7 @@ async function hostPhoto(host: string, buf: Buffer, mime: string, tag: string): 
       if (u.startsWith('http')) return u;
     } catch {}
   }
-  throw new Error(`${tag}: photo host rejected the upload — check the host in Connect → TikTok.`);
+  throw new Error(`${tag}: photo host rejected the upload, check the host in Connect → TikTok.`);
 }
 
 async function publishPhotos(token: string, urls: string[], title: string, privacy: string): Promise<string> {
@@ -285,7 +285,7 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   const b = bundle as Bundle;
   const privacy = String(b.target.options?.ttPrivacy ?? '').trim();
   if (!privacy) {
-    throw new Error('TikTok audience not chosen — open the post, pick an audience, and re-queue (background runs never prompt).');
+    throw new Error('TikTok audience not chosen, open the post, pick an audience, and re-queue (background runs never prompt).');
   }
   const caption = (b.target.caption ?? b.post.body ?? '').trim();
   const title = caption.split('\n')[0] || b.post.title || 'Sosial post';
@@ -300,7 +300,7 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   // TikTok has no mixed-media post (single video OR up to 35 photos), so a
   // draft holding both would silently drop the photos. Fail loudly instead.
   if (videos.length > 0 && images.length > 0) {
-    throw new Error('TikTok can’t mix photos and video — send one or the other.');
+    throw new Error('TikTok can’t mix photos and video, send one or the other.');
   }
 
   if (videos.length > 0) {
@@ -312,7 +312,7 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
       return head;
     });
     const size = videos[0].byte_size ?? (await storageHeadSize('post-media', videos[0].storage_path));
-    if (!size) throw new Error('Video is empty — re-attach it and re-queue.');
+    if (!size) throw new Error('Video is empty, re-attach it and re-queue.');
     const chunks = storageChunks('post-media', videos[0].storage_path, CHUNK);
     const publishId = await publishVideo(
       token,
@@ -326,10 +326,10 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   }
   if (images.length > 0) {
     // Per-channel override wins; otherwise the shared host from TT_PHOTO_HOST
-    // (server-side only — never EXPO_PUBLIC_) so every account just works.
+    // (server-side only, never EXPO_PUBLIC_) so every account just works.
     const host = String(b.channel.metadata?.ttPhotoHost ?? env('TT_PHOTO_HOST') ?? '').trim().replace(/\/+$/, '');
     if (!host) {
-      throw new Error('TikTok photo posts need a photo host — set TT_PHOTO_HOST on the worker (or a Connect → TikTok override).');
+      throw new Error('TikTok photo posts need a photo host, set TT_PHOTO_HOST on the worker (or a Connect → TikTok override).');
     }
     info(`tiktok target ${b.target.id}: PHOTOS x${images.length} (${privacy})`);
     const urls: string[] = [];
@@ -339,7 +339,7 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
       try {
         raw = await storageDownload(await storageSign('post-media', m.storage_path));
       } catch (e: any) {
-        throw new Error(`Photo ${i + 1}: download failed — ${e?.message ?? 'storage error'}`);
+        throw new Error(`Photo ${i + 1}: download failed, ${e?.message ?? 'storage error'}`);
       }
       const mime = /^image\//.test(m.mime_type ?? '') ? String(m.mime_type) : 'image/jpeg';
       urls.push(await hostPhoto(host, raw, mime, `Photo ${i + 1}`));
@@ -347,5 +347,5 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
     const publishId = await publishPhotos(token, urls, title, privacy);
     return { publishId };
   }
-  throw new Error('TikTok needs a photo or video — text-only is not allowed by their API.');
+  throw new Error('TikTok needs a photo or video, text-only is not allowed by their API.');
 }

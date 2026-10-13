@@ -1,4 +1,4 @@
--- p65 — Team plan limits (multi-workspace per user)
+-- p65, Team plan limits (multi-workspace per user)
 -- The teams feature: users can own/join multiple workspaces and switch.
 -- Caps on teams OWNED per user, by the owner's best active plan:
 --   free/solo = 1 (personal workspace only; joining invited teams is

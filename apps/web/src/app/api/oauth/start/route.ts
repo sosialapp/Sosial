@@ -7,7 +7,7 @@ import { channelManageError } from '@/lib/channelAccess';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { PLANS, canConnectProvider } from '@/lib/billing/plans';
 
-/** X's verifier alphabet (43–128 chars) — plain base64url can contain `_`,
+/** X's verifier alphabet (43–128 chars), plain base64url can contain `_`,
  *  which X rejects, so draw from the allowed set like the mobile app. */
 const VERIFIER_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
 
@@ -57,11 +57,11 @@ export async function GET(req: Request) {
   // reconnecting an existing account always works.
   if (!canConnectProvider(entitlement.plan, provider) && !(already.data ?? []).length) {
     return back(
-      'X needs a paid plan — its posting API is paywalled. Upgrade in Billing to connect it.',
+      'X needs a paid plan, its posting API is paywalled. Upgrade in Billing to connect it.',
     );
   }
   if (cap !== null) {
-    // Count every channel row — the DB trigger (enforce_channel_limit)
+    // Count every channel row, the DB trigger (enforce_channel_limit)
     // counts all rows regardless of status, so this must match it.
     const { count } = await sb
       .from('connected_channels')
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
       .eq('workspace_id', workspaceId);
     if ((count ?? 0) >= cap && !(already.data ?? []).length) {
       return back(
-        `Your plan connects up to ${cap} channels — you're at the cap. Disconnect one or upgrade in Billing.`,
+        `Your plan connects up to ${cap} channels, you're at the cap. Disconnect one or upgrade in Billing.`,
       );
     }
   }
@@ -85,7 +85,7 @@ export async function GET(req: Request) {
     challenge = createHash('sha256').update(flow.verifier).digest('base64url');
   }
 
-  // Public ids come from Supabase (mirrored from the mobile app) — no Vercel
+  // Public ids come from Supabase (mirrored from the mobile app), no Vercel
   // env to keep in sync. The route's own session authenticates the call.
   const { data: config } = await sb.functions.invoke('oauth-config', { method: 'GET' });
 

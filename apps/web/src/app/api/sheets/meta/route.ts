@@ -5,7 +5,7 @@ import { ensureToken, fetchSpreadsheetMeta, SheetsAuthError, SheetsRateError } f
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/sheets/meta?id=<spreadsheetId> — title + worksheet list.
+ * GET /api/sheets/meta?id=<spreadsheetId>, title + worksheet list.
  * The user pastes the spreadsheet URL; we extract the id client-side.
  */
 export async function GET(req: Request) {
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     return Response.json(meta);
   } catch (e) {
     if (e instanceof SheetsAuthError) return Response.json({ error: e.message, code: 'auth_expired' }, { status: 401 });
-    if (e instanceof SheetsRateError) return Response.json({ error: 'Google is rate limiting us — try again in a moment.', code: 'rate_limited' }, { status: 429 });
+    if (e instanceof SheetsRateError) return Response.json({ error: 'Google is rate limiting us, try again in a moment.', code: 'rate_limited' }, { status: 429 });
     return Response.json({ error: e instanceof Error ? e.message : 'Could not open the spreadsheet.' }, { status: 502 });
   }
 }

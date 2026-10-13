@@ -63,7 +63,7 @@ end $$;
 
 -- ---------------------------------------------------------- accept_invite ---
 -- Redeems an invite token for the SIGNED-IN user. The invite email must match
--- the auth JWT email — nobody can redeem someone else's invite. Single-use
+-- the auth JWT email, nobody can redeem someone else's invite. Single-use
 -- via accepted_at (concurrent redeems converge on the same membership row).
 create or replace function accept_invite(p_token uuid)
 returns uuid

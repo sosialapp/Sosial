@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-// Global Temporal (same identity Schedule-X validates against — never the
+// Global Temporal (same identity Schedule-X validates against, never the
 // named import, which can be a different class object than the global).
 import 'temporal-polyfill/global';
 import {
@@ -197,7 +197,7 @@ function initialScrollForNow(): string {
   return `${String(h).padStart(2, '0')}:00`;
 }
 
-/** True while today falls inside the viewed span — the hour band only
+/** True while today falls inside the viewed span, the hour band only
  *  means "now" then, so the wash stays off elsewhere. */
 function todayInView(view: 'day' | 'week' | 'month', anchorKey: string): boolean {
   const today = dayKey(new Date());
@@ -229,7 +229,7 @@ function eventMedia(t: { id: string; kind: string; src: string }, cls: string) {
 let sxCardOpen: ((id: string) => void) | null = null;
 
 /** Tap/click detector that ignores real drags (movement threshold), for both
- *  mouse and touch. Fires alongside the library click handler — same id, so
+ *  mouse and touch. Fires alongside the library click handler, same id, so
  *  opening twice is a harmless no-op. */
 function OpenOnTap({
   id,
@@ -375,7 +375,7 @@ function TimeEditor({
   const [mm, setMm] = useState(init.m);
   const st = POST_STATUS_META[post.status];
   const targets = post.post_targets.filter((t) => t.status === 'queued' || t.status === 'pending');
-  // Per-channel times — every channel can publish at its own instant.
+  // Per-channel times, every channel can publish at its own instant.
   const [times, setTimes] = useState<Record<string, { h: number; m: number }>>(() =>
     Object.fromEntries(targets.map((t) => [t.channel_id, partsOf(t.scheduled_at)])),
   );
@@ -557,7 +557,7 @@ function SentPostView({
           {text}
         </p>
       ) : (
-        <p className="mt-3 text-sm italic text-faint">No text — media only.</p>
+        <p className="mt-3 text-sm italic text-faint">No text, media only.</p>
       )}
       {mediaItems.length > 0 ? (
         <div
@@ -645,7 +645,7 @@ function SXMount({
       monthGridOptions: { nEventsPerDay: 3 },
       isDark: dark,
       callbacks: {
-        // Always render full event cards — never the small-screen dot mode.
+        // Always render full event cards, never the small-screen dot mode.
         isCalendarSmall: () => false,
         onEventClick: (ev) => {
           onSelectPost(String(ev.id), ev.start);
@@ -653,7 +653,7 @@ function SXMount({
         onBeforeEventUpdate: (_oldEv, newEv) => {
           const iso = resolveDrop(newEv);
           if (!iso) return false;
-          // Too-soon drops snap back with no popup — the guard message on a
+          // Too-soon drops snap back with no popup, the guard message on a
           // past/near drag was noisy; the 5-minute rule still applies.
           if (queueTooSoon(iso)) return false;
           return true;
@@ -677,7 +677,7 @@ function SXMount({
     if (calendar) controls.setDate(Temporal.PlainDate.from(anchorKey));
   }, [calendar, anchorKey, controls]);
 
-  // Flip the theme live through the calendar's reactive signal — remounting
+  // Flip the theme live through the calendar's reactive signal, remounting
   // here is what caused the full refresh + lost scroll on every toggle.
   useEffect(() => {
     if (!calendar) return;
@@ -732,7 +732,7 @@ export default function ScheduleXBoard({
   channels: ConnectedChannel[];
   /** View from the route path (/calendar-month → month). The URL is the source of truth. */
   initialView?: BoardView;
-  /** Day-key (YYYY-MM-DD) the calendar opens on — carried in ?d= across view switches. */
+  /** Day-key (YYYY-MM-DD) the calendar opens on, carried in ?d= across view switches. */
   initialAnchor?: string;
   /** Signed media per post id, for the thumbnail row on schedule cards. */
   media?: Record<string, MediaAssetRow[]>;
@@ -783,7 +783,7 @@ export default function ScheduleXBoard({
   );
   const avatarOf = (channelId: string): string | undefined => avatarByChannel.get(channelId);
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
-  /** Real handle only — never numeric ids, URLs or site names. */
+  /** Real handle only, never numeric ids, URLs or site names. */
   const cleanHandle = (raw: string | null | undefined): string | null => {
     if (!raw) return null;
     const t = raw.trim().replace(/^@+/, '');
@@ -793,7 +793,7 @@ export default function ScheduleXBoard({
     return `@${t}`;
   };
 
-  /** Chain parts grouped by chain_id — only the head renders anywhere. */
+  /** Chain parts grouped by chain_id, only the head renders anywhere. */
   const chainParts = useMemo(() => chainPartsByChain(posts), [posts]);
   /** Chain size: sibling rows, or the worker thread length for collapsed chains. */
   const partCount = (p: PostWithTargets): number => threadCount(p, chainParts);
@@ -1108,7 +1108,7 @@ export default function ScheduleXBoard({
     setSelectedKey(dayKey(now));
   };
 
-  /** Switch views instantly in-page — the posts are already in memory, so
+  /** Switch views instantly in-page, the posts are already in memory, so
    *  just remount the calendar instead of a full page load. The URL is
    *  replaced (never pushed) so refresh and bookmarks still land on the
    *  right view; the per-view routes remain as entry points. */
@@ -1520,7 +1520,7 @@ export default function ScheduleXBoard({
               ))}
             </div>
               <p className="mt-3 text-xs text-faint">
-                The whole year at a glance — dots mark days with posts. Pick a month to open it.
+                The whole year at a glance, dots mark days with posts. Pick a month to open it.
               </p>
             </>
           ) : view === 'list' ? (

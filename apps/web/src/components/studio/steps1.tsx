@@ -1,6 +1,6 @@
 'use client';
 
-/** The five editor steps — ports of mobile BackgroundPicker, TitleEditor,
+/** The five editor steps, ports of mobile BackgroundPicker, TitleEditor,
  *  PhotoSocialsEditor, ContentEditor (minus AI-generate, which needs the
  *  native AI backend) and the Pages panel. */
 
@@ -143,7 +143,7 @@ function PhotoButton({ label, primary, onPick }: { label: string; primary?: bool
           try {
             onPick(await fileToDataUrl(f));
           } catch {
-            /* unreadable file — stay put */
+            /* unreadable file, stay put */
           }
           e.target.value = '';
         }}
@@ -469,7 +469,7 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
         </div>
         {visibleSocials.length > 0 ? (
           <div className="space-y-3">
-            {/* Handle text lives in each badge row above — its ink and size ride right here. */}
+            {/* Handle text lives in each badge row above, its ink and size ride right here. */}
             <Field label="Handle ink">
               <Swatches colors={[...PALETTE, '#333333', '#666666', '#999999', '#CCCCCC']} value={p.handleColor} onChange={(c) => patchPfp({ handleColor: c })} />
             </Field>

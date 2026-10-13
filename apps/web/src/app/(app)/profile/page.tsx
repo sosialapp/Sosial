@@ -7,7 +7,7 @@ export const metadata = { title: 'Profile' };
 
 export const dynamic = 'force-dynamic';
 
-/** Account settings — mirrors the mobile Account screen on the web backend. */
+/** Account settings, mirrors the mobile Account screen on the web backend. */
 export default async function ProfilePage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');

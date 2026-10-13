@@ -22,7 +22,7 @@ function dayKeyLocal(d: Date): string {
 
 /**
  * Analytics snapshot: sent posts per day (7D/30D) or per week (90D).
- * Tabs switch the range — the card is alive, not a picture.
+ * Tabs switch the range, the card is alive, not a picture.
  */
 export default function AnalyticsCard({ sentAt }: { sentAt: string[] }) {
   const [range, setRange] = useState<Range>('7D');
