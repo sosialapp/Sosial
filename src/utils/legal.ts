@@ -13,7 +13,7 @@ export const TERMS_TEXT =
   'Sosial is a social media scheduling and publishing service operated by EGATE WORLDWIDE. You connect social accounts, compose content, schedule it, and Sosial publishes it to those accounts on your behalf using each platform’s official API. By creating a workspace you agree to these terms.\n\n' +
   'You must be old enough to hold an account on each platform you connect, you are responsible for keeping your login credentials secure, and for everything published from a social account while it is connected to your workspace.\n\n' +
   'Your use of each connected platform — X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile — remains governed by that platform’s own terms and policies. Some channels are shown as "Soon" and cannot yet be connected (Google Business Profile, LinkedIn, Pinterest). X requires a paid plan.\n\n' +
-  'You keep ownership of everything you create. Do not publish content you do not own or have rights to, or that is unlawful, infringing or deceptive.\n\n' +
+  'You keep ownership of everything you create — and full responsibility for it. Do not publish content you do not own or have rights to, or that is unlawful, infringing or deceptive. Sosial does not review posts before they go out and is not liable for what you publish: racist, hateful, sexually explicit, defamatory or misleading content, political content, misinformation, or anything else that breaks the law or a platform’s rules. Legal trouble from your posts is yours, not ours. We may remove content or suspend accounts that break these terms or the law.\n\n' +
   'Marketing emails (product news and tips) are sent only to users who opt in via the optional checkbox at signup or a preference in account settings. Every marketing email carries a one-click unsubscribe link, and unsubscribing takes effect immediately. Operational emails such as security notices, receipts and publishing confirmations are not marketing and continue regardless.\n\n' +
   'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data. We email a reminder one month before any such deletion, and signing in at any point during that month cancels it. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps the workspace and its data. Accounts with an active paid subscription are never deleted for inactivity.\n\n' +
   'Sosial is provided as-is, without warranties, and our total liability is limited to the amount you paid in the twelve months before a claim.';
@@ -35,6 +35,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'Connected media & content sources',
     body: 'Live sources are Dropbox, Canva, Unsplash and OneDrive for media; Notion and Google Sheets for one-way imports into drafts; and Zapier and MCP so automation tools and AI agents can create posts with an API key you control. When you attach from a media source, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos carry the photographer’s credit automatically. Google Drive and Google Photos are shown as "Soon" and are not yet connectable, pending Google’s own verification.',
+  },
+  {
+    title: 'Content responsibility',
+    body: 'What you publish through Sosial is yours: we store and deliver it on your behalf, but we do not review it and we are not responsible for it. If your content is racist, hateful, sexually explicit, defamatory, misleading or unlawful — including political content or misinformation — any legal consequences fall on you, not on Sosial.',
   },
   {
     title: 'Where your tokens live',

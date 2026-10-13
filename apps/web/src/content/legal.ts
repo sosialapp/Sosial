@@ -89,6 +89,10 @@ export const TERMS: LegalDoc = {
           t: 'p',
           c: 'You confirm you own or have the necessary rights to everything you publish, including images, video and text. Do not publish content that is unlawful, infringing, deceptive, or that violates a connected platform\'s rules.',
         },
+        {
+          t: 'p',
+          c: 'What you publish is your responsibility alone. Sosial does not review content before it goes out, and we are not liable for posts that are racist, hateful, sexually explicit, defamatory, misleading or unlawful — including political content, misinformation, or anything else that breaks the law or a platform\'s rules. If your content causes legal trouble, that trouble is yours, not ours. We may remove content or suspend accounts that violate these terms or the law.',
+        },
       ],
     },
     {
@@ -267,6 +271,15 @@ export const PRIVACY: LegalDoc = {
         {
           t: 'p',
           c: 'When you use the AI writer, the brief you submit is sent to the configured AI provider to generate a draft, and the result is returned to your workspace. We do not use your briefs or drafts to train models. If you enable web research for a post, the writer performs a live search to ground the copy and returns the sources it used.',
+        },
+      ],
+    },
+    {
+      title: 'Content responsibility',
+      blocks: [
+        {
+          t: 'p',
+          c: 'What you publish through Sosial is yours: we store and deliver it on your behalf, but we do not review it and we are not responsible for it. If your content is racist, hateful, sexually explicit, defamatory, misleading or unlawful — including political content or misinformation — any legal consequences fall on you, not on Sosial.',
         },
       ],
     },
