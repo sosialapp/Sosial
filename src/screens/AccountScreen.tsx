@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Switch, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, Seg, GhostBtn } from '../components/ui';
@@ -49,6 +50,19 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [repSubject, setRepSubject] = useState('');
   const [repBody, setRepBody] = useState('');
   const [repBusy, setRepBusy] = useState(false);
+  const [repShots, setRepShots] = useState<{ uri: string; name: string; mime: string }[]>([]);
+  const [myTicket, setMyTicket] = useState<UserTicket | null | undefined>(undefined);
+
+  type UserTicket = {
+    id: string;
+    kind: string;
+    subject: string;
+    body: string;
+    status: string;
+    admin_note: string;
+    attachments: string[];
+    created_at: string;
+  };
 
   /* Self-serve erasure: server wipe (delete-account fn) + local wipe. */
   const [delArmed, setDelArmed] = useState(false);
@@ -342,11 +356,76 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     });
   };
 
+  /** Load the user's current ticket (one open at a time by design). */
+  const loadTicket = async () => {
+    try {
+      const session = await currentSession();
+      if (!session) { setMyTicket(null); return; }
+      const { data, error } = await supabase()
+        .from('reports')
+        .select('id, kind, subject, body, status, admin_note, attachments, created_at')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as UserTicket[];
+      setMyTicket(rows.find((t) => t.status === 'open' || t.status === 'triaged') ?? null);
+    } catch {
+      setMyTicket(null);
+    }
+  };
+
+  /** Pick up to 3 screenshots from the library. */
+  const pickShots = async () => {
+    if (repShots.length >= 3) {
+      Alert.alert('Limit reached', 'Up to 3 screenshots per ticket.');
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to attach screenshots.');
+      return;
+    }
+    const r = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      selectionLimit: 3 - repShots.length,
+    });
+    if (r.canceled) return;
+    const next = [...repShots];
+    for (const a of r.assets) {
+      if (next.length >= 3) break;
+      next.push({ uri: a.uri, name: a.fileName ?? `screenshot-${Date.now()}.jpg`, mime: a.mimeType ?? 'image/jpeg' });
+    }
+    setRepShots(next);
+  };
+
+  /** Upload picked shots to report-media/<uid>/… (private bucket). */
+  const uploadShots = async (reportId: string, uidFolder: string): Promise<string[]> => {
+    const paths: string[] = [];
+    for (const shot of repShots) {
+      const res = await fetch(shot.uri);
+      const blob = await res.blob();
+      const path = `${uidFolder}/${reportId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const { error } = await supabase().storage.from('report-media').upload(path, blob, {
+        contentType: shot.mime,
+        upsert: false,
+      });
+      if (error) throw new Error(`Upload failed: ${error.message}`);
+      paths.push(path);
+    }
+    return paths;
+  };
+
   /** Owner inbox: bugs, ideas, billing help — straight into the reports table. */
   const sendReport = async () => {
     const body = repBody.trim();
     if (!body) {
       Alert.alert('Nothing to send', 'Describe the problem first.');
+      return;
+    }
+    if (myTicket) {
+      Alert.alert('Ticket already open', 'You have an open ticket — we reply there. Once it is resolved you can raise a new one.');
       return;
     }
     setRepBusy(true);
@@ -356,20 +435,31 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
         Alert.alert('Sign in first', 'Reports send from your cloud account — sign in to Sosial Cloud at the top of this screen, then retry.');
         return;
       }
-      const { error } = await supabase().from('reports').insert({
-        workspace_id: session.workspace.id,
-        user_id: session.user.id,
-        email: session.user.email ?? '',
-        kind: repKind,
-        subject: repSubject.trim(),
-        body,
-      });
+      const { data: created, error } = await supabase()
+        .from('reports')
+        .insert({
+          workspace_id: session.workspace.id,
+          user_id: session.user.id,
+          email: session.user.email ?? '',
+          kind: repKind,
+          subject: repSubject.trim(),
+          body,
+        })
+        .select('id')
+        .single();
       if (error) throw new Error(error.message);
+      const id = (created as { id: string }).id;
+      if (repShots.length > 0) {
+        const paths = await uploadShots(id, session.user.id);
+        await supabase().from('reports').update({ attachments: paths }).eq('id', id);
+      }
       setRepKind('bug');
       setRepSubject('');
       setRepBody('');
+      setRepShots([]);
       setView('main');
-      Alert.alert('Message sent', 'Thanks — it’s in the owner inbox.');
+      Alert.alert('Ticket submitted', 'We reply by email and update the ticket — find it under Support.');
+      void loadTicket();
     } catch (e: any) {
       Alert.alert('Couldn’t send', e?.message ?? 'Try again.');
     } finally {
@@ -500,11 +590,13 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {plan === 'team' ? row('people-outline', 'Team', 'Roles, channels & invites', onTeam) : null}
               {row('refresh-outline', 'Restore purchase', undefined, () => Alert.alert('Restore purchase', 'No purchases found on this device.'))}
               {row('star-outline', 'Rate Sosial', 'Review on the Play Store', rateApp)}
-              {row('chatbubble-ellipses-outline', 'Support', 'Bugs, ideas, billing help', () => {
+              {row('chatbubble-ellipses-outline', 'Support', myTicket ? 'Open ticket — we are on it' : 'Bugs, questions, billing help', () => {
                 setRepKind('bug');
                 setRepSubject('');
                 setRepBody('');
+                setRepShots([]);
                 setView('report');
+                void loadTicket();
               })}
               {row('sparkles-outline', "What's new", 'Changelog', () => setView('changelog'))}
             </View>
@@ -623,31 +715,84 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
         {view === 'report' ? (
           <View style={{ gap: 12, marginTop: 16 }}>
-            <Text style={s.note}>Bugs, ideas, billing help — goes straight to the owner inbox. Sends from your cloud account.</Text>
-            <Seg<ReportKind>
-              options={[
-                { value: 'bug', label: 'Bug' },
-                { value: 'idea', label: 'Idea' },
-                { value: 'billing', label: 'Billing' },
-                { value: 'other', label: 'Other' },
-              ]}
-              value={repKind}
-              onChange={setRepKind}
-            />
-            <View>
-              <Text style={s.label}>Subject (optional)</Text>
-              <Txt value={repSubject} onChangeText={setRepSubject} placeholder="Short summary" />
-            </View>
-            <View>
-              <Text style={s.label}>Details</Text>
-              <Txt value={repBody} onChangeText={setRepBody} placeholder="What happened? What did you expect?" multiline style={{ minHeight: 120 }} />
-            </View>
-            <TouchableOpacity
-              onPress={() => { if (!repBusy) void sendReport(); }}
-              style={s.save} activeOpacity={0.85}
-            >
-              <Text style={s.saveT}>{repBusy ? 'Sending…' : 'Send'}</Text>
-            </TouchableOpacity>
+            {myTicket ? (
+              <>
+                <View style={[s.plan, { gap: 6 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={[s.pill, { backgroundColor: C.accentSoft }]}><Text style={[s.pillT, { color: C.accentInk }]}>
+                      {myTicket.status === 'open' ? 'Open' : 'In review'}
+                    </Text></View>
+                    <Text style={s.note}>{new Date(myTicket.created_at).toLocaleDateString()}</Text>
+                  </View>
+                  {myTicket.subject ? <Text style={s.rowT}>{myTicket.subject}</Text> : null}
+                  <Text style={s.note}>{myTicket.body}</Text>
+                </View>
+                {myTicket.admin_note ? (
+                  <View style={[s.plan, { backgroundColor: C.card, gap: 4 }]}>
+                    <Text style={s.label}>Reply from Sosial support</Text>
+                    <Text style={s.note}>{myTicket.admin_note}</Text>
+                  </View>
+                ) : (
+                  <Text style={s.note}>We reply by email and update this ticket — you will hear from us shortly.</Text>
+                )}
+                {myTicket.attachments?.length ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {myTicket.attachments.map((p) => (
+                      <TicketShot key={p} path={p} />
+                    ))}
+                  </View>
+                ) : null}
+                <Text style={s.note}>
+                  One ticket at a time keeps the conversation in one place. It is erased with its screenshots 30 days after being resolved.
+                </Text>
+                <GhostBtn label="Refresh" onPress={() => void loadTicket()} />
+              </>
+            ) : (
+              <>
+                <Text style={s.note}>Describe what happened — screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are erased with attachments after 30 days.</Text>
+                <Seg<ReportKind>
+                  options={[
+                    { value: 'bug', label: 'Bug' },
+                    { value: 'idea', label: 'Idea' },
+                    { value: 'billing', label: 'Billing' },
+                    { value: 'other', label: 'Other' },
+                  ]}
+                  value={repKind}
+                  onChange={setRepKind}
+                />
+                <View>
+                  <Text style={s.label}>Subject (optional)</Text>
+                  <Txt value={repSubject} onChangeText={setRepSubject} placeholder="Short summary" />
+                </View>
+                <View>
+                  <Text style={s.label}>Details</Text>
+                  <Txt value={repBody} onChangeText={setRepBody} placeholder="What happened? What did you expect?" multiline style={{ minHeight: 120 }} />
+                </View>
+                {repShots.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {repShots.map((shot, i) => (
+                      <View key={`${shot.uri}-${i}`}>
+                        <Image source={{ uri: shot.uri }} style={{ width: 72, height: 72, borderRadius: 10 }} />
+                        <TouchableOpacity
+                          onPress={() => setRepShots(repShots.filter((_, j) => j !== i))}
+                          style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }}
+                          accessibilityLabel={`Remove ${shot.name}`}
+                        >
+                          <Text style={{ color: C.paper, fontSize: 12, lineHeight: 14 }}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                <GhostBtn label={`Attach screenshots (${repShots.length}/3)`} onPress={() => void pickShots()} />
+                <TouchableOpacity
+                  onPress={() => { if (!repBusy) void sendReport(); }}
+                  style={s.save} activeOpacity={0.85}
+                >
+                  <Text style={s.saveT}>{repBusy ? 'Sending…' : 'Submit ticket'}</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         ) : null}
 
@@ -783,6 +928,27 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       </ScrollView>
     </View>
   );
+}
+
+/** Signed-URL shot from the private report-media bucket. */
+function TicketShot({ path }: { path: string }) {
+  const { C } = useTheme();
+  const [uri, setUri] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const { data, error } = await supabase().storage.from('report-media').createSignedUrl(path, 3600);
+        if (!alive) return;
+        setUri(error || !data?.signedUrl ? null : data.signedUrl);
+      } catch {
+        if (alive) setUri(null);
+      }
+    })();
+    return () => { alive = false; };
+  }, [path]);
+  if (!uri) return <View style={{ width: 72, height: 72, borderRadius: 10, backgroundColor: C.surface }} />;
+  return <Image source={{ uri }} style={{ width: 72, height: 72, borderRadius: 10 }} />;
 }
 
 /** One plan, scannable: name + price anchor, short checkmark list, one action. */

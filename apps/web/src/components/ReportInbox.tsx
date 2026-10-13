@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { EmojiTextarea } from '@/components/Emoji';
@@ -13,6 +13,7 @@ export interface AdminReport {
   body: string;
   status: string;
   admin_note: string;
+  attachments: string[];
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +24,72 @@ const FILTERS = ['open', 'all', 'triaged', 'resolved', 'closed'] as const;
 function fmt(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
+/** Signed-URL thumbnail for a report attachment (private bucket; admins can read). */
+function AdminAttachment({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const sb = createClient();
+        const { data, error } = await sb.storage.from('report-media').createSignedUrl(path, 3600);
+        if (!alive) return;
+        if (error || !data?.signedUrl) throw new Error('no url');
+        setUrl(data.signedUrl);
+      } catch {
+        if (alive) setFailed(true);
+      }
+    })();
+    return () => { alive = false; };
+  }, [path]);
+  if (failed) return null;
+  if (!url) return <span className="h-20 w-20 animate-pulse rounded-xl bg-paper-dim" aria-hidden="true" />;
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="block">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="Attachment" className="h-20 w-20 rounded-xl border border-line object-cover" />
+    </a>
+  );
+}
+
+/** Signed-URL thumbnail for a private report-media object. */
+function Attachment({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const sb = createClient();
+        const { data, error } = await sb.storage.from('report-media').createSignedUrl(path, 3600);
+        if (!alive) return;
+        if (error || !data?.signedUrl) throw new Error(error?.message ?? 'no url');
+        setUrl(data.signedUrl);
+      } catch {
+        if (alive) setFailed(true);
+      }
+    })();
+    return () => { alive = false; };
+  }, [path]);
+  if (failed) {
+    return (
+      <span className="flex h-24 w-24 items-center justify-center rounded-xl border border-line bg-paper-dim text-[10px] font-bold text-faint">
+        Unavailable
+      </span>
+    );
+  }
+  if (!url) {
+    return <span className="h-24 w-24 animate-pulse rounded-xl bg-paper-dim" aria-hidden="true" />;
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="block">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="Ticket attachment" className="h-24 w-24 rounded-xl border border-line object-cover" />
+    </a>
+  );
 }
 
 function ReportCard({ report }: { report: AdminReport }) {
@@ -67,6 +134,13 @@ function ReportCard({ report }: { report: AdminReport }) {
         <h3 className="mt-2 font-display text-base font-extrabold">{report.subject}</h3>
       ) : null}
       <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-soft">{report.body}</p>
+      {report.attachments?.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {report.attachments.map((p) => (
+            <AdminAttachment key={p} path={p} />
+          ))}
+        </div>
+      ) : null}
       <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_180px_auto] sm:items-end">
         <label className="grid gap-1 text-xs font-bold text-muted">
           Admin note (private)

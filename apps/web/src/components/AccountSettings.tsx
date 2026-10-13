@@ -6,7 +6,7 @@
  * report inbox, changelog, legal. Writes go to the real backend (profiles,
  * workspaces, auth, reports), so the phone picks them up on next sync.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -19,6 +19,7 @@ import {
   CreditCard,
   FileText,
   Flag,
+  Image as ImageIcon,
   KeyRound,
   Mail,
   Scale,
@@ -35,8 +36,29 @@ import { Card } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
 import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 
-type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal' | 'delete';
+type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal' | 'delete' | 'ticket';
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
+
+interface UserReport {
+  id: string;
+  kind: string;
+  subject: string;
+  body: string;
+  status: string;
+  admin_note: string;
+  attachments: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+const MAX_ATTACHMENTS = 3;
+const MAX_FILE_MB = 10;
+const TICKET_STATUSES: Record<string, { label: string; tone: string }> = {
+  open: { label: 'Open', tone: 'bg-[#FFF4DC] text-[#8a6116] dark:bg-[#332a15] dark:text-[#e8c877]' },
+  triaged: { label: 'In review', tone: 'bg-[#E8F0FB] text-[#2d5a9e] dark:bg-[#182338] dark:text-[#8db4ec]' },
+  resolved: { label: 'Resolved', tone: 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]' },
+  closed: { label: 'Closed', tone: 'bg-paper-dim text-muted' },
+};
 
 const CHANGELOG = [
   {
@@ -109,6 +131,42 @@ function Row({
   );
 }
 
+function TicketImage({ path, userId }: { path: string; userId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const sb = createClient();
+        const { data, error } = await sb.storage.from('report-media').createSignedUrl(path, 3600);
+        if (!alive) return;
+        if (error || !data?.signedUrl) throw new Error(error?.message ?? 'no url');
+        setUrl(data.signedUrl);
+      } catch {
+        if (alive) setFailed(true);
+      }
+    })();
+    return () => { alive = false; };
+  }, [path, userId]);
+  if (failed) {
+    return (
+      <span className="flex h-20 w-20 items-center justify-center rounded-xl border border-line bg-paper-dim text-[10px] font-bold text-faint">
+        Unavailable
+      </span>
+    );
+  }
+  if (!url) {
+    return <span className="h-20 w-20 animate-pulse rounded-xl bg-paper-dim" aria-hidden="true" />;
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="block">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="Ticket attachment" className="h-20 w-20 rounded-xl border border-line object-cover" />
+    </a>
+  );
+}
+
 export default function AccountSettings({
   email,
   workspaceId,
@@ -140,6 +198,8 @@ export default function AccountSettings({
   const [repSubject, setRepSubject] = useState('');
   const [repBody, setRepBody] = useState('');
   const [repBusy, setRepBusy] = useState(false);
+  const [repFiles, setRepFiles] = useState<File[]>([]);
+  const [myTickets, setMyTickets] = useState<UserReport[] | null>(null);
   const [cloudInfo, setCloudInfo] = useState(false);
   const [delArmed, setDelArmed] = useState(false);
   const [delWord, setDelWord] = useState('');
@@ -149,7 +209,7 @@ export default function AccountSettings({
   const title =
     view === 'main' ? 'Account' : view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings'
     : view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription'
-    : view === 'changelog' ? "What's new" : view === 'report' ? 'Support'
+    : view === 'changelog' ? "What's new" : view === 'report' || view === 'ticket' ? 'Support'
     : view === 'delete' ? 'Delete my data' : 'Legal';
 
   async function flipNotif(key: 'posts' | 'comments' | 'weekly') {
@@ -246,29 +306,100 @@ export default function AccountSettings({
     }
   }
 
+  const openTicket = myTickets?.find((t) => t.status === 'open' || t.status === 'triaged') ?? null;
+
+  async function loadTickets() {
+    setMyTickets(null);
+    try {
+      const sb = createClient();
+      const { data, error } = await sb
+        .from('reports')
+        .select('id, kind, subject, body, status, admin_note, attachments, created_at, updated_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      setMyTickets((data ?? []) as UserReport[]);
+    } catch {
+      setMyTickets([]);
+    }
+  }
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    setErr(null);
+    const next = [...repFiles];
+    for (const f of Array.from(list)) {
+      if (next.length >= MAX_ATTACHMENTS) {
+        setErr(`Up to ${MAX_ATTACHMENTS} images per ticket.`);
+        break;
+      }
+      if (!f.type.startsWith('image/')) {
+        setErr('Screenshots only — images please.');
+        continue;
+      }
+      if (f.size > MAX_FILE_MB * 1024 * 1024) {
+        setErr(`"${f.name}" is over ${MAX_FILE_MB} MB.`);
+        continue;
+      }
+      next.push(f);
+    }
+    setRepFiles(next);
+  }
+
+  async function uploadAttachments(reportId: string): Promise<string[]> {
+    const sb = createClient();
+    const names: string[] = [];
+    for (const f of repFiles) {
+      const ext = (f.name.split('.').pop() ?? 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const path = `${userId}/${reportId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext || 'png'}`;
+      const { error } = await sb.storage.from('report-media').upload(path, f, {
+        contentType: f.type || 'image/png',
+        upsert: false,
+      });
+      if (error) throw new Error(`Upload failed (${f.name}): ${error.message}`);
+      names.push(path);
+    }
+    return names;
+  }
+
   async function sendReport() {
     setErr(null);
     if (!repBody.trim()) {
       setErr('Describe the problem first.');
       return;
     }
+    if (openTicket) {
+      setErr('You already have an open ticket — we reply there. Close or resolve it first to raise a new one.');
+      return;
+    }
     setRepBusy(true);
     try {
       const sb = createClient();
-      const { error } = await sb.from('reports').insert({
-        workspace_id: workspaceId,
-        user_id: userId,
-        email,
-        kind: repKind,
-        subject: repSubject.trim(),
-        body: repBody.trim(),
-      });
+      const { data: created, error } = await sb
+        .from('reports')
+        .insert({
+          workspace_id: workspaceId,
+          user_id: userId,
+          email,
+          kind: repKind,
+          subject: repSubject.trim(),
+          body: repBody.trim(),
+        })
+        .select('id')
+        .single();
       if (error) throw new Error(error.message);
+      const id = (created as { id: string }).id;
+      if (repFiles.length > 0) {
+        const names = await uploadAttachments(id);
+        await sb.from('reports').update({ attachments: names }).eq('id', id);
+      }
       setRepKind('bug');
       setRepSubject('');
       setRepBody('');
-      setView('main');
-      setNote('Report sent — it’s in the owner inbox.');
+      setRepFiles([]);
+      setView('ticket');
+      setNote('Ticket submitted — we reply by email. Track it under Your ticket.');
+      await loadTickets();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not send the report.');
     } finally {
@@ -352,7 +483,7 @@ export default function AccountSettings({
               <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label="Team" sub="Roles, channels & invites" href="/team" />
             ) : null}
             <Row icon={<Star className="h-5 w-5" aria-hidden="true" />} label="Rate Sosial" sub="Tell us how we are doing" onClick={() => setView('report')} />
-            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label="Support" sub="Bugs, ideas, billing help" onClick={() => { setRepKind('bug'); setRepSubject(''); setRepBody(''); setView('report'); }} />
+            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label="Support" sub={openTicket ? 'Open ticket — we are on it' : 'Bugs, questions, billing help'} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
             <Row icon={<Sparkles className="h-5 w-5" aria-hidden="true" />} label="What's new" sub="Changelog" onClick={() => setView('changelog')} />
           </Card>
 
@@ -513,46 +644,119 @@ export default function AccountSettings({
         </div>
       ) : null}
 
-      {view === 'report' ? (
-        <Card className="mt-4 space-y-3 p-5">
-          <p className="text-xs leading-relaxed text-muted">
-            Bugs, ideas, billing help — goes straight to the owner inbox. Sends from your cloud account.
-          </p>
-          <div className="flex gap-1.5" role="group" aria-label="Report kind">
-            {(['bug', 'idea', 'billing', 'other'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setRepKind(k)}
-                aria-pressed={repKind === k}
-                className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold capitalize transition ${
-                  repKind === k ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
-                }`}
-              >
-                {k}
-              </button>
-            ))}
+      {view === 'ticket' ? (
+        myTickets === null ? (
+          <Card className="mt-4 p-6 text-center text-sm text-muted">Loading…</Card>
+        ) : openTicket ? (
+          <div className="mt-4 space-y-3">
+            {openTicket.attachments?.length ? (
+              <Card className="p-5">
+                <p className="text-xs font-bold text-muted">Your screenshots</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {openTicket.attachments.map((p) => (
+                    <TicketImage key={p} path={p} userId={userId} />
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-faint">Attachments are deleted with the ticket 30 days after it is resolved.</p>
+              </Card>
+            ) : null}
+            <Card className="p-5">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className={`rounded-full px-2.5 py-1 font-bold ${TICKET_STATUSES[openTicket.status]?.tone ?? 'bg-paper-dim text-muted'}`}>
+                  {TICKET_STATUSES[openTicket.status]?.label ?? openTicket.status}
+                </span>
+                <span className="rounded-full border border-line bg-paper px-2.5 py-1 font-bold text-soft capitalize">{openTicket.kind}</span>
+                <span className="min-w-0 flex-1 text-right text-muted">{new Date(openTicket.created_at).toLocaleDateString()}</span>
+              </div>
+              {openTicket.subject ? (
+                <h3 className="mt-3 font-display text-base font-extrabold">{openTicket.subject}</h3>
+              ) : null}
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-soft">{openTicket.body}</p>
+              {openTicket.admin_note ? (
+                <div className="mt-4 rounded-xl bg-paper-dim px-4 py-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Reply from Sosial support</p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-soft">{openTicket.admin_note}</p>
+                </div>
+              ) : (
+                <p className="mt-4 text-xs text-muted">We reply by email and update this ticket — you will hear from us shortly.</p>
+              )}
+            </Card>
+            <Card className="p-5">
+              <p className="text-xs leading-relaxed text-muted">
+                Need to add something? Reply by email — one ticket at a time keeps the conversation in one place. The ticket closes automatically once it is resolved, and is erased with its attachments 30 days later.
+              </p>
+            </Card>
           </div>
-          <input
-            value={repSubject}
-            onChange={(e) => setRepSubject(e.target.value)}
-            placeholder="Short summary (optional)"
-            aria-label="Subject"
-            className="field !text-xs"
-          />
-          <textarea
-            value={repBody}
-            onChange={(e) => setRepBody(e.target.value)}
-            placeholder="What happened? What did you expect?"
-            rows={5}
-            aria-label="Details"
-            className="field min-h-[120px] resize-y !text-xs"
-          />
-          <Button onClick={() => void sendReport()} disabled={repBusy} className="w-full">
-            <Send className="h-4 w-4" aria-hidden="true" />
-            {repBusy ? 'Sending…' : 'Send'}
-          </Button>
-        </Card>
+        ) : (
+          <Card className="mt-4 space-y-3 p-5">
+            <p className="text-xs leading-relaxed text-muted">
+              Describe what happened — screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are kept for 30 days, then erased with their attachments.
+            </p>
+            <div className="flex gap-1.5" role="group" aria-label="Report kind">
+              {(['bug', 'idea', 'billing', 'other'] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setRepKind(k)}
+                  aria-pressed={repKind === k}
+                  className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold capitalize transition ${
+                    repKind === k ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+            <input
+              value={repSubject}
+              onChange={(e) => setRepSubject(e.target.value)}
+              placeholder="Short summary (optional)"
+              aria-label="Subject"
+              className="field !text-xs"
+            />
+            <textarea
+              value={repBody}
+              onChange={(e) => setRepBody(e.target.value)}
+              placeholder="What happened? What did you expect?"
+              rows={5}
+              aria-label="Details"
+              className="field min-h-[120px] resize-y !text-xs"
+            />
+            {repFiles.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {repFiles.map((f, i) => (
+                  <span key={`${f.name}-${i}`} className="flex items-center gap-1.5 rounded-full border border-line bg-paper-dim px-2.5 py-1 text-[11px] font-bold text-soft">
+                    <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="max-w-[140px] truncate">{f.name}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${f.name}`}
+                      onClick={() => setRepFiles(repFiles.filter((_, j) => j !== i))}
+                      className="text-faint transition hover:text-ink"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line px-4 py-3 text-xs font-bold text-muted transition hover:border-faint hover:text-ink">
+              <ImageIcon className="h-4 w-4" aria-hidden="true" />
+              Attach screenshots (up to {MAX_ATTACHMENTS}, {MAX_FILE_MB} MB each)
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
+              />
+            </label>
+            <Button onClick={() => void sendReport()} disabled={repBusy} className="w-full">
+              <Send className="h-4 w-4" aria-hidden="true" />
+              {repBusy ? 'Sending…' : 'Submit ticket'}
+            </Button>
+          </Card>
+        )
       ) : null}
 
       {view === 'changelog' ? (

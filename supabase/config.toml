@@ -463,3 +463,9 @@ enabled = true
 # must not verify it — the function does its own token check.
 verify_jwt = false
 entrypoint = "./functions/dormancy-sweep/index.ts"
+
+[functions.report-cleanup]
+enabled = true
+# Cron-only, same shared-token auth as dormancy-sweep.
+verify_jwt = false
+entrypoint = "./functions/report-cleanup/index.ts"

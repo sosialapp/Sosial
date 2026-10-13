@@ -8,7 +8,7 @@ export default async function AdminReportsPage() {
   const sb = await createClient();
   const { data } = await sb
     .from('reports')
-    .select('id, email, kind, subject, body, status, admin_note, created_at, updated_at')
+    .select('id, email, kind, subject, body, status, admin_note, attachments, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(200);
 
