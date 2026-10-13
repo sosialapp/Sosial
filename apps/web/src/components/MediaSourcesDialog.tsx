@@ -87,6 +87,12 @@ export default function MediaSourcesDialog({
   // OneDrive
   const [odFiles, setOdFiles] = useState<CloudOneDriveItem[]>([]);
   const [odStack, setOdStack] = useState<{ id: string; name: string }[]>([]);
+  // Multi-select: tap-to-toggle across folders, then one Attach.
+  const [multi, setMulti] = useState(false);
+  const [selMap, setSelMap] = useState<
+    Record<string, { source: 'dropbox' | 'onedrive' | 'drive'; file: CloudDropboxEntry | CloudOneDriveItem | CloudDriveFile }>
+  >({});
+  const selCount = Object.keys(selMap).length;
   // Canva
   const [canvaDesigns, setCanvaDesigns] = useState<CloudCanvaDesign[]>([]);
   const [canvaKind, setCanvaKind] = useState<'image' | 'video'>('image');
@@ -139,6 +145,8 @@ export default function MediaSourcesDialog({
     setOdStack([]);
     setCanvaDesigns([]);
     setAuthed(false);
+    setMulti(false);
+    setSelMap({});
   };
 
   const loadDriveInto = async (folderId?: string, q?: string) => {
@@ -235,6 +243,102 @@ export default function MediaSourcesDialog({
       setConnecting(false);
     }
   };
+
+  const selKey = (s: string, id: string) => `${s}:${id}`;
+  const isSel = (s: string, id: string) => !!selMap[selKey(s, id)];
+
+  const toggleSel = (
+    s: 'dropbox' | 'onedrive' | 'drive',
+    id: string,
+    file: CloudDropboxEntry | CloudOneDriveItem | CloudDriveFile,
+  ) => {
+    setErr(null);
+    setSelMap((m) => {
+      const k = selKey(s, id);
+      if (m[k]) {
+        const n = { ...m };
+        delete n[k];
+        return n;
+      }
+      return { ...m, [k]: { source: s, file } };
+    });
+  };
+
+  /** Download every selected file, attach what succeeds, stay open on partial failure. */
+  const attachSelected = async () => {
+    const keys = Object.keys(selMap);
+    if (downloading || keys.length === 0) return;
+    setDownloading({ id: '__batch__', progress: null });
+    setErr(null);
+    const files: File[] = [];
+    const failedKeys: string[] = [];
+    for (let i = 0; i < keys.length; i++) {
+      const entry = selMap[keys[i]];
+      try {
+        const onP = (pct: number) =>
+          setDownloading((d) =>
+            d && d.id === '__batch__'
+              ? { id: '__batch__', progress: Math.round(((i + pct / 100) / keys.length) * 100) }
+              : d,
+          );
+        if (entry.source === 'dropbox') files.push(await downloadDropboxFile(entry.file as CloudDropboxEntry, onP));
+        else if (entry.source === 'onedrive') files.push(await downloadOneDriveFile(entry.file as CloudOneDriveItem, onP));
+        else files.push(await downloadDriveFile(entry.file as CloudDriveFile, onP));
+      } catch {
+        failedKeys.push(keys[i]);
+      }
+    }
+    setDownloading(null);
+    if (files.length > 0) onAttach(files);
+    if (failedKeys.length === 0) {
+      setSelMap({});
+      setMulti(false);
+      onClose();
+    } else {
+      // Keep the failures selected for retry.
+      setSelMap((m) => Object.fromEntries(failedKeys.map((k) => [k, m[k]]).filter(([, v]) => !!v)));
+      setErr(
+        files.length === 0
+          ? 'Could not attach those files.'
+          : `${failedKeys.length} of ${keys.length} failed — attached the rest, retry or pick others.`,
+      );
+    }
+  };
+
+  /** Select/Attach/Cancel row above the cloud file grids. */
+  const multiBar = () => (
+    <div className="mt-2 flex items-center gap-2">
+      {!multi ? (
+        <button
+          type="button"
+          onClick={() => { setErr(null); setMulti(true); }}
+          className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
+        >
+          Select multiple
+        </button>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => void attachSelected()}
+            disabled={downloading !== null || selCount === 0}
+            className="rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-paper transition disabled:opacity-40"
+          >
+            {downloading?.id === '__batch__' && typeof downloading.progress === 'number'
+              ? `Attaching ${downloading.progress}%`
+              : `Attach${selCount ? ` (${selCount})` : ''}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMulti(false); setSelMap({}); }}
+            className="rounded-full px-3 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
+          >
+            Cancel
+          </button>
+        </>
+      )}
+    </div>
+  );
 
   const searchStock = async () => {
     if (source !== 'unsplash' || !query.trim()) return;
@@ -434,12 +538,14 @@ export default function MediaSourcesDialog({
   const placeholder =
     source === 'drive' ? 'Search Drive…' : source === 'gphotos' ? 'Search Photos…' : source === 'dropbox' ? 'Search Dropbox…' : source === 'onedrive' ? 'Search OneDrive…' : source === 'canva' ? 'Search designs…' : 'Search stock…';
 
-  const cellFor = (cellId: string, thumb: string | undefined, name: string, kind: 'image' | 'video', onPick: () => void) => (
+  const cellFor = (cellId: string, thumb: string | undefined, name: string, kind: 'image' | 'video', onPick: () => void, selected = false) => (
     <button
       key={cellId}
       type="button"
       onClick={onPick}
-      className="group relative overflow-hidden rounded-xl border border-line bg-paper-dim text-left"
+      className={`group relative overflow-hidden rounded-xl border text-left ${
+        selected ? 'border-ink ring-2 ring-ink/60' : 'border-line'
+      } bg-paper-dim`}
     >
       {thumb ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -447,6 +553,11 @@ export default function MediaSourcesDialog({
       ) : (
         <span className="flex aspect-square w-full items-center justify-center text-2xl text-faint">🖼</span>
       )}
+      {selected ? (
+        <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink text-[11px] font-bold text-paper" aria-hidden="true">
+          ✓
+        </span>
+      ) : null}
       {kind === 'video' ? (
         <span className="absolute top-1.5 left-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">▶</span>
       ) : null}
@@ -638,8 +749,9 @@ export default function MediaSourcesDialog({
 
                 {source === 'drive' ? (
                   <>
+                    {multiBar()}
                     <div className="mt-2 grid grid-cols-3 gap-1.5">
-                      {driveFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, () => void pickDrive(f)))}
+                      {driveFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, multi ? () => toggleSel('drive', f.id, f) : () => void pickDrive(f), multi && isSel('drive', f.id)))}
                     </div>
                     {!busy && driveFiles.length === 0 ? (
                       <p className="mt-3 text-center text-xs text-faint">{query ? 'No matches in this folder.' : 'No images or videos here yet.'}</p>
@@ -714,15 +826,18 @@ export default function MediaSourcesDialog({
                 ) : null}
 
                 {source === 'drive' || source === 'gphotos' ? null : (
+                <>
+                {source === 'dropbox' || source === 'onedrive' ? multiBar() : null}
                 <div className="mt-2 grid grid-cols-3 gap-1.5">
                   {source === 'dropbox'
-                    ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, () => void pickDropbox(f)))
+                    ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, multi ? () => toggleSel('dropbox', f.path, f) : () => void pickDropbox(f), multi && isSel('dropbox', f.path)))
                     : source === 'onedrive'
-                      ? odFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, () => void pickOneDrive(f)))
+                      ? odFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, multi ? () => toggleSel('onedrive', f.id, f) : () => void pickOneDrive(f), multi && isSel('onedrive', f.id)))
                       : source === 'canva'
                         ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
                         : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
                 </div>
+                </>
                 )}
                 {source === 'gphotos' ? (
                   <div className="py-4 text-center">
