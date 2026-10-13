@@ -803,10 +803,18 @@ interface OdItem {
   thumbnails?: { small?: { url?: string } };
 }
 
+/** Thumbnail URL from an expanded `thumbnails` set (array) or legacy shape. */
+function odThumb(it: OdItem): string | undefined {
+  const raw = (it as any)?.thumbnails;
+  const set = Array.isArray(raw) ? raw[0] : raw;
+  const url = set?.small?.url ?? set?.medium?.url ?? set?.large?.url;
+  return typeof url === 'string' ? url : undefined;
+}
+
 function toOdItem(it: OdItem): CloudOneDriveItem | null {
   const kind = odKind(String(it.name ?? ''));
   if (!kind || it.folder) return null;
-  const thumb = (it as any)?.thumbnails?.small?.url;
+  const thumb = odThumb(it);
   return {
     id: String(it.id),
     name: String(it.name ?? 'file'),
@@ -814,6 +822,18 @@ function toOdItem(it: OdItem): CloudOneDriveItem | null {
     ...(thumb ? { thumb: String(thumb) } : {}),
     ...(it.parentReference?.id ? { parent: String(it.parentReference.id) } : {}),
   };
+}
+
+/** GET a OneDrive collection, preferring thumbnail expansion for the grid
+ *  previews. Tenants that reject $expand fall back to a plain listing so
+ *  browsing never breaks (tiles just show a placeholder). */
+async function odList(urlPath: string, auth: Record<string, string>): Promise<Response> {
+  const expanded = await fetch(`${GRAPH_API}${urlPath}&$expand=thumbnails`, {
+    headers: auth,
+    signal: AbortSignal.timeout(20000),
+  });
+  if (expanded.ok || expanded.status === 401) return expanded;
+  return fetch(`${GRAPH_API}${urlPath}`, { headers: auth, signal: AbortSignal.timeout(20000) });
 }
 
 /** Browse OneDrive: a folder's children, or a whole-drive media search. */
@@ -827,9 +847,9 @@ export async function listOneDriveFiles(
   if (query && query.trim()) {
     // Graph search across the drive; media types only.
     const q = encodeURIComponent(`${query.trim().replace(/"/g, '')}`);
-    const res = await fetch(`${GRAPH_API}/me/drive/root/search(q='${q}')?$top=50`, { headers: auth, signal: AbortSignal.timeout(20000) });
+    const res = await odList(`/me/drive/root/search(q='${q}')?$top=50`, auth);
     if (res.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
-    if (!res.ok) throw new Error('OneDrive search failed — try again.');
+    if (!res.ok) throw new Error(`OneDrive search failed (${res.status}) — try again.`);
     const j: any = await res.json().catch(() => ({}));
     const items: CloudOneDriveItem[] = [];
     const folders: { id: string; name: string }[] = [];
@@ -870,24 +890,30 @@ export async function downloadOneDriveFile(
   onProgress?: (pct: number) => void,
 ): Promise<File> {
   const token = await getValidCloudToken('onedrive');
-  // @microsoft.graph.downloadUrl (pre-authed) is included when we ask for it;
-  // falling back to the plain content endpoint when absent.
-  const metaRes = await fetch(`${GRAPH_API}/me/drive/items/${item.id}?select=@microsoft.graph.downloadUrl,name`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(15000),
-  });
-  let url = `${GRAPH_API}/me/drive/items/${item.id}/content`;
+  const toFile = (blob: Blob) =>
+    new File([blob], item.name || `onedrive.${item.kind === 'video' ? 'mp4' : 'jpg'}`, {
+      type: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
+    });
+  // @microsoft.graph.downloadUrl (pre-authed) when we can get it. It carries
+  // its own signature, so it must be fetched WITHOUT our bearer — sending
+  // both makes the file host reject the request.
+  const metaRes = await fetch(
+    `${GRAPH_API}/me/drive/items/${item.id}?$select=id,name,@microsoft.graph.downloadUrl`,
+    { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) },
+  );
+  if (metaRes.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
   if (metaRes.ok) {
-    const j: any = await metaRes.json().catch(() => ({}));
-    if (j?.['@microsoft.graph.downloadUrl']) url = String(j['@microsoft.graph.downloadUrl']);
+    const j: any = await metaRes.json().catch(() => null);
+    const dl = j?.['@microsoft.graph.downloadUrl'];
+    if (typeof dl === 'string' && dl) {
+      const blob = await fetchProgressBlob(dl, {}, onProgress).catch(() => null);
+      if (blob) return toFile(blob);
+    }
   }
-  const blob = await fetchProgressBlob(
-    url,
-    { headers: { Authorization: `Bearer ${token}` } },
-    onProgress,
-  ).catch(() => null);
+  // Fallback: Graph streams the bytes itself (bearer required).
+  const blob = await fetchProgressBlob(`${GRAPH_API}/me/drive/items/${item.id}/content`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }, onProgress).catch(() => null);
   if (!blob) throw new Error('OneDrive download failed — try another file.');
-  return new File([blob], item.name || `onedrive.${item.kind === 'video' ? 'mp4' : 'jpg'}`, {
-    type: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
-  });
+  return toFile(blob);
 }
