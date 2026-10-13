@@ -845,9 +845,9 @@ export async function listOneDriveFiles(
   }
 
   const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
-  const res = await fetch(`${path}?$top=100`, { headers: auth, signal: AbortSignal.timeout(20000) });
+  const res = await fetch(`${GRAPH_API}${path}?$top=100`, { headers: auth, signal: AbortSignal.timeout(20000) });
   if (res.status === 401) throw new Error('OneDrive session expired — reconnect the source.');
-  if (!res.ok) throw new Error('OneDrive browse failed — try again.');
+  if (!res.ok) throw new Error(`OneDrive browse failed (${res.status}) — try again.`);
   const j: any = await res.json().catch(() => ({}));
   const items: CloudOneDriveItem[] = [];
   const folders: { id: string; name: string }[] = [];
