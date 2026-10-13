@@ -759,15 +759,20 @@ export async function searchDropbox(query: string): Promise<CloudDropboxEntry[]>
 
 export async function downloadDropboxFile(e: CloudDropboxEntry, onProgress?: (pct: number) => void): Promise<File> {
   const token = await getValidCloudToken('dropbox');
-  const blob = await fetchProgressBlob(
-    'https://content.dropboxapi.com/2/files/download',
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({ path: e.path }) },
-    },
-    onProgress,
-  ).catch(() => null);
-  if (!blob) throw new Error('Dropbox download failed, try another file.');
+  let blob: Blob;
+  try {
+    blob = await fetchProgressBlob(
+      'https://content.dropboxapi.com/2/files/download',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({ path: e.path }) },
+      },
+      onProgress,
+    );
+  } catch (err) {
+    const why = err instanceof Error ? err.message : 'network error';
+    throw new Error(`Dropbox download failed (${why}), try another file.`);
+  }
   return new File([blob], e.name || `dropbox.${e.kind === 'video' ? 'mp4' : 'jpg'}`, {
     type: e.kind === 'video' ? 'video/mp4' : 'image/jpeg',
   });
@@ -911,9 +916,15 @@ export async function downloadOneDriveFile(
     }
   }
   // Fallback: Graph streams the bytes itself (bearer required).
-  const blob = await fetchProgressBlob(`${GRAPH_API}/me/drive/items/${item.id}/content`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }, onProgress).catch(() => null);
-  if (!blob) throw new Error('OneDrive download failed, try another file.');
+  let blob: Blob | null = null;
+  let why = '';
+  try {
+    blob = await fetchProgressBlob(`${GRAPH_API}/me/drive/items/${item.id}/content`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }, onProgress);
+  } catch (err) {
+    why = err instanceof Error ? err.message : 'network error';
+  }
+  if (!blob) throw new Error(`OneDrive download failed (${why || 'empty response'}), try another file.`);
   return toFile(blob);
 }
