@@ -3,17 +3,16 @@ import { createClient } from '@/lib/supabase/server';
 import { safeNextPath } from '@/lib/auth';
 
 /**
- * Add a consenting user to the Resend marketing audience. Idempotent
- * (contacts upsert by email), so re-confirming a link is harmless.
- * Fire-and-forget: a marketing-sync hiccup must never block a sign-in.
+ * Add a consenting user to the Resend contacts list (current Contacts API —
+ * no audience ID needed). Fire-and-forget: a marketing-sync hiccup must
+ * never block a sign-in.
  */
 async function syncMarketingOptIn(email: string | undefined): Promise<void> {
   if (!email) return;
   const key = process.env.RESEND_API_KEY;
-  const audience = process.env.RESEND_AUDIENCE_ID;
-  if (!key || !audience) return;
+  if (!key) return;
   try {
-    await fetch(`https://api.resend.com/audiences/${audience}/contacts`, {
+    await fetch('https://api.resend.com/contacts', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,
