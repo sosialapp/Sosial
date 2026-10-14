@@ -1,0 +1,85 @@
+# Sosial VPS infrastructure (Leaseweb, Singapore).
+#
+# The Supabase stack itself comes from the official self-hosted compose
+# (cloned at execution, release pinned — see SERVER.md). THIS file holds
+# only Sosial's own services, attached to the host gateway so they reach
+# Kong (:8000) and Postgres (:5432) published by the Supabase compose.
+# Realtime + Studio stay OFF in the Supabase compose (zero realtime usage
+# verified in code; Studio managed via psql/CLI to save ~1 GB RAM).
+
+name: sosial
+
+services:
+  worker:
+    build:
+      context: ../apps/worker
+      dockerfile: Dockerfile
+    restart: always
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    environment:
+      WORKER_SUPABASE_URL: http://host.docker.internal:8000
+      WORKER_SERVICE_ROLE_KEY: ${WORKER_SERVICE_ROLE_KEY}
+      YT_CLIENT_ID: ${YT_CLIENT_ID}
+      YT_CLIENT_SECRET: ${YT_CLIENT_SECRET}
+      TT_CLIENT_KEY: ${TT_CLIENT_KEY}
+      TT_CLIENT_SECRET: ${TT_CLIENT_SECRET}
+      LI_CLIENT_ID: ${LI_CLIENT_ID}
+      LI_CLIENT_SECRET: ${LI_CLIENT_SECRET}
+      PIN_CLIENT_ID: ${PIN_CLIENT_ID}
+      PIN_CLIENT_SECRET: ${PIN_CLIENT_SECRET}
+      TT_PHOTO_HOST: ${TT_PHOTO_HOST}
+      WORKER_SITE_URL: https://sosial.app
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL}
+      MEDIA_ENV: prod
+      STORAGE_BACKEND: supabase
+      WORKER_IDLE_MS: 30000
+      WORKER_IDLE_MAX_MS: 60000
+      WORKER_ERROR_MS: 15000
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "3"
+
+  photo-host:
+    build:
+      context: ../apps/tiktok-photo-host
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 127.0.0.1:3000:3000
+    environment:
+      BASE_URL: ${TT_PHOTO_HOST_PUBLIC}
+      UPLOAD_KEY: ${TT_PHOTO_HOST_KEY}
+      DATA_DIR: /data
+      TTL_HOURS: 24
+      PORT: 3000
+    volumes:
+      - photo-host-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "3"
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: always
+    ports:
+      - 127.0.0.1:3001:3001
+    volumes:
+      - uptime-kuma:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "3"
+
+volumes:
+  photo-host-data:
+  uptime-kuma:
