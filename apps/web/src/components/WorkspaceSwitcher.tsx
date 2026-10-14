@@ -110,23 +110,27 @@ export default function WorkspaceSwitcher({
   };
 
   return (
-    <div ref={box} className="relative min-w-0 flex-1">
+    <div ref={box} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex w-full min-w-0 items-center gap-2 truncate text-left"
+        aria-label={`Current team ${current.name}, open team switcher`}
+        className="flex h-9 max-w-[190px] shrink-0 items-center gap-1.5 rounded-full border border-line bg-card py-1 pl-1.5 pr-2 transition hover:shadow-[0_2px_8px_rgba(28,26,20,0.12)]"
       >
-        <TeamDot url={pics[current.id]} name={current.name} size={22} />
-        <span className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">
+        <TeamDot url={pics[current.id]} name={current.name} size={24} />
+        <span className="min-w-0 flex-1 truncate text-sm font-bold">
           {busy ? 'Switching…' : current.name}
+        </span>
+        <span aria-hidden="true" className="shrink-0 text-[10px] text-faint">
+          {open ? '▲' : '▼'}
         </span>
       </button>
       {open ? (
         <ul
           role="listbox"
-          className="absolute top-full left-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-line bg-card shadow-[0_16px_50px_rgba(28,26,20,0.25)]"
+          className="absolute top-full right-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-line bg-card shadow-[0_16px_50px_rgba(28,26,20,0.25)]"
         >
           {workspaces.map((w) => (
             <li key={w.id}>
@@ -154,7 +158,7 @@ export default function WorkspaceSwitcher({
               }}
               className="w-full px-4 py-2.5 text-left text-sm font-bold text-soft transition hover:bg-paper"
             >
-              + Create team
+              Manage team →
             </button>
           </li>
         </ul>

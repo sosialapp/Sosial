@@ -88,6 +88,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <div className="sticky top-0 z-30 bg-bone pt-3 pr-4 pb-2 pl-[76px] sm:pr-6 sm:pl-24">
         <header className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
           <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
+          <ConnectHeader channels={channels} />
+          <span className="min-w-0 flex-1" aria-hidden="true" />
           <WorkspaceSwitcher
             current={{
               id: ctx.workspace.id,
@@ -108,13 +110,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                   ]
             }
           />
-          <ConnectHeader channels={channels} />
-          <Link
-            href="/team"
-            className="hidden h-9 items-center rounded-full border border-line bg-paper px-3 text-sm font-bold text-soft transition hover:bg-bone sm:inline-flex"
-          >
-            Team
-          </Link>
           <ThemeToggle />
           <NotificationBell />
         </header>
