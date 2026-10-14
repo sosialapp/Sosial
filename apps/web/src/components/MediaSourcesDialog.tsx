@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Check } from 'lucide-react';
 import { BRAND_MARKS, LOCAL_ICON } from '@/components/SourceMarks';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -302,15 +303,15 @@ export default function MediaSourcesDialog({
     }
   };
 
-  /** Attach/Clear row, visible once at least one tile is circled. */
-  const selBar = () =>
+  /** Attach/Clear footer, pinned to the panel bottom so it never scrolls away. */
+  const selFooter = () =>
     selCount === 0 ? null : (
-      <div className="mt-2 flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 border-t border-line-soft bg-card px-3 py-2.5">
         <button
           type="button"
           onClick={() => void attachSelected()}
           disabled={downloading !== null}
-          className="rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-paper transition disabled:opacity-40"
+          className="flex-1 rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper transition disabled:opacity-40"
         >
           {downloading?.id === '__batch__' && typeof downloading.progress === 'number'
             ? `Attaching ${downloading.progress}%`
@@ -319,7 +320,7 @@ export default function MediaSourcesDialog({
         <button
           type="button"
           onClick={() => setSelMap({})}
-          className="rounded-full px-3 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
+          className="rounded-full px-3 py-2 text-xs font-bold text-muted transition hover:text-ink"
         >
           Clear
         </button>
@@ -545,13 +546,13 @@ export default function MediaSourcesDialog({
           aria-checked={selected}
           aria-label={`Select ${name}`}
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className={`absolute top-1.5 right-1.5 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 text-[11px] font-bold transition ${
+          className={`absolute top-1.5 right-1.5 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 transition ${
             selected
               ? 'border-ink bg-ink text-paper'
               : 'border-white/90 bg-black/35 text-transparent hover:bg-black/55'
           }`}
         >
-          ✓
+          {selected ? <Check className="h-3.5 w-3.5" strokeWidth={3.5} aria-hidden="true" /> : null}
         </span>
       ) : null}
       {kind === 'video' ? (
@@ -745,7 +746,6 @@ export default function MediaSourcesDialog({
 
                 {source === 'drive' ? (
                   <>
-                    {selBar()}
                     <div className="mt-2 grid grid-cols-3 gap-1.5">
                       {driveFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, selCount > 0 ? () => toggleSel('drive', f.id, f) : () => void pickDrive(f), isSel('drive', f.id), () => toggleSel('drive', f.id, f)))}
                     </div>
@@ -823,7 +823,6 @@ export default function MediaSourcesDialog({
 
                 {source === 'drive' || source === 'gphotos' ? null : (
                 <>
-                {source === 'dropbox' || source === 'onedrive' ? selBar() : null}
                 <div className="mt-2 grid grid-cols-3 gap-1.5">
                   {source === 'dropbox'
                     ? dbxFiles.map((f) => cellFor(f.path, f.thumb, f.name, f.kind === 'folder' ? 'image' : f.kind, selCount > 0 ? () => toggleSel('dropbox', f.path, f) : () => void pickDropbox(f), isSel('dropbox', f.path), () => toggleSel('dropbox', f.path, f)))
@@ -869,6 +868,7 @@ export default function MediaSourcesDialog({
             )}
           </div>
         )}
+        {source === 'dropbox' || source === 'onedrive' || source === 'drive' ? selFooter() : null}
         </div>
       </div>
     </>,
