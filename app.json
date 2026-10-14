@@ -21,23 +21,14 @@
     "android": {
       "package": "com.sosial.app",
       "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-foreground.png",
+        "backgroundColor": "#1C1A14"
+      },
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.ACCESS_MEDIA_LOCATION",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.ACCESS_MEDIA_LOCATION",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO"
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
       "runtimeVersion": "1.0.0"
     },
@@ -52,8 +43,14 @@
         "expo-media-library",
         {
           "photosPermission": "Sosial saves your posts to your gallery.",
-          "savePhotosPermission": "Sosial saves your posts to your gallery.",
-          "isAccessMediaLocationEnabled": true
+          "savePhotosPermission": "Sosial saves your posts to your gallery."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FFC62E"
         }
       ],
       [
