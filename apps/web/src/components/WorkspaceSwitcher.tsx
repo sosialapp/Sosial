@@ -149,18 +149,6 @@ export default function WorkspaceSwitcher({
               </button>
             </li>
           ))}
-          <li className="border-t border-line-soft">
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                router.push('/team');
-              }}
-              className="w-full px-4 py-2.5 text-left text-sm font-bold text-soft transition hover:bg-paper"
-            >
-              Manage team →
-            </button>
-          </li>
         </ul>
       ) : null}
     </div>
