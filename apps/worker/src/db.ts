@@ -49,8 +49,13 @@ export async function callRpc<T>(fn: string, args: Record<string, any>): Promise
 }
 
 /** Oldest due queued job, marked running, null when the queue is empty. */
-export function claimJob(workerId: string): Promise<Job | null> {
-  return callRpc<Job | null>('claim_job', { worker_id: workerId });
+export async function claimJob(workerId: string): Promise<Job | null> {
+  const job = await callRpc<Job | null>('claim_job', { worker_id: workerId });
+  // PostgREST surfaces an empty claim as a truthy null-shaped object, not
+  // JSON null. Without this guard the loop treats "nothing" as a job,
+  // dispatch throws, complete no-ops, and it spins at ~3 iterations/sec.
+  if (!job || (job as Job).id == null) return null;
+  return job as Job;
 }
 
 /** ok=true → done; else requeue with backoff, or dead when attempts run out. */
