@@ -1,0 +1,50 @@
+# Copy to `.env` next to docker-compose.services.yml on the VPS.
+# Fill from the secret audit (provider consoles). NEVER commit `.env`.
+# Names mirror Supabase secrets + worker/.env.example so nothing gets lost.
+
+# --- new instance keys (minted in Stage 1, replace everywhere at cutover) ---
+# WORKER_SERVICE_ROLE_KEY=
+# NEW_ANON_KEY=
+
+# --- channel OAuth clients (values from provider consoles) ---
+META_APP_ID=
+META_APP_SECRET=
+THREADS_APP_ID=
+THREADS_APP_SECRET=
+IG_APP_ID=
+IG_APP_SECRET=
+TT_CLIENT_KEY=
+TT_CLIENT_SECRET=
+X_CLIENT_ID=
+MS_CLIENT_ID=
+MS_CLIENT_SECRET=
+LI_CLIENT_ID=
+LI_CLIENT_SECRET=
+YT_CLIENT_ID=
+YT_CLIENT_SECRET=
+PIN_CLIENT_ID=
+PIN_CLIENT_SECRET=
+DROPBOX_APP_KEY=
+DROPBOX_APP_SECRET=
+CANVA_CLIENT_ID=
+CANVA_CLIENT_SECRET=
+NOTION_CLIENT_ID=
+NOTION_CLIENT_SECRET=
+
+# --- services ---
+OPENAI_API_KEY=
+PEXELS_API_KEY=
+UNSPLASH_ACCESS_KEY=
+RESEND_API_KEY=
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=sosial-media
+R2_PUBLIC_URL=
+TT_PHOTO_HOST=
+TT_PHOTO_HOST_PUBLIC=
+TT_PHOTO_HOST_KEY=
+DORMANCY_TOKEN=
+
+# --- photo-host public URL (behind Cloudflare, set at cutover) ---
+# Must match EXPO_PUBLIC_TT_PHOTO_HOST semantics: full upload URL incl. ?key=
