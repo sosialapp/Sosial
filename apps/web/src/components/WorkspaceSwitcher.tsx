@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export interface WorkspaceOption {
@@ -123,9 +124,10 @@ export default function WorkspaceSwitcher({
         <span className="min-w-0 flex-1 truncate text-sm font-bold">
           {busy ? 'Switching…' : current.name}
         </span>
-        <span aria-hidden="true" className="shrink-0 text-[10px] text-faint">
-          {open ? '▲' : '▼'}
-        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`h-3.5 w-3.5 shrink-0 text-faint transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
       </button>
       {open ? (
         <ul

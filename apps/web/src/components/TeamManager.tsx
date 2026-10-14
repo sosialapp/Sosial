@@ -51,6 +51,32 @@ function channelLabel(c: TeamChannelRow): string {
   return c.display_name || c.handle || PROVIDER_LABEL[c.provider] || c.provider;
 }
 
+/** Signed-URL member photo from the private avatars bucket. */
+function MemberAvatar({ path, email }: { path?: string; email: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!path) return;
+    let dead = false;
+    (async () => {
+      try {
+        const sb = createClient();
+        const { data } = await sb.storage.from('avatars').createSignedUrl(path.split('?')[0], 3600);
+        if (!dead && data?.signedUrl) setUrl(data.signedUrl);
+      } catch { /* initial fallback */ }
+    })();
+    return () => { dead = true; };
+  }, [path]);
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={url} alt="" className="h-10 w-10 shrink-0 rounded-full border border-line object-cover" />;
+  }
+  return (
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#191512] font-display text-sm font-extrabold text-white">
+      {(email[0] ?? '?').toUpperCase()}
+    </div>
+  );
+}
+
 /** Roster + invites, following the mobile permission model: owners manage
  *  everyone (never another owner), admins manage members only. Owners appoint
  *  which connected accounts each teammate may post to; only the owner can
@@ -59,6 +85,7 @@ export default function TeamManager({
   workspaceId,
   workspaceName,
   workspaceAvatar,
+  memberAvatars,
   myUserId,
   myRole,
   members,
@@ -69,6 +96,7 @@ export default function TeamManager({
   workspaceId: string;
   workspaceName: string;
   workspaceAvatar: string | null;
+  memberAvatars: Record<string, string>;
   myUserId: string;
   myRole: 'owner' | 'admin' | 'member';
   members: TeamMemberRow[];
@@ -417,9 +445,7 @@ export default function TeamManager({
           return (
             <div key={m.id} className="px-5 py-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#191512] font-display text-sm font-extrabold text-white">
-                  {(m.email[0] ?? '?').toUpperCase()}
-                </div>
+                <MemberAvatar path={m.user_id ? memberAvatars[m.user_id] : undefined} email={m.email} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">
                     {m.email}

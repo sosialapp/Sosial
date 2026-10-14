@@ -34,6 +34,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [busy, setBusy] = useState(false);
   const [teamPicUri, setTeamPicUri] = useState<string | null>(null);
   const [teamPicBusy, setTeamPicBusy] = useState(false);
+  const [memberPics, setMemberPics] = useState<Record<string, string>>({});
 
   const [mEmail, setMEmail] = useState('');
   const [mRole, setMRole] = useState<'member' | 'admin'>('member');
@@ -53,6 +54,25 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
     if (t) {
       const path = await getTeamAvatar(t.workspaceId);
       setTeamPicUri(await teamAvatarSignedUrl(path));
+      // Roster photos: teammates' prefixes are readable via the
+      // avatars_teammate_read policy.
+      try {
+        const ids = t.members.map((m) => m.user_id).filter((id): id is string => !!id);
+        if (ids.length > 0) {
+          const { data } = await supabase().from('profiles').select('id, avatar_url').in('id', ids);
+          const next: Record<string, string> = {};
+          await Promise.all(
+            ((data ?? []) as { id: string; avatar_url: string | null }[]).map(async (p) => {
+              if (!p.avatar_url || !p.id) return;
+              try {
+                const { data: s } = await supabase().storage.from('avatars').createSignedUrl(p.avatar_url!.split('?')[0], 3600);
+                if (s?.signedUrl) next[p.id] = s.signedUrl;
+              } catch { /* initial fallback */ }
+            }),
+          );
+          if (Object.keys(next).length > 0) setMemberPics(next);
+        }
+      } catch { /* initials fallback */ }
     } else {
       setTeamPicUri(null);
     }
@@ -358,7 +378,11 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
               const showTrash = !isSelf && canRemoveMember(actor, m);
               return (
                 <View key={m.id} style={s.member}>
-                  <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(m.email || '?')[0].toUpperCase()}</Text></View>
+                  {m.user_id && memberPics[m.user_id] ? (
+                    <Image source={{ uri: memberPics[m.user_id] }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                  ) : (
+                    <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(m.email || '?')[0].toUpperCase()}</Text></View>
+                  )}
                   <View style={{ flex: 1, gap: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                       <Text style={s.rowT} numberOfLines={1}>{m.email}</Text>

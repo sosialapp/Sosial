@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { WorkspaceOption } from './WorkspaceSwitcher';
 
@@ -148,9 +149,10 @@ export default function TeamPicker({
           {busy ? 'Switching…' : current.name} · {memberCount} member
           {memberCount === 1 ? '' : 's'}
         </span>
-        <span aria-hidden="true" className="text-[10px] text-faint">
-          {open ? '▲' : '▼'}
-        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`h-3.5 w-3.5 text-faint transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
       </button>
       {open ? (
         <ul

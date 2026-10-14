@@ -37,6 +37,17 @@ export default async function TeamPage() {
   ]);
 
   const members = membersRes.data ?? [];
+  const memberIds = members
+    .map((m: { user_id: string | null }) => m.user_id)
+    .filter((id): id is string => !!id);
+  const { data: profRows } = memberIds.length
+    ? await sb.from('profiles').select('id, avatar_url').in('id', memberIds)
+    : { data: [] as { id: string; avatar_url: string | null }[] };
+  const memberAvatars: Record<string, string> = Object.fromEntries(
+    ((profRows ?? []) as { id: string; avatar_url: string | null }[])
+      .filter((p) => p.avatar_url)
+      .map((p) => [p.id, p.avatar_url as string]),
+  );
   const { data: wsRow } = await sb
     .from('workspaces')
     .select('avatar_url')
@@ -87,6 +98,7 @@ export default async function TeamPage() {
           workspaceId={ctx.workspace.id}
           workspaceName={ctx.workspace.name}
           workspaceAvatar={(wsRow as { avatar_url?: string | null } | null)?.avatar_url ?? null}
+          memberAvatars={memberAvatars}
           myUserId={ctx.user.id}
           myRole={ctx.workspace.role}
           members={members}
