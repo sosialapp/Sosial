@@ -2,11 +2,39 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export interface WorkspaceOption {
   id: string;
   name: string;
   role: string;
+  avatar_url?: string | null;
+}
+
+/** Avatar dot: team picture when set, initial letter otherwise. */
+function TeamDot({ url, name, size }: { url?: string; name: string; size: number }) {
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={url}
+        alt=""
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className="shrink-0 rounded-full border border-line object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.45) }}
+      className="flex shrink-0 items-center justify-center rounded-full bg-ink font-display font-extrabold text-paper"
+    >
+      {(name || 'T')[0].toUpperCase()}
+    </span>
+  );
 }
 
 /**
@@ -26,6 +54,7 @@ export default function WorkspaceSwitcher({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pics, setPics] = useState<Record<string, string>>({});
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,6 +65,28 @@ export default function WorkspaceSwitcher({
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [open ]);
+
+  /** Signed URLs for workspace pictures (private bucket, members can read). */
+  useEffect(() => {
+    if (!open) return;
+    let dead = false;
+    (async () => {
+      const sb = createClient();
+      const next: Record<string, string> = {};
+      await Promise.all(
+        workspaces.map(async (w) => {
+          if (!w.avatar_url) return;
+          try {
+            const { data } = await sb.storage.from('avatars').createSignedUrl(w.avatar_url!.split('?')[0], 3600);
+            if (data?.signedUrl) next[w.id] = data.signedUrl;
+          } catch { /* initial-letter fallback */ }
+        }),
+      );
+      if (!dead && Object.keys(next).length > 0) setPics((prev) => ({ ...prev, ...next }));
+    })();
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const pick = async (id: string) => {
     if (id === current.id || busy) {
@@ -65,8 +116,9 @@ export default function WorkspaceSwitcher({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex w-full min-w-0 items-center gap-1 truncate text-left"
+        className="flex w-full min-w-0 items-center gap-2 truncate text-left"
       >
+        <TeamDot url={pics[current.id]} name={current.name} size={22} />
         <span className="min-w-0 flex-1 truncate font-display text-sm font-extrabold">
           {busy ? 'Switching…' : current.name}
         </span>
@@ -83,10 +135,11 @@ export default function WorkspaceSwitcher({
                 role="option"
                 aria-selected={w.id === current.id}
                 onClick={() => pick(w.id)}
-                className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition hover:bg-paper ${
+                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-paper ${
                   w.id === current.id ? 'font-extrabold' : ''
                 }`}
               >
+                <TeamDot url={pics[w.id]} name={w.name} size={26} />
                 <span className="min-w-0 flex-1 truncate">{w.name}</span>
                 <span className="shrink-0 text-[11px] text-faint capitalize">{w.role}</span>
               </button>

@@ -44,19 +44,20 @@ export default async function TeamPage() {
     .maybeSingle();
   const { data: memberships } = await sb
     .from('workspace_members')
-    .select('role, workspaces!inner(id, name)')
+    .select('role, workspaces!inner(id, name, avatar_url)')
     .eq('user_id', ctx.user.id)
     .eq('status', 'active');
   const workspaces = (
     ((memberships ?? []) as unknown as {
       role: string;
-      workspaces: { id: string; name: string | null };
+      workspaces: { id: string; name: string | null; avatar_url: string | null };
     }[])
   )
     .map((m) => ({
       id: String(m.workspaces.id),
       name: String(m.workspaces.name ?? 'My team'),
       role: String(m.role),
+      avatar_url: (m.workspaces.avatar_url ?? null) as string | null,
     }))
     .sort((a, b) => (b.id === ctx.workspace.id ? 1 : 0) - (a.id === ctx.workspace.id ? 1 : 0));
 
@@ -65,7 +66,12 @@ export default async function TeamPage() {
       <p className="eyebrow">Workspace</p>
       <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Team</h1>
       <TeamPicker
-        current={{ id: ctx.workspace.id, name: ctx.workspace.name, role: ctx.workspace.role }}
+        current={{
+          id: ctx.workspace.id,
+          name: ctx.workspace.name,
+          role: ctx.workspace.role,
+          avatar_url: workspaces.find((w) => w.id === ctx.workspace.id)?.avatar_url ?? null,
+        }}
         memberCount={members.length}
         workspaces={
           workspaces.some((w) => w.id === ctx.workspace.id)

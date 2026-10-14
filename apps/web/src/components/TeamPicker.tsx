@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import type { WorkspaceOption } from './WorkspaceSwitcher';
 
 /**
@@ -10,6 +11,30 @@ import type { WorkspaceOption } from './WorkspaceSwitcher';
  * team-creation. Creating sticks the sosial_ws cookie server-side for the
  * new workspace and refreshes the whole tree.
  */
+function TeamDot({ url, name, size }: { url?: string; name: string; size: number }) {
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={url}
+        alt=""
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className="shrink-0 rounded-full border border-line object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.45) }}
+      className="flex shrink-0 items-center justify-center rounded-full bg-ink font-display font-extrabold text-paper"
+    >
+      {(name || 'T')[0].toUpperCase()}
+    </span>
+  );
+}
 export default function TeamPicker({
   current,
   memberCount,
@@ -25,6 +50,7 @@ export default function TeamPicker({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [pics, setPics] = useState<Record<string, string>>({});
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +65,28 @@ export default function TeamPicker({
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [open ]);
+
+  /** Signed URLs for every workspace picture (private bucket, members can read). */
+  useEffect(() => {
+    if (!open) return;
+    let dead = false;
+    (async () => {
+      const sb = createClient();
+      const next: Record<string, string> = {};
+      await Promise.all(
+        workspaces.map(async (w) => {
+          if (!w.avatar_url) return;
+          try {
+            const { data } = await sb.storage.from('avatars').createSignedUrl(w.avatar_url!.split('?')[0], 3600);
+            if (data?.signedUrl) next[w.id] = data.signedUrl;
+          } catch { /* initial-letter fallback */ }
+        }),
+      );
+      if (!dead && Object.keys(next).length > 0) setPics((prev) => ({ ...prev, ...next }));
+    })();
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const pick = async (id: string) => {
     if (id === current.id || busy) {
@@ -61,8 +109,7 @@ export default function TeamPicker({
     }
   };
 
-  const create = async () => {
-    if (busy || !name.trim()) return;
+  const create = async () => {    if (busy || !name.trim()) return;
     setBusy(true);
     setErr(null);
     try {
@@ -94,8 +141,9 @@ export default function TeamPicker({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="mt-1 inline-flex items-center gap-1 text-sm text-muted transition hover:text-ink"
+        className="mt-1 inline-flex items-center gap-2 text-sm text-muted transition hover:text-ink"
       >
+        <TeamDot url={pics[current.id]} name={current.name} size={22} />
         <span>
           {busy ? 'Switching…' : current.name} · {memberCount} member
           {memberCount === 1 ? '' : 's'}
@@ -116,10 +164,11 @@ export default function TeamPicker({
                 role="option"
                 aria-selected={w.id === current.id}
                 onClick={() => pick(w.id)}
-                className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition hover:bg-paper ${
+                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-paper ${
                   w.id === current.id ? 'font-extrabold' : ''
                 }`}
               >
+                <TeamDot url={pics[w.id]} name={w.name} size={26} />
                 <span className="min-w-0 flex-1 truncate">{w.name}</span>
                 <span className="shrink-0 text-[11px] text-faint capitalize">{w.role}</span>
               </button>
