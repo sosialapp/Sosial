@@ -90,8 +90,11 @@ export default function WorkspaceSwitcher({
   }, [open]);
 
   const pick = async (id: string) => {
-    if (id === current.id || busy) {
+    if (busy) return;
+    if (id === current.id) {
+      // Clicking the current team manages it.
       setOpen(false);
+      router.push('/team');
       return;
     }
     setBusy(true);

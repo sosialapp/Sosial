@@ -88,6 +88,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <div className="sticky top-0 z-30 bg-bone pt-3 pr-4 pb-2 pl-[76px] sm:pr-6 sm:pl-24">
         <header className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
           <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
+          <span className="min-w-0 flex-1" aria-hidden="true" />
           <WorkspaceSwitcher
             current={{
               id: ctx.workspace.id,
