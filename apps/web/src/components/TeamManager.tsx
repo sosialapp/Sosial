@@ -92,6 +92,7 @@ export default function TeamManager({
   const [teamAvatarPath, setTeamAvatarPath] = useState<string | null>(workspaceAvatar);
   const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState<string | null>(null);
 
   /** Signed URL for the stored team picture. */
   useEffect(() => {
@@ -184,6 +185,7 @@ export default function TeamManager({
     if (avatarBusy) return;
     setAvatarBusy(true);
     setErr(null);
+    setAvatarMsg(null);
     try {
       const b64 = await new Promise<string>((resolve, reject) => {
         const r = new FileReader();
@@ -199,6 +201,7 @@ export default function TeamManager({
       const msg = (data as { error?: string } | null)?.error;
       if (msg) throw new Error(msg);
       setTeamAvatarPath((data as { avatar_url?: string }).avatar_url ?? null);
+      setAvatarMsg('Team picture saved.');
       router.refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not update the team picture.');
@@ -211,6 +214,7 @@ export default function TeamManager({
     if (avatarBusy) return;
     setAvatarBusy(true);
     setErr(null);
+    setAvatarMsg(null);
     try {
       const sb = createClient();
       const { data, error } = await sb.functions.invoke('team-avatar', {
@@ -220,6 +224,7 @@ export default function TeamManager({
       const msg = (data as { error?: string } | null)?.error;
       if (msg) throw new Error(msg);
       setTeamAvatarPath(null);
+      setAvatarMsg('Team picture removed.');
       router.refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not remove the team picture.');
@@ -383,6 +388,9 @@ export default function TeamManager({
               ) : null}
             </span>
           </div>
+          {avatarMsg ? (
+            <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#8fd0a0]">{avatarMsg}</p>
+          ) : null}
           <p className="eyebrow mt-4">Team name</p>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui';
@@ -35,7 +35,7 @@ import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { loadCloudTeam } from '../utils/teamCloud';
 import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount } from '../utils/cloudChannels';
-import { currentSession, callEdgeFunction } from '../utils/supabase';
+import { currentSession, callEdgeFunction, listMyWorkspaces, switchWorkspace, createWorkspace, getTeamAvatar, teamAvatarSignedUrl, type WorkspaceSummary } from '../utils/supabase';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
@@ -59,6 +59,15 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   /** Signed-in cloud users act on the shared workspace; signed-out users
    *  only ever touch device-local channels, so the gate doesn't apply. */
   const [cloudUser, setCloudUser] = useState(false);
+  /** Team pill dropdown: current workspace, all mine, avatars, create. */
+  const [teamWs, setTeamWs] = useState<{ id: string; name: string } | null>(null);
+  const [teamPicUri, setTeamPicUri] = useState<string | null>(null);
+  const [wsList, setWsList] = useState<WorkspaceSummary[]>([]);
+  const [wsPics, setWsPics] = useState<Record<string, string>>({});
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [wsBusy, setWsBusy] = useState(false);
+  const [creatingWs, setCreatingWs] = useState(false);
+  const [createWsName, setCreateWsName] = useState('');
   const [pages, setPages] = useState<FbPage[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [openProvider, setOpenProvider] = useState<ProviderKey | null>(null);
@@ -113,15 +122,111 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
       .then((t) => {
         setTeamCount(t ? Math.max(0, t.members.length - 1) : 0);
         setIsManager(t ? t.myRole === 'owner' || t.myRole === 'admin' : false);
+        if (t) {
+          setTeamWs({ id: t.workspaceId, name: t.workspaceName });
+          void (async () => {
+            setTeamPicUri(await teamAvatarSignedUrl(await getTeamAvatar(t.workspaceId)));
+          })();
+        }
       })
       .catch(() => setTeamCount(0));
     currentSession()
       .then((sn) => {
         setCloudUser(!!sn);
         setIsManager(sn ? sn.workspace.role === 'owner' || sn.workspace.role === 'admin' : false);
+        if (sn) {
+          void (async () => {
+            try {
+              setWsList(await listMyWorkspaces(sn.user.id));
+            } catch { /* dropdown lists current team only */ }
+          })();
+        }
       })
       .catch(() => {});
   }, []);
+
+  /** Load avatars for the dropdown list on first open. */
+  const openTeamMenu = async () => {
+    setTeamOpen(true);
+    const missing = wsList.filter((w) => wsPics[w.id] === undefined);
+    if (missing.length === 0) return;
+    const next: Record<string, string> = {};
+    await Promise.all(missing.map(async (w) => {
+      const uri = await teamAvatarSignedUrl(await getTeamAvatar(w.id));
+      if (uri) next[w.id] = uri;
+    }));
+    if (Object.keys(next).length > 0) setWsPics((prev) => ({ ...prev, ...next }));
+  };
+
+  /** Tap a team: switch to it, then open it for management. */
+  const switchAndManage = (w: WorkspaceSummary) => {
+    if (w.id === teamWs?.id) {
+      setTeamOpen(false);
+      onTeam();
+      return;
+    }
+    Alert.alert(
+      'Switch workspace?',
+      `"${w.name}" holds ${w.liveChannels} live channel${w.liveChannels === 1 ? '' : 's'}. The app will pull its channels after switching, then open it to manage.`,
+      [
+        { text: 'Stay', style: 'cancel' },
+        {
+          text: 'Switch',
+          onPress: async () => {
+            setWsBusy(true);
+            try {
+              await switchWorkspace(w.id);
+              await pullCloudChannels(true).catch(() => null);
+              await syncCloudChannels().catch(() => null);
+              setAccounts(await loadAccounts().catch(() => []));
+              const t = await loadCloudTeam().catch(() => null);
+              if (t) {
+                setTeamWs({ id: t.workspaceId, name: t.workspaceName });
+                setTeamCount(Math.max(0, t.members.length - 1));
+                setTeamPicUri(await teamAvatarSignedUrl(await getTeamAvatar(t.workspaceId)));
+              }
+              setTeamOpen(false);
+              onTeam();
+            } catch (e) {
+              Alert.alert('Could not switch', e instanceof Error ? e.message : 'Try again.');
+            } finally {
+              setWsBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  /** Create a team (paid plans only), land in it, open it to manage. */
+  const createTeamHere = async () => {
+    if (plan !== 'team') {
+      Alert.alert('Teams need a paid plan', 'Creating teams unlocks on Team, Business or Ultimate. See plans to upgrade.');
+      return;
+    }
+    if (!createWsName.trim()) return;
+    setWsBusy(true);
+    try {
+      await createWorkspace(createWsName.trim());
+      setCreateWsName('');
+      setCreatingWs(false);
+      await pullCloudChannels(true).catch(() => null);
+      await syncCloudChannels().catch(() => null);
+      setAccounts(await loadAccounts().catch(() => []));
+      const t = await loadCloudTeam().catch(() => null);
+      if (t) {
+        setTeamWs({ id: t.workspaceId, name: t.workspaceName });
+        setTeamCount(Math.max(0, t.members.length - 1));
+        setTeamPicUri(await teamAvatarSignedUrl(await getTeamAvatar(t.workspaceId)));
+      }
+      setTeamOpen(false);
+      onTeam();
+    } catch (e) {
+      Alert.alert('Could not create team', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setWsBusy(false);
+    }
+  };
 
   // Master-switch reconciler: any credential change auto-imports (master on)
   // or stays inert (master off / signed out). Idempotent, safe per change.
@@ -1514,6 +1619,101 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
           </View>
         ) : null}
 
+        {cloudUser && teamWs ? (
+          <View>
+            <TouchableOpacity
+              onPress={() => { if (teamOpen) setTeamOpen(false); else void openTeamMenu(); }}
+              style={s.teamBtn}
+              activeOpacity={0.8}
+              accessibilityLabel={`Current team ${teamWs.name}, open team switcher`}
+            >
+              {teamPicUri ? (
+                <Image source={{ uri: teamPicUri }} style={{ width: 38, height: 38, borderRadius: 19 }} />
+              ) : (
+                <View style={s.teamIcon}>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 16, color: C.onInk }}>
+                    {(teamWs.name || 'T')[0].toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={{ flex: 1, gap: 1 }}>
+                <Text style={s.teamT} numberOfLines={1}>{teamWs.name}</Text>
+                <Text style={s.teamS}>
+                  {teamCount === null
+                    ? 'Roles, channels & invites'
+                    : teamCount === 0
+                      ? 'Invite teammates & manage roles'
+                      : `${teamCount} teammate${teamCount === 1 ? '' : 's'} · roles & invites`}
+                </Text>
+              </View>
+              <Ionicons name={teamOpen ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
+            </TouchableOpacity>
+            {teamOpen ? (
+              <View style={s.teamMenu}>
+                {wsList.map((w) => {
+                  const current = w.id === teamWs.id;
+                  const pic = wsPics[w.id];
+                  return (
+                    <TouchableOpacity
+                      key={w.id}
+                      onPress={() => { if (!wsBusy) switchAndManage(w); }}
+                      disabled={wsBusy}
+                      activeOpacity={0.7}
+                      style={s.teamRow}
+                    >
+                      {pic ? (
+                        <Image source={{ uri: pic }} style={{ width: 30, height: 30, borderRadius: 15 }} />
+                      ) : (
+                        <View style={[s.teamIcon, { width: 30, height: 30, borderRadius: 15 }]}>
+                          <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.onInk }}>
+                            {(w.name || '?')[0].toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1, gap: 1 }}>
+                        <Text style={s.rowT} numberOfLines={1}>{w.name}</Text>
+                        <Text style={s.rowS} numberOfLines={1}>
+                          {w.liveChannels} live channel{w.liveChannels === 1 ? '' : 's'} · {w.role}
+                        </Text>
+                      </View>
+                      {current ? <Ionicons name="checkmark-circle" size={16} color={C.accentInk} /> : null}
+                    </TouchableOpacity>
+                  );
+                })}
+                {creatingWs ? (
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                    <View style={{ flex: 1 }}>
+                      <Txt value={createWsName} onChangeText={setCreateWsName} placeholder="Team name" />
+                    </View>
+                    <TouchableOpacity onPress={() => void createTeamHere()} disabled={wsBusy} style={[s.miniBtn, { backgroundColor: C.ink }]} activeOpacity={0.7}>
+                      <Text style={[s.miniBtnT, { color: C.onInk }]}>{wsBusy ? '…' : 'Create'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => { setCreatingWs(false); setCreateWsName(''); }} hitSlop={10}>
+                      <Ionicons name="close-circle" size={18} color={C.redText} />
+                    </TouchableOpacity>
+                  </View>
+                ) : plan === 'team' ? (
+                  <TouchableOpacity onPress={() => setCreatingWs(true)} disabled={wsBusy} style={{ alignSelf: 'flex-start', marginTop: 2 }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>+ Create team</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.muted, marginTop: 2 }}>
+                    New teams unlock on Team, Business or Ultimate
+                  </Text>
+                )}
+                <TouchableOpacity
+                  onPress={() => { setTeamOpen(false); onTeam(); }}
+                  style={{ alignSelf: 'flex-start', marginTop: 6 }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>
+                    Manage {teamWs.name} ›
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
+        ) : (
         <TouchableOpacity onPress={onTeam} style={s.teamBtn} activeOpacity={0.8}>
           <View style={s.teamIcon}>
             <Ionicons name="people-outline" size={19} color={C.onInk} />
@@ -1530,6 +1730,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
           </View>
           <Ionicons name="chevron-forward" size={18} color={C.faint} />
         </TouchableOpacity>
+        )}
 
         {tab === 'channels' ? (
         <>
@@ -1738,6 +1939,10 @@ const makeS = (C: Palette) => StyleSheet.create({
   rowDiv: { borderTopWidth: 1, borderTopColor: C.lineSoft },
   rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, letterSpacing: -0.2, color: C.ink },
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
+  teamMenu: { backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 14, paddingVertical: 10, marginTop: 8, gap: 2 },
+  teamRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
+  miniBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  miniBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5 },
   go: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   sub: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
   acctRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
