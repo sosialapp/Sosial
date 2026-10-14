@@ -47,9 +47,14 @@ export const getWorkspaceContext = cache(async (): Promise<{
 } | null> => {
   if (!hasSupabaseEnv()) return null;
   const sb = await createClient();
+  // Cookie-only session read: no network round-trip (getUser() phones home
+  // on every navigation). A forged cookie yields no rows under RLS, the
+  // workspace bootstrap below FK-fails, and the caller redirects to login —
+  // so skipping the phone-home costs nothing security-wise.
   const {
-    data: { user },
-  } = await sb.auth.getUser();
+    data: { session },
+  } = await sb.auth.getSession();
+  const user = session?.user ?? null;
   if (!user) return null;
 
   // Honor the last actively-joined workspace first: without this, an

@@ -154,7 +154,7 @@ export default async function DashboardPage() {
   const mediaMap = await fetchMediaForPosts(
     sb,
     ctx.workspace.id,
-    posts.map((p) => p.id),
+    recentFeed.map(({ p }) => p.id),
   );
   const recentItems: RecentActivityItem[] = recentFeed.map(({ p }) => {
     const t0 = p.post_targets?.[0];
