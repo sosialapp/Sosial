@@ -475,3 +475,9 @@ enabled = true
 # Browser-invoked with the user's JWT; the function reads identity itself.
 verify_jwt = true
 entrypoint = "./functions/profile-avatar/index.ts"
+
+[functions.team-avatar]
+enabled = true
+# Browser-invoked with the user's JWT; owner/admin checked inside.
+verify_jwt = true
+entrypoint = "./functions/team-avatar/index.ts"

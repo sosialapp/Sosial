@@ -87,7 +87,6 @@ export default function IntegrationsPanel() {
 
   return (
     <View style={{ gap: 10 }}>
-      <Text style={s.note}>Media sources attach photos and videos to your posts. Logins live on this device only, reconnect on each device you post from.</Text>
       {ROWS.map((r) => {
         const on = status[r.id];
         const loading = busy === r.id;

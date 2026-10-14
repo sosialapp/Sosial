@@ -329,7 +329,6 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 options={PRESETS.map((p) => ({ value: p.id, label: p.label }))}
                 value={preset}
                 onChange={setPreset}
-                scrollable
                 accessibilityLabel="Date range"
               />
             </View>

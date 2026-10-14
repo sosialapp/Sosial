@@ -37,6 +37,11 @@ export default async function TeamPage() {
   ]);
 
   const members = membersRes.data ?? [];
+  const { data: wsRow } = await sb
+    .from('workspaces')
+    .select('avatar_url')
+    .eq('id', ctx.workspace.id)
+    .maybeSingle();
   const { data: memberships } = await sb
     .from('workspace_members')
     .select('role, workspaces!inner(id, name)')
@@ -75,6 +80,7 @@ export default async function TeamPage() {
         <TeamManager
           workspaceId={ctx.workspace.id}
           workspaceName={ctx.workspace.name}
+          workspaceAvatar={(wsRow as { avatar_url?: string | null } | null)?.avatar_url ?? null}
           myUserId={ctx.user.id}
           myRole={ctx.workspace.role}
           members={members}

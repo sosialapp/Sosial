@@ -424,6 +424,46 @@ export async function clearMyAvatar(): Promise<void> {
   }).catch(() => null);
 }
 
+/* ---------------- Team picture (Edge Function) ---------------- */
+
+/** Current team avatar path (or null) — any member may read. */
+export async function getTeamAvatar(workspaceId: string): Promise<string | null> {
+  try {
+    const { data } = await supabase()
+      .from('workspaces')
+      .select('avatar_url')
+      .eq('id', workspaceId)
+      .maybeSingle();
+    const p = (data as { avatar_url?: string | null } | null)?.avatar_url;
+    return typeof p === 'string' && p ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Signed URL for a team avatar path. */
+export async function teamAvatarSignedUrl(path: string | null): Promise<string | null> {
+  return avatarSignedUrl(path);
+}
+
+/** Upload a local image as the team picture (owner/admin only, enforced server-side). */
+export async function setTeamAvatarFromUri(workspaceId: string, uri: string): Promise<void> {
+  const res = await fetch(uri);
+  const blob = await res.blob();
+  const b64 = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('Could not read that image.'));
+    r.readAsDataURL(blob);
+  });
+  await callEdgeFunction('team-avatar', { workspace_id: workspaceId, image_base64: b64 });
+}
+
+/** Remove the team picture (owner/admin only). */
+export async function clearTeamAvatar(workspaceId: string): Promise<void> {
+  await callEdgeFunction('team-avatar', { workspace_id: workspaceId, remove: true });
+}
+
 /**
  * Google sign-in through Supabase Auth (browser OAuth).
  * Works in dev/standalone builds where the sosial:// scheme returns to the

@@ -532,23 +532,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     }
   };
 
-  /** Device sign-out (profile menu's Logout, now that the menu is gone). */
-  const confirmLogout = () => {
-    Alert.alert('Logout', 'Sign out on this device?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        onPress: async () => {
-          try {
-            await signOutCloud();
-          } catch {}
-          onUpdate({ email: '' });
-          onLoggedOut();
-        },
-      },
-    ]);
-  };
-
   /** Canonical price book (src/utils/plans.ts mirrors the web config). */
   const soloTotal = yearly ? '$120/yr' : '$12/mo';
   const teamTotal = yearly ? '$290/yr' : '$29/mo';
@@ -575,6 +558,15 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
         {view === 'main' ? (
           <>
+            <View style={[s.list, { marginTop: 16 }]}>
+              <View style={s.row}>
+                <Ionicons name="moon-outline" size={20} color={C.ink} />
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={s.rowT}>Dark mode</Text>
+                </View>
+                <Switch value={mode === 'dark'} onValueChange={toggle} trackColor={{ true: C.accent, false: '#D8D1BF' }} thumbColor="#ffffff" />
+              </View>
+            </View>
             <View style={s.head}>
               <TouchableOpacity
                 onPress={() => {
@@ -601,7 +593,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             </View>
             <View style={s.list}>
               <View style={{ padding: 14, gap: 8 }}>
-                <Text style={s.rowT}>Sosial Cloud (staging)</Text>
+                <Text style={s.rowT}>Account</Text>
                 {sbState === 'checking' ? <Text style={s.rowS}>Checking cloud account…</Text> : null}
                 {sbState === 'unconfigured' ? (
                   <Text style={s.rowS}>Backend not configured, add the Supabase keys to .env and restart Expo.</Text>
@@ -687,16 +679,6 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               {row('document-text-outline', 'Terms of use', undefined, () => setView('terms'))}
               {row('scale-outline', 'Legal', undefined, () => setView('legal'))}
               {row('trash-outline', 'Delete my data', 'Erase your account everywhere', () => { setDelArmed(false); setDelWord(''); setView('delete'); }, true)}
-            </View>
-            <View style={s.list}>
-              <View style={s.row}>
-                <Ionicons name="moon-outline" size={20} color={C.ink} />
-                <View style={{ flex: 1, gap: 1 }}>
-                  <Text style={s.rowT}>Dark mode</Text>
-                </View>
-                <Switch value={mode === 'dark'} onValueChange={toggle} trackColor={{ true: C.accent, false: '#D8D1BF' }} thumbColor="#ffffff" />
-              </View>
-              {row('log-out-outline', 'Logout', 'Sign out on this device', confirmLogout, true)}
             </View>
           </>
         ) : null}

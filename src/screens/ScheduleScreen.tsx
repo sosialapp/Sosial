@@ -326,7 +326,6 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
             ]}
             value={filter}
             onChange={setFilter}
-            scrollable
             accessibilityLabel="Schedule filter"
           />
         </View>

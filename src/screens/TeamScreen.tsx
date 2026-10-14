@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import * as Clipboard from 'expo-clipboard';
-import { supabase, listMyWorkspaces, switchWorkspace, createWorkspace, type WorkspaceSummary } from '../utils/supabase';
-import { pullCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  supabase, getTeamAvatar, teamAvatarSignedUrl, setTeamAvatarFromUri, clearTeamAvatar,
+} from '../utils/supabase';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
 import {
@@ -15,8 +17,6 @@ import {
 
 /**
  * Workspace roster, real cloud membership (same source as the web Team page).
- * Owners appoint which connected accounts each teammate may post to; only the
- * owner can disconnect a connected account (that lives on the Channels screen).
  *
  * Two doors lead here: the Team button on top of Connect, and Account → Team.
  */
@@ -32,7 +32,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [team, setTeam] = useState<CloudTeam | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
+  const [teamPicUri, setTeamPicUri] = useState<string | null>(null);
+  const [teamPicBusy, setTeamPicBusy] = useState(false);
 
   const [mEmail, setMEmail] = useState('');
   const [mRole, setMRole] = useState<'member' | 'admin'>('member');
@@ -42,8 +43,6 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [renamingTeam, setRenamingTeam] = useState(false);
   const [teamNameDraft, setTeamNameDraft] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [createName, setCreateName] = useState('');
   const [gAll, setGAll] = useState(true);
   const [gProviders, setGProviders] = useState<string[]>([]);
 
@@ -51,70 +50,51 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
     const t = await loadCloudTeam().catch(() => null);
     setTeam(t);
     setLoading(false);
-    try {
-      const { data: sess } = await supabase().auth.getSession();
-      if (sess.session?.user) {
-        setWorkspaces(await listMyWorkspaces(sess.session.user.id));
-      }
-    } catch {
-      /* workspace list is a nicety, team still loads */
+    if (t) {
+      const path = await getTeamAvatar(t.workspaceId);
+      setTeamPicUri(await teamAvatarSignedUrl(path));
+    } else {
+      setTeamPicUri(null);
     }
     return t;
   };
 
-  const confirmSwitch = (w: WorkspaceSummary) => {
-    if (team && w.id === team.workspaceId) return;
-    Alert.alert(
-      'Switch workspace?',
-      `"${w.name}" holds ${w.liveChannels} live channel${w.liveChannels === 1 ? '' : 's'}. The app will pull its channels after switching.`,
-      [
-        { text: 'Stay', style: 'cancel' },
-        {
-          text: 'Switch',
-          onPress: async () => {
-            setBusy(true);
-            try {
-              await switchWorkspace(w.id);
-              // Re-converge both directions on the new workspace before paint.
-              await pullCloudChannels(true).catch(() => null);
-              await syncCloudChannels().catch(() => null);
-              await reload();
-            } catch (e) {
-              Alert.alert('Could not switch', e instanceof Error ? e.message : 'Try again.');
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-      ],
-    );
+  /** Pick a new team picture (managers only, enforced server-side too). */
+  const changeTeamPic = async () => {
+    if (!team || teamPicBusy) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to set a team picture.');
+      return;
+    }
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
+    if (r.canceled || !r.assets[0]) return;
+    setTeamPicBusy(true);
+    try {
+      await setTeamAvatarFromUri(team.workspaceId, r.assets[0].uri);
+      setTeamPicUri(await teamAvatarSignedUrl(await getTeamAvatar(team.workspaceId)));
+      Alert.alert('Updated', 'Team picture saved.');
+    } catch (e: any) {
+      Alert.alert('Couldn’t update', e?.message ?? 'Try again.');
+    } finally {
+      setTeamPicBusy(false);
+    }
+  };
+
+  const removeTeamPic = async () => {
+    if (!team || teamPicBusy) return;
+    setTeamPicBusy(true);
+    try {
+      await clearTeamAvatar(team.workspaceId);
+      setTeamPicUri(null);
+    } catch (e: any) {
+      Alert.alert('Couldn’t remove', e?.message ?? 'Try again.');
+    } finally {
+      setTeamPicBusy(false);
+    }
   };
 
   useEffect(() => { void reload(); }, []);
-
-  /** Create a team, land in it, pull its channels. Teams are a paid-plan
-   *  feature (Team, Business, Ultimate), the plan gate below hides the
-   *  button for free/solo, and the DB trigger stays the backstop. */
-  const canCreateTeam = plan === 'team';
-  const createTeam = async () => {
-    if (!canCreateTeam) {
-      Alert.alert('Teams need a paid plan', 'Creating teams unlocks on Team, Business or Ultimate. See plans to upgrade.');
-      return;
-    }
-    if (!createName.trim()) return;
-    setBusy(true);
-    try {
-      await createWorkspace(createName);
-      setCreateName('');
-      await pullCloudChannels(true).catch(() => null);
-      await syncCloudChannels().catch(() => null);
-      await reload();
-    } catch (e) {
-      Alert.alert('Could not create team', e instanceof Error ? e.message : 'Try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const actor = { userId: team?.myUserId ?? null, role: (team?.myRole ?? 'member') as TeamRole };
   const isManager = actor.role === 'owner' || actor.role === 'admin';
@@ -294,9 +274,34 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
         <Text style={s.kicker}>Workspace</Text>
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Team</Text>
         {team ? (
-          <Text style={s.sub}>
-            {team.workspaceName} · {team.members.length} member{team.members.length === 1 ? '' : 's'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+            <TouchableOpacity
+              onPress={() => {
+                if (!isManager) return;
+                Alert.alert('Team picture', teamPicUri ? 'Change or remove the team picture.' : 'Add a picture for this team.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: teamPicUri ? 'Change photo' : 'Add photo', onPress: () => void changeTeamPic() },
+                  ...(teamPicUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => void removeTeamPic() }] : []),
+                ]);
+              }}
+              disabled={!isManager}
+              accessibilityLabel={isManager ? 'Change team picture' : 'Team picture'}
+              activeOpacity={isManager ? 0.75 : 1}
+            >
+              {teamPicUri ? (
+                <Image source={{ uri: teamPicUri }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+              ) : (
+                <View style={[s.avatar, { width: 44, height: 44, borderRadius: 22 }]}>
+                  <Text style={s.avatarT}>{(team.workspaceName || 'T')[0].toUpperCase()}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <View style={{ flex: 1, gap: 1 }}>
+              <Text style={s.sub} numberOfLines={1}>
+                {team.workspaceName} · {team.members.length} member{team.members.length === 1 ? '' : 's'}
+              </Text>
+            </View>
+          </View>
         ) : null}
         {team && isManager ? (
           renamingTeam ? (
@@ -317,60 +322,6 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
             </TouchableOpacity>
           )
         ) : null}
-
-        <View style={[s.member, { marginTop: 12 }]}>
-          <View style={{ flex: 1, gap: 8 }}>
-            <Text style={s.rowT}>Your workspaces</Text>
-            <Text style={s.rowS}>Same login can hold several, pick the one with your channels.</Text>
-            {workspaces.map((w) => {
-              const current = team ? w.id === team.workspaceId : false;
-              return (
-                <TouchableOpacity
-                  key={w.id}
-                  onPress={() => confirmSwitch(w)}
-                  disabled={busy || current}
-                  activeOpacity={0.7}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}
-                >
-                  <View style={[s.miniAvatar, current ? { backgroundColor: C.ink } : null]}>
-                    <Text style={[s.miniAvatarT, current ? { color: C.onInk } : null]}>
-                      {(w.name || '?')[0].toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 1 }}>
-                    <Text style={s.rowT} numberOfLines={1}>{w.name}</Text>
-                    <Text style={s.rowS} numberOfLines={1}>
-                      {w.liveChannels} live channel{w.liveChannels === 1 ? '' : 's'} · {w.role}
-                    </Text>
-                  </View>
-                  {current ? <Ionicons name="checkmark-circle" size={16} color={C.accentInk} /> : null}
-                </TouchableOpacity>
-              );
-            })}
-            {creating ? (
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 2 }}>
-                <View style={{ flex: 1 }}>
-                  <Txt value={createName} onChangeText={setCreateName} placeholder="Team name" />
-                </View>
-                <TouchableOpacity onPress={() => void createTeam()} disabled={busy} style={[s.miniBtn, { backgroundColor: C.ink }]} activeOpacity={0.7}>
-                  <Text style={[s.miniBtnT, { color: C.onInk }]}>{busy ? '…' : 'Create'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setCreating(false); setCreateName(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Ionicons name="close-circle" size={18} color={C.redText} />
-                </TouchableOpacity>
-              </View>
-            ) : canCreateTeam ? (
-              <TouchableOpacity onPress={() => setCreating(true)} disabled={busy} style={{ alignSelf: 'flex-start' }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>+ Create team</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={onSeePlans} style={{ alignSelf: 'flex-start' }} activeOpacity={0.7}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>+ Create team</Text>
-                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.muted, marginTop: 2 }}>Teams unlock on Team, Business or Ultimate</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
 
         {plan !== 'team' ? (
           <View style={{ marginTop: 16, gap: 12 }}>
@@ -393,11 +344,6 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
           </View>
         ) : (
           <View style={{ marginTop: 16, gap: 12 }}>
-            <Text style={s.note}>
-              Owners appoint which accounts each teammate can post to. Only the owner can disconnect a connected
-              account, do that on the Channels screen.
-            </Text>
-
             <View style={s.head}>
               <View style={s.avatar}><Text style={s.avatarT}>{initial}</Text></View>
               <View style={{ flex: 1, gap: 2 }}>

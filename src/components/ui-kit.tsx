@@ -111,6 +111,7 @@ export function Tabs<T extends string>({
       activeLabelStyle={s.tabTOn}
       renderOption={renderOption}
       scrollable={scrollable}
+      grow
       accessibilityLabel={accessibilityLabel}
     />
   );
@@ -218,8 +219,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   badgeOutline: { borderWidth: 1, borderColor: C.line },
   badgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, letterSpacing: 0.1 },
 
-  tabs: { flexDirection: 'row', gap: 4, backgroundColor: C.surface, borderRadius: 999, padding: 3, alignSelf: 'flex-start' },
-  tab: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
+  tabs: { flexDirection: 'row', gap: 4, backgroundColor: C.surface, borderRadius: 999, padding: 3, alignSelf: 'stretch' },
+  tab: { flex: 1, alignItems: 'center', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 7 },
   tabOn: { backgroundColor: C.ink, borderRadius: 999 },
   tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted },
   tabTOn: { color: C.onInk },

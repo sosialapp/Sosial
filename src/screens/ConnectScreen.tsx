@@ -1635,7 +1635,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
                     <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.faint} />
                   ) : p === 'x' && !canConnectProvider(plan ?? 'free', 'x') ? (
                     <View style={s.soonBadge}><Text style={s.soonBadgeT}>Pro</Text></View>
-                  ) : (
+                  ) : cfg.soon ? null : (
                     <Text style={s.go}>Connect</Text>
                   )}
                 </TouchableOpacity>

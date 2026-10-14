@@ -605,7 +605,6 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
             ]}
             value={tab}
             onChange={setTab}
-            scrollable
             accessibilityLabel="Create sections"
           />
         </View>

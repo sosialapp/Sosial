@@ -39,18 +39,13 @@ export interface WelcomeProfile {
  */
 export default function WelcomeScreen({
   onDone,
-  onSkip,
-  allowSkip = true,
 }: {
   onDone: (profile: WelcomeProfile) => void;
-  onSkip: () => void;
-  /** False after an explicit sign-out: the user must sign back in. */
-  allowSkip?: boolean;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
   const configured = isSupabaseConfigured();
-  const [mode, setMode] = useState<'in' | 'up'>('up');
+  const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
@@ -165,15 +160,10 @@ export default function WelcomeScreen({
 
         <View style={s.card}>
           {!configured ? (
-            <>
-              <Text style={s.note}>
-                Backend not configured, add the Supabase keys to .env and restart Expo to enable
-                accounts.
-              </Text>
-              {allowSkip ? (
-                <GhostBtn label="Explore without an account" onPress={onSkip} />
-              ) : null}
-            </>
+            <Text style={s.note}>
+              Backend not configured, add the Supabase keys to .env and restart Expo to enable
+              accounts.
+            </Text>
           ) : (
             <>
               <View style={s.seg}>
@@ -279,11 +269,6 @@ export default function WelcomeScreen({
                     </Text>
                   </View>
                 </>
-              ) : null}
-              {allowSkip ? (
-                <TouchableOpacity onPress={onSkip} activeOpacity={0.7} style={s.skipHit}>
-                  <Text style={s.skip}>Explore without an account</Text>
-                </TouchableOpacity>
               ) : null}
             </>
           )}

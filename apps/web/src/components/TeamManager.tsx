@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
@@ -58,6 +58,7 @@ function channelLabel(c: TeamChannelRow): string {
 export default function TeamManager({
   workspaceId,
   workspaceName,
+  workspaceAvatar,
   myUserId,
   myRole,
   members,
@@ -67,6 +68,7 @@ export default function TeamManager({
 }: {
   workspaceId: string;
   workspaceName: string;
+  workspaceAvatar: string | null;
   myUserId: string;
   myRole: 'owner' | 'admin' | 'member';
   members: TeamMemberRow[];
@@ -87,6 +89,21 @@ export default function TeamManager({
   const [assigning, setAssigning] = useState<string | null>(null);
   const [gAll, setGAll] = useState(true);
   const [gSel, setGSel] = useState<string[]>([]);
+  const [teamAvatarPath, setTeamAvatarPath] = useState<string | null>(workspaceAvatar);
+  const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  /** Signed URL for the stored team picture. */
+  useEffect(() => {
+    if (!teamAvatarPath) { setTeamAvatarUrl(null); return; }
+    let dead = false;
+    (async () => {
+      const sb = createClient();
+      const { data: s } = await sb.storage.from('avatars').createSignedUrl(teamAvatarPath.split('?')[0], 3600);
+      if (!dead && s?.signedUrl) setTeamAvatarUrl(s.signedUrl);
+    })();
+    return () => { dead = true; };
+  }, [teamAvatarPath]);
 
   const canManage = myRole === 'owner' || myRole === 'admin';
   const canRemove = (m: TeamMemberRow): boolean => {
@@ -159,6 +176,55 @@ export default function TeamManager({
       setErr(e instanceof Error ? e.message : 'Could not save the team name.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Upload → compress server-side → refresh. Owners and admins only. */
+  async function changeTeamAvatar(file: File) {
+    if (avatarBusy) return;
+    setAvatarBusy(true);
+    setErr(null);
+    try {
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error('Could not read that file.'));
+        r.readAsDataURL(file);
+      });
+      const sb = createClient();
+      const { data, error } = await sb.functions.invoke('team-avatar', {
+        body: { workspace_id: workspaceId, image_base64: b64 },
+      });
+      if (error) throw new Error((await edgeErrorMessage(error)) ?? 'Could not update the team picture.');
+      const msg = (data as { error?: string } | null)?.error;
+      if (msg) throw new Error(msg);
+      setTeamAvatarPath((data as { avatar_url?: string }).avatar_url ?? null);
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not update the team picture.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeTeamAvatar() {
+    if (avatarBusy) return;
+    setAvatarBusy(true);
+    setErr(null);
+    try {
+      const sb = createClient();
+      const { data, error } = await sb.functions.invoke('team-avatar', {
+        body: { workspace_id: workspaceId, remove: true },
+      });
+      if (error) throw new Error((await edgeErrorMessage(error)) ?? 'Could not remove the team picture.');
+      const msg = (data as { error?: string } | null)?.error;
+      if (msg) throw new Error(msg);
+      setTeamAvatarPath(null);
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not remove the team picture.');
+    } finally {
+      setAvatarBusy(false);
     }
   }
 
@@ -275,7 +341,49 @@ export default function TeamManager({
     <div className="space-y-3">
       {canManage ? (
         <section className="card p-5" aria-label="Team name">
-          <p className="eyebrow">Team name</p>
+          <p className="eyebrow">Team picture</p>
+          <div className="mt-2 flex items-center gap-3">
+            <span className="relative shrink-0">
+              {teamAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={teamAvatarUrl} alt="Team picture" className="h-12 w-12 rounded-full border border-line object-cover" />
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink font-display text-base font-extrabold text-paper">
+                  {(draftName.trim() || workspaceName || 'T')[0].toUpperCase()}
+                </span>
+              )}
+              {avatarBusy ? (
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40" aria-hidden="true">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                </span>
+              ) : null}
+            </span>
+            <span className="flex flex-wrap items-center gap-2">
+              <label className="cursor-pointer rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink">
+                {teamAvatarUrl ? 'Change' : 'Add photo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (f) void changeTeamAvatar(f);
+                  }}
+                />
+              </label>
+              {teamAvatarUrl ? (
+                <button
+                  type="button"
+                  onClick={() => void removeTeamAvatar()}
+                  className="rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
+                >
+                  Remove
+                </button>
+              ) : null}
+            </span>
+          </div>
+          <p className="eyebrow mt-4">Team name</p>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
               value={draftName}
