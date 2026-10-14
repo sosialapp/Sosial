@@ -148,6 +148,13 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
   /** Load avatars for the dropdown list on first open. */
   const openTeamMenu = async () => {
     setTeamOpen(true);
+    // The picture may have changed elsewhere (Team screen, web) since this
+    // screen mounted — refresh the current one on every open, not just first.
+    if (teamWs) {
+      try {
+        setTeamPicUri(await teamAvatarSignedUrl(await getTeamAvatar(teamWs.id)));
+      } catch { /* keep the last known picture */ }
+    }
     const missing = wsList.filter((w) => wsPics[w.id] === undefined);
     if (missing.length === 0) return;
     const next: Record<string, string> = {};
