@@ -82,18 +82,29 @@ export const getWorkspaceContext = cache(async (): Promise<{
     // Non-request contexts have no cookies, fall through to the default.
   }
 
-  const { data: mem } = await sb
+  // Deterministic default: a team the user OWNS first, then the oldest
+  // membership. PostgREST returns rows in arbitrary order without an explicit
+  // ORDER BY, which drops multi-team users into a random team, and every team
+  // is named "My team" so the wrong one is invisible.
+  const { data: mems } = await sb
     .from('workspace_members')
-    .select('role, workspaces!inner(id, name)')
+    .select('role, workspaces!inner(id, name, owner_id)')
     .eq('user_id', user.id)
     .eq('status', 'active')
-    .limit(1)
-    .maybeSingle();
-  if (mem?.workspaces) {
-    const w = mem.workspaces as unknown as { id: string; name: string | null };
+    .order('created_at', { ascending: true });
+  const rows = (mems ?? []) as unknown as {
+    role: WorkspaceInfo['role'];
+    workspaces: { id: string; name: string | null; owner_id: string | null } | null;
+  }[];
+  const pick = rows.find((r) => r.workspaces?.owner_id === user.id) ?? rows.find((r) => r.workspaces);
+  if (pick?.workspaces) {
     return {
       user,
-      workspace: { id: String(w.id), name: String(w.name ?? 'My team'), role: mem.role as WorkspaceInfo['role'] },
+      workspace: {
+        id: String(pick.workspaces.id),
+        name: String(pick.workspaces.name ?? 'My team'),
+        role: pick.role,
+      },
     };
   }
 

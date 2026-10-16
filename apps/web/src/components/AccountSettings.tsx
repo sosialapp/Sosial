@@ -171,6 +171,7 @@ export default function AccountSettings({
   email,
   workspaceId,
   workspaceName,
+  planLabel,
   role,
   canRename,
   userId,
@@ -179,6 +180,7 @@ export default function AccountSettings({
   email: string;
   workspaceId: string;
   workspaceName: string;
+  planLabel: string;
   role: string;
   canRename: boolean;
   userId: string;
@@ -554,7 +556,9 @@ export default function AccountSettings({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-extrabold">{email || 'No email set'}</span>
-                <span className="block truncate text-xs text-muted">{workspaceName}</span>
+                <span className="block truncate text-xs text-muted">
+                  {workspaceName} · {planLabel} plan
+                </span>
                 <span className="mt-1.5 flex flex-wrap items-center gap-2">
                   <label className="cursor-pointer rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink">
                     {avatarUrl ? 'Change' : 'Add photo'}

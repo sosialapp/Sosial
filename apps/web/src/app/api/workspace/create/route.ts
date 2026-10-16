@@ -44,12 +44,16 @@ export async function POST(req: Request) {
       .from('subscriptions')
       .select('plan, status, current_period_end')
       .in('workspace_id', ownedIds);
-    const active = (subs ?? []).filter(
-      (s) =>
-        s.plan !== 'free' &&
+    const active = (subs ?? []).filter((s) => {
+      if (s.plan === 'free') return false;
+      // Ultimate is lifetime: no interval and no period end, so it never
+      // matches the paid-status test. Mirrors enforce_workspace_limit (p31).
+      if (s.plan === 'ultimate' && s.status === 'lifetime') return true;
+      return (
         ['active', 'trialing', 'past_due'].includes(s.status ?? '') &&
-        (!s.current_period_end || Date.parse(s.current_period_end) > Date.now()),
-    );
+        (!s.current_period_end || Date.parse(s.current_period_end) > Date.now())
+      );
+    });
     const rank: Record<string, number> = { business: 3, team: 2, solo: 1, ultimate: 4 };
     plan =
       active.sort((a, b) => (rank[b.plan] ?? 0) - (rank[a.plan] ?? 0))[0]?.plan ?? 'free';

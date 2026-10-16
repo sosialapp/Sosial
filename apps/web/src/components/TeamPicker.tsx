@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { WorkspaceOption } from './WorkspaceSwitcher';
 
 /**
- * Team-page picker: "{name} · N members ⌄". Switching and creating both
+ * Team-page picker: "{name} · {Plan} · N members ⌄". Switching and creating both
  * live behind the chevron menu so the page itself never advertises
  * team-creation. Creating sticks the sosial_ws cookie server-side for the
  * new workspace and refreshes the whole tree.
@@ -39,10 +39,12 @@ function TeamDot({ url, name, size }: { url?: string; name: string; size: number
 export default function TeamPicker({
   current,
   memberCount,
+  planLabel,
   workspaces,
 }: {
   current: WorkspaceOption;
   memberCount: number;
+  planLabel: string;
   workspaces: WorkspaceOption[];
 }) {
   const router = useRouter();
@@ -146,7 +148,7 @@ export default function TeamPicker({
       >
         <TeamDot url={pics[current.id]} name={current.name} size={22} />
         <span>
-          {busy ? 'Switching…' : current.name} · {memberCount} member
+          {busy ? 'Switching…' : current.name} · {planLabel} · {memberCount} member
           {memberCount === 1 ? '' : 's'}
         </span>
         <ChevronDown

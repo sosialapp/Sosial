@@ -4,6 +4,8 @@ import McpSection from '@/components/McpSection';
 import TeamManager from '@/components/TeamManager';
 import TeamPicker from '@/components/TeamPicker';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
+import { getEntitlement } from '@/lib/billing/entitlement';
+import { PLANS } from '@/lib/billing/plans';
 
 export const metadata = { title: 'Team' };
 
@@ -15,6 +17,7 @@ export default async function TeamPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
+  const ent = await getEntitlement(ctx.workspace.id);
   const [membersRes, invitesRes, grantsRes, channelsRes] = await Promise.all([
     sb
       .from('workspace_members')
@@ -84,6 +87,7 @@ export default async function TeamPage() {
           avatar_url: workspaces.find((w) => w.id === ctx.workspace.id)?.avatar_url ?? null,
         }}
         memberCount={members.length}
+        planLabel={PLANS[ent.plan].label}
         workspaces={
           workspaces.some((w) => w.id === ctx.workspace.id)
             ? workspaces
