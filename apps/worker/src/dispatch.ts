@@ -247,8 +247,14 @@ async function handleSendPush(job: Job): Promise<void> {
   const title = String(job.payload?.title ?? '').trim();
   const body = String(job.payload?.body ?? '').trim();
   if (!title || !body) throw new Error(`job ${job.id}: send_push needs title + body`);
-  debug(`send_push "${title.slice(0, 60)}" (job ${job.id})`);
-  await sendPushBroadcast(title, body);
+  const platforms = Array.isArray(job.payload?.platforms)
+    ? (job.payload.platforms as unknown[]).filter((p): p is string => typeof p === 'string')
+    : undefined;
+  debug(
+    `send_push "${title.slice(0, 60)}" (job ${job.id})` +
+      (platforms ? ` -> ${platforms.join(',')}` : ' (all devices)'),
+  );
+  await sendPushBroadcast(title, body, platforms);
 }
 
 async function handleCleanupMedia(job: Job): Promise<void> {

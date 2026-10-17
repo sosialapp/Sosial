@@ -66,9 +66,9 @@ export default async function AdminOverview() {
           href="/admin/notifications"
           className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
         >
-          <p className="text-sm font-bold">Push</p>
+          <p className="text-sm font-bold">Notify</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            Broadcast to every registered device. The worker delivers.
+            Send an announcement to the in-app bell and, on request, to devices.
           </p>
         </Link>
       </div>

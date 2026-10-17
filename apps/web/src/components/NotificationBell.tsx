@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * Notification bell, header island. Polls `notifications` (RLS: own rows)
- * every 30s for unread count, lists the latest in a WorkspaceSwitcher-style
- * dropdown, marks all read on open, clicks navigate via the notification's
- * href. Events are written by P48/P60 DB triggers: team changes, approvals
- * and publish results.
+ * Notification bell, header island. Polls `notifications` (RLS: own rows) and
+ * app-wide `announcements` (P75, filtered to the 'web' platform) every 120s,
+ * merges them newest-first, and lists the latest in a WorkspaceSwitcher-style
+ * dropdown; opening marks everything read. Event rows come from P48/P60 DB
+ * triggers (team changes, approvals, publish results) and link via `href`;
+ * announcements carry their own per-user read state in `announcement_reads`.
  *
  * Publish rows carry post_id and render rich: channel label list in the
  * title ("Published to X @acme, Instagram @acme"), an avatar/logo row, the
@@ -13,7 +14,19 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Bell, CheckCheck, FileText, PenLine, ShieldCheck, Unplug, UserPlus } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bell,
+  Bug,
+  CheckCheck,
+  FileText,
+  Megaphone,
+  PenLine,
+  ShieldCheck,
+  Sparkles,
+  Unplug,
+  UserPlus,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -26,6 +39,21 @@ export interface NotifRow {
   href: string | null;
   post_id?: string | null;
   read_at: string | null;
+  created_at: string;
+}
+
+/** One merged feed row: a per-recipient `notifications` row or an app-wide
+ *  `announcements` row. `read` folds the two read-state mechanisms together
+ *  (read_at column vs. an announcement_reads row). */
+export interface FeedRow {
+  id: string;
+  source: 'notification' | 'announcement';
+  kind: string;
+  title: string;
+  body: string;
+  href: string | null;
+  post_id?: string | null;
+  read: boolean;
   created_at: string;
 }
 
@@ -50,6 +78,10 @@ const KIND_ICON: Record<string, typeof Bell> = {
   approval_changes: PenLine,
   target_failed: AlertTriangle,
   channel_expired: Unplug,
+  update: Sparkles,
+  policy: ShieldCheck,
+  bug: Bug,
+  announcement: Megaphone,
 };
 
 function ago(iso: string): string {
@@ -63,7 +95,7 @@ function ago(iso: string): string {
 }
 
 export default function NotificationBell() {
-  const [items, setItems] = useState<NotifRow[]>([]);
+  const [items, setItems] = useState<FeedRow[]>([]);
   const [extras, setExtras] = useState<Record<string, PostExtras>>({});
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
@@ -74,14 +106,42 @@ export default function NotificationBell() {
     try {
       if (!sb.current) sb.current = createClient();
       const client = sb.current;
-      const { data } = await client
-        .from('notifications')
-        .select('id,kind,title,body,href,post_id,read_at,created_at')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      const rows = (data ?? []) as NotifRow[];
-      setItems(rows);
-      setUnread(rows.filter((r) => !r.read_at).length);
+      const [notifs, anns, reads] = await Promise.all([
+        client
+          .from('notifications')
+          .select('id,kind,title,body,href,post_id,read_at,created_at')
+          .order('created_at', { ascending: false })
+          .limit(20),
+        client
+          .from('announcements')
+          .select('id,kind,title,body,href,created_at')
+          .overlaps('platforms', ['web'])
+          .order('created_at', { ascending: false })
+          .limit(20),
+        client.from('announcement_reads').select('announcement_id'),
+      ]);
+
+      const readIds = new Set(
+        ((reads.data ?? []) as { announcement_id: string }[]).map((r) => r.announcement_id),
+      );
+      const merged: FeedRow[] = [
+        ...((notifs.data ?? []) as NotifRow[]).map((n) => ({
+          ...n,
+          source: 'notification' as const,
+          read: !!n.read_at,
+        })),
+        ...((anns.data ?? []) as Omit<NotifRow, 'read_at' | 'post_id'>[]).map((a) => ({
+          ...a,
+          source: 'announcement' as const,
+          post_id: null,
+          read: readIds.has(a.id),
+        })),
+      ]
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+        .slice(0, 20);
+
+      setItems(merged);
+      setUnread(merged.filter((r) => !r.read).length);
     } catch {
       // offline, keep the last list; the next tick retries.
     }
@@ -187,16 +247,32 @@ export default function NotificationBell() {
   async function toggle() {
     const next = !open;
     setOpen(next);
-    if (next && unread > 0) {
-      // Optimistic: clear the badge immediately, persist in the background.
-      setUnread(0);
-      try {
-        await sb.current
-          ?.from('notifications')
-          .update({ read_at: new Date().toISOString() })
-          .is('read_at', null);
-      } catch {}
-    }
+    if (!next || unread === 0) return;
+    // Optimistic: clear the badge and the unread styling immediately.
+    setUnread(0);
+    setItems((prev) => prev.map((r) => ({ ...r, read: true })));
+    const client = sb.current;
+    if (!client) return;
+    try {
+      await client
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .is('read_at', null);
+      const unreadAnn = items
+        .filter((n) => n.source === 'announcement' && !n.read)
+        .map((n) => n.id);
+      if (unreadAnn.length) {
+        const {
+          data: { user },
+        } = await client.auth.getUser();
+        if (user) {
+          await client.from('announcement_reads').upsert(
+            unreadAnn.map((id) => ({ announcement_id: id, user_id: user.id })),
+            { onConflict: 'announcement_id,user_id' },
+          );
+        }
+      }
+    } catch {}
   }
 
   return (
@@ -233,7 +309,7 @@ export default function NotificationBell() {
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (
               <p className="px-4 py-8 text-center text-xs text-muted">
-                Nothing yet, publish results, approvals and team changes land here.
+                Nothing yet, announcements, publish results, approvals and team changes land here.
               </p>
             ) : (
               items.map((n) => {
@@ -244,7 +320,7 @@ export default function NotificationBell() {
                   <div className="flex gap-2.5 px-4 py-3">
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className={`truncate text-xs ${n.read_at ? 'text-muted' : 'font-bold text-ink'}`}>
+                        <span className={`truncate text-xs ${n.read ? 'text-muted' : 'font-bold text-ink'}`}>
                           {n.title}
                         </span>
                         <span className="shrink-0 text-[10px] text-faint">{ago(n.created_at)}</span>
@@ -277,12 +353,12 @@ export default function NotificationBell() {
                     {Icon ? (
                       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
                     ) : null}
-                    {!n.read_at ? <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> : null}
+                    {!n.read ? <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> : null}
                   </div>
                 );
                 return n.href ? (
                   <Link
-                    key={n.id}
+                    key={`${n.source}-${n.id}`}
                     href={n.href}
                     onClick={() => setOpen(false)}
                     className="block border-b border-line-soft transition last:border-0 hover:bg-bone"
@@ -290,7 +366,7 @@ export default function NotificationBell() {
                     {inner}
                   </Link>
                 ) : (
-                  <div key={n.id} className="border-b border-line-soft last:border-0">
+                  <div key={`${n.source}-${n.id}`} className="border-b border-line-soft last:border-0">
                     {inner}
                   </div>
                 );

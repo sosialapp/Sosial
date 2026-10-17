@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 import { supabase } from '../utils/supabase';
 
 export interface MobileNotif {
   id: string;
+  source: 'notification' | 'announcement';
   kind: string;
   title: string;
   body: string;
   href: string | null;
-  read_at: string | null;
+  read: boolean;
   created_at: string;
 }
 
@@ -26,10 +27,11 @@ function ago(iso: string): string {
 
 /**
  * Notification bell, masthead slot where the avatar used to sit (web
- * NotificationBell parity). Polls `notifications` (RLS: own rows) every
- * 30s for the unread count, lists the latest in a sheet, marks all read
- * on open. Events are written by the P48/P60 DB triggers: team changes,
- * approvals and publish results.
+ * NotificationBell parity). Polls `notifications` (RLS: own rows) and
+ * app-wide `announcements` (P75, filtered to this platform) every 120s,
+ * merges them newest-first, and lists the latest in a sheet; opening marks
+ * everything read. Event rows come from P48/P60 DB triggers; announcements
+ * keep their own read state in `announcement_reads`.
  */
 export default function NotificationBell() {
   const { C } = useTheme();
@@ -41,14 +43,36 @@ export default function NotificationBell() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await supabase()
-        .from('notifications')
-        .select('id,kind,title,body,href,read_at,created_at')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      const rows = (data ?? []) as MobileNotif[];
-      setItems(rows);
-      setUnread(rows.filter((r) => !r.read_at).length);
+      const sb = supabase();
+      const [notifs, anns, reads] = await Promise.all([
+        sb
+          .from('notifications')
+          .select('id,kind,title,body,href,read_at,created_at')
+          .order('created_at', { ascending: false })
+          .limit(20),
+        sb
+          .from('announcements')
+          .select('id,kind,title,body,href,created_at')
+          .overlaps('platforms', [Platform.OS])
+          .order('created_at', { ascending: false })
+          .limit(20),
+        sb.from('announcement_reads').select('announcement_id'),
+      ]);
+      const readIds = new Set(
+        ((reads.data ?? []) as { announcement_id: string }[]).map((r) => r.announcement_id),
+      );
+      const merged: MobileNotif[] = [
+        ...((notifs.data ?? []) as { id: string; kind: string; title: string; body: string; href: string | null; read_at: string | null; created_at: string }[]).map(
+          (n) => ({ ...n, source: 'notification' as const, read: !!n.read_at }),
+        ),
+        ...((anns.data ?? []) as { id: string; kind: string; title: string; body: string; href: string | null; created_at: string }[]).map(
+          (a) => ({ ...a, source: 'announcement' as const, read: readIds.has(a.id) }),
+        ),
+      ]
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+        .slice(0, 20);
+      setItems(merged);
+      setUnread(merged.filter((r) => !r.read).length);
     } catch {
       // offline or signed out, keep the last list; next tick retries.
     }
@@ -64,19 +88,33 @@ export default function NotificationBell() {
   const toggle = async () => {
     const next = !open;
     setOpen(next);
-    if (next) {
-      void load();
-      if (unread > 0) {
-        // Optimistic: clear the badge immediately, persist in background.
-        setUnread(0);
-        try {
-          await supabase()
-            .from('notifications')
-            .update({ read_at: new Date().toISOString() })
-            .is('read_at', null);
-        } catch {}
+    if (!next) return;
+    void load();
+    if (unread === 0) return;
+    // Optimistic: clear the badge and the unread styling immediately.
+    setUnread(0);
+    setItems((prev) => prev.map((r) => ({ ...r, read: true })));
+    try {
+      const sb = supabase();
+      await sb
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .is('read_at', null);
+      const unreadAnn = items
+        .filter((n) => n.source === 'announcement' && !n.read)
+        .map((n) => n.id);
+      if (unreadAnn.length) {
+        const {
+          data: { user },
+        } = await sb.auth.getUser();
+        if (user) {
+          await sb.from('announcement_reads').upsert(
+            unreadAnn.map((id) => ({ announcement_id: id, user_id: user.id })),
+            { onConflict: 'announcement_id,user_id' },
+          );
+        }
       }
-    }
+    } catch {}
   };
 
   return (
@@ -110,20 +148,20 @@ export default function NotificationBell() {
                   <ActivityIndicator size="small" color={C.accent} />
                 </View>
               ) : items.length === 0 ? (
-                <Text style={s.empty}>Nothing yet, publish results, approvals and team changes land here.</Text>
+                <Text style={s.empty}>Nothing yet, announcements, publish results, approvals and team changes land here.</Text>
               ) : (
                 items.map((n) => (
-                  <View key={n.id} style={s.row}>
+                  <View key={`${n.source}-${n.id}`} style={s.row}>
                     <View style={{ flex: 1, gap: 3 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                        <Text style={[s.rowT, !n.read_at && { color: C.ink, fontFamily: 'PlusJakartaSans_800ExtraBold' }]} numberOfLines={2}>
+                        <Text style={[s.rowT, !n.read && { color: C.ink, fontFamily: 'PlusJakartaSans_800ExtraBold' }]} numberOfLines={2}>
                           {n.title}
                         </Text>
                         <Text style={s.ago}>{ago(n.created_at)}</Text>
                       </View>
                       {n.body ? <Text style={s.rowS} numberOfLines={2}>{n.body}</Text> : null}
                     </View>
-                    {!n.read_at ? <View style={s.dot} /> : null}
+                    {!n.read ? <View style={s.dot} /> : null}
                   </View>
                 ))
               )}

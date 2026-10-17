@@ -1,10 +1,17 @@
 // send-notification · owner broadcast trigger (app admins only)
 //
-// POST { title, body } → 200 { queued: true, audience } · 401 · 403
+// POST { title, body, kind?, platforms? } → 200 { queued, announcement_id, audience }
+//                                             · 400 · 401 · 403
 //
-// The worker owns delivery (Expo Push API + dead-token pruning), so this
-// endpoint only verifies the caller is an app admin and enqueues one
-// send_push job. Broadcast v1: every registered device token.
+// One authored row, two audiences:
+//   · the bell   → an `announcements` row every signed-in user can read,
+//                  filtered to the platforms they are reading on.
+//   · devices    → one send_push job the worker fans out over the Expo Push
+//                  API, narrowed to the selected platforms (web has no push).
+//
+// kind ∈ update | policy | bug | announcement · platforms ⊆ web/ios/android,
+// non-empty (omitted → everyone). The worker owns delivery and dead-token
+// pruning; this endpoint only validates the admin and writes + queues.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -15,6 +22,10 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
 };
+
+const KINDS = ["update", "policy", "bug", "announcement"] as const;
+const PLATFORMS = ["web", "ios", "android"] as const;
+const PUSH_PLATFORMS = ["ios", "android"] as const;
 
 function bad(msg: string, status = 400): Response {
   return Response.json({ error: msg }, { status, headers: CORS });
@@ -59,22 +70,77 @@ serve(async (req: Request): Promise<Response> => {
     return bad("title ≤ 120 chars, body ≤ 500 chars.");
   }
 
+  const kind = typeof body["kind"] === "string" ? body["kind"] : "announcement";
+  if (!KINDS.includes(kind as (typeof KINDS)[number])) {
+    return bad(`kind must be one of ${KINDS.join(", ")}.`);
+  }
+
+  // platforms omitted → everyone. Otherwise a non-empty subset of the known set.
+  const rawPlatforms = body["platforms"];
+  let platforms: string[];
+  if (rawPlatforms === undefined || rawPlatforms === null) {
+    platforms = [...PLATFORMS];
+  } else if (
+    Array.isArray(rawPlatforms) &&
+    rawPlatforms.length > 0 &&
+    rawPlatforms.every(
+      (p) => typeof p === "string" && PLATFORMS.includes(p as (typeof PLATFORMS)[number]),
+    )
+  ) {
+    platforms = [...new Set(rawPlatforms as string[])];
+  } else {
+    return bad(`platforms must be a non-empty subset of ${PLATFORMS.join(", ")}.`);
+  }
+
   const adminClient = createClient(supaUrl, serviceKey);
-  const { count } = await adminClient
-    .from("push_tokens")
-    .select("id", { count: "exact", head: true });
 
-  // Fresh idempotency key per send: broadcasts are never deduped.
-  const { error: qErr } = await adminClient.from("job_queue").upsert(
-    {
-      kind: "send_push",
-      payload: { title, body: message },
-      run_at: new Date().toISOString(),
-      idempotency_key: `send_push:${Date.now()}:${crypto.randomUUID()}`,
-    },
-    { onConflict: "idempotency_key" },
+  // The bell row: every signed-in user sees it, filtered to their platform.
+  const { data: ann, error: annErr } = await adminClient
+    .from("announcements")
+    .insert({
+      kind,
+      title,
+      body: message,
+      href: typeof body["href"] === "string" && body["href"].trim() ? body["href"].trim() : null,
+      platforms,
+      created_by: ud.user.id,
+    })
+    .select("id")
+    .single();
+  if (annErr || !ann) return bad(`Could not save the announcement (${annErr?.message}).`, 500);
+
+  // Device fan-out only covers ios/android; web is bell-only by design.
+  const pushPlatforms = platforms.filter((p) =>
+    PUSH_PLATFORMS.includes(p as (typeof PUSH_PLATFORMS)[number])
   );
-  if (qErr) return bad(`Could not queue the broadcast (${qErr.message}).`, 500);
+  let audience = 0;
+  if (pushPlatforms.length > 0) {
+    const { count } = await adminClient
+      .from("push_tokens")
+      .select("id", { count: "exact", head: true })
+      .in("platform", pushPlatforms);
+    audience = count ?? 0;
 
-  return Response.json({ queued: true, audience: count ?? 0 }, { headers: CORS });
+    // Fresh idempotency key per send: broadcasts are never deduped.
+    const { error: qErr } = await adminClient.from("job_queue").upsert(
+      {
+        kind: "send_push",
+        payload: { title, body: message, platforms, announcement_id: ann.id },
+        run_at: new Date().toISOString(),
+        idempotency_key: `send_push:${ann.id}`,
+      },
+      { onConflict: "idempotency_key" },
+    );
+    if (qErr) return bad(`Could not queue the push (${qErr.message}).`, 500);
+  }
+
+  return Response.json(
+    {
+      queued: pushPlatforms.length > 0,
+      announcement_id: ann.id,
+      audience,
+      platforms,
+    },
+    { headers: CORS },
+  );
 });

@@ -48,7 +48,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             href="/admin/notifications"
             className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone"
           >
-            Push
+            Notify
           </Link>
           <Link
             href="/dashboard"
