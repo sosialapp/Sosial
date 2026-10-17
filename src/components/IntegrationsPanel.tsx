@@ -15,6 +15,7 @@ function GoogleStacked({ size }: { size: number }) {
 import { filesConnected, loginGoogleFiles, disconnectGoogleFiles } from '../utils/driveAuth';
 import { dropboxConnected, loginDropbox, disconnectDropbox } from '../utils/dropboxAuth';
 import { canvaConnected, loginCanva, disconnectCanva } from '../utils/canvaAuth';
+import { oneDriveConnected, loginOneDrive, disconnectOneDrive } from '../utils/onedriveAuth';
 
 type RowId = 'google' | 'dropbox' | 'canva' | 'onedrive';
 
@@ -22,7 +23,7 @@ const ROWS: { id: RowId; label: string; sub: string; mark: SourceMarkId; soon?: 
   { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files', mark: 'dropbox' },
   { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post', mark: 'canva' },
   { id: 'google', label: 'Google Drive & Photos', sub: 'Pending Google verification', mark: 'drive', soon: true },
-  { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', mark: 'onedrive', soon: true },
+  { id: 'onedrive', label: 'OneDrive', sub: 'Your OneDrive files', mark: 'onedrive' },
 ];
 
 /**
@@ -38,8 +39,8 @@ export default function IntegrationsPanel() {
 
   const refresh = useCallback(async () => {
     try {
-      const [g, d, c] = await Promise.all([filesConnected(), dropboxConnected(), canvaConnected()]);
-      setStatus({ google: !!g, dropbox: !!d, canva: !!c, onedrive: false });
+      const [g, d, c, o] = await Promise.all([filesConnected(), dropboxConnected(), canvaConnected(), oneDriveConnected()]);
+      setStatus({ google: !!g, dropbox: !!d, canva: !!c, onedrive: !!o });
     } catch {}
   }, []);
 
@@ -54,6 +55,7 @@ export default function IntegrationsPanel() {
       const ok =
         id === 'google' ? await loginGoogleFiles()
         : id === 'dropbox' ? await loginDropbox()
+        : id === 'onedrive' ? await loginOneDrive()
         : await loginCanva();
       if (!ok) {
         Alert.alert('Not connected', 'Sign-in was cancelled.');
@@ -77,6 +79,7 @@ export default function IntegrationsPanel() {
           try {
             if (id === 'google') await disconnectGoogleFiles();
             else if (id === 'dropbox') await disconnectDropbox();
+            else if (id === 'onedrive') await disconnectOneDrive();
             else await disconnectCanva();
             await refresh();
           } catch {}

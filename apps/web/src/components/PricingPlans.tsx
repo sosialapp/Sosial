@@ -42,7 +42,7 @@ const GRID_LOGOS: BrandProvider[] = [
 ];
 
 /** Listed but not connectable yet, mirrors ConnectPanel's COMING_SOON. */
-const COMING_SOON: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
+const COMING_SOON: BrandProvider[] = ['gmb', 'linkedin'];
 
 /** Per-month display price at the given interval (annual is billed yearly).
  *  Annual equivalent rounds UP to the next whole dollar so the headline is

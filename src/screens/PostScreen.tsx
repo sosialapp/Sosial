@@ -137,7 +137,7 @@ export default function PostScreen({ onConnect, bare }: {
     { id: 'linkedin', label: 'LinkedIn', sub: meta.liName ?? ((meta.liPersonUrn ? 'Connected' : 'Not connected')), connected: !!meta.liPersonUrn || sched.has('linkedin') },
     { id: 'youtube', label: 'YouTube', sub: meta.ytChannelName ?? ((meta.ytRefreshToken || meta.ytAccessToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ytRefreshToken || meta.ytAccessToken) || sched.has('youtube') },
     { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? ((meta.mastodonAccessToken && meta.mastodonInstance) ? 'Connected' : 'Not connected'), connected: !!(meta.mastodonAccessToken && meta.mastodonInstance) || sched.has('mastodon') },
-    { id: 'pinterest', label: 'Pinterest', sub: 'Coming soon', connected: false, comingSoon: true },
+    { id: 'pinterest', label: 'Pinterest', sub: meta.pinUsername ?? (meta.pinAccessToken ? 'Connected' : 'Not connected'), connected: !!meta.pinAccessToken || sched.has('pinterest') },
     { id: 'telegram', label: 'Telegram', sub: meta.tgChatTitle ?? ((meta.tgBotToken && meta.tgChatId) ? 'Connected' : 'Not connected'), connected: !!(meta.tgBotToken && meta.tgChatId) || sched.has('telegram') },
     { id: 'discord', label: 'Discord', sub: discordSub, connected: !!meta.dcChannelId || sched.has('discord') },
     { id: 'wordpress', label: 'WordPress', sub: wpSub, connected: !!meta.wpSiteUrl || sched.has('wordpress') },

@@ -5,7 +5,7 @@ import { channelHref } from '@/content/types';
 import { providerMeta } from '@/lib/providers';
 
 /** Listed but not connectable yet, the tile carries a Soon tag. */
-const SOON = new Set<BrandProvider>(['gmb', 'linkedin', 'pinterest']);
+const SOON = new Set<BrandProvider>(['gmb', 'linkedin']);
 
 function SoonTag() {
   return (

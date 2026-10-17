@@ -33,7 +33,7 @@ const CHANNELS: BrandProvider[] = [
 ];
 
 /** Listed but not connectable yet, mirrors ConnectPanel's COMING_SOON. */
-const SOON_CHANNELS: BrandProvider[] = ['gmb', 'linkedin', 'pinterest'];
+const SOON_CHANNELS: BrandProvider[] = ['gmb', 'linkedin'];
 
 const INTEGRATIONS = ['canva', 'unsplash', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
 

@@ -8,6 +8,7 @@ import { BrandIcon, type BrandProvider } from './BrandIcon';
 import ChannelAvatar from './ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
 import DisconnectChannel from './DisconnectChannel';
+import PinBoardPicker from './PinBoardPicker';
 import { OAUTH_PROVIDERS, oauthLabel, type OAuthProvider } from '@/lib/oauth';
 import { canConnectProvider, type PlanKey } from '@/lib/billing/plans';
 import type { ConnectedChannel } from '@/lib/types';
@@ -31,9 +32,9 @@ const ORDER: ProviderId[] = [...OAUTH_PROVIDERS.map((p) => p.id), 'bluesky', 'te
 const MANUAL: Partial<Record<ProviderId, boolean>> = { bluesky: true, mastodon: true, telegram: true, discord: true, wordpress: true, devto: true, hashnode: true, ghost: true, vk: true };
 
 /** Listed but not connectable yet, shows a Soon tag instead of Connect.
- *  gmb: allowlist pending. linkedin/pinterest: production approval pending
+ *  gmb: allowlist pending. linkedin: production approval pending
  *  (dev-mode connects still work via direct URL for testing). */
-const COMING_SOON: ProviderId[] = ['gmb', 'linkedin', 'pinterest'];
+const COMING_SOON: ProviderId[] = ['gmb', 'linkedin'];
 
 function providerLabel(p: ProviderId): string {
   if (p === 'bluesky') return 'Bluesky';
@@ -808,6 +809,7 @@ export default function ConnectPanel({
           const manual = MANUAL[p] === true;
           const soon = COMING_SOON.includes(p);
           const label = providerLabel(p);
+          const pinMd = (list[0]?.metadata ?? {}) as Record<string, unknown>;
 
           const onRow = () => {
             // Coming soon: expand to the note, never start OAuth.
@@ -1327,6 +1329,16 @@ export default function ConnectPanel({
                         </div>
                       ))}
                     </div>
+                  ) : null}
+
+                  {p === 'pinterest' && hasAny ? (
+                    <PinBoardPicker
+                      workspaceId={workspaceId}
+                      channelId={list[0].id}
+                      currentBoardId={typeof pinMd.pinBoardId === 'string' ? pinMd.pinBoardId : undefined}
+                      currentBoardName={typeof pinMd.pinBoardName === 'string' ? pinMd.pinBoardName : undefined}
+                      canManage={canManage}
+                    />
                   ) : null}
 
                   {!manual ? (

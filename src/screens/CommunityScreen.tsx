@@ -79,7 +79,7 @@ export default function CommunityScreen({ onConnect, bare }: {
     { id: 'linkedin', label: 'LinkedIn', sub: meta.liName ?? ((meta.liPersonUrn ? 'Connected' : 'Not connected')), connected: !!meta.liPersonUrn },
     { id: 'youtube', label: 'YouTube', sub: meta.ytChannelName ?? ((meta.ytRefreshToken || meta.ytAccessToken) ? 'Connected' : 'Not connected'), connected: !!(meta.ytRefreshToken || meta.ytAccessToken) },
     { id: 'mastodon', label: 'Mastodon', sub: meta.mastodonName ?? ((meta.mastodonAccessToken && meta.mastodonInstance) ? 'Connected' : 'Not connected'), connected: !!(meta.mastodonAccessToken && meta.mastodonInstance) },
-    { id: 'pinterest', label: 'Pinterest', sub: 'Coming soon', connected: false, comingSoon: true },
+    { id: 'pinterest', label: 'Pinterest', sub: meta.pinUsername ?? (meta.pinAccessToken ? 'Connected' : 'Not connected'), connected: !!meta.pinAccessToken },
   ];
   const channelLabel = channel === 'all' ? 'All channels' : channel[0].toUpperCase() + channel.slice(1);
   const shown = comments

@@ -897,8 +897,7 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     // Soon on web too (production approval pending), parity by design.
     linkedin: { label: 'LinkedIn', manual: false, configured: liConfigured, soon: true, connect: doLinkedin },
     youtube: { label: 'YouTube', manual: false, configured: ytConfigured, connect: doYoutube },
-    // Soon on web too, parity by design.
-    pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, soon: true, connect: doPinterest },
+    pinterest: { label: 'Pinterest', manual: false, configured: pinConfigured, connect: doPinterest },
     telegram: { label: 'Telegram', manual: true, configured: true, connect: doTelegram },
     discord: { label: 'Discord', manual: true, configured: true, connect: doDiscord },
     wordpress: { label: 'WordPress', manual: true, configured: true, connect: doWordPress },

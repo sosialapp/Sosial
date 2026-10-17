@@ -62,7 +62,7 @@ export const TERMS: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'Some channels are shown as "Soon" and cannot yet be connected: Google Business Profile, LinkedIn and Pinterest. They are displayed for information only, and no account is accessed for them until they go live.',
+          c: 'Some channels are shown as "Soon" and cannot yet be connected: Google Business Profile and LinkedIn. They are displayed for information only, and no account is accessed for them until they go live.',
         },
         {
           t: 'p',
@@ -228,7 +228,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'A small number of the channels we list are shown as "Soon" and cannot be connected yet: Google Business Profile, LinkedIn and Pinterest. They appear in the product so you can see what is coming, but no data is collected for them until they go live.',
+          c: 'A small number of the channels we list are shown as "Soon" and cannot be connected yet: Google Business Profile and LinkedIn. They appear in the product so you can see what is coming, but no data is collected for them until they go live.',
         },
         {
           t: 'p',

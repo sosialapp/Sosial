@@ -10,7 +10,7 @@ const ROWS: { id: CloudProvider | 'onedrive'; label: string; sub: string; mark: 
   { id: 'dropbox', label: 'Dropbox', sub: 'Your Dropbox files', mark: 'dropbox' },
   { id: 'canva', label: 'Canva', sub: 'Your designs, exported to post', mark: 'canva' },
   { id: 'google', label: 'Google Drive & Photos', sub: 'Pending Google verification', mark: 'drive', soon: true },
-  { id: 'onedrive', label: 'OneDrive', sub: 'Coming soon', mark: 'onedrive', soon: true },
+  { id: 'onedrive', label: 'OneDrive', sub: 'Your OneDrive files', mark: 'onedrive' },
 ];
 
 /**
@@ -29,6 +29,7 @@ export default function IntegrationsTab() {
         google: cloudConnected('google'),
         dropbox: cloudConnected('dropbox'),
         canva: cloudConnected('canva'),
+        onedrive: cloudConnected('onedrive'),
       });
     } catch {}
   }, []);
