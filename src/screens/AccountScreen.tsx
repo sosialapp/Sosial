@@ -53,6 +53,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const [repShots, setRepShots] = useState<{ uri: string; name: string; mime: string }[]>([]);
   const [myTicket, setMyTicket] = useState<UserTicket | null | undefined>(undefined);
   const [pfpUri, setPfpUri] = useState<string | null>(null);
+  const [pfpFailed, setPfpFailed] = useState(false);
   const [pfpBusy, setPfpBusy] = useState(false);
 
   type UserTicket = {
@@ -145,6 +146,10 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     })();
     return () => { alive = false; };
   }, [sbState, sbAccount?.email]);
+
+  /* A signed URL is minted even when the stored file is gone, so a dead
+   * picture fails at render time; fall back to the initial rather than blank. */
+  useEffect(() => { setPfpFailed(false); }, [pfpUri]);
 
   /* Owner-push self-check: surfaces registration state instead of failing
    * silently, so a missing device is diagnosable on-device. */
@@ -580,8 +585,8 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 accessibilityLabel="Change profile picture"
                 activeOpacity={0.75}
               >
-                {pfpUri ? (
-                  <Image source={{ uri: pfpUri }} style={[s.avatar, { borderWidth: 0 }]} />
+                {pfpUri && !pfpFailed ? (
+                  <Image source={{ uri: pfpUri }} onError={() => setPfpFailed(true)} style={[s.avatar, { borderWidth: 0 }]} />
                 ) : (
                   <View style={s.avatar}><Text style={s.avatarT}>{initial}</Text></View>
                 )}

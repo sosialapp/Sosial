@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import SafeImg from '@/components/SafeImg';
 import PublishMonitor from '@/components/PublishMonitor';
 import { channelAvatar } from '@/lib/channelAvatar';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
@@ -1049,8 +1050,7 @@ export default function CreatePost({
                             className="relative block h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-paper-dim"
                           >
                             {m.kind === 'image' ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={m.url} alt="" className="h-full w-full object-cover" />
+                              <SafeImg src={m.url} alt="" className="h-full w-full object-cover" />
                             ) : (
                               <video src={m.url} muted playsInline className="h-full w-full object-cover" />
                             )}
@@ -1227,7 +1227,7 @@ export default function CreatePost({
                                       <span className="absolute bottom-0.5 right-0.5 rounded bg-ink/70 px-1 text-[9px] font-bold text-paper">▶</span>
                                     </>
                                   ) : (
-                                    <img src={m.url} alt="" className="h-full w-full object-cover" />
+                                    <SafeImg src={m.url} alt="" className="h-full w-full object-cover" />
                                   )}
                                 </div>
                               ))}

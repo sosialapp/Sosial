@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import SafeImg from '@/components/SafeImg';
 import { channelAvatar } from '@/lib/channelAvatar';
 
 export interface NotifRow {
@@ -338,7 +339,7 @@ export default function NotificationBell() {
                         </span>
                       ) : null}
                       {ex?.mediaUrl ? (
-                        <img
+                        <SafeImg
                           src={ex.mediaUrl}
                           alt=""
                           className="mt-1.5 h-20 w-20 rounded-lg border border-line object-cover"

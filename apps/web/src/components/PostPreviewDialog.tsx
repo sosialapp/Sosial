@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, Heart, MessageCircle, Share2 } from 'lucide-react';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import SafeImg from '@/components/SafeImg';
 import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { POST_STATUS_META } from '@/lib/providers';
 import type { MediaAssetRow, PostStatus } from '@/lib/types';
@@ -114,8 +115,7 @@ export default function PostPreviewDialog({
                   className="h-auto max-h-[220px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
                 />
               ) : m.signed_url || m.thumb_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <SafeImg
                   key={m.id}
                   src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.md) : m.thumb_url ?? undefined}
                   alt=""

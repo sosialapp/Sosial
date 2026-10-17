@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch } from 'lucide-react';
 import AiCard from '@/components/AiCard';
+import SafeImg from '@/components/SafeImg';
 import { channelAvatar } from '@/lib/channelAvatar';
 import CreatePost from '@/components/CreatePost';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
@@ -983,8 +984,7 @@ export default function CreateHub({
                       {cover ? (
                         <span className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-paper-dim">
                           {cover.kind === 'image' ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={gridThumb(cover.url)} alt="" className="h-full w-full object-cover" />
+                            <SafeImg src={gridThumb(cover.url)} alt="" className="h-full w-full object-cover" />
                           ) : (
                             <video src={cover.url} muted playsInline className="h-full w-full object-cover" />
                           )}

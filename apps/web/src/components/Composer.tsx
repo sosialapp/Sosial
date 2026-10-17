@@ -9,6 +9,7 @@ import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/pos
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { generateSocial, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
+import SafeImg from '@/components/SafeImg';
 import { CheckIcon } from '@/components/StatusIcons';
 import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
@@ -525,7 +526,7 @@ export default function Composer({
                     {f.kind === 'video' ? (
                       <video src={f.url} muted playsInline className="h-24 w-full object-cover" />
                     ) : (
-                      <img src={f.url} alt={f.file.name} className="h-24 w-full object-cover" />
+                      <SafeImg src={f.url} alt={f.file.name} className="h-24 w-full object-cover" />
                     )}
                     {f.kind === 'video' && (
                       <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">

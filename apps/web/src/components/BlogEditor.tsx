@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { uploadBlogMedia } from '@/lib/mediaUpload';
 import BlogDoc from '@/components/blog/BlogDoc';
 import ChartIslands from '@/components/site/ChartIslands';
+import SafeImg from '@/components/SafeImg';
 import { cleanDocForPublish, normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
 import { tiptapToProseHtml } from '@/lib/blogHtml';
 import { BLOG_TAGS, type Block, type Category } from '@/content/types';
@@ -280,8 +281,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
               <h2 className="font-display text-3xl font-extrabold tracking-tight">{title || 'Untitled'}</h2>
               {description ? <p className="mt-3 text-lg text-muted">{description}</p> : null}
               {coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverUrl} alt={coverAlt || title || 'Cover'} className="mt-6 h-auto w-full rounded-2xl border border-line" />
+                <SafeImg src={coverUrl} alt={coverAlt || title || 'Cover'} className="mt-6 h-auto w-full rounded-2xl border border-line" />
               ) : null}
               <hr className="my-6 border-line" />
               <div className="prose-sosial blog-rich" dangerouslySetInnerHTML={{ __html: previewHtml }} />
@@ -317,8 +317,7 @@ export default function BlogEditor({ initial }: { initial: BlogDraft | null }) {
               Cover thumbnail
               {coverUrl ? (
                 <span className="relative block overflow-hidden rounded-xl border border-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={coverUrl} alt={coverAlt || 'Cover preview'} className="aspect-[16/9] w-full object-cover" />
+                  <SafeImg src={coverUrl} alt={coverAlt || 'Cover preview'} className="aspect-[16/9] w-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setCoverUrl('')}

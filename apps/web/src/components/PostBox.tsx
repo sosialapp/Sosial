@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Image, ChevronDown } from 'lucide-react';
 import { EmojiButton } from '@/components/Emoji';
+import SafeImg from '@/components/SafeImg';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
 
 export interface MediaItem {
@@ -85,8 +86,7 @@ export default function PostBox({
               onClick={() => setLightbox(f)}
             >
               {f.kind === 'image' ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={f.url} alt="" className="h-full w-full object-cover" />
+                <SafeImg src={f.url} alt="" className="h-full w-full object-cover" />
               ) : (
                 <video src={f.url} muted playsInline className="h-full w-full object-cover" />
               )}
@@ -195,8 +195,7 @@ export default function PostBox({
           </button>
           <div className="max-h-[90vh] max-w-full" onClick={(e) => e.stopPropagation()}>
             {lightbox.kind === 'image' ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={lightbox.url} alt="Media preview" className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain" />
+              <SafeImg src={lightbox.url} alt="Media preview" className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain" />
             ) : (
               <video src={lightbox.url} controls autoPlay className="max-h-[90vh] max-w-[90vw] rounded-2xl" />
             )}

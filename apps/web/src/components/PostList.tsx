@@ -6,6 +6,7 @@ import { Check, Heart, MessageCircle, Pencil, Repeat2, Eye, Send, Share2, Trash2
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets, PostStatus, WorkspaceInfo } from '@/lib/types';
 import { channelAvatar } from '@/lib/channelAvatar';
+import SafeImg from '@/components/SafeImg';
 import { createClient } from '@/lib/supabase/client';
 import {
   approvePost,
@@ -332,8 +333,7 @@ function PreviewDialog({
                     className="h-20 w-20 rounded-lg border border-line bg-bone object-cover"
                   />
                 ) : mediaThumbUrl(m) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <SafeImg
                     key={m.id}
                     src={mediaThumbUrl(m)}
                     alt=""
@@ -882,8 +882,7 @@ export default function PostList({
                           className="h-auto max-h-[360px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
                         />
                       ) : m.signed_url || m.thumb_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <SafeImg
                           key={m.id}
                           src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.md) : m.thumb_url ?? undefined}
                           alt=""

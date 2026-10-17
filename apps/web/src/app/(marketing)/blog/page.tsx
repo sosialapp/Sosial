@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BLOG_TAGS, allArticles, articlesByTag } from '@/lib/blog';
+import SafeImg from '@/components/SafeImg';
 import { blogTagClass, formatPostDate, type Category } from '@/content/types';
 
 /** ISR so publishes go live without a rebuild. */
@@ -81,8 +82,7 @@ export default async function BlogIndex({
                 className="card flex h-full flex-col overflow-hidden border border-line transition hover:border-accent"
             >
               {a.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <SafeImg
                   src={a.coverUrl}
                   alt={a.coverAlt ?? a.title}
                   loading="lazy"

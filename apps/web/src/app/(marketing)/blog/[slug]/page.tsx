@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
+import SafeImg from '@/components/SafeImg';
 import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
 import { blogTagClass, formatPostDate } from '@/content/types';
@@ -79,8 +80,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         <p className="mt-4 text-lg leading-relaxed text-muted">{post.description}</p>
 
         {post.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <SafeImg
             src={post.coverUrl}
             alt={post.coverAlt ?? post.title}
             className="mt-8 h-auto w-full rounded-2xl border border-line"
@@ -117,8 +117,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                   className="card flex h-full flex-col overflow-hidden border border-line transition hover:border-accent"
                 >
                   {a.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <SafeImg
                       src={a.coverUrl}
                       alt={a.coverAlt ?? a.title}
                       loading="lazy"

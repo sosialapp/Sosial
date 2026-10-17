@@ -34,7 +34,9 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [busy, setBusy] = useState(false);
   const [teamPicUri, setTeamPicUri] = useState<string | null>(null);
   const [teamPicBusy, setTeamPicBusy] = useState(false);
+  const [teamPicFailed, setTeamPicFailed] = useState(false);
   const [memberPics, setMemberPics] = useState<Record<string, string>>({});
+  const [failedPics, setFailedPics] = useState<Record<string, boolean>>({});
 
   const [mEmail, setMEmail] = useState('');
   const [mRole, setMRole] = useState<'member' | 'admin'>('member');
@@ -115,6 +117,10 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   };
 
   useEffect(() => { void reload(); }, []);
+
+  /* A signed URL is minted even when the stored file is gone, so a dead
+   * picture fails at render time; fall back to the initial rather than blank. */
+  useEffect(() => { setTeamPicFailed(false); }, [teamPicUri]);
 
   const actor = { userId: team?.myUserId ?? null, role: (team?.myRole ?? 'member') as TeamRole };
   const isManager = actor.role === 'owner' || actor.role === 'admin';
@@ -308,8 +314,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
               accessibilityLabel={isManager ? 'Change team picture' : 'Team picture'}
               activeOpacity={isManager ? 0.75 : 1}
             >
-              {teamPicUri ? (
-                <Image source={{ uri: teamPicUri }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+              {teamPicUri && !teamPicFailed ? (
+                <Image source={{ uri: teamPicUri }} onError={() => setTeamPicFailed(true)} style={{ width: 44, height: 44, borderRadius: 22 }} />
               ) : (
                 <View style={[s.avatar, { width: 44, height: 44, borderRadius: 22 }]}>
                   <Text style={s.avatarT}>{(team.workspaceName || 'T')[0].toUpperCase()}</Text>
@@ -378,8 +384,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
               const showTrash = !isSelf && canRemoveMember(actor, m);
               return (
                 <View key={m.id} style={s.member}>
-                  {m.user_id && memberPics[m.user_id] ? (
-                    <Image source={{ uri: memberPics[m.user_id] }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                  {m.user_id && memberPics[m.user_id] && !failedPics[m.user_id] ? (
+                    <Image source={{ uri: memberPics[m.user_id] }} onError={() => setFailedPics((p) => ({ ...p, [m.user_id as string]: true }))} style={{ width: 36, height: 36, borderRadius: 18 }} />
                   ) : (
                     <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(m.email || '?')[0].toUpperCase()}</Text></View>
                   )}

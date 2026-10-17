@@ -208,10 +208,12 @@ export default function AccountSettings({
   const [delBusy, setDelBusy] = useState(false);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
   /** Load the stored avatar (path → signed URL). */
   useEffect(() => {
+    setAvatarFailed(false);
     let dead = false;
     (async () => {
       try {
@@ -232,6 +234,7 @@ export default function AccountSettings({
 
   /** Signed URL refresh whenever the path changes. */
   useEffect(() => {
+    setAvatarFailed(false);
     if (!avatarPath) { setAvatarUrl(null); return; }
     let dead = false;
     (async () => {
@@ -540,9 +543,9 @@ export default function AccountSettings({
           <Card className="mt-4 p-5">
             <div className="flex items-center gap-4">
               <span className="relative shrink-0">
-                {avatarUrl ? (
+                {avatarUrl && !avatarFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="Profile picture" className="h-14 w-14 rounded-full border border-line object-cover" />
+                  <img src={avatarUrl} alt="Profile picture" onError={() => setAvatarFailed(true)} className="h-14 w-14 rounded-full border border-line object-cover" />
                 ) : (
                   <span className="flex h-14 w-14 items-center justify-center rounded-full bg-ink font-display text-xl font-extrabold text-paper">
                     {initial}

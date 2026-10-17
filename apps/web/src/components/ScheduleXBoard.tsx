@@ -5,6 +5,7 @@ import type { CSSProperties, HTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SafeImg from '@/components/SafeImg';
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 // Global Temporal (same identity Schedule-X validates against, never the
 // named import, which can be a different class object than the global).
@@ -220,8 +221,7 @@ function eventMedia(t: { id: string; kind: string; src: string }, cls: string) {
   return t.kind === 'video' ? (
     <video key={t.id} src={t.src} muted playsInline preload="metadata" className={shared} />
   ) : (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img key={t.id} src={t.src} alt="" loading="lazy" className={shared} />
+    <SafeImg key={t.id} src={t.src} alt="" loading="lazy" className={shared} />
   );
 }
 /** Click fallback: custom cards call this directly so opening never depends
@@ -576,8 +576,7 @@ function SentPostView({
                 className="h-auto max-h-[220px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
               />
             ) : m.signed_url || m.thumb_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SafeImg
                 key={m.id}
                 src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.md) : m.thumb_url ?? undefined}
                 alt=""

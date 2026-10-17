@@ -14,7 +14,11 @@ export interface WorkspaceOption {
 
 /** Avatar dot: team picture when set, initial letter otherwise. */
 function TeamDot({ url, name, size }: { url?: string; name: string; size: number }) {
-  if (url) {
+  // A signed URL is minted even when the stored file is gone, so a dead
+  // picture 500s at fetch time; fall back to the initial instead of the icon.
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+  if (url && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
@@ -23,6 +27,7 @@ function TeamDot({ url, name, size }: { url?: string; name: string; size: number
         width={size}
         height={size}
         style={{ width: size, height: size }}
+        onError={() => setFailed(true)}
         className="shrink-0 rounded-full border border-line object-cover"
       />
     );

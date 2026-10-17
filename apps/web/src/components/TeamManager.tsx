@@ -54,7 +54,9 @@ function channelLabel(c: TeamChannelRow): string {
 /** Signed-URL member photo from the private avatars bucket. */
 function MemberAvatar({ path, email }: { path?: string; email: string }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
+    setFailed(false);
     if (!path) return;
     let dead = false;
     (async () => {
@@ -66,9 +68,9 @@ function MemberAvatar({ path, email }: { path?: string; email: string }) {
     })();
     return () => { dead = true; };
   }, [path]);
-  if (url) {
+  if (url && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt="" className="h-10 w-10 shrink-0 rounded-full border border-line object-cover" />;
+    return <img src={url} alt="" onError={() => setFailed(true)} className="h-10 w-10 shrink-0 rounded-full border border-line object-cover" />;
   }
   return (
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#191512] font-display text-sm font-extrabold text-white">
@@ -119,11 +121,13 @@ export default function TeamManager({
   const [gSel, setGSel] = useState<string[]>([]);
   const [teamAvatarPath, setTeamAvatarPath] = useState<string | null>(workspaceAvatar);
   const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
+  const [teamAvatarFailed, setTeamAvatarFailed] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState<string | null>(null);
 
   /** Signed URL for the stored team picture. */
   useEffect(() => {
+    setTeamAvatarFailed(false);
     if (!teamAvatarPath) { setTeamAvatarUrl(null); return; }
     let dead = false;
     (async () => {
@@ -377,9 +381,9 @@ export default function TeamManager({
           <p className="eyebrow">Team picture</p>
           <div className="mt-2 flex items-center gap-3">
             <span className="relative shrink-0">
-              {teamAvatarUrl ? (
+              {teamAvatarUrl && !teamAvatarFailed ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={teamAvatarUrl} alt="Team picture" className="h-12 w-12 rounded-full border border-line object-cover" />
+                <img src={teamAvatarUrl} alt="Team picture" onError={() => setTeamAvatarFailed(true)} className="h-12 w-12 rounded-full border border-line object-cover" />
               ) : (
                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink font-display text-base font-extrabold text-paper">
                   {(draftName.trim() || workspaceName || 'T')[0].toUpperCase()}
