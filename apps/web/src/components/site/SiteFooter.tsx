@@ -138,6 +138,11 @@ export default async function SiteFooter() {
                 Developers
               </Link>
             </li>
+            <li>
+              <a href="https://status.sosial.app/status/sosial" className="hover:text-paper">
+                Status
+              </a>
+            </li>
             {extraPages.map((p) => (
               <li key={p.slug}>
                 <Link href={`/${p.slug}`} className="hover:text-paper">
