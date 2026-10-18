@@ -82,6 +82,14 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Only owners and admins can connect channels.", 403);
   }
 
+  // Effective plan, resolved by the canonical DB function so teams inherit
+  // their owner's plan here exactly as the enforce_channel_limit trigger and
+  // the web entitlement resolver do.
+  const { data: planRow } = await admin.rpc("workspace_plan", {
+    p_workspace_id: workspace_id,
+  });
+  const activePlan = typeof planRow === "string" && planRow ? planRow : "free";
+
   // Paywalled providers (X's posting API bills per account): free plans
   // can't import NEW channels. Re-imports of an already-connected account
   // always pass (refresh/reconnect must never strand a live channel).
@@ -94,49 +102,24 @@ serve(async (req: Request): Promise<Response> => {
       .eq("external_id", external_id)
       .eq("status", "connected")
       .limit(1);
-    if (!existing || existing.length === 0) {
-      const { data: sub } = await admin
-        .from("subscriptions")
-        .select("plan, status, current_period_end")
-        .eq("workspace_id", workspace_id)
-        .maybeSingle();
-      const paidStatuses = new Set(["active", "trialing", "past_due"]);
-      const s = sub as { plan?: string; status?: string; current_period_end?: string } | null;
-      const periodEnded = s?.current_period_end ? Date.parse(s.current_period_end) <= Date.now() : false;
-      const isPaid =
-        !!s && s.plan !== "free" && paidStatuses.has(s.status ?? "") && !periodEnded;
-      if (!isPaid) {
-        return bad("X needs a paid plan, its posting API is paywalled. Upgrade to connect it.", 402);
-      }
+    if ((!existing || existing.length === 0) && activePlan === "free") {
+      return bad("X needs a paid plan, its posting API is paywalled. Upgrade to connect it.", 402);
     }
   }
 
-  // Channel cap, mirroring the enforce_channel_limit trigger (which counts
-  // every row regardless of status). Pre-checking here gives mobile and the
-  // oauth-exchange path the same clean "at the cap" error the web OAuth
-  // start route produces, instead of a raw trigger failure after upload.
-  const { data: sub0 } = await admin
-    .from("subscriptions")
-    .select("plan, status, current_period_end")
-    .eq("workspace_id", workspace_id)
+  // Channel cap, read from plan_limits exactly as the enforce_channel_limit
+  // trigger does (a NULL channels limit means unlimited). Pre-checking here
+  // gives mobile and the oauth-exchange path the same clean "at the cap"
+  // error the web OAuth start route produces, instead of a raw trigger
+  // failure after upload. A missing row falls back to the free cap.
+  const { data: lim } = await admin
+    .from("plan_limits")
+    .select("channels")
+    .eq("plan", activePlan)
     .maybeSingle();
-  const paidStatuses0 = new Set(["active", "trialing", "past_due"]);
-  const s0 = sub0 as { plan?: string; status?: string; current_period_end?: string } | null;
-  const periodEnded0 = s0?.current_period_end
-    ? Date.parse(s0.current_period_end) <= Date.now()
-    : false;
-  const activePlan =
-    s0 && s0.plan !== "free" && paidStatuses0.has(s0.status ?? "") && !periodEnded0
-      ? (s0.plan ?? "free")
-      : "free";
-  const CHANNEL_CAPS: Record<string, number | null> = {
-    free: 3,
-    solo: 6,
-    team: 25,
-    business: 100,
-    ultimate: null,
-  };
-  const cap = CHANNEL_CAPS[activePlan] ?? 3;
+  const limRow = lim as { channels: number | null } | null;
+  // NULL channels = unlimited (ultimate); only a missing row falls back to free.
+  const cap: number | null = limRow ? limRow.channels : 3;
   if (cap !== null) {
     // Reconnects of an already-connected account never count against the cap.
     const { data: same } = await admin
