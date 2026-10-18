@@ -48,6 +48,7 @@ export interface FollowerSnapshotRow {
 
 type RangePreset = 'last7' | 'last30' | 'mtd' | 'custom';
 type TopSortKey = 'interactions' | 'sent_at';
+type PerfMetric = 'posts' | 'followers' | 'engagement' | 'interactions';
 
 const DAY = 24 * 3600_000;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -120,6 +121,7 @@ export default function AnalyticsDashboard({
   const [chanSel, setChanSel] = useState<string[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
   const [perfMode, setPerfMode] = useState<'line' | 'bar'>('line');
+  const [perfMetric, setPerfMetric] = useState<PerfMetric>('posts');
   const [topSort, setTopSort] = useState<{ key: TopSortKey; dir: 'asc' | 'desc' }>({
     key: 'interactions',
     dir: 'desc',
@@ -280,27 +282,32 @@ export default function AnalyticsDashboard({
 
   const interactions = likes + comments + shares;
 
-  // Stat cards are display-only (not links), the ⓘ explains each number.
-  const stats: { label: string; value: string; icon: typeof Send; hint: string }[] = [
+  // Stat cards are pickers: clicking one drives the Performance-over-time
+  // chart, the ⓘ explains each number.
+  const stats: { metric: PerfMetric; label: string; value: string; icon: typeof Send; hint: string }[] = [
     {
+      metric: 'posts',
       label: 'Posts Published',
       value: full(sent.length),
       icon: Send,
       hint: `Posts sent in ${range.label.toLowerCase()}.`,
     },
     {
+      metric: 'followers',
       label: 'Total Followers',
       value: hasFollowers ? full(followers) : '-',
       icon: Users,
       hint: 'Latest follower total across the selected channels. Snapshots refresh daily, never rounded.',
     },
     {
+      metric: 'engagement',
       label: 'Engagement Rate',
       value: eng ?? '-',
       icon: Percent,
       hint: '(Likes + comments + shares) ÷ followers, from the latest snapshots.',
     },
     {
+      metric: 'interactions',
       label: 'Total Interactions',
       value: full(interactions),
       icon: Heart,
@@ -418,33 +425,54 @@ export default function AnalyticsDashboard({
   const chanEng = (r: { likes: number; comments: number; shares: number; followers: number | null }): string | null =>
     r.followers && r.followers > 0 ? `${(((r.likes + r.comments + r.shares) / r.followers) * 100).toFixed(1)}%` : null;
 
-  // ---- performance over time: interactions of posts published each bucket ----
-  // Snapshot stats are latest-only, so a post's interactions are attributed to
-  // the day it went out. Daily buckets, weekly once the range passes ~2 months.
+  // ---- performance over time: the selected stat card, bucketed ----
+  // Snapshot stats are latest-only, so a post's numbers are attributed to the
+  // day it went out. Daily buckets, weekly once the range passes ~2 months.
+  // Followers have no history yet (latest-only snapshot), so that series is a
+  // flat line at the current total.
   const perfSeries = useMemo(() => {
     const first = startOfDay(range.from);
     const last = startOfDay(range.to);
     const span = Math.max(1, Math.round((last - first) / DAY) + 1);
     const step = span > 62 ? 7 : 1;
-    const out: { label: string; value: number }[] = [];
+    const buckets: { label: string; value: number }[] = [];
     for (let t = first; t <= last; t += step * DAY) {
-      out.push({
+      buckets.push({
         label: new Date(t).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }),
         value: 0,
       });
+    }
+    if (perfMetric === 'followers') {
+      return buckets.map((b) => ({ ...b, value: hasFollowers ? followers : 0 }));
     }
     for (const p of sent) {
       if (!p.sent_at) continue;
       const t = new Date(p.sent_at).getTime();
       if (Number.isNaN(t) || t < first || t > last) continue;
-      const agg = statsByPost.get(p.id);
       const i = Math.floor((startOfDay(t) - first) / DAY / step);
-      if (i >= 0 && i < out.length) out[i].value += (agg?.likes ?? 0) + (agg?.comments ?? 0) + (agg?.shares ?? 0);
+      if (i < 0 || i >= buckets.length) continue;
+      if (perfMetric === 'posts') {
+        buckets[i].value += 1;
+      } else {
+        const agg = statsByPost.get(p.id);
+        buckets[i].value += (agg?.likes ?? 0) + (agg?.comments ?? 0) + (agg?.shares ?? 0);
+      }
     }
-    return out;
-  }, [sent, statsByPost, range]);
+    if (perfMetric === 'engagement') {
+      const denom = hasFollowers && followers > 0 ? followers : 0;
+      return buckets.map((b) => ({ ...b, value: denom ? Number(((b.value / denom) * 100).toFixed(2)) : 0 }));
+    }
+    return buckets;
+  }, [sent, statsByPost, range, perfMetric, followers, hasFollowers]);
   const perfXInterval = Math.max(0, Math.ceil(perfSeries.length / 8) - 1);
-  const perfHasData = perfSeries.some((d) => d.value > 0);
+  const perfDesc: Record<PerfMetric, string> = {
+    posts: 'Posts published each day',
+    followers: 'Follower total — latest daily snapshot',
+    engagement: 'Interactions ÷ followers, from the latest snapshots',
+    interactions: 'Interactions from posts published each day',
+  };
+  const perfFmt = (v: string | number): string =>
+    perfMetric === 'engagement' ? `${Number(v).toFixed(1)}%` : full(Number(v));
 
   // ---- channel breakdown: interactions + audience per channel, biggest first ----
   const breakdown = perfRows
@@ -703,26 +731,47 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         })}
       </div>
 
-      {/* Stat cards: display-only, ⓘ explains each number */}
+      {/* Stat cards: pick one to drive the Performance-over-time chart */}
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label} className="p-4 sm:p-5">
-            <div className="flex items-center justify-between">
-              <s.icon className="h-5 w-5 text-muted" aria-hidden="true" />
-              <Tooltip content={s.hint} align="end">
-                <button
-                  type="button"
-                  aria-label={s.hint}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-faint transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                >
-                  <Info className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </Tooltip>
-            </div>
-            <p className="mt-2 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{s.value}</p>
-            <p className="mt-1 text-xs text-muted">{s.label}</p>
-          </Card>
-        ))}
+        {stats.map((s) => {
+          const on = s.metric === perfMetric;
+          return (
+            <Card
+              key={s.label}
+              role="button"
+              tabIndex={0}
+              aria-pressed={on}
+              aria-label={`${s.label}, show on the Performance over time chart`}
+              onClick={() => setPerfMetric(s.metric)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setPerfMetric(s.metric);
+                }
+              }}
+              className={`cursor-pointer p-4 text-left transition sm:p-5 ${
+                on ? 'border-accent ring-1 ring-accent' : 'hover:border-faint'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <s.icon className={`h-5 w-5 ${on ? 'text-accent' : 'text-muted'}`} aria-hidden="true" />
+                <Tooltip content={s.hint} align="end">
+                  <button
+                    type="button"
+                    aria-label={s.hint}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-faint transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </Tooltip>
+              </div>
+              <p className="mt-2 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{s.value}</p>
+              <p className="mt-1 text-xs text-muted">{s.label}</p>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Performance over time (line/bar) + channel breakdown */}
@@ -733,7 +782,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <div>
                 <CardTitle>Performance over time</CardTitle>
                 <CardDescription>
-                  Interactions from posts published each day · {range.label.toLowerCase()}
+                  {perfDesc[perfMetric]} · {range.label.toLowerCase()}
                 </CardDescription>
               </div>
               <div
@@ -769,9 +818,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             </div>
           </CardHeader>
           <CardContent className="pt-1">
-            {!perfHasData ? (
-              <p className="text-sm text-muted">No published posts in this range yet.</p>
-            ) : perfMode === 'line' ? (
+            {perfMode === 'line' ? (
               <ChartLine
                 data={perfSeries}
                 dataKey="value"
@@ -779,7 +826,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 color="var(--color-accent)"
                 height={224}
                 xInterval={perfXInterval}
-                formatter={(v) => full(Number(v))}
+                formatter={perfFmt}
               />
             ) : (
               <ChartBar
@@ -789,7 +836,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 color="var(--color-bolt)"
                 height={224}
                 xInterval={perfXInterval}
-                formatter={(v) => full(Number(v))}
+                formatter={perfFmt}
               />
             )}
           </CardContent>
