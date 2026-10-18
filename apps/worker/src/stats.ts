@@ -237,6 +237,21 @@ async function snapshotFollowers(c: ChannelRow, t: TokenRow): Promise<void> {
       fetched_at: new Date().toISOString(),
     }),
   });
+  // p77: keep one row per channel per UTC day so analytics can draw an
+  // audience trend. Re-runs the same day overwrite that day's row.
+  if (out.followers !== null) {
+    await rest('/rest/v1/channel_stats_history', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        channel_id: c.id,
+        captured_on: new Date().toISOString().slice(0, 10),
+        workspace_id: c.workspace_id,
+        provider: c.provider,
+        followers: out.followers,
+      }),
+    });
+  }
 }
 
 async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<Stats> {

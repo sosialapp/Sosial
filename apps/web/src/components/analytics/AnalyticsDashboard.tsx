@@ -46,6 +46,13 @@ export interface FollowerSnapshotRow {
   fetched_at: string;
 }
 
+export interface FollowerHistoryRow {
+  channel_id: string;
+  provider: string;
+  followers: number | null;
+  captured_on: string;
+}
+
 type RangePreset = 'last7' | 'last30' | 'mtd' | 'custom';
 type TopSortKey = 'interactions' | 'sent_at';
 type PerfMetric = 'posts' | 'followers' | 'engagement' | 'interactions';
@@ -108,11 +115,13 @@ export default function AnalyticsDashboard({
   channels,
   postStats,
   channelStats,
+  followerHistory,
 }: {
   posts: PostWithTargets[];
   channels: ConnectedChannel[];
   postStats: StatSnapshotRow[];
   channelStats: FollowerSnapshotRow[];
+  followerHistory: FollowerHistoryRow[];
 }) {
   const now = Date.now();
   const [preset, setPreset] = useState<RangePreset>('last30');
@@ -267,6 +276,10 @@ export default function AnalyticsDashboard({
   const chanStatsScoped = useMemo(
     () => channelStats.filter((r) => chanOk(r.channel_id)),
     [channelStats, chanSel],
+  );
+  const followerHistoryScoped = useMemo(
+    () => followerHistory.filter((r) => chanOk(r.channel_id)),
+    [followerHistory, chanSel],
   );
   const followers = chanStatsScoped.reduce((a, r) => a + (r.followers ?? 0), 0);
   const hasFollowers = chanStatsScoped.some((r) => r.followers !== null);
@@ -426,24 +439,56 @@ export default function AnalyticsDashboard({
     r.followers && r.followers > 0 ? `${(((r.likes + r.comments + r.shares) / r.followers) * 100).toFixed(1)}%` : null;
 
   // ---- performance over time: the selected stat card, bucketed ----
-  // Snapshot stats are latest-only, so a post's numbers are attributed to the
-  // day it went out. Daily buckets, weekly once the range passes ~2 months.
-  // Followers have no history yet (latest-only snapshot), so that series is a
-  // flat line at the current total.
+  // Post stats are latest-only, so a post's numbers are attributed to the day
+  // it went out. Daily buckets, weekly once the range passes ~2 months.
+  // Followers come from p77's daily history: each channel's last known total is
+  // carried forward so the line steps instead of dipping to zero.
   const perfSeries = useMemo(() => {
     const first = startOfDay(range.from);
     const last = startOfDay(range.to);
     const span = Math.max(1, Math.round((last - first) / DAY) + 1);
     const step = span > 62 ? 7 : 1;
-    const buckets: { label: string; value: number }[] = [];
+    const buckets: { label: string; value: number; ts: number }[] = [];
     for (let t = first; t <= last; t += step * DAY) {
       buckets.push({
         label: new Date(t).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }),
         value: 0,
+        ts: t,
       });
     }
     if (perfMetric === 'followers') {
-      return buckets.map((b) => ({ ...b, value: hasFollowers ? followers : 0 }));
+      const perChannel = new Map<string, { t: number; v: number }[]>();
+      for (const r of followerHistoryScoped) {
+        if (r.followers === null) continue;
+        const t = new Date(`${r.captured_on}T00:00:00`).getTime();
+        if (Number.isNaN(t)) continue;
+        const arr = perChannel.get(r.channel_id) ?? [];
+        arr.push({ t, v: r.followers });
+        perChannel.set(r.channel_id, arr);
+      }
+      if (perChannel.size === 0) {
+        // No history recorded yet (table was just created): flat current total.
+        return buckets.map((b) => ({ ...b, value: hasFollowers ? followers : 0 }));
+      }
+      for (const arr of perChannel.values()) arr.sort((a, b) => a.t - b.t);
+      const cursor = new Map<string, number>();
+      const latest = new Map<string, number>();
+      return buckets.map((b) => {
+        const through = b.ts + step * DAY - 1;
+        for (const [cid, arr] of perChannel) {
+          let i = cursor.get(cid) ?? 0;
+          while (i < arr.length && arr[i].t <= through) {
+            latest.set(cid, arr[i].v);
+            i += 1;
+          }
+          cursor.set(cid, i);
+          // Bucket predates the first capture: hold the earliest known total.
+          if (!latest.has(cid)) latest.set(cid, arr[0].v);
+        }
+        let total = 0;
+        for (const v of latest.values()) total += v;
+        return { ...b, value: total };
+      });
     }
     for (const p of sent) {
       if (!p.sent_at) continue;
@@ -463,11 +508,11 @@ export default function AnalyticsDashboard({
       return buckets.map((b) => ({ ...b, value: denom ? Number(((b.value / denom) * 100).toFixed(2)) : 0 }));
     }
     return buckets;
-  }, [sent, statsByPost, range, perfMetric, followers, hasFollowers]);
+  }, [sent, statsByPost, range, perfMetric, followers, hasFollowers, followerHistoryScoped]);
   const perfXInterval = Math.max(0, Math.ceil(perfSeries.length / 8) - 1);
   const perfDesc: Record<PerfMetric, string> = {
     posts: 'Posts published each day',
-    followers: 'Follower total — latest daily snapshot',
+    followers: 'Follower total, daily snapshots carried forward',
     engagement: 'Interactions ÷ followers, from the latest snapshots',
     interactions: 'Interactions from posts published each day',
   };
