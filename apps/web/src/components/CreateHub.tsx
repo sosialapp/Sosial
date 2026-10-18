@@ -109,7 +109,7 @@ const fmtDate = (ts: number): string => {
   }
 };
 
-const STATUS_ORDER: StatusTab[] = ['all', 'queue', 'drafts', 'approvals', 'sent', 'failed'];
+const STATUS_ORDER: StatusTab[] = ['all', 'sent', 'failed', 'queue', 'drafts', 'approvals'];
 const STATUS_PILL_LABEL: Record<StatusTab, string> = {
   all: 'All',
   queue: 'Queue',

@@ -19,10 +19,10 @@ type Tab = 'queued' | 'draft' | 'approval' | 'sent' | 'failed';
 type Sort = 'newest' | 'oldest' | 'az';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'draft', label: 'Drafts' },
-  { id: 'queued', label: 'Queue' },
   { id: 'sent', label: 'Sent' },
   { id: 'failed', label: 'Failed' },
+  { id: 'queued', label: 'Queue' },
+  { id: 'draft', label: 'Drafts' },
   { id: 'approval', label: 'Approvals' },
 ];
 

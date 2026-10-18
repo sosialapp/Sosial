@@ -24,11 +24,11 @@ export type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'sent', label: 'Sent' },
+  { id: 'failed', label: 'Failed' },
   { id: 'queue', label: 'Queue' },
   { id: 'drafts', label: 'Drafts' },
   { id: 'approvals', label: 'Approvals' },
-  { id: 'sent', label: 'Sent' },
-  { id: 'failed', label: 'Failed' },
 ];
 
 export const TAB_MATCH: Record<Tab, (s: PostStatus) => boolean> = {
