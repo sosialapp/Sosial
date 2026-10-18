@@ -34,6 +34,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
+import { useSignedUrl } from '@/lib/useSignedUrl';
 import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 
 type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal' | 'delete' | 'ticket';
@@ -207,43 +208,32 @@ export default function AccountSettings({
   const [delWord, setDelWord] = useState('');
   const [delBusy, setDelBusy] = useState(false);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
-  /** Load the stored avatar (path → signed URL). */
-  useEffect(() => {
-    setAvatarFailed(false);
-    let dead = false;
-    (async () => {
-      try {
-        const sb = createClient();
-        const { data, error } = await sb.functions.invoke('profile-avatar', { method: 'GET' });
-        if (dead || error) return;
-        const p = (data as { avatar_url?: string | null } | null)?.avatar_url ?? null;
-        setAvatarPath(p);
-        if (p) {
-          const path = p.split('?')[0];
-          const { data: s } = await sb.storage.from('avatars').createSignedUrl(path, 3600);
-          if (!dead && s?.signedUrl) setAvatarUrl(s.signedUrl);
-        }
-      } catch { /* avatar stays empty */ }
-    })();
-    return () => { dead = true; };
-  }, []);
+  /** Signed URL for the stored avatar (retried, so it shows on arrival). */
+  const avatarUrl = useSignedUrl(avatarPath, 'avatars', 3600);
+  useEffect(() => setAvatarFailed(false), [avatarUrl]);
 
-  /** Signed URL refresh whenever the path changes. */
+  /** Load the stored avatar path (retried: the edge call can race the session). */
   useEffect(() => {
-    setAvatarFailed(false);
-    if (!avatarPath) { setAvatarUrl(null); return; }
     let dead = false;
     (async () => {
       const sb = createClient();
-      const { data: s } = await sb.storage.from('avatars').createSignedUrl(avatarPath.split('?')[0], 3600);
-      if (!dead && s?.signedUrl) setAvatarUrl(s.signedUrl);
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const { data, error } = await sb.functions.invoke('profile-avatar', { method: 'GET' });
+          if (!error) {
+            const p = (data as { avatar_url?: string | null } | null)?.avatar_url ?? null;
+            if (!dead) setAvatarPath(p);
+            return;
+          }
+        } catch { /* session not ready yet, retry */ }
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
     })();
     return () => { dead = true; };
-  }, [avatarPath]);
+  }, []);
 
   /** Upload → compress server-side → refresh. */
   async function changeAvatar(file: File) {

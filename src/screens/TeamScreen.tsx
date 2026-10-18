@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  supabase, getTeamAvatar, teamAvatarSignedUrl, setTeamAvatarFromUri, clearTeamAvatar,
+  supabase, getTeamAvatar, teamAvatarSignedUrl, avatarSignedUrl, setTeamAvatarFromUri, clearTeamAvatar,
 } from '../utils/supabase';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
@@ -66,10 +66,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
           await Promise.all(
             ((data ?? []) as { id: string; avatar_url: string | null }[]).map(async (p) => {
               if (!p.avatar_url || !p.id) return;
-              try {
-                const { data: s } = await supabase().storage.from('avatars').createSignedUrl(p.avatar_url!.split('?')[0], 3600);
-                if (s?.signedUrl) next[p.id] = s.signedUrl;
-              } catch { /* initial fallback */ }
+              const u = await avatarSignedUrl(p.avatar_url);
+              if (u) next[p.id] = u;
             }),
           );
           if (Object.keys(next).length > 0) setMemberPics(next);

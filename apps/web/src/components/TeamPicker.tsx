@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { useSignedUrl } from '@/lib/useSignedUrl';
 import type { WorkspaceOption } from './WorkspaceSwitcher';
 
 /**
@@ -12,9 +12,11 @@ import type { WorkspaceOption } from './WorkspaceSwitcher';
  * team-creation. Creating sticks the sosial_ws cookie server-side for the
  * new workspace and refreshes the whole tree.
  */
-function TeamDot({ url, name, size }: { url?: string; name: string; size: number }) {
-  // A signed URL is minted even when the stored file is gone, so a dead
-  // picture 500s at fetch time; fall back to the initial instead of the icon.
+function TeamDot({ path, name, size }: { path?: string | null; name: string; size: number }) {
+  // Signing happens here (not only when the menu opens) so the current team's
+  // picture is present on first paint. A missing file still yields a URL, so a
+  // dead picture 500s at fetch time; fall back to the initial letter.
+  const url = useSignedUrl(path, 'avatars', 3600);
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
   if (url && !failed) {
@@ -58,7 +60,6 @@ export default function TeamPicker({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  const [pics, setPics] = useState<Record<string, string>>({});
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,28 +74,6 @@ export default function TeamPicker({
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [open ]);
-
-  /** Signed URLs for every workspace picture (private bucket, members can read). */
-  useEffect(() => {
-    if (!open) return;
-    let dead = false;
-    (async () => {
-      const sb = createClient();
-      const next: Record<string, string> = {};
-      await Promise.all(
-        workspaces.map(async (w) => {
-          if (!w.avatar_url) return;
-          try {
-            const { data } = await sb.storage.from('avatars').createSignedUrl(w.avatar_url!.split('?')[0], 3600);
-            if (data?.signedUrl) next[w.id] = data.signedUrl;
-          } catch { /* initial-letter fallback */ }
-        }),
-      );
-      if (!dead && Object.keys(next).length > 0) setPics((prev) => ({ ...prev, ...next }));
-    })();
-    return () => { dead = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   const pick = async (id: string) => {
     if (id === current.id || busy) {
@@ -151,7 +130,7 @@ export default function TeamPicker({
         aria-expanded={open}
         className="mt-1 inline-flex items-center gap-2 text-sm text-muted transition hover:text-ink"
       >
-        <TeamDot url={pics[current.id]} name={current.name} size={22} />
+        <TeamDot path={current.avatar_url} name={current.name} size={22} />
         <span>
           {busy ? 'Switching…' : current.name} · {planLabel} · {memberCount} member
           {memberCount === 1 ? '' : 's'}
@@ -177,7 +156,7 @@ export default function TeamPicker({
                   w.id === current.id ? 'font-extrabold' : ''
                 }`}
               >
-                <TeamDot url={pics[w.id]} name={w.name} size={26} />
+                <TeamDot path={w.avatar_url} name={w.name} size={26} />
                 <span className="min-w-0 flex-1 truncate">{w.name}</span>
                 <span className="shrink-0 text-[11px] text-faint capitalize">{w.role}</span>
               </button>

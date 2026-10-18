@@ -369,34 +369,47 @@ async function finishGoogleSession(): Promise<WorkspaceInfo> {
 
 /* ---------------- Profile picture (Edge Function) ---------------- */
 
-/** Current avatar path (or null) for the signed-in user. */
+/** Current avatar path (or null) for the signed-in user. Retried: the edge
+ *  call can race the session right after mount. */
 export async function getMyAvatar(): Promise<string | null> {
   const sb = supabase();
   const { data } = await sb.auth.getSession();
   const jwt = data.session?.access_token;
   if (!jwt) return null;
-  try {
-    const res = await fetch(`${URL}/functions/v1/profile-avatar`, {
-      method: 'GET',
-      headers: { apikey: ANON, Authorization: `Bearer ${jwt}` },
-    });
-    if (!res.ok) return null;
-    const j: any = await res.json().catch(() => ({}));
-    return typeof j?.avatar_url === 'string' && j.avatar_url ? j.avatar_url : null;
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(`${URL}/functions/v1/profile-avatar`, {
+        method: 'GET',
+        headers: { apikey: ANON, Authorization: `Bearer ${jwt}` },
+      });
+      if (res.ok) {
+        const j: any = await res.json().catch(() => ({}));
+        return typeof j?.avatar_url === 'string' && j.avatar_url ? j.avatar_url : null;
+      }
+    } catch {
+      /* transient, retry */
+    }
+    await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
   }
+  return null;
 }
 
-/** Signed URL for the user's own avatar path. */
+/** Signed URL for the user's own avatar path. Retried: on first mount the
+ *  sign call can race the session and come back empty, which is why a picture
+ *  only appeared after the next tap. */
 export async function avatarSignedUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
-  try {
-    const { data, error } = await supabase().storage.from('avatars').createSignedUrl(path.split('?')[0], 3600);
-    return error || !data?.signedUrl ? null : data.signedUrl;
-  } catch {
-    return null;
+  const key = path.split('?')[0];
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const { data, error } = await supabase().storage.from('avatars').createSignedUrl(key, 3600);
+      if (!error && data?.signedUrl) return data.signedUrl;
+    } catch {
+      /* session not ready yet, retry */
+    }
+    await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
   }
+  return null;
 }
 
 /** Upload a local image (uri) as the profile picture, server compresses. */

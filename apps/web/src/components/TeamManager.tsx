@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
+import { useSignedUrl } from '@/lib/useSignedUrl';
 import { edgeErrorMessage } from '@/lib/functions';
 
 export interface TeamMemberRow {
@@ -53,21 +54,9 @@ function channelLabel(c: TeamChannelRow): string {
 
 /** Signed-URL member photo from the private avatars bucket. */
 function MemberAvatar({ path, email }: { path?: string; email: string }) {
-  const [url, setUrl] = useState<string | null>(null);
+  const url = useSignedUrl(path, 'avatars', 3600);
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setFailed(false);
-    if (!path) return;
-    let dead = false;
-    (async () => {
-      try {
-        const sb = createClient();
-        const { data } = await sb.storage.from('avatars').createSignedUrl(path.split('?')[0], 3600);
-        if (!dead && data?.signedUrl) setUrl(data.signedUrl);
-      } catch { /* initial fallback */ }
-    })();
-    return () => { dead = true; };
-  }, [path]);
+  useEffect(() => setFailed(false), [url]);
   if (url && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt="" onError={() => setFailed(true)} className="h-10 w-10 shrink-0 rounded-full border border-line object-cover" />;
@@ -120,23 +109,13 @@ export default function TeamManager({
   const [gAll, setGAll] = useState(true);
   const [gSel, setGSel] = useState<string[]>([]);
   const [teamAvatarPath, setTeamAvatarPath] = useState<string | null>(workspaceAvatar);
-  const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
   const [teamAvatarFailed, setTeamAvatarFailed] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState<string | null>(null);
 
-  /** Signed URL for the stored team picture. */
-  useEffect(() => {
-    setTeamAvatarFailed(false);
-    if (!teamAvatarPath) { setTeamAvatarUrl(null); return; }
-    let dead = false;
-    (async () => {
-      const sb = createClient();
-      const { data: s } = await sb.storage.from('avatars').createSignedUrl(teamAvatarPath.split('?')[0], 3600);
-      if (!dead && s?.signedUrl) setTeamAvatarUrl(s.signedUrl);
-    })();
-    return () => { dead = true; };
-  }, [teamAvatarPath]);
+  /** Signed URL for the stored team picture (retried, so it shows on arrival). */
+  const teamAvatarUrl = useSignedUrl(teamAvatarPath, 'avatars', 3600);
+  useEffect(() => setTeamAvatarFailed(false), [teamAvatarUrl]);
 
   const canManage = myRole === 'owner' || myRole === 'admin';
   const canRemove = (m: TeamMemberRow): boolean => {
