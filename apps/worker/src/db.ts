@@ -181,6 +181,16 @@ export async function resendInviteEmail(invite: InviteRow): Promise<void> {
   });
 }
 
+/** Record the created remote object without settling the target, so a retry
+ *  completes an already-published target instead of posting it twice. */
+export function markTargetProgress(targetId: string, remoteId: string, remoteUrl: string): Promise<void> {
+  return callRpc<void>('mark_target_progress', {
+    target_id: targetId,
+    remote_id: remoteId,
+    remote_url: remoteUrl,
+  });
+}
+
 /** Terminal states on post_targets (cron only enqueues 'queued'). */
 export function markTargetSent(targetId: string, remoteId: string, remoteUrl: string): Promise<void> {
   return callRpc<void>('mark_target_sent', {

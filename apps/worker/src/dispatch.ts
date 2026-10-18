@@ -69,6 +69,17 @@ async function handlePublishTarget(job: Job): Promise<void> {
   const provider = String(bundle?.target?.provider ?? '');
   const channelId = String(bundle?.channel?.id ?? '');
 
+  // Idempotent completion: a previous attempt already created the remote post
+  // and recorded it (mark_target_progress, or a job that died after posting).
+  // Settle the target instead of publishing a duplicate. Threads are excluded
+  // because they resume a possibly-partial thread in their own adapter.
+  const storedRemoteId = String(bundle?.target?.remote_id ?? '');
+  if (storedRemoteId && provider !== 'threads') {
+    info(`target ${targetId} already published (${storedRemoteId}), settling without re-posting`);
+    await markTargetSent(targetId, storedRemoteId, String(bundle?.target?.remote_url ?? ''));
+    return;
+  }
+
   // Gate B, daily anti-abuse guard. The provider caps posts per rolling 24h;
   // if this channel's window is full, park the job (no attempt burned) until
   // the oldest send ages out, so the post is delayed, never lost or throttled.

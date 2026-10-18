@@ -4,14 +4,22 @@
  * (first wins), 500-char text cap, topic_tag from target options.
  * Media goes by signed Storage URL (Threads fetches it server-side).
  */
-import { readSecret } from './db';
+import { readSecret, markTargetProgress } from './db';
 import { storageSign } from './rest';
-import { info } from './logger';
+import { info, debug } from './logger';
 
 const THREADS_API = 'https://graph.threads.net';
 
 interface Bundle {
-  target: { id: string; provider: string; caption: string | null; options: any; status: string };
+  target: {
+    id: string;
+    provider: string;
+    caption: string | null;
+    options: any;
+    status: string;
+    remote_id?: string | null;
+    remote_url?: string | null;
+  };
   post: { id: string; title: string; body: string };
   media: { storage_path: string; kind: string; mime_type: string | null; position: number }[];
   channel: { id: string; external_id: string; instance_url: string | null; metadata: any };
@@ -119,6 +127,30 @@ export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: 
     .map((s) => (s ?? '').trim())
     .filter(Boolean);
 
+  // Resume: a previous attempt already created the head post and recorded its
+  // id. Re-publishing would duplicate the thread, so continue from there (or
+  // settle a single-post target that is in fact complete).
+  const progressUrl = (id: string): string => `https://www.threads.net/post/${id}`;
+  const resumeId = String(b.target.remote_id ?? '').trim();
+  if (resumeId) {
+    if (segments.length <= 1) {
+      info(`threads target ${b.target.id}: already published ${resumeId}, settling`);
+      return { remoteId: resumeId, remoteUrl: progressUrl(resumeId) };
+    }
+    info(`threads target ${b.target.id}: resuming THREAD ${segments.length} from ${resumeId}`);
+    let parent = resumeId;
+    for (let i = 1; i < segments.length; i++) {
+      parent = await publishOne({
+        threadsId,
+        token,
+        text: cap(segments[i], 500),
+        kind: 'TEXT',
+        replyToId: parent,
+      });
+    }
+    return { remoteId: resumeId, remoteUrl: progressUrl(resumeId) };
+  }
+
   let remoteId = '';
   if (segments.length > 1) {
     info(`threads target ${b.target.id}: THREAD ${segments.length}`);
@@ -133,7 +165,13 @@ export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: 
         topicTag: i === 0 ? tag || undefined : undefined,
         replyToId: parent,
       });
-      if (i === 0) remoteId = id;
+      if (i === 0) {
+        remoteId = id;
+        // Record the head immediately so a mid-thread failure resumes here.
+        await markTargetProgress(b.target.id, id, progressUrl(id)).catch((e) =>
+          debug(`threads target ${b.target.id}: progress write failed: ${String(e)}`),
+        );
+      }
       parent = id;
     }
   } else {
@@ -146,6 +184,9 @@ export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: 
       kind,
       topicTag: tag || undefined,
     });
+    await markTargetProgress(b.target.id, remoteId, progressUrl(remoteId)).catch((e) =>
+      debug(`threads target ${b.target.id}: progress write failed: ${String(e)}`),
+    );
   }
-  return { remoteId, remoteUrl: `https://www.threads.net/post/${remoteId}` };
+  return { remoteId, remoteUrl: progressUrl(remoteId) };
 }
