@@ -48,7 +48,7 @@ function ChannelIcon({ platform }: { platform: string }) {
 }
 
 /** One compact row per provider, tap to connect, tap again to manage its accounts. */
-export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => void; onTeam: () => void; plan?: 'free' | 'pro' | 'team' }) {
+export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { onBack: () => void; onTeam: () => void; plan?: 'free' | 'pro' | 'team'; channelCap?: number | null }) {
   const { C } = useTheme();
   const s = makeS(C);
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
@@ -303,19 +303,22 @@ export default function ConnectScreen({ onBack, onTeam, plan }: { onBack: () => 
     );
   };
 
-  /** Channel cap by plan (free 3, Solo 6, Team 25; Business/Ultimate are
-   *  cloud-side keys the mobile plan stub folds into 'team'). Reconnecting
-   *  an existing account never counts. The DB trigger on connected_channels
-   *  stays the backstop - this is the friendly pre-flight. */
+  /** Channel cap. The server value (channelCap, from workspace_entitlement) wins
+   *  whenever it is known; the internal plan table is only an offline fallback.
+   *  Reconnecting an existing account never counts. The DB trigger on
+   *  connected_channels stays the backstop, this is the friendly pre-flight. */
+  const channelLimit = (): number | null => {
+    if (channelCap !== undefined) return channelCap;
+    const caps: Record<'free' | 'pro' | 'team', number | null> = { free: 3, pro: 6, team: 25 };
+    return caps[plan ?? 'free'];
+  };
   const atChannelCap = (accountId?: string): boolean => {
     if (accountId) return false;
-    const caps: Record<'free' | 'pro' | 'team', number | null> = { free: 3, pro: 6, team: 25 };
-    const cap = caps[plan ?? 'free'];
+    const cap = channelLimit();
     return cap !== null && accounts.length >= cap;
   };
   const capAlert = () => {
-    const caps: Record<'free' | 'pro' | 'team', number | null> = { free: 3, pro: 6, team: 25 };
-    const cap = caps[plan ?? 'free'];
+    const cap = channelLimit();
     Alert.alert(
       'Channel limit reached',
       `Your plan connects up to ${cap} accounts, you're at the cap. Disconnect one or upgrade to add more.`,

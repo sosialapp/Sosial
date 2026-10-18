@@ -23,6 +23,8 @@ import BottomNav, { type MainTab } from './src/components/BottomNav';
 import Grain from './src/components/Grain';
 import { useFontsLoaded } from './src/utils/fonts';
 import { loadAccount, saveAccount, Account } from './src/utils/account';
+import { loadEntitlement, refreshEntitlement, type Entitlement } from './src/utils/entitlement';
+import { internalKeyFor } from './src/utils/plans';
 import { pushProfileToCloud, currentSession, isSupabaseConfigured } from './src/utils/supabase';
 import { handleAuthUrl, getPendingAuth } from './src/utils/authFlow';
 import { backfillMissingAvatars } from './src/utils/avatarBackfill';
@@ -49,6 +51,9 @@ function Shell() {
   const [teamFrom, setTeamFrom] = useState<Route>('create');
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
+  /** Server-authoritative plan + limits for the active workspace (null until
+   *  the first fetch; the UI falls back to the local plan while offline). */
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [welcomeReady, setWelcomeReady] = useState(false);
   const [showLanding, setShowLanding] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -59,6 +64,10 @@ function Shell() {
 
   React.useEffect(() => {
     loadAccount().then(setAccount);
+    // Server truth for the plan/limits (cached immediately, refreshed in the
+    // background). Cloud wins; the local plan is only an offline fallback.
+    void loadEntitlement().then(setEntitlement);
+    void refreshEntitlement().then((e) => { if (e) setEntitlement(e); });
     // One-shot picture backfill for pre-avatar accounts (throttled daily,
     // silent) - pushes fresh pictures to the cloud for the web marks.
     backfillMissingAvatars().catch(() => {});
@@ -159,6 +168,7 @@ function Shell() {
     await dismissWelcome();
     try { await AsyncStorage.removeItem(LOCAL_OK_KEY); } catch {}
     setRoute('home');
+    void refreshEntitlement().then((e) => { if (e) setEntitlement(e); });
   };
 
   // Any sign-out lands back on landing (auth behind it, no skip): signed out means out.
@@ -313,6 +323,8 @@ function Shell() {
   const isTab = route === 'home' || route === 'create' || route === 'analytics' || route === 'account';
   const activeTab: MainTab =
     route === 'create' ? 'post' : route === 'analytics' ? 'analytics' : route === 'account' ? 'profile' : 'home';
+  /** Plan the UI gates on: the server's when known, else the local fallback. */
+  const planInternal = entitlement ? internalKeyFor(entitlement.plan) : account.plan;
   const goTab = (t: MainTab) => {
     if (t === 'home') setRoute('home');
     else if (t === 'post') goCreatePost();
@@ -368,7 +380,7 @@ function Shell() {
             />
           ) : null}
           {route === 'privacy' ? <PrivacyScreen onBack={() => setRoute(privacyFrom)} /> : null}
-          {route === 'connect' ? <ConnectScreen onBack={() => setRoute(connectFrom)} plan={account.plan} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
+          {route === 'connect' ? <ConnectScreen onBack={() => setRoute(connectFrom)} plan={planInternal} channelCap={entitlement ? entitlement.limits.channels : undefined} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
           {route === 'team' ? (
             <TeamScreen
               plan={account.plan}
