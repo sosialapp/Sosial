@@ -10,7 +10,7 @@ import { useVerticalReorder } from './useVerticalReorder';
 import { PubRow } from './PublishNotice';
 import { SocialGlyph, ChannelAvatar, AccountStack } from './ui';
 import MediaSources, { type SourceAttachment } from './MediaSources';
-import { SOCIAL_META } from '../constants';
+import { SOCIAL_META, requiresTitle } from '../constants';
 import { MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
 import { fmtDateTime } from '../utils/reminders';
 import { PlatformTypes, POST_TYPE_OPTIONS, defaultPlatformType, ChannelKey, minQueueTime, queueTooSoon, minQueueLabel, ThreadSegmentMedia, THREAD_MEDIA_MAX } from '../utils/managed';
@@ -908,7 +908,9 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             <View style={st.post}>
               {readOnly ? (
                 <>
-                  <Text style={st.postT} numberOfLines={2}>{composer.title || 'Untitled'}</Text>
+                  {composer.title || requiresTitle(initialPlatforms) ? (
+                    <Text style={st.postT} numberOfLines={2}>{composer.title || 'Untitled'}</Text>
+                  ) : null}
                   {composer.caption ? <Text style={st.postCap}>{composer.caption}</Text> : null}
                 </>
               ) : threadOn && composer.onThread && chainCap ? (

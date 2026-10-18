@@ -7,7 +7,7 @@ import { SocialGlyph } from '../components/ui';
 import CommunityScreen from './CommunityScreen';
 import { BarsChart, HBarList } from '../components/charts';
 import { Card, CardTitle, CardDescription, Tabs } from '../components/ui-kit';
-import { SOCIAL_META } from '../constants';
+import { SOCIAL_META, requiresTitle } from '../constants';
 import { currentSession } from '../utils/supabase';
 import {
   fetchCloudAnalytics,
@@ -203,7 +203,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
       const sh = agg?.shares ?? 0;
       return {
         id: p.id,
-        title: p.title || p.body?.slice(0, 60) || 'Untitled post',
+        title: p.title || p.body?.slice(0, 60) || (requiresTitle(p.targets.map((t) => t.provider)) ? 'Untitled post' : ''),
         sentAt: p.sent_at,
         providers: [...new Set(p.targets.map((t) => t.provider))],
         likes: lk,
@@ -494,7 +494,9 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                           <View key={p.id} style={[s.rowCard, { backgroundColor: C.card, borderColor: C.lineSoft }]}>
                             {glyphStack([...new Set(p.targets.map((t) => t.provider))], 24)}
                             <View style={{ flex: 1, gap: 2 }}>
-                              <Text style={s.postT} numberOfLines={1}>{p.title || 'Untitled post'}</Text>
+                              {p.title || requiresTitle(p.targets.map((t) => t.provider)) ? (
+                                <Text style={s.postT} numberOfLines={1}>{p.title || 'Untitled post'}</Text>
+                              ) : null}
                               <Text style={s.postS}>{fmtDate(p.sent_at)}</Text>
                             </View>
                             <View style={[s.statusDot, { backgroundColor: st.color }]} />

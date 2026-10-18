@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
+import { requiresTitle } from '@/lib/compat';
 import type { ConnectedChannel, MediaAssetRow, PostStatus, PostWithTargets, ProviderKey } from '@/lib/types';
 
 export interface StatSnapshotRow {
@@ -367,7 +368,7 @@ export default function AnalyticsDashboard({
       const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
       rows.push({
         id: p.id,
-        title: p.title || p.body?.slice(0, 60) || 'Untitled post',
+        title: p.title || p.body?.slice(0, 60) || (requiresTitle(providers) ? 'Untitled post' : ''),
         sentAt: p.sent_at,
         providers,
         likes,
@@ -878,7 +879,11 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                         ))}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold">{p.title || 'Untitled post'}</p>
+                        {p.title ? (
+                          <p className="truncate text-sm font-bold">{p.title}</p>
+                        ) : requiresTitle(providers) ? (
+                          <p className="truncate text-sm font-bold">Untitled post</p>
+                        ) : null}
                         <p className="text-xs text-muted">{fmtDate(p.sent_at)}</p>
                       </div>
                       <Badge className={st.className}>{st.label}</Badge>

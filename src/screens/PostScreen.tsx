@@ -6,7 +6,7 @@ import { SocialGlyph, FeedPhoto, FeedVideo } from '../components/ui';
 import NotificationBell from '../components/NotificationBell';
 import ConnectButton from '../components/ConnectButton';
 import ChannelDrawer from '../components/ChannelDrawer';
-import { SOCIAL_META } from '../constants';
+import { SOCIAL_META, requiresTitle } from '../constants';
 import { loadManagedPosts, ManagedPost, MAX_AUTO_TRIES, postAttachments } from '../utils/managed';
 import { pullCloudStatus } from '../utils/cloudPosts';
 import { loadMetaState, loadAccounts, MetaState } from '../utils/metaStore';
@@ -207,7 +207,9 @@ export default function PostScreen({ onConnect, bare }: {
               : <FeedPhoto uri={first.uri} aspect={4 / 5} />}
               </View>
               <View style={{ flex: 1, gap: 5 }}>
-                <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+                {p.title || requiresTitle(plats) ? (
+                  <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+                ) : null}
                 <Text style={st.body} numberOfLines={3}>{p.body || platformsLabel(plats)}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                   <View style={[st.whenDot, { backgroundColor: overdue ? C.redText : C.faint }]} />
@@ -220,7 +222,9 @@ export default function PostScreen({ onConnect, bare }: {
             <>
               <View style={st.cardTop}>
                 <View style={{ flex: 1, gap: 3 }}>
-                  <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+                  {p.title || requiresTitle(plats) ? (
+                    <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+                  ) : null}
                   <Text style={st.body} numberOfLines={2}>{p.body || platformsLabel(plats)}</Text>
                 </View>
               </View>

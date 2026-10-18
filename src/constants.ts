@@ -48,3 +48,11 @@ export const SOCIAL_META: Record<string, { label: string; bg: string; glyph: str
 export function uid(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
+
+/** Article channels: the title is a real field, not a first line derived from
+ *  the body. Only these keep an "Untitled" fallback, other channels have none. */
+export const TITLE_CHANNELS = new Set(['wordpress', 'devto', 'hashnode', 'ghost']);
+
+export function requiresTitle(platforms?: string[] | null): boolean {
+  return !!platforms?.some((p) => TITLE_CHANNELS.has(p));
+}

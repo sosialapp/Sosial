@@ -318,3 +318,12 @@ export function providerStatus(
   }
   return status;
 }
+
+/**
+ * True when any of the given providers publishes an article (WordPress, Ghost,
+ * Dev.to, Hashnode). Those carry a real title field, so an empty one reads as
+ * "Untitled"; every other channel has no title at all and shows nothing.
+ */
+export function requiresTitle(providers: string[]): boolean {
+  return providers.some((p) => CAPABILITIES[p]?.article === true);
+}

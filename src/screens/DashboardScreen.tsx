@@ -10,6 +10,7 @@ import { loadMetaState, connectedChannelIds, loadAccounts } from '../utils/metaS
 import { PROVIDER_KEYS, schedulableProviders } from '../utils/socialAccounts';
 import { fetchAnalytics } from '../utils/analytics';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
+import { requiresTitle } from '../constants';
 import { supabase, currentSession, isSupabaseConfigured } from '../utils/supabase';
 
 function greeting(): string {
@@ -302,12 +303,12 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
                 </TableHeader>
                 <TableBody>
                   {(cloud
-                    ? cloud.upcoming.map((u) => ({ key: u.id, title: u.title, sub: platformsLabel(u.providers.length ? u.providers : ['any']), when: u.at }))
-                    : upcomingLocal.map((u) => ({ key: u.id, title: u.title || 'Untitled', sub: platformsLabel(u.platforms ?? ['any']), when: u.scheduledAt ?? 0 }))
+                    ? cloud.upcoming.map((u) => ({ key: u.id, title: u.title || (requiresTitle(u.providers) ? 'Untitled' : ''), sub: platformsLabel(u.providers.length ? u.providers : ['any']), when: u.at }))
+                    : upcomingLocal.map((u) => ({ key: u.id, title: u.title || (requiresTitle(u.platforms) ? 'Untitled' : ''), sub: platformsLabel(u.platforms ?? ['any']), when: u.scheduledAt ?? 0 }))
                   ).map((u, i, all) => (
                     <TableRow key={u.key} last={i === all.length - 1} onPress={onPost}>
                       <TableCell flex={3}>
-                        <Text style={s.rowT} numberOfLines={1}>{u.title || 'Untitled'}</Text>
+                        <Text style={s.rowT} numberOfLines={1}>{u.title}</Text>
                         <Text style={s.rowS} numberOfLines={1}>{u.sub}</Text>
                       </TableCell>
                       <TableCell flex={2} align="right">
@@ -335,12 +336,12 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
                 </TableHeader>
                 <TableBody>
                   {(cloud
-                    ? cloud.recent.map((p) => ({ key: p.id, title: p.title || 'Untitled', sub: platformsLabel(p.providers.length ? p.providers : ['any']), at: p.at }))
-                    : recentLocal.map((p) => ({ key: p.id, title: p.title || 'Untitled', sub: platformsLabel(p.platforms ?? ['any']), at: p.sentAt ?? 0 }))
+                    ? cloud.recent.map((p) => ({ key: p.id, title: p.title || (requiresTitle(p.providers) ? 'Untitled' : ''), sub: platformsLabel(p.providers.length ? p.providers : ['any']), at: p.at }))
+                    : recentLocal.map((p) => ({ key: p.id, title: p.title || (requiresTitle(p.platforms) ? 'Untitled' : ''), sub: platformsLabel(p.platforms ?? ['any']), at: p.sentAt ?? 0 }))
                   ).map((p, i, all) => (
                     <TableRow key={p.key} last={i === all.length - 1} onPress={onPost}>
                       <TableCell flex={3}>
-                        <Text style={s.rowT} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+                        <Text style={s.rowT} numberOfLines={1}>{p.title}</Text>
                         <Text style={s.rowS} numberOfLines={1}>{p.sub}</Text>
                       </TableCell>
                       <TableCell flex={2} align="right">

@@ -33,6 +33,7 @@ import {
   submitForApproval,
 } from '@/lib/posts';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
+import { requiresTitle } from '@/lib/compat';
 import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
@@ -240,6 +241,9 @@ function PreviewDialog({
   const meta = POST_STATUS_META[head.status];
   const isChain = parts.length > 1;
   const targets = uniqueTargets(parts);
+  /** Only article channels (title-bearing) keep an "Untitled" line; a
+   *  photo/text post with no title simply shows its body. */
+  const needsTitle = requiresTitle(targets.map((t) => t.provider));
   const media = parts.flatMap((p) => mediaOf(p));
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Post preview">
@@ -317,9 +321,11 @@ function PreviewDialog({
               )}
             </div>
           ) : null}
-          <p className="mt-3 font-display text-base font-extrabold tracking-tight">
-            {head.title || 'Untitled post'}
-          </p>
+          {head.title || needsTitle ? (
+            <p className="mt-3 font-display text-base font-extrabold tracking-tight">
+              {head.title || 'Untitled post'}
+            </p>
+          ) : null}
           <div className="mt-2 max-h-64 space-y-3 overflow-y-auto">
             {parts.map((p, i) => (
               <div key={p.id}>

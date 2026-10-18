@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, PrimaryBtn, GhostBtn } from '../components/ui';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, Tabs } from '../components/ui-kit';
-import { uid } from '../constants';
+import { uid, requiresTitle } from '../constants';
 import ScheduleSheet from '../components/ScheduleSheet';
 import { loadManagedPosts, saveManagedPost, deleteManagedPost, ManagedPost, queueTooSoon, minQueueLabel, MAX_AUTO_TRIES } from '../utils/managed';
 import { useComposer } from '../store/ComposerContext';
@@ -273,7 +273,9 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
           <Cover uri={p.imageUri ?? p.videoUri} kind={p.videoUri ? 'video' : 'image'} />
         </TableCell>
         <TableCell flex={1}>
-          <Text style={s.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+          {p.title || requiresTitle(plats) ? (
+            <Text style={s.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
+          ) : null}
           <Text style={s.meta} numberOfLines={1}>{p.body || 'No description'}</Text>
           {p.scheduledAt ? (
             <Text style={[s.meta, overdue && { color: C.redText }]}>
