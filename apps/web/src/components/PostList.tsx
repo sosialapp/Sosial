@@ -961,18 +961,8 @@ export default function PostList({
                   <p className="px-4 pt-1 text-xs font-bold text-faint">+{mediaTotal - 4} more attachments</p>
                 )}
 
-                {/* Footer: target logos (left) · post stats (center) · actions (right) */}
+                {/* Footer: post stats (center) · actions (right) */}
                 <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-                  <span className="flex items-center gap-1" title={targets.map((t) => providerMeta(t.provider).label).join(', ')}>
-                    {targets.map((t) => (
-                      <ChannelAvatar
-                        key={t.channel_id ?? t.provider}
-                        provider={t.provider}
-                        avatar={avatars[t.channel_id]}
-                        size={22}
-                      />
-                    ))}
-                  </span>
                   {showStats ? (
                     <>
                       <span className="flex-1" />
