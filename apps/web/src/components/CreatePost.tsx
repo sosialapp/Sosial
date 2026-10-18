@@ -891,7 +891,7 @@ export default function CreatePost({
             ) : null}
 
             {/* Per-channel format pills (post/reel/story/ghost…), Threads
-                also carries its Community › toggle right after Post. */}
+                also carries its Community › toggle at the end of the row. */}
             {chosenNow.some((c) => postTypeOptions(c.provider).length > 1) ? (
               <div className="mt-3 space-y-1.5">
                 {chosenNow
@@ -915,7 +915,7 @@ export default function CreatePost({
                               >
                                 {o.label}
                               </button>
-                              {c.provider === 'threads' && oi === 0 ? (
+                              {c.provider === 'threads' && oi === postTypeOptions(c.provider).length - 1 ? (
                                 <button
                                   type="button"
                                   onClick={() => setTopicOpen((v) => !v)}
