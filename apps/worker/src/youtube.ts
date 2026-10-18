@@ -10,6 +10,7 @@ import { storageStream, storageHeadSize } from './rest';
 import { assertMediaAllowed } from './mediaLimits';
 import { env } from './env';
 import { info } from './logger';
+import { missingClientKeys } from './channelAuth';
 
 const YT_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const YT_UPLOAD_API = 'https://www.googleapis.com/upload/youtube/v3';
@@ -73,7 +74,10 @@ function clientCreds(): { id: string; secret: string } {
   const id = env('YT_CLIENT_ID') || env('GOOGLE_CLIENT_ID');
   const secret = env('YT_CLIENT_SECRET') || env('GOOGLE_CLIENT_SECRET');
   if (!id || !secret) {
-    throw new Error('YouTube cloud publishing needs YT_CLIENT_ID + YT_CLIENT_SECRET on the worker (see apps/worker/.env.example).');
+    throw missingClientKeys(
+      'youtube',
+      'YT_CLIENT_ID/YT_CLIENT_SECRET (or GOOGLE_*) missing on the worker, see apps/worker/.env.example',
+    );
   }
   return { id, secret };
 }

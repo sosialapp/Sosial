@@ -75,6 +75,8 @@ export interface FeedComment {
   text: string;
   ts: number;
   postTitle: string;
+  /** Platform comment id — present for FB/Threads, the reply targets. */
+  commentId?: string;
 }
 
 // YouTube's Data API returns statistics as numeric strings ("1234"), so coerce.
@@ -192,6 +194,7 @@ export async function fbComments(m: MetaState, stats: PerPost[]): Promise<FeedCo
           text: String(x.message ?? ''),
           ts: tsOf(x.created_time),
           postTitle: p.title,
+          commentId: String(x.id ?? ''),
         });
       }
     } catch {}
@@ -335,7 +338,7 @@ export async function thComments(m: MetaState, stats: PerPost[]): Promise<FeedCo
   const out: FeedComment[] = [];
   for (const p of stats.slice(0, 5)) {
     try {
-      const c: any = await jget(`${THREADS_API}/v1.0/${p.id}/conversation?fields=username,text,timestamp&limit=10&access_token=${tok}`, tth);
+      const c: any = await jget(`${THREADS_API}/v1.0/${p.id}/conversation?fields=id,username,text,timestamp&limit=10&access_token=${tok}`, tth);
       for (const x of (c.data ?? []) as any[]) {
         out.push({
           channel: 'threads',
@@ -343,6 +346,8 @@ export async function thComments(m: MetaState, stats: PerPost[]): Promise<FeedCo
           text: String(x.text ?? ''),
           ts: tsOf(x.timestamp),
           postTitle: p.title,
+          // Threads replies attach to the THREAD post, not the comment.
+          commentId: String(p.id ?? ''),
         });
       }
     } catch {}

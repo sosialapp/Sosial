@@ -18,6 +18,7 @@
 import { rest, callRpc } from './db';
 import { readSecret } from './db';import { restPatch } from './rest';
 import { info, warn } from './logger';
+import { reconnectMessage } from './channelAuth';
 import {
   tokenRow,
   bundleFor,
@@ -112,12 +113,13 @@ export async function refreshChannelToken(
 
   const t = tokenRow(c);
   if (!t.access_token_secret_id && !t.refresh_token_secret_id) {
+    const reason = reconnectMessage(c.provider);
     await restPatch('connected_channels', c.id, {
       status: 'expired',
-      last_error: 'Token secrets missing, reconnect the channel.',
+      last_error: reason,
     });
-    await notifyExpired('Token secrets missing, reconnect the channel.');
-    warn(`refresh ${c.provider}/${c.external_id}: no secrets, marked expired`);
+    await notifyExpired(reason);
+    warn(`refresh ${c.provider}/${c.external_id}: no token secrets, marked expired`);
     return 'skipped';
   }
 
@@ -164,27 +166,16 @@ export async function refreshChannelToken(
     return 'refreshed';
   } catch (e: any) {
     const msg = String(e?.message ?? e ?? 'refresh failed');
+    // Whatever went wrong, the user only needs the reconnect cue; the raw
+    // reason (provider error text, missing worker env keys) goes to the log.
     if (/expir|revok|reconnect|invalid_grant|invalid_token|__EXPIRED__|unauthorized/i.test(msg)) {
-      await restPatch('connected_channels', c.id, {
-        status: 'expired',
-        last_error: msg.slice(0, 300),
-      });
-      await notifyExpired(msg.slice(0, 300));
-      warn(`refresh ${c.provider}/${c.external_id}: auth-dead, marked expired (${msg.slice(0, 120)})`);
-      return 'skipped';
-    }
-    // Refresh can never run without the provider's OAuth client keys on the
-    // worker, and lazy refresh at publish time fails identically, so the
-    // channel genuinely cannot publish. Mark + notify with an actionable
-    // reason; reconnecting heals it until the next expiry.
-    if (/needs .+ on the worker/i.test(msg)) {
-      const reason = `${msg.slice(0, 200)} Reconnect this account for a fresh token.`;
+      const reason = reconnectMessage(c.provider);
       await restPatch('connected_channels', c.id, {
         status: 'expired',
         last_error: reason,
       });
       await notifyExpired(reason);
-      warn(`refresh ${c.provider}/${c.external_id}: missing client keys, marked expired`);
+      warn(`refresh ${c.provider}/${c.external_id}: auth-dead, marked expired (${msg.slice(0, 120)})`);
       return 'skipped';
     }
     throw e;

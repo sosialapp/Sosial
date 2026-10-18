@@ -481,3 +481,9 @@ enabled = true
 # Browser-invoked with the user's JWT; owner/admin checked inside.
 verify_jwt = true
 entrypoint = "./functions/team-avatar/index.ts"
+
+[functions.reply-comment]
+enabled = true
+# Browser-invoked with the user's JWT; membership checked inside.
+verify_jwt = true
+entrypoint = "./functions/reply-comment/index.ts"

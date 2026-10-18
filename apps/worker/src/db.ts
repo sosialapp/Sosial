@@ -14,7 +14,8 @@ export interface Job {
     | 'cleanup_media'
     | 'send_invite'
     | 'sync_avatars'
-    | 'send_push';
+    | 'send_push'
+    | 'reply_comment';
   payload: Record<string, any>;
   status: string;
   run_at: string;

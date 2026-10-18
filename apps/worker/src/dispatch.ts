@@ -40,6 +40,7 @@ import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
 import { snapshotChannel } from './stats';
+import { handleReplyComment } from './replies';
 import { info, debug } from './logger';
 
 function notPorted(kind: string): Error {
@@ -321,6 +322,7 @@ export async function dispatch(job: Job): Promise<void> {
     case 'send_invite': return handleSendInvite(job);
     case 'sync_avatars': return handleSyncAvatars(job);
     case 'send_push': return handleSendPush(job);
+    case 'reply_comment': return handleReplyComment(job);
     default: throw new Error(`unknown job kind '${String((job as any)?.kind)}' (job ${job.id})`);
   }
 }

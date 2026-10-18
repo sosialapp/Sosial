@@ -1,6 +1,7 @@
 import { readSecret, updateSecret } from './db';
 import { info } from './logger';
 import { env } from './env';
+import { missingClientKeys } from './channelAuth';
 
 /**
  * Google Business Profile publisher (local posts, per-location rows).
@@ -38,7 +39,10 @@ function clientCreds(): { id: string; secret: string } {
   const id = env('YT_CLIENT_ID') || env('GOOGLE_CLIENT_ID');
   const secret = env('YT_CLIENT_SECRET') || env('GOOGLE_CLIENT_SECRET');
   if (!id || !secret) {
-    throw new Error('Google Business Profile publishing needs YT_CLIENT_ID + YT_CLIENT_SECRET (or GOOGLE_*) on the worker.');
+    throw missingClientKeys(
+      'gmb',
+      'YT_CLIENT_ID/YT_CLIENT_SECRET (or GOOGLE_*) missing on the worker, see apps/worker/.env.example',
+    );
   }
   return { id, secret };
 }
