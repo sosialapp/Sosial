@@ -21,6 +21,7 @@ const CHANNELS: BrandProvider[] = [
   'facebook',
   'threads',
   'youtube',
+  'pinterest',
   'bluesky',
   'mastodon',
   'telegram',

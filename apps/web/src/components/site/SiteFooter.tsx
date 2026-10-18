@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { BRAND_NAMES, BrandIcon, brandColor, type BrandProvider } from '@/components/BrandIcon';
-import { CHANNEL_GUIDES } from '@/content/channels';
+import { BRAND_NAMES, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { siteFooterPages } from '@/lib/sitePages';
 import Logo from './Logo';
 
@@ -24,7 +23,7 @@ export default async function SiteFooter() {
   const extraPages = await siteFooterPages();
   return (
     <footer className="bg-ink text-paper">
-      <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-4 py-16 md:grid-cols-3 md:py-20 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-4 py-16 md:grid-cols-3 md:py-20 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr]">
         <div className="col-span-2 md:col-span-1">
           <Logo />
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-paper/60">
@@ -86,28 +85,14 @@ export default async function SiteFooter() {
           </ul>
         </nav>
 
-        <nav aria-label="Channels">
-          <p className="eyebrow text-paper/50">Channels</p>
-          <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm font-semibold text-paper/80">
-            {CHANNEL_GUIDES.map((c) => (
-              <li key={c.key}>
-                <Link href={`/integrations/${c.key}`} className="flex items-center gap-2 hover:text-paper">
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-white"
-                    style={{ background: brandColor(c.key) }}
-                  >
-                    <BrandIcon provider={c.key} mono className="h-3 w-3" />
-                  </span>
-                  {c.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
         <nav aria-label="Resources">
           <p className="eyebrow text-paper/50">Resources</p>
           <ul className="mt-4 space-y-2.5 text-sm font-semibold text-paper/80">
+            <li>
+              <Link href="/integrations" className="hover:text-paper">
+                Channels
+              </Link>
+            </li>
             <li>
               <Link href="/blog" className="hover:text-paper">
                 Blog
