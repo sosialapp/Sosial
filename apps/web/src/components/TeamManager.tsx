@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Pencil } from 'lucide-react';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
@@ -97,6 +98,14 @@ export default function TeamManager({
 }) {
   const router = useRouter();
   const [draftName, setDraftName] = useState(workspaceName);
+  const [editingName, setEditingName] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!editingName) setDraftName(workspaceName);
+  }, [workspaceName, editingName]);
+  useEffect(() => {
+    if (editingName) nameRef.current?.focus();
+  }, [editingName]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'admin'>('member');
   const [allChannels, setAllChannels] = useState(true);
@@ -183,6 +192,8 @@ export default function TeamManager({
       const sb = createClient();
       const { error } = await sb.from('workspaces').update({ name }).eq('id', workspaceId);
       if (error) throw new Error(error.message);
+      setDraftName(name);
+      setEditingName(false);
       router.refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not save the team name.');
@@ -190,6 +201,17 @@ export default function TeamManager({
       setBusy(false);
     }
   }
+
+  const startNameEdit = () => {
+    setDraftName(workspaceName);
+    setErr(null);
+    setEditingName(true);
+  };
+  const cancelNameEdit = () => {
+    setDraftName(workspaceName);
+    setErr(null);
+    setEditingName(false);
+  };
 
   /** Upload → compress server-side → refresh. Owners and admins only. */
   async function changeTeamAvatar(file: File) {
@@ -403,23 +425,59 @@ export default function TeamManager({
             <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#8fd0a0]">{avatarMsg}</p>
           ) : null}
           <p className="eyebrow mt-4">Team name</p>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-            <input
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              placeholder="My team"
-              aria-label="Team name"
-              className="field min-w-0 flex-1"
-            />
+          {editingName ? (
+            <div className="mt-1.5">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  ref={nameRef}
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void saveName();
+                    }
+                    if (e.key === 'Escape') cancelNameEdit();
+                  }}
+                  placeholder="My team"
+                  aria-label="Team name"
+                  className="field min-w-0 flex-1"
+                />
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveName()}
+                    className="btn btn-primary flex-1 sm:flex-none"
+                  >
+                    {busy ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={cancelNameEdit}
+                    className="btn flex-1 sm:flex-none"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              {err ? (
+                <p className="mt-1.5 text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p>
+              ) : null}
+            </div>
+          ) : (
             <button
               type="button"
-              disabled={busy}
-              onClick={() => void saveName()}
-              className="btn btn-primary shrink-0"
+              onClick={startNameEdit}
+              title="Rename team"
+              aria-label="Rename team"
+              className="group mt-1 flex max-w-full items-center gap-2 rounded-lg text-left"
             >
-              {busy ? 'Saving…' : 'Save'}
+              <span className="truncate font-display text-xl font-extrabold tracking-tight">{workspaceName}</span>
+              <Pencil className="h-4 w-4 shrink-0 text-faint transition group-hover:text-ink" aria-hidden="true" />
             </button>
-          </div>
+          )}
         </section>
       ) : null}
       <section className="card divide-y divide-line-soft" aria-label="Members">
