@@ -14,7 +14,7 @@ import {
   LogOut,
   Plus,
 } from 'lucide-react';
-import SendIcon from '@/components/SendIcon';
+import PostIcon from '@/components/PostIcon';
 
 type DockItem = {
   href?: string;
@@ -47,7 +47,7 @@ const ITEMS: DockItem[] = [
     label: 'Post',
     match: (p) => p === '/post' || p === '/create' || p === '/new' || p === '/composer' || p.startsWith('/post/') || p.startsWith('/create/') || p.startsWith('/new/') || p.startsWith('/composer/'),
     tint: '#4CAF7D',
-    icon: <SendIcon className="h-6 w-6" />,
+    icon: <PostIcon className="h-6 w-6" />,
   },
   {
     label: 'New post',
@@ -77,7 +77,7 @@ const PLUS_OPTIONS = [
     href: '/post',
     label: 'Post',
     desc: 'Write and schedule',
-    icon: <SendIcon className="h-4 w-4" />,
+    icon: <PostIcon className="h-4 w-4" />,
   },
   {
     href: '/post-ideas',

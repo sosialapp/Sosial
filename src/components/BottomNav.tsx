@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
+import PostIcon from './PostIcon';
 
 export type MainTab = 'home' | 'post' | 'analytics' | 'profile';
 
@@ -16,11 +17,11 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   const { C } = useTheme();
   const s = makeS(C);
 
-  const item = (t: MainTab, icon: string, label: string) => {
+  const item = (t: MainTab, icon: (on: boolean) => React.ReactNode, label: string) => {
     const on = tab === t;
     return (
       <TouchableOpacity onPress={() => onTab(t)} style={s.item} activeOpacity={0.7}>
-        <Ionicons name={icon as any} size={24} color={on ? C.accent : C.faint} />
+        {icon(on)}
         <Text style={[s.itemT, on && { color: C.accent }]}>{label}</Text>
       </TouchableOpacity>
     );
@@ -28,15 +29,15 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 
   const inner = (
     <>
-      {item('home', 'home', 'Home')}
-      {item('post', 'send', 'Post')}
+      {item('home', (on) => <Ionicons name="home" size={24} color={on ? C.accent : C.faint} />, 'Home')}
+      {item('post', (on) => <PostIcon size={24} color={on ? C.accent : C.faint} />, 'Post')}
       <TouchableOpacity onPress={() => setPlus(true)} style={s.plusWrap} activeOpacity={0.8}>
         <View style={s.plus}>
           <Ionicons name="add" size={28} color={C.onInk} />
         </View>
       </TouchableOpacity>
-      {item('analytics', 'bar-chart', 'Insights')}
-      {item('profile', 'person', 'Profile')}
+      {item('analytics', (on) => <Ionicons name="bar-chart" size={24} color={on ? C.accent : C.faint} />, 'Insights')}
+      {item('profile', (on) => <Ionicons name="person" size={24} color={on ? C.accent : C.faint} />, 'Profile')}
     </>
   );
 
@@ -67,7 +68,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
               style={[s.opt, { borderTopWidth: 1, borderTopColor: C.lineSoft }]} activeOpacity={0.75}
             >
               <View style={[s.optIcon, { backgroundColor: C.ink }]}>
-                <Ionicons name="send" size={22} color={C.onInk} />
+                <PostIcon size={22} color={C.onInk} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.optT}>Post</Text>
