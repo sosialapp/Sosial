@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch } from 'lucide-react';
+import {
+  GitBranch,
+  CircleCheckBig,
+  CircleX,
+  Clock,
+  ClipboardCheck,
+  FileText,
+  LayoutGrid,
+  type LucideIcon,
+} from 'lucide-react';
 import AiCard from '@/components/AiCard';
 import SafeImg from '@/components/SafeImg';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -125,6 +134,14 @@ const STATUS_TITLE: Record<StatusTab, string> = {
   approvals: 'Approvals',
   sent: 'Sent',
   failed: 'Failed',
+};
+const STATUS_PILL_ICON: Record<StatusTab, LucideIcon> = {
+  all: LayoutGrid,
+  queue: Clock,
+  drafts: FileText,
+  approvals: ClipboardCheck,
+  sent: CircleCheckBig,
+  failed: CircleX,
 };
 
 /* ---------------- cross-device library sync ---------------- */
@@ -837,6 +854,7 @@ export default function CreateHub({
           </button>
           {STATUS_ORDER.map((s) => {
             const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
+            const Icon = STATUS_PILL_ICON[s];
             return (
               <button
                 key={s}
@@ -844,14 +862,15 @@ export default function CreateHub({
                 role="tab"
                 aria-selected={statusView === s}
                 onClick={() => goFilter(s)}
-                className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition ${
                   statusView === s
                     ? 'border-accent bg-accent text-on-accent'
                     : 'border-line bg-card text-muted hover:bg-paper'
                 }`}
               >
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 {STATUS_PILL_LABEL[s]}
-                {count > 0 && <span className="ml-1.5 opacity-60">{count}</span>}
+                {count > 0 && <span className="opacity-60">{count}</span>}
               </button>
             );
           })}

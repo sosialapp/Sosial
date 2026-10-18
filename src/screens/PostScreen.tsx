@@ -18,12 +18,12 @@ import { loadActor, canApprove, canSubmit, Actor } from '../utils/team';
 type Tab = 'queued' | 'draft' | 'approval' | 'sent' | 'failed';
 type Sort = 'newest' | 'oldest' | 'az';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'sent', label: 'Sent' },
-  { id: 'failed', label: 'Failed' },
-  { id: 'queued', label: 'Queue' },
-  { id: 'draft', label: 'Drafts' },
-  { id: 'approval', label: 'Approvals' },
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'sent', label: 'Sent', icon: 'paper-plane-outline' },
+  { id: 'failed', label: 'Failed', icon: 'alert-circle-outline' },
+  { id: 'queued', label: 'Queue', icon: 'time-outline' },
+  { id: 'draft', label: 'Drafts', icon: 'document-text-outline' },
+  { id: 'approval', label: 'Approvals', icon: 'shield-checkmark-outline' },
 ];
 
 const SORTS: { id: Sort; label: string }[] = [
@@ -287,6 +287,7 @@ export default function PostScreen({ onConnect, bare }: {
           const on = tab === t.id;
           return (
             <TouchableOpacity key={t.id} onPress={() => setTab(t.id)} style={[st.tab, on && st.tabOn]} activeOpacity={0.75}>
+              <Ionicons name={t.icon as any} size={13} color={on ? C.onInk : C.muted} />
               <Text style={[st.tabT, on && { color: C.onInk }]}>{t.label}</Text>
               <View style={[st.tabCount, on && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
                 <Text style={[st.tabCountT, on && { color: C.onInk }]}>{counts[t.id]}</Text>

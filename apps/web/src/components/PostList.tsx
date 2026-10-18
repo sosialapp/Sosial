@@ -2,7 +2,24 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Heart, MessageCircle, Pencil, Repeat2, Eye, Send, Share2, Trash2, type LucideIcon } from 'lucide-react';
+import {
+  Check,
+  Heart,
+  MessageCircle,
+  Pencil,
+  Repeat2,
+  Eye,
+  Send,
+  Share2,
+  Trash2,
+  CircleCheckBig,
+  CircleX,
+  Clock,
+  ClipboardCheck,
+  FileText,
+  LayoutGrid,
+  type LucideIcon,
+} from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets, PostStatus, WorkspaceInfo } from '@/lib/types';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -19,16 +36,17 @@ import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import PublishMonitor from '@/components/PublishMonitor';
 
 export type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'sent', label: 'Sent' },
-  { id: 'failed', label: 'Failed' },
-  { id: 'queue', label: 'Queue' },
-  { id: 'drafts', label: 'Drafts' },
-  { id: 'approvals', label: 'Approvals' },
+const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
+  { id: 'all', label: 'All', icon: LayoutGrid },
+  { id: 'sent', label: 'Sent', icon: CircleCheckBig },
+  { id: 'failed', label: 'Failed', icon: CircleX },
+  { id: 'queue', label: 'Queue', icon: Clock },
+  { id: 'drafts', label: 'Drafts', icon: FileText },
+  { id: 'approvals', label: 'Approvals', icon: ClipboardCheck },
 ];
 
 export const TAB_MATCH: Record<Tab, (s: PostStatus) => boolean> = {
@@ -390,6 +408,9 @@ export default function PostList({
   const canApprove = role === 'owner' || role === 'admin';
   const [tab, setTab] = useState<Tab>(initialTab ?? 'all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  /** Post-now publish monitor: watches the parts settle, so the card leaves
+   *  the queue the instant the channels report back. */
+  const [monitorIds, setMonitorIds] = useState<string[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [sortNewest, setSortNewest] = useState(true);
@@ -577,6 +598,23 @@ export default function PostList({
     }
   }
 
+  /** Draft -> Post now: queue the parts, then open the publish monitor so the
+   *  card clears out of the queue once the worker settles each channel. */
+  async function publishNow(key: string, ids: string[]) {
+    setBusyId(key);
+    setErr(null);
+    try {
+      const sb = createClient();
+      for (const id of ids) await publishPostNow(sb, id);
+      setMonitorIds(ids);
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Action failed.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function askChanges(p: PostWithTargets) {
     const comment = window.prompt('What needs changing? (optional)');
     if (comment === null) return;
@@ -597,18 +635,29 @@ export default function PostList({
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
                   tab === t.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
                 }`}
               >
+                <t.icon className="h-3.5 w-3.5" aria-hidden="true" />
                 {t.label}
-                {count > 0 && <span className="ml-1.5 opacity-60">{count}</span>}
+                {count > 0 && <span className="opacity-60">{count}</span>}
               </button>
             );
           })}
         </div>
       </header>
       )}
+
+      {monitorIds ? (
+        <PublishMonitor
+          postIds={monitorIds}
+          onDone={() => {
+            setMonitorIds(null);
+            startTransition(() => router.refresh());
+          }}
+        />
+      ) : null}
 
       {err && (
         <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
@@ -974,7 +1023,7 @@ export default function PostList({
                       icon={Send}
                       label="Post now"
                       disabled={busy}
-                      onClick={() => runMany(g.key, ids, (sb, id) => publishPostNow(sb, id))}
+                      onClick={() => publishNow(g.key, ids)}
                     />
                   )}
                   {!canApprove && draftish && (
