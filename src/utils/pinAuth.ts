@@ -120,8 +120,12 @@ export async function fetchPinProfile(token: string): Promise<{ username?: strin
   });
   const j: any = await r.json().catch(() => ({}));
   if (!r.ok || !j?.username) throw new Error(perr(j, 'Could not read your Pinterest profile.'));
-  const img = j.profile_image;
-  const avatar = img?.medium_https ?? img?.small_https ?? img?.large_https;
+  const img = j.profile_image as
+    | string
+    | { medium_https?: string; small_https?: string; large_https?: string }
+    | undefined;
+  const avatar =
+    typeof img === 'string' ? img : img?.medium_https ?? img?.small_https ?? img?.large_https;
   return { username: String(j.username), avatar: avatar ? String(avatar) : undefined };
 }
 

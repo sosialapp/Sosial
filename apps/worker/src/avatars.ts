@@ -188,7 +188,10 @@ async function avatarUrl(c: ChannelRow, token: string): Promise<string> {
     }
     case 'pinterest': {
       const j = await getJson(`${PIN_API}/user_account`, token);
-      return firstString(j?.profile_image?.medium_https, j?.profile_image?.small_https, j?.profile_image?.large_https);
+      // v5 returns profile_image as a URL string (older shape: size-keyed object).
+      const img = j?.profile_image;
+      if (typeof img === 'string') return firstString(img);
+      return firstString(img?.medium_https, img?.small_https, img?.large_https);
     }
     case 'linkedin': {
       const j = await getJson(`${LI_API}/v2/userinfo`, token);

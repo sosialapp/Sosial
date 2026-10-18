@@ -588,8 +588,13 @@ async function pinterest(b: ExchangeBody): Promise<Response> {
   const username = str(pj.username);
   if (!pr.ok || !username) return bad("Could not read your Pinterest profile.", 502);
   // Mobile parity: the @-prefixed username IS the external id.
-  const img = pj.profile_image as { medium_https?: string; small_https?: string; large_https?: string } | undefined;
-  const avatar = img?.medium_https ?? img?.small_https ?? img?.large_https;
+  // v5 returns profile_image as a plain URL string (older shape: an object of
+  // size keys), accept both.
+  const img = pj.profile_image as
+    | string
+    | { medium_https?: string; small_https?: string; large_https?: string }
+    | undefined;
+  const avatar = typeof img === "string" ? img : img?.medium_https ?? img?.small_https ?? img?.large_https;
   return ok({
     access_token: access,
     refresh_token: refresh || undefined,
