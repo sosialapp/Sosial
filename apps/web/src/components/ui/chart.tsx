@@ -7,6 +7,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -86,6 +88,7 @@ function ChartBar({
   height = 176,
   domainMax,
   formatter,
+  xInterval = 0,
   className,
 }: {
   data: Datum[];
@@ -95,6 +98,7 @@ function ChartBar({
   height?: number;
   domainMax?: number;
   formatter?: (value: number | string) => string;
+  xInterval?: number;
   className?: string;
 }) {
   return (
@@ -105,7 +109,7 @@ function ChartBar({
           dataKey={labelKey}
           tickLine={false}
           axisLine={false}
-          interval={0}
+          interval={xInterval}
           tick={{ fill: 'var(--color-faint)', fontSize: 10 }}
         />
         <YAxis hide domain={domainMax ? [0, domainMax] : undefined} />
@@ -167,6 +171,52 @@ function ChartArea({
   );
 }
 
+/** Plain line for a trend (interactions per day, follower growth). */
+function ChartLine({
+  data,
+  dataKey,
+  labelKey,
+  color = 'var(--color-accent)',
+  height = 176,
+  formatter,
+  xInterval = 0,
+  className,
+}: {
+  data: Datum[];
+  dataKey: string;
+  labelKey: string;
+  color?: string;
+  height?: number;
+  formatter?: (value: number | string) => string;
+  xInterval?: number;
+  className?: string;
+}) {
+  return (
+    <ChartContainer className={className} style={{ height }}>
+      <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 4 }}>
+        <CartesianGrid vertical={false} stroke="var(--color-line)" />
+        <XAxis
+          dataKey={labelKey}
+          tickLine={false}
+          axisLine={false}
+          interval={xInterval}
+          tick={{ fill: 'var(--color-faint)', fontSize: 10 }}
+        />
+        <YAxis hide />
+        <ChartTooltip content={<ChartTooltipContent formatter={formatter} />} />
+        <Line
+          type="monotone"
+          dataKey={dataKey}
+          stroke={color}
+          strokeWidth={2.5}
+          dot={{ r: 3, fill: color, strokeWidth: 0 }}
+          activeDot={{ r: 5 }}
+        />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
 export interface HBarRow {
   key: string;
   label: React.ReactNode;
@@ -203,4 +253,4 @@ function HBarList({ rows, className }: { rows: HBarRow[]; className?: string }) 
   );
 }
 
-export { ChartContainer, ChartTooltip, ChartTooltipContent, ChartBar, ChartArea, HBarList };
+export { ChartContainer, ChartTooltip, ChartTooltipContent, ChartBar, ChartArea, ChartLine, HBarList };

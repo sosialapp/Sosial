@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowUpDown, CalendarDays, Download, Eye, FileDown, FileText, Heart, Info, MessageCircle, Percent, Send, Users } from 'lucide-react';
+import { ArrowUpDown, BarChart3, CalendarDays, Download, FileDown, FileText, Heart, Info, LineChart, Percent, Send, Users } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar from '@/components/ChannelAvatar';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip } from '@/components/ui/tooltip';
-import { HBarList } from '@/components/ui/chart';
+import { ChartBar, ChartLine, HBarList } from '@/components/ui/chart';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { fetchMediaForPosts } from '@/lib/posts';
@@ -119,6 +119,7 @@ export default function AnalyticsDashboard({
   const [calOpen, setCalOpen] = useState(false);
   const [chanSel, setChanSel] = useState<string[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
+  const [perfMode, setPerfMode] = useState<'line' | 'bar'>('line');
   const [topSort, setTopSort] = useState<{ key: TopSortKey; dir: 'asc' | 'desc' }>({
     key: 'interactions',
     dir: 'desc',
@@ -277,9 +278,16 @@ export default function AnalyticsDashboard({
     { label: 'Failed', value: failed, href: '/queue', color: '#E60023' },
   ];
 
+  const interactions = likes + comments + shares;
+
   // Stat cards are display-only (not links), the ⓘ explains each number.
   const stats: { label: string; value: string; icon: typeof Send; hint: string }[] = [
-    { label: 'Posts', value: full(sent.length), icon: Send, hint: `Posts sent in ${range.label.toLowerCase()}.` },
+    {
+      label: 'Posts Published',
+      value: full(sent.length),
+      icon: Send,
+      hint: `Posts sent in ${range.label.toLowerCase()}.`,
+    },
     {
       label: 'Total Followers',
       value: hasFollowers ? full(followers) : '-',
@@ -287,28 +295,16 @@ export default function AnalyticsDashboard({
       hint: 'Latest follower total across the selected channels. Snapshots refresh daily, never rounded.',
     },
     {
-      label: 'Reactions',
-      value: full(likes),
-      icon: Heart,
-      hint: 'Latest like totals across sent posts on the selected channels.',
-    },
-    {
-      label: 'Comments',
-      value: full(comments),
-      icon: MessageCircle,
-      hint: 'Latest comment totals across sent posts on the selected channels.',
-    },
-    {
-      label: 'Eng. Rate',
+      label: 'Engagement Rate',
       value: eng ?? '-',
       icon: Percent,
-      hint: '(Reactions + Comments + Shares) ÷ Followers, from the latest snapshots.',
+      hint: '(Likes + comments + shares) ÷ followers, from the latest snapshots.',
     },
     {
-      label: 'Views',
-      value: hasViews ? full(views) : '-',
-      icon: Eye,
-      hint: 'Latest view totals where the platform exposes them (- where it does not).',
+      label: 'Total Interactions',
+      value: full(interactions),
+      icon: Heart,
+      hint: 'Likes + comments + shares across sent posts on the selected channels.',
     },
   ];
 
@@ -421,6 +417,40 @@ export default function AnalyticsDashboard({
     .filter((r) => r.sent > 0 || r.followers !== null);
   const chanEng = (r: { likes: number; comments: number; shares: number; followers: number | null }): string | null =>
     r.followers && r.followers > 0 ? `${(((r.likes + r.comments + r.shares) / r.followers) * 100).toFixed(1)}%` : null;
+
+  // ---- performance over time: interactions of posts published each bucket ----
+  // Snapshot stats are latest-only, so a post's interactions are attributed to
+  // the day it went out. Daily buckets, weekly once the range passes ~2 months.
+  const perfSeries = useMemo(() => {
+    const first = startOfDay(range.from);
+    const last = startOfDay(range.to);
+    const span = Math.max(1, Math.round((last - first) / DAY) + 1);
+    const step = span > 62 ? 7 : 1;
+    const out: { label: string; value: number }[] = [];
+    for (let t = first; t <= last; t += step * DAY) {
+      out.push({
+        label: new Date(t).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }),
+        value: 0,
+      });
+    }
+    for (const p of sent) {
+      if (!p.sent_at) continue;
+      const t = new Date(p.sent_at).getTime();
+      if (Number.isNaN(t) || t < first || t > last) continue;
+      const agg = statsByPost.get(p.id);
+      const i = Math.floor((startOfDay(t) - first) / DAY / step);
+      if (i >= 0 && i < out.length) out[i].value += (agg?.likes ?? 0) + (agg?.comments ?? 0) + (agg?.shares ?? 0);
+    }
+    return out;
+  }, [sent, statsByPost, range]);
+  const perfXInterval = Math.max(0, Math.ceil(perfSeries.length / 8) - 1);
+  const perfHasData = perfSeries.some((d) => d.value > 0);
+
+  // ---- channel breakdown: interactions + audience per channel, biggest first ----
+  const breakdown = perfRows
+    .map((r) => ({ r, total: r.likes + r.comments + r.shares }))
+    .sort((a, b) => b.total - a.total);
+  const breakdownMax = Math.max(1, ...breakdown.map((b) => b.total));
 
   // ---- exports ----
   const stamp = new Date().toISOString().slice(0, 10);
@@ -674,7 +704,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
       </div>
 
       {/* Stat cards: display-only, ⓘ explains each number */}
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label} className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
@@ -693,6 +723,113 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             <p className="mt-1 text-xs text-muted">{s.label}</p>
           </Card>
         ))}
+      </div>
+
+      {/* Performance over time (line/bar) + channel breakdown */}
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle>Performance over time</CardTitle>
+                <CardDescription>
+                  Interactions from posts published each day · {range.label.toLowerCase()}
+                </CardDescription>
+              </div>
+              <div
+                className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5"
+                role="tablist"
+                aria-label="Chart type"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={perfMode === 'line'}
+                  onClick={() => setPerfMode('line')}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                    perfMode === 'line' ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  <LineChart className="h-3.5 w-3.5" aria-hidden="true" />
+                  Line
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={perfMode === 'bar'}
+                  onClick={() => setPerfMode('bar')}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                    perfMode === 'bar' ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Bar
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-1">
+            {!perfHasData ? (
+              <p className="text-sm text-muted">No published posts in this range yet.</p>
+            ) : perfMode === 'line' ? (
+              <ChartLine
+                data={perfSeries}
+                dataKey="value"
+                labelKey="label"
+                color="var(--color-accent)"
+                height={224}
+                xInterval={perfXInterval}
+                formatter={(v) => full(Number(v))}
+              />
+            ) : (
+              <ChartBar
+                data={perfSeries}
+                dataKey="value"
+                labelKey="label"
+                color="var(--color-bolt)"
+                height={224}
+                xInterval={perfXInterval}
+                formatter={(v) => full(Number(v))}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle>Channel breakdown</CardTitle>
+              <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
+                Manage
+              </Link>
+            </div>
+            <CardDescription>Interactions, audience and engagement per channel</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-1">
+            {breakdown.length === 0 ? (
+              <p className="text-sm text-muted">
+                Connect a channel and publish, its numbers land here within a day.
+              </p>
+            ) : (
+              <HBarList
+                rows={breakdown.map(({ r, total }) => ({
+                  key: r.channelId,
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <BrandIcon provider={r.provider} className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{r.label}</span>
+                    </span>
+                  ),
+                  value: total,
+                  max: breakdownMax,
+                  color: 'var(--color-bolt)',
+                  trailing: full(total),
+                  hint: `${r.followers === null ? '-' : full(r.followers)} followers · ${chanEng(r) ?? '-'} engagement · ${r.sent} sent`,
+                }))}
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Top posts */}
@@ -892,72 +1029,6 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                   );
                 })}
               </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Channel performance */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <CardTitle>Channel performance</CardTitle>
-                <CardDescription>Followers refresh daily · engagement is interactions over followers</CardDescription>
-              </div>
-              <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
-                Manage channels
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-1">
-            {perfRows.length === 0 ? (
-              <p className="text-sm text-muted">
-                Connect a channel and publish, audience and engagement land here within a day.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Channel</TableHead>
-                    <TableHead className="text-right">Followers</TableHead>
-                    <TableHead className="text-right">Likes</TableHead>
-                    <TableHead className="text-right">Comments</TableHead>
-                    <TableHead className="text-right">Shares</TableHead>
-                    <TableHead className="text-right">
-                      <span className="inline-flex items-center gap-1">
-                        <Eye className="h-3 w-3" aria-hidden="true" />
-                        Views
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right">Engagement</TableHead>
-                    <TableHead className="text-right">Sent</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {perfRows.map((r) => {
-                    const eng = chanEng(r);
-                    return (
-                      <TableRow key={r.channelId}>
-                        <TableCell>
-                          <span className="flex items-center gap-2.5">
-                            <BrandIcon provider={r.provider} className="h-7 w-7 shrink-0" />
-                            <span className="truncate font-bold">{r.label}</span>
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-display font-extrabold" title={r.fetchedAt ? `Snapshot ${fmtDate(r.fetchedAt)}` : 'Awaiting first daily snapshot'}>
-                          {full(r.followers)}
-                        </TableCell>
-                        <TableCell className="text-right text-muted">{full(r.likes)}</TableCell>
-                        <TableCell className="text-right text-muted">{full(r.comments)}</TableCell>
-                        <TableCell className="text-right text-muted">{full(r.shares)}</TableCell>
-                        <TableCell className="text-right text-muted">{r.views === null ? '-' : full(r.views)}</TableCell>
-                        <TableCell className="text-right font-bold">{eng ?? '-'}</TableCell>
-                        <TableCell className="text-right text-muted">{r.sent}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
             )}
           </CardContent>
         </Card>
