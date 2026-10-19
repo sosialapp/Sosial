@@ -107,14 +107,13 @@ export async function getEntitlement(workspaceId: string): Promise<Entitlement> 
     const ownerId = (ws as { owner_id?: string | null } | null)?.owner_id ?? null;
     if (!ownerId) return FREE;
 
-    const { data: owned } = await admin.from('workspaces').select('id').eq('owner_id', ownerId);
-    const ids = ((owned ?? []) as { id: string }[]).map((w) => w.id);
-    if (!ids.length) return FREE;
-
+    // One round-trip for the owner's subscriptions across every team they own
+    // (this team is in that set, so it competes on rank like the rest). The
+    // embedded filter avoids the old "list owned ids, then .in()" hop.
     const { data: subs, error: subsErr } = await admin
       .from('subscriptions')
-      .select(SUB_COLS)
-      .in('workspace_id', ids);
+      .select(`${SUB_COLS}, workspaces!inner(owner_id)`)
+      .eq('workspaces.owner_id', ownerId);
     // Never let a broken service-role read look like "this team is Free".
     if (subsErr) console.error('[entitlement] subscriptions read failed:', subsErr.message);
 

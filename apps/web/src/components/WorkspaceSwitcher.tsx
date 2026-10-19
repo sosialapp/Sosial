@@ -62,7 +62,15 @@ export default function WorkspaceSwitcher({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
+
+  // Once the server confirms the new team, the label is authoritative again —
+  // clear the optimistic name and re-arm the switcher (busy otherwise stuck on).
+  useEffect(() => {
+    setBusy(false);
+    setPending(null);
+  }, [current.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +90,8 @@ export default function WorkspaceSwitcher({
       return;
     }
     setBusy(true);
+    setPending(workspaces.find((w) => w.id === id)?.name ?? null);
+    setOpen(false);
     try {
       const res = await fetch('/api/workspace/switch', {
         method: 'POST',
@@ -89,11 +99,10 @@ export default function WorkspaceSwitcher({
         body: JSON.stringify({ workspace_id: id }),
       });
       if (!res.ok) throw new Error('switch failed');
-      setOpen(false);
       router.refresh();
     } catch {
       setBusy(false);
-      setOpen(false);
+      setPending(null);
     }
   };
 
@@ -109,7 +118,7 @@ export default function WorkspaceSwitcher({
       >
         <TeamDot path={current.avatar_url} name={current.name} size={24} />
         <span className="min-w-0 flex-1 truncate text-sm font-bold">
-          {busy ? 'Switching…' : current.name}
+          {busy && pending ? pending : current.name}
         </span>
         <ChevronDown
           aria-hidden="true"

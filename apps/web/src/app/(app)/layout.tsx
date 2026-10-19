@@ -58,12 +58,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
-  const channels = await fetchLiveChannels(sb, ctx.workspace.id);
-  const { data: memberships } = await sb
-    .from('workspace_members')
-    .select('role, workspaces!inner(id, name, avatar_url)')
-    .eq('user_id', ctx.user.id)
-    .eq('status', 'active');
+  // Fire the masthead's two reads together: they're independent, and on every
+  // workspace switch this layout re-renders, so the serial hop was felt.
+  const [channels, { data: memberships }] = await Promise.all([
+    fetchLiveChannels(sb, ctx.workspace.id),
+    sb
+      .from('workspace_members')
+      .select('role, workspaces!inner(id, name, avatar_url)')
+      .eq('user_id', ctx.user.id)
+      .eq('status', 'active'),
+  ]);
   const workspaces: WorkspaceOption[] = (
     ((memberships ?? []) as unknown as {
       role: string;

@@ -19,9 +19,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'workspace_id required.' }, { status: 400 });
   }
   const sb = await createClient();
+  // Cookie-only session read: getUser() phones GoTrue on every switch, adding a
+  // full round-trip to the critical path. A forged cookie carries no valid JWT,
+  // so the RLS-checked membership probe below still rejects it (403).
   const {
-    data: { user },
-  } = await sb.auth.getUser();
+    data: { session },
+  } = await sb.auth.getSession();
+  const user = session?.user ?? null;
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
   const { data: mem } = await sb
     .from('workspace_members')

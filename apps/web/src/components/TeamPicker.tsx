@@ -60,7 +60,15 @@ export default function TeamPicker({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
+
+  // The server props are authoritative once the new team lands; clear the
+  // optimistic name and re-arm the picker (busy would otherwise stay true).
+  useEffect(() => {
+    setBusy(false);
+    setPending(null);
+  }, [current.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -81,6 +89,8 @@ export default function TeamPicker({
       return;
     }
     setBusy(true);
+    setPending(workspaces.find((w) => w.id === id)?.name ?? null);
+    setOpen(false);
     try {
       const res = await fetch('/api/workspace/switch', {
         method: 'POST',
@@ -88,11 +98,10 @@ export default function TeamPicker({
         body: JSON.stringify({ workspace_id: id }),
       });
       if (!res.ok) throw new Error('switch failed');
-      setOpen(false);
       router.refresh();
     } catch {
       setBusy(false);
-      setOpen(false);
+      setPending(null);
     }
   };
 
@@ -132,7 +141,7 @@ export default function TeamPicker({
       >
         <TeamDot path={current.avatar_url} name={current.name} size={22} />
         <span>
-          {busy ? 'Switching…' : current.name} · {planLabel} · {memberCount} member
+          {busy && pending ? pending : current.name} · {planLabel} · {memberCount} member
           {memberCount === 1 ? '' : 's'}
         </span>
         <ChevronDown

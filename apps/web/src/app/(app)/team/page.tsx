@@ -17,8 +17,11 @@ export default async function TeamPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
-  const ent = await getEntitlement(ctx.workspace.id);
-  const [membersRes, invitesRes, grantsRes, channelsRes] = await Promise.all([
+  // Entitlement resolution is independent of the roster read, so run them
+  // together: this page is what a "switch team" refresh lands on, and the old
+  // version serialised three entitlement queries before the batch below.
+  const [ent, membersRes, invitesRes, grantsRes, channelsRes] = await Promise.all([
+    getEntitlement(ctx.workspace.id),
     sb
       .from('workspace_members')
       .select('id, user_id, email, role, all_channels')
@@ -43,24 +46,22 @@ export default async function TeamPage() {
   const memberIds = members
     .map((m: { user_id: string | null }) => m.user_id)
     .filter((id): id is string => !!id);
-  const { data: profRows } = memberIds.length
-    ? await sb.from('profiles').select('id, avatar_url').in('id', memberIds)
-    : { data: [] as { id: string; avatar_url: string | null }[] };
+  const [{ data: profRows }, { data: wsRow }, { data: memberships }] = await Promise.all([
+    memberIds.length
+      ? sb.from('profiles').select('id, avatar_url').in('id', memberIds)
+      : Promise.resolve({ data: [] as { id: string; avatar_url: string | null }[] }),
+    sb.from('workspaces').select('avatar_url').eq('id', ctx.workspace.id).maybeSingle(),
+    sb
+      .from('workspace_members')
+      .select('role, workspaces!inner(id, name, avatar_url)')
+      .eq('user_id', ctx.user.id)
+      .eq('status', 'active'),
+  ]);
   const memberAvatars: Record<string, string> = Object.fromEntries(
     ((profRows ?? []) as { id: string; avatar_url: string | null }[])
       .filter((p) => p.avatar_url)
       .map((p) => [p.id, p.avatar_url as string]),
   );
-  const { data: wsRow } = await sb
-    .from('workspaces')
-    .select('avatar_url')
-    .eq('id', ctx.workspace.id)
-    .maybeSingle();
-  const { data: memberships } = await sb
-    .from('workspace_members')
-    .select('role, workspaces!inner(id, name, avatar_url)')
-    .eq('user_id', ctx.user.id)
-    .eq('status', 'active');
   const workspaces = (
     ((memberships ?? []) as unknown as {
       role: string;
