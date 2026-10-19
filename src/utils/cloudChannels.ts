@@ -645,6 +645,11 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     if (dirty && (await activeWorkspaceId()) === session.workspace.id) await saveAccounts(next);
     // Remember the cloud rows we just saw (the removal allowlist).
     await AsyncStorage.setItem(`${PULL_SEEN_KEY}:${session.workspace.id}`, JSON.stringify([...cloudIds])).catch(() => {});
+    recordPull(
+      session.workspace.id,
+      `ok created=${out.created.length} matched=${out.matched.length} removed=${out.removed.length}` +
+        (out.failed.length ? ` FAILED=${out.failed.length}` : ''),
+    );
     console.log(
       `[cloud] pull channels (${session.workspace.id.slice(0, 8)}): ` +
         `${out.created.length} created, ${out.matched.length} matched, ${out.removed.length} removed` +
@@ -653,11 +658,26 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     return out;
   } catch (e) {
     console.log('[cloud] pull channels error:', e);
+    const session = await currentSession().catch(() => null);
+    recordPull(session?.workspace.id ?? 'unknown', `error ${String(e).slice(0, 120)}`);
     return out;
   }
 }
 
 /* ---------------- Master switch (one setting, all channels) ---------------- */
+
+/** Last pull telemetry for the on-screen dev line — a silent failure here
+ *  looked exactly like "the feature is missing". */
+let lastPull: { at: number; wsId: string; summary: string } | null = null;
+
+export function lastPullSummary(): string {
+  if (!lastPull) return 'no pull yet';
+  return `${new Date(lastPull.at).toLocaleTimeString()} ws=${lastPull.wsId.slice(0, 8)} ${lastPull.summary}`;
+}
+
+function recordPull(wsId: string, summary: string): void {
+  lastPull = { at: Date.now(), wsId, summary };
+}
 
 const MASTER_KEY = 'sosial_cloud_master_v1';
 

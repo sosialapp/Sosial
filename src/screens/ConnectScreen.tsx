@@ -34,7 +34,8 @@ import { loginPinterest, completePinLogin } from '../utils/pinAuth';
 import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { loadCloudTeam } from '../utils/teamCloud';
-import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount } from '../utils/cloudChannels';
+import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount, lastPullSummary } from '../utils/cloudChannels';
+import { activeWorkspaceId } from '../utils/activeWorkspace';
 import { currentSession, callEdgeFunction } from '../utils/supabase';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
@@ -94,6 +95,21 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const [acctsLoading, setAcctsLoading] = useState(true);
   /** Channels publish; integrations feed the composer. Separate tabs. */
   const [tab, setTab] = useState<'channels' | 'integrations'>('channels');
+  const [dev, setDev] = useState('');
+
+  /** The pull is silent; without this line "pull landed with 6 channels" and
+   *  "pull errored with no network" both look like an empty screen. */
+  const refreshDev = () => {
+    void (async () => {
+      const [ws, accts] = await Promise.all([
+        activeWorkspaceId(),
+        loadAccounts().catch(() => [] as ConnectedAccount[]),
+      ]);
+      setDev(
+        `dev ws=${ws ? ws.slice(0, 8) : 'none'} accts=${accts.length} cloudOnly=${accts.filter((a) => isCloudOnly(a)).length} | pull: ${lastPullSummary()}`,
+      );
+    })();
+  };
 
   useEffect(() => {
     // Backfill first so the push below already carries fresh pictures, then
@@ -114,6 +130,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       void loadAccounts()
         .then((a) => setAccounts(a))
         .catch(() => {});
+      refreshDev();
     });
     loadCloudTeam()
       .then((t) => {
@@ -127,6 +144,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         setIsManager(sn ? sn.workspace.role === 'owner' || sn.workspace.role === 'admin' : false);
       })
       .catch(() => {});
+    refreshDev();
     return () => {
       offAccounts();
     };
@@ -1730,6 +1748,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             <IntegrationsPanel />
           </View>
         )}
+        <Text style={s.devLine} selectable>{dev || 'dev idle'}</Text>
       </ScrollView>
     </View>
   );
@@ -1776,6 +1795,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   pageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.paper, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 13, paddingVertical: 11 },
   pageT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   discT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText },
+  devLine: { fontSize: 10, color: C.muted, textAlign: 'center', marginTop: 20, paddingHorizontal: 24 },
   discBtn: { borderWidth: 1, borderColor: C.lineSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 12, paddingVertical: 10, marginBottom: 10, backgroundColor: C.paper },
   syncBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
