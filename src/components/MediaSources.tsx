@@ -815,7 +815,7 @@ export default function MediaSources({
                           <ActivityIndicator size="small" color="#fff" />
                         </View>
                       ) : null}
-                      <Text style={s.author} numberOfLines={1}>{item.title}</Text>
+                      <Text style={s.author} numberOfLines={1}>{item.pages && item.pages > 1 ? `${item.title} · ${item.pages}p` : item.title}</Text>
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={

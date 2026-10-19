@@ -813,7 +813,7 @@ export default function MediaSourcesDialog({
                     : source === 'onedrive'
                       ? odFiles.map((f) => cellFor(f.id, f.thumb, f.name, f.kind, selCount > 0 ? () => toggleSel('onedrive', f.id, f) : () => void pickOneDrive(f), isSel('onedrive', f.id), () => toggleSel('onedrive', f.id, f)))
                       : source === 'canva'
-                        ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.title, canvaKind, () => void pickCanva(d)))
+                        ? canvaDesigns.map((d) => cellFor(d.id, d.thumb, d.pages && d.pages > 1 ? `${d.title} · ${d.pages} pages` : d.title, canvaKind, () => void pickCanva(d)))
                         : items.map((item) => cellFor(item.id, item.thumb, item.author, item.kind, () => void pickStock(item)))}
                 </div>
                 </>

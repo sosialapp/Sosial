@@ -185,6 +185,8 @@ export interface CanvaDesign {
   id: string;
   title: string;
   thumb?: string;
+  /** Page count from Canva; >1 means the export yields one image per page. */
+  pages?: number;
 }
 
 /** Designs (newest first), optionally matching a query. Note: Canva has no
@@ -203,6 +205,7 @@ export async function listCanvaDesigns(query?: string): Promise<{ designs: Canva
       id: String(x?.id ?? ''),
       title: String(x?.title ?? 'Untitled design'),
       thumb: typeof x?.thumbnail?.url === 'string' ? x.thumbnail.url : undefined,
+      pages: Number(x?.page_count ?? 0) || undefined,
     }))
     .filter((d) => d.id));
   return { designs, folders: [] };
@@ -213,10 +216,18 @@ export async function listCanvaDesigns(query?: string): Promise<{ designs: Canva
 export async function downloadCanvaDesigns(d: CanvaDesign, kind: 'image' | 'video'): Promise<{ uri: string; kind: 'image' | 'video' }[]> {
   const token = await getValidCanvaToken();
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  // Name every page we want so Canva can't fall back to page one.
+  const pages = d.pages && d.pages > 1 ? Array.from({ length: d.pages }, (_, i) => i + 1) : undefined;
   const start = await fetch(`${API}/exports`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ design_id: d.id, format: kind === 'video' ? { type: 'mp4' } : { type: 'jpg', quality: 100 } }),
+    body: JSON.stringify({
+      design_id: d.id,
+      format:
+        kind === 'video'
+          ? { type: 'mp4', ...(pages ? { pages } : {}) }
+          : { type: 'jpg', quality: 100, ...(pages ? { pages } : {}) },
+    }),
   });
   const sj: any = await start.json().catch(() => ({}));
   if (!start.ok) throw new Error(sj?.message ?? `Canva refused the export (HTTP ${start.status}).`);
