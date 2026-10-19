@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Pencil } from 'lucide-react';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import { fileToAvatarDataUrl } from '@/lib/avatar';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { useSignedUrl } from '@/lib/useSignedUrl';
@@ -220,12 +221,8 @@ export default function TeamManager({
     setErr(null);
     setAvatarMsg(null);
     try {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result));
-        r.onerror = () => reject(new Error('Could not read that file.'));
-        r.readAsDataURL(file);
-      });
+      const b64 = await fileToAvatarDataUrl(file);
+      if (!b64) throw new Error('That image format isn’t supported, use a JPEG or PNG.');
       const sb = createClient();
       const { data, error } = await sb.functions.invoke('team-avatar', {
         body: { workspace_id: workspaceId, image_base64: b64 },

@@ -3,6 +3,7 @@ import { createClient, type Session, type SupabaseClient, type User } from '@sup
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 /**
  * Supabase client (staging), the cloud backend for auth + workspace data.
@@ -412,16 +413,21 @@ export async function avatarSignedUrl(path: string | null): Promise<string | nul
   return null;
 }
 
-/** Upload a local image (uri) as the profile picture, server compresses. */
-export async function setAvatarFromUri(uri: string): Promise<void> {
-  const res = await fetch(uri);
-  const blob = await res.blob();
-  const b64 = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(new Error('Could not read that image.'));
-    r.readAsDataURL(blob);
+/** Downscale a local image to a ≤256 px JPEG data URL for the avatar edge
+ *  functions. The self-hosted edge runtime can't decode/compress large photos
+ *  itself (it rejects >300 KB it can't re-encode), so shrink on-device first. */
+async function avatarDataUrl(uri: string): Promise<string> {
+  const out = await manipulateAsync(uri, [{ resize: { width: 256 } }], {
+    compress: 0.8,
+    format: SaveFormat.JPEG,
+    base64: true,
   });
+  return `data:image/jpeg;base64,${out.base64 ?? ''}`;
+}
+
+/** Upload a local image (uri) as the profile picture, downsized on-device. */
+export async function setAvatarFromUri(uri: string): Promise<void> {
+  const b64 = await avatarDataUrl(uri);
   await callEdgeFunction('profile-avatar', { image_base64: b64 });
 }
 
@@ -461,14 +467,7 @@ export async function teamAvatarSignedUrl(path: string | null): Promise<string |
 
 /** Upload a local image as the team picture (owner/admin only, enforced server-side). */
 export async function setTeamAvatarFromUri(workspaceId: string, uri: string): Promise<void> {
-  const res = await fetch(uri);
-  const blob = await res.blob();
-  const b64 = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(new Error('Could not read that image.'));
-    r.readAsDataURL(blob);
-  });
+  const b64 = await avatarDataUrl(uri);
   await callEdgeFunction('team-avatar', { workspace_id: workspaceId, image_base64: b64 });
 }
 

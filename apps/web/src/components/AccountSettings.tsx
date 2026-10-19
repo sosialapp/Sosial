@@ -33,6 +33,7 @@ import {
 import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { fileToAvatarDataUrl } from '@/lib/avatar';
 import { createClient } from '@/lib/supabase/client';
 import { useSignedUrl } from '@/lib/useSignedUrl';
 import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
@@ -241,12 +242,8 @@ export default function AccountSettings({
     setAvatarBusy(true);
     setErr(null);
     try {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result));
-        r.onerror = () => reject(new Error('Could not read that file.'));
-        r.readAsDataURL(file);
-      });
+      const b64 = await fileToAvatarDataUrl(file);
+      if (!b64) throw new Error('That image format isn’t supported, use a JPEG or PNG.');
       const sb = createClient();
       const { data, error } = await sb.functions.invoke('profile-avatar', {
         body: { image_base64: b64 },
