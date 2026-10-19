@@ -40,6 +40,7 @@ export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -56,18 +57,18 @@ export default function NotificationBell() {
           .overlaps('platforms', [Platform.OS])
           .order('created_at', { ascending: false })
           .limit(20),
-        sb.from('announcement_reads').select('announcement_id'),
+        sb.from('announcement_reads').select('announcement_id, dismissed_at'),
       ]);
-      const readIds = new Set(
-        ((reads.data ?? []) as { announcement_id: string }[]).map((r) => r.announcement_id),
-      );
+      const readRows = (reads.data ?? []) as { announcement_id: string; dismissed_at: string | null }[];
+      const readIds = new Set(readRows.map((r) => r.announcement_id));
+      const dismissed = new Set(readRows.filter((r) => r.dismissed_at).map((r) => r.announcement_id));
       const merged: MobileNotif[] = [
         ...((notifs.data ?? []) as { id: string; kind: string; title: string; body: string; href: string | null; read_at: string | null; created_at: string }[]).map(
           (n) => ({ ...n, source: 'notification' as const, read: !!n.read_at }),
         ),
-        ...((anns.data ?? []) as { id: string; kind: string; title: string; body: string; href: string | null; created_at: string }[]).map(
-          (a) => ({ ...a, source: 'announcement' as const, read: readIds.has(a.id) }),
-        ),
+        ...((anns.data ?? []) as { id: string; kind: string; title: string; body: string; href: string | null; created_at: string }[])
+          .filter((a) => !dismissed.has(a.id))
+          .map((a) => ({ ...a, source: 'announcement' as const, read: readIds.has(a.id) })),
       ]
         .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
         .slice(0, 20);
@@ -117,6 +118,36 @@ export default function NotificationBell() {
     } catch {}
   };
 
+  /** Delete one row: notifications are per-recipient rows (hard delete);
+   *  announcements are app-wide, so they are dismissed per user instead. */
+  const remove = async (n: MobileNotif) => {
+    if (deleting) return;
+    setDeleting(`${n.source}-${n.id}`);
+    const wasUnread = !n.read;
+    setItems((prev) => prev.filter((x) => !(x.source === n.source && x.id === n.id)));
+    setUnread((prev) => Math.max(0, prev - (wasUnread ? 1 : 0)));
+    try {
+      const sb = supabase();
+      if (n.source === 'notification') {
+        await sb.from('notifications').delete().eq('id', n.id);
+      } else {
+        const {
+          data: { user },
+        } = await sb.auth.getUser();
+        if (user) {
+          await sb.from('announcement_reads').upsert(
+            { announcement_id: n.id, user_id: user.id, dismissed_at: new Date().toISOString() },
+            { onConflict: 'announcement_id,user_id' },
+          );
+        }
+      }
+    } catch {
+      void load();
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   return (
     <View>
       <TouchableOpacity
@@ -162,6 +193,19 @@ export default function NotificationBell() {
                       {n.body ? <Text style={s.rowS} numberOfLines={2}>{n.body}</Text> : null}
                     </View>
                     {!n.read ? <View style={s.dot} /> : null}
+                    <TouchableOpacity
+                      onPress={() => void remove(n)}
+                      disabled={!!deleting}
+                      hitSlop={10}
+                      style={s.del}
+                      accessibilityLabel={`Delete ${n.title}`}
+                    >
+                      {deleting === `${n.source}-${n.id}` ? (
+                        <ActivityIndicator size="small" color={C.faint} />
+                      ) : (
+                        <Ionicons name="trash-outline" size={16} color={C.faint} />
+                      )}
+                    </TouchableOpacity>
                   </View>
                 ))
               )}
@@ -187,4 +231,5 @@ const makeS = (C: Palette) => StyleSheet.create({
   rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 17, color: C.muted },
   ago: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.accent, marginTop: 6 },
+  del: { padding: 2, marginTop: 2 },
 });

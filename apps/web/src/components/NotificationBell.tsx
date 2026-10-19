@@ -24,6 +24,7 @@ import {
   PenLine,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Unplug,
   UserPlus,
 } from 'lucide-react';
@@ -100,6 +101,7 @@ export default function NotificationBell() {
   const [extras, setExtras] = useState<Record<string, PostExtras>>({});
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const sb = useRef<ReturnType<typeof createClient> | null>(null);
 
@@ -119,24 +121,26 @@ export default function NotificationBell() {
           .overlaps('platforms', ['web'])
           .order('created_at', { ascending: false })
           .limit(20),
-        client.from('announcement_reads').select('announcement_id'),
+        client.from('announcement_reads').select('announcement_id, dismissed_at'),
       ]);
 
-      const readIds = new Set(
-        ((reads.data ?? []) as { announcement_id: string }[]).map((r) => r.announcement_id),
-      );
+      const readRows = (reads.data ?? []) as { announcement_id: string; dismissed_at: string | null }[];
+      const readIds = new Set(readRows.map((r) => r.announcement_id));
+      const dismissed = new Set(readRows.filter((r) => r.dismissed_at).map((r) => r.announcement_id));
       const merged: FeedRow[] = [
         ...((notifs.data ?? []) as NotifRow[]).map((n) => ({
           ...n,
           source: 'notification' as const,
           read: !!n.read_at,
         })),
-        ...((anns.data ?? []) as Omit<NotifRow, 'read_at' | 'post_id'>[]).map((a) => ({
-          ...a,
-          source: 'announcement' as const,
-          post_id: null,
-          read: readIds.has(a.id),
-        })),
+        ...((anns.data ?? []) as Omit<NotifRow, 'read_at' | 'post_id'>[])
+          .filter((a) => !dismissed.has(a.id))
+          .map((a) => ({
+            ...a,
+            source: 'announcement' as const,
+            post_id: null,
+            read: readIds.has(a.id),
+          })),
       ]
         .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
         .slice(0, 20);
@@ -276,6 +280,35 @@ export default function NotificationBell() {
     } catch {}
   }
 
+  /** Delete one bell row. A notification belongs to this user (hard delete);
+   *  an announcement is app-wide, so dismissing it is recorded per user. */
+  async function remove(n: FeedRow) {
+    if (deleting) return;
+    setDeleting(`${n.source}-${n.id}`);
+    setItems((prev) => prev.filter((x) => !(x.source === n.source && x.id === n.id)));
+    setUnread((prev) => Math.max(0, prev - (n.read ? 0 : 1)));
+    const client = sb.current ?? (sb.current = createClient());
+    try {
+      if (n.source === 'notification') {
+        await client.from('notifications').delete().eq('id', n.id);
+      } else {
+        const {
+          data: { user },
+        } = await client.auth.getUser();
+        if (user) {
+          await client.from('announcement_reads').upsert(
+            { announcement_id: n.id, user_id: user.id, dismissed_at: new Date().toISOString() },
+            { onConflict: 'announcement_id,user_id' },
+          );
+        }
+      }
+    } catch {
+      void load();
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   return (
     <div ref={box} className="relative">
       <button
@@ -355,6 +388,20 @@ export default function NotificationBell() {
                       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
                     ) : null}
                     {!n.read ? <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> : null}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void remove(n);
+                      }}
+                      disabled={deleting === `${n.source}-${n.id}`}
+                      aria-label={`Delete ${n.title}`}
+                      title="Delete"
+                      className="mt-0.5 shrink-0 rounded-md p-1 text-faint transition hover:bg-surface hover:text-[#9F2F2D] disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
                   </div>
                 );
                 return n.href ? (
