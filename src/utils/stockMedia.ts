@@ -1,7 +1,7 @@
 /**
- * Stock search client (Pexels + Unsplash) via edge functions, keys never
- * touch the device. Unsplash attribution is appended by the caller at attach
- * time (see attachStockItem), never here, so no path can skip it.
+ * Stock search client (Unsplash) via edge functions, keys never touch the
+ * device. Unsplash attribution is appended by the caller at attach time (see
+ * attachStockItem), never here, so no path can skip it.
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
@@ -16,20 +16,18 @@ export interface StockItem {
   height: number;
   author: string;
   authorUrl: string;
-  source: 'pexels' | 'unsplash';
+  source: 'unsplash';
 }
 
 export async function searchStock(
-  source: 'pexels' | 'unsplash',
   query: string,
   type: 'photo' | 'video' = 'photo',
   page = 1,
 ): Promise<StockItem[]> {
-  const fn = source === 'pexels' ? 'pexels-search' : 'unsplash-search';
-  const j: any = await callEdgeFunction(fn, { query, type, page, per_page: 12 });
+  const j: any = await callEdgeFunction('unsplash-search', { query, type, page, per_page: 12 });
   if (j?.error) throw new Error(String(j.error));
   const items = Array.isArray(j?.items) ? j.items : [];
-  return items.map((x: any) => ({ ...x, source }));
+  return items.map((x: any) => ({ ...x, source: 'unsplash' as const }));
 }
 
 /** Unsplash license credit line, auto-appended to captions, non-optional.

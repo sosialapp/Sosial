@@ -78,7 +78,6 @@ export default function MediaSources({
   const [source, setSource] = useState<Source | null>(null);
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'photo' | 'video'>('photo');
-  const [stockSource, setStockSource] = useState<'unsplash' | 'pexels'>('unsplash');
   const [items, setItems] = useState<StockItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -245,7 +244,7 @@ export default function MediaSources({
         await loadCanva(query.trim());
         return;
       } else {
-        setItems(await searchStock(stockSource, query.trim(), type));
+        setItems(await searchStock(query.trim(), type));
       }
     } catch (e: any) {
       Alert.alert('Search failed', e?.message ?? 'Try again.');
@@ -356,7 +355,6 @@ export default function MediaSources({
     setCanvaDesigns([]);
     if (id === 'unsplash') {
       setType('photo');
-      setStockSource('unsplash');
     }
     if (id === 'drive' || id === 'gphotos') {
       const ok = await filesConnected();
@@ -596,7 +594,7 @@ export default function MediaSources({
                   ))}
                 </View>
               ) : null}
-              {source === 'unsplash' && stockSource === 'unsplash' ? (
+              {source === 'unsplash' ? (
                 <Text style={s.creditNote}>Photographer credit is added to your caption automatically.</Text>
               ) : null}
 
@@ -827,17 +825,6 @@ export default function MediaSources({
               ) : (
                 <>
                   <View style={s.typeRow}>
-                    {(['unsplash', 'pexels'] as const).map((p) => (
-                      <TouchableOpacity
-                        key={p}
-                        onPress={() => { setStockSource(p); setItems([]); }}
-                        style={[s.typePill, stockSource === p && { backgroundColor: C.ink }]}
-                      >
-                        <Text style={[s.typeT, stockSource === p && { color: C.onInk }]}>
-                          {p === 'unsplash' ? 'Unsplash' : 'Pexels'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
                     {(['photo', 'video'] as const).map((t) => (
                       <TouchableOpacity
                         key={t}

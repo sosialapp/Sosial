@@ -21,7 +21,7 @@ export interface StockItem {
   full: string;
   author: string;
   authorUrl: string;
-  source: 'pexels' | 'unsplash';
+  source: 'unsplash';
 }
 
 type Source = 'drive' | 'gphotos' | 'dropbox' | 'canva' | 'unsplash' | 'onedrive';
@@ -67,8 +67,6 @@ export default function MediaSourcesDialog({
   const [source, setSource] = useState<Source | null>(null);
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'photo' | 'video'>('photo');
-  /** Stock provider within the Unsplash row (mobile parity: Pexels too). */
-  const [stockSource, setStockSource] = useState<'unsplash' | 'pexels'>('unsplash');
   const [items, setItems] = useState<StockItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState<{ id: string; progress: number | null } | null>(null);
@@ -197,7 +195,7 @@ export default function MediaSourcesDialog({
   const openSource = async (id: Source) => {
     reset();
     setSource(id);
-    if (id === 'unsplash') { setType('photo'); setStockSource('unsplash'); }
+    if (id === 'unsplash') { setType('photo'); }
     if (id === 'drive' || id === 'gphotos' || id === 'dropbox' || id === 'canva' || id === 'onedrive') {
       const provider: CloudProvider =
         id === 'dropbox' ? 'dropbox' : id === 'canva' ? 'canva' : id === 'onedrive' ? 'onedrive' : 'google';
@@ -332,13 +330,13 @@ export default function MediaSourcesDialog({
     setBusy(true);
     setErr(null);
     try {
-      const data = await invokeStock(stockSource === 'pexels' ? 'pexels-search' : 'unsplash-search', {
+      const data = await invokeStock('unsplash-search', {
         query: query.trim(),
         type,
         per_page: 12,
       });
       const list = (Array.isArray((data as any)?.items) ? (data as any).items : []) as StockItem[];
-      setItems(list.map((x) => ({ ...x, source: stockSource })));
+      setItems(list.map((x) => ({ ...x, source: 'unsplash' as const })));
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Search failed.');
     } finally {
@@ -712,18 +710,6 @@ export default function MediaSourcesDialog({
                 {source === 'unsplash' ? (
                   <>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {(['unsplash', 'pexels'] as const).map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => { setStockSource(p); setItems([]); }}
-                          className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
-                            stockSource === p ? 'border-ink bg-ink text-paper' : 'border-line text-muted hover:text-ink'
-                          }`}
-                        >
-                          {p === 'unsplash' ? 'Unsplash' : 'Pexels'}
-                        </button>
-                      ))}
                       {(['photo', 'video'] as const).map((t) => (
                         <button
                           key={t}
@@ -737,9 +723,7 @@ export default function MediaSourcesDialog({
                         </button>
                       ))}
                     </div>
-                    {stockSource === 'unsplash' ? (
-                      <p className="mt-1.5 text-[11px] text-muted">Photographer credit is added to your caption automatically.</p>
-                    ) : null}
+                    <p className="mt-1.5 text-[11px] text-muted">Photographer credit is added to your caption automatically.</p>
                   </>
                 ) : null}
                 {err ? <p className="mt-1.5 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}

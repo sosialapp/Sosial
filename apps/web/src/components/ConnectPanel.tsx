@@ -680,7 +680,16 @@ export default function ConnectPanel({
       if (p === 'gmb') return 'Account + location';
       return 'Tap to connect';
     }
-    if (list.length === 1) return accountName(list[0]);
+    if (list.length === 1) {
+      const one = list[0];
+      if (p === 'pinterest') {
+        const md = (one.metadata ?? {}) as Record<string, unknown>;
+        if (typeof md.pinBoardId !== 'string' || !md.pinBoardId) {
+          return `${accountName(one)} · pick a board`;
+        }
+      }
+      return accountName(one);
+    }
     return `${list.length} accounts`;
   };
 

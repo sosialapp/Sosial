@@ -58,7 +58,11 @@ export async function POST(req: Request) {
     plan =
       active.sort((a, b) => (rank[b.plan] ?? 0) - (rank[a.plan] ?? 0))[0]?.plan ?? 'free';
   }
-  const limit = WORKSPACE_LIMITS[plan] ?? 1;
+  // Own-property check, not `?? 1`: ultimate maps to `null` (unlimited) and
+  // `null ?? 1` would collapse it to a single workspace.
+  const limit = Object.prototype.hasOwnProperty.call(WORKSPACE_LIMITS, plan)
+    ? WORKSPACE_LIMITS[plan]
+    : 1;
   if (limit !== null && ownedIds.length >= limit) {
     return NextResponse.json(
       {

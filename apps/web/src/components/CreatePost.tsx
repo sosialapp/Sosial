@@ -12,6 +12,7 @@ import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
 import ArticleEditor from '@/components/ArticleEditor';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
+import PinBoardPicker from '@/components/PinBoardPicker';
 import { GitBranch, Plus } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
@@ -962,6 +963,26 @@ export default function CreatePost({
                 ) : null}
               </div>
             ) : null}
+
+            {/* Pinterest only publishes to a board, and the worker refuses
+                without one. The picker lives here, next to the channel, so
+                the fix is inline instead of a trip to the Connect page. */}
+            {chosenNow
+              .filter((c) => c.provider === 'pinterest')
+              .map((c) => {
+                const md = (c.metadata ?? {}) as Record<string, unknown>;
+                return (
+                  <div key={`pin-${c.id}`} className="mt-3">
+                    <PinBoardPicker
+                      workspaceId={workspaceId}
+                      channelId={c.id}
+                      currentBoardId={typeof md.pinBoardId === 'string' ? md.pinBoardId : undefined}
+                      currentBoardName={typeof md.pinBoardName === 'string' ? md.pinBoardName : undefined}
+                      canManage={role === 'owner' || role === 'admin'}
+                    />
+                  </div>
+                );
+              })}
 
             {/* Social composer vs. rich article editor, only when a website
                 channel is picked; the toggle defaults to Article in that case. */}
