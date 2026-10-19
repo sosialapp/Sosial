@@ -10,22 +10,39 @@ import { deleteProjectPreset, instantiatePreset, loadProjectPresets, renameProje
 saveProjectPreset, ProjectPreset } from '../utils/presets';
 import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/managed';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
+import { activeWorkspaceId, scopedKey } from '../utils/activeWorkspace';
 
 const KEY = 'quickpost_projects_v1';
 
+/** Projects hold a team's unpublished work, so the list is per workspace. */
+async function projectsKey(): Promise<string> {
+  return scopedKey(KEY, await activeWorkspaceId());
+}
+
 export async function saveProject(p: QuickPost) {
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const key = await projectsKey();
+    const raw = await AsyncStorage.getItem(key);
     const list: QuickPost[] = raw ? JSON.parse(raw) : [];
     const i = list.findIndex((x) => x.id === p.id);
     if (i >= 0) list[i] = p; else list.unshift(p);
-    await AsyncStorage.setItem(KEY, JSON.stringify(list.slice(0, 30)));
+    await AsyncStorage.setItem(key, JSON.stringify(list.slice(0, 30)));
   } catch {}
 }
 
 export async function loadProjects(): Promise<QuickPost[]> {
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const key = await projectsKey();
+    let raw = await AsyncStorage.getItem(key);
+    if (!raw && key !== KEY) {
+      // Pre-scoping install: adopt the global list once for the pinned team.
+      const globalRaw = await AsyncStorage.getItem(KEY);
+      if (globalRaw) {
+        await AsyncStorage.setItem(key, globalRaw);
+        await AsyncStorage.removeItem(KEY);
+        raw = globalRaw;
+      }
+    }
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -34,19 +51,21 @@ export async function loadProjects(): Promise<QuickPost[]> {
 
 export async function deleteProject(id: string) {
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const key = await projectsKey();
+    const raw = await AsyncStorage.getItem(key);
     const list: QuickPost[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(KEY, JSON.stringify(list.filter((x) => x.id !== id)));
+    await AsyncStorage.setItem(key, JSON.stringify(list.filter((x) => x.id !== id)));
   } catch {}
 }
 
 export async function renameProject(id: string, name: string) {
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const key = await projectsKey();
+    const raw = await AsyncStorage.getItem(key);
     const list: QuickPost[] = raw ? JSON.parse(raw) : [];
     const p = list.find((x) => x.id === id);
     if (p) p.name = name;
-    await AsyncStorage.setItem(KEY, JSON.stringify(list));
+    await AsyncStorage.setItem(key, JSON.stringify(list));
   } catch {}
 }
 

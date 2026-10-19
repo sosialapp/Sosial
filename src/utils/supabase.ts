@@ -398,13 +398,27 @@ export async function getMyAvatar(): Promise<string | null> {
 /** Signed URL for the user's own avatar path. Retried: on first mount the
  *  sign call can race the session and come back empty, which is why a picture
  *  only appeared after the next tap. */
+const avatarUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
 export async function avatarSignedUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
   const key = path.split('?')[0];
+  const cached = avatarUrlCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.url;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const { data, error } = await supabase().storage.from('avatars').createSignedUrl(key, 3600);
-      if (!error && data?.signedUrl) return data.signedUrl;
+      if (!error && data?.signedUrl) {
+        // Older storage builds return a path (`/object/sign/...`); an <Image>
+        // needs an absolute URL or it resolves against the app scheme.
+        const base = `${supabaseUrl()}/storage/v1`;
+        const url = /^https?:\/\//i.test(data.signedUrl)
+          ? data.signedUrl
+          : `${base}${data.signedUrl.startsWith('/') ? '' : '/'}${data.signedUrl}`;
+        if (avatarUrlCache.size > 200) avatarUrlCache.clear();
+        avatarUrlCache.set(key, { url, expiresAt: Date.now() + 55 * 60 * 1000 });
+        return url;
+      }
     } catch {
       /* session not ready yet, retry */
     }

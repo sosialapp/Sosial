@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { uid } from '../constants';
+import { clearAllAccounts } from './metaStore';
 
 /** Local-only account (no backend): email + team live on-device. */
 export interface Account {
@@ -48,7 +48,7 @@ export async function saveAccount(patch: Partial<Account>): Promise<Account> {
 
 /** Delete-account: wipe every local store + token vault. */
 export async function wipeAllData(): Promise<void> {
-  const keys = [
+  const exact = [
     'quickpost_projects_v1',
     'quickpost_managed_posts_v1',
     'quickpost_text_posts_v1',
@@ -61,10 +61,16 @@ export async function wipeAllData(): Promise<void> {
     'quickpost_compose',
   ];
   try {
+    // Workspace-scoped mirrors are `base:<workspace_id>`, so match prefixes.
+    const all = await AsyncStorage.getAllKeys();
+    const keys = all.filter(
+      (k) =>
+        exact.includes(k) ||
+        k.startsWith('quickpost_projects_v1:') ||
+        k.startsWith('quickpost_managed_posts_v1:') ||
+        k.startsWith('quickpost_text_posts_v1:'),
+    );
     await AsyncStorage.multiRemove(keys);
   } catch {}
-  try {
-    await SecureStore.deleteItemAsync('zap_meta_v1');
-    await SecureStore.deleteItemAsync('zap_accounts_v1');
-  } catch {}
+  await clearAllAccounts();
 }

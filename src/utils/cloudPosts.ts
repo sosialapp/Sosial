@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, supabaseUrl, currentSession, callEdgeFunction } from './supabase';
+import { activeWorkspaceId, scopedKey } from './activeWorkspace';
 import { uploadMediaFromFile } from './mediaUpload';
 import { loadManagedPosts, saveManagedPostLocal, deleteManagedPost, postAttachments, type ManagedPost, type MediaAttachment } from './managed';
 import { isChainPlatform } from './thread';
@@ -422,9 +423,14 @@ const ADOPTED_KEY = 'sosial_cloud_adopted_posts_v1';
 /** client_id → timestamp of last successful push (retraction allowlist). */
 const PUSHED_KEY = 'sosial_cloud_pushed_posts_v1';
 
+/** Allowlists are per workspace: one team's ids must never retract another's. */
+async function storeKey(base: string): Promise<string> {
+  return scopedKey(base, await activeWorkspaceId());
+}
+
 async function loadPushed(): Promise<Record<string, number>> {
   try {
-    const raw = await AsyncStorage.getItem(PUSHED_KEY);
+    const raw = await AsyncStorage.getItem(await storeKey(PUSHED_KEY));
     const obj: unknown = raw ? JSON.parse(raw) : {};
     if (obj && typeof obj === 'object') {
       const out: Record<string, number> = {};
@@ -446,7 +452,7 @@ async function markPushed(clientId: string): Promise<void> {
     const keys = Object.keys(cur);
     const trimmed: Record<string, number> = {};
     for (const k of keys.slice(-500)) trimmed[k] = cur[k];
-    await AsyncStorage.setItem(PUSHED_KEY, JSON.stringify(trimmed));
+    await AsyncStorage.setItem(await storeKey(PUSHED_KEY), JSON.stringify(trimmed));
   } catch {}
 }
 
@@ -455,7 +461,7 @@ async function unmarkPushed(clientId: string): Promise<void> {
     const cur = await loadPushed();
     if (clientId in cur) {
       delete cur[clientId];
-      await AsyncStorage.setItem(PUSHED_KEY, JSON.stringify(cur));
+      await AsyncStorage.setItem(await storeKey(PUSHED_KEY), JSON.stringify(cur));
     }
   } catch {}
 }
@@ -471,7 +477,7 @@ const DELETED_KEY = 'sosial_cloud_deleted_posts_v1';
 
 async function loadDeleted(): Promise<Record<string, number>> {
   try {
-    const raw = await AsyncStorage.getItem(DELETED_KEY);
+    const raw = await AsyncStorage.getItem(await storeKey(DELETED_KEY));
     const obj: unknown = raw ? JSON.parse(raw) : {};
     if (obj && typeof obj === 'object') {
       const out: Record<string, number> = {};
@@ -493,7 +499,7 @@ async function markDeleted(clientId: string): Promise<void> {
     cur[clientId] = Date.now();
     const trimmed: Record<string, number> = {};
     for (const k of Object.keys(cur).slice(-500)) trimmed[k] = cur[k];
-    await AsyncStorage.setItem(DELETED_KEY, JSON.stringify(trimmed));
+    await AsyncStorage.setItem(await storeKey(DELETED_KEY), JSON.stringify(trimmed));
   } catch {}
 }
 
@@ -502,7 +508,7 @@ async function unmarkDeleted(clientId: string): Promise<void> {
     const cur = await loadDeleted();
     if (clientId in cur) {
       delete cur[clientId];
-      await AsyncStorage.setItem(DELETED_KEY, JSON.stringify(cur));
+      await AsyncStorage.setItem(await storeKey(DELETED_KEY), JSON.stringify(cur));
     }
   } catch {}
 }
@@ -543,7 +549,7 @@ export async function pushPendingPosts(): Promise<number> {
 
 async function loadAdopted(): Promise<Set<string>> {
   try {
-    const raw = await AsyncStorage.getItem(ADOPTED_KEY);
+    const raw = await AsyncStorage.getItem(await storeKey(ADOPTED_KEY));
     const arr: unknown = raw ? JSON.parse(raw) : [];
     return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []);
   } catch {
@@ -556,7 +562,7 @@ async function markAdopted(ids: string[]): Promise<void> {
   try {
     const cur = await loadAdopted();
     for (const id of ids) cur.add(id);
-    await AsyncStorage.setItem(ADOPTED_KEY, JSON.stringify([...cur].slice(-500)));
+    await AsyncStorage.setItem(await storeKey(ADOPTED_KEY), JSON.stringify([...cur].slice(-500)));
   } catch {}
 }
 

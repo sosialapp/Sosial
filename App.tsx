@@ -29,6 +29,7 @@ import { pushProfileToCloud, currentSession, isSupabaseConfigured } from './src/
 import { handleAuthUrl, getPendingAuth } from './src/utils/authFlow';
 import { backfillMissingAvatars } from './src/utils/avatarBackfill';
 import { pullCloudChannels } from './src/utils/cloudChannels';
+import { pullCloudPosts } from './src/utils/cloudPosts';
 import { useTheme, ThemeProvider } from './src/theme';
 
 type Route = 'home' | 'create' | 'analytics' | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
@@ -175,7 +176,10 @@ function Shell() {
     setWsEpoch((n) => n + 1);
     setRoute('home');
     void refreshEntitlement().then((e) => { if (e) setEntitlement(e); });
-    void pullCloudChannels().catch(() => {});
+    // Force both pulls: the new workspace may have channels and posts this
+    // device has never seen, and the 5-minute throttles must not hide them.
+    void pullCloudChannels(true).catch(() => {});
+    void pullCloudPosts().catch(() => {});
   };
 
   const dismissWelcome = async () => {

@@ -431,13 +431,16 @@ export interface PullResult {
 export async function pullCloudChannels(force = false): Promise<PullResult> {
   const out: PullResult = { matched: [], created: [], removed: [], skipped: [], failed: [] };
   try {
-    if (!force) {
-      const last = await AsyncStorage.getItem(PULL_LAST_KEY).catch(() => null);
-      if (last && Date.now() - Number(last) < PULL_MS) return out;
-    }
     const session = await currentSession().catch(() => null);
     if (!session) return out; // desired state waits for sign-in; no failure
-    await AsyncStorage.setItem(PULL_LAST_KEY, String(Date.now())).catch(() => {});
+    // Throttle and removal allowlist are per workspace, otherwise switching
+    // teams either skips the first pull or retracts the other team's rows.
+    const lastKey = `${PULL_LAST_KEY}:${session.workspace.id}`;
+    if (!force) {
+      const last = await AsyncStorage.getItem(lastKey).catch(() => null);
+      if (last && Date.now() - Number(last) < PULL_MS) return out;
+    }
+    await AsyncStorage.setItem(lastKey, String(Date.now())).catch(() => {});
     const sb = supabase();
     const [conn, dead, health] = await Promise.all([
       sb
@@ -468,7 +471,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         r.external_id.length > 0,
     );
     const cloudIds = new Set(rows.map((r) => `${r.provider}:${r.external_id}`));
-    const seenRaw = await AsyncStorage.getItem(PULL_SEEN_KEY).catch(() => null);
+    const seenRaw = await AsyncStorage.getItem(`${PULL_SEEN_KEY}:${session.workspace.id}`).catch(() => null);
     const seen = new Set<string>(
       seenRaw ? (JSON.parse(seenRaw) as string[]).filter((x) => typeof x === 'string') : [],
     );
@@ -638,7 +641,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     }
     if (dirty) await saveAccounts(next);
     // Remember the cloud rows we just saw (the removal allowlist).
-    await AsyncStorage.setItem(PULL_SEEN_KEY, JSON.stringify([...cloudIds])).catch(() => {});
+    await AsyncStorage.setItem(`${PULL_SEEN_KEY}:${session.workspace.id}`, JSON.stringify([...cloudIds])).catch(() => {});
     return out;
   } catch {
     return out;

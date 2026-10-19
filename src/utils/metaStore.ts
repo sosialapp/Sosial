@@ -1,5 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
+import { activeWorkspaceId, scopedKey } from './activeWorkspace';
 import {
   type ConnectedAccount,
   type ProviderKey,
@@ -131,12 +133,35 @@ export interface MetaState {
   gmLocationTitle?: string;
 }
 
+/**
+ * Accounts are per workspace. The old unscoped key is still read once so a
+ * device upgrade keeps its credentials, but the copy is then deleted: only the
+ * workspace that was pinned at upgrade time may inherit it. Without this the
+ * Post page and the channel count kept offering another team's accounts.
+ */
 const ACCOUNTS_KEY = 'zap_accounts_v1';
+const ACCOUNTS_INDEX_KEY = 'zap_accounts_keys_v1';
 const LEGACY_KEY = 'zap_meta_v1';
+
+async function accountsKey(): Promise<string> {
+  return scopedKey(ACCOUNTS_KEY, await activeWorkspaceId());
+}
+
+/** Track scoped keys so account deletion can erase every workspace's tokens. */
+async function rememberKey(key: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(ACCOUNTS_INDEX_KEY);
+    const list = raw ? (JSON.parse(raw) as unknown[]) : [];
+    const keys = list.filter((k): k is string => typeof k === 'string');
+    if (keys.includes(key)) return;
+    keys.push(key);
+    await AsyncStorage.setItem(ACCOUNTS_INDEX_KEY, JSON.stringify(keys));
+  } catch {}
+}
 
 async function readAccounts(): Promise<ConnectedAccount[]> {
   try {
-    const raw = await SecureStore.getItemAsync(ACCOUNTS_KEY);
+    const raw = await SecureStore.getItemAsync(await accountsKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as ConnectedAccount[]) : [];
@@ -146,9 +171,13 @@ async function readAccounts(): Promise<ConnectedAccount[]> {
 }
 
 async function writeAccounts(accounts: ConnectedAccount[]): Promise<void> {
+  const key = await accountsKey();
   try {
-    if (accounts.length === 0) await SecureStore.deleteItemAsync(ACCOUNTS_KEY);
-    else await SecureStore.setItemAsync(ACCOUNTS_KEY, JSON.stringify(accounts));
+    if (accounts.length === 0) await SecureStore.deleteItemAsync(key);
+    else {
+      await SecureStore.setItemAsync(key, JSON.stringify(accounts));
+      await rememberKey(key);
+    }
   } catch {}
 }
 
@@ -161,17 +190,25 @@ async function ensureMigrated(): Promise<ConnectedAccount[]> {
   const existing = await readAccounts();
   if (existing.length > 0) return existing;
   let legacyRaw: string | null = null;
+  let fromLegacy = false;
   try {
     legacyRaw = await SecureStore.getItemAsync(LEGACY_KEY);
+    fromLegacy = !!legacyRaw;
   } catch {}
+  if (!legacyRaw) {
+    try {
+      legacyRaw = await SecureStore.getItemAsync(ACCOUNTS_KEY);
+    } catch {}
+  }
   if (!legacyRaw) return [];
   try {
-    const legacy = JSON.parse(legacyRaw) as MetaState;
-    const accounts = accountsFromMeta(legacy ?? {});
+    const accounts = fromLegacy
+      ? accountsFromMeta(JSON.parse(legacyRaw) as MetaState)
+      : (JSON.parse(legacyRaw) as ConnectedAccount[]);
+    if (!Array.isArray(accounts) || accounts.length === 0) return [];
     await writeAccounts(accounts);
-    try {
-      await SecureStore.deleteItemAsync(LEGACY_KEY);
-    } catch {}
+    // The global source is consumed: another workspace must never inherit it.
+    await (fromLegacy ? SecureStore.deleteItemAsync(LEGACY_KEY) : SecureStore.deleteItemAsync(ACCOUNTS_KEY)).catch(() => {});
     return accounts;
   } catch {
     return [];
@@ -190,6 +227,23 @@ export async function saveMetaState(patch: Partial<MetaState>): Promise<MetaStat
 }
 
 export async function clearMetaState(): Promise<void> {
+  await clearAllAccounts();
+}
+
+/** Delete every workspace's local account credentials (sign-out/erasure). */
+export async function clearAllAccounts(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(ACCOUNTS_INDEX_KEY);
+    const list = raw ? (JSON.parse(raw) as unknown[]) : [];
+    const keys = list.filter(
+      (k): k is string => typeof k === 'string' && k.startsWith(`${ACCOUNTS_KEY}:`),
+    );
+    keys.push(await accountsKey());
+    await Promise.all(keys.map((k) => SecureStore.deleteItemAsync(k).catch(() => {})));
+  } catch {}
+  try {
+    await AsyncStorage.removeItem(ACCOUNTS_INDEX_KEY);
+  } catch {}
   try {
     await SecureStore.deleteItemAsync(ACCOUNTS_KEY);
   } catch {}

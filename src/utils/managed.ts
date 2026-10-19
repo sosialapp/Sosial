@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
+import { activeWorkspaceId, scopedKey } from './activeWorkspace';
 import { pushPostToCloud, deleteCloudPost } from './cloudPosts';
 
 export type PostStatus = 'draft' | 'queued' | 'approval' | 'sent' | 'failed';
@@ -293,6 +294,15 @@ export function isEmptyPost(p: {
 const KEY = 'quickpost_managed_posts_v1';
 const LEGACY_KEY = 'quickpost_text_posts_v1';
 
+/**
+ * The local mirror is per workspace. It used to be one global list, so after
+ * switching teams the Drafts/Queue tabs still showed (and the backlog push
+ * could upload) the previous team's posts.
+ */
+async function postsKey(): Promise<string> {
+  return scopedKey(KEY, await activeWorkspaceId());
+}
+
 /** Subscribers (screens) hear about every local post-store mutation, including
  *  the ones a cloud pull writes without going through the composer. */
 type PostsListener = () => void;
@@ -331,7 +341,8 @@ interface LegacyTextPost {
 
 export async function loadManagedPosts(): Promise<ManagedPost[]> {
   try {
-    let raw = await AsyncStorage.getItem(KEY);
+    const key = await postsKey();
+    let raw = await AsyncStorage.getItem(key);
     if (!raw) {
       // one-time migration from the old text-post store
       const legacyRaw = await AsyncStorage.getItem(LEGACY_KEY);
@@ -345,9 +356,18 @@ export async function loadManagedPosts(): Promise<ManagedPost[]> {
           scheduledAt: t.scheduledAt,
           createdAt: t.createdAt,
         }));
-        await AsyncStorage.setItem(KEY, JSON.stringify(migrated));
+        await AsyncStorage.setItem(key, JSON.stringify(migrated));
         await AsyncStorage.removeItem(LEGACY_KEY);
         raw = JSON.stringify(migrated);
+      } else if (key !== KEY) {
+        // Pre-scoping install: hand the global list to the pinned workspace
+        // once, then drop it so another team can never inherit those drafts.
+        const globalRaw = await AsyncStorage.getItem(KEY);
+        if (globalRaw) {
+          await AsyncStorage.setItem(key, globalRaw);
+          await AsyncStorage.removeItem(KEY);
+          raw = globalRaw;
+        }
       }
     }
     const list: ManagedPost[] = raw ? JSON.parse(raw) : [];
@@ -371,7 +391,7 @@ async function writeManagedPost(p: ManagedPost): Promise<{ list: ManagedPost[]; 
   if (i >= 0) list[i] = rec;
   else list.unshift(rec);
   try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(list));
+    await AsyncStorage.setItem(await postsKey(), JSON.stringify(list));
   } catch {}
   notifyPostsChanged();
   return { list, rec };
@@ -392,7 +412,7 @@ export async function deleteManagedPost(id: string): Promise<ManagedPost[]> {
   const list = await loadManagedPosts();
   const next = list.filter((x) => x.id !== id);
   try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(next));
+    await AsyncStorage.setItem(await postsKey(), JSON.stringify(next));
   } catch {}
   notifyPostsChanged();
   void deleteCloudPost(id).catch((e: any) => console.log('[cloud] delete failed:', e?.message ?? e));
