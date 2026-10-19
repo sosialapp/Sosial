@@ -645,8 +645,14 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     if (dirty && (await activeWorkspaceId()) === session.workspace.id) await saveAccounts(next);
     // Remember the cloud rows we just saw (the removal allowlist).
     await AsyncStorage.setItem(`${PULL_SEEN_KEY}:${session.workspace.id}`, JSON.stringify([...cloudIds])).catch(() => {});
+    console.log(
+      `[cloud] pull channels (${session.workspace.id.slice(0, 8)}): ` +
+        `${out.created.length} created, ${out.matched.length} matched, ${out.removed.length} removed` +
+        (out.failed.length ? `, FAILED: ${out.failed.map((f) => f.ch).join(',')}` : ''),
+    );
     return out;
-  } catch {
+  } catch (e) {
+    console.log('[cloud] pull channels error:', e);
     return out;
   }
 }

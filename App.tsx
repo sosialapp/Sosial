@@ -178,6 +178,7 @@ function Shell() {
     void refreshEntitlement().then((e) => { if (e) setEntitlement(e); });
     // Force both pulls: the new workspace may have channels and posts this
     // device has never seen, and the 5-minute throttles must not hide them.
+    console.log('[cloud] switch team →', ws.name, ws.id.slice(0, 8));
     void pullCloudChannels(true).catch(() => {});
     void pullCloudPosts().catch(() => {});
   };
