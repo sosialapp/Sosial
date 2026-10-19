@@ -339,9 +339,10 @@ interface LegacyTextPost {
   createdAt: number;
 }
 
-export async function loadManagedPosts(): Promise<ManagedPost[]> {
+/** Read one workspace's list. The key is passed in so a read-modify-write
+ *  never straddles a team switch (load from A, then save into B). */
+async function readPosts(key: string): Promise<ManagedPost[]> {
   try {
-    const key = await postsKey();
     let raw = await AsyncStorage.getItem(key);
     if (!raw) {
       // one-time migration from the old text-post store
@@ -377,6 +378,10 @@ export async function loadManagedPosts(): Promise<ManagedPost[]> {
   }
 }
 
+export async function loadManagedPosts(): Promise<ManagedPost[]> {
+  return readPosts(await postsKey());
+}
+
 export async function saveManagedPost(p: ManagedPost): Promise<ManagedPost[]> {
   const { list, rec } = await writeManagedPost(p);
   // Cloud mirror is best-effort: local save already succeeded above.
@@ -385,13 +390,14 @@ export async function saveManagedPost(p: ManagedPost): Promise<ManagedPost[]> {
 }
 
 async function writeManagedPost(p: ManagedPost): Promise<{ list: ManagedPost[]; rec: ManagedPost }> {
-  const list = await loadManagedPosts();
+  const key = await postsKey();
+  const list = await readPosts(key);
   const i = list.findIndex((x) => x.id === p.id);
   const rec = { ...p, id: p.id || uid('post'), updatedAt: Date.now() };
   if (i >= 0) list[i] = rec;
   else list.unshift(rec);
   try {
-    await AsyncStorage.setItem(await postsKey(), JSON.stringify(list));
+    await AsyncStorage.setItem(key, JSON.stringify(list));
   } catch {}
   notifyPostsChanged();
   return { list, rec };
@@ -409,10 +415,11 @@ export async function saveManagedPostLocal(p: ManagedPost): Promise<ManagedPost[
 }
 
 export async function deleteManagedPost(id: string): Promise<ManagedPost[]> {
-  const list = await loadManagedPosts();
+  const key = await postsKey();
+  const list = await readPosts(key);
   const next = list.filter((x) => x.id !== id);
   try {
-    await AsyncStorage.setItem(await postsKey(), JSON.stringify(next));
+    await AsyncStorage.setItem(key, JSON.stringify(next));
   } catch {}
   notifyPostsChanged();
   void deleteCloudPost(id).catch((e: any) => console.log('[cloud] delete failed:', e?.message ?? e));

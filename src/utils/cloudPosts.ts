@@ -340,6 +340,7 @@ export async function pullCloudStatus(): Promise<{ updated: number }> {
   try {
     const session = await currentSession().catch(() => null);
     if (!session) return { updated: 0 };
+    const localWs = await activeWorkspaceId();
     const locals = (await loadManagedPosts()).filter((p) => p.status === 'queued');
     if (!locals.length) return { updated: 0 };
     const sb = supabase();
@@ -370,6 +371,7 @@ export async function pullCloudStatus(): Promise<{ updated: number }> {
     }
     let updated = 0;
     for (const p of locals) {
+      if (await workspaceMoved(localWs)) return { updated: 0 };
       const cloud = cloudByClient.get(p.id);
       if (!cloud) continue;
       const rows = byPost.get(cloud.id) ?? [];
@@ -426,6 +428,12 @@ const PUSHED_KEY = 'sosial_cloud_pushed_posts_v1';
 /** Allowlists are per workspace: one team's ids must never retract another's. */
 async function storeKey(base: string): Promise<string> {
   return scopedKey(base, await activeWorkspaceId());
+}
+
+/** True when the device was re-pinned (team switch) while a sync was running:
+ *  the rest of that pass must not write into the newly active team's store. */
+async function workspaceMoved(ws: string | null): Promise<boolean> {
+  return (await activeWorkspaceId()) !== ws;
 }
 
 async function loadPushed(): Promise<Record<string, number>> {
@@ -523,12 +531,14 @@ export async function pushPendingPosts(): Promise<number> {
   try {
     const session = await currentSession().catch(() => null);
     if (!session) return 0;
+    const localWs = await activeWorkspaceId();
     const [locals, pushed] = await Promise.all([
       loadManagedPosts().catch(() => []),
       loadPushed(),
     ]);
     let n = 0;
     for (const p of locals) {
+      if (await workspaceMoved(localWs)) break;
       // Adopted web rows are already in the cloud (and re-pushing a failed
       // one would reset its targets to pending). Only explicit saves mirror
       // those; the backlog pass owns phone-created rows.
@@ -704,6 +714,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     if (!session) return out;
     const sb = supabase();
     const wsId = session.workspace.id;
+    const localWs = await activeWorkspaceId();
 
     const { data: posts, error } = await sb
       .from('posts')
@@ -869,6 +880,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
           };
         }
         if (next) {
+          if (await workspaceMoved(localWs)) return out;
           await saveManagedPostLocal(next);
           byClient.set(next.id, next);
           out.updated += 1;
@@ -920,6 +932,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
         cloudSig: cloudSigOf(cp, media, tgts),
         attachments: atts ?? undefined,
       };
+      if (await workspaceMoved(localWs)) return out;
       await saveManagedPostLocal(rec);
       byClient.set(rec.id, rec);
       if (!cp.client_id) {
@@ -945,6 +958,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
       out.adopted += 1;
     }
 
+    if (await workspaceMoved(localWs)) return out;
     await markAdopted(newlyAdopted);
 
     // Retraction: a pushed row the web deleted disappears locally too, but
@@ -960,6 +974,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     const cloudAdoptedIds = new Set(all.map((p) => `cloud_${String(p.id).slice(0, 12)}`));
     const pushed = await loadPushed();
     for (const [cid, pushedTs] of Object.entries(pushed)) {
+      if (await workspaceMoved(localWs)) break;
       if (!cid || cloudClients.has(cid) || adopted.has(cid)) continue;
       const local = byClient.get(cid);
       if (!local) {
@@ -978,6 +993,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     // local ids never join `pushed`. Match them by the deterministic adopted
     // id instead: absent from the full cloud scan means the web deleted it.
     for (const local of [...byClient.values()]) {
+      if (await workspaceMoved(localWs)) break;
       if (!local.id.startsWith('cloud_') || cloudAdoptedIds.has(local.id)) continue;
       const pushedTs = pushed[local.id];
       const localTs = local.updatedAt ?? local.createdAt ?? 0;
@@ -989,6 +1005,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
 
     // Drop tombstones whose cloud row no longer exists at all.
     for (const cid of Object.keys(deleted)) {
+      if (await workspaceMoved(localWs)) break;
       if (!cloudClients.has(cid)) await unmarkDeleted(cid);
     }
 

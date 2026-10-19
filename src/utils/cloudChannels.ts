@@ -3,6 +3,7 @@ import { loadMetaState, loadAccounts, loadProviderFields, saveAccounts, makeAcco
 import { connectedAccounts, accountExternalId, PROVIDER_KEYS, type ConnectedAccount } from './socialAccounts';
 import { getValidYt } from './ytAuth';
 import { supabase, currentSession, importChannelToken, removeChannelToken } from './supabase';
+import { activeWorkspaceId } from './activeWorkspace';
 
 /**
  * Cloud publishing opt-in (Phase 1 → 2 bridge).
@@ -583,7 +584,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         if (!out.removed.includes(provider)) out.removed.push(provider);
       }
     }
-    if (dirty) await saveAccounts(next);
+    if (dirty && (await activeWorkspaceId()) === session.workspace.id) await saveAccounts(next);
     // ---- expired: mirror the web's channel health onto the device ----
     // The worker marks dead channels 'expired'; stamp matching local rows so
     // Connect can badge them. Stale stamps clear when the cloud recovers.
@@ -639,7 +640,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         }
       }
     }
-    if (dirty) await saveAccounts(next);
+    if (dirty && (await activeWorkspaceId()) === session.workspace.id) await saveAccounts(next);
     // Remember the cloud rows we just saw (the removal allowlist).
     await AsyncStorage.setItem(`${PULL_SEEN_KEY}:${session.workspace.id}`, JSON.stringify([...cloudIds])).catch(() => {});
     return out;

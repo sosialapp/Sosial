@@ -7,6 +7,7 @@ import { uid } from '../constants';
 import { loadManagedPosts, saveManagedPost, saveManagedPostLocal, deleteManagedPost, ManagedPost, PostStatus, MediaAttachment, postAttachments, postThreadSegments, postThreadMedia, alignThreadMedia, ThreadSegment, ThreadSegmentMedia, THREAD_MEDIA_MAX, PlatformTypes, defaultPlatformType, ChannelKey, queueTooSoon, minQueueLabel, isEmptyPost, LEG_COOLDOWN_MS, MAX_AUTO_TRIES, VIDEO_CHANNEL_MS, PHOTO_CHANNEL_MS } from '../utils/managed';
 import { joinThread, isChainPlatform } from '../utils/thread';
 import { loadMetaState, loadAccounts, saveProviderFields, MetaState, connectedChannelIds } from '../utils/metaStore';
+import { activeWorkspaceId } from '../utils/activeWorkspace';
 import { type ConnectedAccount, type ProviderKey,
   findAccount, findAccountForProvider, asIdList, accountName,
   isCloudOnly, schedulableProviders } from '../utils/socialAccounts';
@@ -1465,6 +1466,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const publishDueRef = useRef<() => Promise<void>>(async () => {});
   publishDueRef.current = async () => {
     if (publishingRef.current) return;
+    // Pin the team: a switch during the pass must not publish this team's
+    // queued posts through the other team's accounts or rewrite its store.
+    const ws = await activeWorkspaceId();
     const all = await loadManagedPosts();
     const now = Date.now();
     const meta = await loadMetaState();
@@ -1472,6 +1476,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       .filter((p) => p.status === 'queued' && !!p.scheduledAt && p.scheduledAt <= now)
       .sort((a, b) => (a.scheduledAt ?? 0) - (b.scheduledAt ?? 0));
     for (const p of due) {
+      if ((await activeWorkspaceId()) !== ws) return;
       // Healer: late-recorded legs (a timed-out promise that landed after its
       // run) may have completed the set, flip sent without reposting.
       try {
