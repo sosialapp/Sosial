@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
-import { useSignedUrl } from '@/lib/useSignedUrl';
+import { prefetchSignedUrls, useSignedUrl } from '@/lib/useSignedUrl';
 
 export interface WorkspaceOption {
   id: string;
@@ -71,6 +71,12 @@ export default function WorkspaceSwitcher({
     setBusy(false);
     setPending(null);
   }, [current.id]);
+
+  // Sign every team's picture up front (one batched request) so opening the
+  // menu shows the faces instantly rather than flashing initial letters.
+  useEffect(() => {
+    prefetchSignedUrls(workspaces.map((w) => w.avatar_url));
+  }, [workspaces]);
 
   useEffect(() => {
     if (!open) return;
