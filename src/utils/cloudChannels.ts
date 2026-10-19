@@ -441,7 +441,6 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
       const last = await AsyncStorage.getItem(lastKey).catch(() => null);
       if (last && Date.now() - Number(last) < PULL_MS) return out;
     }
-    await AsyncStorage.setItem(lastKey, String(Date.now())).catch(() => {});
     const sb = supabase();
     const [conn, dead, health] = await Promise.all([
       sb
@@ -464,6 +463,9 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
       out.failed.push({ ch: '*', message: error.message });
       return out;
     }
+    // Stamp only after the cloud query succeeded: a failed pull must stay
+    // retryable on the next visit instead of staying throttled for 5 minutes.
+    await AsyncStorage.setItem(lastKey, String(Date.now())).catch(() => {});
     const rows = ((data ?? []) as CloudChannelRow[]).filter(
       (r) =>
         typeof r.provider === 'string' &&

@@ -9,6 +9,7 @@ import ChannelDrawer from '../components/ChannelDrawer';
 import { SOCIAL_META, requiresTitle } from '../constants';
 import { loadManagedPosts, onManagedPostsChanged, ManagedPost, MAX_AUTO_TRIES, postAttachments } from '../utils/managed';
 import { pullCloudStatus } from '../utils/cloudPosts';
+import { pullCloudChannels } from '../utils/cloudChannels';
 import { loadMetaState, loadAccounts, MetaState } from '../utils/metaStore';
 import { schedulableProviders } from '../utils/socialAccounts';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
@@ -116,6 +117,20 @@ export default function PostScreen({ onConnect, bare }: {
 
   useEffect(() => {
     void reload();
+    // First visit to a workspace with an empty local vault (fresh team, or a
+    // team whose channels were connected elsewhere): fetch its channels now
+    // so the chips appear without waiting for the next throttled pull.
+    void (async () => {
+      const all = await loadAccounts().catch(() => []);
+      if (all.length > 0) return;
+      const ok = await pullCloudChannels(true).catch(() => null);
+      if (!ok) return;
+      const got = await loadAccounts().catch(() => []);
+      if (got.length > 0) {
+        setSched(new Set<string>(schedulableProviders(got)));
+        setMeta(await loadMetaState());
+      }
+    })();
     // Local saves + cloud pulls (web posts, failed/sent verdicts) land here
     // even while this tab stays mounted.
     return onManagedPostsChanged(() => {
