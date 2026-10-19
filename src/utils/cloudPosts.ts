@@ -344,22 +344,22 @@ export async function pullCloudStatus(): Promise<{ updated: number }> {
     const sb = supabase();
     const { data: cposts } = await sb
       .from('posts')
-      .select('id, client_id')
+      .select('id, client_id, status')
       .in(
         'client_id',
         locals.map((p) => p.id),
       );
-    const cloudIdByClient = new Map(
-      (((cposts ?? []) as any[]) as { client_id: string; id: string }[]).map((r) => [
+    const cloudByClient = new Map(
+      (((cposts ?? []) as any[]) as { client_id: string; id: string; status: string }[]).map((r) => [
         String(r.client_id),
-        String(r.id),
+        { id: String(r.id), status: String(r.status) },
       ]),
     );
-    const cloudIds = [...cloudIdByClient.values()];
+    const cloudIds = [...cloudByClient.values()].map((r) => r.id);
     if (!cloudIds.length) return { updated: 0 };
     const { data: tgts } = await sb
       .from('post_targets')
-      .select('post_id, provider, status, remote_id')
+      .select('post_id, provider, status, remote_id, last_error')
       .in('post_id', cloudIds);
     const byPost = new Map<string, any[]>();
     for (const t of ((tgts ?? []) as any[])) {
@@ -369,9 +369,31 @@ export async function pullCloudStatus(): Promise<{ updated: number }> {
     }
     let updated = 0;
     for (const p of locals) {
-      const cid = cloudIdByClient.get(p.id);
-      if (!cid) continue;
-      const rows = byPost.get(cid) ?? [];
+      const cloud = cloudByClient.get(p.id);
+      if (!cloud) continue;
+      const rows = byPost.get(cloud.id) ?? [];
+      // Failures must land in the Failed tab on the same 5-min tick, not only
+      // when a full pull happens (opening Home/Post throttles that one).
+      if (cloud.status === 'failed' || cloud.status === 'partial') {
+        if (p.status === 'failed') continue;
+        const channelErr: Record<string, string> = {};
+        const remoteIds: Record<string, string> = { ...(p.remoteIds ?? {}) };
+        for (const r of rows) {
+          if (String(r.status) === 'failed') {
+            channelErr[String(r.provider)] = String(r.last_error || 'Publishing failed.');
+          }
+          if (r.remote_id) remoteIds[String(r.provider)] = String(r.remote_id);
+        }
+        await saveManagedPostLocal({
+          ...p,
+          status: 'failed',
+          sentAt: Date.now(),
+          remoteIds,
+          ...(Object.keys(channelErr).length ? { channelErr } : {}),
+        });
+        updated += 1;
+        continue;
+      }
       if (!rows.length || !rows.every((r) => String(r.status) === 'sent')) continue;
       const remoteIds: Record<string, string> = { ...(p.remoteIds ?? {}) };
       for (const r of rows) {
@@ -385,7 +407,7 @@ export async function pullCloudStatus(): Promise<{ updated: number }> {
       await markCloudPostSent(p.id);
       updated += 1;
     }
-    if (updated > 0) console.log(`[cloud] back-sync: ${updated} post(s) → sent`);
+    if (updated > 0) console.log(`[cloud] back-sync: ${updated} verdict(s)`);
     return { updated };
   } catch {
     return { updated: 0 };
@@ -501,7 +523,11 @@ export async function pushPendingPosts(): Promise<number> {
     ]);
     let n = 0;
     for (const p of locals) {
-      if (!p?.id || pushed[p.id]) continue;
+      // Adopted web rows are already in the cloud (and re-pushing a failed
+      // one would reset its targets to pending). Only explicit saves mirror
+      // those; the backlog pass owns phone-created rows.
+      if (!p?.id || p.id.startsWith('cloud_')) continue;
+      if (pushed[p.id]) continue;
       try {
         await pushPostToCloud(p);
         n += 1;
@@ -536,6 +562,7 @@ async function markAdopted(ids: string[]): Promise<void> {
 
 function cloudStatusToLocal(s: string): ManagedPost['status'] {
   if (s === 'sent') return 'sent';
+  if (s === 'failed' || s === 'partial') return 'failed';
   if (s === 'approval') return 'approval';
   if (s === 'draft') return 'draft';
   return 'queued';
@@ -575,18 +602,37 @@ async function fetchAsset(
   kind: 'image' | 'video',
   hint: string,
   byteSize: number | null,
+  backend: string | null,
 ): Promise<MediaAttachment | null> {
   try {
     if (kind === 'video' && typeof byteSize === 'number' && byteSize > VIDEO_PULL_CAP) return null;
-    const { data, error } = await sb.storage.from('post-media').createSignedUrl(storagePath, 600);
-    if (error || !data?.signedUrl) return null;
+    // New media lives in R2 (storage_backend='r2') and Supabase Storage
+    // cannot sign it. Ask the media edge function for the presigned URL
+    // (same path the web bell uses), and fall back to Storage for legacy rows.
+    let url: string | null = null;
+    if (backend === 'r2') {
+      try {
+        const res = await callEdgeFunction('media', {
+          action: 'sign',
+          items: [{ path: storagePath, bucket: 'post-media' }],
+          expiresIn: 600,
+        });
+        const u = (res as { urls?: string[] } | null)?.urls?.[0];
+        if (u) url = u;
+      } catch {}
+    }
+    if (!url) {
+      const { data, error } = await sb.storage.from('post-media').createSignedUrl(storagePath, 600);
+      if (error || !data?.signedUrl) return null;
+      url = absUrl(data.signedUrl);
+    }
     const dir = `${FileSystem.documentDirectory}sync/`;
     try {
       await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
     } catch {}
     const ext = (storagePath.split('.').pop() ?? (kind === 'video' ? 'mp4' : 'jpg')).slice(0, 4);
     const dest = `${dir}${hint}.${ext}`;
-    const dl = await FileSystem.downloadAsync(absUrl(data.signedUrl), dest);
+    const dl = await FileSystem.downloadAsync(url, dest);
     if (dl.status !== 200) return null;
     return { uri: dl.uri, kind };
   } catch {
@@ -610,6 +656,8 @@ interface CloudPostRow {
   body: string | null;
   status: string;
   scheduled_at: string | null;
+  sent_at: string | null;
+  timezone: string | null;
   updated_at: string | null;
 }
 
@@ -621,12 +669,19 @@ interface CloudTargetRow {
   caption: string | null;
   options: Record<string, unknown> | null;
   remote_id: string | null;
+  last_error: string | null;
 }
 
 interface CloudMediaRow {
   post_id: string;
   position: number;
-  media_assets: { id: string; storage_path: string; kind: string; byte_size: number | null } | null;
+  media_assets: {
+    id: string;
+    storage_path: string;
+    kind: string;
+    byte_size: number | null;
+    storage_backend: string | null;
+  } | null;
 }
 
 /**
@@ -646,10 +701,10 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
 
     const { data: posts, error } = await sb
       .from('posts')
-      .select('id, client_id, title, body, status, scheduled_at, updated_at')
+      .select('id, client_id, title, body, status, scheduled_at, sent_at, timezone, updated_at')
       .eq('workspace_id', wsId)
       .order('updated_at', { ascending: false })
-      .limit(200);
+      .limit(500);
     if (error || !posts?.length) return out;
     const rows = posts as CloudPostRow[];
     const ids = rows.map((p) => p.id);
@@ -657,11 +712,11 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     const [{ data: targets }, { data: links }] = await Promise.all([
       sb
         .from('post_targets')
-        .select('post_id, provider, status, format, caption, options, remote_id')
+        .select('post_id, provider, status, format, caption, options, remote_id, last_error')
         .in('post_id', ids),
       sb
         .from('post_media')
-        .select('post_id, position, media_assets!inner(id, storage_path, kind, byte_size)')
+        .select('post_id, position, media_assets!inner(id, storage_path, kind, byte_size, storage_backend)')
         .in('post_id', ids)
         .order('position'),
     ]);
@@ -694,16 +749,26 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     const deleted = await loadDeleted();
     const newlyAdopted: string[] = [];
 
+    /** Per-provider failure notes from the cloud targets (failed legs only). */
+    const errorsOf = (rows: CloudTargetRow[]): Record<string, string> => {
+      const map: Record<string, string> = {};
+      for (const t of rows) {
+        if (t.status === 'failed') map[t.provider] = t.last_error || 'Publishing failed.';
+      }
+      return map;
+    };
+
     const buildAttachments = async (postId: string, hint: string): Promise<MediaAttachment[] | null> => {
       const media = (mediaByPost.get(postId) ?? []).filter((m) => m.media_assets?.storage_path);
       if (!media.length) return null;
-      const atts: MediaAttachment[] = [];
-      for (let i = 0; i < Math.min(media.length, 10); i++) {
-        const a = media[i].media_assets!;
-        const kind = a.kind === 'video' ? 'video' : 'image';
-        const got = await fetchAsset(sb, a.storage_path, kind, `${hint}_${i}`, a.byte_size);
-        if (got) atts.push(got);
-      }
+      const picked = media.slice(0, 10).map((m, i) => ({ asset: m.media_assets!, i }));
+      const got = await Promise.all(
+        picked.map(({ asset, i }) => {
+          const kind = asset.kind === 'video' ? 'video' : 'image';
+          return fetchAsset(sb, asset.storage_path, kind, `${hint}_${i}`, asset.byte_size, asset.storage_backend);
+        }),
+      );
+      const atts = got.filter((a): a is MediaAttachment => !!a);
       return atts.length ? atts : null;
     };
 
@@ -744,15 +809,23 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
           for (const t of tgts) {
             if (t.remote_id) remoteIds[String(t.provider)] = String(t.remote_id);
           }
+          const channelErr = errorsOf(tgts);
+          const sentAt =
+            want === 'sent'
+              ? (cp.sent_at ? Date.parse(cp.sent_at) || Date.now() : existing.sentAt ?? Date.now())
+              : existing.sentAt;
           if (
             existing.status !== want ||
-            JSON.stringify(existing.remoteIds ?? {}) !== JSON.stringify(remoteIds)
+            existing.sentAt !== sentAt ||
+            JSON.stringify(existing.remoteIds ?? {}) !== JSON.stringify(remoteIds) ||
+            JSON.stringify(existing.channelErr ?? {}) !== JSON.stringify(channelErr)
           ) {
             next = {
               ...existing,
               status: want,
               remoteIds,
-              sentAt: want === 'sent' ? Date.now() : existing.sentAt,
+              channelErr,
+              sentAt,
             };
           }
         } else if (cloudTs > localTs) {
@@ -777,6 +850,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
             body: cp.body ?? existing.body,
             status: cloudStatusToLocal(cp.status),
             scheduledAt: Number.isFinite(scheduledMs) ? scheduledMs : undefined,
+            timezone: cp.timezone ?? existing.timezone,
             platforms: platforms.length ? platforms : existing.platforms,
             platformTypes: Object.keys(platformTypes).length
               ? (platformTypes as ManagedPost['platformTypes'])
@@ -810,8 +884,18 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
       const threadTgt = tgts.find(
         (t) => t.options && Array.isArray((t.options as Record<string, unknown>).thread),
       );
+      const remoteIds: Record<string, string> = {};
+      for (const t of tgts) {
+        if (t.remote_id) remoteIds[t.provider] = t.remote_id;
+      }
+      const status = cloudStatusToLocal(cp.status);
+      // Keep the cloud's client_id when it already has one (another phone or
+      // a previously claimed row): the local id must match it, otherwise the
+      // next save here would create a duplicate cloud post and the original
+      // device would adopt the same row again under yet another id.
+      const localId = cp.client_id ? String(cp.client_id) : `cloud_${cp.id.slice(0, 12)}`;
       const rec: ManagedPost = {
-        id: `cloud_${cp.id.slice(0, 12)}`,
+        id: localId,
         title: cp.title ?? '',
         body: tgts[0]?.caption ?? cp.body ?? '',
         platforms,
@@ -820,17 +904,37 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
           : undefined,
         thread: (threadTgt?.options as { thread?: string[] } | null)?.thread,
         scheduledAt: Number.isFinite(scheduledMs) ? scheduledMs : undefined,
+        timezone: cp.timezone ?? undefined,
         createdAt: cloudTs || Date.now(),
         updatedAt: cloudTs || Date.now(),
-        status: cloudStatusToLocal(cp.status),
+        status,
+        sentAt: status === 'sent' ? (cp.sent_at ? Date.parse(cp.sent_at) || cloudTs : cloudTs) : undefined,
+        remoteIds: Object.keys(remoteIds).length ? remoteIds : undefined,
+        channelErr: Object.keys(errorsOf(tgts)).length ? errorsOf(tgts) : undefined,
         cloudSig: cloudSigOf(cp, media, tgts),
         attachments: atts ?? undefined,
       };
       await saveManagedPostLocal(rec);
       byClient.set(rec.id, rec);
-      try {
-        await sb.from('posts').update({ client_id: rec.id }).eq('id', cp.id);
-      } catch {}
+      if (!cp.client_id) {
+        try {
+          // Claiming client_id lets this device upsert the SAME cloud row on
+          // later saves. Non-creators (teammates) cannot, and RLS answers
+          // with zero rows, so only a claimed row joins the push allowlist.
+          const { data: claimedRows, error: claimErr } = await sb
+            .from('posts')
+            .update({ client_id: rec.id })
+            .eq('id', cp.id)
+            .select('id');
+          if (!claimErr && claimedRows && claimedRows.length > 0) {
+            await markPushed(rec.id);
+          }
+        } catch {}
+      } else {
+        // Already owned by a client id: remember it so the backlog pass does
+        // not re-upload the same media, and the delete retraction can fire.
+        await markPushed(rec.id);
+      }
       newlyAdopted.push(cp.id);
       out.adopted += 1;
     }
@@ -840,9 +944,14 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     // Retraction: a pushed row the web deleted disappears locally too, but
     // only with no newer local edits, and never for never-pushed drafts or
     // adopted-but-unclaimed rows (their client_id isn't in the cloud list).
+    // The id/client_id scan is deliberately LIMIT-free: the 500-row content
+    // page above must never make an older local row look "deleted".
+    const { data: allRows } = await sb.from('posts').select('id, client_id').eq('workspace_id', wsId);
+    const all = (allRows ?? []) as { id: string; client_id: string | null }[];
     const cloudClients = new Set(
-      rows.map((p) => (p.client_id ? String(p.client_id) : '')).filter(Boolean),
+      all.map((p) => (p.client_id ? String(p.client_id) : '')).filter(Boolean),
     );
+    const cloudAdoptedIds = new Set(all.map((p) => `cloud_${String(p.id).slice(0, 12)}`));
     const pushed = await loadPushed();
     for (const [cid, pushedTs] of Object.entries(pushed)) {
       if (!cid || cloudClients.has(cid) || adopted.has(cid)) continue;
@@ -859,6 +968,19 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
       }
     }
 
+    // Teammate posts cannot be claimed (RLS: only creator/admin), so their
+    // local ids never join `pushed`. Match them by the deterministic adopted
+    // id instead: absent from the full cloud scan means the web deleted it.
+    for (const local of [...byClient.values()]) {
+      if (!local.id.startsWith('cloud_') || cloudAdoptedIds.has(local.id)) continue;
+      const pushedTs = pushed[local.id];
+      const localTs = local.updatedAt ?? local.createdAt ?? 0;
+      if (pushedTs !== undefined && localTs > pushedTs) continue;
+      await deleteManagedPost(local.id).catch(() => null);
+      byClient.delete(local.id);
+      out.removed += 1;
+    }
+
     // Drop tombstones whose cloud row no longer exists at all.
     for (const cid of Object.keys(deleted)) {
       if (!cloudClients.has(cid)) await unmarkDeleted(cid);
@@ -871,4 +993,25 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
   } catch {
     return out;
   }
+}
+
+let lastPullAt = 0;
+let pulling: Promise<PullPostsResult> | null = null;
+
+/**
+ * Single-flight, throttled pull. The app shell and the composer sweep both
+ * ask for post sync (launch, foreground, tab switch); this guarantees one
+ * run at a time and skips redundant passes, which is what made launch feel
+ * slow (two concurrent pulls downloading the same media).
+ */
+export async function requestCloudPostSync(maxAgeMs = 20000): Promise<PullPostsResult> {
+  if (pulling) return pulling;
+  if (Date.now() - lastPullAt < maxAgeMs) {
+    return { adopted: 0, updated: 0, removed: 0 };
+  }
+  pulling = pullCloudPosts().finally(() => {
+    pulling = null;
+    lastPullAt = Date.now();
+  });
+  return pulling;
 }

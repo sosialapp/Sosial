@@ -7,7 +7,7 @@ import NotificationBell from '../components/NotificationBell';
 import ConnectButton from '../components/ConnectButton';
 import ChannelDrawer from '../components/ChannelDrawer';
 import { SOCIAL_META, requiresTitle } from '../constants';
-import { loadManagedPosts, ManagedPost, MAX_AUTO_TRIES, postAttachments } from '../utils/managed';
+import { loadManagedPosts, onManagedPostsChanged, ManagedPost, MAX_AUTO_TRIES, postAttachments } from '../utils/managed';
 import { pullCloudStatus } from '../utils/cloudPosts';
 import { loadMetaState, loadAccounts, MetaState } from '../utils/metaStore';
 import { schedulableProviders } from '../utils/socialAccounts';
@@ -115,7 +115,12 @@ export default function PostScreen({ onConnect, bare }: {
   };
 
   useEffect(() => {
-    reload();
+    void reload();
+    // Local saves + cloud pulls (web posts, failed/sent verdicts) land here
+    // even while this tab stays mounted.
+    return onManagedPostsChanged(() => {
+      void reload();
+    });
   }, [refreshedAt]);
 
   const discordSub = (() => {

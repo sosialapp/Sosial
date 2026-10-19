@@ -293,6 +293,33 @@ export function isEmptyPost(p: {
 const KEY = 'quickpost_managed_posts_v1';
 const LEGACY_KEY = 'quickpost_text_posts_v1';
 
+/** Subscribers (screens) hear about every local post-store mutation, including
+ *  the ones a cloud pull writes without going through the composer. */
+type PostsListener = () => void;
+const postListeners = new Set<PostsListener>();
+let postsNotifyTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Subscribe to post-store changes. Coalesced: a 200-row cloud adoption
+ *  reloads the open lists once, not once per row. Returns the unsubscribe. */
+export function onManagedPostsChanged(fn: PostsListener): () => void {
+  postListeners.add(fn);
+  return () => {
+    postListeners.delete(fn);
+  };
+}
+
+function notifyPostsChanged(): void {
+  if (postsNotifyTimer) return;
+  postsNotifyTimer = setTimeout(() => {
+    postsNotifyTimer = null;
+    for (const fn of [...postListeners]) {
+      try {
+        fn();
+      } catch {}
+    }
+  }, 80);
+}
+
 interface LegacyTextPost {
   id: string;
   title: string;
@@ -346,6 +373,7 @@ async function writeManagedPost(p: ManagedPost): Promise<{ list: ManagedPost[]; 
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(list));
   } catch {}
+  notifyPostsChanged();
   return { list, rec };
 }
 
@@ -366,6 +394,7 @@ export async function deleteManagedPost(id: string): Promise<ManagedPost[]> {
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(next));
   } catch {}
+  notifyPostsChanged();
   void deleteCloudPost(id).catch((e: any) => console.log('[cloud] delete failed:', e?.message ?? e));
   return next;
 }

@@ -5,7 +5,7 @@ import { useTheme, Palette, T, R } from '../theme';
 import NotificationBell from '../components/NotificationBell';
 import { Card, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui-kit';
 import ConnectButton from '../components/ConnectButton';
-import { loadManagedPosts, ManagedPost } from '../utils/managed';
+import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/managed';
 import { loadMetaState, connectedChannelIds, loadAccounts } from '../utils/metaStore';
 import { PROVIDER_KEYS, schedulableProviders } from '../utils/socialAccounts';
 import { fetchAnalytics } from '../utils/analytics';
@@ -186,6 +186,11 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
 
   useEffect(() => {
     void load();
+    // Web posts adopted after the first paint (and any local save) land here
+    // without a remount.
+    return onManagedPostsChanged(() => {
+      void load();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

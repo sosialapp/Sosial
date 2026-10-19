@@ -8,7 +8,7 @@ import { useTheme, Palette, T, R } from '../theme';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { deleteProjectPreset, instantiatePreset, loadProjectPresets, renameProjectPreset,
 saveProjectPreset, ProjectPreset } from '../utils/presets';
-import { loadManagedPosts, ManagedPost } from '../utils/managed';
+import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/managed';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
 
 const KEY = 'quickpost_projects_v1';
@@ -124,6 +124,8 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
     reload();
     reloadPresets();
     if (post) saveProject(post).then(reload);
+    // Cloud pulls and composer saves both refresh the upcoming list.
+    return onManagedPostsChanged(reload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

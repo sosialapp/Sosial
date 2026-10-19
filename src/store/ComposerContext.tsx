@@ -37,7 +37,7 @@ import {
 import PublishNotice, { PubRow } from '../components/PublishNotice';
 import AICopySheet from '../components/AICopySheet';
 import { SocialResult } from '../utils/ai/social';
-import { pullCloudStatus, pullCloudPosts, pushPendingPosts, markCloudLegSent, markCloudPostSent } from '../utils/cloudPosts';
+import { pullCloudStatus, requestCloudPostSync, pushPendingPosts, markCloudLegSent, markCloudPostSent } from '../utils/cloudPosts';
 import { validateUpload, targetWarnings, statSize } from '../utils/mediaLimits';
 
 /** Minimum gap between automatic retries of a failed/overdue queued post. */
@@ -1532,7 +1532,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         try {
           if (full) {
             const pushed = await pushPendingPosts().catch(() => 0);
-            const pp = await pullCloudPosts().catch(() => ({ adopted: 0, updated: 0, removed: 0 }));
+            const pp = await requestCloudPostSync(0).catch(() => ({ adopted: 0, updated: 0, removed: 0 }));
             if (pushed > 0 || pp.adopted + pp.updated + pp.removed > 0) bump();
           }
           const r = await pullCloudStatus();

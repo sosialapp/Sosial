@@ -51,6 +51,8 @@ function Shell() {
   const [teamFrom, setTeamFrom] = useState<Route>('create');
   /** Bumped after a team switch to remount the screens against the new workspace. */
   const [wsEpoch, setWsEpoch] = useState(0);
+  /** Bumped when returning from Connect so the tab screens re-read channels. */
+  const [tabEpoch, setTabEpoch] = useState(0);
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
   /** Server-authoritative plan + limits for the active workspace (null until
@@ -63,6 +65,23 @@ function Shell() {
   const fontsLoaded = useFontsLoaded();
   const routeRef = React.useRef(route);
   routeRef.current = route;
+  /** Tabs mount once and stay mounted (hidden when inactive): switching tabs
+   *  no longer refetches the whole screen, and scroll/form state survives. */
+  const [seenTabs, setSeenTabs] = useState<Set<Route>>(() => new Set<Route>(['home']));
+  React.useEffect(() => {
+    const tab = route === 'home' || route === 'create' || route === 'analytics' || route === 'account';
+    if (!tab) return;
+    setSeenTabs((prev) => (prev.has(route) ? prev : new Set(prev).add(route)));
+  }, [route]);
+
+  React.useEffect(() => {
+    if (route !== 'home' && route !== 'create') return;
+    // Opening Home/Post re-checks the cloud (single-flight + throttled): a
+    // post published, failed or edited on the web lands without a restart.
+    void import('./src/utils/cloudPosts')
+      .then((m) => m.requestCloudPostSync(20000))
+      .catch(() => null);
+  }, [route]);
 
   React.useEffect(() => {
     loadAccount().then(setAccount);
@@ -76,30 +95,27 @@ function Shell() {
     // Cloud → device channel pull on open + foreground (throttled inside):
     // web-side connects/disconnects show up here without visiting Connect.
     void pullCloudChannels().catch(() => {});
-    // Content sync: web-created posts join the queue, ideas/templates saved
-    // on either side converge (best-effort, silent).
+    // Ideas/templates sync. Post sync (pull + push + verdicts) is owned by
+    // ComposerProvider's single sweep, never run twice: two concurrent pulls
+    // re-downloaded the same media and doubled launch work.
     void (async () => {
-      const [{ syncIdeas }, { syncTemplates }, { pullCloudPosts }] = await Promise.all([
+      const [{ syncIdeas }, { syncTemplates }] = await Promise.all([
         import('./src/utils/ideas'),
         import('./src/utils/presets'),
-        import('./src/utils/cloudPosts'),
       ]);
       await syncIdeas().catch(() => null);
       await syncTemplates().catch(() => null);
-      await pullCloudPosts().catch(() => null);
     })();
     const subState = AppState.addEventListener('change', (s) => {
       if (s === 'active') {
         void pullCloudChannels().catch(() => {});
         void (async () => {
-          const [{ syncIdeas }, { syncTemplates }, { pullCloudPosts }] = await Promise.all([
+          const [{ syncIdeas }, { syncTemplates }] = await Promise.all([
             import('./src/utils/ideas'),
             import('./src/utils/presets'),
-            import('./src/utils/cloudPosts'),
           ]);
           await syncIdeas().catch(() => null);
           await syncTemplates().catch(() => null);
-          await pullCloudPosts().catch(() => null);
         })();
       }
     });
@@ -350,50 +366,61 @@ function Shell() {
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: C.bone }}>
         <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
         <View key={`ws-${wsEpoch}`} style={{ flex: 1 }}>
-          {route === 'home' ? (
-            <DashboardScreen
-              team={account.team}
-              onConnect={() => goConnect('home')}
-              onPost={goCreatePost}
-              onAnalytics={() => setRoute('analytics')}
-            />
-          ) : null}
-          {route === 'create' ? (
-            <CreateScreen
-              onConnect={() => goConnect('create')}
-              onTemplate={newTemplate}
-              onOpenProject={(p) => { loadPost(p); setRoute('editor'); }}
-              postSignal={postSignal}
-              onConsumePostSignal={() => setPostSignal(0)}
-            />
-          ) : null}
-          {route === 'analytics' ? (
-            <AnalyticsScreen
-              onConnect={() => goConnect('analytics')}
-              onBack={() => setRoute('home')}
-            />
-          ) : null}
+          {/* Tab screens stay mounted; only the active one is displayed. */}
+          <View key={`tabs-${tabEpoch}`} style={{ flex: 1, display: isTab ? 'flex' : 'none' }}>
+            {seenTabs.has('home') ? (
+              <View style={{ flex: 1, display: route === 'home' ? 'flex' : 'none' }}>
+                <DashboardScreen
+                  team={account.team}
+                  onConnect={() => goConnect('home')}
+                  onPost={goCreatePost}
+                  onAnalytics={() => setRoute('analytics')}
+                />
+              </View>
+            ) : null}
+            {seenTabs.has('create') ? (
+              <View style={{ flex: 1, display: route === 'create' ? 'flex' : 'none' }}>
+                <CreateScreen
+                  onConnect={() => goConnect('create')}
+                  onTemplate={newTemplate}
+                  onOpenProject={(p) => { loadPost(p); setRoute('editor'); }}
+                  postSignal={postSignal}
+                  onConsumePostSignal={() => setPostSignal(0)}
+                />
+              </View>
+            ) : null}
+            {seenTabs.has('analytics') ? (
+              <View style={{ flex: 1, display: route === 'analytics' ? 'flex' : 'none' }}>
+                <AnalyticsScreen
+                  onConnect={() => goConnect('analytics')}
+                  onBack={() => setRoute('home')}
+                />
+              </View>
+            ) : null}
+            {seenTabs.has('account') ? (
+              <View style={{ flex: 1, display: route === 'account' ? 'flex' : 'none' }}>
+                <AccountScreen
+                  email={account.email}
+                  team={account.team}
+                  plan={account.plan}
+                  notifPosts={account.notifPosts}
+                  notifComments={account.notifComments}
+                  notifWeekly={account.notifWeekly}
+                  onUpdate={patchAccount}
+                  onBack={() => setRoute('create')}
+                  onConnect={() => goConnect('account')}
+                  onPrivacy={() => { setPrivacyFrom('account'); setRoute('privacy'); }}
+                  onLoggedOut={goWelcomeLocked}
+                  onTeam={() => { setTeamFrom('account'); setRoute('team'); }}
+                />
+              </View>
+            ) : null}
+          </View>
           {route === 'size' ? <SizeScreen onDone={() => setRoute('editor')} onBack={() => setRoute('create')} /> : null}
           {route === 'editor' ? <EditorScreen onExport={() => setRoute('export')} onHome={() => setRoute('home')} onPosts={goCreatePost} /> : null}
           {route === 'export' ? <ExportScreen onBack={() => setRoute('editor')} plan={account.plan} /> : null}
-          {route === 'account' ? (
-            <AccountScreen
-              email={account.email}
-              team={account.team}
-              plan={account.plan}
-              notifPosts={account.notifPosts}
-              notifComments={account.notifComments}
-              notifWeekly={account.notifWeekly}
-              onUpdate={patchAccount}
-              onBack={() => setRoute('create')}
-              onConnect={() => goConnect('account')}
-              onPrivacy={() => { setPrivacyFrom('account'); setRoute('privacy'); }}
-              onLoggedOut={goWelcomeLocked}
-              onTeam={() => { setTeamFrom('account'); setRoute('team'); }}
-            />
-          ) : null}
           {route === 'privacy' ? <PrivacyScreen onBack={() => setRoute(privacyFrom)} /> : null}
-          {route === 'connect' ? <ConnectScreen onBack={() => setRoute(connectFrom)} plan={planInternal} channelCap={entitlement ? entitlement.limits.channels : undefined} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
+          {route === 'connect' ? <ConnectScreen onBack={() => { setTabEpoch((n) => n + 1); setRoute(connectFrom); }} plan={planInternal} channelCap={entitlement ? entitlement.limits.channels : undefined} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
           {route === 'team' ? (
             <TeamScreen
               plan={account.plan}
