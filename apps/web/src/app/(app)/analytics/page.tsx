@@ -26,14 +26,17 @@ export default async function AnalyticsPage() {
     sb
       .from('post_stats')
       .select('post_id, channel_id, provider, likes, comments, shares, views')
+      .eq('workspace_id', ctx.workspace.id)
       .then((r) => (r.error ? [] : (r.data ?? []))),
     sb
       .from('channel_stats')
       .select('channel_id, provider, followers, fetched_at')
+      .eq('workspace_id', ctx.workspace.id)
       .then((r) => (r.error ? [] : (r.data ?? []))),
     sb
       .from('channel_stats_history')
       .select('channel_id, provider, followers, captured_on')
+      .eq('workspace_id', ctx.workspace.id)
       .gte('captured_on', historyFloor)
       .then((r) => (r.error ? [] : (r.data ?? []))),
   ]);
