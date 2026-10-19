@@ -170,6 +170,31 @@ async function readAccounts(): Promise<ConnectedAccount[]> {
   }
 }
 
+/** Subscribers (screens) hear about every account-store mutation, including
+ *  the ones a cloud channels pull writes without any screen in focus. */
+type AccountsListener = () => void;
+const accountListeners = new Set<AccountsListener>();
+let accountsNotifyTimer: ReturnType<typeof setTimeout> | null = null;
+
+function notifyAccountsChanged(): void {
+  if (accountsNotifyTimer) return;
+  accountsNotifyTimer = setTimeout(() => {
+    accountsNotifyTimer = null;
+    for (const fn of [...accountListeners]) {
+      try {
+        fn();
+      } catch {}
+    }
+  }, 80);
+}
+
+export function onAccountsChanged(fn: () => void): () => void {
+  accountListeners.add(fn);
+  return () => {
+    accountListeners.delete(fn);
+  };
+}
+
 async function writeAccounts(accounts: ConnectedAccount[]): Promise<void> {
   const key = await accountsKey();
   try {
@@ -179,6 +204,7 @@ async function writeAccounts(accounts: ConnectedAccount[]): Promise<void> {
       await rememberKey(key);
     }
   } catch {}
+  notifyAccountsChanged();
 }
 
 /**
@@ -250,6 +276,7 @@ export async function clearAllAccounts(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(LEGACY_KEY);
   } catch {}
+  notifyAccountsChanged();
 }
 
 /* ---------------- Account-first API (multi-account) ---------------- */

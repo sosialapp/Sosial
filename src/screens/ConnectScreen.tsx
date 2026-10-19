@@ -5,7 +5,7 @@ import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui';
 import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
-import { loadAccounts, removeAccount, saveProviderFields, makeAccount } from '../utils/metaStore';
+import { loadAccounts, removeAccount, saveProviderFields, makeAccount, onAccountsChanged } from '../utils/metaStore';
 import { canConnectProvider } from '../utils/plans';
 import { accountName, accountAvatar, accountExpired, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
 import {
@@ -109,6 +109,12 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setAccounts(await loadAccounts().catch(() => []));
       setAcctsLoading(false);
     })();
+    // A background pull (team switch, sync elsewhere) lands mid-flight here.
+    const offAccounts = onAccountsChanged(() => {
+      void loadAccounts()
+        .then((a) => setAccounts(a))
+        .catch(() => {});
+    });
     loadCloudTeam()
       .then((t) => {
         setTeamCount(t ? Math.max(0, t.members.length - 1) : 0);
@@ -121,6 +127,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         setIsManager(sn ? sn.workspace.role === 'owner' || sn.workspace.role === 'admin' : false);
       })
       .catch(() => {});
+    return () => {
+      offAccounts();
+    };
   }, []);
 
   // Master-switch reconciler: any credential change auto-imports (master on)

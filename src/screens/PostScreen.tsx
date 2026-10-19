@@ -10,7 +10,7 @@ import { SOCIAL_META, requiresTitle } from '../constants';
 import { loadManagedPosts, onManagedPostsChanged, ManagedPost, MAX_AUTO_TRIES, postAttachments } from '../utils/managed';
 import { pullCloudStatus } from '../utils/cloudPosts';
 import { pullCloudChannels } from '../utils/cloudChannels';
-import { loadMetaState, loadAccounts, MetaState } from '../utils/metaStore';
+import { loadMetaState, loadAccounts, MetaState, onAccountsChanged } from '../utils/metaStore';
 import { schedulableProviders } from '../utils/socialAccounts';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
 import { useComposer } from '../store/ComposerContext';
@@ -132,10 +132,18 @@ export default function PostScreen({ onConnect, bare }: {
       }
     })();
     // Local saves + cloud pulls (web posts, failed/sent verdicts) land here
-    // even while this tab stays mounted.
-    return onManagedPostsChanged(() => {
+    // even while this tab stays mounted; plus channel pulls refresh the
+    // channel chips.
+    const offPosts = onManagedPostsChanged(() => {
       void reload();
     });
+    const offAccounts = onAccountsChanged(() => {
+      void reload();
+    });
+    return () => {
+      offPosts();
+      offAccounts();
+    };
   }, [refreshedAt]);
 
   const discordSub = (() => {

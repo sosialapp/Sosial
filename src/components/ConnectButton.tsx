@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import { useTheme } from '../theme';
 import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
-import { loadMetaState, loadAccounts, connectedChannelIds } from '../utils/metaStore';
+import { loadMetaState, loadAccounts, connectedChannelIds, onAccountsChanged } from '../utils/metaStore';
 import { schedulableProviders } from '../utils/socialAccounts';
 
 /** Masthead Connect pill, shows stacked brand tiles for every schedulable
@@ -27,10 +27,16 @@ export default function ConnectButton({ onPress }: { onPress: () => void }) {
     void reload();
     // Channels connected elsewhere (web pull, Connect screen) land after
     // this pill mounts, refresh on foreground so the logos never go stale.
+    const off = onAccountsChanged(() => {
+      void reload();
+    });
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'active') void reload();
     });
-    return () => sub.remove();
+    return () => {
+      off();
+      sub.remove();
+    };
   }, []);
 
   return (
