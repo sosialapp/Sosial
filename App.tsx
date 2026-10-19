@@ -49,6 +49,8 @@ function Shell() {
   const [connectFrom, setConnectFrom] = useState<Route>('create');
   const [privacyFrom, setPrivacyFrom] = useState<Route>('account');
   const [teamFrom, setTeamFrom] = useState<Route>('create');
+  /** Bumped after a team switch to remount the screens against the new workspace. */
+  const [wsEpoch, setWsEpoch] = useState(0);
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false });
   /** Server-authoritative plan + limits for the active workspace (null until
@@ -147,6 +149,17 @@ function Shell() {
     setAccount(await saveAccount(patch));
     // Cloud mirror is best-effort: local save already succeeded above.
     void pushProfileToCloud(patch);
+  };
+
+  /** Team switched on the Team screen: the new workspace is already pinned in
+   *  SecureStore, so reload entitlement and channels and remount every screen
+   *  against it (keyed on wsEpoch below). */
+  const onTeamSwitched = async (ws: { id: string; name: string }) => {
+    setAccount(await saveAccount({ team: ws.name }));
+    setWsEpoch((n) => n + 1);
+    setRoute('home');
+    void refreshEntitlement().then((e) => { if (e) setEntitlement(e); });
+    void pullCloudChannels().catch(() => {});
   };
 
   const dismissWelcome = async () => {
@@ -336,7 +349,7 @@ function Shell() {
     <View style={{ flex: 1 }}>
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: C.bone }}>
         <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-        <View style={{ flex: 1 }}>
+        <View key={`ws-${wsEpoch}`} style={{ flex: 1 }}>
           {route === 'home' ? (
             <DashboardScreen
               team={account.team}
@@ -388,6 +401,7 @@ function Shell() {
               teamName={account.team}
               onBack={() => setRoute(teamFrom)}
               onSeePlans={() => setRoute('account')}
+              onSwitched={(ws) => void onTeamSwitched(ws)}
             />
           ) : null}
         </View>

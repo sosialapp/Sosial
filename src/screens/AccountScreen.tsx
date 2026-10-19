@@ -666,7 +666,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 ),
               )}
               {row('card-outline', 'Subscription plan', planName, () => setView('plan'))}
-              {plan === 'team' ? row('people-outline', 'Team', 'Roles, channels & invites', onTeam) : null}
+              {row('people-outline', 'Team', 'Members, invites & switching', onTeam)}
               {row('refresh-outline', 'Restore purchase', undefined, () => Alert.alert('Restore purchase', 'No purchases found on this device.'))}
               {row('star-outline', 'Rate Sosial', 'Review on the Play Store', rateApp)}
               {row('chatbubble-ellipses-outline', 'Support', myTicket ? 'Open ticket, we are on it' : 'Bugs, questions, billing help', () => {

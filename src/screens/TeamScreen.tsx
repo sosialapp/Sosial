@@ -5,6 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import {
   supabase, getTeamAvatar, teamAvatarSignedUrl, avatarSignedUrl, setTeamAvatarFromUri, clearTeamAvatar,
+  listMyWorkspaces, switchWorkspace, type WorkspaceSummary,
 } from '../utils/supabase';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
@@ -20,12 +21,13 @@ import {
  *
  * Two doors lead here: the Team button on top of Connect, and Account → Team.
  */
-export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }: {
+export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, onSwitched }: {
   plan: 'free' | 'pro' | 'team';
   email: string;
   teamName: string;
   onBack: () => void;
   onSeePlans: () => void;
+  onSwitched: (ws: { id: string; name: string }) => void;
 }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -37,6 +39,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [teamPicFailed, setTeamPicFailed] = useState(false);
   const [memberPics, setMemberPics] = useState<Record<string, string>>({});
   const [failedPics, setFailedPics] = useState<Record<string, boolean>>({});
+  const [teams, setTeams] = useState<WorkspaceSummary[]>([]);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const [mEmail, setMEmail] = useState('');
   const [mRole, setMRole] = useState<'member' | 'admin'>('member');
@@ -50,6 +54,13 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
   const [gProviders, setGProviders] = useState<string[]>([]);
 
   const reload = async () => {
+    // Every workspace this user belongs to, so the switcher is usable even
+    // when the active one has no roster access.
+    try {
+      const { data } = await supabase().auth.getSession();
+      const uid = data.session?.user.id;
+      if (uid) setTeams(await listMyWorkspaces(uid));
+    } catch { /* switcher is best-effort */ }
     const t = await loadCloudTeam().catch(() => null);
     setTeam(t);
     setLoading(false);
@@ -111,6 +122,19 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
       Alert.alert('Couldn’t remove', e?.message ?? 'Try again.');
     } finally {
       setTeamPicBusy(false);
+    }
+  };
+
+  /** Pin this device to another workspace and let the shell reload around it. */
+  const doSwitch = async (t: WorkspaceSummary) => {
+    if (switchingId || t.id === team?.workspaceId) return;
+    setSwitchingId(t.id);
+    try {
+      await switchWorkspace(t.id);
+      onSwitched({ id: t.id, name: t.name });
+    } catch (e: any) {
+      Alert.alert('Couldn’t switch team', e?.message ?? 'Try again.');
+      setSwitchingId(null);
     }
   };
 
@@ -345,6 +369,43 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
               <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Rename team</Text>
             </TouchableOpacity>
           )
+        ) : null}
+
+        {teams.length > 1 ? (
+          <View style={{ marginTop: 20 }}>
+            <Text style={s.sectionLabel}>SWITCH TEAM</Text>
+            <View style={{ gap: 8, marginTop: 8 }}>
+              {teams.map((t) => {
+                const current = t.id === team?.workspaceId;
+                const rowBusy = switchingId === t.id;
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    onPress={() => void doSwitch(t)}
+                    disabled={current || !!switchingId}
+                    activeOpacity={0.8}
+                    style={[s.member, current && { borderColor: C.ink }]}
+                    accessibilityLabel={`${t.name}${current ? ', current team' : ', switch team'}`}
+                  >
+                    <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(t.name || 'T')[0].toUpperCase()}</Text></View>
+                    <View style={{ flex: 1, gap: 1 }}>
+                      <Text style={s.rowT} numberOfLines={1}>{t.name}</Text>
+                      <Text style={s.rowS} numberOfLines={1}>
+                        {t.role} · {t.liveChannels} channel{t.liveChannels === 1 ? '' : 's'}
+                      </Text>
+                    </View>
+                    {rowBusy ? (
+                      <ActivityIndicator color={C.muted} />
+                    ) : current ? (
+                      <Text style={s.youTag}>(current)</Text>
+                    ) : (
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Switch</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         ) : null}
 
         {plan !== 'team' ? (
@@ -608,6 +669,7 @@ function MiniBtn({ label, onPress, danger, disabled }: { label: string; onPress:
 const makeS = (C: Palette) => StyleSheet.create({
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   kicker: { ...T.tag, color: C.accent, marginTop: 8 },
+  sectionLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, letterSpacing: 1, color: C.faint },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 4 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
