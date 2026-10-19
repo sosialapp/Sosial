@@ -23,3 +23,10 @@ export async function activeWorkspaceId(): Promise<string | null> {
 export function scopedKey(key: string, workspaceId: string | null): string {
   return workspaceId ? `${key}:${workspaceId}` : key;
 }
+
+/** Like `scopedKey` but for SecureStore keys: Android forbids ':' in keys
+ *  (alphanumerics, '.', '-', '_') and an invalid key throws, so scoped vault
+ *  keys join with '_' instead. */
+export function scopedKeyB(key: string, workspaceId: string | null): string {
+  return workspaceId ? `${key}_${workspaceId}` : key;
+}

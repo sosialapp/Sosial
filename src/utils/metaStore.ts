@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
-import { activeWorkspaceId, scopedKey } from './activeWorkspace';
+import { activeWorkspaceId, scopedKeyB } from './activeWorkspace';
 import {
   type ConnectedAccount,
   type ProviderKey,
@@ -144,7 +144,9 @@ const ACCOUNTS_INDEX_KEY = 'zap_accounts_keys_v1';
 const LEGACY_KEY = 'zap_meta_v1';
 
 async function accountsKey(): Promise<string> {
-  return scopedKey(ACCOUNTS_KEY, await activeWorkspaceId());
+  // NOTE: SecureStore forbids ':' in keys (alphanumerics, '.', '-', '_'
+  // only) — an invalid key THROWS, so the separator must be '_'.
+  return scopedKeyB(ACCOUNTS_KEY, await activeWorkspaceId());
 }
 
 /** Track scoped keys so account deletion can erase every workspace's tokens. */
@@ -262,7 +264,7 @@ export async function clearAllAccounts(): Promise<void> {
     const raw = await AsyncStorage.getItem(ACCOUNTS_INDEX_KEY);
     const list = raw ? (JSON.parse(raw) as unknown[]) : [];
     const keys = list.filter(
-      (k): k is string => typeof k === 'string' && k.startsWith(`${ACCOUNTS_KEY}:`),
+      (k): k is string => typeof k === 'string' && k.startsWith(`${ACCOUNTS_KEY}_`),
     );
     keys.push(await accountsKey());
     await Promise.all(keys.map((k) => SecureStore.deleteItemAsync(k).catch(() => {})));
