@@ -12,7 +12,7 @@ import {
   loadCloudTeam, createInvite, removeMember, setMemberGrants, cancelInvite,
   setMemberRole, leaveTeam,
   canRemoveMember, canAssignChannels, channelsSummary,
-  type CloudTeam, type CloudMember, type TeamRole,
+  type CloudTeam, type CloudMember, type CloudChannelOption, type TeamRole,
 } from '../utils/teamCloud';
 
 /**
@@ -163,7 +163,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
     }
     setBusy(true);
     try {
-      const res = await createInvite(team.workspaceId, mEmail, mRole, mAll);
+      const res = await createInvite(team.workspaceId, mEmail, mRole, mAll, mProviders);
       setMEmail('');
       setMRole('member');
       setMAll(true);
@@ -414,29 +414,16 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                     {assigningId === m.id ? (
                       <View style={s.plan}>
                         <Text style={s.planT}>Accounts for {m.email}</Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                          <TouchableOpacity
-                            onPress={() => setGAll(true)}
-                            style={[s.chan, gAll && { backgroundColor: C.ink, borderColor: C.ink }]}
-                            activeOpacity={0.75}
-                          >
-                            <Ionicons name="globe-outline" size={13} color={gAll ? C.onInk : C.muted} />
-                            <Text style={[s.chanT, gAll && { color: C.onInk }]}>All channels</Text>
-                          </TouchableOpacity>
-                          {team.channels.map((c) => {
-                            const on = !gAll && gProviders.includes(c.provider);
-                            return (
-                              <TouchableOpacity
-                                key={c.provider + c.external_id}
-                                onPress={() => toggleGProvider(c.provider)}
-                                style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
-                                activeOpacity={0.75}
-                              >
-                                <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} />
-                                <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
-                              </TouchableOpacity>
-                            );
-                          })}
+                        <View style={{ marginTop: 8 }}>
+                          <ScopePills
+                            C={C}
+                            s={s}
+                            channels={team.channels}
+                            all={gAll}
+                            selected={gProviders}
+                            onAll={() => { setGAll(true); setGProviders([]); }}
+                            onToggle={toggleGProvider}
+                          />
                         </View>
                         {team.channels.length === 0 ? (
                           <Text style={s.hint}>Connect an account first, there are no channels to appoint yet.</Text>
@@ -514,30 +501,15 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
                   </View>
                 </Field>
                 <Field label="Accounts they can post to">
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => { setMAll(true); setMProviders([]); }}
-                      style={[s.chan, mAll && { backgroundColor: C.ink, borderColor: C.ink }]}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="globe-outline" size={13} color={mAll ? C.onInk : C.muted} />
-                      <Text style={[s.chanT, mAll && { color: C.onInk }]}>All channels</Text>
-                    </TouchableOpacity>
-                    {team.channels.map((c) => {
-                      const on = !mAll && mProviders.includes(c.provider);
-                      return (
-                        <TouchableOpacity
-                          key={c.provider + c.external_id}
-                          onPress={() => toggleMProvider(c.provider)}
-                          style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
-                          activeOpacity={0.75}
-                        >
-                          <ChannelAvatar platform={c.provider} avatar={c.avatar} size={20} />
-                          <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <ScopePills
+                    C={C}
+                    s={s}
+                    channels={team.channels}
+                    all={mAll}
+                    selected={mProviders}
+                    onAll={() => { setMAll(true); setMProviders([]); }}
+                    onToggle={toggleMProvider}
+                  />
                 </Field>
                 <TouchableOpacity onPress={invite} disabled={busy} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
                   <Text style={s.saveT}>{busy ? 'Sending…' : 'Send invite'}</Text>
@@ -555,6 +527,55 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans }
           </View>
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+/** Shared channel-scope picker: the composer's channel chips (avatar, provider
+ *  name, handle) reused for invites and per-member appointments. */
+function ScopePills({ C, s, channels, all, selected, onAll, onToggle }: {
+  C: Palette;
+  s: ReturnType<typeof makeS>;
+  channels: CloudChannelOption[];
+  all: boolean;
+  selected: string[];
+  onAll: () => void;
+  onToggle: (provider: string) => void;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      <TouchableOpacity
+        onPress={onAll}
+        style={[s.chan, all && { backgroundColor: C.ink, borderColor: C.ink }]}
+        activeOpacity={0.75}
+      >
+        <Ionicons name="globe-outline" size={14} color={all ? C.onInk : C.muted} />
+        <Text style={[s.chanT, all && { color: C.onInk }]}>All channels</Text>
+      </TouchableOpacity>
+      {channels.map((c) => {
+        const on = !all && selected.includes(c.provider);
+        return (
+          <TouchableOpacity
+            key={c.provider + c.external_id}
+            onPress={() => onToggle(c.provider)}
+            style={[s.chan, on && { backgroundColor: C.ink, borderColor: C.ink }]}
+            activeOpacity={0.75}
+          >
+            <ChannelAvatar platform={c.provider} avatar={c.avatar} size={22} />
+            <View style={{ gap: 0 }}>
+              <Text style={[s.chanT, on && { color: C.onInk }]}>{c.label}</Text>
+              {c.handle ? (
+                <Text
+                  style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: on ? C.onInk : C.muted }}
+                  numberOfLines={1}
+                >
+                  {c.handle}
+                </Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }

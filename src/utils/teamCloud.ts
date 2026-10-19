@@ -35,7 +35,10 @@ export interface CloudInvite {
 export interface CloudChannelOption {
   provider: string;
   external_id: string;
+  /** Provider display name (e.g. "Instagram"), matches the composer pills. */
   label: string;
+  /** Handle or account name shown under the label, when known. */
+  handle?: string;
   avatar?: string;
 }
 
@@ -96,12 +99,12 @@ export async function loadCloudTeam(): Promise<CloudTeam | null> {
   }[];
   const channels: CloudChannelOption[] = channelRows.map((c) => {
     const avatar = typeof c.metadata?.avatar === 'string' ? (c.metadata.avatar as string) : undefined;
-    return {
-      provider: c.provider,
-      external_id: c.external_id,
-      label: c.display_name || c.handle || providerLabel(c.provider),
-      avatar,
-    };
+    const label = providerLabel(c.provider);
+    const rawHandle =
+      typeof c.handle === 'string' && c.handle.trim() ? c.handle.trim().replace(/^@/, '') : '';
+    const handle =
+      rawHandle || (c.display_name && c.display_name !== label ? c.display_name : undefined);
+    return { provider: c.provider, external_id: c.external_id, label, handle, avatar };
   });
 
   const memberRows = (membersRes.data ?? []) as unknown as {
@@ -132,6 +135,7 @@ export async function createInvite(
   email: string,
   role: 'member' | 'admin',
   allChannels: boolean,
+  providers: string[] = [],
 ): Promise<{ alreadyRegistered: boolean; inviteUrl: string | null }> {
   // Row + email go through the send-invite function, the raw create_invite
   // RPC writes the row but sends nothing, which is why invites used to
@@ -144,6 +148,7 @@ export async function createInvite(
     email: email.trim(),
     role,
     all_channels: allChannels,
+    providers: allChannels ? [] : providers,
   })) as { already_registered?: boolean; invite_url?: string } | null;
   return {
     alreadyRegistered: res?.already_registered === true,
