@@ -373,6 +373,8 @@ export default function CreatePost({
   const [monitorIds, setMonitorIds] = useState<string[]>([]);
   /** Shown the instant Post-now is pressed, ids land once saving finishes. */
   const [monitorOpen, setMonitorOpen] = useState(false);
+  /** Which flavour of the monitor is open: publishing now vs. queuing. */
+  const [monitorMode, setMonitorMode] = useState<'now' | 'schedule'>('now');
   const [err, setErr] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   /** Errors ride above the textbox: X to dismiss, auto-gone in 3s. */
@@ -686,9 +688,11 @@ export default function CreatePost({
       return;
     }
     nowConfirmed.current = false;
-    // Post-now shows the monitor instantly (mobile parity), it starts in
-    // "saving" mode and flips to per-channel progress once ids land.
-    if (submitMode === 'now') {
+    // Post-now and Schedule both show the monitor instantly (mobile parity),
+    // it starts in "saving" mode and flips to progress / confirmation once
+    // the ids land.
+    if (submitMode === 'now' || submitMode === 'schedule') {
+      setMonitorMode(submitMode);
       setMonitorIds([]);
       setMonitorOpen(true);
     }
@@ -759,8 +763,9 @@ export default function CreatePost({
         await Promise.allSettled(editingIds.map((id) => deletePost(sb, id)));
         onEdited?.();
       }
-      if (submitMode === 'now') {
-        // Monitor is already open, hand it the ids so it flips to progress.
+      if (submitMode === 'now' || submitMode === 'schedule') {
+        // Monitor is already open, hand it the ids so it flips to progress
+        // (post-now) or the "Scheduled for …" confirmation (schedule).
         setBusy(false);
         setMonitorIds(newIds);
         return;
@@ -780,6 +785,8 @@ export default function CreatePost({
       {monitorOpen ? (
         <PublishMonitor
           postIds={monitorIds}
+          mode={monitorMode}
+          scheduleIso={monitorMode === 'schedule' ? whenIso : null}
           onDone={() => {
             setMonitorOpen(false);
             setMonitorIds([]);

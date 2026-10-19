@@ -7,18 +7,28 @@ import { Progress } from '@/components/ui/progress';
 import type { TargetStatus } from '@/lib/types';
 
 /**
- * Post-now status popup (mobile parity): watches post_targets for the freshly
+ * Post status popup (mobile parity): watches post_targets for the freshly
  * created post(s) and shows per-channel publish progress, a full bar means
  * sent, with a link out when the channel returns one. Polls every 2.5s;
  * done-state auto-closes into the queue view.
+ *
+ * `mode="schedule"` reuses the same shell for scheduling: there is nothing to
+ * publish yet, so it just shows the saving spinner, then a "Scheduled for …"
+ * confirmation and auto-closes. Same loading animation as post-now.
  */
 export default function PublishMonitor({
   postIds,
   onDone,
+  mode = 'now',
+  scheduleIso = null,
 }: {
   postIds: string[];
   onDone: () => void;
+  mode?: 'now' | 'schedule';
+  /** Schedule mode: the instant the post is queued for. */
+  scheduleIso?: string | null;
 }) {
+  const scheduled = mode === 'schedule';
   const [rows, setRows] = useState<
     { provider: string; label: string; status: TargetStatus; error: string | null; url: string | null }[]
   >([]);
@@ -30,6 +40,13 @@ export default function PublishMonitor({
   const idsKey = postIds.join(',');
 
   useEffect(() => {
+    // Schedule mode has nothing to poll (the post is only queued): once the
+    // ids land we show the confirmation and close ourselves.
+    if (mode === 'schedule') {
+      if (!postIds.length) return;
+      const t = setTimeout(onDone, 1600);
+      return () => clearTimeout(t);
+    }
     if (!postIds.length) return; // Still saving, nothing to watch yet.
     autoClosed.current = false;
     setRows([]);
@@ -79,13 +96,31 @@ export default function PublishMonitor({
       clearInterval(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsKey]);
+  }, [idsKey, mode]);
 
   const pending = rows.filter((r) => ['pending', 'queued', 'publishing'].includes(r.status)).length;
   const sent = rows.filter((r) => r.status === 'sent').length;
   const failed = rows.filter((r) => r.status === 'failed').length;
   const settled = rows.length > 0 && pending === 0;
-  const pct = rows.length ? ((sent + failed) / rows.length) * 100 : !postIds.length ? 8 : 15;
+
+  // Schedule mode is a two-step save: spinner until the row lands, then done.
+  const saved = scheduled && postIds.length > 0;
+  const busy = scheduled ? !saved : !settled;
+  const done = scheduled ? saved : settled;
+
+  const whenLabel = scheduleIso
+    ? new Date(scheduleIso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    : '';
+
+  const pct = scheduled
+    ? saved
+      ? 100
+      : 15
+    : rows.length
+      ? ((sent + failed) / rows.length) * 100
+      : !postIds.length
+        ? 8
+        : 15;
 
   const bar = (s: TargetStatus) => {
     if (s === 'sent') return 100;
@@ -107,21 +142,25 @@ export default function PublishMonitor({
       <div className="absolute inset-0 bg-ink/60" aria-hidden="true" />
       <div className="relative w-[calc(100%-2rem)] max-w-sm rounded-3xl border border-line bg-card p-5 shadow-2xl">
         <div className="flex items-center gap-3">
-          {!settled ? (
+          {busy ? (
             <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-line border-t-ink" aria-hidden="true" />
-          ) : failed > 0 ? (
+          ) : !scheduled && failed > 0 ? (
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#FDEBEC] text-sm font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">!</span>
           ) : (
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EDF3EC] text-sm font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">✓</span>
           )}
           <p className="font-display text-base font-extrabold">
-            {!postIds.length
-              ? 'Saving your post…'
-              : !settled
-                ? `Publishing to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}…`
-                : failed > 0
-                  ? `Posted, ${failed} failed`
-                  : 'Posted to all channels'}
+            {scheduled
+              ? saved
+                ? `Scheduled${whenLabel ? ` for ${whenLabel}` : ''}`
+                : 'Scheduling…'
+              : !postIds.length
+                ? 'Posting…'
+                : !settled
+                  ? `Publishing to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}…`
+                  : failed > 0
+                    ? `Posted, ${failed} failed`
+                    : 'Posted to all channels'}
           </p>
         </div>
 
@@ -130,7 +169,13 @@ export default function PublishMonitor({
         </div>
 
         <div className="mt-4 space-y-1.5">
-          {rows.length === 0 ? (
+          {scheduled ? (
+            <p className="py-3 text-center text-xs text-muted">
+              {saved
+                ? 'Your post is queued and will publish at the scheduled time.'
+                : 'Saving your post…'}
+            </p>
+          ) : rows.length === 0 ? (
             <p className="py-3 text-center text-xs text-muted">
               {!postIds.length ? 'Uploading media…' : (note ?? 'Reading targets…')}
             </p>
@@ -162,8 +207,10 @@ export default function PublishMonitor({
 
         <div className="mt-4 flex items-center justify-between">
           <p className="text-[11px] text-faint">
-            {settled
-              ? `${sent} sent${failed ? ` · ${failed} failed` : ''}`
+            {done
+              ? scheduled
+                ? 'Queued'
+                : `${sent} sent${failed ? ` · ${failed} failed` : ''}`
               : 'This usually takes a few seconds…'}
           </p>
           <button
@@ -171,7 +218,7 @@ export default function PublishMonitor({
             onClick={onDone}
             className="rounded-full border border-line px-3.5 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
           >
-            {settled ? 'Go to queue' : 'Hide'}
+            {done ? 'Go to queue' : 'Hide'}
           </button>
         </div>
       </div>
