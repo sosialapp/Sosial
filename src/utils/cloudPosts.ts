@@ -264,8 +264,10 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
     }
   } catch {}
   // Record the successful push, the pull uses this allowlist to retract
-  // rows the web deleted (never-pushed local drafts are untouchable).
+  // rows the web deleted (never-pushed local drafts are untouchable). A
+  // successful push also clears any stale delete tombstone for this id.
   await markPushed(post.id);
+  await unmarkDeleted(post.id);
   console.log(
     `[cloud] pushed ${post.id}: ${made} target(s), ${linked.length} media for [${(post.platforms ?? []).join(',')}]`,
   );
@@ -307,15 +309,24 @@ export async function markCloudPostSent(clientId: string): Promise<void> {
 
 /** Delete the cloud mirror (cascade clears targets + links; bytes fall to the worker janitor). */
 export async function deleteCloudPost(clientId: string): Promise<void> {
+  // Tombstone BEFORE the session check: deleting while signed out must still
+  // keep the mirror from resurrecting as a "web post" on the next pull.
+  await markDeleted(clientId);
   const session = await currentSession().catch(() => null);
-  await unmarkPushed(clientId);
   if (!session) return;
   const sb = supabase();
   const { data: prow } = await sb.from('posts').select('id').eq('client_id', clientId).maybeSingle();
   const id = (prow as any)?.id;
-  if (!id) return;
+  if (!id) {
+    // Nothing left in the cloud: the tombstone has done its job.
+    await unmarkDeleted(clientId);
+    await unmarkPushed(clientId);
+    return;
+  }
   const { error } = await sb.from('posts').delete().eq('id', id);
   if (error) throw new Error(`cloud post delete failed: ${error.message}`);
+  await unmarkDeleted(clientId);
+  await unmarkPushed(clientId);
 }
 
 /**
@@ -423,6 +434,53 @@ async function unmarkPushed(clientId: string): Promise<void> {
     if (clientId in cur) {
       delete cur[clientId];
       await AsyncStorage.setItem(PUSHED_KEY, JSON.stringify(cur));
+    }
+  } catch {}
+}
+
+/**
+ * client_id → timestamp of a local delete whose cloud mirror may still exist.
+ * A delete while signed out (or a failed cloud delete) otherwise erases the
+ * `pushed` memory, and the next pull re-adopts the surviving cloud row as a
+ * brand-new "web post". The pull honours these and clears them once the cloud
+ * row is confirmed gone.
+ */
+const DELETED_KEY = 'sosial_cloud_deleted_posts_v1';
+
+async function loadDeleted(): Promise<Record<string, number>> {
+  try {
+    const raw = await AsyncStorage.getItem(DELETED_KEY);
+    const obj: unknown = raw ? JSON.parse(raw) : {};
+    if (obj && typeof obj === 'object') {
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+        if (typeof v === 'number') out[k] = v;
+      }
+      return out;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+async function markDeleted(clientId: string): Promise<void> {
+  if (!clientId) return;
+  try {
+    const cur = await loadDeleted();
+    cur[clientId] = Date.now();
+    const trimmed: Record<string, number> = {};
+    for (const k of Object.keys(cur).slice(-500)) trimmed[k] = cur[k];
+    await AsyncStorage.setItem(DELETED_KEY, JSON.stringify(trimmed));
+  } catch {}
+}
+
+async function unmarkDeleted(clientId: string): Promise<void> {
+  try {
+    const cur = await loadDeleted();
+    if (clientId in cur) {
+      delete cur[clientId];
+      await AsyncStorage.setItem(DELETED_KEY, JSON.stringify(cur));
     }
   } catch {}
 }
@@ -633,6 +691,7 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     const locals = await loadManagedPosts();
     const byClient = new Map(locals.map((p) => [p.id, p]));
     const adopted = await loadAdopted();
+    const deleted = await loadDeleted();
     const newlyAdopted: string[] = [];
 
     const buildAttachments = async (postId: string, hint: string): Promise<MediaAttachment[] | null> => {
@@ -649,6 +708,22 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     };
 
     for (const cp of rows) {
+      // Deleted on this device but the cloud mirror survived (offline or
+      // signed-out delete): kill it here and never re-adopt it locally.
+      if (cp.client_id && deleted[String(cp.client_id)] !== undefined) {
+        const cid = String(cp.client_id);
+        try {
+          await sb.from('posts').delete().eq('id', cp.id);
+        } catch {}
+        await unmarkDeleted(cid);
+        await unmarkPushed(cid);
+        if (byClient.has(cid)) {
+          await deleteManagedPost(cid).catch(() => null);
+          byClient.delete(cid);
+          out.removed += 1;
+        }
+        continue;
+      }
       const cloudTs = (cp.updated_at && Date.parse(cp.updated_at)) || 0;
       const tgts = targetsByPost.get(cp.id) ?? [];
       const platforms = [...new Set(tgts.map((t) => String(t.provider)).filter(Boolean))];
@@ -782,6 +857,11 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
         byClient.delete(cid);
         out.removed += 1;
       }
+    }
+
+    // Drop tombstones whose cloud row no longer exists at all.
+    for (const cid of Object.keys(deleted)) {
+      if (!cloudClients.has(cid)) await unmarkDeleted(cid);
     }
 
     if (out.adopted + out.updated + out.removed > 0) {

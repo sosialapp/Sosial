@@ -23,6 +23,7 @@ import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
 import { articleIsEmpty, articleOptions, articlePlainText, isArticleProvider } from '@/lib/article';
+import { uploadArticleImage } from '@/lib/mediaUpload';
 import type { TipTapDoc } from '@/lib/blogConvert';
 import { validateUpload, targetWarnings } from '@/lib/mediaLimits';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
@@ -1025,7 +1026,14 @@ export default function CreatePost({
                     aria-label="Article title"
                     className="w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-base font-bold text-ink placeholder:text-faint focus:border-ink/40 focus:outline-none"
                   />
-                  <ArticleEditor initial={articleDoc} onChange={(doc) => setArticleDoc(doc)} />
+                  <ArticleEditor
+                    initial={articleDoc}
+                    onChange={(doc) => setArticleDoc(doc)}
+                    onUploadImages={async (files) => {
+                      const sb = createClient();
+                      return Promise.all(files.map((f) => uploadArticleImage(sb, workspaceId, f)));
+                    }}
+                  />
                   <div className="rounded-2xl border border-line bg-paper p-3">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-bold uppercase tracking-wide text-muted">

@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -18,6 +19,7 @@ import {
   TextQuote,
 } from 'lucide-react';
 import { ResizableImage } from '@/components/blog/tiptap';
+import MediaSourcesDialog from '@/components/MediaSourcesDialog';
 import { normalizeInitialDoc, wordsOfTipTap, type TipTapDoc } from '@/lib/blogConvert';
 
 /**
@@ -58,10 +60,21 @@ function TBtn({
 export default function ArticleEditor({
   initial,
   onChange,
+  onUploadImages,
 }: {
   initial: TipTapDoc | null;
   onChange: (doc: TipTapDoc, words: number) => void;
+  /** Upload article-body images (device / Unsplash / Canva / Dropbox /
+   *  OneDrive). Returns the private storage path plus a previewable URL; the
+   *  path is stored on the node so publishing can re-sign or re-upload it.
+   *  When omitted the image button falls back to a URL prompt. */
+  onUploadImages?: (files: File[]) => Promise<{ path: string; url: string }[]>;
 }) {
+  const imageBtnRef = useRef<HTMLSpanElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
   const editor = useEditor(
     {
       extensions: [
@@ -95,9 +108,40 @@ export default function ArticleEditor({
   };
 
   const addImage = () => {
+    if (onUploadImages) {
+      setPickerOpen(true);
+      return;
+    }
     const src = window.prompt('Image URL (https://…)');
     if (!src || !src.trim()) return;
     editor.chain().focus().setImage({ src: src.trim() }).run();
+  };
+
+  /** Upload picked/attached files and insert each as an image node. Only image
+   *  files are accepted; the storage path rides on `dataPath` for publishing. */
+  const insertImages = async (files: File[], credit?: string) => {
+    if (!onUploadImages) return;
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    if (!images.length) {
+      window.alert('Article images must be pictures, videos are not supported in the body.');
+      return;
+    }
+    setPickerOpen(false);
+    setBusy(true);
+    try {
+      const uploaded = await onUploadImages(images);
+      for (const r of uploaded) {
+        editor
+          .chain()
+          .focus()
+          .insertContent({ type: 'image', attrs: { src: r.url, dataPath: r.path, title: credit ?? '' } })
+          .run();
+      }
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Could not add that image.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -169,9 +213,11 @@ export default function ArticleEditor({
           <Code className="h-4 w-4" aria-hidden="true" />
         </TBtn>
         <span className="mx-1 h-5 w-px shrink-0 bg-line" aria-hidden="true" />
-        <TBtn onClick={addImage} title="Insert image">
-          <ImageIcon className="h-4 w-4" aria-hidden="true" />
-        </TBtn>
+        <span ref={imageBtnRef} className="flex">
+          <TBtn onClick={addImage} title="Insert image">
+            <ImageIcon className="h-4 w-4" aria-hidden="true" />
+          </TBtn>
+        </span>
         <TBtn
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           title="Divider"
@@ -183,6 +229,33 @@ export default function ArticleEditor({
       <div className="mt-2 rounded-2xl border border-line bg-paper px-4 py-3">
         <EditorContent editor={editor} />
       </div>
+
+      {onUploadImages ? (
+        <>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              if (files.length) void insertImages(files);
+            }}
+          />
+          <MediaSourcesDialog
+            open={pickerOpen}
+            getAnchor={() => {
+              const r = imageBtnRef.current?.getBoundingClientRect();
+              return r ? { left: r.left, topEdge: r.top, bottom: r.bottom } : null;
+            }}
+            onClose={() => setPickerOpen(false)}
+            onAttach={(files, credit) => void insertImages(files, credit)}
+            onPickLocal={() => fileRef.current?.click()}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -11,8 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip } from '@/components/ui/tooltip';
-import { ChartBar, ChartLine, HBarList } from '@/components/ui/chart';
+import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/chart';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
+import ChannelBreakdownDialog from '@/components/analytics/ChannelBreakdownDialog';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { fetchMediaForPosts } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
@@ -131,6 +132,7 @@ export default function AnalyticsDashboard({
   const [exportOpen, setExportOpen] = useState(false);
   const [perfMode, setPerfMode] = useState<'line' | 'bar'>('line');
   const [perfMetric, setPerfMetric] = useState<PerfMetric>('posts');
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [topSort, setTopSort] = useState<{ key: TopSortKey; dir: 'asc' | 'desc' }>({
     key: 'interactions',
     dir: 'desc',
@@ -503,11 +505,21 @@ export default function AnalyticsDashboard({
         buckets[i].value += (agg?.likes ?? 0) + (agg?.comments ?? 0) + (agg?.shares ?? 0);
       }
     }
+    // Count-based metrics are empty while nothing has published yet, which left
+    // the line/bars clinging to the right edge. Drop the dead lead-in so the
+    // trend uses the whole card: keep one bucket of context and at least a week
+    // of axis so a lone recent post still reads as a trend.
+    const trim = (rows: typeof buckets): typeof buckets => {
+      const firstIdx = rows.findIndex((b) => b.value > 0);
+      if (firstIdx <= 1) return rows;
+      const start = Math.max(0, Math.min(firstIdx - 1, rows.length - 7));
+      return start > 0 ? rows.slice(start) : rows;
+    };
     if (perfMetric === 'engagement') {
       const denom = hasFollowers && followers > 0 ? followers : 0;
-      return buckets.map((b) => ({ ...b, value: denom ? Number(((b.value / denom) * 100).toFixed(2)) : 0 }));
+      return trim(buckets.map((b) => ({ ...b, value: denom ? Number(((b.value / denom) * 100).toFixed(2)) : 0 })));
     }
-    return buckets;
+    return trim(buckets);
   }, [sent, statsByPost, range, perfMetric, followers, hasFollowers, followerHistoryScoped]);
   const perfXInterval = Math.max(0, Math.ceil(perfSeries.length / 8) - 1);
   const perfDesc: Record<PerfMetric, string> = {
@@ -524,6 +536,20 @@ export default function AnalyticsDashboard({
     .map((r) => ({ r, total: r.likes + r.comments + r.shares }))
     .sort((a, b) => b.total - a.total);
   const breakdownMax = Math.max(1, ...breakdown.map((b) => b.total));
+  const breakdownRows: HBarRow[] = breakdown.map(({ r, total }) => ({
+    key: r.channelId,
+    label: (
+      <span className="flex items-center gap-2">
+        <BrandIcon provider={r.provider} className="h-5 w-5 shrink-0" />
+        <span className="truncate">{r.label}</span>
+      </span>
+    ),
+    value: total,
+    max: breakdownMax,
+    color: 'var(--color-bolt)',
+    trailing: full(total),
+    hint: `${r.followers === null ? '-' : full(r.followers)} followers · ${chanEng(r) ?? '-'} engagement · ${r.sent} sent`,
+  }));
 
   // ---- exports ----
   const stamp = new Date().toISOString().slice(0, 10);
@@ -891,9 +917,19 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <CardTitle>Channel breakdown</CardTitle>
-              <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
-                Manage
-              </Link>
+              {breakdown.length > 4 ? (
+                <button
+                  type="button"
+                  onClick={() => setBreakdownOpen(true)}
+                  className="text-xs font-bold text-ink hover:underline"
+                >
+                  See all
+                </button>
+              ) : (
+                <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
+                  Manage
+                </Link>
+              )}
             </div>
             <CardDescription>Interactions, audience and engagement per channel</CardDescription>
           </CardHeader>
@@ -903,22 +939,18 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 Connect a channel and publish, its numbers land here within a day.
               </p>
             ) : (
-              <HBarList
-                rows={breakdown.map(({ r, total }) => ({
-                  key: r.channelId,
-                  label: (
-                    <span className="flex items-center gap-2">
-                      <BrandIcon provider={r.provider} className="h-5 w-5 shrink-0" />
-                      <span className="truncate">{r.label}</span>
-                    </span>
-                  ),
-                  value: total,
-                  max: breakdownMax,
-                  color: 'var(--color-bolt)',
-                  trailing: full(total),
-                  hint: `${r.followers === null ? '-' : full(r.followers)} followers · ${chanEng(r) ?? '-'} engagement · ${r.sent} sent`,
-                }))}
-              />
+              <>
+                <HBarList rows={breakdownRows.slice(0, 4)} />
+                {breakdown.length > 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => setBreakdownOpen(true)}
+                    className="mt-3 w-full rounded-full border border-line px-3 py-2 text-xs font-bold text-ink transition hover:bg-paper-dim"
+                  >
+                    See all {breakdown.length} channels
+                  </button>
+                ) : null}
+              </>
             )}
           </CardContent>
         </Card>
@@ -1134,6 +1166,12 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
       </Card>
 
       <PostPreviewDialog post={preview} onClose={() => setPreview(null)} />
+      <ChannelBreakdownDialog
+        open={breakdownOpen}
+        onClose={() => setBreakdownOpen(false)}
+        rows={breakdownRows}
+        subtitle={`Interactions, audience and engagement per channel · ${range.label.toLowerCase()}`}
+      />
     </div>
   );
 }

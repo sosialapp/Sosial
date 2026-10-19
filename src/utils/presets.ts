@@ -1,7 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BackgroundStyle, QuickPost } from '../types';
 import { uid } from '../constants';
-import { pushLibraryItem, tombstoneLibraryItem, pullLibraryRows } from './librarySync';
+import {
+  pushLibraryItem,
+  tombstoneLibraryItem,
+  pullLibraryRows,
+  loadLibraryTombstones,
+  markLibraryDeleted,
+  clearLibraryDeleted,
+  tombstoneKey,
+} from './librarySync';
 
 const KEY = 'quickpost_bg_presets_v1';
 
@@ -106,6 +114,7 @@ export async function saveProjectPreset(post: QuickPost): Promise<ProjectPreset[
     const next = list.slice(0, 30);
     await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(next));
     void pushLibraryItem('template', preset.id, preset.name, preset as unknown as Record<string, unknown>);
+    void clearLibraryDeleted('template', preset.id);
     return next;
   } catch {
     return [];
@@ -121,6 +130,7 @@ export async function renameProjectPreset(id: string, name: string): Promise<Pro
       p.name = name;
       p.updatedAt = Date.now();
       void pushLibraryItem('template', p.id, p.name, p as unknown as Record<string, unknown>);
+      void clearLibraryDeleted('template', p.id);
     }
     await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(list));
     return list;
@@ -135,6 +145,7 @@ export async function deleteProjectPreset(id: string): Promise<ProjectPreset[]> 
     const list: ProjectPreset[] = raw ? JSON.parse(raw) : [];
     const next = list.filter((x) => x.id !== id);
     await AsyncStorage.setItem(PROJECT_KEY, JSON.stringify(next));
+    void markLibraryDeleted('template', id);
     void tombstoneLibraryItem('template', id);
     return next;
   } catch {
@@ -148,6 +159,7 @@ export async function deleteForeignTemplate(id: string): Promise<ForeignTemplate
   try {
     await AsyncStorage.setItem(FOREIGN_KEY, JSON.stringify(next));
   } catch {}
+  void markLibraryDeleted('template', id);
   void tombstoneLibraryItem('template', id);
   return next;
 }
@@ -170,12 +182,25 @@ export async function syncTemplates(): Promise<{ native: ProjectPreset[]; foreig
   const byId = new Map(native.map((x) => [x.id, x]));
   const foreignById = new Map(foreign.map((x) => [x.id, x]));
   const cloudById = new Map<string, (typeof rows)[number]>();
+  const tombstones = await loadLibraryTombstones();
   let nativeDirty = false;
   let foreignDirty = false;
 
   for (const r of rows) {
     if (r.kind !== 'template') continue;
     cloudById.set(r.client_id, r);
+    // Deleted on this device (possibly while signed out): re-tombstone the
+    // cloud row and never resurrect it locally.
+    if (tombstones[tombstoneKey('template', r.client_id)] !== undefined) {
+      if (r.deleted_at) {
+        void clearLibraryDeleted('template', r.client_id);
+      } else {
+        void tombstoneLibraryItem('template', r.client_id);
+      }
+      if (byId.delete(r.client_id)) nativeDirty = true;
+      if (foreignById.delete(r.client_id)) foreignDirty = true;
+      continue;
+    }
     const d = (r.data ?? {}) as Record<string, unknown>;
     if (d.builtIn) continue;
     const cloudTs = Date.parse(r.updated_at) || 0;
@@ -224,6 +249,7 @@ export async function syncTemplates(): Promise<{ native: ProjectPreset[]; foreig
   }
   for (const local of byId.values()) {
     if (local.builtIn) continue;
+    if (tombstones[tombstoneKey('template', local.id)] !== undefined) continue;
     const cloud = cloudById.get(local.id);
     const localTs = local.updatedAt ?? local.createdAt ?? 0;
     if (!cloud || (cloud.deleted_at == null && (Date.parse(cloud.updated_at) || 0) < localTs)) {

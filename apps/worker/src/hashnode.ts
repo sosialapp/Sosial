@@ -1,4 +1,5 @@
 import { readSecret } from './db';
+import { signArticleMedia } from './articleMedia';
 import { info } from './logger';
 
 /**
@@ -54,7 +55,9 @@ export async function publishHashnodeTarget(bundle: Bundle): Promise<{ remoteId:
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
   const articleMarkdown = typeof art?.markdown === 'string' ? art.markdown.trim() : '';
-  const body = articleMarkdown || text;
+  // Inline body images: fresh signed URLs now; Hashnode fetches + caches them.
+  const resolvedMarkdown = articleMarkdown ? await signArticleMedia(articleMarkdown) : '';
+  const body = resolvedMarkdown || text;
   if (!body) throw new Error('Hashnode needs article text, this post is empty.');
   const title = (b.post.title ?? '').trim() || body.replace(/^#+\s*/, '').split('\n')[0].slice(0, 120);
 

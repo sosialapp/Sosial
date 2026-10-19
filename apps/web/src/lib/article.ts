@@ -29,6 +29,24 @@ export interface ArticlePayload {
   markdown: string;
 }
 
+/**
+ * Inline article images live in private post-media storage. The editor keeps a
+ * short-lived signed URL in `src` (for preview) and the durable storage path in
+ * `dataPath`; the serializer emits this marker instead of the URL so the worker
+ * can mint a fresh signed URL (Dev.to/Hashnode) or re-upload the bytes
+ * (WordPress/Ghost) at publish time, when the post actually goes out.
+ * `sosial-media:<storage path>`, path has no quotes/space, so it survives `esc`.
+ */
+export const ARTICLE_MEDIA_PREFIX = 'sosial-media:';
+
+/** Published `src` for an image node: the durable marker when we have a
+ *  storage path, else the plain URL (external/hand-pasted images). */
+export function articleImageSrc(attrs: Record<string, unknown> | undefined): string {
+  const dataPath = String(attrs?.dataPath ?? '').trim();
+  if (dataPath) return `${ARTICLE_MEDIA_PREFIX}${dataPath}`;
+  return String(attrs?.src ?? '').trim();
+}
+
 /* --------------------------------- HTML --------------------------------- */
 
 const esc = (s: string): string =>
@@ -115,7 +133,7 @@ function blockHtml(node: TNode): string {
     case 'horizontalRule':
       return '<hr />';
     case 'image': {
-      const src = String(node.attrs?.src ?? '').trim();
+      const src = articleImageSrc(node.attrs);
       if (!src) return '';
       const alt = esc(String(node.attrs?.alt ?? ''));
       const caption = String(node.attrs?.title ?? '').trim();
@@ -237,7 +255,7 @@ function blockMd(node: TNode, depth = 0): string {
     case 'horizontalRule':
       return '---';
     case 'image': {
-      const src = String(node.attrs?.src ?? '').trim();
+      const src = articleImageSrc(node.attrs);
       if (!src) return '';
       const alt = String(node.attrs?.alt ?? '').replace(/([\]\\])/g, '\\$1');
       const title = String(node.attrs?.title ?? '').trim();
@@ -283,7 +301,7 @@ export function articleIsEmpty(doc: TipTapDoc | null | undefined): boolean {
   if (!doc || !Array.isArray(doc.content)) return true;
   return !doc.content.some((b) => {
     if (b.type === 'horizontalRule') return true;
-    if (b.type === 'image') return String(b.attrs?.src ?? '').trim().length > 0;
+    if (b.type === 'image') return articleImageSrc(b.attrs).length > 0;
     return blockText(b).trim().length > 0;
   });
 }

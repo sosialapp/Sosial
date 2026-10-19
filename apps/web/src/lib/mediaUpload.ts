@@ -262,3 +262,36 @@ export async function uploadBlogMedia(sb: SupabaseClient, path: string, file: Fi
   const pub = await invoke<{ url: string }>(sb, { action: 'public', bucket: 'blog-media', path: key });
   return pub.url;
 }
+
+/** Signed GET for a private post-media object (R2 via the edge; Supabase
+ *  Storage as a fallback for any legacy-backed asset). */
+export async function signPostMedia(sb: SupabaseClient, path: string, expiresIn = 3600): Promise<string> {
+  try {
+    const { data, error } = await sb.functions.invoke('media', {
+      body: { action: 'sign', items: [{ path, bucket: 'post-media' }], expiresIn },
+    });
+    const url = (data as { urls?: string[]; error?: string } | null)?.urls?.[0];
+    if (!error && url) return url;
+  } catch {
+    /* fall through to Storage */
+  }
+  const { data } = await sb.storage.from('post-media').createSignedUrl(path, expiresIn);
+  if (data?.signedUrl) return data.signedUrl;
+  throw new Error('Could not prepare that image for preview.');
+}
+
+/**
+ * Upload one image for an article body. Bytes land in private post-media
+ * (`uploadMedia`), and the returned signed URL is only an editor-preview
+ * convenience: the article serializer stores `path` on the node and the worker
+ * re-signs/re-uploads at publish time (a 7-day URL minted now would rot).
+ */
+export async function uploadArticleImage(
+  sb: SupabaseClient,
+  workspaceId: string,
+  file: File,
+): Promise<{ path: string; url: string }> {
+  const res = await uploadMedia(sb, workspaceId, file, 'image');
+  const url = await signPostMedia(sb, res.storagePath, 7 * 24 * 3600);
+  return { path: res.storagePath, url };
+}

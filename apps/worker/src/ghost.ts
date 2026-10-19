@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { readSecret } from './db';
+import { mimeOf, uploadArticleMedia } from './articleMedia';
 import { info } from './logger';
 
 /**
@@ -87,11 +88,32 @@ export async function publishGhostTarget(bundle: Bundle): Promise<{ remoteId: st
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
   const articleHtml = typeof art?.html === 'string' ? art.html.trim() : '';
+  const token = ghostJwt(adminKey);
+  // Inline body images: upload the bytes into Ghost's own media library and
+  // swap the markers for the returned permanent URLs.
+  const resolvedHtml = articleHtml
+    ? await uploadArticleMedia(
+        articleHtml,
+        async (bytes, path) => {
+          const mime = mimeOf(path);
+          const ext = mime.split('/')[1] ?? 'jpg';
+          const form = new FormData();
+          form.append('file', new Blob([new Uint8Array(bytes)], { type: mime }), `sosial-${Date.now()}.${ext}`);
+          const up = await ghost<{ images: { url: string }[] }>(base, token, '/images/upload/', {
+            method: 'POST',
+            body: form,
+          });
+          const url = up.images?.[0]?.url;
+          if (!url) throw new Error('Ghost image upload returned no URL');
+          return url;
+        },
+        true,
+      )
+    : '';
   const { title, html } = articleHtml
-    ? { title: (b.post.title ?? '').trim() || 'Untitled', html: articleHtml }
+    ? { title: (b.post.title ?? '').trim() || 'Untitled', html: resolvedHtml }
     : toHtml(b.post.title ?? '', text);
   if (!html) throw new Error('Ghost needs article text, this post is empty.');
-  const token = ghostJwt(adminKey);
   const created = await ghost<{ posts: { id: string; url: string }[] }>(base, token, '/posts/?source=html', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

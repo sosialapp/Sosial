@@ -1,5 +1,6 @@
 import { readSecret } from './db';
 import { storageSign } from './rest';
+import { signArticleMedia } from './articleMedia';
 import { info } from './logger';
 
 /**
@@ -63,7 +64,10 @@ export async function publishDevtoTarget(bundle: Bundle): Promise<{ remoteId: st
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   const art = (b.target.options?.article ?? null) as { html?: string; markdown?: string } | null;
   const articleMarkdown = typeof art?.markdown === 'string' ? art.markdown.trim() : '';
-  const body = articleMarkdown || text;
+  // Inline body images: swap the storage markers for fresh signed URLs now;
+  // Forem fetches + caches them on creation (see articleMedia.ts).
+  const resolvedMarkdown = articleMarkdown ? await signArticleMedia(articleMarkdown) : '';
+  const body = resolvedMarkdown || text;
   if (!body) throw new Error('Dev.to needs article text, this post is empty.');
   const title = (b.post.title ?? '').trim() || body.replace(/^#+\s*/, '').split('\n')[0].slice(0, 120);
   const opts = (b.target.options ?? {}) as Record<string, unknown>;

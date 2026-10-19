@@ -201,6 +201,15 @@ export const ResizableImage = Image.extend({
         renderHTML: (attrs) =>
           typeof attrs.width === 'number' ? { 'data-width': String(attrs.width) } : {},
       },
+      // Durable private-storage path for images uploaded into the article body.
+      // `src` holds a short-lived signed URL for the editor preview; the article
+      // serializer swaps in a publish-time marker so the worker can re-sign it
+      // (or re-upload the bytes) when the post actually goes out.
+      dataPath: {
+        default: null,
+        parseHTML: (el) => (el as HTMLElement).getAttribute('data-path'),
+        renderHTML: (attrs) => (attrs.dataPath ? { 'data-path': String(attrs.dataPath) } : {}),
+      },
     };
   },
   addNodeView() {

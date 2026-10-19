@@ -1,5 +1,6 @@
 import { readSecret } from './db';
 import { storageDownload, storageSign } from './rest';
+import { mimeOf, uploadArticleMedia } from './articleMedia';
 import { info } from './logger';
 
 /**
@@ -105,7 +106,25 @@ export async function publishWordPressTarget(bundle: Bundle): Promise<{ remoteId
   }
 
   const blocks = articleHtml
-    ? { title: (b.post.title ?? '').trim() || 'Untitled', content: articleHtml }
+    ? {
+        title: (b.post.title ?? '').trim() || 'Untitled',
+        content: await uploadArticleMedia(
+          articleHtml,
+          async (bytes, path) => {
+            const mime = mimeOf(path);
+            const form = new FormData();
+            form.append('file', new Blob([new Uint8Array(bytes)], { type: mime }), `sosial-${Date.now()}.${mime.split('/')[1] ?? 'jpg'}`);
+            const uploaded = await wp<{ source_url?: string }>(base, auth, '/wp/v2/media', {
+              method: 'POST',
+              headers: { 'Content-Disposition': `attachment; filename="sosial-${Date.now()}.${mime.split('/')[1] ?? 'jpg'}"` },
+              body: form,
+            });
+            if (!uploaded.source_url) throw new Error('WordPress media upload returned no URL');
+            return uploaded.source_url;
+          },
+          true,
+        ),
+      }
     : toBlocks(b.post.title ?? '', text);
   const { title, content } = blocks;
   if (!content && !featuredId) {

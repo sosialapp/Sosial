@@ -1,6 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
-import { pushLibraryItem, tombstoneLibraryItem, pullLibraryRows } from './librarySync';
+import {
+  pushLibraryItem,
+  tombstoneLibraryItem,
+  pullLibraryRows,
+  loadLibraryTombstones,
+  markLibraryDeleted,
+  clearLibraryDeleted,
+  tombstoneKey,
+} from './librarySync';
 
 /** One chain segment: text plus optional per-post photos/videos.
  *  Posting carries every segment's media into the composer, where chain
@@ -71,6 +79,7 @@ export async function saveIdea(p: Partial<Idea> & { title: string }): Promise<Id
     await AsyncStorage.setItem(KEY, JSON.stringify(list));
   } catch {}
   void pushLibraryItem('idea', rec.id, rec.title, rec as unknown as Record<string, unknown>);
+  void clearLibraryDeleted('idea', rec.id);
   return list;
 }
 
@@ -80,6 +89,7 @@ export async function deleteIdea(id: string): Promise<Idea[]> {
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(next));
   } catch {}
+  void markLibraryDeleted('idea', id);
   void tombstoneLibraryItem('idea', id);
   return next;
 }
@@ -95,11 +105,23 @@ export async function syncIdeas(): Promise<Idea[]> {
   const list = await loadIdeas();
   const byId = new Map(list.map((x) => [x.id, x]));
   const cloudById = new Map<string, (typeof rows)[number]>();
+  const tombstones = await loadLibraryTombstones();
   let dirty = false;
 
   for (const r of rows) {
     if (r.kind !== 'idea') continue;
     cloudById.set(r.client_id, r);
+    // Deleted on this device (possibly while signed out): the cloud mirror is
+    // still live, so re-tombstone it and never resurrect it locally.
+    if (tombstones[tombstoneKey('idea', r.client_id)] !== undefined) {
+      if (r.deleted_at) {
+        void clearLibraryDeleted('idea', r.client_id);
+      } else {
+        void tombstoneLibraryItem('idea', r.client_id);
+      }
+      if (byId.delete(r.client_id)) dirty = true;
+      continue;
+    }
     const local = byId.get(r.client_id);
     const localTs = local ? (local.updatedAt ?? local.createdAt ?? 0) : -1;
     if (r.deleted_at) {
@@ -151,6 +173,7 @@ export async function syncIdeas(): Promise<Idea[]> {
   }
   // Push locals the cloud is missing or behind on.
   for (const local of byId.values()) {
+    if (tombstones[tombstoneKey('idea', local.id)] !== undefined) continue;
     const cloud = cloudById.get(local.id);
     const localTs = local.updatedAt ?? local.createdAt ?? 0;
     if (!cloud || (cloud.deleted_at == null && (Date.parse(cloud.updated_at) || 0) < localTs)) {
