@@ -208,8 +208,9 @@ export async function listCanvaDesigns(query?: string): Promise<{ designs: Canva
   return { designs, folders: [] };
 }
 
-/** Export a design (jpg photo or mp4 video) → sandbox file. */
-export async function downloadCanvaDesign(d: CanvaDesign, kind: 'image' | 'video'): Promise<{ uri: string; kind: 'image' | 'video' }> {
+/** Export a design → sandbox files: one image per page for a multi-page
+ *  design (a 4-page Canva doc → 4 media), or a single mp4. */
+export async function downloadCanvaDesigns(d: CanvaDesign, kind: 'image' | 'video'): Promise<{ uri: string; kind: 'image' | 'video' }[]> {
   const token = await getValidCanvaToken();
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const start = await fetch(`${API}/exports`, {
@@ -229,16 +230,27 @@ export async function downloadCanvaDesign(d: CanvaDesign, kind: 'image' | 'video
     if (!pr.ok) throw new Error(pj?.message ?? `Canva lost the export (HTTP ${pr.status}).`);
     const status = String(pj?.job?.status ?? '');
     if (status === 'success') {
-      const url = String(pj?.job?.urls?.[0] ?? '');
-      if (!url) throw new Error('Canva finished with no file.');
+      // One URL per page for image formats; a single URL for video. Omitting
+      // `pages` on the request makes Canva export the whole design.
+      const urls = (((pj?.job?.urls ?? []) as unknown[]).map((u) => String(u)).filter(Boolean));
+      if (!urls.length) throw new Error('Canva finished with no file.');
       const ext = kind === 'video' ? 'mp4' : 'jpg';
-      const dest = `${FileSystem.documentDirectory}canva/${Date.now()}.${ext}`;
       try {
         await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}canva/`, { intermediates: true });
       } catch {}
-      const dl = await FileSystem.downloadAsync(url, dest);
-      if (dl.status !== 200) throw new Error('Download failed, try another design.');
-      return { uri: dl.uri, kind };
+      const out: { uri: string; kind: 'image' | 'video' }[] = [];
+      const stamp = Date.now();
+      for (let i = 0; i < urls.length; i++) {
+        const dest = `${FileSystem.documentDirectory}canva/${stamp}-${i}.${ext}`;
+        try {
+          const dl = await FileSystem.downloadAsync(urls[i], dest);
+          if (dl.status === 200) out.push({ uri: dl.uri, kind });
+        } catch {
+          /* one bad page must not sink the rest */
+        }
+      }
+      if (!out.length) throw new Error('Download failed, try another design.');
+      return out;
     }
     if (status === 'failed') {
       throw new Error(`Canva could not export that design (${String(pj?.job?.error?.message ?? 'unknown error').slice(0, 100)}).`);

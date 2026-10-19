@@ -11,7 +11,7 @@ import {
   listOneDriveFiles, downloadOneDriveFile, type CloudOneDriveItem,
   createPhotosSession, photosSessionDone, listPickedPhotos, downloadPickedPhoto, pickerThumbUrl, type CloudPhoto,
   listDropboxFolder, searchDropbox, downloadDropboxFile, type CloudDropboxEntry,
-  listCanvaDesigns, downloadCanvaDesign, type CloudCanvaDesign,
+  listCanvaDesigns, downloadCanvaDesigns, type CloudCanvaDesign,
 } from '@/lib/cloudSources';
 
 export interface StockItem {
@@ -509,7 +509,7 @@ export default function MediaSourcesDialog({
     if (downloading) return;
     setDownloading({ id: d.id, progress: null });
     try {
-      onAttach([await downloadCanvaDesign(d, canvaKind, track(d.id))]);
+      onAttach(await downloadCanvaDesigns(d, canvaKind, track(d.id)));
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach.');
@@ -844,6 +844,9 @@ export default function MediaSourcesDialog({
                 ) : null}
                 {!busy && source === 'canva' && canvaDesigns.length === 0 ? (
                   <p className="mt-3 text-center text-xs text-faint">{query ? 'No matching designs.' : 'Your newest designs will appear here.'}</p>
+                ) : null}
+                {!busy && source === 'canva' && canvaDesigns.length > 0 ? (
+                  <p className="mt-3 text-center text-xs text-faint">A multi-page design imports every page as its own media.</p>
                 ) : null}
                 {!busy && !isCloud && items.length === 0 ? (
                   <p className="mt-3 text-center text-xs text-faint">Search above to browse stock.</p>

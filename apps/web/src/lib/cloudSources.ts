@@ -626,8 +626,9 @@ export async function listCanvaDesigns(query?: string): Promise<{ designs: Cloud
   return { designs, folders: [] };
 }
 
-/** Export a design (jpg photo or mp4 video) and resolve it to a File. */
-export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | 'video', onProgress?: (pct: number) => void): Promise<File> {
+/** Export a design and resolve it to Files: one image per page for a
+ *  multi-page design (a 4-page Canva doc → 4 media), or a single mp4. */
+export async function downloadCanvaDesigns(d: CloudCanvaDesign, kind: 'image' | 'video', onProgress?: (pct: number) => void): Promise<File[]> {
   const token = await getValidCloudToken('canva');
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const start = await fetch(`${CANVA_API}/exports`, {
@@ -647,13 +648,26 @@ export async function downloadCanvaDesign(d: CloudCanvaDesign, kind: 'image' | '
     if (!pr.ok) throw new Error(pj?.message ?? `Canva lost the export (HTTP ${pr.status}).`);
     const status = String(pj?.job?.status ?? '');
     if (status === 'success') {
-      const url = String(pj?.job?.urls?.[0] ?? '');
-      if (!url) throw new Error('Canva finished with no file.');
-      const blob = await fetchProgressBlob(url, {}, onProgress).catch(() => null);
-      if (!blob) throw new Error('Download failed, try another design.');
-      return new File([blob], `canva-${d.id}.${kind === 'video' ? 'mp4' : 'jpg'}`, {
-        type: kind === 'video' ? 'video/mp4' : 'image/jpeg',
-      });
+      // One URL per page for image formats; a single URL for video. Omitting
+      // `pages` on the request makes Canva export the whole design.
+      const urls = (((pj?.job?.urls ?? []) as unknown[]).map((u) => String(u)).filter(Boolean));
+      if (!urls.length) throw new Error('Canva finished with no file.');
+      const ext = kind === 'video' ? 'mp4' : 'jpg';
+      const type = kind === 'video' ? 'video/mp4' : 'image/jpeg';
+      const many = urls.length > 1;
+      const files: File[] = [];
+      for (let i = 0; i < urls.length; i++) {
+        const report = many
+          ? (p: number) => onProgress?.(Math.round(((i + p / 100) / urls.length) * 100))
+          : onProgress;
+        const blob = await fetchProgressBlob(urls[i], {}, report).catch(() => null);
+        if (!blob) continue; // one bad page must not sink the rest
+        files.push(
+          new File([blob], many ? `canva-${d.id}-p${i + 1}.${ext}` : `canva-${d.id}.${ext}`, { type }),
+        );
+      }
+      if (!files.length) throw new Error('Download failed, try another design.');
+      return files;
     }
     if (status === 'failed') throw new Error(`Canva could not export that design (${String(pj?.job?.error?.message ?? 'unknown error').slice(0, 100)}).`);
     if (Date.now() > deadline) throw new Error('Canva is taking too long, try again.');

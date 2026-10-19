@@ -23,7 +23,7 @@ import {
 } from '../utils/onedriveAuth';
 import {
   canvaConnected, loginCanva, disconnectCanva,
-  listCanvaDesigns, downloadCanvaDesign, type CanvaDesign,
+  listCanvaDesigns, downloadCanvaDesigns, type CanvaDesign,
 } from '../utils/canvaAuth';
 
 export interface SourceAttachment {
@@ -327,8 +327,8 @@ export default function MediaSources({
     if (downloading) return;
     setDownloading(d.id);
     try {
-      const att = await downloadCanvaDesign(d, canvaKind);
-      onAttach([att]);
+      const atts = await downloadCanvaDesigns(d, canvaKind);
+      onAttach(atts);
       onClose();
     } catch (e: any) {
       Alert.alert('Could not attach', e?.message ?? 'Try another design.');
