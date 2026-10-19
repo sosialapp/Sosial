@@ -162,8 +162,12 @@ async function rememberKey(key: string): Promise<void> {
 }
 
 async function readAccounts(): Promise<ConnectedAccount[]> {
+  return readAccountsAt(await accountsKey());
+}
+
+async function readAccountsAt(key: string): Promise<ConnectedAccount[]> {
   try {
-    const raw = await SecureStore.getItemAsync(await accountsKey());
+    const raw = await SecureStore.getItemAsync(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as ConnectedAccount[]) : [];
@@ -282,6 +286,23 @@ export async function clearAllAccounts(): Promise<void> {
 }
 
 /* ---------------- Account-first API (multi-account) ---------------- */
+
+/** Read a specific workspace's vault (channel prefetch uses this). */
+export async function readAccountsForWorkspace(wsId: string): Promise<ConnectedAccount[]> {
+  return readAccountsAt(scopedKeyB(ACCOUNTS_KEY, wsId));
+}
+
+/** Write a specific workspace's vault, silently (no change event). */
+export async function writeAccountsForWorkspace(wsId: string, accounts: ConnectedAccount[]): Promise<void> {
+  const key = scopedKeyB(ACCOUNTS_KEY, wsId);
+  try {
+    if (accounts.length === 0) await SecureStore.deleteItemAsync(key);
+    else {
+      await SecureStore.setItemAsync(key, JSON.stringify(accounts));
+      await rememberKey(key);
+    }
+  } catch {}
+}
 
 /** The canonical connected accounts, migrating the legacy flat store first. */
 export async function loadAccounts(): Promise<ConnectedAccount[]> {

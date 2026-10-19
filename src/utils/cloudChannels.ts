@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadMetaState, loadAccounts, loadProviderFields, saveAccounts, makeAccount, type MetaState } from './metaStore';
+import { loadMetaState, loadAccounts, loadProviderFields, saveAccounts, makeAccount, readAccountsForWorkspace, writeAccountsForWorkspace, type MetaState } from './metaStore';
 import { connectedAccounts, accountExternalId, PROVIDER_KEYS, type ConnectedAccount } from './socialAccounts';
 import { getValidYt } from './ytAuth';
 import { supabase, currentSession, importChannelToken, removeChannelToken } from './supabase';
@@ -400,6 +400,56 @@ interface CloudChannelRow {
   metadata: Record<string, unknown> | null;
 }
 
+/** Metadata-only account shell for a cloud channel row. Credentials stay
+ *  empty so accountConnected() stays false until a local connect upgrades
+ *  the row in place; the identity rides along so future pulls re-match
+ *  instead of duplicating. */
+function placeholderFromRow(row: CloudChannelRow): ConnectedAccount {
+  const provider = row.provider as CloudChannelKey;
+  const idKey = IDENTITY_FIELD[provider];
+  const fields: Record<string, unknown> = { cloudOnly: true };
+  if (idKey) fields[idKey] = row.external_id;
+  if (row.display_name) fields[NAME_FIELD[provider]] = row.display_name;
+  if (provider === 'bluesky' && row.handle) fields.bskyHandle = row.handle;
+  if (provider === 'bluesky' && row.instance_url) fields.bskyPdsHost = row.instance_url;
+  if (provider === 'mastodon' && row.instance_url) fields.mastodonInstance = row.instance_url;
+  if (provider === 'telegram' && row.metadata) {
+    const md = row.metadata as Record<string, unknown>;
+    if (typeof md.username === 'string' && md.username) fields.tgChatTitle = `@${md.username}`;
+  }
+  if (provider === 'discord' && row.metadata) {
+    const md = row.metadata as Record<string, unknown>;
+    if (typeof md.guildId === 'string' && md.guildId) fields.dcGuildId = md.guildId;
+    if (typeof md.guildName === 'string' && md.guildName) fields.dcGuildName = md.guildName;
+    if (typeof md.channelName === 'string' && md.channelName) fields.dcChannelName = md.channelName;
+  }
+  if (provider === 'devto' && row.metadata) {
+    const md = row.metadata as Record<string, unknown>;
+    if (typeof md.username === 'string' && md.username) fields.devUsername = md.username;
+  }
+  if (provider === 'hashnode' && row.metadata) {
+    const md = row.metadata as Record<string, unknown>;
+    if (typeof md.publicationId === 'string' && md.publicationId) {
+      fields.hnPublicationId = md.publicationId;
+    }
+    if (typeof md.publicationTitle === 'string' && md.publicationTitle) {
+      fields.hnPublicationTitle = md.publicationTitle;
+    }
+  }
+  if (provider === 'vk' && row.metadata) {
+    const md = row.metadata as Record<string, unknown>;
+    if (typeof md.screen_name === 'string' && md.screen_name) {
+      fields.vkScreenName = md.screen_name;
+    }
+  }
+  if (provider === 'gmb' && row.display_name && row.external_id) {
+    fields.gmLocationTitle = row.display_name;
+  }
+  const avatar = typeof row.metadata?.avatar === 'string' && row.metadata.avatar ? row.metadata.avatar : undefined;
+  if (avatar) fields.avatar = avatar;
+  return makeAccount(provider, fields);
+}
+
 interface ExpiredChannelRow {
   provider: string;
   external_id: string;
@@ -524,47 +574,7 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
       // rides along so future pulls re-match instead of duplicating;
       // credentials stay empty so accountConnected() stays false until a
       // local connect upgrades the row in place.
-      const idKey = IDENTITY_FIELD[provider];
-      const fields: Record<string, unknown> = { cloudOnly: true };
-      if (idKey) fields[idKey] = row.external_id;
-      if (row.display_name) fields[NAME_FIELD[provider]] = row.display_name;
-        if (provider === 'bluesky' && row.handle) fields.bskyHandle = row.handle;
-        if (provider === 'bluesky' && row.instance_url) fields.bskyPdsHost = row.instance_url;
-        if (provider === 'mastodon' && row.instance_url) fields.mastodonInstance = row.instance_url;
-        if (provider === 'telegram' && row.metadata) {
-          const md = row.metadata as Record<string, unknown>;
-          if (typeof md.username === 'string' && md.username) fields.tgChatTitle = `@${md.username}`;
-        }
-        if (provider === 'discord' && row.metadata) {
-          const md = row.metadata as Record<string, unknown>;
-          if (typeof md.guildId === 'string' && md.guildId) fields.dcGuildId = md.guildId;
-          if (typeof md.guildName === 'string' && md.guildName) fields.dcGuildName = md.guildName;
-          if (typeof md.channelName === 'string' && md.channelName) fields.dcChannelName = md.channelName;
-        }
-        if (provider === 'devto' && row.metadata) {
-          const md = row.metadata as Record<string, unknown>;
-          if (typeof md.username === 'string' && md.username) fields.devUsername = md.username;
-        }
-        if (provider === 'hashnode' && row.metadata) {
-          const md = row.metadata as Record<string, unknown>;
-          if (typeof md.publicationId === 'string' && md.publicationId) {
-            fields.hnPublicationId = md.publicationId;
-          }
-          if (typeof md.publicationTitle === 'string' && md.publicationTitle) {
-            fields.hnPublicationTitle = md.publicationTitle;
-          }
-        }
-        if (provider === 'vk' && row.metadata) {
-          const md = row.metadata as Record<string, unknown>;
-          if (typeof md.screen_name === 'string' && md.screen_name) {
-            fields.vkScreenName = md.screen_name;
-          }
-        }
-        if (provider === 'gmb' && row.display_name && row.external_id) {
-          fields.gmLocationTitle = row.display_name;
-        }
-      if (avatar) fields.avatar = avatar;
-      touch({ ...makeAccount(provider, fields) });
+      touch(placeholderFromRow(row));
       if (!out.created.includes(provider)) out.created.push(provider);
     }
     // ---- retraction: cloud row gone → remove the local counterpart ----
@@ -661,6 +671,37 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
     const session = await currentSession().catch(() => null);
     recordPull(session?.workspace.id ?? 'unknown', `error ${String(e).slice(0, 120)}`);
     return out;
+  }
+}
+
+/**
+ * Cache a workspace's channel placeholders on the device BEFORE the device
+ * is pinned to it, so switching teams renders the chips instantly: the vault
+ * already holds the list and the switch's forced pull only refreshes it.
+ * Placeholder-only (never overwrites a vault that holds real credentials, and
+ * writes nothing when the device is already pinned there).
+ */
+export async function prefetchWorkspaceChannels(workspaceId: string): Promise<void> {
+  try {
+    if ((await activeWorkspaceId()) === workspaceId) return;
+    const existing = await readAccountsForWorkspace(workspaceId);
+    if (existing.length > 0) return;
+    const { data } = await supabase()
+      .from('connected_channels')
+      .select('provider, external_id, display_name, handle, instance_url, metadata')
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'connected');
+    const rows = ((data ?? []) as CloudChannelRow[]).filter(
+      (r) =>
+        typeof r.provider === 'string' &&
+        (PROVIDER_KEYS as readonly string[]).includes(r.provider) &&
+        typeof r.external_id === 'string' &&
+        r.external_id.length > 0,
+    );
+    if (rows.length === 0) return;
+    await writeAccountsForWorkspace(workspaceId, rows.map(placeholderFromRow));
+  } catch {
+    /* prefetch is cosmetic; the switch pull always fetches fresh anyway */
   }
 }
 

@@ -73,6 +73,8 @@ const WS_KEY = 'sosial_ws_id';
 
 export interface WorkspaceSummary extends WorkspaceInfo {
   liveChannels: number;
+  /** `avatars` storage path for the team photo (may be signed downstream). */
+  avatarUrl?: string;
 }
 
 /**
@@ -84,7 +86,7 @@ export async function listMyWorkspaces(userId: string): Promise<WorkspaceSummary
   const sb = supabase();
   const { data, error } = await sb
     .from('workspace_members')
-    .select('role, created_at, workspaces!inner(id, name, created_at)')
+    .select('role, created_at, workspaces!inner(id, name, avatar_url, created_at)')
     .eq('user_id', userId)
     .eq('status', 'active');
   if (error) throw friendly(error, 'Could not load your workspaces.');
@@ -95,7 +97,7 @@ export async function listMyWorkspaces(userId: string): Promise<WorkspaceSummary
   }[];
   const out: (WorkspaceSummary & { joinedAt: string; wsCreated: string })[] = [];
   for (const r of rows) {
-    const w = r.workspaces as { id?: unknown; name?: unknown; created_at?: unknown } | null;
+    const w = r.workspaces as { id?: unknown; name?: unknown; avatar_url?: unknown; created_at?: unknown } | null;
     if (!w || typeof w.id !== 'string') continue;
     let liveChannels = 0;
     try {
@@ -113,6 +115,7 @@ export async function listMyWorkspaces(userId: string): Promise<WorkspaceSummary
       name: String(w.name ?? 'My team'),
       role: r.role as WorkspaceInfo['role'],
       liveChannels,
+      ...(typeof w.avatar_url === 'string' && w.avatar_url ? { avatarUrl: w.avatar_url } : {}),
       joinedAt: String(r.created_at ?? ''),
       wsCreated: String(w.created_at ?? ''),
     });

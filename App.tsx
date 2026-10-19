@@ -25,10 +25,10 @@ import { useFontsLoaded } from './src/utils/fonts';
 import { loadAccount, saveAccount, Account } from './src/utils/account';
 import { loadEntitlement, refreshEntitlement, type Entitlement } from './src/utils/entitlement';
 import { internalKeyFor } from './src/utils/plans';
-import { pushProfileToCloud, currentSession, isSupabaseConfigured } from './src/utils/supabase';
+import { pushProfileToCloud, currentSession, isSupabaseConfigured, listMyWorkspaces } from './src/utils/supabase';
 import { handleAuthUrl, getPendingAuth } from './src/utils/authFlow';
 import { backfillMissingAvatars } from './src/utils/avatarBackfill';
-import { pullCloudChannels } from './src/utils/cloudChannels';
+import { pullCloudChannels, prefetchWorkspaceChannels } from './src/utils/cloudChannels';
 import { pullCloudPosts } from './src/utils/cloudPosts';
 import { useTheme, ThemeProvider } from './src/theme';
 
@@ -96,6 +96,16 @@ function Shell() {
     // Cloud → device channel pull on open + foreground (throttled inside):
     // web-side connects/disconnects show up here without visiting Connect.
     void pullCloudChannels().catch(() => {});
+    // Prefetch the OTHER teams' channel placeholders so the first switch to a
+    // team renders its chips instantly instead of waiting on the switch pull.
+    void (async () => {
+      const sn = await currentSession().catch(() => null);
+      if (!sn) return;
+      const all = await listMyWorkspaces(sn.user.id).catch(() => []);
+      for (const w of all) {
+        if (w.id !== sn.workspace.id) await prefetchWorkspaceChannels(w.id);
+      }
+    })();
     // Ideas/templates sync. Post sync (pull + push + verdicts) is owned by
     // ComposerProvider's single sweep, never run twice: two concurrent pulls
     // re-downloaded the same media and doubled launch work.

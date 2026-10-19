@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
-import { currentSession, listMyWorkspaces, switchWorkspace, type WorkspaceSummary } from '../utils/supabase';
+import { avatarSignedUrl, currentSession, listMyWorkspaces, switchWorkspace, type WorkspaceSummary } from '../utils/supabase';
 
 /**
  * Team switcher: "{avatar} {team} ⌄" opens a bottom sheet listing every
@@ -26,6 +26,7 @@ export default function TeamSwitcher({
   const s = makeS(C);
   const [open, setOpen] = useState(false);
   const [teams, setTeams] = useState<WorkspaceSummary[]>([]);
+  const [pics, setPics] = useState<Record<string, string>>({});
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,11 +36,20 @@ export default function TeamSwitcher({
       const session = await currentSession();
       if (!session) return;
       setCurrentId(session.workspace.id);
-      setTeams(await listMyWorkspaces(session.user.id));
+      const list = await listMyWorkspaces(session.user.id);
+      setTeams(list);
+      // Team photos live in storage and need signing; the signed URLs are
+      // cached by avatarSignedUrl so re-opening the sheet is instant.
+      await Promise.all(
+        list.filter((t) => t.avatarUrl && !pics[t.id]).map(async (t) => {
+          const url = await avatarSignedUrl(t.avatarUrl!);
+          if (url) setPics((prev) => ({ ...prev, [t.id]: url }));
+        }),
+      );
     } catch {
       /* offline, keep the last list; opening the sheet retries */
     }
-  }, []);
+  }, [pics]);
 
   const currentName = teams.find((t) => t.id === currentId)?.name ?? team ?? 'Team';
 
@@ -83,7 +93,11 @@ export default function TeamSwitcher({
         accessibilityLabel={`${currentName}, switch team`}
       >
         <View style={[s.avatar, full && s.avatarFull]}>
-          <Text style={s.avatarT}>{(currentName || 'T')[0].toUpperCase()}</Text>
+          {pics[currentId ?? ''] ? (
+            <Image source={{ uri: pics[currentId ?? ''] }} style={{ width: '100%', height: '100%', borderRadius: 999 }} />
+          ) : (
+            <Text style={s.avatarT}>{(currentName || 'T')[0].toUpperCase()}</Text>
+          )}
         </View>
         <Text style={[s.pillT, full && s.pillTFlex]} numberOfLines={1}>{currentName}</Text>
         <Ionicons name="chevron-down" size={14} color={C.muted} />
@@ -121,9 +135,13 @@ export default function TeamSwitcher({
                       accessibilityLabel={`${t.name}${current ? ', current team' : ', switch team'}`}
                     >
                       <View style={[s.rowAvatar, current && { backgroundColor: C.ink }]}>
-                        <Text style={[s.rowAvatarT, current && { color: C.onInk }]}>
-                          {(t.name || 'T')[0].toUpperCase()}
-                        </Text>
+                        {pics[t.id] ? (
+                          <Image source={{ uri: pics[t.id] }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+                        ) : (
+                          <Text style={[s.rowAvatarT, current && { color: C.onInk }]}>
+                            {(t.name || 'T')[0].toUpperCase()}
+                          </Text>
+                        )}
                       </View>
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={s.rowT} numberOfLines={1}>{t.name}</Text>
