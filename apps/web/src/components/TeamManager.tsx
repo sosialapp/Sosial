@@ -3,9 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Pencil } from 'lucide-react';
-import ChannelAvatar from '@/components/ChannelAvatar';
+import ChannelScopePills from '@/components/ChannelScopePills';
 import { fileToAvatarDataUrl } from '@/lib/avatar';
-import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { useSignedUrl } from '@/lib/useSignedUrl';
 import { edgeErrorMessage } from '@/lib/functions';
@@ -109,7 +108,8 @@ export default function TeamManager({
   }, [editingName]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'admin'>('member');
-  const [allChannels, setAllChannels] = useState(true);
+  const [inviteAll, setInviteAll] = useState(true);
+  const [inviteSel, setInviteSel] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -281,13 +281,15 @@ export default function TeamManager({
           workspace_id: workspaceId,
           email: email.trim(),
           role,
-          all_channels: allChannels,
+          all_channels: inviteAll,
+          providers: inviteAll ? [] : inviteSel,
         },
       });
       if (error) throw new Error((await edgeErrorMessage(error)) ?? error.message);
       setEmail('');
       setRole('member');
-      setAllChannels(true);
+      setInviteAll(true);
+      setInviteSel([]);
       const url = (data as { invite_url?: unknown } | null)?.invite_url;
       if (
         (data as { already_registered?: unknown } | null)?.already_registered === true &&
@@ -564,38 +566,16 @@ export default function TeamManager({
                   <p className="text-xs font-bold">
                     Accounts {m.email} can post to
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGAll(true);
-                        setGSel([]);
+                  <div className="mt-3">
+                    <ChannelScopePills
+                      channels={channels}
+                      all={gAll}
+                      selected={gSel}
+                      onChange={(all, sel) => {
+                        setGAll(all);
+                        setGSel(sel);
                       }}
-                      className={`pill border ${gAll ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
-                    >
-                      All accounts
-                    </button>
-                    {channels.map((c) => {
-                      const on = !gAll && gSel.includes(c.provider);
-                      return (
-                        <button
-                          key={`${c.provider}:${c.external_id}`}
-                          type="button"
-                          onClick={() => {
-                            setGAll(false);
-                            setGSel((prev) =>
-                              prev.includes(c.provider)
-                                ? prev.filter((p) => p !== c.provider)
-                                : [...prev, c.provider],
-                            );
-                          }}
-                          className={`pill border flex items-center gap-1.5 ${on ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
-                        >
-                          <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={20} />
-                          {channelLabel(c)}
-                        </button>
-                      );
-                    })}
+                    />
                   </div>
                   {channels.length === 0 ? (
                     <p className="mt-2 text-xs text-muted">
@@ -689,15 +669,23 @@ export default function TeamManager({
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>
               </select>
-              <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-muted">
-                <input
-                  type="checkbox"
-                  checked={allChannels}
-                  onChange={(e) => setAllChannels(e.target.checked)}
-                  className="h-4 w-4 accent-[#c8500f]"
-                />
-                All channels
-              </label>
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-bold text-muted">Accounts they can post to</p>
+              <ChannelScopePills
+                channels={channels}
+                all={inviteAll}
+                selected={inviteSel}
+                onChange={(all, sel) => {
+                  setInviteAll(all);
+                  setInviteSel(sel);
+                }}
+              />
+              {channels.length === 0 ? (
+                <p className="mt-2 text-xs text-muted">
+                  Connect an account first, there are no channels to appoint yet.
+                </p>
+              ) : null}
             </div>
             {err ? <p className="text-sm font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p> : null}
             {inviteLink ? (

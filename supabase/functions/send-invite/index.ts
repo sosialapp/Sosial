@@ -1,7 +1,12 @@
 // send-invite · workspace invite delivery (owner/admin only)
 //
-// POST { workspace_id, email, role? ('admin'|'member'), all_channels? }
+// POST { workspace_id, email, role? ('admin'|'member'), all_channels?,
+//        providers? (provider_key[]) }
 // → 200 { invite_id, token } · 401 unauthenticated · 403 not owner/admin
+//
+// providers scopes the invite to specific accounts; it is ignored by the RPC
+// when all_channels is true. Values are filtered to the provider_key enum so
+// an unknown string can't blow up the create_invite cast.
 //
 // Flow: creates (or refreshes) the invite row through the create_invite RPC
 // as the CALLER (single source of truth, the RPC enforces the role check),
@@ -16,6 +21,12 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ROLES = new Set(["admin", "member"]);
+
+/** provider_key enum values (supabase/migrations/p1_identity_tenancy). */
+const PROVIDERS = new Set([
+  "facebook", "instagram", "threads", "tiktok", "x",
+  "bluesky", "linkedin", "mastodon", "pinterest", "youtube",
+]);
 
 // Browser preflight must pass before supabase-js can POST at all, without
 // these headers fetch throws and the client sees "Failed to send a request
@@ -63,6 +74,8 @@ serve(async (req: Request): Promise<Response> => {
   const email = body["email"];
   const role = typeof body["role"] === "string" && ROLES.has(body["role"]) ? body["role"] : "member";
   const all_channels = body["all_channels"] === true;
+  const providers = (Array.isArray(body["providers"]) ? body["providers"] : [])
+    .filter((p): p is string => typeof p === "string" && PROVIDERS.has(p));
   if (typeof workspace_id !== "string" || !workspace_id) return bad("workspace_id required.");
   if (typeof email !== "string" || !email.includes("@")) return bad("Valid email required.");
 
@@ -73,6 +86,7 @@ serve(async (req: Request): Promise<Response> => {
     p_email: email.trim(),
     p_role: role,
     p_all_channels: all_channels,
+    p_providers: all_channels ? [] : providers,
   });
   if (invErr || !invite?.id || !invite?.token) {
     const msg = String(invErr?.message ?? "Could not create the invite.");
