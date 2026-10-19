@@ -5,10 +5,10 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import {
   supabase, getTeamAvatar, teamAvatarSignedUrl, avatarSignedUrl, setTeamAvatarFromUri, clearTeamAvatar,
-  listMyWorkspaces, switchWorkspace, type WorkspaceSummary,
 } from '../utils/supabase';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, ChannelAvatar } from '../components/ui';
+import TeamSwitcher from '../components/TeamSwitcher';
 import {
   loadCloudTeam, createInvite, removeMember, setMemberGrants, cancelInvite,
   setMemberRole, leaveTeam,
@@ -39,8 +39,6 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
   const [teamPicFailed, setTeamPicFailed] = useState(false);
   const [memberPics, setMemberPics] = useState<Record<string, string>>({});
   const [failedPics, setFailedPics] = useState<Record<string, boolean>>({});
-  const [teams, setTeams] = useState<WorkspaceSummary[]>([]);
-  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const [mEmail, setMEmail] = useState('');
   const [mRole, setMRole] = useState<'member' | 'admin'>('member');
@@ -54,13 +52,6 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
   const [gProviders, setGProviders] = useState<string[]>([]);
 
   const reload = async () => {
-    // Every workspace this user belongs to, so the switcher is usable even
-    // when the active one has no roster access.
-    try {
-      const { data } = await supabase().auth.getSession();
-      const uid = data.session?.user.id;
-      if (uid) setTeams(await listMyWorkspaces(uid));
-    } catch { /* switcher is best-effort */ }
     const t = await loadCloudTeam().catch(() => null);
     setTeam(t);
     setLoading(false);
@@ -122,19 +113,6 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
       Alert.alert('Couldn’t remove', e?.message ?? 'Try again.');
     } finally {
       setTeamPicBusy(false);
-    }
-  };
-
-  /** Pin this device to another workspace and let the shell reload around it. */
-  const doSwitch = async (t: WorkspaceSummary) => {
-    if (switchingId || t.id === team?.workspaceId) return;
-    setSwitchingId(t.id);
-    try {
-      await switchWorkspace(t.id);
-      onSwitched({ id: t.id, name: t.name });
-    } catch (e: any) {
-      Alert.alert('Couldn’t switch team', e?.message ?? 'Try again.');
-      setSwitchingId(null);
     }
   };
 
@@ -371,42 +349,12 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
           )
         ) : null}
 
-        {teams.length > 1 ? (
-          <View style={{ marginTop: 20 }}>
-            <Text style={s.sectionLabel}>SWITCH TEAM</Text>
-            <View style={{ gap: 8, marginTop: 8 }}>
-              {teams.map((t) => {
-                const current = t.id === team?.workspaceId;
-                const rowBusy = switchingId === t.id;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    onPress={() => void doSwitch(t)}
-                    disabled={current || !!switchingId}
-                    activeOpacity={0.8}
-                    style={[s.member, current && { borderColor: C.ink }]}
-                    accessibilityLabel={`${t.name}${current ? ', current team' : ', switch team'}`}
-                  >
-                    <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(t.name || 'T')[0].toUpperCase()}</Text></View>
-                    <View style={{ flex: 1, gap: 1 }}>
-                      <Text style={s.rowT} numberOfLines={1}>{t.name}</Text>
-                      <Text style={s.rowS} numberOfLines={1}>
-                        {t.role} · {t.liveChannels} channel{t.liveChannels === 1 ? '' : 's'}
-                      </Text>
-                    </View>
-                    {rowBusy ? (
-                      <ActivityIndicator color={C.muted} />
-                    ) : current ? (
-                      <Text style={s.youTag}>(current)</Text>
-                    ) : (
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Switch</Text>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+        <View style={{ marginTop: 20 }}>
+          <Text style={s.sectionLabel}>SWITCH TEAM</Text>
+          <View style={{ marginTop: 8 }}>
+            <TeamSwitcher team={team?.workspaceName ?? teamName} onSwitched={onSwitched} full />
           </View>
-        ) : null}
+        </View>
 
         {plan !== 'team' ? (
           <View style={{ marginTop: 16, gap: 12 }}>
