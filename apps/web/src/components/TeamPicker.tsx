@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { prefetchSignedUrls, useSignedUrl } from '@/lib/useSignedUrl';
+import { useSwitchTransition } from './SwitchTransition';
 import type { WorkspaceOption } from './WorkspaceSwitcher';
 
 /**
@@ -54,7 +54,7 @@ export default function TeamPicker({
   planLabel: string;
   workspaces: WorkspaceOption[];
 }) {
-  const router = useRouter();
+  const { refresh, cancel } = useSwitchTransition();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -104,8 +104,9 @@ export default function TeamPicker({
         body: JSON.stringify({ workspace_id: id }),
       });
       if (!res.ok) throw new Error('switch failed');
-      router.refresh();
+      refresh();
     } catch {
+      cancel();
       setBusy(false);
       setPending(null);
     }
@@ -128,7 +129,7 @@ export default function TeamPicker({
       setOpen(false);
       setCreating(false);
       setName('');
-      router.refresh();
+      refresh();
     } catch {
       setErr('Network error, try again.');
     } finally {

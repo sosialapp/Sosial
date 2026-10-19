@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { prefetchSignedUrls, useSignedUrl } from '@/lib/useSignedUrl';
+import { useSwitchTransition } from './SwitchTransition';
 
 export interface WorkspaceOption {
   id: string;
@@ -60,6 +61,7 @@ export default function WorkspaceSwitcher({
   workspaces: WorkspaceOption[];
 }) {
   const router = useRouter();
+  const { refresh, cancel } = useSwitchTransition();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -105,8 +107,9 @@ export default function WorkspaceSwitcher({
         body: JSON.stringify({ workspace_id: id }),
       });
       if (!res.ok) throw new Error('switch failed');
-      router.refresh();
+      refresh();
     } catch {
+      cancel();
       setBusy(false);
       setPending(null);
     }

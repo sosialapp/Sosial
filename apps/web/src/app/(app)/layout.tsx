@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import WorkspaceSwitcher, { type WorkspaceOption } from '@/components/WorkspaceSwitcher';
+import ContentArea from '@/components/ContentArea';
+import SwitchTransition from '@/components/SwitchTransition';
 import Dock from '@/components/Dock';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -84,6 +86,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <ThemeScope className="app-shell min-h-screen bg-bone text-ink">
+      <SwitchTransition currentId={ctx.workspace.id}>
       {/* Floating pill masthead: detached look, aligned to the content
           column. The sticky zone itself is opaque theme background (the
           document body is hardwired white, which would bleed through a
@@ -119,8 +122,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         </header>
       </div>
       {/* Left clearance for the fixed rail on every breakpoint; no bottom dock anymore. */}
-      <main className="mx-auto min-w-0 w-full max-w-7xl flex-1 pr-4 pb-14 pl-[76px] sm:pl-24 sm:pr-6">{children}</main>
+      <main className="mx-auto min-w-0 w-full max-w-7xl flex-1 pr-4 pb-14 pl-[76px] sm:pl-24 sm:pr-6">
+        <ContentArea>{children}</ContentArea>
+      </main>
       <Dock />
+      </SwitchTransition>
     </ThemeScope>
   );
 }
