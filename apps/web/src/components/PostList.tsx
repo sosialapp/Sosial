@@ -28,7 +28,6 @@ import { createClient } from '@/lib/supabase/client';
 import {
   approvePost,
   deletePost,
-  publishPostNow,
   requestChanges,
   submitForApproval,
 } from '@/lib/posts';
@@ -37,7 +36,6 @@ import { requiresTitle } from '@/lib/compat';
 import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
-import PublishMonitor from '@/components/PublishMonitor';
 
 export type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
 
@@ -96,8 +94,8 @@ function fmtCount(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
-/** Icon button with a tooltip label, used for the card footer actions. */
-function IconAction({
+/** Pill action for the card footer: icon + text label, so the action reads. */
+function CardAction({
   icon: Icon,
   label,
   onClick,
@@ -114,14 +112,14 @@ function IconAction({
     <button
       type="button"
       title={label}
-      aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card transition hover:bg-bone disabled:opacity-40 ${
+      className={`inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1.5 text-xs font-bold transition hover:bg-bone disabled:opacity-40 ${
         danger ? 'text-[#9F2F2D] hover:border-[#9F2F2D]/40 dark:text-[#f2a8a8]' : 'text-soft hover:text-ink'
       }`}
     >
-      <Icon className="h-4 w-4" aria-hidden="true" />
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
     </button>
   );
 }
@@ -244,6 +242,7 @@ function PreviewDialog({
   /** Only article channels (title-bearing) keep an "Untitled" line; a
    *  photo/text post with no title simply shows its body. */
   const needsTitle = requiresTitle(targets.map((t) => t.provider));
+  const hasBody = parts.some((p) => (p.body ?? '').trim().length > 0);
   const media = parts.flatMap((p) => mediaOf(p));
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Post preview">
@@ -321,7 +320,11 @@ function PreviewDialog({
               )}
             </div>
           ) : null}
-          {head.title || needsTitle ? (
+          {/* Article channels (dev.to, WordPress…) carry a real headline, so
+              the title shows. A social post's body IS the post, so repeating
+              the title above it is noise; the title only stands in when there
+              is no body at all. */}
+          {needsTitle || (head.title && !hasBody) ? (
             <p className="mt-3 font-display text-base font-extrabold tracking-tight">
               {head.title || 'Untitled post'}
             </p>
@@ -414,9 +417,6 @@ export default function PostList({
   const canApprove = role === 'owner' || role === 'admin';
   const [tab, setTab] = useState<Tab>(initialTab ?? 'all');
   const [busyId, setBusyId] = useState<string | null>(null);
-  /** Post-now publish monitor: watches the parts settle, so the card leaves
-   *  the queue the instant the channels report back. */
-  const [monitorIds, setMonitorIds] = useState<string[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [sortNewest, setSortNewest] = useState(true);
@@ -604,23 +604,6 @@ export default function PostList({
     }
   }
 
-  /** Draft -> Post now: queue the parts, then open the publish monitor so the
-   *  card clears out of the queue once the worker settles each channel. */
-  async function publishNow(key: string, ids: string[]) {
-    setBusyId(key);
-    setErr(null);
-    try {
-      const sb = createClient();
-      for (const id of ids) await publishPostNow(sb, id);
-      setMonitorIds(ids);
-      startTransition(() => router.refresh());
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Action failed.');
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   function askChanges(p: PostWithTargets) {
     const comment = window.prompt('What needs changing? (optional)');
     if (comment === null) return;
@@ -654,16 +637,6 @@ export default function PostList({
         </div>
       </header>
       )}
-
-      {monitorIds ? (
-        <PublishMonitor
-          postIds={monitorIds}
-          onDone={() => {
-            setMonitorIds(null);
-            startTransition(() => router.refresh());
-          }}
-        />
-      ) : null}
 
       {err && (
         <p className="border-b border-line bg-[#FDEBEC] px-6 py-2 text-sm text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
@@ -845,11 +818,27 @@ export default function PostList({
               >
                 {/* Header: author pfp + name/handle + time, like a social post */}
                 <div className="flex items-center gap-3 px-4 pt-3.5">
-                  <ChannelAvatar
-                    provider={lead?.provider ?? 'x'}
-                    avatar={lead ? avatars[lead.channel_id] : undefined}
-                    size={40}
-                  />
+                  {/* Every target's avatar + brand logo, so the card shows at a
+                      glance which channels the post goes to. */}
+                  {targets.length > 0 ? (
+                    <span className="flex shrink-0 flex-wrap items-center gap-1.5">
+                      {targets.slice(0, 5).map((t) => (
+                        <ChannelAvatar
+                          key={t.channel_id ?? t.provider}
+                          provider={t.provider}
+                          avatar={t.channel_id ? avatars[t.channel_id] : undefined}
+                          size={36}
+                        />
+                      ))}
+                      {targets.length > 5 ? (
+                        <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-paper-dim px-2 text-[11px] font-extrabold text-muted">
+                          +{targets.length - 5}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : (
+                    <ChannelAvatar provider={lead?.provider ?? 'x'} size={36} />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-extrabold">{author.name}</span>
@@ -989,13 +978,13 @@ export default function PostList({
                   <span className="flex-1" />
                   {canApprove && inApproval && (
                     <>
-                      <IconAction
+                      <CardAction
                         icon={Check}
                         label={`Approve${isChain ? ` (${ids.length})` : ''}`}
                         disabled={busy}
                         onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
                       />
-                      <IconAction
+                      <CardAction
                         icon={MessageCircle}
                         label="Request changes"
                         disabled={busy}
@@ -1004,9 +993,9 @@ export default function PostList({
                     </>
                   )}
                   {draftish && (
-                    <IconAction
+                    <CardAction
                       icon={Pencil}
-                      label="Edit post"
+                      label="Edit"
                       disabled={busy}
                       onClick={() => {
                         if (onEdit) onEdit(head.id);
@@ -1014,16 +1003,8 @@ export default function PostList({
                       }}
                     />
                   )}
-                  {canApprove && draftish && (
-                    <IconAction
-                      icon={Send}
-                      label="Post now"
-                      disabled={busy}
-                      onClick={() => publishNow(g.key, ids)}
-                    />
-                  )}
                   {!canApprove && draftish && (
-                    <IconAction
+                    <CardAction
                       icon={Send}
                       label="Submit for approval"
                       disabled={busy}
@@ -1032,7 +1013,7 @@ export default function PostList({
                       }
                     />
                   )}
-                  <IconAction
+                  <CardAction
                     icon={Trash2}
                     label={`Delete${isChain ? ` (${ids.length})` : ''}`}
                     danger
