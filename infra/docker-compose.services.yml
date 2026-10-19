@@ -36,9 +36,9 @@ services:
       R2_BUCKET: ${R2_BUCKET}
       R2_PUBLIC_URL: ${R2_PUBLIC_URL}
       MEDIA_ENV: prod
-      STORAGE_BACKEND: supabase
-      WORKER_IDLE_MS: 30000
-      WORKER_IDLE_MAX_MS: 60000
+      STORAGE_BACKEND: r2
+      WORKER_IDLE_MS: 5000
+      WORKER_IDLE_MAX_MS: 15000
       WORKER_ERROR_MS: 15000
     logging:
       driver: json-file

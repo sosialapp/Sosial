@@ -64,7 +64,11 @@ async function handlePublishTarget(job: Job): Promise<void> {
     return;
   }
   if (status !== 'queued' && status !== 'publishing') {
-    throw new Error(`target ${targetId} in status '${status}', refusing to publish`);
+    // Anything else is terminal or not-yet-actionable (failed, skipped,
+    // pending, needs_approval). There is nothing to publish, and throwing
+    // would only burn retries on a target the sweep already settled.
+    debug(`target ${targetId} in status '${status}', nothing to publish`);
+    return;
   }
   const provider = String(bundle?.target?.provider ?? '');
   const channelId = String(bundle?.channel?.id ?? '');
