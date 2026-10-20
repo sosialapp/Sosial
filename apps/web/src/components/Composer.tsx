@@ -6,7 +6,7 @@ import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createClient } from '@/lib/supabase/client';
 import { createPost, createChain, mediaBlock, type ComposeMode } from '@/lib/posts';
-import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
+import { minQueueTime, queueTooSoon } from '@/lib/queue';
 import { generateSocial, withHashtags } from '@/lib/ai';
 import { BrandIcon } from '@/components/BrandIcon';
 import SafeImg from '@/components/SafeImg';
@@ -15,6 +15,9 @@ import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 function deviceZone(): string {
   try {
@@ -24,10 +27,10 @@ function deviceZone(): string {
   }
 }
 
-const MODES: { id: ComposeMode; label: string }[] = [
-  { id: 'draft', label: 'Save draft' },
-  { id: 'schedule', label: 'Schedule' },
-  { id: 'now', label: 'Publish now' },
+const MODES: { id: ComposeMode; key: string }[] = [
+  { id: 'draft', key: 'cSaveDraft' },
+  { id: 'schedule', key: 'cSchedule' },
+  { id: 'now', key: 'cPublishNow' },
 ];
 
 const TONES = ['auto', 'bold', 'funny', 'professional', 'friendly'] as const;
@@ -59,6 +62,7 @@ export default function Composer({
   initialFiles?: File[];
 }) {
   const router = useRouter();
+  const t = useT(appMessages);
   const isMember = role === 'member';
   const ready = channels.filter((c) => c.status === 'connected');
   const [kind, setKind] = useState<Kind>('single');
@@ -132,27 +136,27 @@ export default function Composer({
       const base = { id: c.id, reason: '' as string };
       if (!cap) return { ...base, blocked: false };
       if (cap.requiresVideo && !hasVideo) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a video, this post has none attached.` };
+        return { ...base, blocked: true, reason: fill(t('capNeedsVideo'), { label: cap.label }) };
       }
       if (cap.requiresMedia && totalMedia === 0) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video, text alone can't go there.` };
+        return { ...base, blocked: true, reason: fill(t('capNeedsMedia'), { label: cap.label }) };
       }
       if (hasVideo && cap.supports.video === false) {
-        return { ...base, blocked: true, reason: `${cap.label} doesn't take video, remove the video or drop the channel.` };
+        return { ...base, blocked: true, reason: fill(t('capNoVideo'), { label: cap.label }) };
       }
       if (hasImage && cap.supports.image === false) {
-        return { ...base, blocked: true, reason: `${cap.label} takes text and links only, remove the image or drop the channel.` };
+        return { ...base, blocked: true, reason: fill(t('capNoImage'), { label: cap.label }) };
       }
       return { ...base, blocked: false };
     });
-  }, [ready, files]);
+  }, [ready, files, t]);
   const [chipNote, setChipNote] = useState<string | null>(null);
   const chipMeta = useMemo(() => new Map(allReady.map((x) => [x.id, x])), [allReady]);
 
   function toggle(id: string) {
     const info = chipMeta.get(id);
     if (info?.blocked) {
-      setChipNote(info.reason || "This channel can't take the current draft.");
+      setChipNote(info.reason || t('cChipDefault'));
       return;
     }
     setChipNote(null);
@@ -211,13 +215,13 @@ export default function Composer({
 
   async function runAi() {
     setAiErr(null);
-    const t = topic.trim();
-    if (!t) {
-      setAiErr('Describe the topic first.');
+    const topicTrim = topic.trim();
+    if (!topicTrim) {
+      setAiErr(t('cErrTopic'));
       return;
     }
     if (!chosenProviders.length) {
-      setAiErr('Pick at least one channel. The AI sizes copy to the strictest one.');
+      setAiErr(t('cErrPickChannel'));
       return;
     }
     const chain = kind === 'chain';
@@ -225,7 +229,7 @@ export default function Composer({
     try {
       const sb = createClient();
       const variants = await generateSocial(sb, {
-        topic: t,
+        topic: topicTrim,
         platforms: chosenProviders,
         thread: chain,
         parts: chain ? segments.length : 1,
@@ -239,7 +243,7 @@ export default function Composer({
         setBody(withHashtags(v.posts[0] ?? '', v.hashtags));
       }
     } catch (e) {
-      setAiErr(e instanceof Error ? e.message : 'AI generation failed.');
+      setAiErr(e instanceof Error ? e.message : t('cErrAi'));
     } finally {
       setAiBusy(false);
     }
@@ -247,29 +251,31 @@ export default function Composer({
 
   const submitLabel =
     isMember && mode === 'now'
-      ? 'Send for approval'
+      ? t('cSendApproval')
       : kind === 'chain'
-        ? `${MODES.find((m) => m.id === mode)?.label} chain`
-        : MODES.find((m) => m.id === mode)?.label;
+        ? `${MODES.find((m) => m.id === mode)?.key ? t(MODES.find((m) => m.id === mode)!.key) : ''} ${t('cChainSuffix')}`
+        : MODES.find((m) => m.id === mode)?.key
+          ? t(MODES.find((m) => m.id === mode)!.key)
+          : '';
 
   async function submitSingle(e: FormEvent) {
     e.preventDefault();
     setErr(null);
     const chosen = ready.filter((c) => picked.includes(c.id));
     if (!chosen.length) {
-      setErr('Pick at least one channel.');
+      setErr(t('cErrPick'));
       return;
     }
     if (mode === 'schedule' && !whenIso) {
-      setErr('Choose a valid date and time.');
+      setErr(t('cErrDate'));
       return;
     }
     if (mode === 'schedule' && whenIso && queueTooSoon(whenIso)) {
-      setErr(leadTimeMessage());
+      setErr(t('leadTime'));
       return;
     }
     if (!body.trim() && !title.trim() && files.length === 0) {
-      setErr('Add a caption or some media first.');
+      setErr(t('cErrContent'));
       return;
     }
     const blockedSingle = mediaBlock(
@@ -306,7 +312,7 @@ export default function Composer({
       router.push('/queue');
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not save the post.');
+      setErr(e2 instanceof Error ? e2.message : t('cErrSavePost'));
       setBusy(false);
     }
   }
@@ -316,15 +322,15 @@ export default function Composer({
     setErr(null);
     const chosen = ready.filter((c) => picked.includes(c.id));
     if (!chosen.length) {
-      setErr('Pick at least one channel.');
+      setErr(t('cErrPick'));
       return;
     }
     if (mode === 'schedule' && !whenIso) {
-      setErr('Choose a valid start date and time.');
+      setErr(t('cErrStart'));
       return;
     }
     if (mode === 'schedule' && whenIso && queueTooSoon(whenIso)) {
-      setErr(leadTimeMessage());
+      setErr(t('leadTime'));
       return;
     }
     const liveIdx = segments.map((_, i) => i).filter((i) => segments[i].body.trim());
@@ -335,7 +341,7 @@ export default function Composer({
           ? [{ body: '', files }]
           : null;
     if (!payload) {
-      setErr('Write at least one part of the chain first.');
+      setErr(t('cErrChainPart'));
       return;
     }
     // Media rides on part 1, the media channels judge the chain by it.
@@ -371,7 +377,7 @@ export default function Composer({
       router.push('/queue');
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not save the chain.');
+      setErr(e2 instanceof Error ? e2.message : t('cErrSaveChain'));
       setBusy(false);
     }
   }
@@ -380,25 +386,25 @@ export default function Composer({
     <form onSubmit={kind === 'chain' ? submitChain : submitSingle} className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
         <div>
-          <p className="eyebrow">Composer</p>
+          <p className="eyebrow">{t('cEyebrow')}</p>
           <h1 className="font-display text-xl font-extrabold tracking-tight">
-            {kind === 'chain' ? 'New chain' : 'New post'}
+            {kind === 'chain' ? t('cNewChain') : t('cNewPost')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
           <SegmentedPills
-            ariaLabel="Post kind"
+            ariaLabel={t('cNewPost')}
             role="tablist"
             variant="accent"
             value={kind}
             onChange={setKind}
             options={[
-              { value: 'single', label: 'Single' },
-              { value: 'chain', label: 'Chain' },
+              { value: 'single', label: t('cSingle') },
+              { value: 'chain', label: t('cChain') },
             ]}
           />
           <button className="btn btn-bolt" disabled={busy} type="submit">
-            {busy ? 'Saving…' : submitLabel}
+            {busy ? t('cSaving') : submitLabel}
           </button>
         </div>
       </header>
@@ -415,38 +421,38 @@ export default function Composer({
             <>
               <EmojiInput
                 className="field font-display text-lg font-bold"
-                placeholder="Title (optional)"
+                placeholder={t('cTitlePh')}
                 value={title}
                 onChange={setTitle}
               />
               <EmojiTextarea
                 className="field min-h-[240px] resize-y leading-relaxed"
-                placeholder="What do you want to share?"
+                placeholder={t('cBodyPh')}
                 value={body}
                 onChange={setBody}
               />
               <p className="text-xs text-faint">
-                {body.length.toLocaleString()} chars · strictest picked channel allows{' '}
-                {strictest.toLocaleString()}
+                {fill(t('cChars'), { n: body.length.toLocaleString(), max: strictest.toLocaleString() })}
               </p>
             </>
           ) : (
             <>
               <p className="text-sm text-muted">
-                One thread, published as a sequence. Part 1 goes first, the rest follow{' '}
-                {mode === 'draft' ? 'when you publish them' : `every ${gap} min`}.
+                {fill(t('cChainIntro'), {
+                  when: mode === 'draft' ? t('cChainDraftWhen') : fill(t('cChainGapWhen'), { n: gap }),
+                })}
               </p>
               {segments.map((s, i) => (
                 <div key={s.key} className="card p-4">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="eyebrow">
-                      Part {i + 1}
-                      {i === 0 && files.length > 0 ? ' · carries the media' : ''}
+                      {fill(t('cPart'), { n: i + 1 })}
+                      {i === 0 && files.length > 0 ? t('cCarriesMedia') : ''}
                     </span>
                     <span className="flex items-center gap-1">
                       <button
                         type="button"
-                        title="Move up"
+                        title={t('cMoveUp')}
                         onClick={() => moveSeg(s.key, -1)}
                         disabled={i === 0}
                         className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-paper disabled:opacity-30"
@@ -455,7 +461,7 @@ export default function Composer({
                       </button>
                       <button
                         type="button"
-                        title="Move down"
+                        title={t('cMoveDown')}
                         onClick={() => moveSeg(s.key, 1)}
                         disabled={i === segments.length - 1}
                         className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-paper disabled:opacity-30"
@@ -464,7 +470,7 @@ export default function Composer({
                       </button>
                       <button
                         type="button"
-                        title="Remove part"
+                        title={t('cRemovePart')}
                         onClick={() => removeSeg(s.key)}
                         disabled={segments.length <= 1}
                         className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-paper disabled:opacity-30"
@@ -477,30 +483,29 @@ export default function Composer({
                     className="field min-h-[120px] resize-y leading-relaxed"
                     placeholder={
                       i === 0
-                        ? 'The hook. Makes people stop and read on…'
+                        ? t('cHookPh')
                         : i === segments.length - 1
-                          ? 'The landing. Takeaway plus soft call to action…'
-                          : 'Build the idea…'
+                          ? t('cLandingPh')
+                          : t('cBuildPh')
                     }
                     value={s.body}
                     onChange={(v) => setSegBody(s.key, v)}
                   />
                   <p className="mt-1 text-xs text-faint">
-                    {s.body.length.toLocaleString()} chars · strictest picked channel allows{' '}
-                    {strictest.toLocaleString()}
+                    {fill(t('cChars'), { n: s.body.length.toLocaleString(), max: strictest.toLocaleString() })}
                   </p>
                 </div>
               ))}
               {segments.length < 8 && (
                 <button type="button" onClick={addSeg} className="btn btn-ghost w-full">
-                  + Add part ({segments.length}/8)
+                  {fill(t('cAddPart'), { n: segments.length })}
                 </button>
               )}
             </>
           )}
 
           <div>
-            <p className="eyebrow mb-2">Media{kind === 'chain' ? ' · attaches to part 1' : ''}</p>
+            <p className="eyebrow mb-2">{t('cMedia')}{kind === 'chain' ? t('cMediaChain') : ''}</p>
             <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-card px-4 py-6 text-center hover:bg-paper">
               <input
                 type="file"
@@ -512,8 +517,8 @@ export default function Composer({
                   e.target.value = '';
                 }}
               />
-              <span className="text-sm font-semibold text-soft">Add photos or video</span>
-              <span className="mt-1 text-xs text-faint">Up to 10 files</span>
+              <span className="text-sm font-semibold text-soft">{t('cAddMedia')}</span>
+              <span className="mt-1 text-xs text-faint">{t('cUpTo10')}</span>
             </label>
 
             {files.length > 0 && (
@@ -535,7 +540,7 @@ export default function Composer({
                     )}
                     <button
                       type="button"
-                      title="Remove"
+                      title={t('cRemove')}
                       className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80"
                       onClick={() => removeFile(i)}
                     >
@@ -553,10 +558,10 @@ export default function Composer({
 
         <aside className="w-full shrink-0 space-y-5 lg:w-80">
           <div className="card space-y-3 p-4">
-            <p className="eyebrow">AI captions</p>
+            <p className="eyebrow">{t('cAiCaptions')}</p>
             <EmojiTextarea
               className="field min-h-[72px] resize-y text-sm"
-              placeholder="What is this about? e.g. why we batch content on Sundays…"
+              placeholder={t('cAiTopicPh')}
               value={topic}
               onChange={setTopic}
             />
@@ -565,11 +570,11 @@ export default function Composer({
                 className="field !w-auto flex-1 text-sm"
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
-                aria-label="Tone"
+                aria-label={t('cTone')}
               >
-                {TONES.map((t) => (
-                  <option key={t} value={t}>
-                    {t[0].toUpperCase() + t.slice(1)}
+                {TONES.map((tone) => (
+                  <option key={tone} value={tone}>
+                    {t(`tone${tone[0].toUpperCase()}${tone.slice(1)}`)}
                   </option>
                 ))}
               </select>
@@ -579,21 +584,23 @@ export default function Composer({
                 disabled={aiBusy}
                 className="btn btn-bolt shrink-0 !px-4 !py-2 !text-xs"
               >
-                {aiBusy ? 'Writing…' : kind === 'chain' ? `Write ${segments.length} parts` : 'Write caption'}
+                {aiBusy ? t('cWriting') : kind === 'chain' ? fill(t('cWriteN'), { n: segments.length }) : t('cWriteCaption')}
               </button>
             </div>
             {aiErr && <p className="text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">{aiErr}</p>}
             <p className="text-xs text-faint">
-              Sized to ≤ {strictest.toLocaleString()} chars for your picked channels. Fills the{' '}
-              {kind === 'chain' ? 'parts below' : 'caption above'} with caption and hashtags. Edit freely.
+              {fill(t('cAiNote'), {
+                max: strictest.toLocaleString(),
+                what: kind === 'chain' ? t('cAiParts') : t('cAiCaption'),
+              })}
             </p>
           </div>
 
           <div className="card p-4">
-            <p className="eyebrow mb-3">Channels</p>
+            <p className="eyebrow mb-3">{t('cChannels')}</p>
             {ready.length === 0 ? (
               <p className="text-sm text-muted">
-                No connected channels yet. Connect one in the mobile app, then come back.
+                {t('cNoChannels')}
               </p>
             ) : (
               <div className="space-y-1.5">
@@ -621,7 +628,7 @@ export default function Composer({
                         <span className="block truncate font-semibold">{meta.label}</span>
                         <span className="block truncate text-xs text-muted">
                           {c.handle ? `@${c.handle}` : c.display_name ?? c.external_id} ·{' '}
-                          {meta.limit.toLocaleString()} chars
+                          {fill(t('cCharsShort'), { n: meta.limit.toLocaleString() })}
                         </span>
                       </span>
                       <span className={`inline-flex ${on && !blocked ? 'text-ink' : 'text-faint'}`}>
@@ -641,7 +648,7 @@ export default function Composer({
           ) : null}
 
           <div className="card p-4">
-            <p className="eyebrow mb-3">When</p>
+            <p className="eyebrow mb-3">{t('cWhen')}</p>
             <div className="flex flex-wrap gap-1.5">
               {MODES.map((m) => (
                 <button
@@ -659,14 +666,14 @@ export default function Composer({
                     mode === m.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
                   }`}
                 >
-                  {m.label}
+                  {t(m.key)}
                 </button>
               ))}
             </div>
             {mode === 'schedule' && (
               <div className="mt-3">
                 <p className="text-xs font-bold text-muted">
-                  {kind === 'chain' ? 'Part 1 goes out at' : 'Goes out at'}
+                  {kind === 'chain' ? t('cPartGoesAt') : t('cGoesOutAt')}
                 </p>
                 <div className="mt-1">
                   <DateTimePicker
@@ -680,7 +687,7 @@ export default function Composer({
             )}
             {kind === 'chain' && mode !== 'draft' && (
               <label className="mt-3 block text-xs font-bold text-muted">
-                Minutes between parts
+                {t('cGapLabel')}
                 <input
                   className="field mt-1"
                   type="number"
@@ -694,25 +701,24 @@ export default function Composer({
             {mode === 'now' && (
               <p className="mt-3 text-xs text-muted">
                 {isMember
-                  ? 'An owner or admin approves it before the worker publishes.'
+                  ? t('cNowMember')
                   : kind === 'chain'
-                    ? 'Queues the chain immediately; parts go out spaced by the gap above.'
-                    : 'Queues the post immediately; the worker publishes it within a minute.'}
+                    ? t('cNowChain')
+                    : t('cNowSingle')}
               </p>
             )}
             {mode === 'draft' && (
-              <p className="mt-3 text-xs text-muted">Keeps it out of the queue until you publish.</p>
+              <p className="mt-3 text-xs text-muted">{t('cDraftNote')}</p>
             )}
             {isMember && mode !== 'draft' && (
               <p className="mt-3 rounded-lg bg-paper-dim px-2.5 py-2 text-xs text-ink">
-                You&apos;re a team member, so this goes to an owner or admin for approval first.
+                {t('cMemberNote')}
               </p>
             )}
           </div>
 
           <p className="text-xs text-faint">
-            Posts save to the same workspace the mobile app uses. They show up there too, and the
-            worker publishes them whether the app is open or not.
+            {t('cWorkspaceNote')}
           </p>
         </aside>
       </div>
