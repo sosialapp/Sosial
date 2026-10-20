@@ -36,12 +36,20 @@ export default async function AdminBlogList({
             {rows.length} posts{active ? ` in ${active}` : ''}
           </p>
         </div>
-        <Link
-          href="/admin/blog/new"
-          className="rounded-xl bg-ink px-4 py-2 text-sm font-bold text-bone"
-        >
-          + New post
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/blog/generate"
+            className="rounded-xl border border-accent bg-accent-soft px-4 py-2 text-sm font-bold text-accent-ink"
+          >
+            Generate with AI
+          </Link>
+          <Link
+            href="/admin/blog/new"
+            className="rounded-xl bg-ink px-4 py-2 text-sm font-bold text-bone"
+          >
+            + New post
+          </Link>
+        </div>
       </div>
       <nav aria-label="Filter by category" className="mt-4 flex flex-wrap items-center gap-2">
         <Link

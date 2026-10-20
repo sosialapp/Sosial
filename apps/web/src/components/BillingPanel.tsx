@@ -261,8 +261,8 @@ export default function BillingPanel({
               <span className="font-bold">Connected channels</span>
               <span className="text-muted">
                 {usage.channelsLimit === null
-                  ? `${usage.channelsConnected.toLocaleString()} connected · unlimited`
-                  : `${usage.channelsConnected.toLocaleString()} / ${usage.channelsLimit.toLocaleString()} connected`}
+                  ? `${usage.channelsConnected.toLocaleString()} connected across your teams · unlimited`
+                  : `${usage.channelsConnected.toLocaleString()} / ${usage.channelsLimit.toLocaleString()} connected across your teams`}
               </span>
             </div>
             {usage.channelsLimit !== null ? (
@@ -288,7 +288,7 @@ export default function BillingPanel({
         ) : null}
         {usage.channelsLimit !== null && usage.channelsConnected >= usage.channelsLimit ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            You've connected every channel your plan allows ({usage.channelsLimit.toLocaleString()}).{' '}
+            You've connected every channel your plan allows across your teams ({usage.channelsLimit.toLocaleString()}).{' '}
             <a className="font-bold underline" href="#change-plan">Upgrade</a> to add more.
           </p>
         ) : null}

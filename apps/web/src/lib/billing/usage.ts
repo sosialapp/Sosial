@@ -91,11 +91,25 @@ export async function getUsage(workspaceId: string, plan: PlanKey): Promise<Usag
   }
 
   try {
-    const { count } = await admin
-      .from('connected_channels')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId);
-    out.channelsConnected = count ?? 0;
+    // The cap counts ONE pool across every team the owner runs (p84 trigger /
+    // p85 RPC), so usage reads the same cross-team number.
+    const { data: ws } = await admin
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .maybeSingle();
+    const ownerId = (ws as { owner_id?: string } | null)?.owner_id;
+    if (ownerId) {
+      const { data: owned } = await admin.from('workspaces').select('id').eq('owner_id', ownerId);
+      const ownedIds = (owned ?? []).map((w) => w.id);
+      if (ownedIds.length) {
+        const { count } = await admin
+          .from('connected_channels')
+          .select('id', { count: 'exact', head: true })
+          .in('workspace_id', ownedIds);
+        out.channelsConnected = count ?? 0;
+      }
+    }
   } catch {
     // same, derived usage must not break the page
   }

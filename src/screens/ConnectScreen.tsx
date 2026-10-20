@@ -36,6 +36,7 @@ import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { loadCloudTeam } from '../utils/teamCloud';
 import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount, lastPullSummary } from '../utils/cloudChannels';
 import { activeWorkspaceId } from '../utils/activeWorkspace';
+import { channelPool } from '../utils/entitlement';
 import { currentSession, getTeamAvatar, teamAvatarSignedUrl, callEdgeFunction } from '../utils/supabase';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
@@ -56,6 +57,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const meta = useMemo(() => metaFromAccounts(accounts), [accounts]);
   const [teamCount, setTeamCount] = useState<number | null>(null);
   const [teamPic, setTeamPic] = useState<string | null>(null);
+  /** Shared cap across every team the owner runs (p85), the friendly
+   *  source for the limit line + alerts. Null while loading / signed out. */
+  const [pool, setPool] = useState<{ cap: number | null; used: number } | null>(null);
   /** Channel writes are owner/admin-only (enforced by the token functions too). */
   const [isManager, setIsManager] = useState(false);
   /** Signed-in cloud users act on the shared workspace; signed-out users
@@ -147,6 +151,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         }
       })
       .catch(() => setTeamCount(0));
+    channelPool().then(setPool);
     currentSession()
       .then((sn) => {
         setCloudUser(!!sn);
@@ -339,21 +344,34 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     );
   };
 
-  /** Channel cap. The server value (channelCap, from workspace_entitlement) wins
-   *  whenever it is known; the internal plan table is only an offline fallback.
-   *  Reconnecting an existing account never counts. The DB trigger on
-   *  connected_channels stays the backstop, this is the friendly pre-flight. */
   const channelLimit = (): number | null => {
     if (channelCap !== undefined) return channelCap;
     const caps: Record<'free' | 'pro' | 'team', number | null> = { free: 3, pro: 6, team: 25 };
     return caps[plan ?? 'free'];
   };
+  /** Channel cap over the shared pool. The server value (channelCap, from
+   *  workspace_entitlement) wins whenever known; the internal plan table is
+   *  only an offline fallback. `pool` (cross-team usage) is the freshest
+   *  only an offline fallback. `pool` (cross-team usage) is the freshest
+   *  pre-flight source; this workspace's local vault count is the last
+   *  resort. Reconnecting an existing account never counts. The DB trigger
+   *  on connected_channels stays the backstop, this is the friendly gate. */
   const atChannelCap = (accountId?: string): boolean => {
     if (accountId) return false;
+    if (pool) return pool.cap !== null && pool.used >= pool.cap;
     const cap = channelLimit();
     return cap !== null && accounts.length >= cap;
   };
   const capAlert = () => {
+    if (pool) {
+      Alert.alert(
+        'Channel limit reached',
+        pool.cap === null
+          ? "You're at the cap across your teams. Disconnect one or upgrade to add more."
+          : `Your plan connects up to ${pool.cap} channels across your teams, you're at ${pool.used}/${pool.cap}. Disconnect one or upgrade to add more.`,
+      );
+      return;
+    }
     const cap = channelLimit();
     Alert.alert(
       'Channel limit reached',
@@ -1550,6 +1568,14 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
           <View style={[s.warn, { marginTop: 12 }]}>
             <Text style={s.warnT}>You can see the workspace channels here, but only owners and admins can connect or remove them.</Text>
           </View>
+        ) : null}
+
+        {pool ? (
+          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12.5, color: C.muted, marginTop: 12 }}>
+            {pool.cap === null
+              ? `${pool.used} connected across your teams · unlimited`
+              : `${pool.used} / ${pool.cap} connected across your teams`}
+          </Text>
         ) : null}
 
         <TouchableOpacity onPress={onTeam} style={s.teamBtn} activeOpacity={0.8}>

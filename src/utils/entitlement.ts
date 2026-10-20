@@ -83,3 +83,23 @@ export async function loadEntitlement(): Promise<Entitlement> {
   void refreshEntitlement();
   return cur;
 }
+
+/** Shared channel-pool snapshot for the active workspace: the cap counts one
+ *  pool across every team its OWNER runs (p84 trigger, p85 RPC), so the
+ *  Connect screen shows "16 / 25 across your teams" and pre-flights that
+ *  number instead of this workspace's local count. */
+export async function channelPool(): Promise<{ cap: number | null; used: number } | null> {
+  try {
+    const session = await currentSession().catch(() => null);
+    if (!session) return null;
+    const { data, error } = await supabase().rpc('channel_pool', {
+      p_workspace_id: session.workspace.id,
+    });
+    const v = data as { cap?: unknown; used?: unknown } | null;
+    if (error || !v || typeof v.used !== 'number') return null;
+    const cap = typeof v.cap === 'number' ? v.cap : null;
+    return { cap, used: v.used };
+  } catch {
+    return null;
+  }
+}
