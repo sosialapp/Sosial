@@ -30,6 +30,7 @@ export interface WelcomeProfile {
   notifPosts: boolean;
   notifComments: boolean;
   notifWeekly: boolean;
+  notifMarketing: boolean;
 }
 
 /**
@@ -64,6 +65,7 @@ export default function WelcomeScreen({
       notifPosts: true,
       notifComments: true,
       notifWeekly: false,
+      notifMarketing: false,
     };
     try {
       const prof = await pullProfileFromCloud();
@@ -74,6 +76,7 @@ export default function WelcomeScreen({
           notifPosts: prof.notifPosts,
           notifComments: prof.notifComments,
           notifWeekly: prof.notifWeekly,
+          notifMarketing: prof.notifMarketing,
         };
       }
     } catch {}

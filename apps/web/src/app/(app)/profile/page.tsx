@@ -16,10 +16,10 @@ export default async function ProfilePage() {
   const sb = await createClient();
   const { data: prof } = await sb
     .from('profiles')
-    .select('notif_posts, notif_comments, notif_weekly')
+    .select('notif_posts, notif_comments, notif_weekly, notif_marketing')
     .eq('id', ctx.user.id)
     .maybeSingle();
-  const p = (prof ?? {}) as { notif_posts?: boolean; notif_comments?: boolean; notif_weekly?: boolean };
+  const p = (prof ?? {}) as { notif_posts?: boolean; notif_comments?: boolean; notif_weekly?: boolean; notif_marketing?: boolean };
   const ent = await getEntitlement(ctx.workspace.id);
   return (
     <AccountSettings
@@ -34,6 +34,7 @@ export default async function ProfilePage() {
         posts: p.notif_posts ?? true,
         comments: p.notif_comments ?? true,
         weekly: p.notif_weekly ?? false,
+        marketing: p.notif_marketing ?? false,
       }}
     />
   );

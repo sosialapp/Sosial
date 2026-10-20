@@ -24,14 +24,15 @@ const CHANGELOG = [
 ];
 
 /** Account settings: notifications, email, password, plan, legal… (all on-device, no backend). */
-export default function AccountScreen({ email, team, plan, notifPosts, notifComments, notifWeekly, onUpdate, onBack, onConnect, onPrivacy, onLoggedOut, onTeam }: {
+export default function AccountScreen({ email, team, plan, notifPosts, notifComments, notifWeekly, notifMarketing, onUpdate, onBack, onConnect, onPrivacy, onLoggedOut, onTeam }: {
   email: string;
   team: string;
   plan: 'free' | 'pro' | 'team';
   notifPosts: boolean;
   notifComments: boolean;
   notifWeekly: boolean;
-  onUpdate: (patch: { email?: string; team?: string; plan?: 'free' | 'pro' | 'team'; notifPosts?: boolean; notifComments?: boolean; notifWeekly?: boolean }) => void;
+  notifMarketing: boolean;
+  onUpdate: (patch: { email?: string; team?: string; plan?: 'free' | 'pro' | 'team'; notifPosts?: boolean; notifComments?: boolean; notifWeekly?: boolean; notifMarketing?: boolean }) => void;
   onBack: () => void;
   onConnect: () => void;
   onPrivacy: () => void;
@@ -291,6 +292,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
           notifPosts: prof.notifPosts,
           notifComments: prof.notifComments,
           notifWeekly: prof.notifWeekly,
+          notifMarketing: prof.notifMarketing,
         });
       }
     } catch {}
@@ -693,6 +695,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             {toggleRow('Post reminders', 'Alert when a queued post is due', notifPosts, () => onUpdate({ notifPosts: !notifPosts }))}
             {toggleRow('Comments & mentions', 'Alert on new comments (installed app)', notifComments, () => onUpdate({ notifComments: !notifComments }))}
             {toggleRow('Weekly digest', 'A Monday summary of your channels', notifWeekly, () => onUpdate({ notifWeekly: !notifWeekly }))}
+            {toggleRow('Product updates', 'New features and tips by email', notifMarketing, () => onUpdate({ notifMarketing: !notifMarketing }))}
             <Text style={s.note}>Reminder alerts need the installed app (not Expo Go) with notifications allowed.</Text>
             <View style={{ padding: 14, paddingTop: 6, gap: 8 }}>
               <Text style={s.rowS}>

@@ -10,6 +10,7 @@ export interface Account {
   notifPosts: boolean;
   notifComments: boolean;
   notifWeekly: boolean;
+  notifMarketing: boolean;
 }
 
 const KEY = 'zap_account_v1';
@@ -21,6 +22,7 @@ export const DEFAULT_ACCOUNT: Account = {
   notifPosts: true,
   notifComments: true,
   notifWeekly: false,
+  notifMarketing: false,
 };
 
 export function accountId(): string {

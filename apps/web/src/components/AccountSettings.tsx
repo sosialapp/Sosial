@@ -186,7 +186,7 @@ export default function AccountSettings({
   role: string;
   canRename: boolean;
   userId: string;
-  initialNotif: { posts: boolean; comments: boolean; weekly: boolean };
+  initialNotif: { posts: boolean; comments: boolean; weekly: boolean; marketing: boolean };
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>('main');
@@ -306,8 +306,8 @@ export default function AccountSettings({
     : view === 'changelog' ? "What's new" : view === 'report' || view === 'ticket' ? 'Support'
     : view === 'delete' ? 'Delete my data' : 'Legal';
 
-  async function flipNotif(key: 'posts' | 'comments' | 'weekly') {
-    const col = key === 'posts' ? 'notif_posts' : key === 'comments' ? 'notif_comments' : 'notif_weekly';
+  async function flipNotif(key: 'posts' | 'comments' | 'weekly' | 'marketing') {
+    const col = key === 'posts' ? 'notif_posts' : key === 'comments' ? 'notif_comments' : key === 'marketing' ? 'notif_marketing' : 'notif_weekly';
     const next = { ...notif, [key]: !notif[key] };
     setNotif(next);
     setNotifSaved(false);
@@ -664,6 +664,7 @@ export default function AccountSettings({
             { key: 'posts', label: 'Post reminders', sub: 'Alert when a queued post is due' },
             { key: 'comments', label: 'Comments & mentions', sub: 'Alert on new comments' },
             { key: 'weekly', label: 'Weekly digest', sub: 'A Monday summary of your channels' },
+            { key: 'marketing', label: 'Product updates', sub: 'New features and tips by email' },
           ] as const).map((r) => (
             <div key={r.key} className="flex items-center gap-3 px-5 py-4">
               <span className="min-w-0 flex-1">
