@@ -10,6 +10,7 @@ import { wipeAllData } from '../utils/account';
 import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, callEdgeFunction, WorkspaceInfo, getMyAvatar, avatarSignedUrl, setAvatarFromUri, clearMyAvatar } from '../utils/supabase';
 import { ADMIN_LOCALES, LOCALE_NAMES } from '../utils/account';
+import { tr } from '../i18n';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
@@ -379,7 +380,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const initial = (email || team || 'Z')[0].toUpperCase();
   const title = view === 'main' ? 'Account' : (
     view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings' :
-    view === 'lang' ? 'Language' :
+    view === 'lang' ? tr('aLang') :
     view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription' :
     view === 'changelog' ? "What's new" : view === 'terms' ? 'Terms of use' :
     view === 'report' ? 'Support' : 'Legal'
@@ -580,7 +581,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={() => { setView('lang'); }}>
                 <Ionicons name="globe-outline" size={20} color={C.ink} />
                 <View style={{ flex: 1, gap: 1 }}>
-                  <Text style={s.rowT}>Language</Text>
+                  <Text style={s.rowT}>{tr('aLang')}</Text>
                 </View>
                 <Text style={s.rowS} numberOfLines={1}>{LOCALE_NAMES[locale] ?? locale}</Text>
                 <Ionicons name="chevron-forward" size={16} color={C.faint ?? C.ink} />
@@ -743,7 +744,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 ) : null}
               </TouchableOpacity>
             ))}
-            <Text style={s.note}>App copy and marketing emails follow this language.</Text>
+            <Text style={s.note}>{tr('aLangNote')}</Text>
           </View>
         ) : null}
 

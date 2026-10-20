@@ -14,6 +14,7 @@ import {
 import Constants from 'expo-constants';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, T, R, Palette } from '../theme';
+import { tr } from '../i18n';
 import { PrimaryBtn, GhostBtn, Txt, GoogleGlyph } from '../components/ui';
 import { TERMS_TEXT, PRIVACY_SECTIONS } from '../utils/legal';
 import {
@@ -88,15 +89,15 @@ export default function WelcomeScreen({
 
   const doSubmit = async () => {
     if (!email.trim() || pw.length < 6) {
-      setErr('Enter an email and a password (min 6 characters).');
+      setErr(tr('wErrNeed'));
       return;
     }
     if (mode === 'up' && pw !== pw2) {
-      setErr('Passwords don’t match, retype them.');
+      setErr(tr('wErrMatch'));
       return;
     }
     if (mode === 'up' && !agree) {
-      setErr('Please agree to the Terms and Privacy Policy to continue.');
+      setErr(tr('wErrAgree'));
       return;
     }
     setBusy(true);
@@ -106,7 +107,7 @@ export default function WelcomeScreen({
       if (mode === 'up') {
         const r = await signUpEmail(email, pw, marketing);
         if (r.needsConfirm) {
-          setNotice('Account created, check your inbox for the confirmation link, then sign in.');
+          setNotice(tr('wNoticeConfirm'));
           setPw('');
           setPw2('');
           setMode('in');
@@ -119,7 +120,7 @@ export default function WelcomeScreen({
       setPw2('');
       await finish(email);
     } catch (e: any) {
-      setErr(e?.message ?? (mode === 'up' ? 'Sign-up failed.' : 'Sign-in failed.'));
+      setErr(e?.message ?? (mode === 'up' ? tr('wErrUp') : tr('wErrIn')));
     } finally {
       setBusy(false);
     }
@@ -130,8 +131,8 @@ export default function WelcomeScreen({
     // https OAuth return; dev builds use the sosial:// scheme and work.
     if (Constants.appOwnership === 'expo') {
       Alert.alert(
-        'Needs a development build',
-        'Google sign-in can’t return to Expo Go. Use email + password here, Google lights up automatically in dev builds.',
+        tr('wGoogleAlertT'),
+        tr('wGoogleAlertB'),
       );
       return;
     }
@@ -143,7 +144,7 @@ export default function WelcomeScreen({
       setPw('');
       await finish(email);
     } catch (e: any) {
-      setErr(e?.message ?? 'Google sign-in failed.');
+      setErr(e?.message ?? tr('wErrGoogle'));
     } finally {
       setBusy(false);
     }
@@ -161,14 +162,13 @@ export default function WelcomeScreen({
       >
         <Image source={require('../../assets/bolt.png')} style={{ width: 68, height: 88, marginBottom: 10 }} resizeMode="contain" />
         <Text style={s.title}>Sosial</Text>
-        <Text style={s.sub}>Every channel. One calendar.</Text>
-        <Text style={s.strip}>Compose · Schedule · Published</Text>
+        <Text style={s.sub}>{tr('wSub')}</Text>
+        <Text style={s.strip}>{tr('wStrip')}</Text>
 
         <View style={s.card}>
           {!configured ? (
             <Text style={s.note}>
-              Backend not configured, add the Supabase keys to .env and restart Expo to enable
-              accounts.
+              {tr('wUnconfigured')}
             </Text>
           ) : (
             <>
@@ -186,7 +186,7 @@ export default function WelcomeScreen({
                     activeOpacity={0.8}
                   >
                     <Text style={[s.segT, mode === m && s.segTOn]}>
-                      {m === 'up' ? 'Create account' : 'Sign in'}
+                      {m === 'up' ? tr('wSegUp') : tr('wSegIn')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -197,7 +197,7 @@ export default function WelcomeScreen({
                   setEmail(v);
                   setErr(null);
                 }}
-                placeholder="Email"
+                placeholder={tr('wEmailPh')}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -209,7 +209,7 @@ export default function WelcomeScreen({
                   setPw(v);
                   setErr(null);
                 }}
-                placeholder="Password (min 6 chars)"
+                placeholder={tr('wPwPh')}
                 show={showPw}
                 onToggleShow={() => setShowPw((v) => !v)}
                 eyeColor={C.faint}
@@ -225,7 +225,7 @@ export default function WelcomeScreen({
                     setPw2(v);
                     setErr(null);
                   }}
-                  placeholder="Repeat password"
+                  placeholder={tr('wPw2Ph')}
                   show={showPw}
                   onToggleShow={() => setShowPw((v) => !v)}
                   eyeColor={C.faint}
@@ -238,15 +238,15 @@ export default function WelcomeScreen({
               {err ? <Text style={s.err}>{err}</Text> : null}
               {notice ? <Text style={s.note}>{notice}</Text> : null}
               <PrimaryBtn
-                label={mode === 'up' ? 'Create account' : 'Sign in'}
+                label={mode === 'up' ? tr('wSubmitUp') : tr('wSubmitIn')}
                 loading={busy}
-                loadingLabel="Working…"
+                loadingLabel={tr('wWorking')}
                 onPress={() => {
                   if (!busy) void doSubmit();
                 }}
               />
               <GhostBtn
-                label="Continue with Google"
+                label={tr('wGoogle')}
                 left={<GoogleGlyph size={16} />}
                 onPress={() => {
                   if (!busy) void doGoogle();
@@ -257,13 +257,13 @@ export default function WelcomeScreen({
                   <View style={s.checkRow}>
                     <CheckBox on={agree} onPress={() => setAgree((v) => !v)} color={C} />
                     <Text style={s.checkText}>
-                      I agree to the{' '}
+                      {tr('wAgreePre')}{' '}
                       <Text style={s.link} onPress={() => setLegal('terms')}>
-                        Terms of Use
+                        {tr('wTerms')}
                       </Text>{' '}
-                      and{' '}
+                      {tr('wAnd')}{' '}
                       <Text style={s.link} onPress={() => setLegal('privacy')}>
-                        Privacy Policy
+                        {tr('wPrivacy')}
                       </Text>
                       .
                     </Text>
@@ -271,7 +271,7 @@ export default function WelcomeScreen({
                   <View style={s.checkRow}>
                     <CheckBox on={marketing} onPress={() => setMarketing((v) => !v)} color={C} />
                     <Text style={s.checkText}>
-                      Sign up for promotional email
+                      {tr('wMarketing')}
                     </Text>
                   </View>
                 </>
@@ -291,7 +291,7 @@ export default function WelcomeScreen({
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ gap: 12, paddingBottom: 8 }}
               >
-                <Text style={s.sheetT}>{legal === 'terms' ? 'Terms of Use' : 'Privacy Policy'}</Text>
+                <Text style={s.sheetT}>{legal === 'terms' ? tr('wTerms') : tr('wPrivacy')}</Text>
                 {legal === 'terms' ? (
                   <Text style={s.sheetB}>{TERMS_TEXT}</Text>
                 ) : (
@@ -306,7 +306,7 @@ export default function WelcomeScreen({
                 )}
               </ScrollView>
               <View style={{ paddingTop: 12 }}>
-                <GhostBtn label="Close" onPress={() => setLegal(null)} />
+                <GhostBtn label={tr('wClose')} onPress={() => setLegal(null)} />
               </View>
             </View>
           </View>

@@ -8,18 +8,20 @@ import { LoaderCircle } from 'lucide-react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { createClient } from '@/lib/supabase/client';
 import { callbackUrl, safeNextPath } from '@/lib/auth';
+import { useT } from '@/lib/i18n/client';
+import { authMessages } from '@/lib/i18n/auth';
 
 /** How long a spinner may keep spinning if navigation never lands. */
 const BUSY_WATCHDOG_MS = 20000;
 
-function friendly(e: unknown): string {
-  const m = String((e as { message?: string })?.message ?? e ?? '');
-  if (/invalid login|invalid_credentials/i.test(m)) return 'Wrong email or password.';
-  if (/already registered|already exists|duplicate/i.test(m)) return 'That email already has an account. Sign in instead.';
-  if (/email not confirmed/i.test(m)) return 'Confirm your email first, then check your inbox.';
-  if (/fetch|network|failed/i.test(m)) return 'Could not reach the cloud backend. Check your connection.';
-  return m || 'Something went wrong.';
-}
+  function friendly(e: unknown, t: (key: string) => string): string {
+    const m = String((e as { message?: string })?.message ?? e ?? '');
+    if (/invalid login|invalid_credentials/i.test(m)) return t('errInvalid');
+    if (/already registered|already exists|duplicate/i.test(m)) return t('errRegistered');
+    if (/email not confirmed/i.test(m)) return t('errUnconfirmed');
+    if (/fetch|network|failed/i.test(m)) return t('errNetwork');
+    return m || t('errGeneric');
+  }
 
 /** Inline spinner used inside the submit buttons while the request is in flight. */
 function Spinner({ className = 'h-4 w-4' }: { className?: string }) {
@@ -41,6 +43,7 @@ export default function LoginForm({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const t = useT(authMessages);
   const target = safeNextPath(next);
   const [mode, setMode] = useState<'in' | 'up'>(initialMode ?? 'in');
   const [email, setEmail] = useState('');
@@ -71,12 +74,12 @@ export default function LoginForm({
     setNote(null);
 
     if (mode === 'up' && password !== confirm) {
-      setErr('Passwords do not match.');
+      setErr(t('errMismatch'));
       return;
     }
 
     if (mode === 'up' && !agree) {
-      setErr('Please agree to the Terms and Privacy Policy to continue.');
+      setErr(t('errAgree'));
       return;
     }
 
@@ -101,7 +104,7 @@ export default function LoginForm({
         if (error) throw error;
         if (!data.session) {
           // Email confirmation is on, there is no dashboard to travel to yet.
-          setNote('Check your inbox to confirm your email, then sign in.');
+          setNote(t('noteConfirm'));
           stopBusy();
           return;
         }
@@ -115,7 +118,7 @@ export default function LoginForm({
       router.refresh();
       window.setTimeout(stopBusy, BUSY_WATCHDOG_MS);
     } catch (e) {
-      setErr(friendly(e));
+      setErr(friendly(e, t));
       stopBusy();
     }
   }
@@ -135,7 +138,7 @@ export default function LoginForm({
       if (error) throw error;
       window.setTimeout(stopBusy, BUSY_WATCHDOG_MS);
     } catch (e) {
-      setErr(friendly(e));
+      setErr(friendly(e, t));
       stopBusy();
     }
   }
@@ -150,12 +153,12 @@ export default function LoginForm({
             <Image src="/bolt.png" alt="Sosial" width={44} height={44} />
           </div>
           <h1 className="font-display text-2xl font-extrabold tracking-tight">Sosial</h1>
-          <p className="mt-1 text-sm text-muted">Compose, schedule and publish across every channel.</p>
+          <p className="mt-1 text-sm text-muted">{t('titleTag')}</p>
         </div>
       )}
 
       <div className={`relative ${compact ? '' : 'card p-6'}`}>
-        <p className="eyebrow mb-4">{signingUp ? 'Create account' : 'Sign in'}</p>
+        <p className="eyebrow mb-4">{signingUp ? t('eyebrowUp') : t('eyebrowIn')}</p>
 
         <form onSubmit={submit} className="space-y-3">
           <input
@@ -163,7 +166,7 @@ export default function LoginForm({
             type="email"
             required
             autoComplete="email"
-            placeholder="Email"
+            placeholder={t('emailPh')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -173,7 +176,7 @@ export default function LoginForm({
             required
             minLength={6}
             autoComplete={signingUp ? 'new-password' : 'current-password'}
-            placeholder={signingUp ? 'Choose a password (6+ characters)' : 'Password'}
+            placeholder={signingUp ? t('pwUpPh') : t('pwPh')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -184,7 +187,7 @@ export default function LoginForm({
               required
               minLength={6}
               autoComplete="new-password"
-              placeholder="Confirm password"
+              placeholder={t('pwConfirmPh')}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
             />
@@ -192,7 +195,7 @@ export default function LoginForm({
 
           <button className="btn btn-primary w-full" disabled={busy} type="submit" aria-busy={busy}>
             {busy && <Spinner />}
-            {signingUp ? 'Create account' : 'Sign in'}
+            {signingUp ? t('submitUp') : t('submitIn')}
           </button>
 
           {signingUp && (
@@ -205,13 +208,13 @@ export default function LoginForm({
                   className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-current"
                 />
                 <span>
-                  I agree to the{' '}
+                  {t('agreePre')}{' '}
                   <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
-                    Terms &amp; Conditions
+                    {t('termsLink')}
                   </Link>{' '}
-                  and{' '}
+                  {t('agreeMid')}{' '}
                   <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">
-                    Privacy Policy
+                    {t('privacyLink')}
                   </Link>
                   .
                 </span>
@@ -224,7 +227,7 @@ export default function LoginForm({
                   className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-current"
                 />
                 <span>
-                  Sign up for promotional email
+                  {t('marketingOptIn')}
                 </span>
               </label>
             </div>
@@ -233,13 +236,13 @@ export default function LoginForm({
 
         <div className="my-4 flex items-center gap-3 text-xs text-faint">
           <span className="h-px flex-1 bg-line" />
-          or
+          {t('or')}
           <span className="h-px flex-1 bg-line" />
         </div>
 
         <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button" aria-busy={busy}>
           {busy ? <Spinner /> : <BrandIcon provider="google" badge={false} className="h-[18px] w-[18px]" />}
-          Continue with Google
+          {t('googleBtn')}
         </button>
 
         {(err || externalError) && (
@@ -248,13 +251,13 @@ export default function LoginForm({
         {note && <p className="mt-4 text-sm text-[#346538]">{note}</p>}
 
         <p className="mt-4 text-center text-xs text-muted">
-          {signingUp ? 'Already have an account? ' : "Don't have an account? "}
+          {signingUp ? t('switchPreUp') : t('switchPreIn')}{' '}
           <button
             type="button"
             className="font-semibold text-accent underline-offset-2 hover:underline"
             onClick={() => switchMode(signingUp ? 'in' : 'up')}
           >
-            {signingUp ? 'Sign in' : 'Create one'}
+            {signingUp ? t('switchIn') : t('switchUp')}
           </button>
         </p>
       </div>

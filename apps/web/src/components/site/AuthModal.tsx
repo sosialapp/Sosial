@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import LoginForm from '../LoginForm';
+import { useT } from '@/lib/i18n/client';
+import { authMessages } from '@/lib/i18n/auth';
 
 /**
  * Sign-in popup for the marketing site header. Same form and logic as the
@@ -21,6 +23,7 @@ export default function AuthModal({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const t = useT(authMessages);
 
   useEffect(() => setMounted(true), []);
 
@@ -74,7 +77,7 @@ export default function AuthModal({
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          aria-label={mode === 'in' ? 'Sign in to Sosial' : 'Create your Sosial account'}
+          aria-label={mode === 'in' ? t('eyebrowIn') : t('eyebrowUp')}
           className="relative my-auto w-full max-w-sm rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]"
         >
         <button

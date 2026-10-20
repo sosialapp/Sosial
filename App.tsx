@@ -23,6 +23,7 @@ import BottomNav, { type MainTab } from './src/components/BottomNav';
 import Grain from './src/components/Grain';
 import { useFontsLoaded } from './src/utils/fonts';
 import { loadAccount, saveAccount, Account } from './src/utils/account';
+import { setLocale } from './src/i18n';
 import { loadEntitlement, refreshEntitlement, type Entitlement } from './src/utils/entitlement';
 import { internalKeyFor } from './src/utils/plans';
 import { pushProfileToCloud, currentSession, isSupabaseConfigured, listMyWorkspaces } from './src/utils/supabase';
@@ -56,6 +57,8 @@ function Shell() {
   const [tabEpoch, setTabEpoch] = useState(0);
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false, notifMarketing: false, locale: 'en' });
+  /** Keep the on-device translator in step with the saved language. */
+  React.useEffect(() => { setLocale(account.locale); }, [account.locale]);
   /** Server-authoritative plan + limits for the active workspace (null until
    *  the first fetch; the UI falls back to the local plan while offline). */
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
