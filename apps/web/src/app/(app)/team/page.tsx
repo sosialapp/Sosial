@@ -6,6 +6,9 @@ import TeamPicker from '@/components/TeamPicker';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { PLANS } from '@/lib/billing/plans';
+import { getLocale } from '@/lib/i18n/server';
+import { translator } from '@/lib/i18n/locales';
+import { appMessages } from '@/lib/i18n/app';
 
 export const metadata = { title: 'Team' };
 
@@ -16,6 +19,7 @@ export const dynamic = 'force-dynamic';
 export default async function TeamPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
+  const t = translator(appMessages, await getLocale());
   const sb = await createClient();
   // Entitlement resolution is independent of the roster read, so run them
   // together: this page is what a "switch team" refresh lands on, and the old
@@ -78,8 +82,8 @@ export default async function TeamPage() {
 
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
-      <p className="eyebrow">Workspace</p>
-      <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Team</h1>
+      <p className="eyebrow">{t('tmWorkspace')}</p>
+      <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{t('tmTeamH1')}</h1>
       <TeamPicker
         current={{
           id: ctx.workspace.id,
