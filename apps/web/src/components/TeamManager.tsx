@@ -8,6 +8,9 @@ import { fileToAvatarDataUrl } from '@/lib/avatar';
 import { createClient } from '@/lib/supabase/client';
 import { useSignedUrl } from '@/lib/useSignedUrl';
 import { edgeErrorMessage } from '@/lib/functions';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 export interface TeamMemberRow {
   id: string;
@@ -97,6 +100,7 @@ export default function TeamManager({
   channels: TeamChannelRow[];
 }) {
   const router = useRouter();
+  const t = useT(appMessages);
   const [draftName, setDraftName] = useState(workspaceName);
   const [editingName, setEditingName] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -150,9 +154,9 @@ export default function TeamManager({
   const providersOf = (m: TeamMemberRow): string[] =>
     grants.filter((g) => g.member_id === m.id).map((g) => g.provider);
   const summary = (m: TeamMemberRow): string => {
-    if (m.all_channels) return 'All channels';
+    if (m.all_channels) return t('tmAllChannels');
     const ps = providersOf(m);
-    if (ps.length === 0) return 'No accounts yet';
+    if (ps.length === 0) return t('tmNoAccounts');
     return ps.map((p) => PROVIDER_LABEL[p] ?? p).join(', ');
   };
   const openAssign = (m: TeamMemberRow) => {
@@ -179,14 +183,14 @@ export default function TeamManager({
       setAssigning(null);
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not save appointments.');
+      setErr(e2 instanceof Error ? e2.message : t('tmErrSaveGrants'));
     } finally {
       setBusy(false);
     }
   };
 
   async function saveName() {
-    const name = draftName.trim() || 'My team';
+    const name = draftName.trim() || t('tmTeamPh');
     setBusy(true);
     setErr(null);
     try {
@@ -197,7 +201,7 @@ export default function TeamManager({
       setEditingName(false);
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not save the team name.');
+      setErr(e instanceof Error ? e.message : t('tmErrSaveName'));
     } finally {
       setBusy(false);
     }
@@ -222,19 +226,19 @@ export default function TeamManager({
     setAvatarMsg(null);
     try {
       const b64 = await fileToAvatarDataUrl(file);
-      if (!b64) throw new Error('That image format isn’t supported, use a JPEG or PNG.');
+      if (!b64) throw new Error(t('tmImgFormat'));
       const sb = createClient();
       const { data, error } = await sb.functions.invoke('team-avatar', {
         body: { workspace_id: workspaceId, image_base64: b64 },
       });
-      if (error) throw new Error((await edgeErrorMessage(error)) ?? 'Could not update the team picture.');
+      if (error) throw new Error((await edgeErrorMessage(error)) ?? t('tmErrAvatarUpdate'));
       const msg = (data as { error?: string } | null)?.error;
       if (msg) throw new Error(msg);
       setTeamAvatarPath((data as { avatar_url?: string }).avatar_url ?? null);
-      setAvatarMsg('Team picture saved.');
+      setAvatarMsg(t('tmAvatarSave'));
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not update the team picture.');
+      setErr(e instanceof Error ? e.message : t('tmErrAvatarUpdate'));
     } finally {
       setAvatarBusy(false);
     }
@@ -250,14 +254,14 @@ export default function TeamManager({
       const { data, error } = await sb.functions.invoke('team-avatar', {
         body: { workspace_id: workspaceId, remove: true },
       });
-      if (error) throw new Error((await edgeErrorMessage(error)) ?? 'Could not remove the team picture.');
+      if (error) throw new Error((await edgeErrorMessage(error)) ?? t('tmErrAvatarRemove'));
       const msg = (data as { error?: string } | null)?.error;
       if (msg) throw new Error(msg);
       setTeamAvatarPath(null);
-      setAvatarMsg('Team picture removed.');
+      setAvatarMsg(t('tmAvatarRemove'));
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not remove the team picture.');
+      setErr(e instanceof Error ? e.message : t('tmErrAvatarRemove'));
     } finally {
       setAvatarBusy(false);
     }
@@ -266,7 +270,7 @@ export default function TeamManager({
   const invite = async (e: FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      setErr('Add the teammate’s email so the invite reaches them.');
+      setErr(t('tmErrInviteEmail'));
       return;
     }
     setBusy(true);
@@ -301,14 +305,14 @@ export default function TeamManager({
       }
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not send the invite.');
+      setErr(e2 instanceof Error ? e2.message : t('tmErrInviteSend'));
     } finally {
       setBusy(false);
     }
   };
 
   const cancelPendingInvite = async (inv: TeamInviteRow) => {
-    if (!window.confirm(`Withdraw the invite to ${inv.email}? They won't be able to join with it.`)) return;
+    if (!window.confirm(fill(t('tmWithdrawQ'), { email: inv.email }))) return;
     setBusy(true);
     setErr(null);
     try {
@@ -317,7 +321,7 @@ export default function TeamManager({
       if (error) throw new Error(error.message);
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not cancel the invite.');
+      setErr(e2 instanceof Error ? e2.message : t('tmErrCancelInvite'));
     } finally {
       setBusy(false);
     }
@@ -333,14 +337,14 @@ export default function TeamManager({
       if (error) throw new Error(error.message);
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not change the role.');
+      setErr(e2 instanceof Error ? e2.message : t('tmErrChangeRole'));
     } finally {
       setBusy(false);
     }
   };
 
   const leave = async () => {
-    if (!window.confirm('Leave this workspace? You will lose access to its channels, posts and team.')) return;
+    if (!window.confirm(t('tmLeaveQ'))) return;
     setBusy(true);
     setErr(null);
     try {
@@ -349,7 +353,7 @@ export default function TeamManager({
       if (error) throw new Error(error.message);
       router.push('/dashboard');
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not leave the workspace.');
+      setErr(e2 instanceof Error ? e2.message : t('tmErrLeave'));
     } finally {
       setBusy(false);
     }
@@ -368,7 +372,7 @@ export default function TeamManager({
       setConfirmRemove(null);
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not remove this teammate.');
+      setErr(e2 instanceof Error ? e2.message : t('tmErrRemove'));
     } finally {
       setBusy(false);
     }
@@ -377,13 +381,13 @@ export default function TeamManager({
   return (
     <div className="space-y-3">
       {canManage ? (
-        <section className="card p-5" aria-label="Team name">
-          <p className="eyebrow">Team picture</p>
+        <section className="card p-5" aria-label={t('tmTeamNameAria')}>
+          <p className="eyebrow">{t('tmTeamPicture')}</p>
           <div className="mt-2 flex items-center gap-3">
             <span className="relative shrink-0">
               {teamAvatarUrl && !teamAvatarFailed ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={teamAvatarUrl} alt="Team picture" onError={() => setTeamAvatarFailed(true)} className="h-12 w-12 rounded-full border border-line object-cover" />
+                <img src={teamAvatarUrl} alt={t('tmTeamPicture')} onError={() => setTeamAvatarFailed(true)} className="h-12 w-12 rounded-full border border-line object-cover" />
               ) : (
                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink font-display text-base font-extrabold text-paper">
                   {(draftName.trim() || workspaceName || 'T')[0].toUpperCase()}
@@ -397,7 +401,7 @@ export default function TeamManager({
             </span>
             <span className="flex flex-wrap items-center gap-2">
               <label className="cursor-pointer rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink">
-                {teamAvatarUrl ? 'Change' : 'Add photo'}
+                {teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}
                 <input
                   type="file"
                   accept="image/*"
@@ -415,7 +419,7 @@ export default function TeamManager({
                   onClick={() => void removeTeamAvatar()}
                   className="rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
                 >
-                  Remove
+                  {t('tmRemove')}
                 </button>
               ) : null}
             </span>
@@ -423,7 +427,7 @@ export default function TeamManager({
           {avatarMsg ? (
             <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#8fd0a0]">{avatarMsg}</p>
           ) : null}
-          <p className="eyebrow mt-4">Team name</p>
+          <p className="eyebrow mt-4">{t('tmTeamName')}</p>
           {editingName ? (
             <div className="mt-1.5">
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -438,8 +442,8 @@ export default function TeamManager({
                     }
                     if (e.key === 'Escape') cancelNameEdit();
                   }}
-                  placeholder="My team"
-                  aria-label="Team name"
+                  placeholder={t('tmTeamPh')}
+                  aria-label={t('tmTeamNameAria')}
                   className="field min-w-0 flex-1"
                 />
                 <div className="flex shrink-0 gap-2">
@@ -449,7 +453,7 @@ export default function TeamManager({
                     onClick={() => void saveName()}
                     className="btn btn-primary flex-1 sm:flex-none"
                   >
-                    {busy ? 'Saving…' : 'Save'}
+                    {busy ? t('tmSaving') : t('tmSave')}
                   </button>
                   <button
                     type="button"
@@ -457,7 +461,7 @@ export default function TeamManager({
                     onClick={cancelNameEdit}
                     className="btn flex-1 sm:flex-none"
                   >
-                    Cancel
+                    {t('tmCancel')}
                   </button>
                 </div>
               </div>
@@ -469,8 +473,8 @@ export default function TeamManager({
             <button
               type="button"
               onClick={startNameEdit}
-              title="Rename team"
-              aria-label="Rename team"
+              title={t('tmRenameTeam')}
+              aria-label={t('tmRenameTeam')}
               className="group mt-1 flex max-w-full items-center gap-2 rounded-lg text-left"
             >
               <span className="truncate font-display text-xl font-extrabold tracking-tight">{workspaceName}</span>
@@ -489,10 +493,10 @@ export default function TeamManager({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">
                     {m.email}
-                    {self ? <span className="ml-2 text-xs font-medium text-muted">(you)</span> : null}
+                    {self ? <span className="ml-2 text-xs font-medium text-muted">{t('tmYou')}</span> : null}
                   </p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                    <span className="pill bg-accent-soft text-accent-ink">{m.role}</span>
+                    <span className="pill bg-accent-soft text-accent-ink">{m.role === 'member' ? t('roleMember') : m.role === 'admin' ? t('roleAdmin') : m.role}</span>
                     <span className="pill bg-surface text-soft">{summary(m)}</span>
                   </p>
                 </div>
@@ -502,12 +506,12 @@ export default function TeamManager({
                       value={m.role}
                       disabled={busy}
                       onChange={(e) => void saveRole(m, e.target.value as 'member' | 'admin')}
-                      aria-label={`Role for ${m.email}`}
-                      title="Change role"
+                      aria-label={fill(t('tmRoleFor'), { email: m.email })}
+                      title={t('tmChangeRole')}
                       className="rounded-full border border-line bg-card px-2.5 py-1.5 text-xs font-bold text-soft disabled:opacity-50"
                     >
-                      <option value="member">Member</option>
-                      <option value="admin">Admin</option>
+                      <option value="member">{t('roleMember')}</option>
+                      <option value="admin">{t('roleAdmin')}</option>
                     </select>
                   ) : null}
                   {self && myRole !== 'owner' ? (
@@ -517,7 +521,7 @@ export default function TeamManager({
                       disabled={busy}
                       className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft hover:bg-surface disabled:opacity-50"
                     >
-                      Leave team
+                      {t('tmLeaveTeam')}
                     </button>
                   ) : null}
                   {canAssign(m) ? (
@@ -526,7 +530,7 @@ export default function TeamManager({
                       onClick={() => openAssign(m)}
                       className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft hover:bg-surface"
                     >
-                      {assigning === m.id ? 'Done' : 'Manage channels'}
+                      {assigning === m.id ? t('tmDone') : t('tmManageChannels')}
                     </button>
                   ) : null}
                   {canRemove(m) ? (
@@ -538,14 +542,14 @@ export default function TeamManager({
                           onClick={() => remove(m)}
                           className="rounded-full bg-[#E60023] px-3 py-1.5 text-xs font-bold text-white"
                         >
-                          Confirm
+                          {t('tmConfirm')}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmRemove(null)}
                           className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft"
                         >
-                          Keep
+                          {t('tmKeep')}
                         </button>
                       </>
                     ) : (
@@ -554,7 +558,7 @@ export default function TeamManager({
                         onClick={() => setConfirmRemove(m.id)}
                         className="rounded-full px-3 py-1.5 text-xs font-bold text-[#9F2F2D] hover:bg-[#FDEBEC] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]"
                       >
-                        Remove
+                        {t('tmRemove')}
                       </button>
                     )
                   ) : null}
@@ -564,7 +568,7 @@ export default function TeamManager({
               {assigning === m.id ? (
                 <div className="mt-3 rounded-2xl border border-line bg-surface/60 p-4">
                   <p className="text-xs font-bold">
-                    Accounts {m.email} can post to
+                    {fill(t('tmAccountsPost'), { email: m.email })}
                   </p>
                   <div className="mt-3">
                     <ChannelScopePills
@@ -579,7 +583,7 @@ export default function TeamManager({
                   </div>
                   {channels.length === 0 ? (
                     <p className="mt-2 text-xs text-muted">
-                      Connect an account first, there are no channels to appoint yet.
+                      {t('tmNoChannelsYet')}
                     </p>
                   ) : null}
                   <button
@@ -588,7 +592,7 @@ export default function TeamManager({
                     onClick={() => saveGrants(m)}
                     className="btn btn-primary mt-3"
                   >
-                    {busy ? 'Saving…' : 'Save accounts'}
+                    {busy ? t('tmSaving') : t('tmSaveAccounts')}
                   </button>
                 </div>
               ) : null}
@@ -599,14 +603,14 @@ export default function TeamManager({
 
       {invites.length > 0 ? (
         <section className="card p-5" aria-label="Pending invites">
-          <p className="eyebrow">Pending invites</p>
+          <p className="eyebrow">{t('tmPendingInvites')}</p>
           <ul className="mt-3 space-y-2">
             {invites.map((inv) => (
               <li key={inv.id} className="flex items-center gap-2 text-sm">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-bold">{inv.email}</span>
                   {inv.emailed_at ? (
-                    <span className="block text-xs text-faint">Invite sent</span>
+                    <span className="block text-xs text-faint">{t('tmInviteSent')}</span>
                   ) : (
                     <span className="block text-xs">
                       <button
@@ -614,15 +618,15 @@ export default function TeamManager({
                         onClick={() => void navigator.clipboard?.writeText(`https://sosial.app/invite/${inv.token}`)}
                         className="font-bold text-accent-ink hover:underline"
                       >
-                        Email pending, copy invite link
+                        {t('tmEmailPending')}
                       </button>
                     </span>
                   )}
                 </span>
-                <span className="pill shrink-0 bg-surface text-soft">{inv.role}</span>
+                <span className="pill shrink-0 bg-surface text-soft">{inv.role === 'member' ? t('roleMember') : inv.role === 'admin' ? t('roleAdmin') : inv.role}</span>
                 {inv.expires_at ? (
                   <span className="shrink-0 text-xs text-muted">
-                    expires {new Date(inv.expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    {fill(t('tmExpires'), { date: new Date(inv.expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) })}
                   </span>
                 ) : null}
                 {canManage ? (
@@ -630,8 +634,8 @@ export default function TeamManager({
                     type="button"
                     onClick={() => void cancelPendingInvite(inv)}
                     disabled={busy}
-                    aria-label={`Cancel invite to ${inv.email}`}
-                    title="Cancel invite"
+                    aria-label={fill(t('tmCancelInviteAria'), { email: inv.email })}
+                    title={t('tmCancelInvite')}
                     className="shrink-0 rounded-full px-2 py-1 text-sm font-bold text-faint transition hover:text-[#9F2F2D] disabled:opacity-40"
                   >
                     ✕
@@ -645,20 +649,20 @@ export default function TeamManager({
 
       {canManage ? (
         <section className="card p-5" aria-label="Invite teammate">
-          <p className="eyebrow">Invite teammate</p>
+          <p className="eyebrow">{t('tmInviteTeammate')}</p>
           <form onSubmit={invite} className="mt-3 space-y-3">
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="teammate@studio.com"
+              placeholder={t('tmEmailPh')}
               type="email"
               autoCapitalize="none"
               className="field"
-              aria-label="Teammate email"
+              aria-label={t('tmEmailAria')}
             />
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-xs font-bold text-muted" htmlFor="team-role">
-                Role
+                {t('tmRole')}
               </label>
               <select
                 id="team-role"
@@ -666,12 +670,12 @@ export default function TeamManager({
                 onChange={(e) => setRole(e.target.value as 'member' | 'admin')}
                 className="field w-auto"
               >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
+                <option value="member">{t('roleMember')}</option>
+                <option value="admin">{t('roleAdmin')}</option>
               </select>
             </div>
             <div>
-              <p className="mb-2 text-xs font-bold text-muted">Accounts they can post to</p>
+              <p className="mb-2 text-xs font-bold text-muted">{t('tmAccountsFor')}</p>
               <ChannelScopePills
                 channels={channels}
                 all={inviteAll}
@@ -683,32 +687,32 @@ export default function TeamManager({
               />
               {channels.length === 0 ? (
                 <p className="mt-2 text-xs text-muted">
-                  Connect an account first, there are no channels to appoint yet.
+                  {t('tmNoChannelsYet')}
                 </p>
               ) : null}
             </div>
             {err ? <p className="text-sm font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p> : null}
             {inviteLink ? (
               <div className="rounded-xl border border-line bg-surface/60 p-3 text-sm">
-                <p className="font-bold">They&rsquo;re already on Sosial, no email needed.</p>
+                <p className="font-bold">{t('tmAlreadyOnSosial')}</p>
                 <p className="mt-1 break-all text-xs text-muted">{inviteLink}</p>
                 <button
                   type="button"
                   onClick={() => void navigator.clipboard?.writeText(inviteLink)}
                   className="btn btn-ghost mt-2"
                 >
-                  Copy invite link
+                  {t('tmCopyLink')}
                 </button>
               </div>
             ) : null}
             <button type="submit" disabled={busy} className="btn btn-primary w-full sm:w-auto">
-              {busy ? 'Sending…' : 'Send invite'}
+              {busy ? t('tmSending') : t('tmSendInvite')}
             </button>
           </form>
         </section>
       ) : (
         <p className="card p-5 text-sm text-muted">
-                      Only owners and admins can invite. Ask one to add your teammates.
+                      {t('tmMemberOnly')}
         </p>
       )}
     </div>
