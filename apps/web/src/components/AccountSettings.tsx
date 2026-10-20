@@ -35,6 +35,9 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { fileToAvatarDataUrl } from '@/lib/avatar';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 import { createClient } from '@/lib/supabase/client';
 import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META } from '@/lib/i18n/locales';
 import { useSignedUrl } from '@/lib/useSignedUrl';
@@ -58,10 +61,10 @@ interface UserReport {
 const MAX_ATTACHMENTS = 3;
 const MAX_FILE_MB = 10;
 const TICKET_STATUSES: Record<string, { label: string; tone: string }> = {
-  open: { label: 'Open', tone: 'bg-[#FFF4DC] text-[#8a6116] dark:bg-[#332a15] dark:text-[#e8c877]' },
-  triaged: { label: 'In review', tone: 'bg-[#E8F0FB] text-[#2d5a9e] dark:bg-[#182338] dark:text-[#8db4ec]' },
-  resolved: { label: 'Resolved', tone: 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]' },
-  closed: { label: 'Closed', tone: 'bg-paper-dim text-muted' },
+  open: { label: 'stTicketOpen', tone: 'bg-[#FFF4DC] text-[#8a6116] dark:bg-[#332a15] dark:text-[#e8c877]' },
+  triaged: { label: 'stTicketTriaged', tone: 'bg-[#E8F0FB] text-[#2d5a9e] dark:bg-[#182338] dark:text-[#8db4ec]' },
+  resolved: { label: 'stTicketResolved', tone: 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]' },
+  closed: { label: 'stTicketClosed', tone: 'bg-paper-dim text-muted' },
 };
 
 const CHANGELOG = [
@@ -195,6 +198,7 @@ export default function AccountSettings({
   locales: readonly string[];
 }) {
   const router = useRouter();
+  const t = useT(appMessages);
   const [view, setView] = useState<View>('main');
   const [notif, setNotif] = useState(initialNotif);
   const [locale, setLocale] = useState(initialLocale);
@@ -251,7 +255,7 @@ export default function AccountSettings({
     setErr(null);
     try {
       const b64 = await fileToAvatarDataUrl(file);
-      if (!b64) throw new Error('That image format isn’t supported, use a JPEG or PNG.');
+      if (!b64) throw new Error(t('asErrImgFormat'));
       const sb = createClient();
       const { data, error } = await sb.functions.invoke('profile-avatar', {
         body: { image_base64: b64 },
@@ -260,9 +264,9 @@ export default function AccountSettings({
       const msg = (data as { error?: string } | null)?.error;
       if (msg) throw new Error(msg);
       setAvatarPath((data as { avatar_url?: string }).avatar_url ?? null);
-      setNote('Profile picture updated.');
+      setNote(t('asNoteAvatarSaved'));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not update the picture.');
+      setErr(e instanceof Error ? e.message : t('asErrAvatar'));
     } finally {
       setAvatarBusy(false);
     }
@@ -282,9 +286,9 @@ export default function AccountSettings({
       const msg = (data as { error?: string } | null)?.error;
       if (msg) throw new Error(msg);
       setAvatarPath((data as { avatar_url?: string }).avatar_url ?? null);
-      setNote('Using your Google profile picture.');
+      setNote(t('asNoteGooglePfp'));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'No Google picture available.');
+      setErr(e instanceof Error ? e.message : t('asErrNoGoogle'));
     } finally {
       setAvatarBusy(false);
     }
@@ -299,9 +303,9 @@ export default function AccountSettings({
       const { error } = await sb.functions.invoke('profile-avatar', { method: 'DELETE' });
       if (error) throw new Error(error.message);
       setAvatarPath(null);
-      setNote('Profile picture removed.');
+      setNote(t('asNoteAvatarRemoved'));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not remove the picture.');
+      setErr(e instanceof Error ? e.message : t('asErrAvatarRemove'));
     } finally {
       setAvatarBusy(false);
     }
@@ -309,10 +313,10 @@ export default function AccountSettings({
 
   const initial = (email || workspaceName || 'S')[0].toUpperCase();
   const title =
-    view === 'main' ? 'Account' : view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings'
-    : view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription'
-    : view === 'changelog' ? "What's new" : view === 'report' || view === 'ticket' ? 'Support'
-    : view === 'delete' ? 'Delete my data' : 'Legal';
+    view === 'main' ? t('asTitleAccount') : view === 'notif' ? t('asTitleNotif') : view === 'email' ? t('asTitleEmail')
+    : view === 'password' ? t('asTitlePassword') : view === 'plan' ? t('asTitlePlan')
+    : view === 'changelog' ? t('asTitleNew') : view === 'report' || view === 'ticket' ? t('asTitleSupport')
+    : view === 'delete' ? t('asTitleDelete') : t('asTitleLegal');
 
   async function flipNotif(key: 'posts' | 'comments' | 'weekly' | 'marketing') {
     const col = key === 'posts' ? 'notif_posts' : key === 'comments' ? 'notif_comments' : key === 'marketing' ? 'notif_marketing' : 'notif_weekly';
@@ -355,10 +359,10 @@ export default function AccountSettings({
       const sb = createClient();
       const { error } = await sb.from('workspaces').update({ name }).eq('id', workspaceId);
       if (error) throw new Error(error.message);
-      setNote('Workspace name saved, the phone picks it up on next sync.');
+      setNote(t('asNoteWsSaved'));
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not save the name.');
+      setErr(e instanceof Error ? e.message : t('asErrWsSave'));
     } finally {
       setBusy(false);
     }
@@ -366,7 +370,7 @@ export default function AccountSettings({
 
   async function deleteMyData() {
     if (delWord.trim().toLowerCase() !== 'confirm') {
-      setErr('Type the word “confirm” to delete your data.');
+      setErr(t('asErrConfirmWord'));
       return;
     }
     setDelBusy(true);
@@ -401,11 +405,11 @@ export default function AccountSettings({
     setErr(null);
     setNote(null);
     if (pw1.length < 6) {
-      setErr('Use at least 6 characters.');
+      setErr(t('asErrPwShort'));
       return;
     }
     if (pw1 !== pw2) {
-      setErr('The two passwords differ.');
+      setErr(t('asErrPwDiffer'));
       return;
     }
     setBusy(true);
@@ -415,9 +419,9 @@ export default function AccountSettings({
       if (error) throw new Error(error.message);
       setPw1('');
       setPw2('');
-      setNote('Password updated.');
+      setNote(t('asNotePwSaved'));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not update the password.');
+      setErr(e instanceof Error ? e.message : t('asErrPwSave'));
     } finally {
       setBusy(false);
     }
@@ -447,15 +451,15 @@ export default function AccountSettings({
     const next = [...repFiles];
     for (const f of Array.from(list)) {
       if (next.length >= MAX_ATTACHMENTS) {
-        setErr(`Up to ${MAX_ATTACHMENTS} images per ticket.`);
+        setErr(fill(t('asErrMaxShots'), { n: MAX_ATTACHMENTS }));
         break;
       }
       if (!f.type.startsWith('image/')) {
-        setErr('Screenshots only, images please.');
+        setErr(t('asErrShotsOnly'));
         continue;
       }
       if (f.size > MAX_FILE_MB * 1024 * 1024) {
-        setErr(`"${f.name}" is over ${MAX_FILE_MB} MB.`);
+        setErr(fill(t('asErrFileBig'), { name: f.name, mb: MAX_FILE_MB }));
         continue;
       }
       next.push(f);
@@ -482,11 +486,11 @@ export default function AccountSettings({
   async function sendReport() {
     setErr(null);
     if (!repBody.trim()) {
-      setErr('Describe the problem first.');
+      setErr(t('asErrDescribe'));
       return;
     }
     if (openTicket) {
-      setErr('You already have an open ticket, we reply there. Close or resolve it first to raise a new one.');
+      setErr(t('asErrOpenTicket'));
       return;
     }
     setRepBusy(true);
@@ -515,10 +519,10 @@ export default function AccountSettings({
       setRepBody('');
       setRepFiles([]);
       setView('ticket');
-      setNote('Ticket submitted, we reply by email. Track it under Your ticket.');
+      setNote(t('asNoteTicketSent'));
       await loadTickets();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not send the report.');
+      setErr(e instanceof Error ? e.message : t('asErrReport'));
     } finally {
       setRepBusy(false);
     }
@@ -529,7 +533,7 @@ export default function AccountSettings({
       <button
         type="button"
         onClick={() => (view === 'main' ? router.push('/dashboard') : setView('main'))}
-        aria-label={view === 'main' ? 'Back to dashboard' : 'Back to account'}
+        aria-label={view === 'main' ? t('asBackDash') : t('asBackAccount')}
         className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-card text-ink transition hover:bg-paper"
       >
         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -568,13 +572,13 @@ export default function AccountSettings({
                 ) : null}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-extrabold">{email || 'No email set'}</span>
+                <span className="block truncate text-sm font-extrabold">{email || t('asNoEmail')}</span>
                 <span className="block truncate text-xs text-muted">
-                  {workspaceName} · {planLabel} plan
+                  {workspaceName} · {planLabel} {t('asPlanWord')}
                 </span>
                 <span className="mt-1.5 flex flex-wrap items-center gap-2">
                   <label className="cursor-pointer rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink">
-                    {avatarUrl ? 'Change' : 'Add photo'}
+                    {avatarUrl ? t('asChange') : t('asAddPhoto')}
                     <input
                       type="file"
                       accept="image/*"
@@ -591,7 +595,7 @@ export default function AccountSettings({
                     onClick={() => void useGooglePicture()}
                     className="rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink"
                   >
-                    Use Google picture
+                    {t('asUseGoogle')}
                   </button>
                   {avatarUrl ? (
                     <button
@@ -599,7 +603,7 @@ export default function AccountSettings({
                       onClick={() => void removeAvatar()}
                       className="rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
                     >
-                      Remove
+                      {t('asRemove')}
                     </button>
                   ) : null}
                 </span>
@@ -611,54 +615,53 @@ export default function AccountSettings({
           </Card>
 
           <Card className="mt-3 p-5">
-            <p className="text-xs font-bold text-soft">Signed in</p>
+            <p className="text-xs font-bold text-soft">{t('asSignedIn')}</p>
             <p className="mt-0.5 truncate text-sm text-muted">
               {email} · {workspaceName} ({role})
             </p>
             <form action="/auth/signout" method="post" className="mt-3">
               <Button variant="ghost" className="w-full" type="submit">
-                Sign out
+                {t('asSignOut')}
               </Button>
             </form>
           </Card>
 
           <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
-            <Row icon={<Bell className="h-5 w-5" aria-hidden="true" />} label="Notification settings" sub="Post reminders, comments, digest" onClick={() => setView('notif')} />
-            <Row icon={<Mail className="h-5 w-5" aria-hidden="true" />} label="Email & workspace" sub={`${email || 'Set your email'} · ${workspaceName}`} onClick={() => { setDraftName(workspaceName); setView('email'); }} />
-            <Row icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label="Change password" onClick={() => { setPw1(''); setPw2(''); setView('password'); }} />
+            <Row icon={<Bell className="h-5 w-5" aria-hidden="true" />} label={t('asRowNotif')} sub={t('asRowNotifSub')} onClick={() => setView('notif')} />
+            <Row icon={<Mail className="h-5 w-5" aria-hidden="true" />} label={t('asRowEmailWs')} sub={`${email || t('asSetEmail')} · ${workspaceName}`} onClick={() => { setDraftName(workspaceName); setView('email'); }} />
+            <Row icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label={t('asRowPassword')} onClick={() => { setPw1(''); setPw2(''); setView('password'); }} />
           </Card>
 
           <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
-            <Row icon={<CirclePlus className="h-5 w-5" aria-hidden="true" />} label="Connect new channel" sub="Pick a network to link" href="/channels" />
+            <Row icon={<CirclePlus className="h-5 w-5" aria-hidden="true" />} label={t('asRowConnect')} sub={t('asRowConnectSub')} href="/channels" />
             <Row
               icon={<CloudUpload className="h-5 w-5" aria-hidden="true" />}
-              label="Cloud publishing"
-              sub="Always on, tokens stay encrypted in the vault"
+              label={t('asRowCloud')}
+              sub={t('asRowCloudSub')}
               onClick={() => setCloudInfo((v) => !v)}
             />
             {cloudInfo ? (
               <p className="px-5 py-3 text-xs leading-relaxed text-muted">
-                Connecting a channel stores an encrypted copy of its tokens so scheduled posts publish
-                while you are away. To revoke a channel, disconnect it in Channels.
+                {t('asCloudInfo')}
               </p>
             ) : null}
-            <Row icon={<CreditCard className="h-5 w-5" aria-hidden="true" />} label="Subscription plan" sub="Free, Solo, Team and Business" onClick={() => setView('plan')} />
+            <Row icon={<CreditCard className="h-5 w-5" aria-hidden="true" />} label={t('asRowPlan')} sub={t('asRowPlanSub')} onClick={() => setView('plan')} />
             {role === 'owner' || role === 'admin' ? (
-              <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label="Team" sub="Roles, channels & invites" href="/team" />
+              <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label={t('asRowTeam')} sub={t('asRowTeamSub')} href="/team" />
             ) : null}
-            <Row icon={<Star className="h-5 w-5" aria-hidden="true" />} label="Rate Sosial" sub="Tell us how we are doing" onClick={() => setView('report')} />
-            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label="Support" sub={openTicket ? 'Open ticket, we are on it' : 'Bugs, questions, billing help'} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
-            <Row icon={<Sparkles className="h-5 w-5" aria-hidden="true" />} label="What's new" sub="Changelog" onClick={() => setView('changelog')} />
+            <Row icon={<Star className="h-5 w-5" aria-hidden="true" />} label={t('asRowRate')} sub={t('asRowRateSub')} onClick={() => setView('report')} />
+            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label={t('asRowSupport')} sub={openTicket ? t('asSupportOpen') : t('asSupportNew')} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
+            <Row icon={<Sparkles className="h-5 w-5" aria-hidden="true" />} label={t('asRowNew')} sub={t('asRowChangelog')} onClick={() => setView('changelog')} />
           </Card>
 
           <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
-            <Row icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />} label="Privacy policy" href="/privacy" />
-            <Row icon={<FileText className="h-5 w-5" aria-hidden="true" />} label="Terms of use" href="/terms" />
-            <Row icon={<Scale className="h-5 w-5" aria-hidden="true" />} label="Legal" onClick={() => setView('legal')} />
+            <Row icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />} label={t('asRowPrivacy')} href="/privacy" />
+            <Row icon={<FileText className="h-5 w-5" aria-hidden="true" />} label={t('asRowTerms')} href="/terms" />
+            <Row icon={<Scale className="h-5 w-5" aria-hidden="true" />} label={t('asRowLegal')} onClick={() => setView('legal')} />
             <div className="flex items-center gap-3 px-5 py-4">
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold">Appearance</span>
-                <span className="block text-xs text-muted">Light or dark dashboard</span>
+                <span className="block text-sm font-bold">{t('asAppearance')}</span>
+                <span className="block text-xs text-muted">{t('asAppearanceSub')}</span>
               </span>
               <ThemeToggle />
             </div>
@@ -696,8 +699,8 @@ export default function AccountSettings({
             >
               <Trash2 className="h-5 w-5 shrink-0 text-red-500" aria-hidden="true" />
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-red-500">Delete my data</span>
-                <span className="block text-xs text-muted">Erase your account and everything in it</span>
+                <span className="block text-sm font-bold text-red-500">{t('asDeleteCard')}</span>
+                <span className="block text-xs text-muted">{t('asDeleteCardSub')}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
             </button>
@@ -708,10 +711,10 @@ export default function AccountSettings({
       {view === 'notif' ? (
         <Card className="mt-4 divide-y divide-line-soft overflow-hidden">
           {([
-            { key: 'posts', label: 'Post reminders', sub: 'Alert when a queued post is due' },
-            { key: 'comments', label: 'Comments & mentions', sub: 'Alert on new comments' },
-            { key: 'weekly', label: 'Weekly digest', sub: 'A Monday summary of your channels' },
-            { key: 'marketing', label: 'Product updates', sub: 'New features and tips by email' },
+            { key: 'posts', label: t('asNotifPosts'), sub: t('asNotifPostsSub') },
+            { key: 'comments', label: t('asNotifComments'), sub: t('asNotifCommentsSub') },
+            { key: 'weekly', label: t('asNotifWeekly'), sub: t('asNotifWeeklySub') },
+            { key: 'marketing', label: t('asNotifMarketing'), sub: t('asNotifMarketingSub') },
           ] as const).map((r) => (
             <div key={r.key} className="flex items-center gap-3 px-5 py-4">
               <span className="min-w-0 flex-1">
@@ -722,8 +725,7 @@ export default function AccountSettings({
             </div>
           ))}
           <p className="px-5 py-3 text-xs leading-relaxed text-muted">
-            Saved to your profile{notifSaved ? ' ✓' : ''}, the phone picks these up on next sync. Reminder
-            alerts need the installed app with notifications allowed.
+            {fill(t('asNotifSaved'), { check: notifSaved ? ' ✓' : '' })}
           </p>
         </Card>
       ) : null}
@@ -731,30 +733,30 @@ export default function AccountSettings({
       {view === 'email' ? (
         <Card className="mt-4 space-y-3 p-5">
           <div>
-            <p className="text-xs font-bold text-muted">Email</p>
-            <p className="mt-1 text-sm font-bold">{email || 'No email set'}</p>
-            <p className="mt-0.5 text-[11px] text-faint">Managed by sign-in, contact support to change it.</p>
+            <p className="text-xs font-bold text-muted">{t('asEmail')}</p>
+            <p className="mt-1 text-sm font-bold">{email || t('asNoEmail')}</p>
+            <p className="mt-0.5 text-[11px] text-faint">{t('asEmailManaged')}</p>
           </div>
           <div>
-            <p className="text-xs font-bold text-muted">Team / organization</p>
+            <p className="text-xs font-bold text-muted">{t('asTeamOrg')}</p>
             {canRename ? (
               <input
                 value={draftName}
                 onChange={(e) => setDraftName(e.target.value)}
-                placeholder="My team"
-                aria-label="Workspace name"
+                placeholder={t('tmTeamPh')}
+                aria-label={t('asWsNameAria')}
                 className="field mt-1"
               />
             ) : (
               <p className="mt-1 text-sm font-bold">{workspaceName}</p>
             )}
             {!canRename ? (
-              <p className="mt-0.5 text-[11px] text-faint">Only owners and admins can rename the workspace.</p>
+              <p className="mt-0.5 text-[11px] text-faint">{t('asRenameOnly')}</p>
             ) : null}
           </div>
           {canRename ? (
             <Button onClick={() => void saveName()} disabled={busy} className="w-full">
-              {busy ? 'Saving…' : 'Save'}
+              {busy ? t('tmSaving') : t('tmSave')}
             </Button>
           ) : null}
         </Card>
@@ -763,31 +765,31 @@ export default function AccountSettings({
       {view === 'password' ? (
         <Card className="mt-4 space-y-3 p-5">
           <div>
-            <p className="text-xs font-bold text-muted">New password</p>
+            <p className="text-xs font-bold text-muted">{t('asNewPw')}</p>
             <input
               type="password"
               value={pw1}
               onChange={(e) => setPw1(e.target.value)}
               placeholder="••••••••"
               autoComplete="new-password"
-              aria-label="New password"
+              aria-label={t('asNewPw')}
               className="field mt-1"
             />
           </div>
           <div>
-            <p className="text-xs font-bold text-muted">Confirm</p>
+            <p className="text-xs font-bold text-muted">{t('asConfirm')}</p>
             <input
               type="password"
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
               placeholder="••••••••"
               autoComplete="new-password"
-              aria-label="Confirm password"
+              aria-label={t('asConfirmPwAria')}
               className="field mt-1"
             />
           </div>
           <Button onClick={() => void savePassword()} disabled={busy} className="w-full">
-            {busy ? 'Updating…' : 'Update password'}
+            {busy ? t('asUpdating') : t('asUpdatePw')}
           </Button>
         </Card>
       ) : null}
@@ -799,12 +801,12 @@ export default function AccountSettings({
             const def = PLANS[key];
             const p = {
               name: def.label,
-              price: key === 'free' ? 'Free' : priceLabel(key, 'monthly'),
+              price: key === 'free' ? t('asPriceFree') : priceLabel(key, 'monthly'),
               sub:
                 key === 'free'
                   ? undefined
-                  : `${priceLabel(key, 'annual')} annual, ≈ $${monthlyEquivalent(key)}/month, billed yearly`,
-              also: i === 0 ? undefined : `Everything in ${PLANS[PLAN_ORDER[i - 1]].label}, plus:`,
+                  : `${priceLabel(key, 'annual')} ${t('blAnnual')}, ≈ $${monthlyEquivalent(key)}/month, ${t('blBilledYearly')}`,
+              also: i === 0 ? undefined : fill(t('asEverythingIn'), { plan: PLANS[PLAN_ORDER[i - 1]].label }),
               features: def.points,
             };
             return p;
@@ -825,34 +827,34 @@ export default function AccountSettings({
             </Card>
           ))}
           <Link href="/billing" className="btn btn-bolt w-full">
-            Manage billing
+            {t('asManageBilling')}
           </Link>
           <Link href="/pricing" className="btn btn-ghost w-full">
-            See full pricing
+            {t('asSeePricing')}
           </Link>
         </div>
       ) : null}
 
       {view === 'ticket' ? (
         myTickets === null ? (
-          <Card className="mt-4 p-6 text-center text-sm text-muted">Loading…</Card>
+          <Card className="mt-4 p-6 text-center text-sm text-muted">{t('asLoading')}</Card>
         ) : openTicket ? (
           <div className="mt-4 space-y-3">
             {openTicket.attachments?.length ? (
               <Card className="p-5">
-                <p className="text-xs font-bold text-muted">Your screenshots</p>
+                <p className="text-xs font-bold text-muted">{t('asYourShots')}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {openTicket.attachments.map((p) => (
                     <TicketImage key={p} path={p} userId={userId} />
                   ))}
                 </div>
-                <p className="mt-2 text-[11px] text-faint">Attachments are deleted with the ticket 30 days after it is resolved.</p>
+                <p className="mt-2 text-[11px] text-faint">{t('asAttachNote')}</p>
               </Card>
             ) : null}
             <Card className="p-5">
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className={`rounded-full px-2.5 py-1 font-bold ${TICKET_STATUSES[openTicket.status]?.tone ?? 'bg-paper-dim text-muted'}`}>
-                  {TICKET_STATUSES[openTicket.status]?.label ?? openTicket.status}
+                  {TICKET_STATUSES[openTicket.status] ? t(TICKET_STATUSES[openTicket.status].label) : openTicket.status}
                 </span>
                 <span className="rounded-full border border-line bg-paper px-2.5 py-1 font-bold text-soft capitalize">{openTicket.kind}</span>
                 <span className="min-w-0 flex-1 text-right text-muted">{new Date(openTicket.created_at).toLocaleDateString()}</span>
@@ -863,25 +865,25 @@ export default function AccountSettings({
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-soft">{openTicket.body}</p>
               {openTicket.admin_note ? (
                 <div className="mt-4 rounded-xl bg-paper-dim px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Reply from Sosial support</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted">{t('asSupportReply')}</p>
                   <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-soft">{openTicket.admin_note}</p>
                 </div>
               ) : (
-                <p className="mt-4 text-xs text-muted">We reply by email and update this ticket, you will hear from us shortly.</p>
+                <p className="mt-4 text-xs text-muted">{t('asReplyNote')}</p>
               )}
             </Card>
             <Card className="p-5">
               <p className="text-xs leading-relaxed text-muted">
-                Need to add something? Reply by email, one ticket at a time keeps the conversation in one place. The ticket closes automatically once it is resolved, and is erased with its attachments 30 days later.
+                {t('asTicketInfo')}
               </p>
             </Card>
           </div>
         ) : (
           <Card className="mt-4 space-y-3 p-5">
             <p className="text-xs leading-relaxed text-muted">
-              Describe what happened, screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are kept for 30 days, then erased with their attachments.
+              {t('asNewTicketInfo')}
             </p>
-            <div className="flex gap-1.5" role="group" aria-label="Report kind">
+            <div className="flex gap-1.5" role="group" aria-label={t('asReportKindAria')}>
               {(['bug', 'idea', 'billing', 'other'] as const).map((k) => (
                 <button
                   key={k}
@@ -899,16 +901,16 @@ export default function AccountSettings({
             <input
               value={repSubject}
               onChange={(e) => setRepSubject(e.target.value)}
-              placeholder="Short summary (optional)"
-              aria-label="Subject"
+              placeholder={t('asSubjectPh')}
+              aria-label={t('asSubjectAria')}
               className="field !text-xs"
             />
             <textarea
               value={repBody}
               onChange={(e) => setRepBody(e.target.value)}
-              placeholder="What happened? What did you expect?"
+              placeholder={t('asDetailsPh')}
               rows={5}
-              aria-label="Details"
+              aria-label={t('asDetailsAria')}
               className="field min-h-[120px] resize-y !text-xs"
             />
             {repFiles.length > 0 ? (
@@ -919,7 +921,7 @@ export default function AccountSettings({
                     <span className="max-w-[140px] truncate">{f.name}</span>
                     <button
                       type="button"
-                      aria-label={`Remove ${f.name}`}
+                      aria-label={fill(t('asRemoveFile'), { name: f.name })}
                       onClick={() => setRepFiles(repFiles.filter((_, j) => j !== i))}
                       className="text-faint transition hover:text-ink"
                     >
@@ -931,7 +933,7 @@ export default function AccountSettings({
             ) : null}
             <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line px-4 py-3 text-xs font-bold text-muted transition hover:border-faint hover:text-ink">
               <ImageIcon className="h-4 w-4" aria-hidden="true" />
-              Attach screenshots (up to {MAX_ATTACHMENTS}, {MAX_FILE_MB} MB each)
+              {fill(t('asAttach'), { n: MAX_ATTACHMENTS, mb: MAX_FILE_MB })}
               <input
                 type="file"
                 accept="image/*"
@@ -942,7 +944,7 @@ export default function AccountSettings({
             </label>
             <Button onClick={() => void sendReport()} disabled={repBusy} className="w-full">
               <Send className="h-4 w-4" aria-hidden="true" />
-              {repBusy ? 'Sending…' : 'Submit ticket'}
+              {repBusy ? t('tmSending') : t('asSubmitTicket')}
             </Button>
           </Card>
         )
@@ -969,14 +971,14 @@ export default function AccountSettings({
         <Card className="mt-4 border-red-500/40 p-5">
           <p className="flex items-center gap-2 text-sm font-extrabold text-red-500">
             <Trash2 className="h-4 w-4" aria-hidden="true" />
-            This permanently erases your account.
+            {t('asDeleteBanner')}
           </p>
           <ul className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
-            <li>• Workspaces you own are deleted whole, posts, drafts, media, channels and tokens.</li>
-            <li>• Teammates in those workspaces lose access to them too.</li>
-            <li>• Your memberships in other people's workspaces are removed.</li>
-            <li>• Media-source tokens (Drive, Photos, Dropbox, Canva) are revoked.</li>
-            <li>• Cancel any paid subscription first (Subscription plan above).</li>
+            <li>{t('asDelWs')}</li>
+            <li>{t('asDelTeammates')}</li>
+            <li>{t('asDelMemberships')}</li>
+            <li>{t('asDelTokens')}</li>
+            <li>{t('asDelSubs')}</li>
           </ul>
           {!delArmed ? (
             <Button
@@ -984,19 +986,19 @@ export default function AccountSettings({
               className="mt-4 w-full border-red-500/50 text-red-500 hover:bg-red-500/10"
               onClick={() => { setDelArmed(true); setErr(null); }}
             >
-              I understand, continue
+              {t('asDelUnderstand')}
             </Button>
           ) : (
             <>
               <p className="mt-4 text-xs font-bold text-soft">
-                Type <span className="rounded bg-paper-dim px-1.5 py-0.5 font-mono">confirm</span> to delete everything:
+                {t('asDelType')}
               </p>
               <input
                 value={delWord}
                 onChange={(e) => setDelWord(e.target.value)}
                 placeholder="confirm"
                 autoComplete="off"
-                aria-label="Type confirm to delete"
+                aria-label={t('asDelTypeAria')}
                 className="field mt-2 !text-xs"
               />
               <Button
@@ -1005,7 +1007,7 @@ export default function AccountSettings({
                 onClick={() => void deleteMyData()}
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
-                {delBusy ? 'Deleting…' : 'Delete my data forever'}
+                {delBusy ? t('asDeleting') : t('asDelForever')}
               </Button>
             </>
           )}
@@ -1015,14 +1017,13 @@ export default function AccountSettings({
       {view === 'legal' ? (
         <Card className="mt-4 p-5">
           <p className="text-sm leading-relaxed text-soft">
-            © 2026 Sosial. All rights reserved.
+            {t('asLegal1')}
           </p>
           <p className="mt-3 text-sm leading-relaxed text-soft">
-            Facebook, Instagram and Threads are trademarks of Meta Platforms, Inc. This app is not
-            affiliated with or endorsed by Meta.
+            {t('asLegal2')}
           </p>
           <p className="mt-3 text-sm leading-relaxed text-soft">
-            Open-source licenses for bundled libraries are available in the project repository.
+            {t('asLegal3')}
           </p>
         </Card>
       ) : null}
