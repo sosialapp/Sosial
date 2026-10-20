@@ -4,10 +4,14 @@
  * Plus Jakarta Sans throughout. Each card has a marked illustration slot
  * where supplied artwork will be placed.
  */
+'use client';
+
 import type { CSSProperties } from 'react';
 import Image from 'next/image';
 import { BrandIcon, brandColor, type BrandProvider } from '@/components/BrandIcon';
 import AiPromptBox from '@/components/landing/AiPromptBox';
+import { useT } from '@/lib/i18n/client';
+import { landingMessages } from '@/lib/i18n/landing';
 
 const title = 'font-display text-xl font-bold leading-[22px] tracking-[-0.4px]';
 const sub = 'mt-2 font-display text-sm leading-5 tracking-[-0.4px]';
@@ -96,16 +100,16 @@ function BoltEmblem() {
 }
 
 export default function FeaturesBento() {
+  const t = useT(landingMessages);
   return (
-    <section aria-label="Features" className="bg-paper">
+    <section aria-label={t('navFeatures')} className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-10 pb-14 md:pt-16 md:pb-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="mt-2 font-display text-[17px] leading-[1.12] font-semibold tracking-tight text-balance sm:whitespace-nowrap sm:text-2xl md:text-4xl">
-            Everything a daily poster needs.
+            {t('bentoH2')}
           </h2>
           <p className="mt-3 text-muted">
-            Four tools in one workspace. Compose, queue, write and approve without bolting
-            anything on.
+            {t('bentoSub')}
           </p>
         </div>
 
@@ -113,10 +117,10 @@ export default function FeaturesBento() {
         <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
           <article className="flex flex-col overflow-hidden rounded-xl bg-[conic-gradient(from_180deg_at_50%_50%,#FFA4FC_-27.68deg,#E064A2_1.73deg,#FFA4FC_332.32deg,#E064A2_361.73deg)] p-5 md:h-[483px]">
             <h3 className={`${title} text-[#0B0A0A]`}>
-              Write and generate your content. Anytime, anywhere
+              {t('c1t')}
             </h3>
             <p className={`${sub} text-[rgba(11,10,10,0.6)]`}>
-              Stop guessing what works. Get real data on your content performance.
+              {t('c1d')}
             </p>
             <div className="-mx-5 -mb-5 mt-4 flex min-h-40 flex-1 flex-col justify-end">
               <div className="relative aspect-[3391/2779] w-full">
@@ -133,20 +137,19 @@ export default function FeaturesBento() {
           </article>
 
           <article className="rounded-xl bg-[linear-gradient(180deg,#005BD2_0%,#7BCAC3_100%)] p-5 md:h-[483px]">
-            <h3 className={`${title} text-white`}>Post now, or schedule your post in Sosial</h3>
+            <h3 className={`${title} text-white`}>{t('c2t')}</h3>
             <p className={`${sub} text-white`}>
-              Share your presentation with a live link. Present with notes, a timer, and other
-              aids.
+              {t('c2d')}
             </p>
             <BoltEmblem />
           </article>
 
           <article className="flex flex-col rounded-xl bg-[linear-gradient(180deg,#96FFB9_0%,#C5DF93_100%)] p-5 md:h-[483px]">
             <h3 className={`${title} text-[#0B0A0A]`}>
-              Choose your own content style from our card templates
+              {t('c3t')}
             </h3>
             <p className={`${sub} text-[rgba(11,10,10,0.6)]`}>
-              Create, craft and share stories together with real time collaboration.
+              {t('c3d')}
             </p>
             {/* Illustration: collaboration avatars */}
             <ArtSlot className="min-h-40 flex-1" />
@@ -162,9 +165,9 @@ export default function FeaturesBento() {
             />
             <div className="relative">
               <div>
-                <h3 className={`${title} text-white`}>Automate your content using AI</h3>
+                <h3 className={`${title} text-white`}>{t('c4t')}</h3>
                 <p className={`${sub} text-white/80`}>
-                  Generate new idea, write you content with AI powered by ChatGPT latest model.
+                  {t('c4d')}
                 </p>
               </div>
             </div>
@@ -175,12 +178,10 @@ export default function FeaturesBento() {
 
           <article className="relative flex flex-col overflow-hidden rounded-xl bg-[linear-gradient(180deg,#FCE7CB_0%,#F9CF9C_100%)] p-5 md:col-span-7 md:h-[483px]">
             <h3 className={`${title} relative text-[#0B0A0A]`}>
-              Connect to our 18 channels. Up to 100 accounts
+              {t('c5t')}
             </h3>
             <p className={`${sub} relative text-[rgba(11,10,10,0.6)]`}>
-              Connect your Facebook, Threads, Instagram, LinkedIn, Bluesky, Mastodon,
-              YouTube, X, TikTok, Pinterest, Telegram, Discord, WordPress, Dev.to,
-              Hashnode, Ghost, VK and Google Business. Up to 100 accounts.
+              {t('c5d')}
             </p>
             {/* Illustration: account avatars + channel logo grid, centered */}
             <div className="relative flex flex-1 flex-col items-center justify-center pt-4">

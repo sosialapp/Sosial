@@ -7,6 +7,9 @@ import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { dashboardUrl } from '@/lib/site';
 import { createClient, hasSupabaseEnv } from '@/lib/supabase/client';
+import { useT, useLocale } from '@/lib/i18n/client';
+import { landingMessages } from '@/lib/i18n/landing';
+import LanguageSwitcher from '@/components/site/LanguageSwitcher';
 import AuthModal from './AuthModal';
 import Logo from './Logo';
 
@@ -16,16 +19,8 @@ interface MenuLink {
   desc: string;
 }
 
-const FEATURES: MenuLink[] = [
-  { href: '/publish', title: 'Publish', desc: 'One calendar and queue across ten channels' },
-  { href: '/features/create', title: 'Create', desc: 'Composer, media, templates and previews' },
-  { href: '/ai-assistant', title: 'AI Assistant', desc: 'Research-backed drafts in 100+ languages' },
-];
-
-const RESOURCES: MenuLink[] = [
-  { href: '/blog', title: 'Blog', desc: 'Strategy, scheduling systems and AI writing' },
-  { href: '/resources', title: 'Resource library', desc: 'Templates, playbooks and cheat sheets' },
-];
+const FEATURES_HREF = ['/publish', '/features/create', '/ai-assistant'] as const;
+const RESOURCES_HREF = ['/blog', '/resources'] as const;
 
 /** Soft rounded chevron, no sharp triangles. */
 function Chevron({ className = '' }: { className?: string }) {
@@ -87,6 +82,18 @@ function MobileSection({ label, links, onGo }: { label: string; links: MenuLink[
 }
 
 export default function SiteNav() {
+  const t = useT(landingMessages);
+  const locale = useLocale();
+  const FEATURES: MenuLink[] = [
+    { href: '/publish', title: t('pubTitle'), desc: t('pubDesc') },
+    { href: '/features/create', title: t('createTitle'), desc: t('createDesc') },
+    { href: '/ai-assistant', title: t('aiTitle'), desc: t('aiDesc') },
+  ];
+  const RESOURCES: MenuLink[] = [
+    { href: '/blog', title: t('blogTitle'), desc: t('blogDesc') },
+    { href: '/resources', title: t('libTitle'), desc: t('libDesc') },
+  ];
+  const ALL_LINK: MenuLink = { href: '/integrations', title: t('allIntegrations'), desc: t('navChannels') };
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
@@ -97,11 +104,11 @@ export default function SiteNav() {
   const GoToSosial = ({ className, onGo }: { className?: string; onGo?: () => void }) =>
     dash.startsWith('http') ? (
       <a href={dash} className={className} onClick={onGo}>
-        Go to Sosial
+        {t('goToSosial')}
       </a>
     ) : (
       <Link href={dash} className={className} onClick={onGo}>
-        Go to Sosial
+        {t('goToSosial')}
       </Link>
     );
 
@@ -151,7 +158,7 @@ export default function SiteNav() {
         <Logo />
 
         <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-5 lg:flex">
-          <DesktopDropdown label="Features">
+          <DesktopDropdown label={t('navFeatures')}>
             <div className="card w-80 p-2 shadow-[0_24px_60px_-24px_rgba(28,25,23,0.35)]">
               {FEATURES.map((l) => (
                 <MenuCard key={l.href} link={l} />
@@ -159,9 +166,9 @@ export default function SiteNav() {
             </div>
           </DesktopDropdown>
 
-          <DesktopDropdown label="Integrations">
+          <DesktopDropdown label={t('navIntegrations')}>
             <div className="card w-[34rem] p-4 shadow-[0_24px_60px_-24px_rgba(28,25,23,0.35)]">
-              <p className="eyebrow px-2">Channels</p>
+              <p className="eyebrow px-2">{t('navChannels')}</p>
               <div className="mt-2 grid grid-cols-2 gap-1">
                 {CHANNEL_GUIDES.map((c) => (
                   <Link
@@ -178,12 +185,12 @@ export default function SiteNav() {
                 href="/integrations"
                 className="mt-2 flex items-center justify-between rounded-xl bg-paper-dim px-3 py-2.5 text-sm font-bold text-ink transition hover:bg-paper"
               >
-                All 10 integrations
+                {t('allIntegrations')}
               </Link>
             </div>
           </DesktopDropdown>
 
-          <DesktopDropdown label="Resources">
+          <DesktopDropdown label={t('navResources')}>
             <div className="card w-80 p-2 shadow-[0_24px_60px_-24px_rgba(28,25,23,0.35)]">
               {RESOURCES.map((l) => (
                 <MenuCard key={l.href} link={l} />
@@ -192,20 +199,21 @@ export default function SiteNav() {
           </DesktopDropdown>
 
           <Link href="/pricing" className="py-2 text-sm font-semibold text-soft transition hover:text-ink">
-            Pricing
+            {t('navPricing')}
           </Link>
         </div>
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
+          <LanguageSwitcher locale={locale} />
           {signedIn ? (
             <GoToSosial className="btn btn-primary" />
           ) : (
             <>
               <button type="button" onClick={() => setAuth('in')} className="btn btn-ghost" disabled={signedIn === null}>
-                Log in
+                {t('logIn')}
               </button>
               <button type="button" onClick={() => setAuth('up')} className="btn btn-bolt" disabled={signedIn === null}>
-                Create account
+                {t('createAccount')}
               </button>
             </>
           )}
@@ -216,7 +224,7 @@ export default function SiteNav() {
           className="ml-auto flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-paper lg:hidden"
           aria-expanded={open}
           aria-controls="mobile-nav"
-          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-label={open ? `${t('menuA11y')} ✕` : t('menuA11y')}
           onClick={() => setOpen((v) => !v)}
         >
           <span className="relative block h-3.5 w-5" aria-hidden="true">
@@ -242,26 +250,29 @@ export default function SiteNav() {
       {open && (
         <div id="mobile-nav" className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-line bg-bone lg:hidden">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-1 px-4 py-4">
-            <MobileSection label="Features" links={FEATURES} onGo={close} />
+            <div className="flex justify-start px-1 pb-1">
+              <LanguageSwitcher locale={locale} />
+            </div>
+            <MobileSection label={t('navFeatures')} links={FEATURES} onGo={close} />
             <MobileSection
-              label="Integrations"
+              label={t('navIntegrations')}
               links={[
                 ...CHANNEL_GUIDES.map((c) => ({
                   href: `/integrations/${c.key}`,
                   title: c.name,
                   desc: c.tagline,
                 })),
-                { href: '/integrations', title: 'All 10 integrations', desc: 'Browse every channel' },
+                ALL_LINK,
               ]}
               onGo={close}
             />
-            <MobileSection label="Resources" links={RESOURCES} onGo={close} />
+            <MobileSection label={t('navResources')} links={RESOURCES} onGo={close} />
             <Link
               href="/pricing"
               onClick={close}
               className="rounded-xl px-3 py-3 text-sm font-semibold text-soft hover:bg-card"
             >
-              Pricing
+              {t('navPricing')}
             </Link>
             <div className="mt-2 flex flex-col gap-2">
               {signedIn ? (
@@ -277,7 +288,7 @@ export default function SiteNav() {
                       setAuth('in');
                     }}
                   >
-                    Log in
+                    {t('logIn')}
                   </button>
                   <button
                     type="button"
@@ -288,7 +299,7 @@ export default function SiteNav() {
                       setAuth('up');
                     }}
                   >
-                    Create account
+                    {t('createAccount')}
                   </button>
                 </>
               )}

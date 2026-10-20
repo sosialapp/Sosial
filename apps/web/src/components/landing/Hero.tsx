@@ -5,6 +5,8 @@ import Image from 'next/image';
 import AuthModal from '@/components/site/AuthModal';
 import { GridPulse } from '@/components/ui/grid-pulse';
 import { BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
+import { useT } from '@/lib/i18n/client';
+import { landingMessages } from '@/lib/i18n/landing';
 
 /**
  * Fold (Tenner architecture, Sosial brand): eyebrow, headline with a rotated
@@ -33,6 +35,7 @@ const btn =
   'inline-flex items-center justify-center gap-2.5 rounded-full border-2 border-ink font-display text-base font-semibold px-6 py-3.5 leading-none transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.18)]';
 
 export default function Hero() {
+  const t = useT(landingMessages);
   const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
 
   return (
@@ -50,9 +53,9 @@ export default function Hero() {
             data-grid-avoid
             className="animate-rise-1 font-display text-[2rem] leading-[1.04] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
           >
-            Sosial. Made for{' '}
+            {t('heroPre')}{' '}
             <span className="underline decoration-bolt decoration-[0.14em] underline-offset-[0.18em]">
-              everyone who posts
+              {t('heroHl')}
             </span>
             .
           </h1>
@@ -60,12 +63,11 @@ export default function Hero() {
             data-grid-avoid
             className="animate-rise-1 mx-auto mt-4 max-w-xl text-[15px] leading-relaxed sm:text-base md:text-lg lg:mx-0"
           >
-            Creators, founders, marketers, agencies, affiliate marketers and
-            everyone in between.
+            {t('heroSub')}
           </p>
           <div className="animate-rise-2 mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-7 lg:justify-start">
             <button type="button" onClick={() => setAuth('up')} className={`${btn} w-full max-w-xs bg-ink text-paper sm:w-auto sm:max-w-none`}>
-              Start scheduling free
+              {t('heroCta')}
               <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </div>

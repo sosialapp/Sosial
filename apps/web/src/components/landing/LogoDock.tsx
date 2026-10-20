@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { SourceMark, AiMark } from '@/components/SourceMarks';
+import { useT } from '@/lib/i18n/client';
+import { landingMessages } from '@/lib/i18n/landing';
 
 /**
  * Logo dock (GreenSock macOS-dock pen, calmed down): channel + integration
@@ -58,10 +60,10 @@ const RANGE = 180;
 const BOOST = 0.35;
 
 /** Tiny tag pinned under a logo that isn't connectable yet. */
-function SoonBadge() {
+function SoonBadge({ label }: { label: string }) {
   return (
     <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 -translate-x-1/2 rounded-full border border-line bg-white px-1 py-px text-[8px] font-bold uppercase leading-none tracking-wide text-faint">
-      Soon
+      {label}
     </span>
   );
 }
@@ -99,6 +101,7 @@ function magnify(track: HTMLDivElement | null): () => void {
 }
 
 export default function LogoDock() {
+  const t = useT(landingMessages);
   const channelsRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +120,7 @@ export default function LogoDock() {
                 Same flex footprint as Channels so the wall reads symmetric. */}
             <div className="flex min-w-0 flex-1 flex-col items-center">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
-                Integrate
+                {t('dockIntegrate')}
               </p>
               <div
                 ref={toolsRef}
@@ -133,10 +136,10 @@ export default function LogoDock() {
                     <AiMark id={a.id} className="block h-6 w-6 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
                   </span>
                 ))}
-                {SOON_TOOLS.map((t) => (
-                  <span key={t} className="relative block shrink-0 will-change-transform" title={`${t}, coming soon`}>
-                    <SourceMark id={t} className="block h-6 w-6 opacity-55 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
-                    <SoonBadge />
+                {SOON_TOOLS.map((s) => (
+                  <span key={s} className="relative block shrink-0 will-change-transform" title={`${s}, coming soon`}>
+                    <SourceMark id={s} className="block h-6 w-6 opacity-55 sm:h-8 sm:w-8 [&_svg]:h-full [&_svg]:w-full" />
+                    <SoonBadge label={t('dockSoon')} />
                   </span>
                 ))}
               </div>
@@ -148,7 +151,7 @@ export default function LogoDock() {
             {/* Channels, where posts land: same 9×2 footprint as Integrate. */}
             <div className="flex min-w-0 flex-1 flex-col items-center">
               <p className="mb-3 text-center text-[11px] font-extrabold tracking-[0.18em] text-faint uppercase">
-                Channels
+                {t('dockChannels')}
               </p>
               <div
                 ref={channelsRef}
@@ -162,7 +165,7 @@ export default function LogoDock() {
                 {SOON_CHANNELS.map((c) => (
                   <span key={c} className="relative block shrink-0 will-change-transform" title={`${c}, coming soon`}>
                     <BrandIcon provider={c} className="h-6 w-6 opacity-55 sm:h-8 sm:w-8" />
-                    <SoonBadge />
+                    <SoonBadge label={t('dockSoon')} />
                   </span>
                 ))}
               </div>
