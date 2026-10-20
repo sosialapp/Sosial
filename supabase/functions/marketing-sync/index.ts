@@ -1,17 +1,19 @@
-// marketing-sync ↔ Nightly reconcile: profiles.notif_marketing -> Resend Audience.
+// marketing-sync ↔ Nightly reconcile: profiles.notif_marketing -> Resend Contacts.
 //
 // POSTed once a day by pg_cron (net.http_post) at 04:00 UTC with the shared
 // marketing_sync_token (private.integration_keys) mirrored as the
 // MARKETING_SYNC_TOKEN Supabase secret, same pattern as dormancy-sweep.
 // Also safe to trigger manually with the same token.
 //
-//  1. Every user with notif_marketing = true is upserted into the Resend
-//     audience with unsubscribed: false (per-email idempotent).
-//  2. Every audience contact that is no longer opted in is deleted, so a
-//     Settings toggle-off (and never-ticked drift) never leaves anyone on
-//     the list.
+// Uses Resend's current global Contacts API (no audience id) and, when
+// RESEND_SEGMENT_ID is set, tags every opt-in with that segment so
+// dashboard Broadcasts can target exactly the opted-in crew:
+//  1. Every user with notif_marketing = true is upserted into Contacts
+//     with unsubscribed: false (per-email idempotent).
+//  2. Every contact that is no longer opted in is deleted, so a Settings
+//     toggle-off (and never-ticked drift) never leaves anyone on the list.
 // Resend env-absence is a clean no-op: {ok: true, skipped} — the toggles
-// keep saving and reconciliation completes once RESEND_AUDIENCE_ID lands.
+// keep saving and reconciliation completes once RESEND_API_KEY lands.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -30,12 +32,14 @@ type ResendContact = { id: string; email: string; unsubscribed?: boolean };
 
 async function resendList(
   key: string,
-  audience: string,
+  segment: string,
 ): Promise<ResendContact[]> {
   const out: ResendContact[] = [];
   let after: string | undefined;
   for (let page = 0; page < 20; page++) {
-    const url = `https://api.resend.com/audiences/${audience}/contacts?limit=100` + (after ? `&after=${after}` : "");
+    let url = "https://api.resend.com/contacts?limit=100";
+    if (segment) url += `&segment_id=${segment}`;
+    if (after) url += `&after=${after}`;
     const r = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
     if (!r.ok) break;
     const j = (await r.json()) as {
@@ -60,10 +64,10 @@ serve(async (req) => {
   if (!token || auth !== `Bearer ${token}`) return bad("Unauthorized.", 401);
 
   const resendKey = Deno.env.get("RESEND_API_KEY") ?? "";
-  const audience = Deno.env.get("RESEND_AUDIENCE_ID") ?? "";
-  if (!resendKey || !audience) {
+  if (!resendKey) {
     return Response.json({ ok: true, skipped: "resend_not_configured" }, { headers: CORS });
   }
+  const segment = Deno.env.get("RESEND_SEGMENT_ID") ?? "";
 
   const supa = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -75,21 +79,25 @@ serve(async (req) => {
 
   let pushed = 0;
   for (const r of rows) {
-    const res = await fetch(`https://api.resend.com/audiences/${audience}/contacts`, {
+    const res = await fetch("https://api.resend.com/contacts", {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ email: r.email, unsubscribed: false }),
+      body: JSON.stringify({
+        email: r.email,
+        unsubscribed: false,
+        ...(segment ? { segments: [segment] } : {}),
+      }),
     });
     if (res.ok) pushed += 1;
   }
 
   // Reconcile the other way: a contact no longer in the opted-in set leaves.
   const cancelled = new Set(rows.map((r) => r.email.toLowerCase().trim()));
-  const contacts = await resendList(resendKey, audience);
+  const contacts = await resendList(resendKey, segment);
   let revoked = 0;
   for (const c of contacts) {
     if (cancelled.has(c.email.toLowerCase().trim())) continue;
-    const del = await fetch(`https://api.resend.com/audiences/${audience}/contacts/${c.id}`, {
+    const del = await fetch(`https://api.resend.com/contacts/${c.id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${resendKey}` },
     });
