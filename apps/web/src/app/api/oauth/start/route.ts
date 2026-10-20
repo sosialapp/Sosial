@@ -61,15 +61,28 @@ export async function GET(req: Request) {
     );
   }
   if (cap !== null) {
-    // Count every channel row, the DB trigger (enforce_channel_limit)
-    // counts all rows regardless of status, so this must match it.
-    const { count } = await sb
-      .from('connected_channels')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId);
-    if ((count ?? 0) >= cap && !(already.data ?? []).length) {
+    // Count every channel row across every team the user OWNS: the cap is a
+    // shared pool (mirrors the p84 enforce_channel_limit trigger). The DB
+    // trigger counts all rows regardless of status, so this must match it.
+    const owner = (await sb.auth.getUser()).data.user;
+    let poolCount = 0;
+    if (owner) {
+      const { data: owned } = await sb
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', owner.id);
+      const ownedIds = (owned ?? []).map((w) => w.id);
+      if (ownedIds.length) {
+        const { count } = await sb
+          .from('connected_channels')
+          .select('id', { count: 'exact', head: true })
+          .in('workspace_id', ownedIds);
+        poolCount = count ?? 0;
+      }
+    }
+    if (poolCount >= cap && !(already.data ?? []).length) {
       return back(
-        `Your plan connects up to ${cap} channels, you're at the cap. Disconnect one or upgrade in Billing.`,
+        `Your plan connects up to ${cap} channels across your teams, you're at the cap. Disconnect one or upgrade in Billing.`,
       );
     }
   }

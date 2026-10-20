@@ -130,13 +130,28 @@ serve(async (req: Request): Promise<Response> => {
       .eq("external_id", external_id)
       .limit(1);
     if (!same || same.length === 0) {
-      const { count } = await admin
-        .from("connected_channels")
-        .select("id", { count: "exact", head: true })
-        .eq("workspace_id", workspace_id);
-      if ((count ?? 0) >= cap) {
+      // The cap is a shared pool across every team the OWNER runs (mirrors
+      // the p84 enforce_channel_limit trigger): count all channel rows in
+      // every workspace that owner owns, not just this one.
+      const { data: ws } = await admin
+        .from("workspaces")
+        .select("owner_id")
+        .eq("id", workspace_id)
+        .maybeSingle();
+      const ownerId = (ws as { owner_id?: string } | null)?.owner_id ?? "";
+      const { data: owned } = await admin.from("workspaces").select("id").eq("owner_id", ownerId);
+      const ownedIds = (owned ?? []).map((w: { id: string }) => w.id);
+      let totalInPool = 0;
+      if (ownedIds.length > 0) {
+        const res = await admin
+          .from("connected_channels")
+          .select("id", { count: "exact", head: true })
+          .in("workspace_id", ownedIds);
+        totalInPool = res.count ?? 0;
+      }
+      if (totalInPool >= cap) {
         return bad(
-          `Your plan connects up to ${cap} channels, you're at the cap. Disconnect one or upgrade to add more.`,
+          `Your plan connects up to ${cap} channels across your teams, you're at the cap. Disconnect one or upgrade to add more.`,
           402,
         );
       }
