@@ -6,21 +6,20 @@ import { generateSocial, rewritePosts, withHashtags, SOCIAL_PLATFORMS, THREAD_PL
 import { AI_FORMATS, detectFormat, type AiFormatId } from '@/lib/aiFormats';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 import { providerMeta } from '@/lib/providers';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 type EmojiMode = 'auto' | 'on' | 'off';
-const EMOJI_OPTS: { id: EmojiMode; label: string }[] = [
-  { id: 'auto', label: 'Auto' },
-  { id: 'on', label: 'Some' },
-  { id: 'off', label: 'None' },
-];
+const EMOJI_KEY: Record<EmojiMode, string> = { auto: 'emAuto', on: 'emSome', off: 'emNone' };
 
 const REFINEMENTS: [RewriteOp, string][] = [
-  ['shorter', 'Shorter'],
-  ['punchier', 'Punchier'],
-  ['natural', 'More natural'],
-  ['context', 'Add context'],
-  ['tone', 'Change tone'],
-  ['style', 'Change style'],
+  ['shorter', 'rfShorter'],
+  ['punchier', 'rfPunchier'],
+  ['natural', 'rfNatural'],
+  ['context', 'rfContext'],
+  ['tone', 'rfTone'],
+  ['style', 'rfStyle'],
 ];
 
 /** Destination pill, brand dot when the platform is a known provider. */
@@ -73,6 +72,7 @@ export default function AiCard({
   onResult: (bodies: string[]) => void;
   appliedNote?: string;
 }) {
+  const t = useT(appMessages);
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('auto');
   const [langOpen, setLangOpen] = useState(false);
@@ -143,9 +143,9 @@ export default function AiCard({
   async function run() {
     setErr(null);
     setAppliedAt(null);
-    const t = topic.trim();
-    if (!t) {
-      setErr('Give the AI a rough thought to work with.');
+    const idea = topic.trim();
+    if (!idea) {
+      setErr(t('aiGiveIdea'));
       return;
     }
     setBusy(true);
@@ -158,7 +158,7 @@ export default function AiCard({
         .filter((s): s is string => Boolean(s))
         .join('\n\n');
       const variants = await generateSocial(sb, {
-        topic: t,
+        topic: idea,
         platforms,
         thread,
         parts: thread ? parts : 1,
@@ -174,14 +174,14 @@ export default function AiCard({
       setTab(0);
       setDirty(false);
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'AI generation failed.');
+      setErr(e2 instanceof Error ? e2.message : t('aiErr'));
     } finally {
       setBusy(false);
     }
   }
 
   function regenerate() {
-    if (dirty && !window.confirm('Start over? You will lose your manual edits.')) return;
+    if (dirty && !window.confirm(t('aiConfirmOver'))) return;
     void run();
   }
 
@@ -208,14 +208,14 @@ export default function AiCard({
       setDraft((d) => d.map((v, i) => (i === tab ? { ...v, posts } : v)));
       setDirty(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not rewrite, kept your original.');
+      setErr(e instanceof Error ? e.message : t('aiRewriteErr'));
     } finally {
       setBusy(false);
     }
   }
 
   function transform(op: RewriteOp) {
-    if (dirty && !window.confirm('Rewrite this draft? The AI will replace your manual edits.')) return;
+    if (dirty && !window.confirm(t('aiConfirmRewrite'))) return;
     void applyTransform(op);
   }
 
@@ -238,15 +238,15 @@ export default function AiCard({
 
   return (
     <section
-      aria-label="AI Generate"
+      aria-label={t('aiTitle')}
       className="rounded-3xl border border-[#D9CCFA] bg-[#F5F0FF] p-5 dark:border-[#5B3DF0]/40 dark:bg-[#17122B]"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-[#5B3DF0] dark:text-[#B9A6F7]" aria-hidden="true" />
           <div>
-            <p className="font-display text-base font-extrabold tracking-tight">AI Generate</p>
-            <p className="text-[11px] text-muted">Turn your ideas into engaging posts with AI.</p>
+            <p className="font-display text-base font-extrabold tracking-tight">{t('aiTitle')}</p>
+            <p className="text-[11px] text-muted">{t('aiSub')}</p>
           </div>
         </div>
       </div>
@@ -255,15 +255,15 @@ export default function AiCard({
       <textarea
         value={topic}
         onChange={(e) => setTopic(e.target.value)}
-        placeholder="e.g. why I stopped chasing viral hacks and started posting one honest update a day…"
+        placeholder={t('aiIdeaPh')}
         rows={3}
-        aria-label="Your idea"
+        aria-label={t('aiIdeaLbl')}
         className="mt-3 min-h-[76px] w-full resize-y rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5"
       />
-      <p className="mt-1 text-[11px] text-muted">Rough thoughts are enough, a phrase works.</p>
+      <p className="mt-1 text-[11px] text-muted">{t('aiRough')}</p>
 
       {/* Language */}
-      <p className="mt-4 text-xs font-bold text-soft">Language</p>
+      <p className="mt-4 text-xs font-bold text-soft">{t('aiLanguage')}</p>
       <div className="relative mt-1.5">
         <button
           type="button"
@@ -272,7 +272,7 @@ export default function AiCard({
           className="flex w-full items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 text-xs font-bold text-ink dark:border-white/10 dark:bg-white/5"
         >
           <span className="flex-1 truncate text-left">
-            {language === 'auto' ? 'Auto, match my idea' : langName(language)}
+            {language === 'auto' ? t('aiLangAuto') : langName(language)}
           </span>
           <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${langOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
@@ -281,8 +281,8 @@ export default function AiCard({
             <input
               value={langQuery}
               onChange={(e) => setLangQuery(e.target.value)}
-              placeholder={`Search ${WRITER_LANGUAGES.length} languages…`}
-              aria-label="Search languages"
+              placeholder={fill(t('aiLangSearch'), { n: WRITER_LANGUAGES.length })}
+              aria-label={t('aiLangSearchLbl')}
               className="field !py-1.5 text-xs"
             />
             <div className="mt-1 max-h-48 overflow-y-auto">
@@ -295,7 +295,7 @@ export default function AiCard({
                 }}
                 className={`mt-1 flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${language === 'auto' ? 'bg-accent-soft text-accent-ink' : ''}`}
               >
-                Auto, match my idea
+                {t('aiLangAuto')}
               </button>
               {langMatches.map((l) => (
                 <button
@@ -318,21 +318,21 @@ export default function AiCard({
       </div>
 
       {/* Tone */}
-      <p className="mt-4 text-xs font-bold text-soft">How should it sound?</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Tone">
-        {STUDIO_TONES.map((t) => (
+      <p className="mt-4 text-xs font-bold text-soft">{t('aiSound')}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={t('aiToneLbl')}>
+        {STUDIO_TONES.map((toneOpt) => (
           <button
-            key={t.id}
+            key={toneOpt.id}
             type="button"
-            onClick={() => setTone(t.id)}
-            aria-pressed={tone === t.id}
+            onClick={() => setTone(toneOpt.id)}
+            aria-pressed={tone === toneOpt.id}
             className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-              tone === t.id
+              tone === toneOpt.id
                 ? 'border-ink bg-ink text-paper'
                 : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
             }`}
           >
-            {t.label}
+            {t(`tone${toneOpt.id[0].toUpperCase()}${toneOpt.id.slice(1)}`)}
           </button>
         ))}
       </div>
@@ -344,10 +344,10 @@ export default function AiCard({
         aria-expanded={styleOpen}
         className="mt-4 flex w-full items-center gap-2 text-xs font-bold text-soft"
       >
-        Style
+        {t('aiStyle')}
         <span className="flex-1" />
         <span className="text-muted">
-          {STUDIO_STYLES.find((s) => s.id === style)?.label ?? 'Auto'}
+          {style === 'auto' ? t('aiStyleAuto') : t(`style${STUDIO_STYLES.find((s) => s.id === style)?.id[0].toUpperCase()}${STUDIO_STYLES.find((s) => s.id === style)?.id.slice(1)}`)}
         </span>
         <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${styleOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
@@ -371,9 +371,9 @@ export default function AiCard({
                   <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${on ? 'border-[#5B3DF0]' : 'border-line'}`} aria-hidden="true">
                     {on ? <span className="h-2 w-2 rounded-full bg-[#5B3DF0]" /> : null}
                   </span>
-                  <span className="text-xs font-bold">{s.label}</span>
+                  <span className="text-xs font-bold">{t(`style${s.id[0].toUpperCase()}${s.id.slice(1)}`)}</span>
                   <span className="flex-1" />
-                  <span className="text-[11px] text-muted">{s.hint}</span>
+                  <span className="text-[11px] text-muted">{t(`style${s.id[0].toUpperCase()}${s.id.slice(1)}Hint`)}</span>
                 </span>
                 <span className="mt-1 block text-[11px] leading-relaxed text-muted">
                   e.g. “{styleSampleFor(s, language)}”
@@ -385,9 +385,9 @@ export default function AiCard({
       ) : null}
 
       {/* Format */}
-      <p className="mt-4 text-xs font-bold text-soft">Format</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Format">
-        {[{ value: 'post', label: 'Post' }, { value: 'thread', label: 'Thread' }].map((f) => (
+      <p className="mt-4 text-xs font-bold text-soft">{t('aiFormat')}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={t('aiFormat')}>
+        {[{ value: 'post', label: t('aiFmtPost') }, { value: 'thread', label: t('aiFmtThread') }].map((f) => (
           <button
             key={f.value}
             type="button"
@@ -405,12 +405,12 @@ export default function AiCard({
       </div>
       {thread ? (
         <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#E3D9FA] bg-white/60 px-3 py-2 dark:border-white/10 dark:bg-white/5">
-          <span className="text-xs font-bold text-soft">Posts</span>
+          <span className="text-xs font-bold text-soft">{t('aiPosts')}</span>
           <span className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => onPartsChange(Math.max(3, parts - 1))}
-              aria-label="Fewer posts"
+              aria-label={t('aiFewer')}
               className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
             >
               −
@@ -419,7 +419,7 @@ export default function AiCard({
             <button
               type="button"
               onClick={() => onPartsChange(Math.min(12, parts + 1))}
-              aria-label="More posts"
+              aria-label={t('aiMore')}
               className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-base font-bold leading-none text-soft shadow-sm transition hover:text-ink dark:bg-white/10"
             >
               +
@@ -429,11 +429,11 @@ export default function AiCard({
       ) : null}
 
       {/* Structure preset, suggested from the topic, applied by tap */}
-      <p className="mt-4 text-xs font-bold text-soft">Structure</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Structure preset">
+      <p className="mt-4 text-xs font-bold text-soft">{t('aiStructure')}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={t('aiStructLbl')}>
         {(['auto', ...AI_FORMATS.map((f) => f.id)] as const).map((id) => {
           const on = format === id;
-          const label = id === 'auto' ? 'Auto' : AI_FORMATS.find((f) => f.id === id)?.label ?? id;
+          const label = id === 'auto' ? t('aiStyleAuto') : t(`fmt${id[0].toUpperCase()}${id.slice(1)}`);
           return (
             <button
               key={id}
@@ -453,25 +453,28 @@ export default function AiCard({
       </div>
       {format !== 'auto' ? (
         <p className="mt-1 text-[11px] text-muted">
-          {AI_FORMATS.find((f) => f.id === format)?.blurb}
+          {t(`fmt${format[0].toUpperCase()}${format.slice(1)}Blurb`)}
         </p>
       ) : showSuggestion && suggestedFormat ? (
         <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-[#E3D9FA] bg-white/80 px-3 py-2 dark:border-white/10 dark:bg-white/5">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#5B3DF0] dark:text-[#B9A6F7]" aria-hidden="true" />
           <p className="min-w-0 flex-1 text-[11px] text-soft">
-            Looks like a <strong>{suggestedFormat.label}</strong>, {suggestedFormat.blurb}
+            {fill(t('aiLooksLike'), {
+              what: t(`fmt${suggestedFormat.id[0].toUpperCase()}${suggestedFormat.id.slice(1)}`),
+              blurb: t(`fmt${suggestedFormat.id[0].toUpperCase()}${suggestedFormat.id.slice(1)}Blurb`),
+            })}
           </p>
           <button
             type="button"
             onClick={() => pickFormat(suggestedFormat.id)}
             className="shrink-0 rounded-full bg-ink px-3 py-1 text-[11px] font-bold text-paper transition hover:opacity-85"
           >
-            Use it
+            {t('aiUseIt')}
           </button>
           <button
             type="button"
             onClick={() => setDismissedSuggestion(topic)}
-            aria-label="Dismiss suggestion"
+            aria-label={t('aiDismiss')}
             className="shrink-0 rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-ink"
           >
             ✕
@@ -486,7 +489,7 @@ export default function AiCard({
         aria-expanded={advanced}
         className="mt-4 flex w-full items-center gap-2 text-xs font-bold text-soft"
       >
-        Advanced options
+        {t('aiAdvanced')}
         <span className="flex-1" />
         <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${advanced ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
@@ -494,44 +497,44 @@ export default function AiCard({
         <div className="mt-1.5 space-y-3 rounded-xl border border-[#E3D9FA] bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
           <div className="flex items-center gap-2">
             <span className="flex-1">
-              <span className="block text-xs font-bold">Add hashtags</span>
-              <span className="block text-[11px] text-muted">Kept separate from the copy</span>
+              <span className="block text-xs font-bold">{t('aiHashtags')}</span>
+              <span className="block text-[11px] text-muted">{t('aiHashtagsSub')}</span>
             </span>
-            <Switch on={hashtags} onToggle={() => setHashtags((v) => !v)} label="Add hashtags" />
+            <Switch on={hashtags} onToggle={() => setHashtags((v) => !v)} label={t('aiHashtags')} />
           </div>
           <div>
-            <p className="text-xs font-bold">Emoji</p>
-            <div className="mt-1 flex gap-1" role="group" aria-label="Emoji">
-              {EMOJI_OPTS.map((o) => (
+            <p className="text-xs font-bold">{t('aiEmoji')}</p>
+            <div className="mt-1 flex gap-1" role="group" aria-label={t('aiEmojiLbl')}>
+              {(['auto', 'on', 'off'] as EmojiMode[]).map((o) => (
                 <button
-                  key={o.id}
+                  key={o}
                   type="button"
-                  onClick={() => setEmoji(o.id)}
-                  aria-pressed={emoji === o.id}
+                  onClick={() => setEmoji(o)}
+                  aria-pressed={emoji === o}
                   className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold transition ${
-                    emoji === o.id ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
+                    emoji === o ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
                   }`}
                 >
-                  {o.label}
+                  {t(EMOJI_KEY[o])}
                 </button>
               ))}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <span className="flex-1">
-              <span className="block text-xs font-bold">Soft call-to-action</span>
-              <span className="block text-[11px] text-muted">Closes with an invitation, not a demand</span>
+              <span className="block text-xs font-bold">{t('aiCta')}</span>
+              <span className="block text-[11px] text-muted">{t('aiCtaSub')}</span>
             </span>
-            <Switch on={cta} onToggle={() => setCta((v) => !v)} label="Soft call-to-action" />
+            <Switch on={cta} onToggle={() => setCta((v) => !v)} label={t('aiCta')} />
           </div>
           <div>
-            <p className="text-xs font-bold">Custom instructions <span className="font-medium text-muted">· optional</span></p>
+            <p className="text-xs font-bold">{t('aiCustom')} <span className="font-medium text-muted">{t('aiOptional')}</span></p>
             <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="e.g. mention our launch on Friday, keep it under 3 lines…"
+              placeholder={t('aiCustomPh')}
               rows={2}
-              aria-label="Custom instructions"
+              aria-label={t('aiCustomLbl')}
               className="field mt-1 min-h-[52px] resize-y !text-xs"
             />
           </div>
@@ -546,12 +549,12 @@ export default function AiCard({
           <div className="flex items-center gap-2">
             <Sparkles className={`h-4 w-4 ${hasCopy ? 'text-[#346538] dark:text-[#9BD49B]' : 'text-[#9F2F2D] dark:text-[#F2A8A8]'}`} aria-hidden="true" />
             <p className="text-sm font-extrabold">
-              {isThreadView ? `${active?.posts.length ?? 0}-post thread` : 'Caption'}
+              {isThreadView ? fill(t('aiNThread'), { n: active?.posts.length ?? 0 }) : t('aiCaption')}
             </p>
           </div>
 
           {draft.length > 1 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Channel drafts">
+            <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label={t('aiChannelDrafts')}>
               {draft.map((v, i) => (
                 <button
                   key={v.platform}
@@ -580,17 +583,17 @@ export default function AiCard({
                 <div key={i} className="rounded-xl border border-line bg-paper p-2">
                   <div className="flex items-center justify-between px-0.5">
                     <span className="text-[11px] font-extrabold tracking-wide text-[#5B3DF0] dark:text-[#B9A6F7]">
-                      {active.posts.length > 1 ? `Post ${i + 1}` : 'Caption'}
+                      {active.posts.length > 1 ? fill(t('aiPostN'), { n: i + 1 }) : t('aiCaption')}
                     </span>
                     <span className={`text-[11px] font-bold tabular-nums ${over ? 'text-[#9F2F2D] dark:text-[#F2A8A8]' : tooShort ? 'text-[#B98A1C] dark:text-[#E8C162]' : 'text-faint'}`}>
-                      {seg.length}/{limit}{tooShort ? ` · min ${THREAD_POST_MIN}` : ''}
+                      {seg.length}/{limit}{tooShort ? ` · ${fill(t('aiMin'), { n: THREAD_POST_MIN })}` : ''}
                     </span>
                   </div>
                   <textarea
                     value={seg}
                     onChange={(e) => setPost(i, e.target.value)}
                     rows={3}
-                    aria-label={`Edit ${active.posts.length > 1 ? `post ${i + 1}` : 'caption'}`}
+                    aria-label={fill(t('aiEditPost'), { what: active.posts.length > 1 ? fill(t('aiPostWord'), { n: i + 1 }) : t('aiCaption') })}
                     className="mt-1 min-h-[56px] w-full resize-y rounded-lg border border-line-soft bg-white/80 px-2.5 py-2 text-xs leading-relaxed text-ink focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40 dark:bg-white/5"
                   />
                 </div>
@@ -609,9 +612,9 @@ export default function AiCard({
           ) : null}
 
           {/* Refine */}
-          <p className="mt-3 text-xs font-bold text-soft">Refine</p>
+          <p className="mt-3 text-xs font-bold text-soft">{t('aiRefine')}</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {REFINEMENTS.map(([op, label]) => (
+            {REFINEMENTS.map(([op, key]) => (
               <button
                 key={op}
                 type="button"
@@ -619,7 +622,7 @@ export default function AiCard({
                 disabled={busy}
                 className="rounded-full border border-line bg-paper px-3 py-1.5 text-[11px] font-bold text-muted transition hover:text-ink disabled:opacity-50"
               >
-                {label}
+                {t(key)}
               </button>
             ))}
             <button
@@ -629,27 +632,27 @@ export default function AiCard({
               className="flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1.5 text-[11px] font-bold text-muted transition hover:text-ink disabled:opacity-50"
             >
               <RefreshCw className="h-3 w-3" aria-hidden="true" />
-              Regenerate
+              {t('aiRegen')}
             </button>
           </div>
         </div>
       ) : null}
 
-      {busy ? <p className="mt-2 text-xs font-bold text-muted">Writing…</p> : null}
+      {busy ? <p className="mt-2 text-xs font-bold text-muted">{t('aiWriting')}</p> : null}
 
       {appliedAt ? <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#9BD49B]">{appliedNote}</p> : null}
 
       {/* Sticky CTA */}
       {draft.length > 0 && hasCopy && !busy ? (
         <button type="button" onClick={apply} className="btn btn-primary mt-3 w-full">
-          {isThreadView ? `Use this thread (${active?.posts.length ?? 0})` : 'Use this caption'}
+          {isThreadView ? fill(t('aiUseThread'), { n: active?.posts.length ?? 0 }) : t('aiUseCaption')}
         </button>
       ) : (
         <button type="button" onClick={run} disabled={busy} className="btn btn-primary mt-3 w-full">
-          {busy ? 'Writing…' : (
+          {busy ? t('aiWriting') : (
             <>
               <Sparkles className="h-4 w-4" aria-hidden="true" />
-              Generate
+              {t('aiGenerate')}
             </>
           )}
         </button>
