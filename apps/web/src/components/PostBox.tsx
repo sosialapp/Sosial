@@ -5,6 +5,8 @@ import { Image, ChevronDown } from 'lucide-react';
 import { EmojiButton } from '@/components/Emoji';
 import SafeImg from '@/components/SafeImg';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
 
 export interface MediaItem {
   /** Present for freshly-picked files; absent for data-URL media from storage. */
@@ -46,6 +48,7 @@ export default function PostBox({
 }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const t = useT(appMessages);
   const mediaBtnRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragFrom = useRef<number | null>(null);
@@ -82,7 +85,7 @@ export default function PostBox({
                 dragFrom.current = null;
               }}
               className="relative block h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-xl bg-paper-dim"
-              title="Click to enlarge · drag to rearrange"
+              title={t('pbEnlarge')}
               onClick={() => setLightbox(f)}
             >
               {f.kind === 'image' ? (
@@ -96,7 +99,7 @@ export default function PostBox({
                   e.stopPropagation();
                   onRemoveMedia(i);
                 }}
-                aria-label="Remove media"
+                aria-label={t('pbRemoveMedia')}
                 className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] leading-none text-white"
               >
                 ×
@@ -134,8 +137,8 @@ export default function PostBox({
           type="button"
           ref={mediaBtnRef}
           onClick={() => setSourcesOpen(true)}
-          aria-label="Add media"
-          title="Add media"
+          aria-label={t('pbAddMedia')}
+          title={t('pbAddMedia')}
           className="flex h-7 items-center gap-0.5 rounded-lg px-1.5 text-muted transition hover:bg-paper-dim hover:text-ink"
         >
           <Image className="h-4 w-4" aria-hidden="true" />
@@ -181,13 +184,13 @@ export default function PostBox({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Media preview"
+          aria-label={t('pbPreview')}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4"
           onClick={() => setLightbox(null)}
         >
           <button
             type="button"
-            aria-label="Close preview"
+            aria-label={t('pbClosePreview')}
             onClick={() => setLightbox(null)}
             className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl text-white transition hover:bg-white/25"
           >
