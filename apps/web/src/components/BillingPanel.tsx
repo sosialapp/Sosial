@@ -7,6 +7,9 @@ import {
   annualSavingsPct, type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 import type { UsageSnapshot } from '@/lib/billing/usage';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 interface EntitlementView {
   plan: PlanKey;
@@ -43,6 +46,7 @@ export default function BillingPanel({
   watermarkRequired: boolean;
 }) {
   const router = useRouter();
+  const t = useT(appMessages);
   const [interval, setInterval] = useState<BillingInterval>(entitlement.billingInterval ?? 'monthly');
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -61,11 +65,11 @@ export default function BillingPanel({
         body: JSON.stringify({ show: next }),
       });
       const data = (await res.json()) as { showWatermark?: boolean; error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'Could not save the setting.');
+      if (!res.ok) throw new Error(data.error ?? t('blErrSave'));
       setWm(data.showWatermark ?? next);
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not save the setting.');
+      setErr(e instanceof Error ? e.message : t('blErrSave'));
     } finally {
       setWmBusy(false);
     }
@@ -88,15 +92,15 @@ export default function BillingPanel({
       } catch {
         throw new Error(`Billing request failed (status ${res.status}).`);
       }
-      if (!res.ok) throw new Error(data.error ?? 'Could not start billing.');
+      if (!res.ok) throw new Error(data.error ?? t('blErrStart'));
       if (data.url) {
         window.location.href = data.url;
         return;
       }
-      setNotice(`Plan updated, ${PLANS[plan].label} ${interval === 'annual' ? 'annual' : 'monthly'} is now active. Changes are prorated by Stripe.`);
+      setNotice(fill(t('blPlanUpdated'), { plan: PLANS[plan].label, interval: interval === 'annual' ? t('blAnnual') : t('blMonthly') }));
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not start billing.');
+      setErr(e instanceof Error ? e.message : t('blErrStart'));
     } finally {
       setBusy(null);
     }
@@ -108,10 +112,10 @@ export default function BillingPanel({
     try {
       const res = await fetch('/api/billing/portal', { method: 'POST' });
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? 'Could not open the billing portal.');
+      if (!res.ok || !data.url) throw new Error(data.error ?? t('blErrPortal'));
       window.location.href = data.url;
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not open the billing portal.');
+      setErr(e instanceof Error ? e.message : t('blErrPortal'));
     } finally {
       setBusy(null);
     }
@@ -127,27 +131,27 @@ export default function BillingPanel({
         body: JSON.stringify({ cancel }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'Could not update the subscription.');
+      if (!res.ok) throw new Error(data.error ?? t('blErrUpdate'));
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not update the subscription.');
+      setErr(e instanceof Error ? e.message : t('blErrUpdate'));
     } finally {
       setBusy(null);
     }
   };
 
   const plan = PLANS[entitlement.plan];
-  const intervalText = entitlement.billingInterval === 'annual' ? 'Annual' : entitlement.billingInterval === 'monthly' ? 'Monthly' : '-';
+  const intervalText = entitlement.billingInterval === 'annual' ? t('blAnnual') : entitlement.billingInterval === 'monthly' ? t('blMonthly') : '-';
   const paid = entitlement.active;
 
   return (
     <div className="space-y-3">
       {/* ---- current plan ---- */}
-      <section className="card p-5" aria-label="Current plan">
+      <section className="card p-5" aria-label={t('blCurrentPlan')}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="eyebrow">Current plan</p>
+          <p className="eyebrow">{t('blCurrentPlan')}</p>
           {entitlement.cancelAtPeriodEnd ? (
-            <span className="pill bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">cancels at period end</span>
+            <span className="pill bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{t('blCancelsEnd')}</span>
           ) : paid ? (
             <span className="pill bg-[#e8f3ec] text-[#2f8f5b] dark:bg-[#1b2a20] dark:text-[#7fd0a0]">{entitlement.status}</span>
           ) : null}
@@ -156,7 +160,7 @@ export default function BillingPanel({
         <p className="mt-1 text-sm text-muted">
           {entitlement.plan === 'ultimate' ? (
             <>
-              <span className="font-bold text-ink">$1 once</span> · lifetime, never billed again
+              <span className="font-bold text-ink">{t('blOnce')}</span>{t('blLifetime')}
             </>
           ) : paid && entitlement.billingInterval ? (
             <>
@@ -166,21 +170,21 @@ export default function BillingPanel({
               {entitlement.billingInterval === 'annual' ? (
                 <> · ≈ {formatUsd(monthlyEquivalent(entitlement.plan))}/month, billed annually</>
               ) : (
-                <> · billed monthly</>
+                <>{t('blBilledMonthly')}</>
               )}
             </>
           ) : (
-            'Free plan, no card on file'
+            t('blFreePlan')
           )}
         </p>
         {paid && entitlement.plan !== 'ultimate' ? (
           <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-xs font-bold text-muted">Billing</dt>
+              <dt className="text-xs font-bold text-muted">{t('blBilling')}</dt>
               <dd>{intervalText}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold text-muted">Next billing date</dt>
+              <dt className="text-xs font-bold text-muted">{t('blNextDate')}</dt>
               <dd>
                 {entitlement.cancelAtPeriodEnd
                   ? `None, access ends ${fmtDate(entitlement.currentPeriodEnd)}`
@@ -188,7 +192,7 @@ export default function BillingPanel({
               </dd>
             </div>
             <div className="sm:col-span-2">
-              <dt className="text-xs font-bold text-muted">Current period</dt>
+              <dt className="text-xs font-bold text-muted">{t('blCurrentPeriod')}</dt>
               <dd>
                 {fmtDate(entitlement.currentPeriodStart)} → {fmtDate(entitlement.currentPeriodEnd)}
               </dd>
@@ -197,23 +201,18 @@ export default function BillingPanel({
         ) : null}
         {entitlement.cancelAtPeriodEnd ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            Your subscription is canceled and will remain active until{' '}
-            <strong>{fmtDate(entitlement.currentPeriodEnd)}</strong>. After that the workspace moves to the
-            Free plan, your content and connected accounts stay.
-          </p>
-        ) : null}
+            {fill(t('blCancelNote'), { date: fmtDate(entitlement.currentPeriodEnd) })}          </p>        ) : null}
         {paid && entitlement.plan !== 'ultimate' ? (
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={openPortal} disabled={busy !== null} className="btn btn-ghost">
-              {busy === 'portal' ? 'Opening…' : 'Manage in Stripe'}
+            <button type="button" onClick={openPortal} disabled={busy !== null} className="btn btn-ghost">              {busy === 'portal' ? t('blOpening') : t('blManageStripe')}
             </button>
             {entitlement.cancelAtPeriodEnd ? (
               <button type="button" onClick={() => setCancel(false)} disabled={busy !== null} className="btn btn-bolt">
-                {busy === 'resume' ? 'Resuming…' : 'Resume subscription'}
+                {busy === 'resume' ? t('blResuming') : t('blResume')}
               </button>
             ) : (
               <button type="button" onClick={() => setCancel(true)} disabled={busy !== null} className="btn btn-ghost">
-                {busy === 'cancel' ? 'Cancelling…' : 'Cancel at period end'}
+                {busy === 'cancel' ? t('blCancelling') : t('blCancelEnd')}
               </button>
             )}
           </div>
@@ -221,16 +220,15 @@ export default function BillingPanel({
       </section>
 
       {/* ---- usage (monthly window, even on annual) ---- */}
-      <section className="card p-5" aria-label="Usage this month">
-        <p className="eyebrow">Usage · {usage.month}</p>
+      <section className="card p-5" aria-label={t('blUsage')}>
+        <p className="eyebrow">{fill(t('blUsage'), { month: usage.month })}</p>
         <p className="mt-1 text-xs text-muted">
-          AI credits reset every calendar month, even on annual billing, which only changes how you are charged.
-          Scheduled-post slots count per channel and free up as posts publish.
+          {t('blUsageNote')}
         </p>
         <div className="mt-3 space-y-3 text-sm">
           <div>
             <div className="flex items-baseline justify-between">
-              <span className="font-bold">AI credits</span>
+              <span className="font-bold">{t('blAiCredits')}</span>
               <span className="text-muted">
                 {usage.aiCreditsLimit === null
                   ? `${usage.aiCreditsUsed.toLocaleString()} used · unlimited`
@@ -248,7 +246,7 @@ export default function BillingPanel({
           </div>
           <div>
             <div className="flex items-baseline justify-between">
-              <span className="font-bold">Scheduled posts</span>
+              <span className="font-bold">{t('blScheduled')}</span>
               <span className="text-muted">
                 {usage.scheduledPerChannelLimit === null
                   ? `${usage.scheduledTotal.toLocaleString()} scheduled · unlimited per channel`
@@ -258,7 +256,7 @@ export default function BillingPanel({
           </div>
           <div>
             <div className="flex items-baseline justify-between">
-              <span className="font-bold">Connected channels</span>
+              <span className="font-bold">{t('blConnectedChannels')}</span>
               <span className="text-muted">
                 {usage.channelsLimit === null
                   ? `${usage.channelsConnected.toLocaleString()} connected across your teams · unlimited`
@@ -277,33 +275,33 @@ export default function BillingPanel({
         </div>
         {usage.aiCreditsLimit !== null && usage.aiCreditsUsed >= usage.aiCreditsLimit ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            You've used every AI credit this month. They reset on the 1st, or{' '}
-            <a className="font-bold underline" href="#change-plan">upgrade for more</a>.
+            {t('blAiOut')}{' '}
+            <a className="font-bold underline" href="#change-plan">{t('blUpgradeMore')}</a>.
           </p>
         ) : usage.aiCreditsLimit !== null && usage.aiCreditsRemaining !== null && usage.aiCreditsRemaining <= 5 ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            Only <strong>{usage.aiCreditsRemaining.toLocaleString()} AI credits</strong> left this month, they reset on the
-            1st, or <a className="font-bold underline" href="#change-plan">upgrade for a bigger allowance</a>.
+            {fill(t('blAiLow'), { n: usage.aiCreditsRemaining.toLocaleString() })}{' '}
+            1st, <a className="font-bold underline" href="#change-plan">{t('blUpgradeBigger')}</a>.
           </p>
         ) : null}
         {usage.channelsLimit !== null && usage.channelsConnected >= usage.channelsLimit ? (
           <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            You've connected every channel your plan allows across your teams ({usage.channelsLimit.toLocaleString()}).{' '}
-            <a className="font-bold underline" href="#change-plan">Upgrade</a> to add more.
+            {fill(t('blChannelsOut'), { n: usage.channelsLimit.toLocaleString() })}{' '}
+            <a className="font-bold underline" href="#change-plan">{t('blUpgradeWord')}</a> {t('blToAddMore')}
           </p>
         ) : null}
       </section>
 
       {/* ---- watermark (brand) ---- */}
-      <section className="card p-5" aria-label="Sosial watermark">
-        <p className="eyebrow">Brand</p>
+      <section className="card p-5" aria-label={t('blWatermark')}>
+        <p className="eyebrow">{t('blBrand')}</p>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold">Sosial watermark</p>
+            <p className="text-sm font-bold">{t('blWatermark')}</p>
             <p className="mt-0.5 text-xs leading-relaxed text-muted">
               {watermarkRequired
-                ? 'Required on the Free plan, a small “made with Sosial” badge is added to studio exports and published posts. Upgrade to control it.'
-                : 'A small “made with Sosial” badge added to studio exports and published posts. Turn it off any time, it never applies to media you bring in yourself.'}
+                ? t('blWmRequired')
+                : t('blWmFree')}
             </p>
           </div>
           <button
@@ -320,18 +318,18 @@ export default function BillingPanel({
                   : 'border-line bg-card text-soft'
             }`}
           >
-            {watermarkRequired ? 'Required' : wmBusy ? 'Saving…' : wm ? 'On' : 'Off'}
+            {watermarkRequired ? t('blWmRequiredTag') : wmBusy ? t('tmSaving') : wm ? t('blOn') : t('blOff')}
           </button>
         </div>
         <p className="mt-2 text-xs text-muted">
-          {watermarkRequired ? 'Show Sosial watermark: Required' : `Custom Sosial watermark: ${wm ? 'ON' : 'OFF'}`}
+          {watermarkRequired ? t('blWmRequiredLine') : wm ? t('blWmCustomOn') : t('blWmCustomOff')}
         </p>
       </section>
 
       {/* ---- change plan ---- */}
-      <section id="change-plan" className="card scroll-mt-24 p-5" aria-label="Change plan">
-        <p className="eyebrow">Change plan</p>
-        <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Billing interval">
+      <section id="change-plan" className="card scroll-mt-24 p-5" aria-label={t('blChangePlan')}>
+        <p className="eyebrow">{t('blChangePlan')}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={t('blIntervalAria')}>
           {(['monthly', 'annual'] as const).map((i) => (
             <button
               key={i}
@@ -340,7 +338,7 @@ export default function BillingPanel({
               aria-pressed={interval === i}
               className={`pill border ${interval === i ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
             >
-              {i === 'monthly' ? 'Monthly' : `Annual, save up to ${annualSavingsPct('team')}%`}
+              {i === 'monthly' ? t('blMonthly') : fill(t('blAnnualSave'), { n: annualSavingsPct('team') })}
             </button>
           ))}
         </div>
@@ -354,16 +352,16 @@ export default function BillingPanel({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold">
                     {p.label}
-                    {current ? <span className="ml-2 text-xs font-medium text-muted">(current)</span> : null}
+                    {current ? <span className="ml-2 text-xs font-medium text-muted">{t('blCurrent')}</span> : null}
                   </p>
                   <p className="text-xs text-muted">{p.blurb}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-extrabold">{priceLabel(k, interval)}</p>
                   {interval === 'annual' ? (
-                    <p className="text-xs text-muted">≈ {formatUsd(monthlyEquivalent(k))}/month, billed annually</p>
+                    <p className="text-xs text-muted">{fill(t('blPerMonth'), { price: formatUsd(monthlyEquivalent(k)) })}</p>
                   ) : (
-                    <p className="text-xs text-muted">billed monthly</p>
+                    <p className="text-xs text-muted">{t('blBilledMonthly')}</p>
                   )}
                 </div>
                 <button
@@ -373,12 +371,12 @@ export default function BillingPanel({
                   className={`btn shrink-0 ${current ? 'btn-ghost' : 'btn-bolt'}`}
                 >
                   {current
-                    ? 'Active'
+                    ? t('blActive')
                     : busy === k
-                      ? 'Working…'
+                      ? t('blWorking')
                       : priceFor(k, interval) < priceFor(entitlement.plan as Exclude<PlanKey, 'free'>, interval) || !paid
-                        ? 'Upgrade'
-                        : 'Switch'}
+                        ? t('blUpgradeBtn')
+                        : t('blSwitch')}
                 </button>
               </div>
             );
@@ -387,11 +385,11 @@ export default function BillingPanel({
 
         {!stripeReady ? (
           <p className="mt-3 text-xs text-muted">
-            Checkout activates once Stripe price IDs are configured.
+            {t('blStripeNote')}
           </p>
         ) : (
           <p className="mt-3 text-xs text-muted">
-            Plan changes apply immediately and are prorated. Cancelling keeps your plan until the period ends.
+            {t('blChangeNote')}
           </p>
         )}
       </section>
