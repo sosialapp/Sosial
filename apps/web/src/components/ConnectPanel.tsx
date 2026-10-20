@@ -12,6 +12,9 @@ import PinBoardPicker from './PinBoardPicker';
 import { OAUTH_PROVIDERS, oauthLabel, type OAuthProvider } from '@/lib/oauth';
 import { canConnectProvider, type PlanKey } from '@/lib/billing/plans';
 import type { ConnectedChannel } from '@/lib/types';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 export interface FbPickPage {
   id: string;
@@ -161,7 +164,7 @@ export default function ConnectPanel({
    *  then we poll a few times while statuses land. */
   async function syncNow() {
     if (!canManage) {
-      setErr('Only owners and admins can sync channels.');
+      setErr(t('cnErrSyncManage'));
       return;
     }
     setSyncing(true);
@@ -170,23 +173,24 @@ export default function ConnectPanel({
     try {
       const r = await fetch('/api/channels/sync', { method: 'POST' });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; queued_refresh?: number; error?: string };
-      if (!r.ok || !j.ok) throw new Error(j.error ?? 'Sync failed.');
+      if (!r.ok || !j.ok) throw new Error(j.error ?? t('cnSyncFail'));
       setSyncedNote(
-        `Checking ${j.queued_refresh ?? 0} channel(s), statuses update shortly.`,
+        fill(t('cnSyncChecking'), { n: j.queued_refresh ?? 0 }),
       );
       for (let i = 0; i < 5; i++) {
         await new Promise((res) => setTimeout(res, 5000));
         router.refresh();
       }
-      setSyncedNote('Checked, statuses are up to date.');
+      setSyncedNote(t('cnSyncDone'));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Sync failed.');
+      setErr(e instanceof Error ? e.message : t('cnSyncFail'));
     } finally {
       setSyncing(false);
     }
   }
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const t = useT(appMessages);
   const [picking, setPicking] = useState<string | null>(null);
   /** A connect navigation is already in flight, swallow extra taps. */
   const [leaving, setLeaving] = useState<ProviderId | null>(null);
@@ -239,15 +243,15 @@ export default function ConnectPanel({
   async function connectBsky() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!bskyHandle.trim()) {
-      setErr('Enter your Bluesky handle first.');
+      setErr(t('cnBskyHandleFirst'));
       return;
     }
     if (!bskyPass) {
-      setErr('Paste the app password too.');
+      setErr(t('cnBskyPass'));
       return;
     }
     setBusy(true);
@@ -262,10 +266,10 @@ export default function ConnectPanel({
         window.location.href = '/channels?already=bluesky';
         return;
       }
-      if (!j.ok) throw new Error(j.error ?? 'Bluesky login failed.');
+      if (!j.ok) throw new Error(j.error ?? t('cnBskyFail'));
       window.location.href = '/channels?connected=bluesky';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Bluesky login failed.');
+      setErr(e instanceof Error ? e.message : t('cnBskyFail'));
     } finally {
       setBusy(false);
     }
@@ -274,11 +278,11 @@ export default function ConnectPanel({
   async function connectMastodon() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!mastodonInstance.trim()) {
-      setErr('Type your username, or a server like fosstodon.org.');
+      setErr(t('cnMastoInstance'));
       return;
     }
     setBusy(true);
@@ -292,7 +296,7 @@ export default function ConnectPanel({
         body: JSON.stringify({ workspace_id: workspaceId, instance: mastodonInstance.trim() }),
       });
       const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!j.url) throw new Error(j.error ?? 'Could not register on that server.');
+      if (!j.url) throw new Error(j.error ?? t('cnMastoRegister'));
       if (tab) tab.location.href = j.url;
       else window.location.href = j.url;
     } catch (e) {
@@ -301,7 +305,7 @@ export default function ConnectPanel({
       } catch {
         /* already gone */
       }
-      setErr(e instanceof Error ? e.message : 'Could not register on that server.');
+      setErr(e instanceof Error ? e.message : t('cnMastoRegister'));
       setBusy(false);
     }
   }
@@ -321,7 +325,7 @@ export default function ConnectPanel({
     });
     const j = (await r.json().catch(() => ({}))) as DcList & { ok?: boolean };
     if (!r.ok || (j as { error?: string }).error) {
-      throw new Error((j as { error?: string }).error ?? 'Discord call failed.');
+      throw new Error((j as { error?: string }).error ?? t('cnDcFail'));
     }
     return j;
   }
@@ -329,11 +333,11 @@ export default function ConnectPanel({
   async function loadDcGuilds() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!dcToken.trim()) {
-      setErr('Paste the bot token from the Developer Portal first.');
+      setErr(t('cnDcToken'));
       return;
     }
     setBusy(true);
@@ -343,9 +347,9 @@ export default function ConnectPanel({
       setDcGuild('');
       setDcChannels([]);
       setDcChannel('');
-      if (!(j.guilds ?? []).length) setErr('That bot is in no servers, invite it first.');
+      if (!(j.guilds ?? []).length) setErr(t('cnDcNoServers'));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not reach Discord.');
+      setErr(e instanceof Error ? e.message : t('cnDcReach'));
     } finally {
       setBusy(false);
     }
@@ -362,9 +366,9 @@ export default function ConnectPanel({
       const j = await dcCall({ guild_id: guildId });
       setDcChannels(j.channels ?? []);
       setDcThreads(j.threads ?? []);
-      if (!(j.channels ?? []).length && !(j.threads ?? []).length) setErr('No text channels there, check the bot can see one.');
+      if (!(j.channels ?? []).length && !(j.threads ?? []).length) setErr(t('cnDcNoChannels'));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not list channels.');
+      setErr(e instanceof Error ? e.message : t('cnDcList'));
     } finally {
       setBusy(false);
     }
@@ -373,11 +377,11 @@ export default function ConnectPanel({
   async function connectDiscord() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!dcChannel) {
-      setErr('Pick a channel first.');
+      setErr(t('cnDcPick'));
       return;
     }
     setBusy(true);
@@ -388,10 +392,10 @@ export default function ConnectPanel({
         body: JSON.stringify({ bot_token: dcToken.trim(), guild_id: dcGuild, channel_id: dcChannel }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect Discord.');
+      if (!j.ok) throw new Error(j.error ?? t('cnDcFail'));
       window.location.href = '/channels?connected=discord';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect Discord.');
+      setErr(e instanceof Error ? e.message : t('cnDcFail'));
     } finally {
       setBusy(false);
     }
@@ -407,7 +411,7 @@ export default function ConnectPanel({
     });
     const j = (await r.json().catch(() => ({}))) as HnList & { ok?: boolean };
     if (!r.ok || (j as { error?: string }).error) {
-      throw new Error((j as { error?: string }).error ?? 'Hashnode call failed.');
+      throw new Error((j as { error?: string }).error ?? t('cnHnFail'));
     }
     return j;
   }
@@ -415,11 +419,11 @@ export default function ConnectPanel({
   async function loadHnPubs() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!hnToken.trim()) {
-      setErr('Paste the personal access token first.');
+      setErr(t('cnHnToken'));
       return;
     }
     setBusy(true);
@@ -428,10 +432,10 @@ export default function ConnectPanel({
       setHnPubs(j.publications ?? []);
       setHnPub('');
       if (!(j.publications ?? []).length) {
-        setErr('No publications on that token, publish from a Hashnode account with a blog.');
+        setErr(t('cnHnNoPubs'));
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not reach Hashnode.');
+      setErr(e instanceof Error ? e.message : t('cnHnReach'));
     } finally {
       setBusy(false);
     }
@@ -440,11 +444,11 @@ export default function ConnectPanel({
   async function connectHashnode() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!hnPub) {
-      setErr('Pick a publication first.');
+      setErr(t('cnHnPick'));
       return;
     }
     setBusy(true);
@@ -455,10 +459,10 @@ export default function ConnectPanel({
         body: JSON.stringify({ pat: hnToken.trim(), publication_id: hnPub }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect Hashnode.');
+      if (!j.ok) throw new Error(j.error ?? t('cnHnFail'));
       window.location.href = '/channels?connected=hashnode';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect Hashnode.');
+      setErr(e instanceof Error ? e.message : t('cnHnFail'));
     } finally {
       setBusy(false);
     }
@@ -467,15 +471,15 @@ export default function ConnectPanel({
   async function connectVk() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!vkCommunity.trim()) {
-      setErr('Enter the community link, short name or numeric id first.');
+      setErr(t('cnVkCommunity'));
       return;
     }
     if (!vkKey) {
-      setErr('Paste the community access key too.');
+      setErr(t('cnVkKey'));
       return;
     }
     setBusy(true);
@@ -486,10 +490,10 @@ export default function ConnectPanel({
         body: JSON.stringify({ community: vkCommunity.trim(), access_token: vkKey.trim() }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect VK.');
+      if (!j.ok) throw new Error(j.error ?? t('cnVkFail'));
       window.location.href = '/channels?connected=vk';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect VK.');
+      setErr(e instanceof Error ? e.message : t('cnVkFail'));
     } finally {
       setBusy(false);
     }
@@ -497,15 +501,15 @@ export default function ConnectPanel({
 
   async function connectGhost() {    setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!ghSite.trim()) {
-      setErr('Enter your Ghost site URL first.');
+      setErr(t('cnGhostSite'));
       return;
     }
     if (!ghKey) {
-      setErr('Paste the Admin API key too.');
+      setErr(t('cnGhostKey'));
       return;
     }
     setBusy(true);
@@ -516,10 +520,10 @@ export default function ConnectPanel({
         body: JSON.stringify({ site_url: ghSite.trim(), admin_key: ghKey.trim() }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect Ghost.');
+      if (!j.ok) throw new Error(j.error ?? t('cnGhostFail'));
       window.location.href = '/channels?connected=ghost';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect Ghost.');
+      setErr(e instanceof Error ? e.message : t('cnGhostFail'));
     } finally {
       setBusy(false);
     }
@@ -528,11 +532,11 @@ export default function ConnectPanel({
   async function connectDevto() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!devKey.trim()) {
-      setErr('Paste the API key from dev.to → Settings → Extensions first.');
+      setErr(t('cnDevtoKey'));
       return;
     }
     setBusy(true);
@@ -543,10 +547,10 @@ export default function ConnectPanel({
         body: JSON.stringify({ api_key: devKey.trim() }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect Dev.to.');
+      if (!j.ok) throw new Error(j.error ?? t('cnDevtoFail'));
       window.location.href = '/channels?connected=devto';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect Dev.to.');
+      setErr(e instanceof Error ? e.message : t('cnDevtoFail'));
     } finally {
       setBusy(false);
     }
@@ -555,19 +559,19 @@ export default function ConnectPanel({
   async function connectWordPress() {
     setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!wpSite.trim()) {
-      setErr('Enter your site URL first.');
+      setErr(t('cnWpSite'));
       return;
     }
     if (!wpUser.trim()) {
-      setErr('Enter the WordPress username.');
+      setErr(t('cnWpUser'));
       return;
     }
     if (!wpPass) {
-      setErr('Paste the application password too.');
+      setErr(t('cnWpPass'));
       return;
     }
     setBusy(true);
@@ -582,10 +586,10 @@ export default function ConnectPanel({
         }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect WordPress.');
+      if (!j.ok) throw new Error(j.error ?? t('cnWpFail'));
       window.location.href = '/channels?connected=wordpress';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect WordPress.');
+      setErr(e instanceof Error ? e.message : t('cnWpFail'));
     } finally {
       setBusy(false);
     }
@@ -593,15 +597,15 @@ export default function ConnectPanel({
 
   async function connectTelegram() {    setErr(null);
     if (!canManage) {
-      setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
       return;
     }
     if (!tgToken.trim()) {
-      setErr('Paste the bot token from @BotFather first.');
+      setErr(t('cnTgToken'));
       return;
     }
     if (!tgChat.trim()) {
-      setErr('Enter the destination channel or group.');
+      setErr(t('cnTgChat'));
       return;
     }
     setBusy(true);
@@ -612,10 +616,10 @@ export default function ConnectPanel({
         body: JSON.stringify({ bot_token: tgToken.trim(), chat_id: tgChat.trim() }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect Telegram.');
+      if (!j.ok) throw new Error(j.error ?? t('cnTgFail'));
       window.location.href = '/channels?connected=telegram';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect Telegram.');
+      setErr(e instanceof Error ? e.message : t('cnTgFail'));
     } finally {
       setBusy(false);
     }
@@ -635,10 +639,10 @@ export default function ConnectPanel({
         window.location.href = '/channels?already=facebook';
         return;
       }
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect that Page.');
+      if (!j.ok) throw new Error(j.error ?? t('cnPageFail'));
       window.location.href = '/channels?connected=facebook';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect that Page.');
+      setErr(e instanceof Error ? e.message : t('cnPageFail'));
     } finally {
       setPicking(null);
     }
@@ -658,39 +662,39 @@ export default function ConnectPanel({
         window.location.href = '/channels?already=gmb';
         return;
       }
-      if (!j.ok) throw new Error(j.error ?? 'Could not connect that location.');
+      if (!j.ok) throw new Error(j.error ?? t('cnLocFail'));
       window.location.href = '/channels?connected=gmb';
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not connect that location.');
+      setErr(e instanceof Error ? e.message : t('cnLocFail'));
     } finally {
       setPicking(null);
     }
   }
 
   const subtitle = (p: ProviderId, list: ConnectedChannel[]): string => {    if (list.length === 0) {
-      if (p === 'bluesky') return 'Handle + app password';
-      if (p === 'mastodon') return 'Username + login';
-      if (p === 'telegram') return 'Bot token + destination';
-      if (p === 'discord') return 'Bot token + server';
-      if (p === 'wordpress') return 'Site + app password';
-      if (p === 'devto') return 'API key';
-      if (p === 'hashnode') return 'Token + publication';
-      if (p === 'ghost') return 'Site + Admin key';
-      if (p === 'vk') return 'Community + access key';
-      if (p === 'gmb') return 'Account + location';
-      return 'Tap to connect';
+      if (p === 'bluesky') return t('cnSubBsky');
+      if (p === 'mastodon') return t('cnSubMasto');
+      if (p === 'telegram') return t('cnSubTg');
+      if (p === 'discord') return t('cnSubDc');
+      if (p === 'wordpress') return t('cnSubWp');
+      if (p === 'devto') return t('cnSubDevto');
+      if (p === 'hashnode') return t('cnSubHn');
+      if (p === 'ghost') return t('cnSubGhost');
+      if (p === 'vk') return t('cnSubVk');
+      if (p === 'gmb') return t('cnSubGmb');
+      return t('cnSubTap');
     }
     if (list.length === 1) {
       const one = list[0];
       if (p === 'pinterest') {
         const md = (one.metadata ?? {}) as Record<string, unknown>;
         if (typeof md.pinBoardId !== 'string' || !md.pinBoardId) {
-          return `${accountName(one)} · pick a board`;
+          return `${accountName(one)} · ${t('cnPickBoard')}`;
         }
       }
       return accountName(one);
     }
-    return `${list.length} accounts`;
+    return fill(t('cnNAccounts'), { n: list.length });
   };
 
   const alreadyLabel =
@@ -738,12 +742,12 @@ export default function ConnectPanel({
     <div className="space-y-3">
       {status.connected ? (
         <p className="rounded-xl bg-[#EDF3EC] px-3.5 py-2.5 text-xs font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">
-          {connectedLabel} connected ✓
+          {fill(t('cnConnectedOk'), { label: connectedLabel })}
         </p>
       ) : null}
       {status.already ? (
         <p className="rounded-xl bg-accent-soft px-3.5 py-2.5 text-xs font-bold text-accent-ink">
-          {alreadyLabel} is already connected, nothing new added.
+          {fill(t('cnAlready'), { label: alreadyLabel })}
         </p>
       ) : null}
       {status.error ? (
@@ -762,19 +766,19 @@ export default function ConnectPanel({
         </p>
       ) : null}
 
-      <div className="flex gap-2" role="tablist" aria-label="Connect sections">
-        {(['channels', 'integrations'] as const).map((t) => (
+      <div className="flex gap-2" role="tablist" aria-label={t('cChannels')}>
+        {(['channels', 'integrations'] as const).map((tb) => (
           <button
-            key={t}
+            key={tb}
             type="button"
             role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
+            aria-selected={tab === tb}
+            onClick={() => setTab(tb)}
             className={`rounded-full px-4 py-2 text-xs font-bold transition ${
-              tab === t ? 'bg-ink text-paper' : 'border border-line bg-card text-muted hover:text-ink'
+              tab === tb ? 'bg-ink text-paper' : 'border border-line bg-card text-muted hover:text-ink'
             }`}
           >
-            {t === 'channels' ? 'Channels' : 'Integrations'}
+            {tb === 'channels' ? t('cnTabChannels') : t('cnTabIntegrations')}
           </button>
         ))}
       </div>
@@ -787,8 +791,8 @@ export default function ConnectPanel({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search channels or accounts"
-          aria-label="Search channels"
+          placeholder={t('cnSearchPh')}
+          aria-label={t('cnSearchAria')}
           className="field min-w-0 flex-1"
         />
         {canManage ? (
@@ -798,17 +802,17 @@ export default function ConnectPanel({
             disabled={syncing}
             className="shrink-0 rounded-full border border-line bg-card px-4 py-2 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
           >
-            {syncing ? 'Checking…' : 'Sync'}
+            {syncing ? t('cnChecking') : t('cnSync')}
           </button>
         ) : null}
       </div>
       {syncedNote ? (
         <p className="mb-3 rounded-xl bg-paper-dim px-3.5 py-2 text-xs font-bold text-muted">{syncedNote}</p>
       ) : null}
-      <section aria-label="Connect accounts" className="overflow-hidden rounded-2xl border border-line bg-card">
+      <section aria-label={t('cnTabChannels')} className="overflow-hidden rounded-2xl border border-line bg-card">
         {visible.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted">
-            No channels match “{query.trim()}”.
+            {fill(t('cnNoMatch'), { q: query.trim() })}
           </p>
         ) : null}
         {visible.map((p, pi) => {
@@ -829,14 +833,14 @@ export default function ConnectPanel({
             // Paywalled providers on free: explain instead of opening OAuth
             // (the server route enforces the same rule, this just says it first).
             if (!manual && !hasAny && !canConnectProvider(plan, p)) {
-              setErr('X needs a paid plan, its posting API is paywalled. Upgrade in Billing to connect it.');
+              setErr(t('cnXPaywall'));
               return;
             }
             // No accounts yet on an OAuth provider: consent opens in a new
             // tab so this page keeps its place. Members can't start connects.
             if (!manual && !hasAny) {
               if (!canManage) {
-                setErr('Only owners and admins can connect channels.');
+      setErr(t('cnErrManage'));
                 return;
               }
               if (leaving) return;
@@ -874,12 +878,12 @@ export default function ConnectPanel({
                     className={`h-4 w-4 shrink-0 text-faint transition-transform ${expanded ? 'rotate-180' : ''}`}
                   />
                 ) : soon ? (
-                  <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">Soon</span>
+                  <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">{t('cnSoon')}</span>
                 ) : !canConnectProvider(plan, p) ? (
-                  <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[11px] font-bold text-paper" title="Needs a paid plan">Pro</span>
+                  <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[11px] font-bold text-paper" title={t('cnNeedsPlan')}>Pro</span>
                 ) : (
-                  <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-accent-ink" title="Opens the provider's connect page in a new tab">
-                    Connect
+                  <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-accent-ink" title={t('cnOpensNewTab')}>
+                    {t('cnConnect')}
                     <ChevronRight aria-hidden="true" className="h-4 w-4" />
                   </span>
                 )}
@@ -900,10 +904,10 @@ export default function ConnectPanel({
                         {isDead(c) ? (
                           <span
                             className="flex shrink-0 items-center gap-1 rounded-full bg-[#FDF3D7] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#8a6100] dark:bg-[#2b2417] dark:text-[#e6a417]"
-                            title={c.last_error ?? 'Session expired, reconnect this channel.'}
+                            title={c.last_error ?? t('cnSessionExpired')}
                           >
                             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                            Reconnect
+                            {t('cnReconnect')}
                           </span>
                         ) : (
                           <span
@@ -922,7 +926,7 @@ export default function ConnectPanel({
                       </div>
                       {isDead(c) ? (
                         <p className="mt-1 truncate pl-[40px] pr-2 text-[11px] text-[#8a6100] dark:text-[#e6a417]" title={c.last_error ?? undefined}>
-                          {c.last_error ?? 'Session expired, reconnect this channel.'}
+                          {c.last_error ?? t('cnSessionExpired')}
                         </p>
                       ) : null}
                     </div>
@@ -931,45 +935,45 @@ export default function ConnectPanel({
                   {p === 'bluesky' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth needed, mint an app password at bsky.app → Settings → App passwords.
+                        {t('cnBskyNote')}
                       </p>
                       <input
                         value={bskyHandle}
                         onChange={(e) => setBskyHandle(e.target.value)}
-                        placeholder="Handle (you.bsky.social)"
+                        placeholder={t('cnBskyHandlePh')}
                         autoComplete="username"
-                        aria-label="Bluesky handle"
+                        aria-label={t('cnBskyHandleAria')}
                         className="field !text-xs"
                       />
                       <input
                         value={bskyPass}
                         onChange={(e) => setBskyPass(e.target.value)}
-                        placeholder="App password (xxxx-xxxx-xxxx-xxxx)"
+                        placeholder={t('cnBskyPassPh')}
                         type="password"
                         autoComplete="new-password"
-                        aria-label="Bluesky app password"
+                        aria-label={t('cnBskyPassAria')}
                         className="field !text-xs"
                       />
                       <button type="button" onClick={connectBsky} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                        {busy ? 'Connecting…' : hasAny ? 'Add this account' : 'Connect Bluesky'}
+                        {busy ? t('cnConnecting') : hasAny ? t('cnAddAccount') : t('cnConnectBsky')}
                       </button>
                     </div>
                   ) : null}
                   {p === 'mastodon' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        Your server registers Sosial itself, no app keys needed.
+                        {t('cnMastoNote')}
                       </p>
                       <input
                         value={mastodonInstance}
                         onChange={(e) => setMastodonInstance(e.target.value)}
-                        placeholder="Username or server (fosstodon.org)"
+                        placeholder={t('cnMastoPh')}
                         autoComplete="username"
-                        aria-label="Mastodon username or server"
+                        aria-label={t('cnMastoAria')}
                         className="field !text-xs"
                       />
                       <button type="button" onClick={connectMastodon} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                        {busy ? 'Registering…' : hasAny ? 'Add this account' : 'Connect Mastodon'}
+                        {busy ? t('cnRegistering') : hasAny ? t('cnAddAccount') : t('cnConnectMasto')}
                       </button>
                     </div>
                   ) : null}
@@ -982,10 +986,10 @@ export default function ConnectPanel({
                           <a href="https://discord.com/developers/home" target="_blank" rel="noopener" className="font-bold text-accent-ink hover:underline">
                             Discord Developer Portal
                           </a>{' '}
-                          → Bot → copy the token.
+                          {t('cnDcStep1b')}
                         </li>
-                        <li>Invite the bot to your server (Guild Install, Send Messages + Read Message History).</li>
-                        <li>Paste the token below, list servers, pick a channel or thread, connect.</li>
+                        <li>{t('cnDcStep2')}</li>
+                        <li>{t('cnDcStep3')}</li>
                       </ol>
                       <input
                         value={dcToken}
@@ -996,25 +1000,25 @@ export default function ConnectPanel({
                           setDcChannels([]);
                           setDcChannel('');
                         }}
-                        placeholder="Bot token"
+                        placeholder={t('cnDcTokenPh')}
                         type="password"
                         autoComplete="new-password"
-                        aria-label="Discord bot token"
+                        aria-label={t('cnDcTokenAria')}
                         className="field !text-xs"
                       />
                       {dcGuilds.length === 0 ? (
                         <button type="button" onClick={loadDcGuilds} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                          {busy ? 'Asking Discord…' : 'List my servers'}
+                          {busy ? t('cnDcAsking') : t('cnDcListBtn')}
                         </button>
                       ) : (
                         <>
                           <select
                             value={dcGuild}
                             onChange={(e) => loadDcChannels(e.target.value)}
-                            aria-label="Discord server"
+                            aria-label={t('cnDcServerAria')}
                             className="field !text-xs"
                           >
-                            <option value="">Pick a server…</option>
+                            <option value="">{t('cnPickServer')}</option>
                             {dcGuilds.map((g) => (
                               <option key={g.id} value={g.id}>
                                 {g.name}
@@ -1025,12 +1029,12 @@ export default function ConnectPanel({
                             <select
                               value={dcChannel}
                               onChange={(e) => setDcChannel(e.target.value)}
-                              aria-label="Discord channel"
+                              aria-label={t('cnDcChannelAria')}
                               className="field !text-xs"
                             >
-                              <option value="">Pick a channel…</option>
+                              <option value="">{t('cnPickChannel')}</option>
                               {dcChannels.length > 0 ? (
-                                <optgroup label="Channels">
+                                <optgroup label={t('cnOptChannels')}>
                                   {dcChannels.map((c) => (
                                     <option key={c.id} value={c.id}>
                                       #{c.name}
@@ -1039,10 +1043,10 @@ export default function ConnectPanel({
                                 </optgroup>
                               ) : null}
                               {dcThreads.length > 0 ? (
-                                <optgroup label="Threads">
-                                  {dcThreads.map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                      #{t.parent_name || 'thread'} › {t.name}
+                                <optgroup label={t('cnOptThreads')}>
+                                  {dcThreads.map((dt) => (
+                                    <option key={dt.id} value={dt.id}>
+                                      #{dt.parent_name || t('cnThreadWord')} › {dt.name}
                                     </option>
                                   ))}
                                 </optgroup>
@@ -1050,7 +1054,7 @@ export default function ConnectPanel({
                             </select>
                           ) : null}
                           <button type="button" onClick={connectDiscord} disabled={busy || !dcChannel} className="btn btn-primary w-full !py-2 !text-xs">
-                            {busy ? 'Connecting…' : hasAny ? 'Add this channel' : 'Connect Discord'}
+                            {busy ? t('cnConnecting') : hasAny ? t('cnAddChannel') : t('cnConnectDc')}
                           </button>
                           {err ? (
                             <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
@@ -1065,25 +1069,24 @@ export default function ConnectPanel({
                   {p === 'ghost' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No central login, each site issues its own key at Ghost Admin
-                        → Settings → Integrations.
+                        {t('cnGhostNote')}
                       </p>
                       <input
                         value={ghSite}
                         onChange={(e) => setGhSite(e.target.value)}
-                        placeholder="Site URL (https://example.com)"
+                        placeholder={t('cnSitePh')}
                         inputMode="url"
                         autoComplete="url"
-                        aria-label="Ghost site URL"
+                        aria-label={t('cnGhostSiteAria')}
                         className="field !text-xs"
                       />
                       <input
                         value={ghKey}
                         onChange={(e) => setGhKey(e.target.value)}
-                        placeholder="Admin API key (id:secret)"
+                        placeholder={t('cnGhostKeyPh')}
                         type="password"
                         autoComplete="new-password"
-                        aria-label="Ghost Admin API key"
+                        aria-label={t('cnGhostKeyAria')}
                         className="field !text-xs"
                       />
                       {err ? (
@@ -1092,7 +1095,7 @@ export default function ConnectPanel({
                         </p>
                       ) : null}
                       <button type="button" onClick={connectGhost} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                        {busy ? 'Checking the site…' : hasAny ? 'Add another site' : 'Connect Ghost'}
+                        {busy ? t('cnCheckingSite') : hasAny ? t('cnAddSite') : t('cnConnectGhost')}
                       </button>
                     </div>
                   ) : null}
@@ -1100,25 +1103,23 @@ export default function ConnectPanel({
                   {p === 'vk' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        Communities only, mint an access key at Community →
-                        Manage → Working with API → Access Tokens (wall + photos
-                        rights). Personal-profile posting is gated by VK.
+                        {t('cnVkNote')}
                       </p>
                       <input
                         value={vkCommunity}
                         onChange={(e) => setVkCommunity(e.target.value)}
-                        placeholder="vk.com/club123, short name or id"
+                        placeholder={t('cnVkPh')}
                         autoComplete="url"
-                        aria-label="VK community"
+                        aria-label={t('cnVkAria')}
                         className="field !text-xs"
                       />
                       <input
                         value={vkKey}
                         onChange={(e) => setVkKey(e.target.value)}
-                        placeholder="Community access key"
+                        placeholder={t('cnVkKeyPh')}
                         type="password"
                         autoComplete="new-password"
-                        aria-label="VK community access key"
+                        aria-label={t('cnVkKeyAria')}
                         className="field !text-xs"
                       />
                       {err ? (
@@ -1127,7 +1128,7 @@ export default function ConnectPanel({
                         </p>
                       ) : null}
                       <button type="button" onClick={connectVk} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                        {busy ? 'Asking VK…' : hasAny ? 'Add another community' : 'Connect VK'}
+                        {busy ? t('cnAskingVk') : hasAny ? t('cnAddCommunity') : t('cnConnectVk')}
                       </button>
                     </div>
                   ) : null}
@@ -1135,11 +1136,7 @@ export default function ConnectPanel({
                   {p === 'hashnode' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth, generate a token at hashnode.com → Settings →
-                        Developer, then pick the publication below.
-                      </p>
-                      <p className="rounded-lg bg-accent-soft px-2.5 py-1.5 text-[11px] font-bold leading-relaxed text-accent-ink">
-                        Only Hashnode Pro publications can connect, upgrade at your blog dashboard → Billing first.
+                        {t('cnHnNote')}
                       </p>
                       <input
                         value={hnToken}
@@ -1148,25 +1145,25 @@ export default function ConnectPanel({
                           setHnPubs([]);
                           setHnPub('');
                         }}
-                        placeholder="Personal access token"
+                        placeholder={t('cnHnTokenPh')}
                         type="password"
                         autoComplete="new-password"
-                        aria-label="Hashnode personal access token"
+                        aria-label={t('cnHnTokenAria')}
                         className="field !text-xs"
                       />
                       {hnPubs.length === 0 ? (
                         <button type="button" onClick={loadHnPubs} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                          {busy ? 'Asking Hashnode…' : 'List my publications'}
+                          {busy ? t('cnAskingHn') : t('cnListPubs')}
                         </button>
                       ) : (
                         <>
                           <select
                             value={hnPub}
                             onChange={(e) => setHnPub(e.target.value)}
-                            aria-label="Hashnode publication"
+                            aria-label={t('cnHnPubAria')}
                             className="field !text-xs"
                           >
-                            <option value="">Pick a publication…</option>
+                            <option value="">{t('cnPickPub')}</option>
                             {hnPubs.map((g) => (
                               <option key={g.id} value={g.id}>
                                 {g.title}
@@ -1174,7 +1171,7 @@ export default function ConnectPanel({
                             ))}
                           </select>
                           <button type="button" onClick={connectHashnode} disabled={busy || !hnPub} className="btn btn-primary w-full !py-2 !text-xs">
-                            {busy ? 'Connecting…' : hasAny ? 'Add this publication' : 'Connect Hashnode'}
+                            {busy ? t('cnConnecting') : hasAny ? t('cnAddPub') : t('cnConnectHn')}
                           </button>
                           {err ? (
                             <p className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-[11px] font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
@@ -1189,16 +1186,13 @@ export default function ConnectPanel({
                   {p === 'devto' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth, mint a key at dev.to → Settings → Extensions, then
-                        paste it below.
+                        {t('cnDevtoNote')}
                       </p>
                       <input
-                        value={devKey}
-                        onChange={(e) => setDevKey(e.target.value)}
-                        placeholder="API key"
+                        placeholder={t('cnDevtoKeyPh')}
                         type="password"
                         autoComplete="new-password"
-                        aria-label="Dev.to API key"
+                        aria-label={t('cnDevtoKeyAria')}
                         className="field !text-xs"
                       />
                       {err ? (
@@ -1207,7 +1201,7 @@ export default function ConnectPanel({
                         </p>
                       ) : null}
                       <button type="button" onClick={connectDevto} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                        {busy ? 'Checking with Dev.to…' : hasAny ? 'Add another account' : 'Connect Dev.to'}
+                        {busy ? t('cnCheckingDevto') : hasAny ? t('cnAddAccount') : t('cnConnectDevto')}
                       </button>
                     </div>
                   ) : null}
@@ -1215,33 +1209,31 @@ export default function ConnectPanel({
                   {p === 'wordpress' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No central login, each site mints its own password at Users →
-                        Profile → Application Passwords (needs WP 5.6+).
+                        {t('cnWpNote')}
                       </p>
                       <input
                         value={wpSite}
-                        onChange={(e) => setWpSite(e.target.value)}
-                        placeholder="Site URL (https://example.com)"
+                        placeholder={t('cnSitePh')}
                         inputMode="url"
                         autoComplete="url"
-                        aria-label="WordPress site URL"
+                        aria-label={t('cnWpSiteAria')}
                         className="field !text-xs"
                       />
                       <input
                         value={wpUser}
                         onChange={(e) => setWpUser(e.target.value)}
-                        placeholder="Username"
+                        placeholder={t('cnUsernamePh')}
                         autoComplete="username"
-                        aria-label="WordPress username"
+                        aria-label={t('cnWpUserAria')}
                         className="field !text-xs"
                       />
                       <input
                         value={wpPass}
                         onChange={(e) => setWpPass(e.target.value)}
-                        placeholder="Application password (xxxx xxxx …)"
+                        placeholder={t('cnWpPassPh')}
                         type="password"
                         autoComplete="new-password"
-                        aria-label="WordPress application password"
+                        aria-label={t('cnWpPassAria')}
                         className="field !text-xs"
                       />
                       {err ? (
@@ -1250,7 +1242,7 @@ export default function ConnectPanel({
                         </p>
                       ) : null}
                       <button type="button" onClick={connectWordPress} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                        {busy ? 'Checking the site…' : hasAny ? 'Add another site' : 'Connect WordPress'}
+                        {busy ? t('cnCheckingSite') : hasAny ? t('cnAddSite') : t('cnConnectWp')}
                       </button>
                     </div>
                   ) : null}
@@ -1258,23 +1250,20 @@ export default function ConnectPanel({
                   {p === 'telegram' ? (
                     <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
                       <p className="text-[11px] leading-relaxed text-muted">
-                        No OAuth, message @BotFather for a bot token, add the bot to your
-                        channel or group as an admin, then paste the destination below.
+                        {t('cnTgNote')}
                       </p>
                       <input
                         value={tgToken}
                         onChange={(e) => setTgToken(e.target.value)}
-                        placeholder="Bot token (123456:ABC-DEF…)"
-                        type="password"
-                        autoComplete="new-password"
-                        aria-label="Telegram bot token"
+                        placeholder={t('cnTgTokenPh')}
+                        aria-label={t('cnTgTokenAria')}
                         className="field !text-xs"
                       />
                       <input
                         value={tgChat}
                         onChange={(e) => setTgChat(e.target.value)}
-                        placeholder="Destination: @mychannel or -1001234567890"
-                        aria-label="Telegram destination chat"
+                        placeholder={t('cnTgChatPh')}
+                        aria-label={t('cnTgChatAria')}
                         className="field !text-xs"
                       />
                       {err ? (
@@ -1283,15 +1272,15 @@ export default function ConnectPanel({
                         </p>
                       ) : null}
                       <button type="button" onClick={connectTelegram} disabled={busy} className="btn btn-primary w-full !py-2 !text-xs">
-                        {busy ? 'Checking with Telegram…' : hasAny ? 'Add another bot' : 'Connect Telegram'}
+                        {busy ? t('cnCheckingTg') : hasAny ? t('cnAddBot') : t('cnConnectTg')}
                       </button>
                     </div>
                   ) : null}
 
                   {p === 'facebook' && fbPick ? (
                     <div className="space-y-1.5 rounded-xl border border-accent bg-accent-soft/40 p-3">
-                      <p className="text-xs font-bold">Pick a Facebook Page</p>
-                      <p className="-mt-1 text-[11px] text-muted">Publishing runs on the Page token.</p>
+                      <p className="text-xs font-bold">{t('cnPickFbPage')}</p>
+                      <p className="-mt-1 text-[11px] text-muted">{t('cnFbPageNote')}</p>
                       {fbPick.map((pg) => (
                         <div key={pg.id} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
                           {pg.picture ? (
@@ -1302,7 +1291,7 @@ export default function ConnectPanel({
                           )}
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold">{pg.name}</span>
-                            {pg.ig ? <span className="block truncate text-[11px] text-muted">{pg.ig} on Instagram</span> : null}
+                            {pg.ig ? <span className="block truncate text-[11px] text-muted">{pg.ig} {t('cnOnInstagram')}</span> : null}
                           </span>
                           <button
                             type="button"
@@ -1310,7 +1299,7 @@ export default function ConnectPanel({
                             disabled={picking !== null || !canManage}
                             className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
                           >
-                            {picking === pg.id ? 'Connecting…' : 'Connect'}
+                            {picking === pg.id ? t('cnConnecting') : t('cnConnect')}
                           </button>
                         </div>
                       ))}
@@ -1319,9 +1308,9 @@ export default function ConnectPanel({
 
                   {p === 'gmb' && gmbPick ? (
                     <div className="space-y-1.5 rounded-xl border border-accent bg-accent-soft/40 p-3">
-                      <p className="text-xs font-bold">Pick a Business Profile location</p>
+                      <p className="text-xs font-bold">{t('cnPickGmb')}</p>
                       <p className="-mt-1 text-[11px] text-muted">
-                        Each location connects separately, posts publish as local posts on it.
+                        {t('cnGmbNote')}
                       </p>
                       {gmbPick.map((l) => (
                         <div key={l.name} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
@@ -1333,7 +1322,7 @@ export default function ConnectPanel({
                             disabled={picking !== null || !canManage}
                             className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
                           >
-                            {picking === l.name ? 'Connecting…' : 'Connect'}
+                            {picking === l.name ? t('cnConnecting') : t('cnConnect')}
                           </button>
                         </div>
                       ))}
@@ -1355,8 +1344,8 @@ export default function ConnectPanel({
                     <div className="rounded-xl bg-paper px-3 py-2.5">
                       <p className="text-center text-[11px] leading-relaxed text-muted">
                         {p === 'gmb'
-                          ? 'Google Business is coming soon - Google still has to approve the API access. It will light up here the moment it does.'
-                          : `${providerLabel(p)} is in review for production access - connecting is temporarily paused. It will light up here the moment approval lands.`}
+                          ? t('cnGmbSoon')
+                          : fill(t('cnInReview'), { label: providerLabel(p) })}
                       </p>
                     </div>
                     ) : canManage ? (
@@ -1372,21 +1361,17 @@ export default function ConnectPanel({
                         aria-disabled={leaving !== null}
                         className={`block text-center text-[13px] font-bold text-accent-ink ${leaving ? 'pointer-events-none opacity-50' : ''}`}
                       >
-                        {leaving === p ? 'Opening…' : hasAny ? `+ Add another ${label} account` : `Connect ${label}`}
+                        {leaving === p ? t('cnOpening') : hasAny ? fill(t('cnAddAnother'), { label }) : fill(t('cnConnectLabel'), { label })}
                       </a>
                       {hasAny ? (
                         <p className="mt-1 text-center text-[11px] leading-relaxed text-faint">
-                          The browser sends whichever {label} account is signed in there, switch the login
-                          on {label} first to add a different one. A login page instead of permissions just
-                          means signing in there once; after that Connect goes straight through.
-                          {p === 'tiktok' ? ' TikTok always shows the consent page, so you can see exactly which account you are authorizing.' : null}
+                          {fill(t('cnSwitchNote'), { label })}
+                          {p === 'tiktok' ? t('cnTikTokNote') : null}
                         </p>
                       ) : null}
                     </div>
                     ) : !hasAny ? (
-                      <p className="rounded-xl bg-paper px-3 py-2.5 text-center text-[11px] font-bold text-muted">
-                        Only owners and admins can connect channels.
-                      </p>
+                      <p className="rounded-xl bg-paper px-3 py-2.5 text-center text-[11px] font-bold text-muted">{t('cnErrManage')}</p>
                     ) : null
                   ) : null}
                 </div>
