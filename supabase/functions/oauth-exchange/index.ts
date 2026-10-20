@@ -27,6 +27,16 @@ const CORS: Record<string, string> = {
 };
 
 function bad(msg: string, status = 400): Response {
+  // 200-with-error, not a non-2xx: Cloudflare in front of the gateway
+  // REPLACES every 4xx/5xx body with its own "error code: N" page, so a
+  // refused login would reach the caller as the generic "Edge Function
+  // returned a non-2xx status code" instead of the reason. Carrying the
+  // failure inside a 200 body keeps the real message intact through CF.
+  // Consumers read payload.error (web callback) or j.error (bluesky route);
+  // hard 401s stay 401 for the mobile-parity contract.
+  if (status >= 500 || status === 402) {
+    return Response.json({ ok: false, error: msg }, { status: 200, headers: CORS });
+  }
   return Response.json({ error: msg }, { status, headers: CORS });
 }
 
