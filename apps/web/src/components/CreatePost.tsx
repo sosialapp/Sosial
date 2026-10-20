@@ -359,6 +359,9 @@ export default function CreatePost({
   const [thread, setThread] = useState(Boolean(initialThread) || Boolean(initParts));
   /** Per-channel post format (post/reel/story/ghost…), mobile parity. */
   const [types, setTypes] = useState<Record<string, string>>({});
+  /** True once the user taps a TikTok format pill; the auto-classifier then
+   *  never overrides their explicit choice. */
+  const userPickedType = useRef(false);
   /** Threads community topic, mobile parity (topic_tag on the target). */
   const [threadsTopic, setThreadsTopic] = useState(initialThreadsTopic || '');
   /** Community input collapsed by default (mobile parity), opens with a
@@ -619,6 +622,19 @@ export default function CreatePost({
     setSegs((prev) =>
       prev.map((s, j) => (j === i ? { ...s, media: [...s.media, ...next].slice(0, 10) } : s)),
     );
+    // TikTok auto-classifies: video → Video mode, photos → Photo mode, so the
+    // user never flips the pills by hand. Only when part 1 changes (media
+    // rides on part 1) and nothing was picked explicitly this session — an
+    // explicit user choice always wins over the heuristic.
+    if (i === 0 && !userPickedType.current) {
+      const onlyVideo = next.length > 0 && next.every((m) => m.kind === 'video');
+      const onlyImage = next.length > 0 && next.every((m) => m.kind === 'image');
+      if (onlyVideo || onlyImage) {
+        setTypes((prev) =>
+          prev.tiktok ? prev : { ...prev, tiktok: onlyVideo ? 'video' : 'photo' },
+        );
+      }
+    }
   }
 
   function removeMediaFrom(i: number, mi: number) {
@@ -923,7 +939,10 @@ export default function CreatePost({
                             <Fragment key={o.id}>
                               <button
                                 type="button"
-                                onClick={() => setTypes((prev) => ({ ...prev, [c.provider]: o.id }))}
+                                 onClick={() => {
+                                   if (c.provider === 'tiktok') userPickedType.current = true;
+                                   setTypes((prev) => ({ ...prev, [c.provider]: o.id }));
+                                 }}
                                 className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${
                                   active ? 'bg-ink text-paper' : 'border border-line text-muted hover:text-ink'
                                 }`}
