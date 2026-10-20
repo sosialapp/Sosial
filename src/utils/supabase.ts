@@ -279,6 +279,7 @@ export interface CloudProfile {
   notifComments: boolean;
   notifWeekly: boolean;
   notifMarketing: boolean;
+  locale: string;
 }
 
 /** Cloud wins: called after sign-in so reinstalls restore identity. Null when logged out. */
@@ -288,7 +289,7 @@ export async function pullProfileFromCloud(): Promise<CloudProfile | null> {
   const user = data?.user;
   if (!user) return null;
   const [profRes, workspace] = await Promise.all([
-    sb.from('profiles').select('notif_posts, notif_comments, notif_weekly, notif_marketing').eq('id', user.id).maybeSingle(),
+    sb.from('profiles').select('notif_posts, notif_comments, notif_weekly, notif_marketing, locale').eq('id', user.id).maybeSingle(),
     myWorkspace(user.id, user.email ?? ''),
   ]);
   if (!workspace) return null;
@@ -300,6 +301,7 @@ export async function pullProfileFromCloud(): Promise<CloudProfile | null> {
     notifComments: p.notif_comments ?? true,
     notifWeekly: p.notif_weekly ?? false,
     notifMarketing: p.notif_marketing ?? false,
+    locale: p.locale ?? 'en',
   };
 }
 
@@ -315,6 +317,7 @@ export async function pushProfileToCloud(patch: {
   notifComments?: boolean;
   notifWeekly?: boolean;
   notifMarketing?: boolean;
+  locale?: string;
 }): Promise<void> {
   try {
     const sb = supabase();
@@ -328,11 +331,12 @@ export async function pushProfileToCloud(patch: {
         if (error) throw error;
       }
     }
-    const notif: Record<string, boolean> = {};
+    const notif: Record<string, string | boolean> = {};
     if (patch.notifPosts !== undefined) notif.notif_posts = patch.notifPosts;
     if (patch.notifComments !== undefined) notif.notif_comments = patch.notifComments;
     if (patch.notifWeekly !== undefined) notif.notif_weekly = patch.notifWeekly;
     if (patch.notifMarketing !== undefined) notif.notif_marketing = patch.notifMarketing;
+    if (patch.locale !== undefined) notif.locale = patch.locale;
     if (Object.keys(notif).length > 0) {
       const { error } = await sb.from('profiles').update(notif).eq('id', user.id);
       if (error) throw error;

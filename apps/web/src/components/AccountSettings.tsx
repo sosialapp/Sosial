@@ -21,6 +21,7 @@ import {
   Flag,
   Image as ImageIcon,
   KeyRound,
+  Languages,
   Mail,
   Scale,
   Send,
@@ -35,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { fileToAvatarDataUrl } from '@/lib/avatar';
 import { createClient } from '@/lib/supabase/client';
+import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META } from '@/lib/i18n/locales';
 import { useSignedUrl } from '@/lib/useSignedUrl';
 import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 
@@ -178,6 +180,8 @@ export default function AccountSettings({
   canRename,
   userId,
   initialNotif,
+  initialLocale,
+  locales,
 }: {
   email: string;
   workspaceId: string;
@@ -187,10 +191,14 @@ export default function AccountSettings({
   canRename: boolean;
   userId: string;
   initialNotif: { posts: boolean; comments: boolean; weekly: boolean; marketing: boolean };
+  initialLocale: string;
+  locales: readonly string[];
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>('main');
   const [notif, setNotif] = useState(initialNotif);
+  const [locale, setLocale] = useState(initialLocale);
+  const [langSaved, setLangSaved] = useState(false);
   const [notifSaved, setNotifSaved] = useState(false);
   const [draftName, setDraftName] = useState(workspaceName);
   const [pw1, setPw1] = useState('');
@@ -320,6 +328,21 @@ export default function AccountSettings({
     } catch (e) {
       setNotif(initialNotif);
       setErr(e instanceof Error ? e.message : 'Could not save that preference.');
+    }
+  }
+
+  /** Language: cookie drives the site immediately, profiles.locale syncs the app. */
+  async function changeLang(next: string) {
+    setLocale(next);
+    setLangSaved(false);
+    document.cookie = `${LOCALE_COOKIE}=${next}; ${LOCALE_COOKIE_ATTRS}`;
+    try {
+      const sb = createClient();
+      const { error } = await sb.from('profiles').update({ locale: next }).eq('id', userId);
+      if (error) throw new Error(error.message);
+      setLangSaved(true);
+    } finally {
+      router.refresh();
     }
   }
 
@@ -638,6 +661,30 @@ export default function AccountSettings({
                 <span className="block text-xs text-muted">Light or dark dashboard</span>
               </span>
               <ThemeToggle />
+            </div>
+          </Card>
+
+          <Card className="mt-3">
+            <div className="flex w-full items-center gap-3 px-5 py-4 text-left">
+              <Languages className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold">
+                  Language{langSaved ? ' ✓' : ''}
+                </span>
+                <span className="block text-xs text-muted">Site and email language</span>
+              </span>
+              <select
+                value={locale}
+                onChange={(e) => void changeLang(e.target.value)}
+                className="rounded-lg border border-line bg-paper px-2 py-1.5 text-sm font-semibold text-ink"
+                aria-label="Language"
+              >
+                {locales.map((l) => (
+                  <option key={l} value={l}>
+                    {LOCALE_META[l as keyof typeof LOCALE_META]?.name ?? l}
+                  </option>
+                ))}
+              </select>
             </div>
           </Card>
 

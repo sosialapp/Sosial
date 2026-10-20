@@ -31,6 +31,7 @@ export interface WelcomeProfile {
   notifComments: boolean;
   notifWeekly: boolean;
   notifMarketing: boolean;
+  locale: string;
 }
 
 /**
@@ -66,6 +67,7 @@ export default function WelcomeScreen({
       notifComments: true,
       notifWeekly: false,
       notifMarketing: false,
+      locale: 'en',
     };
     try {
       const prof = await pullProfileFromCloud();
@@ -77,6 +79,7 @@ export default function WelcomeScreen({
           notifComments: prof.notifComments,
           notifWeekly: prof.notifWeekly,
           notifMarketing: prof.notifMarketing,
+          locale: prof.locale,
         };
       }
     } catch {}

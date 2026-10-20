@@ -55,7 +55,7 @@ function Shell() {
   /** Bumped when returning from Connect so the tab screens re-read channels. */
   const [tabEpoch, setTabEpoch] = useState(0);
   const [postSignal, setPostSignal] = useState(0);
-  const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false, notifMarketing: false });
+  const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false, notifMarketing: false, locale: 'en' });
   /** Server-authoritative plan + limits for the active workspace (null until
    *  the first fetch; the UI falls back to the local plan while offline). */
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
@@ -209,6 +209,7 @@ function Shell() {
       notifComments: profile.notifComments,
       notifWeekly: profile.notifWeekly,
       notifMarketing: profile.notifMarketing,
+      locale: profile.locale,
     });
     await dismissWelcome();
     try { await AsyncStorage.removeItem(LOCAL_OK_KEY); } catch {}
@@ -423,6 +424,7 @@ function Shell() {
                   notifComments={account.notifComments}
                   notifWeekly={account.notifWeekly}
                   notifMarketing={account.notifMarketing}
+                  locale={account.locale}
                   onUpdate={patchAccount}
                   onBack={() => setRoute('create')}
                   onConnect={() => goConnect('account')}

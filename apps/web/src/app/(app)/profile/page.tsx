@@ -1,8 +1,10 @@
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import AccountSettings from '@/components/AccountSettings';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { PLANS } from '@/lib/billing/plans';
+import { LOCALE_COOKIE, LOCALES, normalizeLocale, type Locale } from '@/lib/i18n/locales';
 
 export const metadata = { title: 'Profile' };
 
@@ -16,10 +18,13 @@ export default async function ProfilePage() {
   const sb = await createClient();
   const { data: prof } = await sb
     .from('profiles')
-    .select('notif_posts, notif_comments, notif_weekly, notif_marketing')
+    .select('notif_posts, notif_comments, notif_weekly, notif_marketing, locale')
     .eq('id', ctx.user.id)
     .maybeSingle();
-  const p = (prof ?? {}) as { notif_posts?: boolean; notif_comments?: boolean; notif_weekly?: boolean; notif_marketing?: boolean };
+  const p = (prof ?? {}) as { notif_posts?: boolean; notif_comments?: boolean; notif_weekly?: boolean; notif_marketing?: boolean; locale?: string | null };
+  const cookieLocale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+  // Cookie wins when set (visitor explicitly chose), otherwise the saved profile.
+  const locale: Locale = normalizeLocale(p.locale && cookieLocale === 'en' ? p.locale : cookieLocale);
   const ent = await getEntitlement(ctx.workspace.id);
   return (
     <AccountSettings
@@ -30,6 +35,8 @@ export default async function ProfilePage() {
       role={ctx.workspace.role}
       canRename={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}
       userId={ctx.user.id}
+      initialLocale={locale}
+      locales={LOCALES}
       initialNotif={{
         posts: p.notif_posts ?? true,
         comments: p.notif_comments ?? true,

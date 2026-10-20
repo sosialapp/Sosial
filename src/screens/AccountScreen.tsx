@@ -9,13 +9,14 @@ import Constants from 'expo-constants';
 import { wipeAllData } from '../utils/account';
 import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, callEdgeFunction, WorkspaceInfo, getMyAvatar, avatarSignedUrl, setAvatarFromUri, clearMyAvatar } from '../utils/supabase';
+import { ADMIN_LOCALES, LOCALE_NAMES } from '../utils/account';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
 
 WebBrowser.maybeCompleteAuthSession();
 
-type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'changelog' | 'terms' | 'legal' | 'report' | 'delete';
+type AcctView = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'changelog' | 'terms' | 'legal' | 'report' | 'delete' | 'lang';
 
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
 
@@ -24,7 +25,7 @@ const CHANGELOG = [
 ];
 
 /** Account settings: notifications, email, password, plan, legal… (all on-device, no backend). */
-export default function AccountScreen({ email, team, plan, notifPosts, notifComments, notifWeekly, notifMarketing, onUpdate, onBack, onConnect, onPrivacy, onLoggedOut, onTeam }: {
+export default function AccountScreen({ email, team, plan, notifPosts, notifComments, notifWeekly, notifMarketing, locale, onUpdate, onBack, onConnect, onPrivacy, onLoggedOut, onTeam }: {
   email: string;
   team: string;
   plan: 'free' | 'pro' | 'team';
@@ -32,7 +33,8 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   notifComments: boolean;
   notifWeekly: boolean;
   notifMarketing: boolean;
-  onUpdate: (patch: { email?: string; team?: string; plan?: 'free' | 'pro' | 'team'; notifPosts?: boolean; notifComments?: boolean; notifWeekly?: boolean; notifMarketing?: boolean }) => void;
+  locale: string;
+  onUpdate: (patch: { email?: string; team?: string; plan?: 'free' | 'pro' | 'team'; notifPosts?: boolean; notifComments?: boolean; notifWeekly?: boolean; notifMarketing?: boolean; locale?: string }) => void;
   onBack: () => void;
   onConnect: () => void;
   onPrivacy: () => void;
@@ -293,6 +295,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
           notifComments: prof.notifComments,
           notifWeekly: prof.notifWeekly,
           notifMarketing: prof.notifMarketing,
+          locale: prof.locale,
         });
       }
     } catch {}
@@ -376,6 +379,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const initial = (email || team || 'Z')[0].toUpperCase();
   const title = view === 'main' ? 'Account' : (
     view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings' :
+    view === 'lang' ? 'Language' :
     view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription' :
     view === 'changelog' ? "What's new" : view === 'terms' ? 'Terms of use' :
     view === 'report' ? 'Support' : 'Legal'
@@ -573,6 +577,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 </View>
                 <Switch value={mode === 'dark'} onValueChange={toggle} trackColor={{ true: C.accent, false: '#D8D1BF' }} thumbColor="#ffffff" />
               </View>
+              <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={() => { setView('lang'); }}>
+                <Ionicons name="globe-outline" size={20} color={C.ink} />
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={s.rowT}>Language</Text>
+                </View>
+                <Text style={s.rowS} numberOfLines={1}>{LOCALE_NAMES[locale] ?? locale}</Text>
+                <Ionicons name="chevron-forward" size={16} color={C.faint ?? C.ink} />
+              </TouchableOpacity>
             </View>
             <View style={s.head}>
               <TouchableOpacity
@@ -711,6 +723,27 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 }}
               />
             </View>
+          </View>
+        ) : null}
+
+        {view === 'lang' ? (
+          <View style={s.list}>
+            {ADMIN_LOCALES.map((l) => (
+              <TouchableOpacity
+                key={l}
+                style={s.row}
+                activeOpacity={0.7}
+                onPress={() => { onUpdate({ locale: l }); setView('main'); }}
+              >
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={[s.rowT, l === locale && { fontWeight: '700' as const }]}>{LOCALE_NAMES[l]}</Text>
+                </View>
+                {l === locale ? (
+                  <Ionicons name="checkmark" size={18} color={C.accent} />
+                ) : null}
+              </TouchableOpacity>
+            ))}
+            <Text style={s.note}>App copy and marketing emails follow this language.</Text>
           </View>
         ) : null}
 

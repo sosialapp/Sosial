@@ -11,9 +11,12 @@ export interface Account {
   notifComments: boolean;
   notifWeekly: boolean;
   notifMarketing: boolean;
+  locale: string;
 }
 
 const KEY = 'zap_account_v1';
+
+export const ADMIN_LOCALES = ['en', 'es', 'fr', 'de', 'ja', 'ko', 'zh', 'ar'] as const;
 
 export const DEFAULT_ACCOUNT: Account = {
   email: '',
@@ -23,6 +26,19 @@ export const DEFAULT_ACCOUNT: Account = {
   notifComments: true,
   notifWeekly: false,
   notifMarketing: false,
+  locale: 'en',
+};
+
+/** Native names, shown in the picker itself. */
+export const LOCALE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
+  ja: '日本語',
+  ko: '한국어',
+  zh: '中文 (简体)',
+  ar: 'العربية',
 };
 
 export function accountId(): string {
