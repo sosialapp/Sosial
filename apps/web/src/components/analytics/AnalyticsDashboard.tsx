@@ -11,6 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip } from '@/components/ui/tooltip';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/chart';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import ChannelBreakdownDialog from '@/components/analytics/ChannelBreakdownDialog';
@@ -61,11 +64,11 @@ type PerfMetric = 'posts' | 'followers' | 'engagement' | 'interactions';
 const DAY = 24 * 3600_000;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const PRESETS: { id: RangePreset; label: string }[] = [
-  { id: 'last7', label: '7 days' },
-  { id: 'last30', label: '30 days' },
-  { id: 'mtd', label: 'Month to date' },
-  { id: 'custom', label: 'Custom' },
+const PRESETS: { id: RangePreset; label: string; key?: string }[] = [
+  { id: 'last7', label: '7 days', key: 'an7' },
+  { id: 'last30', label: '30 days', key: 'an30' },
+  { id: 'mtd', label: 'Month to date', key: 'anMtd' },
+  { id: 'custom', label: 'Custom', key: 'anCustom' },
 ];
 
 const fmtDate = (iso: string | null): string => {
@@ -124,6 +127,7 @@ export default function AnalyticsDashboard({
   channelStats: FollowerSnapshotRow[];
   followerHistory: FollowerHistoryRow[];
 }) {
+  const t = useT(appMessages);
   const now = Date.now();
   const [preset, setPreset] = useState<RangePreset>('last30');
   const [custom, setCustom] = useState<DateRange | undefined>();
@@ -214,11 +218,11 @@ export default function AnalyticsDashboard({
 
   const range = useMemo((): { from: number; to: number; label: string } => {
     const sod = startOfDay(now);
-    if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: 'Last 7 days' };
-    if (preset === 'last30') return { from: sod - 29 * DAY, to: sod + DAY - 1, label: 'Last 30 days' };
+    if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: t('anLast7') };
+    if (preset === 'last30') return { from: sod - 29 * DAY, to: sod + DAY - 1, label: t('anLast30') };
     if (preset === 'mtd') {
       const d = new Date(now);
-      return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: sod + DAY - 1, label: 'Month to date' };
+      return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: sod + DAY - 1, label: t('anMtd') };
     }
     const from = custom?.from ? startOfDay(custom.from.getTime()) : sod - 29 * DAY;
     const to = custom?.to ? startOfDay(custom.to.getTime()) + DAY - 1 : sod + DAY - 1;
@@ -289,10 +293,10 @@ export default function AnalyticsDashboard({
     hasFollowers && followers > 0 ? `${(((likes + comments + shares) / followers) * 100).toFixed(1)}%` : null;
 
   const funnel: { label: string; value: number; href: string; color: string }[] = [
-    { label: 'Drafts', value: drafts, href: '/queue', color: 'var(--color-surface)' },
-    { label: 'Queued', value: queued, href: '/calendar', color: 'var(--color-bolt)' },
-    { label: 'Sent', value: sent.length, href: '/queue', color: 'var(--color-ink)' },
-    { label: 'Failed', value: failed, href: '/queue', color: '#E60023' },
+    { label: t('stDrafts'), value: drafts, href: '/queue', color: 'var(--color-surface)' },
+    { label: t('stQueued'), value: queued, href: '/calendar', color: 'var(--color-bolt)' },
+    { label: t('stSent'), value: sent.length, href: '/queue', color: 'var(--color-ink)' },
+    { label: t('stFailed'), value: failed, href: '/queue', color: '#E60023' },
   ];
 
   const interactions = likes + comments + shares;
@@ -302,31 +306,31 @@ export default function AnalyticsDashboard({
   const stats: { metric: PerfMetric; label: string; value: string; icon: typeof Send; hint: string }[] = [
     {
       metric: 'posts',
-      label: 'Posts Published',
+      label: t('anPostsPublished'),
       value: full(sent.length),
       icon: Send,
-      hint: `Posts sent in ${range.label.toLowerCase()}.`,
+      hint: fill(t('anPostsHint'), { range: range.label }),
     },
     {
       metric: 'followers',
-      label: 'Total Followers',
+      label: t('anTotalFollowers'),
       value: hasFollowers ? full(followers) : '-',
       icon: Users,
-      hint: 'Latest follower total across the selected channels. Snapshots refresh daily, never rounded.',
+      hint: t('anFollowersHint'),
     },
     {
       metric: 'engagement',
-      label: 'Engagement Rate',
+      label: t('anEngRate'),
       value: eng ?? '-',
       icon: Percent,
-      hint: '(Likes + comments + shares) ÷ followers, from the latest snapshots.',
+      hint: t('anEngHint'),
     },
     {
       metric: 'interactions',
-      label: 'Total Interactions',
+      label: t('anTotalInteractions') ?? t('anTotalInt'),
       value: full(interactions),
       icon: Heart,
-      hint: 'Likes + comments + shares across sent posts on the selected channels.',
+      hint: t('anIntHint'),
     },
   ];
 
@@ -548,7 +552,7 @@ export default function AnalyticsDashboard({
     max: breakdownMax,
     color: 'var(--color-bolt)',
     trailing: full(total),
-    hint: `${r.followers === null ? '-' : full(r.followers)} followers · ${chanEng(r) ?? '-'} engagement · ${r.sent} sent`,
+    hint: `${r.followers === null ? '-' : full(r.followers)} ${t('anFollowersWord')} · ${chanEng(r) ?? '-'} ${t('anEngagementWord')} · ${r.sent} ${t('anSentWord')}`,
   }));
 
   // ---- exports ----
@@ -624,11 +628,11 @@ export default function AnalyticsDashboard({
 <h1 style="font-size:22px;">Sosial analytics, ${range.label}</h1>
 <p style="color:#666;font-size:12px;">Exported ${stamp}${chanSel.length ? ` · Channels: ${chanSelLabels().join(', ')}` : ''}</p>
 <p style="font-size:13px;"><b>Posts:</b> ${sent.length} · <b>Followers:</b> ${hasFollowers ? followers.toLocaleString('en-US') : '-'} · <b>Reactions:</b> ${likes.toLocaleString('en-US')} · <b>Comments:</b> ${comments.toLocaleString('en-US')} · <b>Eng. rate:</b> ${eng ?? '-'} · <b>Views:</b> ${hasViews ? views.toLocaleString('en-US') : '-'}</p>
-<h2 style="font-size:16px;margin-top:28px;">Channels</h2>
+<h2 style="font-size:16px;margin-top:28px;">${t('anPdfChannelsH')}</h2>
 <table style="border-collapse:collapse;width:100%;"><thead><tr>${['Channel', 'Followers', 'Likes', 'Comments', 'Shares', 'Views', 'Engagement', 'Sent'].map((h, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
 ${perfRows.map((r) => row([r.label, r.followers === null ? '-' : String(r.followers), String(r.likes), String(r.comments), String(r.shares), r.views === null ? '-' : String(r.views), chanEng(r) ?? '-', String(r.sent)])).join('')}
 </tbody></table>
-<h2 style="font-size:16px;margin-top:28px;">Top posts</h2>
+<h2 style="font-size:16px;margin-top:28px;">${t('anPdfTopH')}</h2>
 <table style="border-collapse:collapse;width:100%;"><thead><tr>${['Post', 'Sent', 'Channels', 'Likes', 'Comments', 'Shares', 'Views', 'Interactions'].map((h, i) => `<th style="text-align:${i < 3 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
 ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-', p.providers.map((pv) => providerMeta(pv).label).join(' + ')].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;">${c}</td>`).join('')}${[p.likes, p.comments, p.shares, p.views ?? '-', p.interactions].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;text-align:right;">${c}</td>`).join('')}</tr>`).join('')}
 </tbody></table>
@@ -654,27 +658,23 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
     <div className="w-full px-4 pt-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow">Analytics</p>
+          <p className="eyebrow">{t('anEyebrow')}</p>
           <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-            How you&apos;re doing
+            {t('anH1')}
           </h1>
         </div>
         <Popover open={exportOpen} onOpenChange={setExportOpen}>
           <PopoverTrigger asChild>
             <button type="button" className="btn btn-sm btn-bolt">
-              <Download className="h-3.5 w-3.5" aria-hidden="true" />
-              Export
-            </button>
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />{t('anExport')}</button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2" align="end">
-            <p className="px-2 pt-1 pb-2 text-[11px] font-extrabold uppercase tracking-wide text-faint">
-              Export report
-            </p>
+            <p className="px-2 pt-1 pb-2 text-[11px] font-extrabold uppercase tracking-wide text-faint">{t('anExportReport')}</p>
             <div className="space-y-1">
               <ExportOption
                 icon={<FileText className="h-4 w-4" aria-hidden="true" />}
                 title="CSV"
-                subtitle="Channel + top-post tables"
+                subtitle={t('anCsvSub')}
                 onClick={() => {
                   exportCsv();
                   setExportOpen(false);
@@ -683,7 +683,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <ExportOption
                 icon={<Download className="h-4 w-4" aria-hidden="true" />}
                 title="Markdown"
-                subtitle="Full report with tables"
+                subtitle={t('anMdSub')}
                 onClick={() => {
                   exportMarkdown();
                   setExportOpen(false);
@@ -692,7 +692,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <ExportOption
                 icon={<FileDown className="h-4 w-4" aria-hidden="true" />}
                 title="PDF"
-                subtitle="Print-ready, save as PDF"
+                subtitle={t('anPdfSub')}
                 onClick={() => {
                   exportPdf();
                   setExportOpen(false);
@@ -715,7 +715,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               preset === p.id ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
             }`}
           >
-            {p.label}
+            {t(p.key ?? p.label)}
           </button>
         ))}
         <Popover open={calOpen} onOpenChange={setCalOpen}>
@@ -729,7 +729,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               }`}
             >
               <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-              {preset === 'custom' && custom?.from ? range.label : 'Custom'}
+              {preset === 'custom' && custom?.from ? range.label : t('anCustom')}
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -745,9 +745,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 type="button"
                 onClick={() => setCustom(undefined)}
                 className="rounded-full px-3 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
-              >
-                Clear
-              </button>
+              >{t('cpClear')}</button>
               <button
                 type="button"
                 onClick={() => {
@@ -755,16 +753,14 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                   setCalOpen(false);
                 }}
                 className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-on-accent transition hover:bg-accent-bright"
-              >
-                Apply
-              </button>
+              >{t('hubSave')}</button>
             </div>
           </PopoverContent>
         </Popover>
         {preset !== 'custom' ? <span className="ml-1 text-xs text-faint">{range.label}</span> : null}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={t('anFilterChan')}>
         <button
           type="button"
           aria-pressed={chanSel.length === 0}
@@ -812,7 +808,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               role="button"
               tabIndex={0}
               aria-pressed={on}
-              aria-label={`${s.label}, show on the Performance over time chart`}
+              aria-label={fill(t('anShowChart'), { label: s.label })}
               onClick={() => setPerfMetric(s.metric)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -851,7 +847,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <CardTitle>Performance over time</CardTitle>
+                <CardTitle>{t('anPerfChart')}</CardTitle>
                 <CardDescription>
                   {perfDesc[perfMetric]} · {range.label.toLowerCase()}
                 </CardDescription>
@@ -859,7 +855,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <div
                 className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5"
                 role="tablist"
-                aria-label="Chart type"
+                aria-label={t('anChartType')}
               >
                 <button
                   type="button"
@@ -916,7 +912,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
-              <CardTitle>Channel breakdown</CardTitle>
+              <CardTitle>{t('anChanBreakdown')}</CardTitle>
               {breakdown.length > 4 ? (
                 <button
                   type="button"
@@ -931,7 +927,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 </Link>
               )}
             </div>
-            <CardDescription>Interactions, audience and engagement per channel</CardDescription>
+            <CardDescription>{t('anChanDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="pt-1">
             {breakdown.length === 0 ? (
@@ -961,30 +957,30 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle>Top posts</CardTitle>
-              <CardDescription>Ranked by interactions in {range.label.toLowerCase()}</CardDescription>
+              <CardTitle>{t('anTopPosts')}</CardTitle>
+              <CardDescription>{fill(t('anTopDesc'), { range: range.label })}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="pt-1">
           {topPosts.length === 0 ? (
-            <p className="text-sm text-muted">No sent posts in this range yet.</p>
+            <p className="text-sm text-muted">{t('anNoSent')}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Post</TableHead>
-                  <TableHead>Channels</TableHead>
+                  <TableHead>{t('thPost')}</TableHead>
+                  <TableHead>{t('thChannels')}</TableHead>
                   <TableHead className="text-right">
                     <button type="button" onClick={() => flipSort('sent_at')} className="inline-flex items-center gap-1 font-bold hover:text-ink" aria-label="Sort by date">
                       Sent
                       <ArrowUpDown className="h-3 w-3" aria-hidden="true" />
                     </button>
                   </TableHead>
-                  <TableHead className="text-right">Likes</TableHead>
-                  <TableHead className="text-right">Comments</TableHead>
-                  <TableHead className="text-right">Shares</TableHead>
-                  <TableHead className="text-right">Views</TableHead>
+                  <TableHead className="text-right">{t('thLikes')}</TableHead>
+                  <TableHead className="text-right">{t('thComments')}</TableHead>
+                  <TableHead className="text-right">{t('thShares')}</TableHead>
+                  <TableHead className="text-right">{t('thViews')}</TableHead>
                   <TableHead className="text-right">
                     <button type="button" onClick={() => flipSort('interactions')} className="inline-flex items-center gap-1 font-bold hover:text-ink" aria-label="Sort by interactions">
                       Interactions
@@ -1044,7 +1040,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         {/* Pipeline */}
         <Card>
           <CardHeader>
-            <CardTitle>Pipeline</CardTitle>
+            <CardTitle>{t('anPipeline')}</CardTitle>
           </CardHeader>
           <CardContent>
             <HBarList
@@ -1067,7 +1063,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Sends per week · last 8 weeks</CardTitle>
+              <CardTitle>{t('anPerWeek')}</CardTitle>
               <CardDescription>best: {weekMax}/wk</CardDescription>
             </div>
           </CardHeader>
@@ -1079,7 +1075,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         {/* Weekday rhythm */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Sends by weekday</CardTitle>
+            <CardTitle>{t('anPerWeekday')}</CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartPanel
@@ -1097,7 +1093,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Recently sent</CardTitle>
+              <CardTitle>{t('anRecent')}</CardTitle>
               <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
                 Queue
               </Link>
@@ -1105,7 +1101,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           </CardHeader>
           <CardContent className="pt-2">
             {recent.length === 0 ? (
-              <p className="text-sm text-muted">No sends yet.</p>
+              <p className="text-sm text-muted">{t('anNoSends')}</p>
             ) : (
               <ul className="space-y-3">
                 {recent.slice(0, 5).map((p) => {
@@ -1143,7 +1139,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                         {p.title ? (
                           <p className="truncate text-sm font-bold">{p.title}</p>
                         ) : requiresTitle(providers) ? (
-                          <p className="truncate text-sm font-bold">Untitled post</p>
+                          <p className="truncate text-sm font-bold">{t('untitled')}</p>
                         ) : null}
                         <p className="text-xs text-muted">{fmtDate(p.sent_at)}</p>
                       </div>
@@ -1159,7 +1155,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
       </div>
 
       <Card className="mt-3 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted">Likes, comments and reach per post arrive with the stats pipeline.</p>
+        <p className="text-sm text-muted">{t('anStatsNote')}</p>
         <Link href="/post" className="btn btn-bolt shrink-0">
           Create a post
         </Link>
