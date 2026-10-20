@@ -27,9 +27,12 @@ import { articleIsEmpty, articleOptions, articlePlainText, isArticleProvider } f
 import { uploadArticleImage } from '@/lib/mediaUpload';
 import type { TipTapDoc } from '@/lib/blogConvert';
 import { validateUpload, targetWarnings } from '@/lib/mediaLimits';
-import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
+import { minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 /** Native reply-chains exist on these four channels only, same as the app. */
 const THREAD_PROVIDERS = ['x', 'threads', 'mastodon', 'bluesky'];
@@ -60,6 +63,7 @@ function RailDesignTile({
   busyKey: string | null;
   onUse: (project: StudioProject, pageIndex: number, node: HTMLElement | null) => void;
 }) {
+  const t = useT(appMessages);
   const nodeRef = useRef<HTMLDivElement>(null);
   const page = project.pages[pageIndex] ?? project.pages[0];
   const busy = busyKey === `${project.id}:${pageIndex}`;
@@ -72,24 +76,24 @@ function RailDesignTile({
         onClick={() => onUse(project, pageIndex, nodeRef.current)}
         disabled={busy}
         className="relative block w-full text-left"
-        aria-label={`Use ${project.name} in this post`}
+        aria-label={fill(t('railUseIn'), { name: project.name })}
       >
         <div ref={nodeRef}>
           <StudioCanvas page={page} ratio={ratio} width={148} frame={false} />
         </div>
         {busy ? (
           <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-xs font-bold text-white">
-            Rendering…
+            {t('hubRendering')}
           </span>
         ) : (
           <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/55 to-transparent px-2 pt-6 pb-2 text-xs font-extrabold text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100">
-            Use design
+            {t('railUseDesign')}
           </span>
         )}
       </button>
       <p className="truncate px-2.5 pt-1.5 text-xs font-bold">{project.name}</p>
       <p className="truncate px-2.5 pb-2 text-[11px] text-muted">
-        {project.pages.length} page{project.pages.length === 1 ? '' : 's'}
+        {fill(t('railPages'), { n: project.pages.length })}
       </p>
     </article>
   );
@@ -131,24 +135,25 @@ function RailPanel({
   segs: Segment[];
   ai: React.ReactNode;
 }) {
+  const t = useT(appMessages);
   const head = segs[0];
   const body = (head?.body ?? '').trim();
   const media = head?.media ?? [];
   const shown = channels.filter((c) => picked.includes(c.id));
   return (
     <div className="card space-y-3 p-4 sm:p-5">
-      <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label="Studio panel">
-        {(['template', 'preview', 'ai'] as const).map((t) => (
+      <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label={t('railPanel')}>
+        {(['template', 'preview', 'ai'] as const).map((tb) => (
           <button
-            key={t}
+            key={tb}
             type="button"
-            onClick={() => onTab(t)}
-            aria-pressed={tab === t}
+            onClick={() => onTab(tb)}
+            aria-pressed={tab === tb}
             className={`flex-1 rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
-              tab === t ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
+              tab === tb ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
             }`}
           >
-            {t === 'ai' ? 'AI' : t}
+            {tb === 'ai' ? 'AI' : tb === 'template' ? t('railTemplate') : t('railPreview')}
           </button>
         ))}
       </div>
@@ -157,7 +162,7 @@ function RailPanel({
 
       {tab === 'template' ? (
         <div className="space-y-3">
-          <div className="flex gap-1.5" role="group" aria-label="Template kind">
+          <div className="flex gap-1.5" role="group" aria-label={t('railTemplate')}>
             {(['text', 'design'] as const).map((k) => (
               <button
                 key={k}
@@ -168,36 +173,36 @@ function RailPanel({
                   tplKind === k ? 'border-ink bg-paper text-ink' : 'border-line text-muted hover:text-ink'
                 }`}
               >
-                {k === 'text' ? 'Template text' : 'Template design'}
+                {k === 'text' ? t('railTplText') : t('railTplDesign')}
               </button>
             ))}
           </div>
           {tplKind === 'text' ? (
             captions.length === 0 ? (
-              <p className="text-sm text-muted">No caption templates yet, save one on the Templates tab.</p>
+              <p className="text-sm text-muted">{t('railNoCaptions')}</p>
             ) : (
               <div className="max-h-[480px] space-y-2 overflow-y-auto">
-                {captions.map((t) => (
-                  <div key={t.id} className="rounded-2xl border border-line bg-paper p-3">
-                    <p className="truncate text-sm font-bold">{t.name}</p>
-                    {t.body ? <p className="mt-0.5 line-clamp-2 text-xs text-soft">{t.body}</p> : null}
+                {captions.map((cpt) => (
+                  <div key={cpt.id} className="rounded-2xl border border-line bg-paper p-3">
+                    <p className="truncate text-sm font-bold">{cpt.name}</p>
+                    {cpt.body ? <p className="mt-0.5 line-clamp-2 text-xs text-soft">{cpt.body}</p> : null}
                     <button
                       type="button"
-                      onClick={() => onUseCaption(t)}
+                      onClick={() => onUseCaption(cpt)}
                       className="btn btn-ghost mt-2 w-full !py-1.5 !text-xs"
                     >
-                      Use caption
+                      {t('cWriteCaption')}
                     </button>
                   </div>
                 ))}
               </div>
             )
           ) : designs.length === 0 ? (
-            <p className="text-sm text-muted">No designs yet, make one on the Templates tab.</p>
+            <p className="text-sm text-muted">{t('railNoDesigns')}</p>
           ) : (
             <div className="max-h-[480px] space-y-5 overflow-y-auto pb-1">
               <div>
-                <p className="eyebrow mb-2">Your templates</p>
+                <p className="eyebrow mb-2">{t('hubYourTemplates')}</p>
                 <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
                   {designs.map((d) => (
                     <RailDesignTile key={d.id} project={d} pageIndex={0} busyKey={designBusy} onUse={onUseDesign} />
@@ -212,9 +217,9 @@ function RailPanel({
       {tab === 'preview' ? (
         <div className="space-y-3">
           {shown.length === 0 ? (
-            <p className="text-sm text-muted">Pick a channel above to preview this post as they will see it.</p>
+            <p className="text-sm text-muted">{t('railPickChannel')}</p>
           ) : !body && media.length === 0 ? (
-            <p className="text-sm text-muted">Write something (or attach media) to preview it here.</p>
+            <p className="text-sm text-muted">{t('railWriteSomething')}</p>
           ) : (
             <div className="max-h-[520px] space-y-4 overflow-y-auto pb-1">
               {shown.map((c) => {
@@ -313,6 +318,7 @@ export default function CreatePost({
   libraryDesigns?: StudioProject[];
 }) {
   const router = useRouter();
+  const t = useT(appMessages);
   const ready = useMemo(() => channels.filter((c) => c.status === 'connected'), [channels]);
 
   const initParts = initialParts && initialParts.length > 1 ? initialParts : null;
@@ -455,7 +461,7 @@ export default function CreatePost({
           prev.map((s, i) => ({ ...s, media: [...s.media, ...(loaded[i] ?? [])].slice(0, 10) })),
         );
       } else {
-        setErr('Draft media could not be reloaded, re-attach it before saving.');
+        setErr(t('cpErrMediaReload'));
       }
       setMediaLoading(false);
     })();
@@ -526,23 +532,23 @@ export default function CreatePost({
     return ready.map((c) => {
       const cap = CAPABILITIES[c.provider as keyof typeof CAPABILITIES];
       const base = { id: c.id, chainOk: chainOk(c.provider), reason: '' as string };
-      if (!base.chainOk) return { ...base, blocked: true, reason: 'Thread posts go to X, Threads, Mastodon and Bluesky only' };
+      if (!base.chainOk) return { ...base, blocked: true, reason: t('cpThreadGate') };
       if (!cap) return { ...base, blocked: false, reason: '' };
       if (cap.requiresVideo && !hasVideo) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a video, this post has none attached.` };
+        return { ...base, blocked: true, reason: fill(t('capNeedsVideo'), { label: cap.label }) };
       }
       if (cap.requiresMedia && totalMedia === 0) {
-        return { ...base, blocked: true, reason: `${cap.label} needs a photo or video, text alone can't go there.` };
+        return { ...base, blocked: true, reason: fill(t('capNeedsMedia'), { label: cap.label }) };
       }
       if (hasVideo && cap.supports.video === false) {
-        return { ...base, blocked: true, reason: `${cap.label} doesn't take video, remove the video or drop the channel.` };
+        return { ...base, blocked: true, reason: fill(t('capNoVideo'), { label: cap.label }) };
       }
       if (hasImage && cap.supports.image === false) {
-        return { ...base, blocked: true, reason: `${cap.label} takes text and links only, remove the image or drop the channel.` };
+        return { ...base, blocked: true, reason: fill(t('capNoImage'), { label: cap.label }) };
       }
       return { ...base, blocked: false, reason: '' };
     });
-  }, [ready, segs, thread]);
+  }, [ready, segs, thread, t]);
 
   /** Reasons for chips the user STILL tried to pick (grey + blocked). */
   const [chipNote, setChipNote] = useState<string | null>(null);
@@ -557,7 +563,7 @@ export default function CreatePost({
   function toggle(id: string) {
     const info = chipMeta.get(id);
     if (info?.blocked) {
-      setChipNote(info.reason || "This channel can't take the current draft.");
+      setChipNote(info.reason || t('cChipDefault'));
       return;
     }
     setChipNote(null);
@@ -646,21 +652,21 @@ export default function CreatePost({
     setErr(null);
     const chosen = ready.filter((c) => picked.includes(c.id));
     if (!chosen.length) {
-      setErr('Pick at least one channel.');
+      setErr(t('cErrPick'));
       return;
     }
     if (submitMode === 'schedule' && !whenIso) {
-      setErr('Choose a date and time first.');
+      setErr(t('cErrDate'));
       return;
     }
     if (submitMode === 'schedule' && whenIso && queueTooSoon(whenIso)) {
-      setErr(leadTimeMessage());
+      setErr(t('leadTime'));
       return;
     }
     const articleHasContent = surface === 'article' && !articleIsEmpty(articleDoc);
     const live = segs.filter((s) => s.body.trim() || s.media.length > 0);
     if (live.length === 0 && !articleHasContent) {
-      setErr('Add a caption or some media first.');
+      setErr(t('cErrContent'));
       return;
     }
     // Media channels refuse text-only posts (only file-backed media uploads).
@@ -773,7 +779,7 @@ export default function CreatePost({
       router.push('/queue');
       router.refresh();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Could not save the post.');
+      setErr(e2 instanceof Error ? e2.message : t('cErrSavePost'));
       setMonitorOpen(false);
       setMonitorIds([]);
       setBusy(false);
@@ -798,25 +804,25 @@ export default function CreatePost({
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         {/* Left: composer */}
         <div className="min-w-0 xl:col-span-3">
-          <section className="card p-5" aria-label="Create your post">
+          <section className="card p-5" aria-label={t('cpTitle')}>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-display text-base font-extrabold tracking-tight">Create your post</p>
+              <p className="font-display text-base font-extrabold tracking-tight">{t('cpTitle')}</p>
               {editingIds?.length ? (
                 <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">
-                  Editing draft{mediaLoading ? ' · loading media…' : ''}
+                  {t('cpEditingDraft')}{mediaLoading ? t('cpLoadingMedia') : ''}
                 </span>
               ) : null}
               <span className="flex-1" />
               {/* Mode pill, top, dashboard style */}
               <SegmentedPills
-                ariaLabel="Post mode"
+                ariaLabel={t('cpModeAria')}
                 value={mode}
                 onChange={setMode}
                 options={[
-                  { value: 'now', label: 'Post now' },
+                  { value: 'now', label: t('cpPostNow') },
                   {
                     value: 'schedule',
-                    label: 'Schedule',
+                    label: t('cSchedule'),
                     onSelect: () => {
                       if (!whenIso || queueTooSoon(whenIso)) {
                         setWhenIso(new Date(minQueueTime()).toISOString());
@@ -841,12 +847,12 @@ export default function CreatePost({
             ) : null}
 
             {/* Channel pills, dashboard style; thread narrows the cast */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Channels">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label={t('cChannels')}>
               {ready.length === 0 ? (
                 <p className="text-xs text-muted">
-                  Nothing connected.{' '}
+                  {t('cpNothingConnected')}{' '}
                   <Link href="/channels" className="font-bold text-ink hover:underline">
-                    Connect a channel
+                    {t('cpConnectChannel')}
                   </Link>
                 </p>
               ) : (
@@ -895,7 +901,7 @@ export default function CreatePost({
             {thread ? (
               <p className="mt-2 flex items-center gap-1.5 text-[11px] text-faint">
                 <BranchIcon className="h-3 w-3" />
-                Thread posts go to X, Threads, Mastodon and Bluesky, parts publish as one reply chain.
+                {t('cpThreadNote')}
               </p>
             ) : null}
 
@@ -929,11 +935,11 @@ export default function CreatePost({
                                   type="button"
                                   onClick={() => setTopicOpen((v) => !v)}
                                   aria-expanded={topicOpen}
-                                  aria-label="Threads community topic"
-                                  title={threadsTopic || 'Community or topic'}
+                                  aria-label={t('cpTopicAria')}
+                                  title={threadsTopic || t('cpCommunityOrTopic')}
                                   className="flex max-w-40 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/10"
                                 >
-                                  <span className="truncate">{threadsTopic || 'Community'}</span>
+                                  <span className="truncate">{threadsTopic || t('cpCommunity')}</span>
                                   <span aria-hidden="true" className="text-sm leading-none">›</span>
                                 </button>
                               ) : null}
@@ -949,8 +955,8 @@ export default function CreatePost({
                     <input
                       value={threadsTopic}
                       onChange={(e) => setThreadsTopic(e.target.value.slice(0, 50))}
-                      placeholder="e.g. Photography"
-                      aria-label="Threads community topic tag"
+                      placeholder={t('cpTopicPh')}
+                      aria-label={t('cpTopicTagAria')}
                       maxLength={50}
                       autoComplete="off"
                       autoCapitalize="off"
@@ -963,7 +969,7 @@ export default function CreatePost({
                         onClick={() => setThreadsTopic('')}
                         className="shrink-0 text-[11px] font-bold text-muted transition hover:text-ink"
                       >
-                        Clear
+                        {t('cpClear')}
                       </button>
                     ) : null}
                   </div>
@@ -996,12 +1002,12 @@ export default function CreatePost({
             {articlePicked ? (
               <div className="mt-3">
                 <SegmentedPills
-                  ariaLabel="Composer mode"
+                  ariaLabel={t('cpComposerAria')}
                   value={surface}
                   onChange={setSurface}
                   options={[
-                    { value: 'social', label: 'Social post' },
-                    { value: 'article', label: 'Article' },
+                    { value: 'social', label: t('cpSocialPost') },
+                    { value: 'article', label: t('cpArticle') },
                   ]}
                 />
               </div>
@@ -1017,7 +1023,7 @@ export default function CreatePost({
                   <button
                     type="button"
                     onClick={() => setErr(null)}
-                    aria-label="Dismiss error"
+                    aria-label={t('cpClear')}
                     className="shrink-0 rounded-full p-0.5 text-[#9F2F2D] transition hover:opacity-70 dark:text-[#f2a8a8]"
                   >
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -1038,7 +1044,7 @@ export default function CreatePost({
                   <button
                     type="button"
                     onClick={() => setChipNote(null)}
-                    aria-label="Dismiss notice"
+                    aria-label={t('cpClear')}
                     className="shrink-0 rounded-full p-0.5 text-amber-700 transition hover:opacity-70 dark:text-amber-300"
                   >
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -1050,8 +1056,8 @@ export default function CreatePost({
                   <input
                     value={articleTitle}
                     onChange={(e) => setArticleTitle(e.target.value)}
-                    placeholder="Article title"
-                    aria-label="Article title"
+                    placeholder={t('cpArticleTitle')}
+                    aria-label={t('cpArticleTitle')}
                     className="w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-base font-bold text-ink placeholder:text-faint focus:border-ink/40 focus:outline-none"
                   />
                   <ArticleEditor
@@ -1065,7 +1071,7 @@ export default function CreatePost({
                   <div className="rounded-2xl border border-line bg-paper p-3">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-bold uppercase tracking-wide text-muted">
-                        Cover image
+                        {t('cpCover')}
                       </span>
                       <span className="flex-1" />
                       <button
@@ -1075,7 +1081,7 @@ export default function CreatePost({
                         className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-accent-ink transition hover:opacity-80"
                       >
                         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                        Add cover
+                        {t('cpAddCover')}
                       </button>
                     </div>
                     {(segs[0]?.media.length ?? 0) > 0 ? (
@@ -1093,7 +1099,7 @@ export default function CreatePost({
                             <button
                               type="button"
                               onClick={() => removeMediaFrom(0, i)}
-                              aria-label="Remove cover"
+                              aria-label={t('cpRemoveCover')}
                               className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] leading-none text-white"
                             >
                               ×
@@ -1103,7 +1109,7 @@ export default function CreatePost({
                       </div>
                     ) : (
                       <p className="mt-1 text-xs text-faint">
-                        Optional, used as the featured image where the platform supports it.
+                        {t('cpCoverNote')}
                       </p>
                     )}
                     <input
@@ -1136,9 +1142,9 @@ export default function CreatePost({
                   onAddFiles={(list) => addFilesTo(0, list)}
                   onRemoveMedia={(mi) => removeMediaFrom(0, mi)}
                   onReorderMedia={(from, to) => reorderMediaIn(0, from, to)}
-                  placeholder="What's on your mind?"
+                  placeholder={t('cpMindPh')}
                   limit={limit}
-                  label="Post text"
+                  label={t('cpPostText')}
                 />
               )}
             </div>
@@ -1153,17 +1159,17 @@ export default function CreatePost({
                       <div className="mb-1 flex items-center gap-2">
                         <span className="flex items-center gap-1 text-[11px] font-bold text-faint">
                           <BranchIcon className="h-3 w-3" />
-                          Part {idx + 1}
+                          {fill(t('cPart'), { n: idx + 1 })}
                         </span>
                         <span className="flex-1" />
                         {segs.length > 2 ? (
                           <button
                             type="button"
                             onClick={() => setSegs((prev) => prev.filter((_, j) => j !== idx))}
-                            aria-label={`Remove part ${idx + 1}`}
+                            aria-label={fill(t('hubRemovePartN'), { n: idx + 1 })}
                             className="text-[11px] font-bold text-muted transition hover:text-ink"
                           >
-                            Remove
+                            {t('hubRemove')}
                           </button>
                         ) : null}
                       </div>
@@ -1173,10 +1179,10 @@ export default function CreatePost({
                         onAddFiles={(list) => addFilesTo(idx, list)}
                         onRemoveMedia={(mi) => removeMediaFrom(idx, mi)}
                         onReorderMedia={(from, to) => reorderMediaIn(idx, from, to)}
-                        placeholder={`Part ${idx + 1}…`}
+                        placeholder={fill(t('hubPartPh'), { n: idx + 1 })}
                         rows={3}
                         limit={limit}
-                        label={`Thread part ${idx + 1}`}
+                        label={fill(t('hubIdeaThreadLbl'), { n: idx + 1 })}
                       />
                     </div>
                   );
@@ -1187,7 +1193,7 @@ export default function CreatePost({
                     onClick={() => setSegs((prev) => [...prev, { body: '', media: [] }])}
                     className="text-xs font-bold text-ink hover:underline"
                   >
-                    + Add part
+                    {t('hubAddPart')}
                   </button>
                 ) : null}
               </div>
@@ -1198,7 +1204,7 @@ export default function CreatePost({
                 className="fixed inset-0 z-[100] overflow-y-auto"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Confirm post now"
+                aria-label={t('cpConfirmAria')}
               >
                 <div
                   className="absolute inset-0 bg-ink/50"
@@ -1211,8 +1217,7 @@ export default function CreatePost({
                 <div className="relative flex min-h-full items-center justify-center p-4">
                   <div className="relative my-auto w-full max-w-md rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
                     <h2 className="font-display text-lg font-extrabold tracking-tight">
-                      Post now to {ready.filter((c) => picked.includes(c.id)).length} channel
-                      {picked.length === 1 ? '' : 's'}?
+                      {fill(t('cpConfirmTitle'), { n: ready.filter((c) => picked.includes(c.id)).length })}
                     </h2>
                     <ul className="mt-3 space-y-2">
                       {ready
@@ -1278,7 +1283,7 @@ export default function CreatePost({
                             <p className="rounded-xl bg-paper-dim px-3 py-2 text-xs whitespace-pre-line text-soft">
                               {snippet.slice(0, 140)}
                               {snippet.length > 140 ? '…' : ''}
-                              {thread && parts > 1 ? ` (+${parts - 1} more parts)` : ''}
+                              {thread && parts > 1 ? fill(t('cpMoreParts'), { n: parts - 1 }) : ''}
                             </p>
                           ) : null}
                         </div>
@@ -1293,7 +1298,7 @@ export default function CreatePost({
                         }}
                         className="btn btn-ghost flex-1"
                       >
-                        Cancel
+                        {t('cancel')}
                       </button>
                       <button
                         type="button"
@@ -1305,7 +1310,7 @@ export default function CreatePost({
                         }}
                         className="btn btn-primary flex-1"
                       >
-                        Post now
+                        {t('cpPostNow')}
                       </button>
                     </div>
                   </div>
@@ -1316,7 +1321,7 @@ export default function CreatePost({
             {/* One row: thread link · save draft · post, aligned */}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {surface === 'article' ? (
-                <span className="text-xs text-faint">Publishing as an article.</span>
+                <span className="text-xs text-faint">{t('cpPublishingArticle')}</span>
               ) : (
                 <button
                   type="button"
@@ -1325,7 +1330,7 @@ export default function CreatePost({
                   className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
                 >
                   <BranchIcon />
-                  {thread ? 'Turn off thread' : 'Post as thread'}
+                  {thread ? t('threadOn') : t('threadOff')}
                 </button>
               )}
               <span className="flex-1" />
@@ -1335,15 +1340,15 @@ export default function CreatePost({
                 disabled={busy}
                 className="text-xs font-bold text-muted transition hover:text-ink disabled:opacity-50"
               >
-                Save draft
+                {t('cSaveDraft')}
               </button>
               <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
                 {busy ? (
-                  'Sending…'
+                  t('cpSending')
                 ) : (
                   <>
                     <SendIcon className="h-3.5 w-3.5" />
-                    {mode === 'now' ? 'Post now' : 'Schedule post'}
+                    {mode === 'now' ? t('cpPostNow') : t('cpSchedulePost')}
                   </>
                 )}
               </button>
@@ -1380,7 +1385,7 @@ export default function CreatePost({
                     return next;
                   });
                 }}
-                appliedNote="Applied to the composer, edit freely, then post."
+                appliedNote={t('cpAppliedNote')}
               />
             }
           />
