@@ -1,5 +1,5 @@
-/** Supported locales. `ar` renders right-to-left; everything else LTR. */
-export const LOCALES = ['en', 'es', 'fr', 'de', 'ja', 'ko', 'zh', 'ar'] as const;
+/** Supported locales. All LTR. */
+export const LOCALES = ['en', 'es', 'fr', 'de', 'ja', 'ko', 'zh'] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = 'en';
@@ -19,7 +19,6 @@ export const LOCALE_META: Record<Locale, { name: string; dir: 'ltr' | 'rtl' }> =
   ja: { name: '日本語', dir: 'ltr' },
   ko: { name: '한국어', dir: 'ltr' },
   zh: { name: '简体中文', dir: 'ltr' },
-  ar: { name: 'العربية', dir: 'rtl' },
 };
 
 export function isLocale(value: unknown): value is Locale {

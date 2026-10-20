@@ -16,7 +16,7 @@ export interface Account {
 
 const KEY = 'zap_account_v1';
 
-export const ADMIN_LOCALES = ['en', 'es', 'fr', 'de', 'ja', 'ko', 'zh', 'ar'] as const;
+export const ADMIN_LOCALES = ['en', 'es', 'fr', 'de', 'ja', 'ko', 'zh'] as const;
 
 export const DEFAULT_ACCOUNT: Account = {
   email: '',
@@ -38,7 +38,6 @@ export const LOCALE_NAMES: Record<string, string> = {
   ja: '日本語',
   ko: '한국어',
   zh: '中文 (简体)',
-  ar: 'العربية',
 };
 
 export function accountId(): string {

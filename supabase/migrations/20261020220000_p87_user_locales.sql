@@ -5,6 +5,6 @@ do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'profiles_locale_check') then
     alter table public.profiles add constraint profiles_locale_check
-      check (locale in ('en','es','fr','de','ja','ko','zh','ar'));
+      check (locale in ('en','es','fr','de','ja','ko','zh'));
   end if;
 end $$;
