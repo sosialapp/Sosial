@@ -35,6 +35,9 @@ import {
   pushLibraryItem, tombstoneLibraryItem, pullLibraryRows,
   type LibraryKind, type LibraryRow,
 } from '@/lib/librarySync';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 interface IdeaMedia {
   url: string;
@@ -119,21 +122,21 @@ const fmtDate = (ts: number): string => {
 };
 
 const STATUS_ORDER: StatusTab[] = ['all', 'sent', 'failed', 'queue', 'drafts', 'approvals'];
-const STATUS_PILL_LABEL: Record<StatusTab, string> = {
-  all: 'All',
-  queue: 'Queue',
-  drafts: 'Drafts',
-  approvals: 'Approvals',
-  sent: 'Sent',
-  failed: 'Failed',
+const STATUS_PILL_KEY: Record<StatusTab, string> = {
+  all: 'tabAll',
+  queue: 'tabQueue',
+  drafts: 'tabDrafts',
+  approvals: 'tabApprovals',
+  sent: 'tabSent',
+  failed: 'tabFailed',
 };
 const STATUS_TITLE: Record<StatusTab, string> = {
-  all: 'All posts',
-  queue: 'Queue',
-  drafts: 'Drafts',
-  approvals: 'Approvals',
-  sent: 'Sent',
-  failed: 'Failed',
+  all: 'titleAllPosts',
+  queue: 'tabQueue',
+  drafts: 'tabDrafts',
+  approvals: 'tabApprovals',
+  sent: 'tabSent',
+  failed: 'tabFailed',
 };
 const STATUS_PILL_ICON: Record<StatusTab, LucideIcon> = {
   all: LayoutGrid,
@@ -288,6 +291,7 @@ export default function CreateHub({
   initialTab: Tab;
 }) {
   const router = useRouter();
+  const tr = useT(appMessages);
   const searchParams = useSearchParams();
   // Tab switches navigate (colocated per-tab URLs), no tab state to drift.
   const tab = initialTab;
@@ -782,20 +786,20 @@ export default function CreateHub({
     <div className="w-full px-4 pt-6 sm:px-6">
       {statusView ? (
         <>
-          <p className="eyebrow">Posts</p>
+          <p className="eyebrow">{tr('hubPosts')}</p>
           <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-            {STATUS_TITLE[statusView]}
+            {tr(STATUS_TITLE[statusView])}
           </h1>
         </>
       ) : (
         <>
-          <p className="eyebrow">Post</p>
-          <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">New post</h1>
-          <p className="mt-1 text-sm text-muted">Catch the idea, design the visual, then post it everywhere.</p>
+          <p className="eyebrow">{tr('hubEyebrow')}</p>
+          <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{tr('cNewPost')}</h1>
+          <p className="mt-1 text-sm text-muted">{tr('hubSub')}</p>
         </>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Post sections">
+      <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label={tr('hubEyebrow')}>
         <button
           type="button"
           role="tab"
@@ -807,7 +811,7 @@ export default function CreateHub({
               : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
-          Post
+          {tr('hubTabPost')}
         </button>
         <button
           type="button"
@@ -820,7 +824,7 @@ export default function CreateHub({
               : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
-          Templates
+          {tr('hubTabTemplates')}
         </button>
         <button
           type="button"
@@ -833,12 +837,12 @@ export default function CreateHub({
               : 'border-line bg-card text-muted hover:bg-paper'
           }`}
         >
-          Ideas
+          {tr('hubTabIdeas')}
           {ideas.length ? ` · ${ideas.length}` : ''}
         </button>
       </div>
       {(view === 'create' || statusView !== null) && (
-        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Post filters">
+        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label={tr('filters')}>
           <button
             type="button"
             role="tab"
@@ -850,7 +854,7 @@ export default function CreateHub({
                 : 'border-line bg-card text-muted hover:bg-paper'
             }`}
           >
-            New post
+            {tr('cNewPost')}
           </button>
           {STATUS_ORDER.map((s) => {
             const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
@@ -869,7 +873,7 @@ export default function CreateHub({
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {STATUS_PILL_LABEL[s]}
+                {tr(STATUS_PILL_KEY[s])}
                 {count > 0 && <span className="opacity-60">{count}</span>}
               </button>
             );
@@ -907,13 +911,13 @@ export default function CreateHub({
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-5">
           <div className="flex min-w-0 flex-col gap-4 xl:col-span-3">
             <div className="card space-y-3 p-4 sm:p-5">
-              <p className="eyebrow">Jot it down</p>
+              <p className="eyebrow">{tr('hubJot')}</p>
               <EmojiInput
                 value={title}
                 onChange={setTitle}
-                placeholder="Idea title…"
+                placeholder={tr('hubIdeaTitlePh')}
                 className="field font-display font-bold"
-                aria-label="Idea title"
+                aria-label={tr('hubIdeaTitle')}
               />
               <PostBox
                 seg={ideaSegs[0] ?? { body: '', media: [] }}
@@ -921,10 +925,10 @@ export default function CreateHub({
                 onAddFiles={(list) => addFilesToIdea(0, list)}
                 onRemoveMedia={(mi) => removeMediaFromIdea(0, mi)}
                 onReorderMedia={(from, to) => reorderMediaInIdea(0, from, to)}
-                placeholder="Describe the idea…"
+                placeholder={tr('hubIdeaBodyPh')}
                 rows={4}
                 limit={2200}
-                label="Idea body"
+                label={tr('hubIdeaBody')}
               />
               {ideaThread ? (
                 <div className="space-y-2">
@@ -933,15 +937,15 @@ export default function CreateHub({
                     return (
                       <div key={idx}>
                         <div className="mb-1 flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-faint">Part {idx + 1}</span>
+                          <span className="text-[11px] font-bold text-faint">{fill(tr('hubPartN'), { n: idx + 1 })}</span>
                           <span className="flex-1" />
                           <button
                             type="button"
                             onClick={() => setIdeaSegs((prev) => prev.filter((_, j) => j !== idx))}
-                            aria-label={`Remove part ${idx + 1}`}
+                            aria-label={fill(tr('hubRemovePartN'), { n: idx + 1 })}
                             className="text-[11px] font-bold text-muted transition hover:text-ink"
                           >
-                            Remove
+                            {tr('hubRemove')}
                           </button>
                         </div>
                         <PostBox
@@ -950,10 +954,10 @@ export default function CreateHub({
                           onAddFiles={(list) => addFilesToIdea(idx, list)}
                           onRemoveMedia={(mi) => removeMediaFromIdea(idx, mi)}
                           onReorderMedia={(from, to) => reorderMediaInIdea(idx, from, to)}
-                          placeholder={`Part ${idx + 1}…`}
+                          placeholder={fill(tr('hubPartPh'), { n: idx + 1 })}
                           rows={3}
                           limit={2200}
-                          label={`Idea thread part ${idx + 1}`}
+                          label={fill(tr('hubIdeaThreadLbl'), { n: idx + 1 })}
                         />
                       </div>
                     );
@@ -964,7 +968,7 @@ export default function CreateHub({
                       onClick={() => setIdeaSegs((prev) => [...prev, { body: '', media: [] }])}
                       className="text-xs font-bold text-ink hover:underline"
                     >
-                      + Add part
+                      {tr('hubAddPart')}
                     </button>
                   ) : null}
                 </div>
@@ -977,20 +981,20 @@ export default function CreateHub({
                   className="flex items-center gap-1.5 text-xs font-bold text-accent-ink transition hover:opacity-80"
                 >
                   <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
-                {ideaThread ? 'Turn off thread' : 'Post as thread'}
+                {ideaThread ? tr('threadOn') : tr('threadOff')}
                 </button>
                 <span className="flex-1" />
                 <button type="button" onClick={() => void saveIdea()} className="btn btn-primary !py-1.5 !text-xs">
-                  Save idea
+                  {tr('hubSaveIdea')}
                 </button>
               </div>
             </div>
 
             {ideas.length === 0 ? (
               <div className="card p-8 text-center">
-                <p className="font-display text-base font-extrabold">No ideas yet</p>
+                <p className="font-display text-base font-extrabold">{tr('hubNoIdeas')}</p>
                 <p className="mx-auto mt-1 max-w-xs text-sm text-muted">
-                  Jot one above. Posting it later takes one tap.
+                  {tr('hubNoIdeasSub')}
                 </p>
               </div>
             ) : (
@@ -1013,19 +1017,19 @@ export default function CreateHub({
                         <p className="truncate font-display font-extrabold">
                           {idea.title}
                           {idea.origin === 'mobile' ? (
-                            <span className="pill ml-2 bg-surface text-soft">from mobile</span>
+                            <span className="pill ml-2 bg-surface text-soft">{tr('hubFromMobile')}</span>
                           ) : null}
                         </p>
                         {idea.body ? <p className="mt-1 line-clamp-2 text-sm text-soft">{idea.body}</p> : null}
                         <p className="mt-1 text-xs text-faint">
                           {fmtDate(idea.createdAt)}
-                          {isThreadIdea ? ` · ${(idea.thread?.length ?? 0) + 1}-post thread` : ''}
+                          {isThreadIdea ? ` · ${fill(tr('hubNThread'), { n: (idea.thread?.length ?? 0) + 1 })}` : ''}
                         </p>
                       </span>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
                       <button type="button" onClick={() => void postIdea(idea)} className="btn btn-primary">
-                        Post this idea
+                        {tr('hubPostThisIdea')}
                       </button>
                       <button
                         type="button"
@@ -1034,9 +1038,9 @@ export default function CreateHub({
                           persistIdeas(ideas.filter((x) => x.id !== idea.id));
                         }}
                         className="btn btn-ghost"
-                        aria-label={`Delete ${idea.title}`}
+                        aria-label={`${tr('deleteLbl')}: ${idea.title}`}
                       >
-                        Delete
+                        {tr('deleteLbl')}
                       </button>
                     </div>
                   </article>
@@ -1068,7 +1072,7 @@ export default function CreateHub({
                 });
                 if (bodies.length > 1) setIdeaThread(true);
               }}
-              appliedNote="Applied to your idea, edit freely, then save."
+              appliedNote={tr('hubAppliedNote')}
             />
           </div>
         </div>
@@ -1115,16 +1119,16 @@ export default function CreateHub({
           {/* Mobile-parity CTA, the editor opens beneath it (mobile opens a screen). */}
           <button
             type="button"
-            onClick={() => setEditing(blankProject('Untitled design'))}
+            onClick={() => setEditing(blankProject(tr('hubUntitledIdea')))}
             className="flex w-full items-center justify-between rounded-2xl bg-ink px-5 py-4 font-display text-sm font-extrabold text-paper transition hover:opacity-90"
           >
-            + New template design
+            {tr('hubNewDesign')}
           </button>
 
           {/* Your templates, two-column masonry with ••• menus. */}
           {projects.length > 0 ? (
             <>
-              <p className="eyebrow pt-1">Your templates</p>
+              <p className="eyebrow pt-1">{tr('hubYourTemplates')}</p>
               <div className="columns-2 gap-3 xl:columns-3">
                 {projects.map((d) => (
                   <div key={d.id} className="mb-3 break-inside-avoid">
@@ -1141,7 +1145,7 @@ export default function CreateHub({
                         setMenuFor(null);
                       }}
                       onDuplicate={() => {
-                        persistProjects([{ ...structuredClone(d), id: `design_${Date.now().toString(36)}`, name: `${d.name} copy`, createdAt: Date.now() }, ...projects]);
+                        persistProjects([{ ...structuredClone(d), id: `design_${Date.now().toString(36)}`, name: fill(tr('hubDesignCopy'), { name: d.name }), createdAt: Date.now() }, ...projects]);
                         setMenuFor(null);
                       }}
                       onDelete={() => {
@@ -1159,7 +1163,7 @@ export default function CreateHub({
           {/* Recent, designs used lately, most recent first. */}
           {recent.length > 0 ? (
             <>
-              <p className="eyebrow pt-1">Recent</p>
+              <p className="eyebrow pt-1">{tr('hubRecent')}</p>
               <div className="columns-2 gap-3 xl:columns-3">
                 {recent.map((r, i) => (
                   <div key={`${r.project.id}-${r.pageIndex}-${i}`} className="mb-3 break-inside-avoid">
@@ -1179,8 +1183,8 @@ export default function CreateHub({
           {/* Save your own caption templates. */}
           <details className="card p-4 sm:p-5">
             <summary className="cursor-pointer list-none font-display text-sm font-extrabold [&::-webkit-details-marker]:hidden">
-              Caption templates <span aria-hidden="true" className="text-faint">·</span>{' '}
-              <span className="text-xs font-medium text-muted">tap to browse</span>
+              {tr('hubCaptionTpl')} <span aria-hidden="true" className="text-faint">·</span>{' '}
+              <span className="text-xs font-medium text-muted">{tr('hubTapBrowse')}</span>
             </summary>
             <div className="mt-4 space-y-3">
               {templates.length > 0 ? (
@@ -1190,66 +1194,66 @@ export default function CreateHub({
                       <p className="truncate text-sm font-bold">{s.name}</p>
                       <p className="mt-1 line-clamp-2 text-xs text-soft">{s.body}</p>
                       <button type="button" onClick={() => useIntoComposer(s)} className="btn btn-ghost mt-2.5 w-full !py-1.5 !text-xs">
-                        Use caption
+                        {tr('hubUse')}
                       </button>
                     </article>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted">No caption templates yet, save one below.</p>
+                <p className="text-sm text-muted">{tr('hubNoCaptionTpl')}</p>
               )}
               <div className="space-y-2 rounded-2xl border border-line bg-paper p-3.5">
-                <p className="eyebrow">Save your own</p>
+                <p className="eyebrow">{tr('hubSaveOwn')}</p>
                 <input
                   value={tplName}
                   onChange={(e) => setTplName(e.target.value)}
-                  placeholder="Template name… e.g. Friday promo"
+                  placeholder={tr('hubTplNamePh')}
                   className="field font-display font-bold"
-                  aria-label="Template name"
+                  aria-label={tr('hubTplName')}
                 />
                 <EmojiInput
                   value={tplTitle}
                   onChange={setTplTitle}
-                  placeholder="Post title…"
+                  placeholder={tr('hubTplTitlePh')}
                   className="field"
-                  aria-label="Template post title"
+                  aria-label={tr('hubTplTitle')}
                 />
                 <EmojiTextarea
                   value={tplBody}
                   onChange={setTplBody}
-                  placeholder="Caption…"
+                  placeholder={tr('hubTplCaptionPh')}
                   rows={3}
                   className="field min-h-[72px] resize-y"
-                  aria-label="Template caption"
+                  aria-label={tr('hubTplCaption')}
                 />
                 <button type="button" onClick={saveTemplate} className="btn btn-primary w-full sm:w-auto">
-                  Save template
+                  {tr('hubSaveTpl')}
                 </button>
               </div>
               {templates.length > 0 ? (
                 <div className="space-y-2">
-                  {templates.map((t) => (
-                    <div key={t.id} className="flex items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2.5">
+                  {templates.map((tpl) => (
+                    <div key={tpl.id} className="flex items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2.5">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold">
-                          {t.name}
-                          {t.origin === 'mobile' ? (
-                            <span className="pill ml-2 bg-surface text-soft">from mobile</span>
+                          {tpl.name}
+                          {tpl.origin === 'mobile' ? (
+                            <span className="pill ml-2 bg-surface text-soft">{tr('hubFromMobile')}</span>
                           ) : null}
                         </p>
-                        {t.body ? <p className="truncate text-xs text-muted">{t.body}</p> : null}
-                        {t.origin === 'mobile' && !t.body ? (
-                          <p className="truncate text-xs text-muted">Saved on mobile, designs stay in the app.</p>
+                        {tpl.body ? <p className="truncate text-xs text-muted">{tpl.body}</p> : null}
+                        {tpl.origin === 'mobile' && !tpl.body ? (
+                          <p className="truncate text-xs text-muted">{tr('hubSavedMobile')}</p>
                         ) : null}
                       </div>
-                      {t.origin === 'mobile' && !t.body ? (
+                      {tpl.origin === 'mobile' && !tpl.body ? (
                         <button
                           type="button"
                           onClick={() => {
                             const idea: Idea = {
                               id: `idea_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-                              title: t.title || t.name,
-                              body: t.title && t.title !== t.name ? `${t.title}` : '',
+                              title: tpl.title || tpl.name,
+                              body: tpl.title && tpl.title !== tpl.name ? `${tpl.title}` : '',
                               createdAt: Date.now(),
                             };
                             persistIdeas([idea, ...ideas]);
@@ -1257,23 +1261,23 @@ export default function CreateHub({
                           }}
                           className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
                         >
-                          Save as idea
+                          {tr('hubSaveAsIdea')}
                         </button>
                       ) : (
-                        <button type="button" onClick={() => useIntoComposer(t)} className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs">
-                          Use
+                        <button type="button" onClick={() => useIntoComposer(tpl)} className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs">
+                          {tr('hubUse')}
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => {
-                          tombstone('template', t.id);
-                          persistTemplates(templates.filter((x) => x.id !== t.id));
+                          tombstone('template', tpl.id);
+                          persistTemplates(templates.filter((x) => x.id !== tpl.id));
                         }}
                         className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs"
-                        aria-label={`Delete ${t.name}`}
+                        aria-label={`${tr('deleteLbl')}: ${tpl.name}`}
                       >
-                        Delete
+                        {tr('deleteLbl')}
                       </button>
                     </div>
                   ))}
@@ -1287,7 +1291,7 @@ export default function CreateHub({
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
               <button type="button" aria-hidden="true" tabIndex={-1} onClick={() => setRenaming(null)} className="absolute inset-0 cursor-default bg-black/40" />
               <div className="card relative w-full max-w-xs p-5">
-                <p className="font-display text-base font-extrabold">Rename</p>
+                <p className="font-display text-base font-extrabold">{tr('hubRename')}</p>
                 <input
                   value={renaming.value}
                   onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
@@ -1297,14 +1301,14 @@ export default function CreateHub({
                   }}
                   autoFocus
                   className="field mt-3"
-                  aria-label="Template name"
+                  aria-label={tr('hubTplName')}
                 />
                 <div className="mt-3 flex gap-2">
                   <button type="button" onClick={renameProject} className="btn btn-primary flex-1">
-                    Save
+                    {tr('hubSave')}
                   </button>
                   <button type="button" onClick={() => setRenaming(null)} className="btn btn-ghost">
-                    Cancel
+                    {tr('cancel')}
                   </button>
                 </div>
               </div>
@@ -1340,13 +1344,14 @@ function ProjectTile({
   onDuplicate?: () => void;
   onDelete?: () => void;
 }) {
+  const tr = useT(appMessages);
   const { ref, width } = useBoxWidth(300);
   const nodeRef = useRef<HTMLDivElement>(null);
   const page = project.pages[pageIndex] ?? project.pages[0];
   if (!page) return null;
   return (
     <article className="relative">
-      <button type="button" onClick={onOpen} className="block w-full text-left" aria-label={`Open ${project.name}`}>
+      <button type="button" onClick={onOpen} className="block w-full text-left" aria-label={fill(tr('hubOpen'), { name: project.name })}>
         <div ref={nodeRef}>
           <div ref={ref}>
             <StudioCanvas page={page} ratio={ratioOf(project)} width={width} frame={false} />
@@ -1357,14 +1362,14 @@ function ProjectTile({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold">{project.name}</p>
           <p className="truncate text-xs text-muted">
-            Template · {project.pages.length} page{project.pages.length === 1 ? '' : 's'}
+            {fill(tr('hubTplMeta'), { n: project.pages.length })}
           </p>
         </div>
         {onMenu ? (
           <button
             type="button"
             onClick={onMenu}
-            aria-label={`Menu for ${project.name}`}
+            aria-label={fill(tr('hubMenuFor'), { name: project.name })}
             aria-expanded={menuOpen}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-paper text-muted transition hover:bg-bone"
           >
@@ -1377,7 +1382,7 @@ function ProjectTile({
             disabled={busy}
             className="btn btn-primary shrink-0 !px-3 !py-1.5 !text-xs"
           >
-            {busy ? '…' : 'Use'}
+            {busy ? '…' : tr('hubUse')}
           </button>
         )}
       </div>
@@ -1387,28 +1392,28 @@ function ProjectTile({
           className="absolute right-2 top-2 z-20 w-40 rounded-xl border border-line bg-card p-1 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]"
         >
           <button type="button" role="menuitem" onClick={() => { onUse(nodeRef.current); onMenu?.(); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
-            Use template
+            {tr('hubUseTemplate')}
           </button>
           {onRename ? (
             <button type="button" role="menuitem" onClick={onRename} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
-              Rename
+              {tr('hubRename')}
             </button>
           ) : null}
           {onDuplicate ? (
             <button type="button" role="menuitem" onClick={onDuplicate} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold hover:bg-bone dark:hover:bg-white/5">
-              Duplicate
+              {tr('hubDuplicate')}
             </button>
           ) : null}
           {onDelete ? (
             <button type="button" role="menuitem" onClick={onDelete} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-[#9F2F2D] hover:bg-[#FDEBEC] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]">
-              Delete
+              {tr('deleteLbl')}
             </button>
           ) : null}
         </div>
       ) : null}
       {busy ? (
         <span className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/35 text-xs font-bold text-white">
-          Rendering…
+          {tr('hubRendering')}
         </span>
       ) : null}
     </article>
