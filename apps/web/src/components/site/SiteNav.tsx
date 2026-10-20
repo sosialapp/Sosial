@@ -203,6 +203,10 @@ export default function SiteNav() {
           </Link>
         </div>
 
+        <div className="ml-auto flex items-center gap-1 lg:hidden">
+          <LanguageSwitcher locale={locale} />
+        </div>
+
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <LanguageSwitcher locale={locale} />
           {signedIn ? (
