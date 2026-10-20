@@ -36,8 +36,42 @@ import { requiresTitle } from '@/lib/compat';
 import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 export type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
+
+const TAB_KEY: Record<Tab, string> = {
+  all: 'tabAll',
+  sent: 'tabSent',
+  failed: 'tabFailed',
+  queue: 'tabQueue',
+  drafts: 'tabDrafts',
+  approvals: 'tabApprovals',
+};
+
+/** Translated status pill: keys map 1:1 from PostStatus. */
+function statusMeta(status: PostStatus, t: (k: string) => string) {
+  const meta = POST_STATUS_META[status];
+  const key: Record<PostStatus, string> = {
+    draft: 'stDraft',
+    approval: 'stApproval',
+    queued: 'stQueued',
+    publishing: 'stPublishing',
+    sent: 'stSent',
+    partial: 'stPartial',
+    failed: 'stFailed',
+  };
+  return { ...meta, label: t(key[status]) };
+}
+
+const MEDIA_KEY: Record<'all' | 'text' | 'image' | 'video', string> = {
+  all: 'fAll',
+  text: 'fText',
+  image: 'fImage',
+  video: 'fVideo',
+};
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'all', label: 'All', icon: LayoutGrid },
@@ -72,8 +106,8 @@ function agoShort(iso: string): string {
 }
 
 /** Short relative time for a post's head, e.g. "2h", "3d", "Mar 4". */
-function shortRel(iso: string | null): string {
-  if (!iso) return 'unscheduled';
+function shortRel(iso: string | null, unscheduledLabel = 'unscheduled'): string {
+  if (!iso) return unscheduledLabel;
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return '-';
   const s = Math.round((Date.now() - t) / 1000);
@@ -197,6 +231,7 @@ function PreviewDialog({
   onEdit: (() => void) | null;
 }) {
   const [stats, setStats] = useState<Record<string, StatRow>>({});
+  const t = useT(appMessages);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -215,7 +250,7 @@ function PreviewDialog({
     void (async () => {
       try {
         const sb = createClient();
-        const ids = parts.flatMap((p) => p.post_targets.map((t) => t.id));
+        const ids = parts.flatMap((p) => p.post_targets.map((tg) => tg.id));
         if (!ids.length) return;
         const { data } = await sb
           .from('post_stats')
@@ -236,12 +271,12 @@ function PreviewDialog({
   }, [sent, parts, workspaceId]);
 
   const head = parts[0];
-  const meta = POST_STATUS_META[head.status];
+  const meta = statusMeta(head.status, t);
   const isChain = parts.length > 1;
   const targets = uniqueTargets(parts);
   /** Only article channels (title-bearing) keep an "Untitled" line; a
    *  photo/text post with no title simply shows its body. */
-  const needsTitle = requiresTitle(targets.map((t) => t.provider));
+  const needsTitle = requiresTitle(targets.map((tg) => tg.provider));
   const hasBody = parts.some((p) => (p.body ?? '').trim().length > 0);
   const media = parts.flatMap((p) => mediaOf(p));
   return (
@@ -260,37 +295,37 @@ function PreviewDialog({
           <div className="flex flex-wrap items-center gap-2">
             <span className={`pill ${meta.className}`}>{meta.label}</span>
             {isChain ? (
-              <span className="pill bg-paper-dim text-ink">Chain · {parts.length} parts</span>
+              <span className="pill bg-paper-dim text-ink">{fill(t('chainParts'), { n: parts.length })}</span>
             ) : null}
             <span className="text-xs text-faint">
-              {head.sent_at ? `Sent ${formatDateTime(head.sent_at)}` : formatDateTime(head.scheduled_at)}
+              {head.sent_at ? fill(t('sentWhen'), { x: formatDateTime(head.sent_at) }) : formatDateTime(head.scheduled_at)}
             </span>
           </div>
           {targets.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2">
-              {targets.map((t) => (
-                <span key={t.channel_id ?? t.provider} className="flex items-center gap-1.5">
-                  <ChannelAvatar provider={t.provider} avatar={avatars[t.channel_id]} size={24} />
-                  <span className="text-xs font-bold">{providerMeta(t.provider).label}</span>
+              {targets.map((tg) => (
+                <span key={tg.channel_id ?? tg.provider} className="flex items-center gap-1.5">
+                  <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={24} />
+                  <span className="text-xs font-bold">{providerMeta(tg.provider).label}</span>
                 </span>
               ))}
             </div>
           ) : null}
           {sent ? (
             <div className="mt-4 space-y-2 rounded-2xl border border-line-soft bg-bone/60 p-3">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">Performance</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">{t('performance')}</p>
               {parts.flatMap((p) =>
                 p.post_targets
-                  .filter((t) => t.status === 'sent')
-                  .map((t) => {
-                    const s = stats[t.id];
+                  .filter((tt) => tt.status === 'sent')
+                  .map((tg) => {
+                    const s = stats[tg.id];
                     return (
                       <div
-                        key={t.id}
+                        key={tg.id}
                         className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-card px-3 py-2"
                       >
-                        <ChannelAvatar provider={t.provider} avatar={avatars[t.channel_id]} size={22} />
-                        <span className="text-xs font-bold">{providerMeta(t.provider).label}</span>
+                        <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={22} />
+                        <span className="text-xs font-bold">{providerMeta(tg.provider).label}</span>
                         <span className="flex flex-wrap items-center gap-1.5">
                           <StatCell icon={Heart} value={s?.likes ?? 0} />
                           <StatCell icon={MessageCircle} value={s?.comments ?? 0} />
@@ -302,16 +337,16 @@ function PreviewDialog({
                             {agoShort(s.fetched_at)}
                           </span>
                         ) : (
-                          <span className="text-[10px] text-faint">First snapshot lands within a day</span>
+                          <span className="text-[10px] text-faint">{t('firstSnapshot')}</span>
                         )}
-                        {t.remote_url ? (
+                        {tg.remote_url ? (
                           <a
-                            href={t.remote_url}
+                            href={tg.remote_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-auto inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-bone"
                           >
-                            Go to post ↗
+                            {t('goToPost')}
                           </a>
                         ) : null}
                       </div>
@@ -326,7 +361,7 @@ function PreviewDialog({
               is no body at all. */}
           {needsTitle || (head.title && !hasBody) ? (
             <p className="mt-3 font-display text-base font-extrabold tracking-tight">
-              {head.title || 'Untitled post'}
+              {head.title || t('untitled')}
             </p>
           ) : null}
           <div className="mt-2 max-h-64 space-y-3 overflow-y-auto">
@@ -334,7 +369,7 @@ function PreviewDialog({
               <div key={p.id}>
                 {isChain ? (
                   <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">
-                    Part {i + 1} of {parts.length}
+                    {fill(t('partOf'), { i: i + 1, n: parts.length })}
                   </p>
                 ) : null}
                 {p.body ? (
@@ -374,11 +409,11 @@ function PreviewDialog({
           <div className="mt-5 flex gap-2">
             {draftish && onEdit ? (
               <button type="button" onClick={onEdit} className="btn btn-sm btn-bolt">
-                Edit
+                {t('edit')}
               </button>
             ) : null}
             <button type="button" onClick={onClose} className="btn btn-sm btn-ghost">
-              Close
+              {t('close')}
             </button>
           </div>
         </div>
@@ -413,6 +448,7 @@ export default function PostList({
   /** Hide the header + pill row (the /post pills already cover filtering). */
   hideChrome?: boolean;
 }) {
+  const t = useT(appMessages);
   const router = useRouter();
   const canApprove = role === 'owner' || role === 'admin';
   const [tab, setTab] = useState<Tab>(initialTab ?? 'all');
@@ -510,7 +546,7 @@ export default function PostList({
   const monthLabel = (ym: string) => {
     const [y, m] = ym.split('-').map(Number);
     if (!y || !m) return ym;
-    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   };
 
   const groupMediaKind = (parts: PostWithTargets[]): 'text' | 'image' | 'video' => {
@@ -581,7 +617,7 @@ export default function PostList({
       await fn(createClient());
       startTransition(() => router.refresh());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Action failed.');
+      setErr(e instanceof Error ? e.message : t('actionFailed'));
     } finally {
       setBusyId(null);
     }
@@ -598,14 +634,14 @@ export default function PostList({
       }
       startTransition(() => router.refresh());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Action failed.');
+      setErr(e instanceof Error ? e.message : t('actionFailed'));
     } finally {
       setBusyId(null);
     }
   }
 
   function askChanges(p: PostWithTargets) {
-    const comment = window.prompt('What needs changing? (optional)');
+    const comment = window.prompt(t('askChanges'));
     if (comment === null) return;
     void run(p.id, (sb) => requestChanges(sb, { postId: p.id, userId, comment: comment || undefined }));
   }
@@ -614,22 +650,22 @@ export default function PostList({
     <div className="flex min-h-screen flex-col">
       {!hideChrome && (
       <header className="border-b border-line px-6 py-4">
-        <p className="eyebrow">Queue</p>
-        <h1 className="font-display text-xl font-extrabold tracking-tight">Posts</h1>
+        <p className="eyebrow">{t('qEyebrow')}</p>
+        <h1 className="font-display text-xl font-extrabold tracking-tight">{t('qPosts')}</h1>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {TABS.map((t) => {
-            const count = posts.filter((p) => TAB_MATCH[t.id](p.status)).length;
+          {TABS.map((tb) => {
+            const count = posts.filter((p) => TAB_MATCH[tb.id](p.status)).length;
             return (
               <button
-                key={t.id}
+                key={tb.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => setTab(tb.id)}
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  tab === t.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
+                  tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
                 }`}
               >
-                <t.icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {t.label}
+                <tb.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                {t(TAB_KEY[tb.id])}
                 {count > 0 && <span className="opacity-60">{count}</span>}
               </button>
             );
@@ -653,7 +689,7 @@ export default function PostList({
             aria-expanded={filtersOpen}
             className="flex w-full items-center justify-between rounded-2xl border border-line bg-card px-4 py-2.5 text-xs font-bold text-soft transition hover:bg-paper lg:hidden"
           >
-            Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+            {t('filters')}{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
             <span aria-hidden="true" className="text-muted">{filtersOpen ? '▴' : '▾'}</span>
           </button>
           <aside
@@ -661,35 +697,35 @@ export default function PostList({
             className={`${filtersOpen ? 'mt-2 block' : 'hidden'} rounded-2xl border border-line bg-card p-4 lg:mt-0 lg:block lg:sticky lg:top-4`}
           >
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Filters</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">{t('filters')}</p>
               {activeFilterCount > 0 ? (
                 <button
                   type="button"
                   onClick={clearFilters}
                   className="text-[11px] font-bold text-accent-ink hover:underline"
                 >
-                  Clear all
+                  {t('clearAll')}
                 </button>
               ) : null}
             </div>
 
             <label className="mt-3 block">
-              <span className="text-[11px] font-bold text-muted">Search</span>
+              <span className="text-[11px] font-bold text-muted">{t('searchLbl')}</span>
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search posts…"
-                aria-label="Search posts"
+                placeholder={t('searchPh')}
+                aria-label={t('searchPh')}
                 className="mt-1 w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-faint focus:border-accent focus:outline-none"
               />
             </label>
 
             <div className="mt-3">
-              <p className="text-[11px] font-bold text-muted">Channels</p>
+              <p className="text-[11px] font-bold text-muted">{t('fChannels')}</p>
               <div className="mt-1.5 flex flex-col gap-1">
                 {providersPresent.length === 0 ? (
-                  <p className="text-[11px] text-faint">No channels on these posts.</p>
+                  <p className="text-[11px] text-faint">{t('fNoChannels')}</p>
                 ) : (
                   providersPresent.map((p) => {
                     const on = chanSel.includes(p);
@@ -716,14 +752,14 @@ export default function PostList({
             </div>
 
             <label className="mt-3 block">
-              <span className="text-[11px] font-bold text-muted">Month</span>
+              <span className="text-[11px] font-bold text-muted">{t('fMonth')}</span>
               <select
                 value={monthSel}
                 onChange={(e) => setMonthSel(e.target.value)}
-                aria-label="Filter by month"
+                aria-label={t('fMonth')}
                 className="mt-1 w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs font-bold text-ink focus:border-accent focus:outline-none"
               >
-                <option value="">All months</option>
+                <option value="">{t('fAllMonths')}</option>
                 {monthsPresent.map((m) => (
                   <option key={m} value={m}>
                     {monthLabel(m)}
@@ -733,7 +769,7 @@ export default function PostList({
             </label>
 
             <div className="mt-3">
-              <p className="text-[11px] font-bold text-muted">Media</p>
+              <p className="text-[11px] font-bold text-muted">{t('fMedia')}</p>
               <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                 {(['all', 'text', 'image', 'video'] as const).map((m) => (
                   <button
@@ -741,11 +777,11 @@ export default function PostList({
                     type="button"
                     aria-pressed={mediaSel === m}
                     onClick={() => setMediaSel(m)}
-                    className={`rounded-xl px-2 py-1.5 text-xs font-bold capitalize transition ${
+                    className={`rounded-xl px-2 py-1.5 text-xs font-bold transition ${
                       mediaSel === m ? 'bg-accent text-on-accent' : 'text-soft hover:bg-paper'
                     }`}
                   >
-                    {m}
+                    {t(MEDIA_KEY[m])}
                   </button>
                 ))}
               </div>
@@ -756,16 +792,16 @@ export default function PostList({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted">
             {groups.length === 0
-              ? 'No posts'
-              : `Showing ${(safePage - 1) * perPage + 1}–${Math.min(safePage * perPage, groups.length)} of ${groups.length}`}
+              ? t('noPosts')
+              : fill(t('showingOf'), { a: (safePage - 1) * perPage + 1, b: Math.min(safePage * perPage, groups.length), n: groups.length })}
           </span>
           <span className="flex-1" />
           <label className="flex items-center gap-1.5 text-xs text-muted">
-            Rows
+            {t('rowsLbl')}
             <select
               value={perPage}
               onChange={(e) => setPerPage(Number(e.target.value))}
-              aria-label="Rows per page"
+              aria-label={t('rowsLbl')}
               className="rounded-full border border-line bg-card px-2 py-1 text-xs font-bold text-ink"
             >
               {[15, 30, 50].map((n) => (
@@ -778,17 +814,17 @@ export default function PostList({
           <button
             type="button"
             onClick={() => setSortNewest((v) => !v)}
-            aria-label={sortNewest ? 'Sort oldest first' : 'Sort newest first'}
+            aria-label={sortNewest ? t('oldestFirst') : t('newestFirst')}
             className="rounded-full border border-line bg-card px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-bone"
           >
-            {sortNewest ? '↓ Newest first' : '↑ Oldest first'}
+            {sortNewest ? t('newestFirst') : t('oldestFirst')}
           </button>
         </div>
-        {groups.length === 0 && <p className="text-sm text-muted">Nothing here yet.</p>}
+        {groups.length === 0 && <p className="text-sm text-muted">{t('nothingHere')}</p>}
         {pageGroups.map((g) => {
           const head = g.parts[0];
           const isChain = g.parts.length > 1;
-          const meta = POST_STATUS_META[head.status];
+          const meta = statusMeta(head.status, t);
           const comment = lastComment(head);
           const mediaTotal = g.parts.reduce((n, p) => n + mediaOf(p).length, 0);
           const draftish = g.parts.every((p) => p.status === 'draft' || p.status === 'failed');
@@ -802,7 +838,7 @@ export default function PostList({
           const expanded = expandedKey === g.key;
           const fullText = isChain ? g.parts.map((p) => p.body).filter(Boolean).join('\n\n') : (head.body || '');
           const lead = targets[0];
-          const author = lead ? authorOf(lead.channel_id, lead.provider) : { name: 'Draft', handle: null };
+          const author = lead ? authorOf(lead.channel_id, lead.provider) : { name: t('stDraft'), handle: null };
           const when = head.sent_at ?? head.scheduled_at;
           const sentTargets = g.parts.flatMap((p) => p.post_targets).filter((t) => t.status === 'sent');
           const cardStats = sentTargets.map((t) => stats[t.id]).filter((s): s is StatRow => Boolean(s));
@@ -844,7 +880,7 @@ export default function PostList({
                       <span className="truncate text-sm font-extrabold">{author.name}</span>
                       {isChain ? (
                         <span className="shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
-                          Chain · {g.parts.length}
+                          {fill(t('chainShort'), { n: g.parts.length })}
                         </span>
                       ) : null}
                     </span>
@@ -855,7 +891,7 @@ export default function PostList({
                         className="shrink-0"
                         title={head.sent_at ? formatDateTime(head.sent_at) : formatDateTime(head.scheduled_at)}
                       >
-                        {shortRel(when)}
+                        {shortRel(when, t('unscheduled'))}
                       </span>
                     </span>
                   </span>
@@ -891,15 +927,15 @@ export default function PostList({
                           }}
                           className="mt-1 text-xs font-bold text-muted hover:text-ink"
                         >
-                          {expanded ? 'Show less' : 'Show more'}
+                        {expanded ? t('showLess') : t('showMore')}
                         </button>
                       ) : null}
                     </>
                   ) : (
-                    <p className="mt-0.5 text-sm italic text-faint">No text, media only.</p>
+                    <p className="mt-0.5 text-sm italic text-faint">{t('noTextMedia')}</p>
                   )}
                   {comment && (
-                    <p className="mt-1.5 text-xs text-ink">Changes requested: “{comment}”</p>
+                    <p className="mt-1.5 text-xs text-ink">{fill(t('changesReq'), { c: comment })}</p>
                   )}
                   {targetErr && (
                     <p className="mt-1.5 text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">
@@ -947,7 +983,7 @@ export default function PostList({
                   </div>
                 )}
                 {mediaTotal > 4 && (
-                  <p className="px-4 pt-1 text-xs font-bold text-faint">+{mediaTotal - 4} more attachments</p>
+                  <p className="px-4 pt-1 text-xs font-bold text-faint">{fill(t('moreAttachments'), { n: mediaTotal - 4 })}</p>
                 )}
 
                 {/* Footer: post stats (center) · actions (right) */}
@@ -956,19 +992,19 @@ export default function PostList({
                     <>
                       <span className="flex-1" />
                       <span className="flex items-center gap-3.5 text-xs font-bold text-muted">
-                        <span className="inline-flex items-center gap-1" title="Views">
+                        <span className="inline-flex items-center gap-1" title={t('titleViews')}>
                           <Eye className="h-4 w-4" aria-hidden="true" />
                           {fmtCount(viewSum)}
                         </span>
-                        <span className="inline-flex items-center gap-1" title="Likes">
+                        <span className="inline-flex items-center gap-1" title={t('titleLikes')}>
                           <Heart className="h-4 w-4" aria-hidden="true" />
                           {fmtCount(totalStat('likes'))}
                         </span>
-                        <span className="inline-flex items-center gap-1" title="Comments">
+                        <span className="inline-flex items-center gap-1" title={t('titleComments')}>
                           <MessageCircle className="h-4 w-4" aria-hidden="true" />
                           {fmtCount(totalStat('comments'))}
                         </span>
-                        <span className="inline-flex items-center gap-1" title="Shares">
+                        <span className="inline-flex items-center gap-1" title={t('titleShares')}>
                           <Share2 className="h-4 w-4" aria-hidden="true" />
                           {fmtCount(totalStat('shares'))}
                         </span>
@@ -980,13 +1016,13 @@ export default function PostList({
                     <>
                       <CardAction
                         icon={Check}
-                        label={`Approve${isChain ? ` (${ids.length})` : ''}`}
+                        label={isChain ? fill(t('approveN'), { n: ids.length }) : t('approve')}
                         disabled={busy}
                         onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
                       />
                       <CardAction
                         icon={MessageCircle}
-                        label="Request changes"
+                        label={t('reqChanges')}
                         disabled={busy}
                         onClick={() => askChanges(head)}
                       />
@@ -995,7 +1031,7 @@ export default function PostList({
                   {draftish && (
                     <CardAction
                       icon={Pencil}
-                      label="Edit"
+                      label={t('edit')}
                       disabled={busy}
                       onClick={() => {
                         if (onEdit) onEdit(head.id);
@@ -1006,7 +1042,7 @@ export default function PostList({
                   {!canApprove && draftish && (
                     <CardAction
                       icon={Send}
-                      label="Submit for approval"
+                      label={t('submitApproval')}
                       disabled={busy}
                       onClick={() =>
                         runMany(g.key, ids, (sb, id) => submitForApproval(sb, { postId: id, workspaceId, userId }))
@@ -1015,7 +1051,7 @@ export default function PostList({
                   )}
                   <CardAction
                     icon={Trash2}
-                    label={`Delete${isChain ? ` (${ids.length})` : ''}`}
+                    label={isChain ? fill(t('deleteN'), { n: ids.length }) : t('deleteLbl')}
                     danger
                     disabled={busy}
                     onClick={() => runMany(g.key, ids, (sb, id) => deletePost(sb, id))}
@@ -1052,7 +1088,7 @@ export default function PostList({
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-bone disabled:opacity-40"
             >
-              ← Prev
+              {t('prev')}
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1)
               .filter((n) => n === 1 || n === totalPages || Math.abs(n - safePage) <= 1)
@@ -1087,7 +1123,7 @@ export default function PostList({
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-bone disabled:opacity-40"
             >
-              Next →
+              {t('next')}
             </button>
           </nav>
         ) : null}
