@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui';
@@ -36,7 +36,7 @@ import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { loadCloudTeam } from '../utils/teamCloud';
 import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount, lastPullSummary } from '../utils/cloudChannels';
 import { activeWorkspaceId } from '../utils/activeWorkspace';
-import { currentSession, callEdgeFunction } from '../utils/supabase';
+import { currentSession, getTeamAvatar, teamAvatarSignedUrl, callEdgeFunction } from '../utils/supabase';
 import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth, wasCodeDone, markCodeDone, AuthResult } from '../utils/authFlow';
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
@@ -55,6 +55,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const meta = useMemo(() => metaFromAccounts(accounts), [accounts]);
   const [teamCount, setTeamCount] = useState<number | null>(null);
+  const [teamPic, setTeamPic] = useState<string | null>(null);
   /** Channel writes are owner/admin-only (enforced by the token functions too). */
   const [isManager, setIsManager] = useState(false);
   /** Signed-in cloud users act on the shared workspace; signed-out users
@@ -136,6 +137,14 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       .then((t) => {
         setTeamCount(t ? Math.max(0, t.members.length - 1) : 0);
         setIsManager(t ? t.myRole === 'owner' || t.myRole === 'admin' : false);
+        // Team picture for the button on the channels page, same source the
+        // TeamSwitcher pill already signs through.
+        if (t?.workspaceId) {
+          getTeamAvatar(t.workspaceId)
+            .then((p) => teamAvatarSignedUrl(p))
+            .then(setTeamPic)
+            .catch(() => {});
+        }
       })
       .catch(() => setTeamCount(0));
     currentSession()
@@ -1545,7 +1554,11 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
 
         <TouchableOpacity onPress={onTeam} style={s.teamBtn} activeOpacity={0.8}>
           <View style={s.teamIcon}>
-            <Ionicons name="people-outline" size={19} color={C.onInk} />
+            {teamPic ? (
+              <Image source={{ uri: teamPic }} style={s.teamIconImg} />
+            ) : (
+              <Ionicons name="people-outline" size={19} color={C.onInk} />
+            )}
           </View>
           <View style={{ flex: 1, gap: 1 }}>
             <Text style={s.teamT}>Team</Text>
@@ -1758,6 +1771,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   teamBtn: { flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 14, paddingVertical: 13, marginTop: 16 },
   teamIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
+  teamIconImg: { width: 38, height: 38, borderRadius: 13 },
   teamT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
   teamS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
   kicker: { ...T.tag, color: C.accent, marginTop: 24 },
