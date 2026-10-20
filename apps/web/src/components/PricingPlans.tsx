@@ -10,6 +10,9 @@ import { BrandIcon, BRAND_PATHS, type BrandProvider } from '@/components/BrandIc
 import { SourceMark } from '@/components/SourceMarks';
 import { GridPulse } from '@/components/ui/grid-pulse';
 import SegmentedPills from '@/components/ui/segmented-pills';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 /**
  * Pricing band, pastel-header cards with quota fields, a channel/integration
@@ -56,17 +59,17 @@ function fmt(n: number): string {
   return n.toLocaleString('en-US');
 }
 
-function channelsLine(key: PlanKey): string {
+function channelsLine(key: PlanKey, t: (k: string) => string): string {
   const c = PLANS[key].limits.channels;
-  return c === null ? 'Unlimited channels' : `Up to ${fmt(c)} channels`;
+  return c === null ? t('prUnlimitedChannels') : fill(t('prUpToChannels'), { n: fmt(c) });
 }
 
-function creditsLine(key: PlanKey): string {
+function creditsLine(key: PlanKey, t: (k: string) => string): string {
   const c = PLANS[key].limits.aiCredits;
-  return c === null ? 'Unlimited AI credits' : `${fmt(c)} AI credits/mo`;
+  return c === null ? t('prUnlimitedCredits') : fill(t('prCreditsMo'), { n: fmt(c) });
 }
 
-function LogoStrip({ locked }: { locked: boolean }) {
+function LogoStrip({ locked, t }: { locked: boolean; t: (k: string) => string }) {
   const base = locked ? CHANNELS.filter((c) => c !== 'x') : CHANNELS;
   const shown = [...base.filter((c) => !COMING_SOON.includes(c)), ...base.filter((c) => COMING_SOON.includes(c))];
   return (
@@ -78,7 +81,7 @@ function LogoStrip({ locked }: { locked: boolean }) {
             <BrandIcon provider={c} className="h-full w-full" />
             {soon ? (
               <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-line bg-white px-1 py-px text-[6px] font-bold uppercase leading-none tracking-wide text-faint">
-                Soon
+                {t('prSoon')}
               </span>
             ) : null}
           </span>
@@ -110,6 +113,7 @@ export default function PricingPlans({
   updated?: string;
 }) {
   const [interval, setInterval] = useState<BillingInterval>('annual');
+  const t = useT(appMessages);
 
   return (
     <section aria-label="Plans" className="relative overflow-clip [touch-action:pan-y]">
@@ -126,21 +130,21 @@ export default function PricingPlans({
             {title}
           </h1>
           <p data-grid-avoid className="mt-4 text-base leading-relaxed text-muted md:text-lg">{lede}</p>
-          {updated ? <p className="mt-3 text-xs text-faint">Updated {updated}</p> : null}
+          {updated ? <p className="mt-3 text-xs text-faint">{fill(t('prUpdated'), { date: updated })}</p> : null}
         </div>
 
         {/* Interval toggle */}
         <div className="mt-10 flex justify-center">
           <SegmentedPills
-            ariaLabel="Billing interval"
+            ariaLabel={t('blIntervalAria')}
             size="lg"
             value={interval}
             onChange={setInterval}
             trackClassName="bg-white shadow-[0_2px_10px_rgba(28,26,20,0.06)]"
             buttonClassName="font-semibold"
             options={[
-              { value: 'monthly', label: 'Monthly' },
-              { value: 'annual', label: 'Annual' },
+              { value: 'monthly', label: t('blMonthly') },
+              { value: 'annual', label: t('blAnnual') },
             ]}
           />
         </div>
@@ -152,7 +156,7 @@ export default function PricingPlans({
             const featured = !!p.featured;
             const c = CARD_COLORS[key as Exclude<PlanKey, 'ultimate'>];
             const ctaHref = key === 'free' ? '/login' : '/billing';
-            const ctaLabel = key === 'free' ? 'Start free' : `Choose ${p.label}`;
+            const ctaLabel = key === 'free' ? t('prStartFree') : fill(t('prChoose'), { plan: p.label });
             const locked = key === 'free';
             const prevLabel = idx > 0 ? PLANS[PLAN_ORDER[idx - 1]].label : null;
             return (
@@ -164,7 +168,7 @@ export default function PricingPlans({
                 >
                   {featured ? (
                     <span className="absolute right-3.5 top-3.5 rounded-full bg-white/80 px-3 py-1 text-xs font-medium" style={{ color: c.ink }}>
-                      Most popular
+                      {t('prMostPopular')}
                     </span>
                   ) : null}
                   <p className="m-0 text-lg font-semibold leading-tight">{p.label}</p>
@@ -174,14 +178,14 @@ export default function PricingPlans({
                 {/* Body */}
                 <div className="flex flex-1 flex-col px-4 pt-6">
                   <p className="m-0 font-display text-[28px] font-medium leading-none tracking-tight text-ink">
-                    {key === 'free' ? 'Free' : `${formatUsd(perMonth(key, interval))}/mo`}
+                    {key === 'free' ? t('prFree') : fill(t('prPerMo'), { price: formatUsd(perMonth(key, interval)) })}
                   </p>
                   <p className="mb-5 mt-1.5 text-xs text-ink">
                     {key === 'free'
-                      ? 'Free forever. No card needed.'
+                      ? t('prFreeForever')
                       : interval === 'annual'
-                        ? `Billed ${formatUsd(priceFor(key, 'annual'))} yearly`
-                        : 'Billed monthly'}
+                        ? fill(t('prBilledYearly'), { price: formatUsd(priceFor(key, 'annual')) })
+                        : t('blBilledMonthly')}
                   </p>
 
                   {/* Quota fields */}
@@ -190,7 +194,7 @@ export default function PricingPlans({
                       <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-[#3b82f6]" fill="currentColor" aria-hidden="true">
                         <path d="M8 1c.4 3.6 1.9 5.6 6 7-4.1 1.4-5.6 3.4-6 7-.4-3.6-1.9-5.6-6-7 4.1-1.4 5.6-3.4 6-7Z" />
                       </svg>
-                      {channelsLine(key)}
+                      {channelsLine(key, t)}
                     </div>
                     <div className="flex h-11 items-center gap-2.5 rounded-[10px] border border-[#dedcd7] bg-white px-3 text-sm text-ink">
                       <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-[#3f9e6b]" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
@@ -198,24 +202,24 @@ export default function PricingPlans({
                         <path d="M2 5v3c0 1.1 1.8 2 4 2s4-.9 4-2V5" />
                         <path d="M6 10v1c0 1.1 1.8 2 4 2s4-.9 4-2V8c0-1.1-1.8-2-4-2" />
                       </svg>
-                      {creditsLine(key)}
+                      {creditsLine(key, t)}
                     </div>
                   </div>
 
                   {/* Channel + integration logo rows */}
                   <div className="mb-5 grid gap-3">
                     <div>
-                      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-faint">Channels</p>
-                      <LogoStrip locked={locked} />
+                      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-faint">{t('prChannels')}</p>
+                      <LogoStrip locked={locked} t={t} />
                     </div>
                     <div>
-                      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-faint">Integrations</p>
+                      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-faint">{t('prIntegrations')}</p>
                       <ToolStrip />
                     </div>
                   </div>
 
                   {prevLabel ? (
-                    <p className="mb-2 text-xs italic text-[#5d5b57]">Everything in {prevLabel}, plus…</p>
+                    <p className="mb-2 text-xs italic text-[#5d5b57]">{fill(t('prEverythingIn'), { plan: prevLabel })}</p>
                   ) : null}
 
                   <ul className="m-0 mb-8 grid list-none gap-1.5 p-0">
@@ -239,8 +243,7 @@ export default function PricingPlans({
         </div>
 
         <p data-grid-avoid className="mt-8 text-center text-xs text-faint">
-          Prices in USD. Annual plans are billed once a year and give you two months free.
-          Cancel any time, keep your data.
+          {t('prFoot')}
         </p>
       </div>
     </section>

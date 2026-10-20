@@ -6,8 +6,11 @@ import {
   PLANS,
   type PlanKey,
 } from '@/lib/billing/plans';
-import { FEATURE_MATRIX, FEATURE_PLAN_ORDER } from '@/lib/billing/features';
+import { FEATURE_MATRIX, FEATURE_PLAN_ORDER, type FeatureValue } from '@/lib/billing/features';
 import { CheckIcon } from '@/components/StatusIcons';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 /**
  * Full plan comparison. Limit values are generated from the canonical PLANS
@@ -15,8 +18,10 @@ import { CheckIcon } from '@/components/StatusIcons';
  * server enforces. Light throughout: excluded features read as quiet dashes,
  * the popular plan tracks down one soft-tinted column.
  */
-function Cell({ value, featured }: { value: string | boolean; featured?: boolean }) {
-  if (value === true) {
+
+function Cell({ value, featured }: { value: FeatureValue; featured?: boolean }) {
+  const t = useT(appMessages);
+  if (value.kind === 'ok') {
     return (
       <span className="inline-flex items-center justify-center" aria-label="Included">
         <span
@@ -38,7 +43,7 @@ function Cell({ value, featured }: { value: string | boolean; featured?: boolean
       </span>
     );
   }
-  if (value === false) {
+  if (value.kind === 'no') {
     return (
       <span className="text-lg leading-none text-faint/40" aria-label="Not included">
         -
@@ -47,15 +52,22 @@ function Cell({ value, featured }: { value: string | boolean; featured?: boolean
   }
   // String values are always ink, even in the tinted popular column, whose
   // background stays light (only its header card is dark).
+  const label =
+    value.kind === 'num' && value.n != null && value.key
+      ? fill(t(value.key), { n: value.n.toLocaleString() })
+      : value.kind === 'text' && value.key
+        ? t(value.key)
+        : '';
   return (
     <span className="text-[15px] font-semibold text-ink">
-      {value}
+      {label}
     </span>
   );
 }
 
 export default function PlanComparison() {
   const [open, setOpen] = useState(false);
+  const t = useT(appMessages);
 
   // Deep-linking from the cards ("See full plan comparison" → #compare)
   // opens the table on arrival.
@@ -64,7 +76,7 @@ export default function PlanComparison() {
   }, []);
 
   return (
-    <section aria-label="Plan comparison" id="compare" className="relative scroll-mt-20 overflow-hidden">
+    <section aria-label={t('pcCompare')} id="compare" className="relative scroll-mt-20 overflow-hidden">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(28,26,20,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(28,26,20,0.04)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_30%,#000_20%,transparent_75%)]"
@@ -78,7 +90,7 @@ export default function PlanComparison() {
             aria-expanded={open}
             className="group inline-flex items-center gap-2.5 rounded-full border border-line bg-white/80 py-3 pr-4 pl-6 text-sm font-bold text-ink shadow-[0_2px_10px_rgba(28,26,20,0.06)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.18)]"
           >
-            See full plan comparison
+            {t('pcSeeFull')}
             <span
               aria-hidden="true"
               className={`grid h-7 w-7 place-items-center rounded-full bg-ink/[0.06] transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
@@ -112,7 +124,7 @@ export default function PlanComparison() {
                 <tr>
                   <th scope="colgroup" colSpan={1 + FEATURE_PLAN_ORDER.length} className="pt-9 pb-1 text-left">
                     <span className="font-display text-xs font-bold tracking-[0.16em] text-faint uppercase">
-                      {cat.title}
+                      {t(cat.title)}
                     </span>
                   </th>
                 </tr>
@@ -122,7 +134,7 @@ export default function PlanComparison() {
                       scope="row"
                       className="border-b border-line/70 py-4 pr-4 text-left text-[15px] font-medium text-soft"
                     >
-                      {row.label}
+                      {t(row.label)}
                     </th>
                     {FEATURE_PLAN_ORDER.map((key) => {
                       const featured = !!PLANS[key].featured;
@@ -145,11 +157,10 @@ export default function PlanComparison() {
         </div>
 
         <p className="mt-6 text-center text-xs text-faint">
-          All four plans include the calendar, queue and auto-publishing.{' '}
+          {t('pcFoot')}{' '}
           <Link href="/login" className="font-bold text-ink hover:underline">
-            Start free
-          </Link>{' '}
-         , upgrade when you outgrow it.
+            {t('prStartFree')}
+          </Link>
         </p>
         </>
         ) : null}
