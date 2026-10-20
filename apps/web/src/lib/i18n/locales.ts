@@ -47,3 +47,8 @@ export function translator(
   const fallback = dictionary[DEFAULT_LOCALE] ?? {};
   return (key: string) => primary[key] ?? fallback[key] ?? key;
 }
+
+/** Substitutes {name} placeholders in a translated template. */
+export function fill(template: string, params: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
+}

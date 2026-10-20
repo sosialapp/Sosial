@@ -14,30 +14,34 @@ import { chainPartsByChain, isChainHead } from '@/lib/chains';
 import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey } from '@/lib/format';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
+import { getLocale } from '@/lib/i18n/server';
+import { translator, fill, type Locale } from '@/lib/i18n/locales';
+import { appMessages } from '@/lib/i18n/app';
 
 export const metadata = { title: 'Dashboard' };
 
 
 export const dynamic = 'force-dynamic';
 
-const greeting = (): string => {
+const greeting = (locale: Locale): string => {
   const h = new Date().getHours();
-  if (h < 5) return 'Up late';
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
+  const t = translator(appMessages, locale);
+  if (h < 5) return t('gLate');
+  if (h < 12) return t('gMorning');
+  if (h < 18) return t('gAfternoon');
+  return t('gEvening');
 };
 
-const timeAgo = (iso: string | null): string => {
+const timeAgo = (iso: string | null, t: (k: string) => string): string => {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60_000);
-  if (m < 1) return 'Just now';
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return t('justNow');
+  if (m < 60) return fill(t('agoMin'), { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return fill(t('agoHour'), { n: h });
   const d = Math.floor(h / 24);
-  return d === 1 ? 'Yesterday' : `${d}d ago`;
+  return d === 1 ? t('yesterday') : fill(t('agoDay'), { n: d });
 };
 
 const fmtTime = (iso: string | null): string => {
@@ -47,15 +51,15 @@ const fmtTime = (iso: string | null): string => {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 };
 
-const fmtDay = (iso: string | null): string => {
+const fmtDay = (iso: string | null, t: (k: string) => string): string => {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   const today = dayKey(new Date());
   const tomorrow = dayKey(addDays(new Date(), 1));
   const k = dayKey(d);
-  if (k === today) return 'Today';
-  if (k === tomorrow) return 'Tomorrow';
+  if (k === today) return t('today');
+  if (k === tomorrow) return t('tomorrow');
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
@@ -94,6 +98,8 @@ function StatTile({
 export default async function DashboardPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
+  const locale = await getLocale();
+  const t = translator(appMessages, locale);
   const sb = await createClient();
   const [posts, channels] = await Promise.all([
     fetchPostsLite(sb, ctx.workspace.id),
@@ -168,10 +174,10 @@ export default async function DashboardPage() {
       status: p.status,
       timeLabel: isQueued
         ? p.scheduled_at
-          ? `${fmtDay(p.scheduled_at)}, ${fmtTime(p.scheduled_at)}`
-          : timeAgo(p.created_at)
-        : timeAgo(p.sent_at ?? p.created_at),
-      timeTitle: when ? `${fmtDay(when)}, ${fmtTime(when)}` : '',
+          ? `${fmtDay(p.scheduled_at, t)}, ${fmtTime(p.scheduled_at)}`
+          : timeAgo(p.created_at, t)
+        : timeAgo(p.sent_at ?? p.created_at, t),
+      timeTitle: when ? `${fmtDay(when, t)}, ${fmtTime(when)}` : '',
       provider,
       authorName: author.name,
       authorHandle: author.handle,
@@ -189,38 +195,38 @@ export default async function DashboardPage() {
     <div className="w-full pt-6">
       <div>
         <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-          {greeting()}, {ctx.workspace.name} <span aria-hidden="true">👋</span>
+          {greeting(locale)}, {ctx.workspace.name} <span aria-hidden="true">👋</span>
         </h1>
-        <p className="mt-1 text-sm text-muted">Here&apos;s what&apos;s happening with your content today.</p>
+        <p className="mt-1 text-sm text-muted">{t('dashSub')}</p>
       </div>
 
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatTile
-          label="Total posts"
+          label={t('stTotal')}
           value={String(posts.length)}
-          sub={delta !== null ? `${delta >= 0 ? '+' : ''}${delta}% vs. last 7 days` : 'vs. last 7 days'}
+          sub={delta !== null ? `${delta >= 0 ? '+' : ''}${delta}% ${t('vsLast7')}` : t('vsLast7')}
           tint="#1d7fe0"
           icon={<ChartColumn className="h-4.5 w-4.5" aria-hidden="true" />}
         />
         <StatTile
-          label="Sent this week"
+          label={t('stWeek')}
           value={String(sentWeek.length)}
-          sub="vs. last 7 days"
+          sub={t('vsLast7')}
           tint="#12914a"
           icon={<SendIcon className="h-4.5 w-4.5" aria-hidden="true" />}
         />
         <StatTile
-          label="Scheduled"
+          label={t('stScheduled')}
           value={String(queuedHeads.length)}
-          sub="In the queue now"
+          sub={t('inQueue')}
           tint="#7c5cf0"
           icon={<Clock className="h-4.5 w-4.5" aria-hidden="true" />}
         />
         <StatTile
-          label="Channels live"
+          label={t('stLive')}
           value={`${live.length}/${channels.length}`}
-          sub="Connected accounts"
+          sub={t('connectedAccts')}
           tint="#E1306C"
           icon={<Link2 className="h-4.5 w-4.5" aria-hidden="true" />}
         />
@@ -241,15 +247,15 @@ export default async function DashboardPage() {
         {/* Right rail */}
         <div className="flex flex-col gap-4">
           {/* Recent activity */}
-          <Card className="p-5" aria-label="Recent activity">
+          <Card className="p-5" aria-label={t('recentActivity')}>
             <div className="flex items-center justify-between">
-              <p className="font-display text-base font-extrabold tracking-tight">Recent activity</p>
+              <p className="font-display text-base font-extrabold tracking-tight">{t('recentActivity')}</p>
               <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
-                View all
+                {t('viewAll')}
               </Link>
             </div>
             {recentFeed.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">Nothing here yet. Publish or queue a post and it lands here.</p>
+              <p className="mt-3 text-sm text-muted">{t('nothingYet')}</p>
             ) : (
               <DashboardRecentActivity items={recentItems} />
             )}
@@ -269,17 +275,17 @@ export default async function DashboardPage() {
       </div>
 
       {/* Content calendar, full width, Schedule-X week in the same skin as /calendar */}
-      <Card className="mt-4 overflow-hidden" aria-label="Content calendar">
+      <Card className="mt-4 overflow-hidden" aria-label={t('contentCalendar')}>
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-4">
-          <p className="font-display text-base font-extrabold tracking-tight">Content calendar</p>
-          <p className="text-xs text-muted">This week</p>
+          <p className="font-display text-base font-extrabold tracking-tight">{t('contentCalendar')}</p>
+          <p className="text-xs text-muted">{t('thisWeek')}</p>
           <span className="flex-1" />
           <span className="flex items-center gap-3 text-[11px] font-bold text-muted">
             {[
-              ['Draft', 'bg-[#9A958B]'],
-              ['Queued', 'bg-[#B45309]'],
-              ['Sent', 'bg-[#12914A]'],
-              ['Failed', 'bg-[#E5484D]'],
+              [t('stDraft'), 'bg-[#9A958B]'],
+              [t('stQueued'), 'bg-[#B45309]'],
+              [t('stSent'), 'bg-[#12914A]'],
+              [t('stFailed'), 'bg-[#E5484D]'],
             ].map(([label, dot]) => (
               <span key={label} className="flex items-center gap-1">
                 <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
@@ -291,7 +297,7 @@ export default async function DashboardPage() {
             href="/calendar"
             className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
           >
-            Open calendar
+            {t('openCalendar')}
           </Link>
         </div>
         <div className="px-5 py-4">

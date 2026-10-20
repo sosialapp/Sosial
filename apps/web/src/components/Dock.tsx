@@ -15,6 +15,8 @@ import {
   Plus,
 } from 'lucide-react';
 import PostIcon from '@/components/PostIcon';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
 
 type DockItem = {
   href?: string;
@@ -27,82 +29,83 @@ type DockItem = {
   popup?: boolean;
 };
 
-const ITEMS: DockItem[] = [
-  {
-    href: '/dashboard',
-    label: 'Home',
-    match: (p) => p === '/dashboard' || p === '/queue' || p.startsWith('/dashboard/'),
-    tint: '#6C9BF5',
-    icon: <Home className="h-6 w-6" aria-hidden="true" />,
-  },
-  {
-    href: '/calendar',
-    label: 'Calendar',
-    match: (p) => p === '/calendar' || p.startsWith('/calendar/'),
-    tint: '#F0924E',
-    icon: <CalendarDays className="h-6 w-6" aria-hidden="true" />,
-  },
-  {
-    href: '/post',
-    label: 'Post',
-    match: (p) => p === '/post' || p === '/create' || p === '/new' || p === '/composer' || p.startsWith('/post/') || p.startsWith('/create/') || p.startsWith('/new/') || p.startsWith('/composer/'),
-    tint: '#4CAF7D',
-    icon: <PostIcon className="h-6 w-6" />,
-  },
-  {
-    label: 'New post',
-    match: () => false,
-    hero: true,
-    popup: true,
-    icon: <Plus className="h-6 w-6" strokeWidth={2.2} aria-hidden="true" />,
-  },
-  {
-    href: '/analytics',
-    label: 'Analytics',
-    match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
-    tint: '#9B7EDE',
-    icon: <ChartColumn className="h-6 w-6" aria-hidden="true" />,
-  },
-  {
-    href: '/profile',
-    label: 'Profile',
-    match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
-    tint: '#E87EA1',
-    icon: <CircleUserRound className="h-6 w-6" aria-hidden="true" />,
-  },
-];
-
-const PLUS_OPTIONS = [
-  {
-    href: '/post',
-    label: 'Post',
-    desc: 'Write and schedule',
-    icon: <PostIcon className="h-4 w-4" />,
-  },
-  {
-    href: '/post-ideas',
-    label: 'Ideas',
-    desc: 'Capture it first',
-    icon: <Lightbulb className="h-4 w-4" aria-hidden="true" />,
-  },
-  {
-    href: '/post-templates',
-    label: 'From template',
-    desc: 'Reuse a saved design',
-    icon: <LayoutGrid className="h-4 w-4" aria-hidden="true" />,
-  },
-];
-
 /**
  * Left rail nav: home, calendar, create, quick-add +, analytics, profile.
  * Icons lift to the right on hover (discrete per-item mouseenter, no
  * cursor tracking). The + menu opens to the right of the rail.
  */
 export default function Dock() {
+  const t = useT(appMessages);
   const pathname = usePathname();
   const dockRef = useRef<HTMLDivElement>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const closePlus = () => setPlusOpen(false);
+
+  const ITEMS: DockItem[] = [
+    {
+      href: '/dashboard',
+      label: t('dockHome'),
+      match: (p) => p === '/dashboard' || p === '/queue' || p.startsWith('/dashboard/'),
+      tint: '#6C9BF5',
+      icon: <Home className="h-6 w-6" aria-hidden="true" />,
+    },
+    {
+      href: '/calendar',
+      label: t('dockCalendar'),
+      match: (p) => p === '/calendar' || p.startsWith('/calendar/'),
+      tint: '#F0924E',
+      icon: <CalendarDays className="h-6 w-6" aria-hidden="true" />,
+    },
+    {
+      href: '/post',
+      label: t('dockPost'),
+      match: (p) => p === '/post' || p === '/create' || p === '/new' || p === '/composer' || p.startsWith('/post/') || p.startsWith('/create/') || p.startsWith('/new/') || p.startsWith('/composer/'),
+      tint: '#4CAF7D',
+      icon: <PostIcon className="h-6 w-6" />,
+    },
+    {
+      label: t('dockNewPost'),
+      match: () => false,
+      hero: true,
+      popup: true,
+      icon: <Plus className="h-6 w-6" strokeWidth={2.2} aria-hidden="true" />,
+    },
+    {
+      href: '/analytics',
+      label: t('dockAnalytics'),
+      match: (p) => p === '/analytics' || p.startsWith('/analytics/'),
+      tint: '#9B7EDE',
+      icon: <ChartColumn className="h-6 w-6" aria-hidden="true" />,
+    },
+    {
+      href: '/profile',
+      label: t('dockProfile'),
+      match: (p) => p === '/profile' || p === '/channels' || p.startsWith('/profile/') || p.startsWith('/channels/'),
+      tint: '#E87EA1',
+      icon: <CircleUserRound className="h-6 w-6" aria-hidden="true" />,
+    },
+  ];
+
+  const PLUS_OPTIONS = [
+    {
+      href: '/post',
+      label: t('dockPost'),
+      desc: t('dockPostDesc'),
+      icon: <PostIcon className="h-4 w-4" />,
+    },
+    {
+      href: '/post-ideas',
+      label: t('dockIdeas'),
+      desc: t('dockIdeasDesc'),
+      icon: <Lightbulb className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      href: '/post-templates',
+      label: t('dockTemplate'),
+      desc: t('dockTemplateDesc'),
+      icon: <LayoutGrid className="h-4 w-4" aria-hidden="true" />,
+    },
+  ];
 
   useEffect(() => {
     const dock = dockRef.current;
@@ -213,7 +216,7 @@ export default function Dock() {
                 {plusOpen ? (
                   <div
                     role="menu"
-                    aria-label="Quick create"
+                    aria-label={t('dockQuickCreate')}
                     className="absolute left-full top-0 z-30 ml-4 w-60 rounded-2xl border border-line bg-card p-1.5 text-left shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
                   >
                     {PLUS_OPTIONS.map((o) => (
@@ -259,6 +262,7 @@ export default function Dock() {
 
 /** Sign-out tile pinned under Profile, asks first, then POSTs to /auth/signout. */
 function SignOutItem({ onOpen }: { onOpen: () => void }) {
+  const t = useT(appMessages);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -298,12 +302,12 @@ function SignOutItem({ onOpen }: { onOpen: () => void }) {
           if (!confirmOpen) onOpen();
           setConfirmOpen((v) => !v);
         }}
-        aria-label="Sign out"
+        aria-label={t('dockSignOut')}
         aria-expanded={confirmOpen}
         className="group relative z-30 block"
       >
         <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#191512] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          Sign out
+          {t('dockSignOut')}
         </span>
         <span
           data-dock-icon
@@ -316,17 +320,17 @@ function SignOutItem({ onOpen }: { onOpen: () => void }) {
       {confirmOpen ? (
         <div
           role="alertdialog"
-          aria-label="Confirm sign out"
+          aria-label={t('dockSignOutQ')}
           aria-describedby="dock-signout-desc"
           className="absolute left-full top-0 z-30 ml-4 w-60 rounded-2xl border border-line bg-card p-4 text-left shadow-[0_24px_60px_-16px_rgba(25,21,18,0.45)]"
         >
-          <p className="text-sm font-bold">Sign out of Sosial?</p>
+          <p className="text-sm font-bold">{t('dockSignOutQ')}</p>
           <p id="dock-signout-desc" className="mt-1 text-xs leading-relaxed text-muted">
-            You will need to sign back in to post or schedule.
+            {t('dockSignOutB')}
           </p>
           <div className="mt-3 flex gap-2">
             <button type="button" onClick={() => setConfirmOpen(false)} className="btn btn-ghost flex-1 !py-2 !text-xs">
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="button"
@@ -334,7 +338,7 @@ function SignOutItem({ onOpen }: { onOpen: () => void }) {
               disabled={busy}
               className="btn btn-primary flex-1 !py-2 !text-xs"
             >
-              {busy ? 'Signing out…' : 'Sign out'}
+              {busy ? t('signingOut') : t('dockSignOut')}
             </button>
           </div>
         </div>
