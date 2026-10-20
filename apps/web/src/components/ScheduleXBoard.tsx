@@ -27,7 +27,7 @@ import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
 import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
-import { leadTimeMessage, queueTooSoon } from '@/lib/queue';
+import { queueTooSoon } from '@/lib/queue';
 import {
   MONTHS,
   addDays,
@@ -39,6 +39,9 @@ import {
 } from '@/lib/format';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill, type Locale } from '@/lib/i18n/locales';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import SegmentedPills from '@/components/ui/segmented-pills';
@@ -272,6 +275,7 @@ function OpenOnTap({
 
 function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   const c = calendarEvent ?? {};
+  const t = useT(appMessages);
   const time = sxClockLabel(c.start, c.sxTime);
   const pid = String(c.id ?? '');
   return (
@@ -289,7 +293,7 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
         {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={22} /> : null}
         <span className="sx-event-sub min-w-0 flex-1 truncate text-[10px]">
           {time}
-          {c.sxThread ? ` · Thread ${c.sxThread}` : ''}
+          {c.sxThread ? ` · ${fill(t('sxThreadN'), { n: c.sxThread })}` : ''}
         </span>
         {c.sxStatusLabel ? (
           <span className={`pill shrink-0 ${c.sxStatusClass ?? ''}`} style={{ fontSize: 9 }}>
@@ -350,6 +354,21 @@ const SX_VIEWS = {
   month: viewMonthGrid,
 } as const;
 
+/** Translated status pill for a PostStatus, shared by the calendar surfaces. */
+function statusMetaOf(status: PostWithTargets['status'], t: (k: string) => string) {
+  const meta = POST_STATUS_META[status];
+  const key: Record<string, string> = {
+    draft: 'stDraft',
+    approval: 'stApproval',
+    queued: 'stQueued',
+    publishing: 'stPublishing',
+    sent: 'stSent',
+    partial: 'stPartial',
+    failed: 'stFailed',
+  };
+  return { ...meta, label: t(key[status] ?? 'stQueued') };
+}
+
 /** Time editor for the selected post (keyed by post so it resets). */
 function TimeEditor({
   post,
@@ -370,10 +389,11 @@ function TimeEditor({
   onDelete: () => void;
   busy: boolean;
 }) {
+  const t = useT(appMessages);
   const init = partsOf(post.scheduled_at);
   const [hh, setHh] = useState(init.h);
   const [mm, setMm] = useState(init.m);
-  const st = POST_STATUS_META[post.status];
+  const st = statusMetaOf(post.status, t);
   const targets = post.post_targets.filter((t) => t.status === 'queued' || t.status === 'pending');
   // Per-channel times, every channel can publish at its own instant.
   const [times, setTimes] = useState<Record<string, { h: number; m: number }>>(() =>
@@ -408,14 +428,14 @@ function TimeEditor({
 
       {perChannel ? (
         <>
-          <p className="mt-2 text-xs font-bold text-muted">Time per channel</p>
+          <p className="mt-2 text-xs font-bold text-muted">{t('calTimePerChannel')}</p>
           <div className="mt-1 space-y-1.5">
-            {targets.map((t) => {
-              const meta = providerMeta(t.provider);
-              const v = times[t.channel_id] ?? partsOf(t.scheduled_at);
+            {targets.map((tg) => {
+              const meta = providerMeta(tg.provider);
+              const v = times[tg.channel_id] ?? partsOf(tg.scheduled_at);
               return (
-                <div key={t.channel_id} className="flex items-center gap-2">
-                  <ChannelAvatar provider={t.provider} avatar={avatarOf(t.channel_id)} size={22} />
+                <div key={tg.channel_id} className="flex items-center gap-2">
+                  <ChannelAvatar provider={tg.provider} avatar={avatarOf(tg.channel_id)} size={22} />
                   <span className="w-16 shrink-0 truncate text-[11px] font-bold">{meta.label}</span>
                   <input
                     type="number"
@@ -425,10 +445,10 @@ function TimeEditor({
                     onChange={(e) =>
                       setTimes((prev) => ({
                         ...prev,
-                        [t.channel_id]: { h: Math.max(0, Math.min(23, Number(e.target.value) || 0)), m: v.m },
+                        [tg.channel_id]: { h: Math.max(0, Math.min(23, Number(e.target.value) || 0)), m: v.m },
                       }))
                     }
-                    aria-label={`${meta.label} hour`}
+                    aria-label={fill(t('calHour'), { label: meta.label })}
                     className="field !w-14 !py-1 text-center !text-xs tabular-nums"
                   />
                   <span className="text-xs font-bold text-muted">:</span>
@@ -440,10 +460,10 @@ function TimeEditor({
                     onChange={(e) =>
                       setTimes((prev) => ({
                         ...prev,
-                        [t.channel_id]: { h: v.h, m: Math.max(0, Math.min(59, Number(e.target.value) || 0)) },
+                        [tg.channel_id]: { h: v.h, m: Math.max(0, Math.min(59, Number(e.target.value) || 0)) },
                       }))
                     }
-                    aria-label={`${meta.label} minute`}
+                    aria-label={fill(t('calMinute'), { label: meta.label })}
                     className="field !w-14 !py-1 text-center !text-xs tabular-nums"
                   />
                 </div>
@@ -451,12 +471,12 @@ function TimeEditor({
             })}
           </div>
           <Button size="sm" className="mt-2 w-full" onClick={() => savePerChannel()} disabled={busy}>
-            Save per-channel times
+            {t('calSaveTimes')}
           </Button>
         </>
       ) : (
         <>
-          <p className="mt-2 text-xs font-bold text-muted">Move to</p>
+          <p className="mt-2 text-xs font-bold text-muted">{t('calMoveTo')}</p>
           <div className="mt-1 flex items-center gap-1.5">
             <input
               type="number"
@@ -464,7 +484,7 @@ function TimeEditor({
               max={23}
               value={hh}
               onChange={(e) => setHh(Math.max(0, Math.min(23, Number(e.target.value) || 0)))}
-              aria-label="Hour (0-23)"
+              aria-label={t('calHourAria')}
               className="field !w-16 !py-1.5 text-center !text-xs tabular-nums"
             />
             <span className="font-bold text-muted">:</span>
@@ -474,12 +494,12 @@ function TimeEditor({
               max={59}
               value={mm}
               onChange={(e) => setMm(Math.max(0, Math.min(59, Number(e.target.value) || 0)))}
-              aria-label="Minute"
+              aria-label={t('calMinuteAria')}
               className="field !w-16 !py-1.5 text-center !text-xs tabular-nums"
             />
             <span className="flex-1" />
             <Button size="sm" onClick={() => applyAll(hh, mm)} disabled={busy}>
-              Set time
+              {t('calSetTime')}
             </Button>
           </div>
         </>
@@ -488,11 +508,11 @@ function TimeEditor({
       <div className="mt-2 flex gap-1.5">
         {post.status !== 'sent' && post.status !== 'partial' ? (
           <Button variant="ghost" size="sm" className="flex-1" onClick={onPublish} disabled={busy}>
-            Post now
+            {t('cpPostNow')}
           </Button>
         ) : null}
         <Button variant="ghost" size="sm" className="flex-1 !text-[#9F2F2D]" onClick={onDelete} disabled={busy}>
-          {cancellable ? 'Cancel schedule' : 'Delete'}
+          {cancellable ? t('calCancelSchedule') : t('deleteLbl')}
         </Button>
       </div>
       {post.status !== 'sent' ? (
@@ -500,7 +520,7 @@ function TimeEditor({
           href={`/post?edit=${post.id}`}
           className="btn btn-sm mt-2 w-full border border-line bg-paper"
         >
-          Edit post
+          {t('calEditPost')}
         </Link>
       ) : null}
     </div>
@@ -527,13 +547,14 @@ function SentPostView({
   onDelete: () => void;
   busy: boolean;
 }) {
+  const t = useT(appMessages);
   const t0 = post.post_targets[0];
   const provider = t0?.provider ?? 'x';
   const ch = t0 ? channelById.get(t0.channel_id) : undefined;
   const name = ch?.display_name?.trim() || providerMeta(provider).label;
   const handle = cleanHandle(ch?.handle);
   const when = post.sent_at ?? post.scheduled_at;
-  const st = POST_STATUS_META[post.status];
+  const st = statusMetaOf(post.status, t);
   const text = post.body || post.title || '';
   return (
     <div>
@@ -557,7 +578,7 @@ function SentPostView({
           {text}
         </p>
       ) : (
-        <p className="mt-3 text-sm italic text-faint">No text, media only.</p>
+        <p className="mt-3 text-sm italic text-faint">{t('noTextMedia')}</p>
       )}
       {mediaItems.length > 0 ? (
         <div
@@ -596,7 +617,7 @@ function SentPostView({
         onClick={onDelete}
         disabled={busy}
       >
-        Delete
+        {t('deleteLbl')}
       </Button>
     </div>
   );
@@ -738,6 +759,7 @@ export default function ScheduleXBoard({
   /** 'page' = full calendar; 'mini' = bare week grid for embedding (dashboard). */
   variant?: 'page' | 'mini';
 }) {
+  const t = useT(appMessages);
   const router = useRouter();
   const [view, setView] = useState<BoardView>(initialView);
   const [anchor, setAnchor] = useState(() => {
@@ -865,7 +887,7 @@ export default function ScheduleXBoard({
       const t0 = p.post_targets[0];
       const tint = tintOf(t0?.provider);
       const ch = t0 ? channelById.get(t0.channel_id) : undefined;
-      const st = POST_STATUS_META[p.status];
+      const st = statusMetaOf(p.status, t);
       const thumbs = (media[p.id] ?? [])
         .slice(0, 4)
         .map((m) => ({
@@ -886,8 +908,8 @@ export default function ScheduleXBoard({
         calendarId: statusCalendar(p.status),
         sxProvider: t0?.provider,
         sxAvatar: t0 ? avatarOf(t0.channel_id) : undefined,
-        sxLabel: t0 ? `${providerMeta(t0.provider).label} Post` : 'Post',
-        sxName: ch?.display_name?.trim() || (t0 ? providerMeta(t0.provider).label : 'Post'),
+        sxLabel: t0 ? fill(t('sxLabelPost'), { label: providerMeta(t0.provider).label }) : t('sxPost'),
+        sxName: ch?.display_name?.trim() || (t0 ? providerMeta(t0.provider).label : t('sxPost')),
         sxHandle: cleanHandle(ch?.handle),
         sxStatusLabel: st.label,
         sxStatusClass: st.className,
@@ -940,7 +962,7 @@ export default function ScheduleXBoard({
         await Promise.all(moves.map((m) => reschedulePost(sb, m.id, m.iso)));
         startTransition(() => router.refresh());
       } catch (e) {
-        setErr(e instanceof Error ? e.message : 'Could not reschedule that post.');
+        setErr(e instanceof Error ? e.message : t('calErrResched'));
       }
     },
     [router],
@@ -1014,7 +1036,7 @@ export default function ScheduleXBoard({
     }));
     // Pre-validate everything: a chain never half-moves.
     if (moves.some((m) => queueTooSoon(m.iso))) {
-      setErr(leadTimeMessage());
+      setErr(t('leadTime'));
       return;
     }
     setErr(null);
@@ -1023,7 +1045,7 @@ export default function ScheduleXBoard({
       await Promise.all(moves.map((m) => reschedulePost(sb, m.id, m.iso)));
       startTransition(() => router.refresh());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not reschedule that post.');
+      setErr(e instanceof Error ? e.message : t('calErrResched'));
     }
   }
 
@@ -1035,7 +1057,7 @@ export default function ScheduleXBoard({
       await rescheduleChannels(sb, selectedPostId, times);
       startTransition(() => router.refresh());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not save those times.');
+      setErr(e instanceof Error ? e.message : t('calErrTimes'));
     }
   }
 
@@ -1047,7 +1069,7 @@ export default function ScheduleXBoard({
       await publishPostNow(sb, selectedPostId);
       startTransition(() => router.refresh());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not queue that post.');
+      setErr(e instanceof Error ? e.message : t('calErrQueue'));
     }
   }
 
@@ -1062,14 +1084,14 @@ export default function ScheduleXBoard({
       setSelectedPostId(null);
       startTransition(() => router.refresh());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not delete that post.');
+      setErr(e instanceof Error ? e.message : t('calErrDelete'));
     }
   }
 
   const title =
     view === 'day'
       ? anchor.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
-      : `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
+      : anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
   // Muted period line under the title: the exact span the current view covers.
   const rangeLabel = (() => {
@@ -1128,12 +1150,12 @@ export default function ScheduleXBoard({
     window.history.replaceState(null, '', `${path}?d=${d}`);
   };
 
-  const VIEW_TABS: { id: BoardView; label: string }[] = [
-    { id: 'day', label: 'Day' },
-    { id: 'week', label: 'Week' },
-    { id: 'month', label: 'Month' },
-    { id: 'year', label: 'Year' },
-    { id: 'list', label: 'List' },
+  const VIEW_TABS: { id: BoardView; key: string }[] = [
+    { id: 'day', key: 'calDay' },
+    { id: 'week', key: 'calWeek' },
+    { id: 'month', key: 'calMonth' },
+    { id: 'year', key: 'calYear' },
+    { id: 'list', key: 'calList' },
   ];
 
   const todayKey = dayKey(new Date());
@@ -1143,28 +1165,28 @@ export default function ScheduleXBoard({
    *  chevrons moves it; clicking it always jumps back to today's period. */
   const pill = (() => {
     const now = new Date();
-    const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
     if (view === 'day') {
-      return todayInView('day', dayKey(anchor)) ? 'Today' : fmt(anchor);
+      return todayInView('day', dayKey(anchor)) ? t('today') : fmt(anchor);
     }
     if (view === 'week') {
-      if (todayInView('week', dayKey(anchor))) return 'This week';
+      if (todayInView('week', dayKey(anchor))) return t('thisWeek');
       const start = addDays(anchor, -((anchor.getDay() + 6) % 7));
       return `${fmt(start)} – ${fmt(addDays(start, 6))}`;
     }
     if (view === 'month') {
       const current =
         anchor.getFullYear() === now.getFullYear() && anchor.getMonth() === now.getMonth();
-      return current ? 'This month' : `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
+      return current ? t('thisMonth') : anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
     }
     if (view === 'year') {
       return anchor.getFullYear() === now.getFullYear()
-        ? 'This year'
+        ? t('thisYear')
         : String(anchor.getFullYear());
     }
     const base = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
     const inWindow = todayKey >= dayKey(base) && todayKey <= dayKey(addDays(base, 13));
-    return inWindow ? 'Today' : `${fmt(base)} – ${fmt(addDays(base, 13))}`;
+    return inWindow ? t('today') : `${fmt(base)} – ${fmt(addDays(base, 13))}`;
   })();
 
   /** Year view: posts per month for the anchor year (drives the count pills). */
@@ -1199,8 +1221,8 @@ export default function ScheduleXBoard({
 
   const dayLabelFor = (d: Date, k: string): string => {
     const date = d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
-    if (k === todayKey) return `Today, ${date}`;
-    if (k === dayKey(addDays(new Date(), 1))) return `Tomorrow, ${date}`;
+    if (k === todayKey) return fill(t('calTodayDate'), { date });
+    if (k === dayKey(addDays(new Date(), 1))) return fill(t('calTomorrowDate'), { date });
     return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
@@ -1219,7 +1241,7 @@ export default function ScheduleXBoard({
   const listRow = (p: PostWithTargets, k: string, timeText: string, timeFaint?: boolean) => {
     const t0 = p.post_targets[0];
     const a = authorLine(p);
-    const st = POST_STATUS_META[p.status];
+    const st = statusMetaOf(p.status, t);
     return (
       <button
         key={p.id}
@@ -1245,7 +1267,7 @@ export default function ScheduleXBoard({
           <span className="block truncate text-xs text-muted">
             {a.handle ? `${a.handle} · ` : ''}
             {a.name}
-            {partCount(p) > 1 ? ` · Thread ${partCount(p)}` : ''}
+            {partCount(p) > 1 ? ` · ${fill(t('sxThreadN'), { n: partCount(p) })}` : ''}
           </span>
         </span>
         <Badge className={`${st.className} hidden shrink-0 sm:inline-flex`}>{st.label}</Badge>
@@ -1269,7 +1291,7 @@ export default function ScheduleXBoard({
             <button
               type="button"
               onClick={stepPrev}
-              aria-label="Previous"
+              aria-label={t('calPrev')}
               className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
             >
               <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1277,7 +1299,7 @@ export default function ScheduleXBoard({
             <button
               type="button"
               onClick={stepToday}
-              title="Jump to today"
+              title={t('calJumpToday')}
               className="min-w-[4.5rem] rounded-full px-3 py-1 text-center text-xs font-bold text-ink transition hover:bg-paper-dim"
             >
               {pill}
@@ -1285,7 +1307,7 @@ export default function ScheduleXBoard({
             <button
               type="button"
               onClick={stepNext}
-              aria-label="Next"
+              aria-label={t('calNext')}
               className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
             >
               <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1294,17 +1316,17 @@ export default function ScheduleXBoard({
         </div>
         <div className="flex items-center gap-2">
           <SegmentedPills
-            ariaLabel="Calendar view"
+            ariaLabel={t('calMonth')}
             role="tablist"
             variant="paper"
             value={view}
             onChange={goView}
             trackClassName="border-transparent bg-paper-dim"
-            options={VIEW_TABS.map((t) => ({ value: t.id, label: t.label }))}
+            options={VIEW_TABS.map((tb) => ({ value: tb.id, label: t(tb.key) }))}
           />
           <Link href="/post" className="btn btn-bolt btn-sm">
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            New post
+            {t('cNewPost')}
           </Link>
         </div>
       </header>
@@ -1317,7 +1339,7 @@ export default function ScheduleXBoard({
               type="button"
               className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
             >
-              Channels{chanFilter ? ` · ${chanFilter.length}` : ''}
+              {t('cChannels')}{chanFilter ? ` · ${chanFilter.length}` : ''}
               <ChevronDown className="h-3 w-3 text-faint" aria-hidden="true" />
             </button>
           </PopoverTrigger>
@@ -1327,7 +1349,7 @@ export default function ScheduleXBoard({
               onClick={() => setChanFilter(null)}
               className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
             >
-              All channels
+              {t('calAllChannels')}
             </button>
             {channels.map((c) => {
               const label = c.display_name?.trim() || providerMeta(c.provider).label;
@@ -1361,7 +1383,7 @@ export default function ScheduleXBoard({
               type="button"
               className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
             >
-              Status{statusFilter ? ` · ${statusFilter.length}` : ''}
+              {t('calStatus')}{statusFilter ? ` · ${statusFilter.length}` : ''}
               <ChevronDown className="h-3 w-3 text-faint" aria-hidden="true" />
             </button>
           </PopoverTrigger>
@@ -1371,10 +1393,10 @@ export default function ScheduleXBoard({
               onClick={() => setStatusFilter(null)}
               className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
             >
-              All statuses
+              {t('calAllStatuses')}
             </button>
             {STATUS_OPTIONS.map((s) => {
-              const meta = POST_STATUS_META[s];
+              const meta = statusMetaOf(s as PostWithTargets['status'], t);
               const checked = !statusFilter || statusFilter.includes(s);
               return (
                 <label
@@ -1407,11 +1429,11 @@ export default function ScheduleXBoard({
             }}
             className="text-xs font-bold text-muted transition hover:text-ink"
           >
-            Clear
+            {t('cpClear')}
           </button>
         ) : null}
         <span className="flex-1" />
-        <span className="text-xs text-faint">{sxEvents.length} shown</span>
+        <span className="text-xs text-faint">{fill(t('calShown'), { n: sxEvents.length })}</span>
       </div>
       </> )}
 
@@ -1422,7 +1444,7 @@ export default function ScheduleXBoard({
             <button
               type="button"
               onClick={() => setErr(null)}
-              aria-label="Dismiss"
+              aria-label={t('calDismiss')}
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs opacity-70 transition hover:opacity-100"
             >
               ✕
@@ -1452,7 +1474,9 @@ export default function ScheduleXBoard({
         {view === 'year' ? (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {MONTHS.map((name, m) => (
+              {Array.from({ length: 12 }, (_, m) => {
+                const name = new Date(anchor.getFullYear(), m, 1).toLocaleDateString(undefined, { month: 'long' });
+                return (
                 <div
                   key={name}
                   className={`rounded-2xl border bg-card p-4 transition ${
@@ -1480,9 +1504,10 @@ export default function ScheduleXBoard({
                     ) : null}
                   </div>
                   <div className="mt-2 grid grid-cols-7 gap-y-1 text-center">
-                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                      <span key={`${d}${i}`} className="text-[9px] font-bold text-faint">
-                        {d}
+                    {Array.from({ length: 7 }, (_, wi) => (
+                      // Monday-first: 2023-01-02 is a Monday.
+                      <span key={wi} className="text-[9px] font-bold text-faint">
+                        {new Date(2023, 0, 2 + wi).toLocaleDateString(undefined, { weekday: 'narrow' })}
                       </span>
                     ))}
                     {monthMatrix(new Date(anchor.getFullYear(), m, 1))
@@ -1516,17 +1541,18 @@ export default function ScheduleXBoard({
                       })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
               <p className="mt-3 text-xs text-faint">
-                The whole year at a glance, dots mark days with posts. Pick a month to open it.
+                {t('calYearHint')}
               </p>
             </>
           ) : view === 'list' ? (
             <>
               {listDays.length === 0 && undatedVisible.length === 0 ? (
                 <p className="rounded-2xl border border-line bg-card px-4 py-10 text-center text-sm text-muted">
-                  Nothing scheduled in these 14 days.
+                  {t('calNothing14')}
                 </p>
               ) : (
                 <div className="mx-auto w-full max-w-3xl space-y-6">
@@ -1537,7 +1563,7 @@ export default function ScheduleXBoard({
                           {dayLabelFor(day.date, day.key)}
                         </h2>
                         <span className="text-xs text-faint">
-                          {day.items.length} post{day.items.length === 1 ? '' : 's'}
+                          {fill(t('calNPosts'), { n: day.items.length })}
                         </span>
                       </div>
                       <div className="space-y-1.5">
@@ -1549,23 +1575,23 @@ export default function ScheduleXBoard({
                     <section>
                       <div className="mb-2 flex items-baseline gap-2 px-1">
                         <h2 className="font-display text-base font-extrabold tracking-tight">
-                          No date yet
+                          {t('calNoDateYet')}
                         </h2>
                         <span className="text-xs text-faint">
-                          {undatedVisible.length} draft{undatedVisible.length === 1 ? '' : 's'}
+                          {fill(t('calNDrafts'), { n: undatedVisible.length })}
                         </span>
                       </div>
                       <div className="space-y-1.5">
                         {undatedVisible
                           .slice(0, 10)
-                          .map((p) => listRow(p, dayKey(new Date()), 'No date', true))}
+                          .map((p) => listRow(p, dayKey(new Date()), t('calNoDate'), true))}
                       </div>
                     </section>
                   ) : null}
                 </div>
               )}
               <p className="mt-3 text-xs text-faint">
-                Click a post to open it. Dragging lives on the Day, Week and Month views.
+                {t('calListHint')}
               </p>
             </>
           ) : mounted ? (
@@ -1588,7 +1614,7 @@ export default function ScheduleXBoard({
         )}
         {view !== 'year' ? (
           <p className="mt-3 text-xs text-faint">
-            Drag a post to another slot to reschedule it. Click a post to retime it exactly.
+            {t('calDragHint')}
           </p>
         ) : null}
       </div>
@@ -1600,24 +1626,24 @@ export default function ScheduleXBoard({
               className="fixed inset-0 z-[100] flex items-center justify-center p-4"
               role="dialog"
               aria-modal="true"
-              aria-label="Post details"
+              aria-label={t('calDetails')}
             >
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t('close')}
             onClick={() => setSelectedPostId(null)}
             className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-[2px]"
           />
           <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-card p-5 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-2">
               <p className="eyebrow">
-                Post · {selectedKey}
-                {partCount(selectedPost) > 1 ? ` · thread of ${partCount(selectedPost)}` : ''}
+                {fill(t('calPostEyebrow'), { key: selectedKey })}
+                {partCount(selectedPost) > 1 ? fill(t('calThreadOf'), { n: partCount(selectedPost) }) : ''}
               </p>
               <button
                 type="button"
                 onClick={() => setSelectedPostId(null)}
-                aria-label="Close details"
+                aria-label={t('calCloseDetails')}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
               >
                 ✕
@@ -1625,7 +1651,7 @@ export default function ScheduleXBoard({
             </div>
             {partCount(selectedPost) > 1 ? (
               <p className="mb-2 text-xs text-muted">
-                Retiming or deleting applies to the whole thread.
+                {t('calThreadNote')}
               </p>
             ) : null}
             {selectedPost.status === 'sent' ? (
