@@ -671,7 +671,7 @@ export default function AccountSettings({
                 <span className="block text-sm font-bold">
                   Language{langSaved ? ' ✓' : ''}
                 </span>
-                <span className="block text-xs text-muted">Site and email language</span>
+                <span className="block text-xs text-muted">Website language</span>
               </span>
               <select
                 value={locale}

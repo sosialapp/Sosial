@@ -37,7 +37,7 @@ const en: Messages = {
   wGoogleAlertB: 'Google sign-in can’t return to Expo Go. Use email + password here, Google lights up automatically in dev builds.',
   wClose: 'Close',
   aLang: 'Language',
-  aLangNote: 'App copy and marketing emails follow this language.',
+  aLangNote: 'The app follows this language.',
 };
 
 const es: Messages = {
@@ -69,7 +69,7 @@ const es: Messages = {
   wGoogleAlertB: 'El acceso con Google no puede volver a Expo Go. Usa correo y contraseña; Google se activa solo en builds de desarrollo.',
   wClose: 'Cerrar',
   aLang: 'Idioma',
-  aLangNote: 'Textos de la app y correos seguirán este idioma.',
+  aLangNote: 'La app sigue este idioma.',
 };
 
 const fr: Messages = {
@@ -101,7 +101,7 @@ const fr: Messages = {
   wGoogleAlertB: 'La connexion Google ne peut pas revenir à Expo Go. Utilise courriel + mot de passe ; Google fonctionne dans les builds de développement.',
   wClose: 'Fermer',
   aLang: 'Langue',
-  aLangNote: 'Les textes de l’app et les courriels suivent cette langue.',
+  aLangNote: 'L’application suit cette langue.',
 };
 
 const de: Messages = {
@@ -133,7 +133,7 @@ const de: Messages = {
   wGoogleAlertB: 'Google-Anmeldung kann nicht nach Expo Go zurückkehren. Nutze E-Mail + Passwort; Google geht ab Development Builds automatisch.',
   wClose: 'Schließen',
   aLang: 'Sprache',
-  aLangNote: 'App-Texte und Marketing-E-Mails folgen dieser Sprache.',
+  aLangNote: 'Die App folgt dieser Sprache.',
 };
 
 const ja: Messages = {
@@ -165,7 +165,7 @@ const ja: Messages = {
   wGoogleAlertB: 'Google ログインは Expo Go に戻れません。ここではメールとパスワードを使ってください。開発用ビルドでは自動で使えます。',
   wClose: '閉じる',
   aLang: '言語',
-  aLangNote: 'アプリの文章と宣伝メールはこの言語に従います。',
+  aLangNote: 'アプリはこの言語に従います。',
 };
 
 const ko: Messages = {
@@ -197,7 +197,7 @@ const ko: Messages = {
   wGoogleAlertB: 'Google 로그인은 Expo Go로 돌아올 수 없습니다. 이메일과 비밀번호를 사용하세요. 개발 빌드에서는 자동으로 활성화됩니다.',
   wClose: '닫기',
   aLang: '언어',
-  aLangNote: '앱 문구와 홍보 이메일은 이 언어를 따릅니다.',
+  aLangNote: '앱은 이 언어를 따릅니다.',
 };
 
 const zh: Messages = {
@@ -229,7 +229,7 @@ const zh: Messages = {
   wGoogleAlertB: 'Google 登录无法返回 Expo Go。请使用邮箱 + 密码；开发版构建会自动启用。',
   wClose: '关闭',
   aLang: '语言',
-  aLangNote: '应用文案与推广邮件会跟随此语言。',
+  aLangNote: '应用会跟随此语言。',
 };
 
 const DICTS: Record<string, Messages> = { en, es, fr, de, ja, ko, zh };
