@@ -12,6 +12,9 @@ export interface MediaAttachment {
   size?: number;
   /** Video length in ms (set at pick time), YouTube 4 h check. */
   durationMs?: number;
+  /** Existing cloud media_assets row (pulled drafts). When set, the cloud
+   *  push links this asset instead of re-uploading; uri may be remote. */
+  mediaId?: string;
 }
 
 export type ChannelKey = 'facebook' | 'instagram' | 'threads' | 'tiktok' | 'x' | 'bluesky' | 'linkedin' | 'mastodon' | 'pinterest' | 'youtube' | 'telegram' | 'discord' | 'wordpress' | 'devto' | 'hashnode' | 'ghost' | 'vk' | 'gmb';
@@ -149,6 +152,10 @@ export interface ManagedPost {
    *  media asset ids). When it matches the fresh cloud row, the pull skips
    *  re-downloading every attachment, the single biggest sync egress cost. */
   cloudSig?: string;
+  /** Set when the user removes the last attachment in the composer: the next
+   *  cloud push may clear the post's existing media links. Absent means a
+   *  device with no local media leaves the cloud media untouched. */
+  mediaCleared?: boolean;
   /** per-channel remote ids returned at publish time (post/media/tweet/video id
    *  or at:// URI), powers the per-post analytics in the Sent view.
    *  ALSO the duplicate guard: a channel recorded here is never reposted. */

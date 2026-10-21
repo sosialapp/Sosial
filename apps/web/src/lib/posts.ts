@@ -42,25 +42,34 @@ async function signAssetUrls(sb: SupabaseClient, assets: MediaAssetRow[]): Promi
       if (a.thumb_path) r2Paths.add(a.thumb_path);
     } else {
       supabasePaths.add(a.storage_path);
+      if (a.thumb_path) supabasePaths.add(a.thumb_path);
     }
   }
 
+  // The media edge function rejects more than 100 items in one call; chunk so
+  // a workspace with many assets still gets previews instead of none at all.
+  const SIGN_BATCH = 100;
   const signed = new Map<string, string>();
-  if (supabasePaths.size) {
-    const { data: urls } = await sb.storage.from('post-media').createSignedUrls([...supabasePaths], 3600);
+  const supabaseList = [...supabasePaths];
+  for (let i = 0; i < supabaseList.length; i += SIGN_BATCH) {
+    const { data: urls } = await sb.storage
+      .from('post-media')
+      .createSignedUrls(supabaseList.slice(i, i + SIGN_BATCH), 3600);
     for (const s of (urls ?? []) as { path: string; signedUrl: string | null }[]) {
       if (s.signedUrl) signed.set(s.path, s.signedUrl);
     }
   }
-  if (r2Paths.size) {
+  const r2List = [...r2Paths];
+  for (let i = 0; i < r2List.length; i += SIGN_BATCH) {
+    const batch = r2List.slice(i, i + SIGN_BATCH);
     try {
       const { data: res, error: signErr } = await sb.functions.invoke('media', {
-        body: { action: 'sign', items: [...r2Paths].map((path) => ({ path, bucket: 'post-media' })), expiresIn: 3600 },
+        body: { action: 'sign', items: batch.map((path) => ({ path, bucket: 'post-media' })), expiresIn: 3600 },
       });
       if (!signErr && res && !(res as { error?: string }).error) {
         const urls = (res as { urls: string[] }).urls ?? [];
-        [...r2Paths].forEach((path, i) => {
-          if (urls[i]) signed.set(path, urls[i]);
+        batch.forEach((path, j) => {
+          if (urls[j]) signed.set(path, urls[j]);
         });
       }
     } catch {
@@ -196,6 +205,14 @@ export function threadSegments(bodies: string[]): string[] {
   return bodies.map((s) => (s ?? '').trim()).filter(Boolean);
 }
 
+/**
+ * One attachment on the way into createPost. Either bytes to upload or an
+ * existing media asset (draft edits reuse the row instead of re-uploading).
+ */
+export type MediaInput =
+  | { file: File; kind: 'image' | 'video' }
+  | { mediaId: string; kind: 'image' | 'video' };
+
 export interface ComposeArgs {
   workspaceId: string;
   userId: string;
@@ -223,7 +240,9 @@ export interface ComposeArgs {
    */
   leadCheck?: boolean;
   channels: ConnectedChannel[];
-  files: { file: File; kind: 'image' | 'video' }[];
+  /** Ordered attachments; existing assets keep their media row (draft edits). */
+  media?: MediaInput[];
+  files?: { file: File; kind: 'image' | 'video' }[];
   /** P17 chains: segments of one thread share a chainId, ordered by chainPosition. */
   chainId?: string;
   chainPosition?: number;
@@ -279,7 +298,8 @@ export function friendlyLimit(message: string): string {
  * still missing. Returns the new post id.
  */
 export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise<string> {
-  const { workspaceId, userId, title, body, mode, channels, files } = args;
+  const { workspaceId, userId, title, body, mode, channels } = args;
+  const media = args.media ?? args.files ?? [];
   const clientId = args.clientId ?? newClientId();
   const needsApproval = args.role === 'member' && mode !== 'draft';
   const scheduledIso =
@@ -287,6 +307,30 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
   const postStatus = mode === 'draft' ? 'draft' : needsApproval ? 'approval' : 'queued';
   const targetStatus = mode === 'draft' ? 'pending' : needsApproval ? 'needs_approval' : 'queued';
   if (mode === 'schedule' && args.leadCheck !== false) assertQueueLeadTime(scheduledIso);
+
+  // Validate reused ids before creating the replacement post, so a bad id
+  // cannot leave an empty draft behind.
+  const reused = media.filter(
+    (m): m is Extract<MediaInput, { mediaId: string }> => 'mediaId' in m,
+  );
+  if (reused.length) {
+    // The ids come from the client, so verify they belong to this workspace
+    // before linking them (RLS also scopes the select). Never trust an id
+    // lifted from another workspace into post_media.
+    const ids = [...new Set(reused.map((m) => m.mediaId))];
+    const { data: rows, error: mErr } = await sb
+      .from('media_assets')
+      .select('id, kind')
+      .eq('workspace_id', workspaceId)
+      .in('id', ids);
+    if (mErr) throw new Error(`Could not verify media: ${mErr.message}`);
+    const kinds = new Map((rows ?? []).map((r) => [String(r.id), String(r.kind)]));
+    for (const m of reused) {
+      const kind = kinds.get(m.mediaId);
+      if (!kind) throw new Error('An attachment is no longer available. Re-attach it and try again.');
+      if (kind !== m.kind) throw new Error('An attachment changed type. Re-attach it and try again.');
+    }
+  }
 
   const { data: prow, error: pErr } = await sb
     .from('posts')
@@ -314,23 +358,31 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
   // creates the media_assets row (service role) and marks it ready on complete.
   // Ordering matches mobile (media before targets) so the worker never sees a
   // queued target whose media is still missing.
+  //
+  // Draft edits pass the original media ids back in `media`: linking them
+  // again keeps the bytes and previews intact without a download/re-upload
+  // round-trip (and survives short-lived signed URLs expiring mid-edit).
   const linked: string[] = [];
-  for (let i = 0; i < files.length; i++) {
-    const { file, kind } = files[i];
+  for (const item of media) {
+    if ('mediaId' in item) {
+      linked.push(item.mediaId);
+      continue;
+    }
     // userId is only consumed by the edge when the caller is service_role.
-    const res = await uploadMedia(sb, workspaceId, file, kind, undefined, userId);
+    const res = await uploadMedia(sb, workspaceId, item.file, item.kind, undefined, userId);
     linked.push(res.mediaId);
   }
 
-  if (linked.length) {
-    const { error: delErr } = await sb.from('post_media').delete().eq('post_id', postId);
-    if (delErr) throw new Error(`Could not reset media links: ${delErr.message}`);
-    for (let i = 0; i < linked.length; i++) {
-      const { error: linkErr } = await sb
-        .from('post_media')
-        .insert({ post_id: postId, media_id: linked[i], position: i });
-      if (linkErr) throw new Error(`Could not link media: ${linkErr.message}`);
-    }
+  // Always reset links, even when the edit removed every attachment; otherwise
+  // an upsert would keep the old post_media rows and "remove media" would not
+  // stick. A brand-new post simply has nothing to delete.
+  const { error: delErr } = await sb.from('post_media').delete().eq('post_id', postId);
+  if (delErr) throw new Error(`Could not reset media links: ${delErr.message}`);
+  for (let i = 0; i < linked.length; i++) {
+    const { error: linkErr } = await sb
+      .from('post_media')
+      .insert({ post_id: postId, media_id: linked[i], position: i });
+    if (linkErr) throw new Error(`Could not link media: ${linkErr.message}`);
   }
 
   // Targets last (atomicity, see cloudPosts.ts). Dedupe by channel id: a
@@ -372,7 +424,9 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
 
 export interface ChainSegmentInput {
   body: string;
-  files: { file: File; kind: 'image' | 'video' }[];
+  /** Ordered attachments; existing assets keep their media row (draft edits). */
+  media?: MediaInput[];
+  files?: { file: File; kind: 'image' | 'video' }[];
 }
 
 export interface ChainArgs {
@@ -453,7 +507,7 @@ export async function createChain(sb: SupabaseClient, args: ChainArgs): Promise<
       targetOptions,
       formats: args.formats,
       channels: partChannels,
-      files: seg.files,
+      media: seg.media ?? seg.files,
       chainId,
       chainPosition: i,
       timezone: args.timezone,

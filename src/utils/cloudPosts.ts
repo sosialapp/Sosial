@@ -155,8 +155,18 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   const atts = postAttachments(post).slice(0, 10);
   const linked: string[] = [];
   const newPaths: string[] = [];
+  /** True when at least one attachment is an existing cloud row. */
+  let reusedCloudMedia = false;
   for (const a of atts) {
-    if (!a?.uri || linked.length >= 10) continue;
+    if (linked.length >= 10) continue;
+    // Pulled draft media keeps its media_assets row: link it, never re-upload
+    // (the uri may be a signed URL, not a file on this device).
+    if (a?.mediaId) {
+      linked.push(a.mediaId);
+      reusedCloudMedia = true;
+      continue;
+    }
+    if (!a?.uri) continue;
     const kind: 'image' | 'video' = a.kind === 'video' ? 'video' : 'image';
     let thumbUri: string | undefined;
     let width: number | undefined;
@@ -186,21 +196,35 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   // Remember the previous links first so stale objects/rows can be swept
   // after the new ones land (best-effort, never fails the push).
   let prevPaths: string[] = [];
+  let prevIds: string[] = [];
+  let prevKnown = false;
   try {
     const { data: prev } = await sb
       .from('post_media')
       .select('media_id, media_assets!inner(storage_path)')
       .eq('post_id', postId);
+    prevIds = ((prev ?? []) as any[])
+      .map((r) => String((r as any)?.media_id ?? ''))
+      .filter(Boolean);
     prevPaths = ((prev ?? []) as any[])
       .map((r) => String((r as any)?.media_assets?.storage_path ?? ''))
       .filter(Boolean);
+    prevKnown = true;
   } catch {}
-  await sb.from('post_media').delete().eq('post_id', postId);
-  for (let i = 0; i < linked.length; i++) {
-    const { error: linkErr } = await sb
-      .from('post_media')
-      .insert({ post_id: postId, media_id: linked[i], position: i });
-    if (linkErr) throw new Error(`cloud media link failed: ${linkErr.message}`);
+  // No attachments at all means the draft's media never reached this device
+  // (or the composer cleared it). Preserve the cloud links in the first case
+  // instead of erasing media the user can still see on the web. If the query
+  // itself failed we also keep them: never delete on unknown state.
+  const keepExisting =
+    atts.length === 0 && !post.mediaCleared && (!prevKnown || prevIds.length > 0);
+  if (!keepExisting) {
+    await sb.from('post_media').delete().eq('post_id', postId);
+    for (let i = 0; i < linked.length; i++) {
+      const { error: linkErr } = await sb
+        .from('post_media')
+        .insert({ post_id: postId, media_id: linked[i], position: i });
+      if (linkErr) throw new Error(`cloud media link failed: ${linkErr.message}`);
+    }
   }
 
   // Targets: one per (platform × account) that is BOTH selected AND
@@ -251,7 +275,12 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
   // replaced video haunted the next publish). New uploads live in R2, so the
   // edge `delete` action removes the object + marks the row deleted.
   try {
-    const stale = prevPaths.filter((p) => p && !newPaths.includes(p));
+    // Reused cloud media has no new storage path to compare against; sweeping
+    // here would delete the very objects we just re-linked. Same when we kept
+    // the existing links because this device had no local copies.
+    const stale = reusedCloudMedia || keepExisting
+      ? []
+      : prevPaths.filter((p) => p && !newPaths.includes(p));
     if (stale.length) {
       const { data: rows } = await sb
         .from('media_assets')
@@ -611,17 +640,26 @@ function cloudSigOf(cp: CloudPostRow, media: CloudMediaRow[], tgts: CloudTargetR
   return `${cp.title ?? ''}¦${cp.body ?? ''}¦${cp.status}¦${cp.scheduled_at ?? ''}¦${mediaPart}¦${tgtPart}`;
 }
 
-/** Best-effort: fetch one cloud asset to device storage. Null on any failure. */
+/**
+ * Best-effort: resolve one cloud asset for the composer. Keeps the media row
+ * id either way, so saving an edit links the existing asset instead of
+ * re-uploading (or losing it when the bytes never landed on this device).
+ * Videos over the pull cap and failed downloads fall back to the signed URL.
+ * If even signing fails we keep a placeholder carrying the id, so the edit
+ * still links the asset instead of silently dropping it.
+ */
 async function fetchAsset(
   sb: ReturnType<typeof supabase>,
+  assetId: string,
   storagePath: string,
   kind: 'image' | 'video',
   hint: string,
   byteSize: number | null,
   backend: string | null,
-): Promise<MediaAttachment | null> {
+): Promise<MediaAttachment> {
+  const size = typeof byteSize === 'number' ? byteSize : undefined;
+  const placeholder: MediaAttachment = { uri: '', kind, mediaId: assetId, size };
   try {
-    if (kind === 'video' && typeof byteSize === 'number' && byteSize > VIDEO_PULL_CAP) return null;
     // New media lives in R2 (storage_backend='r2') and Supabase Storage
     // cannot sign it. Ask the media edge function for the presigned URL
     // (same path the web bell uses), and fall back to Storage for legacy rows.
@@ -639,8 +677,13 @@ async function fetchAsset(
     }
     if (!url) {
       const { data, error } = await sb.storage.from('post-media').createSignedUrl(storagePath, 600);
-      if (error || !data?.signedUrl) return null;
+      if (error || !data?.signedUrl) return placeholder;
       url = absUrl(data.signedUrl);
+    }
+    const remote: MediaAttachment = { uri: url, kind, mediaId: assetId, size };
+    if (kind === 'video' && typeof byteSize === 'number' && byteSize > VIDEO_PULL_CAP) {
+      // Stream the preview, keep the cloud row, skip the multi-MB download.
+      return remote;
     }
     const dir = `${FileSystem.documentDirectory}sync/`;
     try {
@@ -648,11 +691,13 @@ async function fetchAsset(
     } catch {}
     const ext = (storagePath.split('.').pop() ?? (kind === 'video' ? 'mp4' : 'jpg')).slice(0, 4);
     const dest = `${dir}${hint}.${ext}`;
-    const dl = await FileSystem.downloadAsync(url, dest);
-    if (dl.status !== 200) return null;
-    return { uri: dl.uri, kind };
+    try {
+      const dl = await FileSystem.downloadAsync(url, dest);
+      if (dl.status === 200) return { uri: dl.uri, kind, mediaId: assetId, size };
+    } catch {}
+    return remote;
   } catch {
-    return null;
+    return placeholder;
   }
 }
 
@@ -776,13 +821,13 @@ export async function pullCloudPosts(): Promise<PullPostsResult> {
     };
 
     const buildAttachments = async (postId: string, hint: string): Promise<MediaAttachment[] | null> => {
-      const media = (mediaByPost.get(postId) ?? []).filter((m) => m.media_assets?.storage_path);
+      const media = (mediaByPost.get(postId) ?? []).filter((m) => Boolean(m.media_assets));
       if (!media.length) return null;
       const picked = media.slice(0, 10).map((m, i) => ({ asset: m.media_assets!, i }));
       const got = await Promise.all(
         picked.map(({ asset, i }) => {
           const kind = asset.kind === 'video' ? 'video' : 'image';
-          return fetchAsset(sb, asset.storage_path, kind, `${hint}_${i}`, asset.byte_size, asset.storage_backend);
+          return fetchAsset(sb, asset.id, asset.storage_path, kind, `${hint}_${i}`, asset.byte_size, asset.storage_backend);
         }),
       );
       const atts = got.filter((a): a is MediaAttachment => !!a);

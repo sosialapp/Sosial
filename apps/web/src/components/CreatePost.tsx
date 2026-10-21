@@ -22,7 +22,7 @@ import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
 import { providerMeta, postTypeOptions } from '@/lib/providers';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
-import { createChain, createPost, deletePost, mediaBlock, type ComposeMode } from '@/lib/posts';
+import { createChain, createPost, deletePost, mediaBlock, type ComposeMode, type MediaInput } from '@/lib/posts';
 import { articleIsEmpty, articleOptions, articlePlainText, isArticleProvider } from '@/lib/article';
 import { uploadArticleImage } from '@/lib/mediaUpload';
 import type { TipTapDoc } from '@/lib/blogConvert';
@@ -266,6 +266,16 @@ function toMediaItems(files: File[]): MediaItem[] {
   }));
 }
 
+/** Save payload: fresh files upload, stored assets keep their media row. */
+function toMediaInputs(items: MediaItem[]): MediaInput[] {
+  const out: MediaInput[] = [];
+  for (const m of items) {
+    if (m.file) out.push({ file: m.file, kind: m.kind });
+    else if (m.assetId) out.push({ mediaId: m.assetId, kind: m.kind });
+  }
+  return out;
+}
+
 /**
  * Create hub post tab: composer card (channel pills, inbox media with drag
  * reorder, thread link, dashboard-style mode row) + AI studio card bound to
@@ -307,8 +317,8 @@ export default function CreatePost({
   initialWhenIso?: string | null;
   /** Draft edit: pre-fill the Threads community topic. */
   initialThreadsTopic?: string;
-  /** Draft edit: remote media per part to reload into the composer. */
-  initialMediaParts?: { url: string; kind: 'image' | 'video' }[][];
+  /** Draft edit: stored assets per part (id saves, url previews). */
+  initialMediaParts?: { mediaId: string; url?: string; kind: 'image' | 'video' }[][];
   /** Draft edit: previous post rows, deleted after the replacement saves. */
   editingIds?: string[];
   /** Draft edit: called after the replacement saves. */
@@ -325,16 +335,24 @@ export default function CreatePost({
 
   /* ------------------------------ composer ------------------------------ */
   const [segs, setSegs] = useState<Segment[]>(() => {
+    // Stored assets render from their preview URL straight away; the media
+    // row id rides along so saving never has to download/re-upload bytes.
+    const stored = (i: number): MediaItem[] =>
+      (initialMediaParts?.[i] ?? []).map((m) => ({
+        assetId: m.mediaId,
+        kind: m.kind,
+        url: m.url ?? '',
+      }));
     if (initParts) {
       return initParts.map((b, i) => ({
         body: b || (i === 0 ? initialTitle : ''),
-        media: i === 0 ? toMediaItems(initialFiles) : [],
+        media: [...(i === 0 ? toMediaItems(initialFiles) : []), ...stored(i)],
       }));
     }
     return [
       {
         body: initialBody || initialTitle,
-        media: toMediaItems(initialFiles),
+        media: [...toMediaItems(initialFiles), ...stored(0)],
       },
     ];
   });
@@ -385,7 +403,6 @@ export default function CreatePost({
   /** Which flavour of the monitor is open: publishing now vs. queuing. */
   const [monitorMode, setMonitorMode] = useState<'now' | 'schedule'>('now');
   const [err, setErr] = useState<string | null>(null);
-  const [mediaLoading, setMediaLoading] = useState(false);
   /** Errors ride above the textbox: X to dismiss, auto-gone in 3s. */
   useEffect(() => {
     if (!err) return;
@@ -424,66 +441,6 @@ export default function CreatePost({
   /** Post-now confirmation: validations pass first, then the channel list. */
   const [confirmNow, setConfirmNow] = useState(false);
   const nowConfirmed = useRef(false);
-
-  /** Draft edit: reload the saved remote media into real Files so the normal
-   *  upload path carries them on save. Runs once per mount (the host remounts
-   *  per edit via key). Each asset retries once (signed-URL fetches flake on
-   *  mobile networks); partial failures surface so the user re-attaches. */
-  useEffect(() => {
-    if (!initialMediaParts?.some((items) => items.length)) return;
-    let alive = true;
-    setMediaLoading(true);
-    (async () => {
-      const fetchOne = async (m: { url: string; kind: string }, i: number, j: number, attempt: number) => {
-        try {
-          const res = await fetch(m.url);
-          if (!res.ok) throw new Error(`status ${res.status}`);
-          const blob = await res.blob();
-          const ext = m.kind === 'video' ? 'mp4' : 'jpg';
-          const file = new File(
-            [blob],
-            `draft-media-${i}-${j}.${ext}`,
-            { type: blob.type || (m.kind === 'video' ? 'video/mp4' : 'image/jpeg') },
-          );
-          return { file, kind: m.kind as 'image' | 'video', url: URL.createObjectURL(file) };
-        } catch {
-          if (attempt === 0) {
-            // One retry: presigned GETs occasionally fail on the first hit.
-            await new Promise((r) => setTimeout(r, 800));
-            return fetchOne(m, i, j, 1);
-          }
-          return null;
-        }
-      };
-      const loaded = await Promise.all(
-        initialMediaParts.map(async (items, i) =>
-          (
-            await Promise.all(
-              items.map(async (m, j) => fetchOne(m, i, j, 0)),
-            )
-          ).filter((x): x is { file: File; kind: 'image' | 'video'; url: string } => Boolean(x)),
-        ),
-      );
-      if (!alive) return;
-      const total = loaded.reduce((n, arr) => n + arr.length, 0);
-      const wanted = initialMediaParts.reduce((n, arr) => n + arr.length, 0);
-      if (total > 0) {
-        setSegs((prev) =>
-          prev.map((s, i) => ({ ...s, media: [...s.media, ...(loaded[i] ?? [])].slice(0, 10) })),
-        );
-        if (total < wanted) {
-          setErr(t('cpErrMediaPartial').replace('{n}', String(wanted - total)));
-        }
-      } else {
-        setErr(t('cpErrMediaReload'));
-      }
-      setMediaLoading(false);
-    })();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const chosenProviders = useMemo(
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
@@ -696,11 +653,10 @@ export default function CreatePost({
       setErr(t('cErrContent'));
       return;
     }
-    // Media channels refuse text-only posts (only file-backed media uploads).
-    const uploadable = (segs[0]?.media ?? []).filter((m) => Boolean(m.file));
+    // Media channels refuse text-only posts; stored assets count as media too.
     const blocked = mediaBlock(
       chosen.map((c) => c.provider),
-      uploadable,
+      segs[0]?.media ?? [],
     );
     if (blocked) {
       setErr(blocked.message);
@@ -762,9 +718,7 @@ export default function CreatePost({
           channels: chosen,
           formats: types,
           targetOptions,
-          files: s0.media
-            .filter((m): m is MediaItem & { file: File } => Boolean(m.file))
-            .map(({ file, kind }) => ({ file, kind })),
+          media: toMediaInputs(s0.media),
           timezone: tz,
         })];
       } else {
@@ -778,9 +732,7 @@ export default function CreatePost({
           role,
           segments: live.map((s) => ({
             body: s.body.trim(),
-            files: s.media
-              .filter((m): m is MediaItem & { file: File } => Boolean(m.file))
-              .map(({ file, kind }) => ({ file, kind })),
+            media: toMediaInputs(s.media),
           })),
           mode: submitMode,
           startIso: submitMode === 'schedule' ? whenIso : null,
@@ -836,7 +788,7 @@ export default function CreatePost({
               <p className="font-display text-base font-extrabold tracking-tight">{t('cpTitle')}</p>
               {editingIds?.length ? (
                 <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">
-                  {t('cpEditingDraft')}{mediaLoading ? t('cpLoadingMedia') : ''}
+                  {t('cpEditingDraft')}
                 </span>
               ) : null}
               <span className="flex-1" />

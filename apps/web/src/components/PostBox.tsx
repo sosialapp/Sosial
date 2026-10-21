@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Image, ChevronDown } from 'lucide-react';
+import { Image, ChevronDown, Film } from 'lucide-react';
 import { EmojiButton } from '@/components/Emoji';
 import SafeImg from '@/components/SafeImg';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
@@ -9,9 +9,12 @@ import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 
 export interface MediaItem {
-  /** Present for freshly-picked files; absent for data-URL media from storage. */
+  /** Present for freshly-picked files; absent for media loaded from a post. */
   file?: File;
+  /** Existing media_assets row (draft edit): reused on save, never re-uploaded. */
+  assetId?: string;
   kind: 'image' | 'video';
+  /** Preview URL. Empty when the stored asset could not be signed. */
   url: string;
 }
 
@@ -68,7 +71,7 @@ export default function PostBox({
         <div className="flex gap-2 overflow-x-auto p-2 pb-0">
           {seg.media.map((f, i) => (
             <span
-              key={`${f.file?.name ?? 'media'}-${i}`}
+              key={`${f.assetId ?? f.file?.name ?? 'media'}-${i}`}
               draggable
               onDragStart={() => {
                 dragFrom.current = i;
@@ -86,10 +89,27 @@ export default function PostBox({
               }}
               className="relative block h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-xl bg-paper-dim"
               title={t('pbEnlarge')}
-              onClick={() => setLightbox(f)}
+              onClick={() => {
+                if (f.url) setLightbox(f);
+              }}
             >
-              {f.kind === 'image' ? (
-                <SafeImg src={f.url} alt="" className="h-full w-full object-cover" />
+              {!f.url ? (
+                // Stored asset whose signed preview expired: keep the tile (and
+                // the asset id) so saving still carries the media.
+                <span className="flex h-full w-full items-center justify-center text-ink/40">
+                  {f.kind === 'image' ? <Image className="h-6 w-6" aria-hidden="true" /> : <Film className="h-6 w-6" aria-hidden="true" />}
+                </span>
+              ) : f.kind === 'image' ? (
+                <SafeImg
+                  src={f.url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  fallback={
+                    <span className="flex h-full w-full items-center justify-center text-ink/40">
+                      <Image className="h-6 w-6" aria-hidden="true" />
+                    </span>
+                  }
+                />
               ) : (
                 <video src={f.url} muted playsInline className="h-full w-full object-cover" />
               )}

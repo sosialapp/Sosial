@@ -86,8 +86,18 @@ function VideoThumb({ uri }: { uri: string }) {
 function MediaTile({ it }: { it: SheetMediaItem }) {
   const { C } = useTheme();
   const st = makeSt(C);
+  const [failed, setFailed] = useState(false);
+  if (!it.uri || failed) {
+    // Cloud asset whose preview could not be signed: keep the tile (and its
+    // media id) so saving still links it instead of dropping the attachment.
+    return (
+      <View style={[st.thumb, st.thumbMissing]}>
+        <Ionicons name={it.kind === 'video' ? 'videocam-outline' : 'image-outline'} size={20} color={C.faint} />
+      </View>
+    );
+  }
   if (it.kind === 'video') return <VideoThumb uri={it.uri} />;
-  return <Image source={{ uri: it.uri }} style={st.thumb} resizeMode="cover" />;
+  return <Image source={{ uri: it.uri }} style={st.thumb} resizeMode="cover" onError={() => setFailed(true)} />;
 }
 
 /**
@@ -1625,6 +1635,7 @@ const makeSt = (C: Palette) => ({
   clearAllT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.faint } as const,
   countT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted } as const,
   thumb: { width: 100, aspectRatio: 4 / 5, borderRadius: R.md, backgroundColor: C.lineSoft, overflow: 'hidden' } as const,
+  thumbMissing: { alignItems: 'center', justifyContent: 'center' } as const,
   thumbPlay: { position: 'absolute', right: 6, bottom: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' } as const,
   arrangeHint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint, marginTop: 6 } as const,
   thumbAdd: { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, alignItems: 'center', justifyContent: 'center' } as const,

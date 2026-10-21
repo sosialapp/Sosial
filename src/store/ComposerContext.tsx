@@ -156,6 +156,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const publishingRef = useRef(false);
   /** Two-tap confirm for size warnings: first tap shows them, second proceeds. */
   const sizeWarnRef = useRef(false);
+  /** True once the user removed the last attachment in this edit session. */
+  const mediaClearedRef = useRef(false);
   const attemptTimesRef = useRef<Record<string, number>>({});
 
   const showInfo = useCallback((title: string, message?: string, channels?: string[]) => {
@@ -171,6 +173,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const openComposer = useCallback((p: ManagedPost | null) => {
     setNotice(null);
     sizeWarnRef.current = false;
+    mediaClearedRef.current = false;
     setTBody(p?.body ?? '');
     setTThread(p?.thread && p.thread.length > 1 ? [...p.thread] : null);
     setTThreadMedia(p?.thread && p.thread.length > 1 ? postThreadMedia(p) : []);
@@ -303,6 +306,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     if (!picked.length) return;
     const next = [...tMedia, ...picked].slice(0, MAX_ATTACHMENTS);
     sizeWarnRef.current = false;
+    mediaClearedRef.current = false;
     setTMedia(next);
     if (res.assets.length > remaining) {
       showInfo(`${MAX_ATTACHMENTS} items max`, `Kept the first ${MAX_ATTACHMENTS}.`);
@@ -321,6 +325,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       kind: a.kind === 'video' ? 'video' : 'image',
     }));
     sizeWarnRef.current = false;
+    mediaClearedRef.current = false;
     setTMedia([...tMedia, ...picked].slice(0, MAX_ATTACHMENTS));
     if (items.length > remaining) {
       showInfo(`${MAX_ATTACHMENTS} items max`, `Kept the first ${MAX_ATTACHMENTS}.`);
@@ -329,7 +334,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const removeMedia = (index: number) => {
     sizeWarnRef.current = false;
-    setTMedia((prev) => prev.filter((_, i) => i !== index));
+    setTMedia((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      // Only an explicit clear may erase the post's cloud media on save; a
+      // device that simply has no local copy must leave the links alone.
+      if (next.length === 0) mediaClearedRef.current = true;
+      return next;
+    });
   };
 
   /** Drag-to-arrange in the sheet strip, first item posts first. */
@@ -349,6 +360,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setTThread(null);
     setTThreadMedia([]);
     setTMedia([]);
+    mediaClearedRef.current = false;
   }, []);
 
   /** Load a post into the live draft WITHOUT opening the sheet (inline page, AI handoff). */
@@ -357,6 +369,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setTThread(p?.thread && p.thread.length > 1 ? [...p.thread] : null);
     setTThreadMedia(p?.thread && p.thread.length > 1 ? postThreadMedia(p) : []);
     setTMedia(p ? postAttachments(p) : []);
+    mediaClearedRef.current = false;
   }, []);
 
   /** Inline Post-pill form lifecycle, lets sheet-gated saves run sheetless. */
@@ -390,8 +403,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   /** Title is no longer typed, it's the first line of the post text, kept for lists + reminders. */
   const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): ManagedPost => {
-    const firstImage = tMedia.find((m) => m.kind === 'image')?.uri;
-    const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri;
+    const firstImage = tMedia.find((m) => m.kind === 'image')?.uri || undefined;
+    const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri || undefined;
     // Pair text+attachment BEFORE dropping empties so indices stay aligned.
     const pairs = (tThread ?? []).map((s, i) => ({ text: (s ?? '').trim(), med: tThreadMedia[i] ?? null })).filter((x) => x.text);
     // A chain only survives when some selected channel can actually thread -
@@ -412,6 +425,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       imageUri: firstImage,
       videoUri: firstVideo,
       attachments: [...tMedia],
+      mediaCleared: mediaClearedRef.current || undefined,
       platforms: plats,
       accountIds,
       platformTypes: types,

@@ -9,6 +9,7 @@ import {
   Clock,
   ClipboardCheck,
   FileText,
+  Image as ImageIcon,
   LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ import {
 } from '@/lib/studio/model';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets, WorkspaceInfo } from '@/lib/types';
 import { gridThumb } from '@/lib/media';
+import { fetchPosts } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
 import {
   pushLibraryItem, tombstoneLibraryItem, pullLibraryRows,
@@ -363,7 +365,8 @@ export default function CreateHub({
     channelIds: string[];
     whenIso: string | null;
     threadsTopic: string;
-    mediaParts: { url: string; kind: 'image' | 'video' }[][];
+    /** Existing assets per part: id kept for the save, url only for preview. */
+    mediaParts: { mediaId: string; url?: string; kind: 'image' | 'video' }[][];
   } | null>(null);
   const [renderingKey, setRenderingKey] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -653,39 +656,51 @@ export default function CreateHub({
     goTab('post');
   };
 
+  /** A stale client list (visited /post before creating the draft) can miss
+   *  the row the Edit click refers to. Fetch once from the server, then retry
+   *  with the fresh rows instead of silently doing nothing. */
+  async function refreshEdit(postId: string) {
+    try {
+      const rows = await fetchPosts(createClient(), workspaceId);
+      if (rows.some((p) => p.id === postId)) startEdit(postId, rows, false);
+    } catch {}
+  }
+
   /** Load a draft (or a whole chain, ordered) back into the composer for
    *  editing. Saving replaces the original rows. */
-  const startEdit = (postId: string) => {
-    const head = initialPosts.find((p) => p.id === postId);
-    if (!head) return;
+  const startEdit = (postId: string, all = initialPosts, retry = true): boolean => {
+    const head = all.find((p) => p.id === postId);
+    if (!head) {
+      if (retry) void refreshEdit(postId);
+      return false;
+    }
     const parts = head.chain_id
-      ? initialPosts
+      ? all
           .filter((p) => p.chain_id === head.chain_id)
           .sort((a, b) => a.chain_position - b.chain_position)
       : [head];
+    const targetsOf = (p: PostWithTargets) => p.post_targets ?? [];
     const bodies = parts.map((p) => p.body || '');
     const mediaParts = parts.map((p) =>
       [...(p.post_media ?? [])]
         .sort((a, b) => a.position - b.position)
         .map((m) => m.media_assets)
-        .filter((m): m is MediaAssetRow => Boolean(m?.signed_url || m?.thumb_url))
-        // signed_url preferred; thumb_url is the same object at lower res and
-        // still lets the edit save re-upload rather than silently vanishing.
+        .filter((m): m is MediaAssetRow => Boolean(m))
+        // Carry the asset id even when signing failed: the edit links the
+        // existing row on save, so a dead preview URL can never lose media.
+        // signed_url preferred, thumb_url is the same object at lower res.
         .map((m) => ({
-          url: (m.signed_url ?? m.thumb_url) as string,
+          mediaId: m.id,
+          url: m.signed_url ?? m.thumb_url,
           kind: m.kind,
         })),
     );
-    const dropped = parts.reduce(
-      (n, p) => n + (p.post_media ?? []).filter((m) => !m.media_assets?.signed_url && !m.media_assets?.thumb_url).length,
-      0,
-    );
     const channelIds = Array.from(
-      new Set(parts.flatMap((p) => p.post_targets.map((t) => t.channel_id))),
+      new Set(parts.flatMap((p) => targetsOf(p).map((t) => t.channel_id))),
     );
     const threadsTopic = String(
       parts
-        .flatMap((p) => p.post_targets)
+        .flatMap(targetsOf)
         .find((t) => t.provider === 'threads')?.options?.threadsTopic ?? '',
     );
     setPrefill(null);
@@ -699,18 +714,27 @@ export default function CreateHub({
       threadsTopic,
       mediaParts,
     });
-    if (dropped > 0) {
-      // Media that lost its signed URL both server- and client-side is
-      // reported instead of vanishing: the user knows to re-attach.
-      window.setTimeout(() => {
-        window.alert(
-          `${dropped} attachment${dropped === 1 ? '' : 's'} could not be loaded for this edit, re-attach before saving.`,
-        );
-      }, 50);
+    // Edits belong to the composer. On /post the filter is client-side, so
+    // switching back must not navigate: a server round-trip remounts the hub
+    // (dropping draftEdit) and resets scroll to the top. Only leave another
+    // tab through the router.
+    if (view !== 'create') {
+      if (tab === 'post') {
+        window.history.replaceState(null, '', '/post');
+        setFilterSel('');
+      } else {
+        router.push('/post', { scroll: false });
+      }
     }
-    // Edits belong to the composer, bounce list views back to Create.
-    if (view !== 'create') router.push('/post');
+    return true;
   };
+
+  // Bring the loaded draft into view after the composer mounts; editing from a
+  // long drafts list otherwise looks like nothing happened.
+  useEffect(() => {
+    if (!draftEdit) return;
+    document.getElementById('post-composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [draftEdit]);
 
   /** Deep link from the standalone queue page: /post?edit=<postId>. The old
    *  one-shot ref guard made every SECOND deep-link edit a silent no-op —
@@ -720,13 +744,14 @@ export default function CreateHub({
   useEffect(() => {
     const id = searchParams.get('edit');
     if (!id || lastEditId.current === id) return;
-    lastEditId.current = id;
     // Draft edits belong to the composer, bounce there with the id intact,
     // then load regardless (same-route replaces don't remount to re-run us).
     if (initialTab !== 'post' || filterView) {
       router.replace(`/post?edit=${encodeURIComponent(id)}`);
     }
-    startEdit(id);
+    // Only consume the id once it actually loaded: marking it first made a
+    // transient miss (posts not ready yet) a permanent no-op.
+    if (startEdit(id)) lastEditId.current = id;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, initialPosts]);
 
@@ -902,7 +927,7 @@ export default function CreateHub({
       )}
 
       {view === 'create' ? (
-        <div className="mt-4">
+        <div id="post-composer" className="mt-4 scroll-mt-24">
           <CreatePost
             key={`${prefill?.key ?? 'fresh'}-${draftEdit?.key ?? 0}-${pendingFiles ? pendingFiles.length : 0}`}
             channels={channels}
@@ -1027,7 +1052,16 @@ export default function CreateHub({
                       {cover ? (
                         <span className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-paper-dim">
                           {cover.kind === 'image' ? (
-                            <SafeImg src={gridThumb(cover.url)} alt="" className="h-full w-full object-cover" />
+                            <SafeImg
+                              src={gridThumb(cover.url)}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              fallback={
+                                <span className="flex h-full w-full items-center justify-center text-ink/40">
+                                  <ImageIcon className="h-5 w-5" aria-hidden="true" />
+                                </span>
+                              }
+                            />
                           ) : (
                             <video src={cover.url} muted playsInline className="h-full w-full object-cover" />
                           )}
