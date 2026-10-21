@@ -359,6 +359,19 @@ export function oauthRedirect(): string {
 }
 
 /**
+ * Send a password-recovery email. The inbox link returns into the app the
+ * same way OAuth does (deep link through auth/callback), which swaps the
+ * recovery code for a session; the Welcome screen then detects the session
+ * and shows the set-new-password form.
+ */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase().auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: oauthRedirect(),
+  });
+  if (error) throw friendly(error, 'Could not send the reset email.');
+}
+
+/**
  * Turn a Google session into a workspace-backed sign-in. Shared tail for all
  * Google entry points (browser OAuth today, native one-tap later).
  */

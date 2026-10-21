@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
 import Constants from 'expo-constants';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
@@ -22,6 +23,8 @@ import {
   signInEmail,
   signUpEmail,
   signInWithGoogle,
+  sendPasswordReset,
+  supabase,
   pullProfileFromCloud,
 } from '../utils/supabase';
 
@@ -59,6 +62,25 @@ export default function WelcomeScreen({
   const [legal, setLegal] = useState<null | 'terms' | 'privacy'>(null);
   const [agree, setAgree] = useState(false);
   const [marketing, setMarketing] = useState(false);
+  // Recovery flow: the reset email deep-links back into the app with a
+  // session; when one arrives without a normal sign-in we show the
+  // set-new-password form instead of the login form.
+  const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    if (!configured) return;
+    checkRecovery();
+    const sub = Linking.addEventListener('url', () => checkRecovery());
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configured]);
+
+  async function checkRecovery() {
+    try {
+      const { data } = await supabase().auth.getSession();
+      if (data.session) setResetting(true);
+    } catch {}
+  }
 
   const finish = async (fallbackEmail: string) => {
     let profile: WelcomeProfile = {
@@ -142,9 +164,56 @@ export default function WelcomeScreen({
     try {
       await signInWithGoogle();
       setPw('');
+      setResetting(false);
       await finish(email);
     } catch (e: any) {
       setErr(e?.message ?? tr('wErrGoogle'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doSendReset = async () => {
+    if (!email.trim()) {
+      setErr(tr('wErrNeed'));
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    setNotice(null);
+    try {
+      await sendPasswordReset(email);
+      setNotice(tr('wResetSent'));
+    } catch (e: any) {
+      setErr(e?.message ?? tr('wErrGeneric'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doSaveNewPassword = async () => {
+    if (pw.length < 6) {
+      setErr(tr('wErrNeed'));
+      return;
+    }
+    if (pw !== pw2) {
+      setErr(tr('wErrMatch'));
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    setNotice(null);
+    try {
+      const { error } = await supabase().auth.updateUser({ password: pw });
+      if (error) throw error;
+      await supabase().auth.signOut().catch(() => undefined);
+      setPw('');
+      setPw2('');
+      setResetting(false);
+      setMode('in');
+      setNotice(tr('wResetDone'));
+    } catch (e: any) {
+      setErr(e?.message ?? tr('wErrGeneric'));
     } finally {
       setBusy(false);
     }
@@ -170,6 +239,56 @@ export default function WelcomeScreen({
             <Text style={s.note}>
               {tr('wUnconfigured')}
             </Text>
+          ) : resetting ? (
+            <>
+              <Text style={s.resetT}>{tr('wResetTitle')}</Text>
+              <PwField
+                value={pw}
+                onChangeText={(v) => {
+                  setPw(v);
+                  setErr(null);
+                }}
+                placeholder={tr('wResetPwPh')}
+                show={showPw}
+                onToggleShow={() => setShowPw((v) => !v)}
+                eyeColor={C.faint}
+                returnKeyType="next"
+                onSubmitEditing={() => {}}
+              />
+              <PwField
+                value={pw2}
+                onChangeText={(v) => {
+                  setPw2(v);
+                  setErr(null);
+                }}
+                placeholder={tr('wPw2Ph')}
+                show={showPw}
+                onToggleShow={() => setShowPw((v) => !v)}
+                eyeColor={C.faint}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (!busy) void doSaveNewPassword();
+                }}
+              />
+              {err ? <Text style={s.err}>{err}</Text> : null}
+              {notice ? <Text style={s.note}>{notice}</Text> : null}
+              <PrimaryBtn
+                label={tr('wResetSave')}
+                loading={busy}
+                loadingLabel={tr('wWorking')}
+                onPress={() => {
+                  if (!busy) void doSaveNewPassword();
+                }}
+              />
+              <GhostBtn
+                label={tr('wBackToSignIn')}
+                onPress={() => {
+                  setResetting(false);
+                  setErr(null);
+                  setNotice(null);
+                }}
+              />
+            </>
           ) : (
             <>
               <View style={s.seg}>
@@ -245,6 +364,11 @@ export default function WelcomeScreen({
                   if (!busy) void doSubmit();
                 }}
               />
+              {mode === 'in' ? (
+                <Text style={s.forgotLink} onPress={() => { setMode('in'); setErr(null); setNotice(null); void doSendReset(); }}>
+                  {tr('wForgot')}
+                </Text>
+              ) : null}
               <GhostBtn
                 label={tr('wGoogle')}
                 left={<GoogleGlyph size={16} />}
@@ -447,6 +571,20 @@ const makeS = (C: Palette) =>
     segTOn: { color: C.ink },
     err: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.redText },
     note: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18, color: C.muted },
+    forgotLink: {
+      fontFamily: 'PlusJakartaSans_700Bold',
+      fontSize: 12.5,
+      color: C.ink,
+      textAlign: 'center',
+      textDecorationLine: 'underline',
+      marginTop: -4,
+    },
+    resetT: {
+      fontFamily: 'PlusJakartaSans_800ExtraBold',
+      fontSize: 16,
+      color: C.ink,
+      marginBottom: 2,
+    },
     fine: {
       fontFamily: 'PlusJakartaSans_400Regular',
       fontSize: 11.5,

@@ -33,6 +33,16 @@ const en: Record<string, string> = {
   errUnconfirmed: 'Confirm your email first, then check your inbox.',
   errNetwork: 'Could not reach the cloud backend. Check your connection.',
   errGeneric: 'Something went wrong.',
+  pwForgot: 'Forgot password?',
+  forgotEyebrow: 'Reset password',
+  forgotSubmit: 'Send reset link',
+  forgotNote: 'If that email has an account, a reset link is on its way. Check your inbox.',
+  backToSignIn: 'Back to sign in',
+  resetEyebrow: 'Set a new password',
+  resetPwPh: 'New password (6+ characters)',
+  resetSubmit: 'Save new password',
+  resetNote: 'Password updated. Use it to sign in next time.',
+  resetNoSession: 'This reset link is invalid or has expired. Request a new one from the sign-in page.',
 };
 
 const es: Record<string, string> = {
@@ -64,6 +74,16 @@ const es: Record<string, string> = {
   errUnconfirmed: 'Primero confirma tu correo, revisa tu bandeja.',
   errNetwork: 'No se pudo conectar con la nube. Revisa tu conexión.',
   errGeneric: 'Algo salió mal.',
+  pwForgot: '¿Olvidaste tu contraseña?',
+  forgotEyebrow: 'Restablecer contraseña',
+  forgotSubmit: 'Enviar enlace de restablecimiento',
+  forgotNote: 'Si ese correo tiene una cuenta, el enlace está en camino. Revisa tu bandeja.',
+  backToSignIn: 'Volver a iniciar sesión',
+  resetEyebrow: 'Elige una nueva contraseña',
+  resetPwPh: 'Nueva contraseña (6+ caracteres)',
+  resetSubmit: 'Guardar nueva contraseña',
+  resetNote: 'Contraseña actualizada. Úsala la próxima vez que inicies sesión.',
+  resetNoSession: 'Este enlace no es válido o ha caducado. Solicita uno nuevo desde la página de inicio de sesión.',
 };
 
 const fr: Record<string, string> = {
@@ -95,6 +115,16 @@ const fr: Record<string, string> = {
   errUnconfirmed: 'Confirmez d’abord votre courriel, vérifiez votre boîte.',
   errNetwork: 'Impossible de joindre le backend. Vérifiez votre connexion.',
   errGeneric: 'Un problème est survenu.',
+  pwForgot: 'Mot de passe oublié ?',
+  forgotEyebrow: 'Réinitialiser le mot de passe',
+  forgotSubmit: 'Envoyer le lien de réinitialisation',
+  forgotNote: 'Si ce courriel a un compte, le lien est en route. Vérifiez votre boîte.',
+  backToSignIn: 'Retour à la connexion',
+  resetEyebrow: 'Choisir un nouveau mot de passe',
+  resetPwPh: 'Nouveau mot de passe (6+ caractères)',
+  resetSubmit: 'Enregistrer le nouveau mot de passe',
+  resetNote: 'Mot de passe mis à jour. Utilisez-le à votre prochaine connexion.',
+  resetNoSession: 'Ce lien n’est pas valide ou a expiré. Demandez-en un nouveau depuis la page de connexion.',
 };
 
 const de: Record<string, string> = {
@@ -126,6 +156,16 @@ const de: Record<string, string> = {
   errUnconfirmed: 'Bestätige zuerst deine E-Mail, schau ins Postfach.',
   errNetwork: 'Cloud-Backend nicht erreichbar. Prüfe deine Verbindung.',
   errGeneric: 'Da ist etwas schiefgelaufen.',
+  pwForgot: 'Passwort vergessen?',
+  forgotEyebrow: 'Passwort zurücksetzen',
+  forgotSubmit: 'Reset-Link senden',
+  forgotNote: 'Wenn es zu dieser E-Mail ein Konto gibt, ist der Link unterwegs. Schau ins Postfach.',
+  backToSignIn: 'Zurück zur Anmeldung',
+  resetEyebrow: 'Neues Passwort wählen',
+  resetPwPh: 'Neues Passwort (6+ Zeichen)',
+  resetSubmit: 'Neues Passwort speichern',
+  resetNote: 'Passwort aktualisiert. Nutze es beim nächsten Login.',
+  resetNoSession: 'Dieser Link ist ungültig oder abgelaufen. Fordere auf der Login-Seite einen neuen an.',
 };
 
 const ja: Record<string, string> = {
@@ -157,6 +197,16 @@ const ja: Record<string, string> = {
   errUnconfirmed: '先にメール確認を済ませ、受信箱を確認してください。',
   errNetwork: 'サーバーに接続できません。通信をご確認ください。',
   errGeneric: '問題が発生しました。',
+  pwForgot: 'パスワードをお忘れですか？',
+  forgotEyebrow: 'パスワードをリセット',
+  forgotSubmit: 'リセットリンクを送信',
+  forgotNote: '登録済みのメールならリセットリンクを送りました。受信箱を確認してください。',
+  backToSignIn: 'ログインに戻る',
+  resetEyebrow: '新しいパスワードを設定',
+  resetPwPh: '新しいパスワード（6文字以上）',
+  resetSubmit: '新しいパスワードを保存',
+  resetNote: 'パスワードを更新しました。次回からお使いください。',
+  resetNoSession: 'このリンクは無効または期限切れです。ログインページから再度リクエストしてください。',
 };
 
 const ko: Record<string, string> = {
@@ -188,6 +238,16 @@ const ko: Record<string, string> = {
   errUnconfirmed: '먼저 이메일을 인증하고 받은편지함을 확인하세요.',
   errNetwork: '서버에 연결할 수 없습니다. 연결을 확인해 주세요.',
   errGeneric: '문제가 발생했습니다.',
+  pwForgot: '비밀번호를 잊으셨나요?',
+  forgotEyebrow: '비밀번호 재설정',
+  forgotSubmit: '재설정 링크 보내기',
+  forgotNote: '가입된 이메일이라면 재설정 링크를 보냈습니다. 받은편지함을 확인하세요.',
+  backToSignIn: '로그인으로 돌아가기',
+  resetEyebrow: '새 비밀번호 설정',
+  resetPwPh: '새 비밀번호 (6자 이상)',
+  resetSubmit: '새 비밀번호 저장',
+  resetNote: '비밀번호가 변경되었습니다. 다음 로그인부터 사용하세요.',
+  resetNoSession: '이 링크는 유효하지 않거나 만료되었습니다. 로그인 페이지에서 다시 요청해 주세요.',
 };
 
 const zh: Record<string, string> = {
@@ -219,6 +279,16 @@ const zh: Record<string, string> = {
   errUnconfirmed: '请先确认邮箱，查看收件箱。',
   errNetwork: '无法连接服务器，请检查网络。',
   errGeneric: '出了点问题。',
+  pwForgot: '忘记密码？',
+  forgotEyebrow: '重置密码',
+  forgotSubmit: '发送重置链接',
+  forgotNote: '如果该邮箱已注册，重置链接已发出。请查看收件箱。',
+  backToSignIn: '返回登录',
+  resetEyebrow: '设置新密码',
+  resetPwPh: '新密码（6 位以上）',
+  resetSubmit: '保存新密码',
+  resetNote: '密码已更新，下次登录请使用新密码。',
+  resetNoSession: '此链接无效或已过期。请在登录页面重新申请。',
 };
 
 export const authMessages: Record<Locale, Record<string, string>> = { en, es, fr, de, ja, ko, zh };

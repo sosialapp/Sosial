@@ -45,7 +45,7 @@ export default function LoginForm({
   const router = useRouter();
   const t = useT(authMessages);
   const target = safeNextPath(next);
-  const [mode, setMode] = useState<'in' | 'up'>(initialMode ?? 'in');
+  const [mode, setMode] = useState<'in' | 'up' | 'forgot'>(initialMode === 'up' ? 'up' : 'in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -55,7 +55,7 @@ export default function LoginForm({
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  function switchMode(next: 'in' | 'up') {
+  function switchMode(next: 'in' | 'up' | 'forgot') {
     setMode(next);
     setConfirm('');
     setPassword('');
@@ -86,6 +86,19 @@ export default function LoginForm({
     setBusy(true);
     try {
       const sb = createClient();
+      if (mode === 'forgot') {
+        // The inbox link routes through /auth/callback (code-for-session,
+        // same as signup confirmation), which then lands on /auth/reset
+        // with a session so the new password can be saved.
+        const redirectTo = callbackUrl(window.location.origin);
+        const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${redirectTo}?next=${encodeURIComponent('/auth/reset')}`,
+        });
+        if (error) throw error;
+        setNote(t('forgotNote'));
+        stopBusy();
+        return;
+      }
       if (mode === 'up') {
         // emailRedirectTo routes the inbox "Confirm email address" link
         // through /auth/callback, which swaps the code for a session and
@@ -144,6 +157,7 @@ export default function LoginForm({
   }
 
   const signingUp = mode === 'up';
+  const forgotMode = mode === 'forgot';
 
   return (
     <div className="w-full max-w-sm">
@@ -158,7 +172,7 @@ export default function LoginForm({
       )}
 
       <div className={`relative ${compact ? '' : 'card p-6'}`}>
-        <p className="eyebrow mb-4">{signingUp ? t('eyebrowUp') : t('eyebrowIn')}</p>
+        <p className="eyebrow mb-4">{forgotMode ? t('forgotEyebrow') : signingUp ? t('eyebrowUp') : t('eyebrowIn')}</p>
 
         <form onSubmit={submit} className="space-y-3">
           <input
@@ -170,16 +184,18 @@ export default function LoginForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <input
-            className="field"
-            type="password"
-            required
-            minLength={6}
-            autoComplete={signingUp ? 'new-password' : 'current-password'}
-            placeholder={signingUp ? t('pwUpPh') : t('pwPh')}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          {!forgotMode && (
+            <input
+              className="field"
+              type="password"
+              required
+              minLength={6}
+              autoComplete={signingUp ? 'new-password' : 'current-password'}
+              placeholder={signingUp ? t('pwUpPh') : t('pwPh')}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          )}
           {signingUp && (
             <input
               className="field"
@@ -195,8 +211,20 @@ export default function LoginForm({
 
           <button className="btn btn-primary w-full" disabled={busy} type="submit" aria-busy={busy}>
             {busy && <Spinner />}
-            {signingUp ? t('submitUp') : t('submitIn')}
+            {forgotMode ? t('forgotSubmit') : signingUp ? t('submitUp') : t('submitIn')}
           </button>
+
+          {!forgotMode && !signingUp && (
+            <p className="text-right">
+              <button
+                type="button"
+                className="text-xs font-semibold text-accent underline-offset-2 hover:underline"
+                onClick={() => switchMode('forgot')}
+              >
+                {t('pwForgot')}
+              </button>
+            </p>
+          )}
 
           {signingUp && (
             <div className="space-y-2 pt-1">
@@ -234,16 +262,20 @@ export default function LoginForm({
           )}
         </form>
 
-        <div className="my-4 flex items-center gap-3 text-xs text-faint">
-          <span className="h-px flex-1 bg-line" />
-          {t('or')}
-          <span className="h-px flex-1 bg-line" />
-        </div>
+        {!forgotMode && (
+          <>
+            <div className="my-4 flex items-center gap-3 text-xs text-faint">
+              <span className="h-px flex-1 bg-line" />
+              {t('or')}
+              <span className="h-px flex-1 bg-line" />
+            </div>
 
-        <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button" aria-busy={busy}>
-          {busy ? <Spinner /> : <BrandIcon provider="google" badge={false} className="h-[18px] w-[18px]" />}
-          {t('googleBtn')}
-        </button>
+            <button className="btn btn-ghost w-full" onClick={google} disabled={busy} type="button" aria-busy={busy}>
+              {busy ? <Spinner /> : <BrandIcon provider="google" badge={false} className="h-[18px] w-[18px]" />}
+              {t('googleBtn')}
+            </button>
+          </>
+        )}
 
         {(err || externalError) && (
           <p className="mt-4 text-sm text-[#9F2F2D]">{err ?? externalError}</p>
@@ -251,14 +283,26 @@ export default function LoginForm({
         {note && <p className="mt-4 text-sm text-[#346538]">{note}</p>}
 
         <p className="mt-4 text-center text-xs text-muted">
-          {signingUp ? t('switchPreUp') : t('switchPreIn')}{' '}
-          <button
-            type="button"
-            className="font-semibold text-accent underline-offset-2 hover:underline"
-            onClick={() => switchMode(signingUp ? 'in' : 'up')}
-          >
-            {signingUp ? t('switchIn') : t('switchUp')}
-          </button>
+          {forgotMode ? (
+            <button
+              type="button"
+              className="font-semibold text-accent underline-offset-2 hover:underline"
+              onClick={() => switchMode('in')}
+            >
+              {t('backToSignIn')}
+            </button>
+          ) : (
+            <>
+              {signingUp ? t('switchPreUp') : t('switchPreIn')}{' '}
+              <button
+                type="button"
+                className="font-semibold text-accent underline-offset-2 hover:underline"
+                onClick={() => switchMode(signingUp ? 'in' : 'up')}
+              >
+                {signingUp ? t('switchIn') : t('switchUp')}
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>
