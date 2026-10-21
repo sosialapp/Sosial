@@ -302,13 +302,14 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   const token = await ensureToken(b);
   let privacy = String(b.target.options?.ttPrivacy ?? '').trim();
   if (!privacy) {
-    // Background runs never prompt. Sole exception: an account whose menu
-    // holds exactly one audience (unaudited apps get self-only) — choosing
-    // for the user when a real menu exists must stay a composer fix.
+    // Background runs never prompt. Targets composed before the audience
+    // picker existed carry no choice; fall back to the account's own first
+    // allowed option (TikTok orders the menu public-first, i.e. its native
+    // default) instead of wedging the post on an error the user must fix.
     const allowed = await creatorPrivacyOptions(token);
-    if (allowed.length === 1) {
+    if (allowed.length) {
       privacy = allowed[0];
-      info(`tiktok target ${b.target.id}: no audience chosen, only ${privacy} is allowed, using it`);
+      info(`tiktok target ${b.target.id}: no audience chosen, using the account's default ${privacy}`);
     } else {
       throw new Error('TikTok audience not chosen, open the post, pick an audience, and re-queue (background runs never prompt).');
     }
