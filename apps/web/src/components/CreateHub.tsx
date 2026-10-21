@@ -668,8 +668,17 @@ export default function CreateHub({
       [...(p.post_media ?? [])]
         .sort((a, b) => a.position - b.position)
         .map((m) => m.media_assets)
-        .filter((m): m is MediaAssetRow => Boolean(m?.signed_url))
-        .map((m) => ({ url: m.signed_url as string, kind: m.kind })),
+        .filter((m): m is MediaAssetRow => Boolean(m?.signed_url || m?.thumb_url))
+        // signed_url preferred; thumb_url is the same object at lower res and
+        // still lets the edit save re-upload rather than silently vanishing.
+        .map((m) => ({
+          url: (m.signed_url ?? m.thumb_url) as string,
+          kind: m.kind,
+        })),
+    );
+    const dropped = parts.reduce(
+      (n, p) => n + (p.post_media ?? []).filter((m) => !m.media_assets?.signed_url && !m.media_assets?.thumb_url).length,
+      0,
     );
     const channelIds = Array.from(
       new Set(parts.flatMap((p) => p.post_targets.map((t) => t.channel_id))),
@@ -690,17 +699,28 @@ export default function CreateHub({
       threadsTopic,
       mediaParts,
     });
+    if (dropped > 0) {
+      // Media that lost its signed URL both server- and client-side is
+      // reported instead of vanishing: the user knows to re-attach.
+      window.setTimeout(() => {
+        window.alert(
+          `${dropped} attachment${dropped === 1 ? '' : 's'} could not be loaded for this edit, re-attach before saving.`,
+        );
+      }, 50);
+    }
     // Edits belong to the composer, bounce list views back to Create.
     if (view !== 'create') router.push('/post');
   };
 
-  /** Deep link from the standalone queue page: /post?edit=<postId>. */
-  const editConsumed = useRef(false);
+  /** Deep link from the standalone queue page: /post?edit=<postId>. The old
+   *  one-shot ref guard made every SECOND deep-link edit a silent no-op —
+   *  the ref never reset, so new edit ids were swallowed. Track the last
+   *  consumed id instead: a fresh id always re-opens the composer. */
+  const lastEditId = useRef<string | null>(null);
   useEffect(() => {
-    if (editConsumed.current) return;
     const id = searchParams.get('edit');
-    if (!id) return;
-    editConsumed.current = true;
+    if (!id || lastEditId.current === id) return;
+    lastEditId.current = id;
     // Draft edits belong to the composer, bounce there with the id intact,
     // then load regardless (same-route replaces don't remount to re-run us).
     if (initialTab !== 'post' || filterView) {

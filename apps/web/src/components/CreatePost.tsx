@@ -427,42 +427,53 @@ export default function CreatePost({
 
   /** Draft edit: reload the saved remote media into real Files so the normal
    *  upload path carries them on save. Runs once per mount (the host remounts
-   *  per edit via key). Tolerates single failures. */
+   *  per edit via key). Each asset retries once (signed-URL fetches flake on
+   *  mobile networks); partial failures surface so the user re-attaches. */
   useEffect(() => {
     if (!initialMediaParts?.some((items) => items.length)) return;
     let alive = true;
     setMediaLoading(true);
     (async () => {
+      const fetchOne = async (m: { url: string; kind: string }, i: number, j: number, attempt: number) => {
+        try {
+          const res = await fetch(m.url);
+          if (!res.ok) throw new Error(`status ${res.status}`);
+          const blob = await res.blob();
+          const ext = m.kind === 'video' ? 'mp4' : 'jpg';
+          const file = new File(
+            [blob],
+            `draft-media-${i}-${j}.${ext}`,
+            { type: blob.type || (m.kind === 'video' ? 'video/mp4' : 'image/jpeg') },
+          );
+          return { file, kind: m.kind as 'image' | 'video', url: URL.createObjectURL(file) };
+        } catch {
+          if (attempt === 0) {
+            // One retry: presigned GETs occasionally fail on the first hit.
+            await new Promise((r) => setTimeout(r, 800));
+            return fetchOne(m, i, j, 1);
+          }
+          return null;
+        }
+      };
       const loaded = await Promise.all(
         initialMediaParts.map(async (items, i) =>
           (
             await Promise.all(
-              items.map(async (m, j) => {
-                try {
-                  const res = await fetch(m.url);
-                  if (!res.ok) return null;
-                  const blob = await res.blob();
-                  const ext = m.kind === 'video' ? 'mp4' : 'jpg';
-                  const file = new File(
-                    [blob],
-                    `draft-media-${i}-${j}.${ext}`,
-                    { type: blob.type || (m.kind === 'video' ? 'video/mp4' : 'image/jpeg') },
-                  );
-                  return { file, kind: m.kind as 'image' | 'video', url: URL.createObjectURL(file) };
-                } catch {
-                  return null;
-                }
-              }),
+              items.map(async (m, j) => fetchOne(m, i, j, 0)),
             )
           ).filter((x): x is { file: File; kind: 'image' | 'video'; url: string } => Boolean(x)),
         ),
       );
       if (!alive) return;
       const total = loaded.reduce((n, arr) => n + arr.length, 0);
+      const wanted = initialMediaParts.reduce((n, arr) => n + arr.length, 0);
       if (total > 0) {
         setSegs((prev) =>
           prev.map((s, i) => ({ ...s, media: [...s.media, ...(loaded[i] ?? [])].slice(0, 10) })),
         );
+        if (total < wanted) {
+          setErr(t('cpErrMediaPartial').replace('{n}', String(wanted - total)));
+        }
       } else {
         setErr(t('cpErrMediaReload'));
       }
