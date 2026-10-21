@@ -26,7 +26,7 @@ interface CommentRow {
   reply_text: string | null;
 }
 
-const PROVIDERS_WITH_REPLY = new Set(['facebook', 'threads', 'instagram']);
+const PROVIDERS_WITH_REPLY = new Set(['facebook', 'threads', 'instagram', 'x']);
 
 type InboxTab = 'comments' | 'messages';
 
@@ -168,7 +168,7 @@ export default function CommunityInbox({
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted">
           Comments on your published posts, fetched hourly. Replies go out on
-          Facebook, Threads and Instagram; other channels show counts only.
+          Facebook, Threads, Instagram and X; other channels show counts only.
         </p>
         <button
           type="button"

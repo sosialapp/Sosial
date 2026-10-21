@@ -21,6 +21,7 @@ import { warn, info, debug } from './logger';
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const THREADS_API = 'https://graph.threads.net/v1.0';
 const IG_GRAPH = 'https://graph.instagram.com/v23.0';
+const X_API = 'https://api.x.com/2';
 
 interface ReplyPayload {
   provider: string;
@@ -120,6 +121,26 @@ async function replyInstagram(p: ReplyPayload): Promise<string> {
   return String(j?.id ?? '');
 }
 
+async function replyX(p: ReplyPayload): Promise<string> {
+  const ch = await channelById(p.channel_id);
+  if (!ch || ch.c.provider !== 'x') throw new Error('X channel not found, reconnect it.');
+  const tok = await directToken(ch.c, ch.t);
+  const r = await fetch(`${X_API}/tweets`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: p.message.slice(0, 280),
+      reply: { in_reply_to_tweet_id: p.comment_id },
+    }),
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const m = j?.detail ?? j?.title ?? j?.errors?.[0]?.message ?? `HTTP ${r.status}`;
+    throw new Error(`X refused the reply: ${m}`);
+  }
+  return String(j?.data?.id ?? '');
+}
+
 export async function handleReplyComment(job: Job): Promise<void> {
   const p = payload(job);
   debug(`reply_comment ${p.provider}/${p.comment_id} (job ${job.id})`);
@@ -131,9 +152,11 @@ export async function handleReplyComment(job: Job): Promise<void> {
           ? await replyThreads(p)
           : p.provider === 'instagram'
             ? await replyInstagram(p)
-            : (() => {
-                throw new Error(`replies not supported for provider '${p.provider}' (facebook, threads + instagram only)`);
-              })();
+            : p.provider === 'x'
+              ? await replyX(p)
+              : (() => {
+                  throw new Error(`replies not supported for provider '${p.provider}' (facebook, threads, instagram + x only)`);
+                })();
     info(`reply posted ${p.provider}/${p.comment_id} → ${remoteId}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

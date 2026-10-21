@@ -13,6 +13,9 @@
  * Instagram: GET /{ig-media-id}/comments?fields=username,text,timestamp,like_count
  *   (the sent post's remote_id IS the IG media id; the newer IG graph
  *   serves it with instagram_business_basic + instagram_manage_comments).
+ * X: recent search conversation_id:{tweet-id} — replies to the published
+ *   tweet (paid X API; conversation search). The stored access token rides
+ *   the normal proactive refresh cycle; a stale one warns and skips.
  *
  * Job kind 'scan_comments' (cron enqueued), payload {}.
  */
@@ -24,6 +27,7 @@ import { warn, info, debug } from './logger';
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const THREADS_API = 'https://graph.threads.net/v1.0';
 const IG_GRAPH = 'https://graph.instagram.com/v23.0';
+const X_API = 'https://api.x.com/2';
 
 interface TargetRow {
   id: string;
@@ -98,6 +102,41 @@ async function igComments(remoteId: string, token: string): Promise<RawComment[]
     }));
 }
 
+async function xReplies(remoteId: string, token: string): Promise<RawComment[]> {
+  // Replies to a published tweet ride the conversation id, served by recent
+  // search (paid X API). Expand authors so the inbox can name them.
+  const qs = new URLSearchParams({
+    query: `conversation_id:${remoteId}`,
+    max_results: '25',
+    'tweet.fields': 'created_at,public_metrics,in_reply_to_user_id',
+    expansions: 'author_id',
+    'user.fields': 'name,username',
+  });
+  const r = await fetch(`${X_API}/tweets/search/recent?${qs.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.detail ?? j?.title ?? `x replies ${r.status}`);
+  const users = new Map<string, any>(
+    ((j?.includes?.users ?? []) as any[]).map((u) => [String(u.id), u]),
+  );
+  const data = Array.isArray(j?.data) ? j.data : [];
+  return data
+    .filter((c: any) => c?.id && typeof c.text === 'string')
+    .map((c: any) => {
+      const u = users.get(String(c?.author_id ?? ''));
+      return {
+        comment_id: String(c.id),
+        parent_id: null,
+        author: u?.username ? `@${u.username}` : 'X user',
+        author_avatar: null,
+        message: String(c.text),
+        like_count: typeof c?.public_metrics?.like_count === 'number' ? c.public_metrics.like_count : null,
+        created_at: typeof c.created_at === 'string' ? c.created_at : null,
+      };
+    });
+}
+
 async function threadsReplies(remoteId: string, token: string): Promise<RawComment[]> {
   // Threads reads replies of a published thread post.
   const r = await fetch(
@@ -124,7 +163,7 @@ export async function handleScanComments(_job: Job): Promise<void> {
   // Recent sent targets on comment-capable providers, newest first, cap 100
   // per sweep: enough coverage, bounded work.
   const targets = await rest<TargetRow[]>(
-    `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads,instagram)` +
+    `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads,instagram,x)` +
       `&remote_id=neq.&select=id,post_id,remote_id,channel_id,provider,workspace_id,posts(created_by)` +
       `&order=updated_at.desc&limit=100`,
   ).catch(() => [] as TargetRow[]);
@@ -156,7 +195,9 @@ export async function handleScanComments(_job: Job): Promise<void> {
             ? await threadsReplies(target.remote_id, entry.token)
             : target.provider === 'instagram'
               ? await igComments(target.remote_id, entry.token)
-              : [];
+              : target.provider === 'x'
+                ? await xReplies(target.remote_id, entry.token)
+                : [];
 
       if (!list.length) continue;
             const rows = list.map((c) => ({
