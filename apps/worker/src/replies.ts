@@ -1,11 +1,13 @@
 /**
- * Comment replies, Facebook Pages + Threads only (as the connected
+ * Comment replies, Facebook Pages, Threads + Instagram (as the connected
  * Page/identity — never a personal profile).
  *
  * FB:   POST /{comment_id}/comments  { message }   — pages_manage_posts
  *       (the Page token that published the post owns the comment thread).
  * Threads: POST /{threads_id}/replies with reply_to_id — threads_content_publish
  *       (the reply target is the THREAD post id; Sosial comments carry it).
+ * IG:   POST /{comment_id}/replies  { message }   — instagram_manage_comments
+ *       (the comment_id comes from the scan, which reads the IG graph).
  *
  * Job kinds: 'reply_comment' with payload
  *   { provider, channel_id, comment_id, message }
@@ -18,6 +20,7 @@ import { warn, info, debug } from './logger';
 
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const THREADS_API = 'https://graph.threads.net/v1.0';
+const IG_GRAPH = 'https://graph.instagram.com/v23.0';
 
 interface ReplyPayload {
   provider: string;
@@ -101,6 +104,22 @@ async function replyThreads(p: ReplyPayload): Promise<string> {
   return String(j?.id ?? '');
 }
 
+async function replyInstagram(p: ReplyPayload): Promise<string> {
+  const ch = await channelById(p.channel_id);
+  if (!ch || ch.c.provider !== 'instagram') throw new Error('instagram channel not found, reconnect it.');
+  const tok = await directToken(ch.c, ch.t);
+  // IG graph: reply to a comment by posting into its /replies edge as the
+  // business account (message may be a plain string or { text } object).
+  const r = await fetch(`${IG_GRAPH}/${encodeURIComponent(p.comment_id)}/replies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: { text: p.message }, access_token: tok }),
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Instagram refused the reply: ${graphErr(j)}`);
+  return String(j?.id ?? '');
+}
+
 export async function handleReplyComment(job: Job): Promise<void> {
   const p = payload(job);
   debug(`reply_comment ${p.provider}/${p.comment_id} (job ${job.id})`);
@@ -110,9 +129,11 @@ export async function handleReplyComment(job: Job): Promise<void> {
         ? await replyFacebook(p)
         : p.provider === 'threads'
           ? await replyThreads(p)
-          : (() => {
-              throw new Error(`replies not supported for provider '${p.provider}' (facebook + threads only)`);
-            })();
+          : p.provider === 'instagram'
+            ? await replyInstagram(p)
+            : (() => {
+                throw new Error(`replies not supported for provider '${p.provider}' (facebook, threads + instagram only)`);
+              })();
     info(`reply posted ${p.provider}/${p.comment_id} → ${remoteId}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

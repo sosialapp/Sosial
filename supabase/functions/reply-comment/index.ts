@@ -1,13 +1,13 @@
 // reply-comment · queue a comment reply for the worker.
 //
-// POST { provider: 'facebook'|'threads', channel_id, comment_id, message }
+// POST { provider: 'facebook'|'threads'|'instagram', channel_id, comment_id, message }
 // → { queued: true }
 //
 // Gate: caller must be an ACTIVE member of the channel's workspace
 // (verified against workspace_members via their JWT — never trust body ids).
 // Replies post AS the connected Page/identity, so members trigger them but
 // the reply is authored by the Page, matching the publishing model.
-// Facebook + Threads only; other providers refuse with a clear error.
+// Facebook, Threads + Instagram only; other providers refuse with a clear error.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -52,8 +52,8 @@ serve(async (req: Request): Promise<Response> => {
   if (!provider || !channelId || !commentId || !message) {
     return bad("provider, channel_id, comment_id and message are required.");
   }
-  if (provider !== "facebook" && provider !== "threads") {
-    return bad("Replies are supported for Facebook and Threads only.");
+  if (provider !== "facebook" && provider !== "threads" && provider !== "instagram") {
+    return bad("Replies are supported for Facebook, Threads and Instagram only.");
   }
   if (message.length > 2200) return bad("Reply exceeds 2200 characters.");
 

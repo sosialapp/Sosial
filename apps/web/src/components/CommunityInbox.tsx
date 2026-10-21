@@ -26,7 +26,7 @@ interface CommentRow {
   reply_text: string | null;
 }
 
-const PROVIDERS_WITH_REPLY = new Set(['facebook', 'threads']);
+const PROVIDERS_WITH_REPLY = new Set(['facebook', 'threads', 'instagram']);
 
 type InboxTab = 'comments' | 'messages';
 
@@ -119,7 +119,7 @@ export default function CommunityInbox({
         .eq('id', row.id);
       setReplyFor(null);
       setDraft('');
-      setNote(row.provider === 'facebook' ? 'Reply queued for Facebook, it lands in a few seconds.' : 'Reply queued for Threads, it lands in a few seconds.');
+      setNote(`Reply queued for ${providerMeta(row.provider).label}, it lands in a few seconds.`);
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not send the reply.');
@@ -168,7 +168,7 @@ export default function CommunityInbox({
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted">
           Comments on your published posts, fetched hourly. Replies go out on
-          Facebook and Threads; other channels show counts only.
+          Facebook, Threads and Instagram; other channels show counts only.
         </p>
         <button
           type="button"
@@ -190,8 +190,8 @@ export default function CommunityInbox({
           <MessageCircle className="mx-auto h-6 w-6 text-faint" aria-hidden="true" />
           <p className="mt-2 text-sm font-bold">No comments yet</p>
           <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-            Publish to Facebook or Threads, get a comment, and it lands here
-            within the hour — with a bell notification.
+            Publish to Facebook, Threads or Instagram, get a comment, and it
+            lands here within the hour — with a bell notification.
           </p>
         </div>
       ) : (

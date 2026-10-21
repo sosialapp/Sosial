@@ -10,8 +10,9 @@
  *
  * Facebook: GET /{post-id}/comments?fields=from,message,created_time,like_count
  * Threads:  GET /{post-id}/replies (top-level) — reply counts ride the post
- * Instagram: comment COUNTS only via stats (reading comment text needs the
- *   newer IG graph + moderation permission); counts arrive through stats.
+ * Instagram: GET /{ig-media-id}/comments?fields=username,text,timestamp,like_count
+ *   (the sent post's remote_id IS the IG media id; the newer IG graph
+ *   serves it with instagram_business_basic + instagram_manage_comments).
  *
  * Job kind 'scan_comments' (cron enqueued), payload {}.
  */
@@ -22,6 +23,7 @@ import { warn, info, debug } from './logger';
 
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const THREADS_API = 'https://graph.threads.net/v1.0';
+const IG_GRAPH = 'https://graph.instagram.com/v23.0';
 
 interface TargetRow {
   id: string;
@@ -75,6 +77,27 @@ async function fbComments(remoteId: string, token: string): Promise<RawComment[]
     }));
 }
 
+async function igComments(remoteId: string, token: string): Promise<RawComment[]> {
+  // IG graph: comments on a published media (media id = our remote_id).
+  const r = await fetch(
+    `${IG_GRAPH}/${encodeURIComponent(remoteId)}/comments?fields=id,username,text,timestamp,like_count&limit=25&access_token=${encodeURIComponent(token)}`,
+  );
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error?.message ?? `instagram comments ${r.status}`);
+  const data = Array.isArray(j?.data) ? j.data : [];
+  return data
+    .filter((c: any) => c?.id && typeof c.text === 'string')
+    .map((c: any) => ({
+      comment_id: String(c.id),
+      parent_id: null,
+      author: c?.username ? `@${c.username}` : 'Instagram user',
+      author_avatar: null,
+      message: String(c.text),
+      like_count: typeof c.like_count === 'number' ? c.like_count : null,
+      created_at: typeof c.timestamp === 'string' ? c.timestamp : null,
+    }));
+}
+
 async function threadsReplies(remoteId: string, token: string): Promise<RawComment[]> {
   // Threads reads replies of a published thread post.
   const r = await fetch(
@@ -101,7 +124,7 @@ export async function handleScanComments(_job: Job): Promise<void> {
   // Recent sent targets on comment-capable providers, newest first, cap 100
   // per sweep: enough coverage, bounded work.
   const targets = await rest<TargetRow[]>(
-    `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads)` +
+    `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads,instagram)` +
       `&remote_id=neq.&select=id,post_id,remote_id,channel_id,provider,workspace_id,posts(created_by)` +
       `&order=updated_at.desc&limit=100`,
   ).catch(() => [] as TargetRow[]);
@@ -131,7 +154,9 @@ export async function handleScanComments(_job: Job): Promise<void> {
           ? await fbComments(target.remote_id, entry.token)
           : target.provider === 'threads'
             ? await threadsReplies(target.remote_id, entry.token)
-            : [];
+            : target.provider === 'instagram'
+              ? await igComments(target.remote_id, entry.token)
+              : [];
 
       if (!list.length) continue;
             const rows = list.map((c) => ({
