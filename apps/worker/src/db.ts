@@ -15,7 +15,9 @@ export interface Job {
     | 'send_invite'
     | 'sync_avatars'
     | 'send_push'
-    | 'reply_comment';
+    | 'reply_comment'
+    | 'delete_post_target'
+    | 'scan_comments';
   payload: Record<string, any>;
   status: string;
   run_at: string;
