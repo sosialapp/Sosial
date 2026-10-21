@@ -572,8 +572,14 @@ export async function publishPostNow(sb: SupabaseClient, postId: string): Promis
 }
 
 export async function deletePost(sb: SupabaseClient, postId: string): Promise<void> {
-  const { error } = await sb.from('posts').delete().eq('id', postId);
+  // .select() is a tripwire: without it, an RLS-blocked delete returns zero
+  // rows and NO error, silently leaving the post in the list after refresh.
+  // With it we can fail loudly instead of pretending the delete landed.
+  const { error, data } = await sb.from('posts').delete().eq('id', postId).select('id');
   if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error('Delete was blocked (permissions). Reload the page and try again.');
+  }
 }
 
 /* ------------------------------ approvals ------------------------------ */

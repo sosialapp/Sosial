@@ -48,7 +48,9 @@ begin
          'delete_post_target:' || s.post_target_id::text
   from pg_temp._post_targets_snapshot s
   on conflict (idempotency_key) do nothing;
-  delete from pg_temp._post_targets_snapshot;
+  -- Consume the snapshot rows so batch deletes don't double-enqueue. WHERE is
+  -- required by pg-safeupdate, which rejects bare DELETEs project-wide.
+  delete from pg_temp._post_targets_snapshot where post_target_id is not null;
   return null;
 end;
 $$;
