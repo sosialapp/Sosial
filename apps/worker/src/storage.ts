@@ -77,6 +77,11 @@ export function r2PutUrl(key: string, contentType: string, expiresIn = 600): Pro
   );
 }
 
+/** Direct server-side PUT (small payloads: converted images, scratch files). */
+export async function r2PutObject(key: string, body: Buffer, contentType: string): Promise<void> {
+  await r2().send(new PutObjectCommand({ Bucket: bucketName, Key: key, Body: body, ContentType: contentType }));
+}
+
 /** Presigned GET for a private object. */
 export function r2GetUrl(key: string, expiresIn = 300): Promise<string> {
   return getSignedUrl(r2(), new GetObjectCommand({ Bucket: bucketName, Key: key }), { expiresIn });

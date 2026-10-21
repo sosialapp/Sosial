@@ -3,10 +3,16 @@
  * src/utils/metaPublish.ts: container → publish. Single attachment
  * (first wins), 500-char text cap, topic_tag from target options.
  * Media goes by signed Storage URL (Threads fetches it server-side).
+ * Threads only pulls JPEG and PNG images — anything else (WebP, HEIC,
+ * GIF, AVIF) is transcoded to JPEG first, otherwise Meta rejects the
+ * container with "unsupported image format".
  */
 import { readSecret, markTargetProgress } from './db';
-import { storageSign } from './rest';
+import { storageSign, storageDownload } from './rest';
+import { r2PutObject, r2Remove } from './storage';
 import { info, debug } from './logger';
+import sharp from 'sharp';
+import { randomUUID } from 'node:crypto';
 
 const THREADS_API = 'https://graph.threads.net';
 
@@ -35,6 +41,27 @@ function gerr(j: any, fallback: string, step: string): string {
 }
 
 const cap = (t: string, max: number): string => (t.length > max ? t.slice(0, max - 1) + '…' : t);
+
+/** Threads pulls only JPEG/PNG. Anything else is transcoded to JPEG and
+ *  parked under post-media/converted/ (the signed URL outlives the publish;
+ *  the scratch object is removed best-effort once the container finishes). */
+async function threadsImageUrl(m: { storage_path: string; mime_type: string | null }): Promise<{ url: string; scratchKey?: string }> {
+  const mime = (m.mime_type ?? '').toLowerCase();
+  const ext = m.storage_path.toLowerCase().split('?')[0].split('.').pop() ?? '';
+  const ok =
+    mime === 'image/jpeg' || mime === 'image/png' ||
+    (!mime && (ext === 'jpg' || ext === 'jpeg' || ext === 'png'));
+  if (ok) return { url: await storageSign('post-media', m.storage_path, 3600) };
+  // Pull the bytes through the backend abstraction (R2 first, Supabase
+  // Storage fallback), re-encode, park, sign.
+  const signed = await storageSign('post-media', m.storage_path, 600);
+  const buf = await storageDownload(signed);
+  const jpg = await sharp(buf).rotate().flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer();
+  const key = `converted/${randomUUID()}.jpg`;
+  await r2PutObject(key, jpg, 'image/jpeg');
+  info(`threads: transcoded ${m.storage_path} (${mime || ext || 'unknown'}) to JPEG for publish`);
+  return { url: await storageSign('post-media', key, 3600), scratchKey: key };
+}
 
 interface OnePost {
   threadsId: string;
@@ -147,8 +174,14 @@ export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: 
     .sort((a, z) => a.position - z.position)[0];
   const kind = !first ? 'TEXT' : first.kind === 'video' ? 'VIDEO' : 'IMAGE';
   let mediaUrl = '';
-  if (first) {
-    // Threads pulls the file itself, signed URL works (bearer URL, 1h).
+  let scratchKey: string | undefined;
+  if (first && kind === 'IMAGE') {
+    // Threads only pulls JPEG/PNG; transcode anything else up front.
+    const img = await threadsImageUrl(first);
+    mediaUrl = img.url;
+    scratchKey = img.scratchKey;
+  } else if (first) {
+    // Threads pulls the video file itself, signed URL works (bearer URL, 1h).
     mediaUrl = await storageSign('post-media', first.storage_path, 3600);
   }
   const tag = String(b.target.options?.threadsTopic ?? '')
@@ -224,5 +257,8 @@ export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: 
       debug(`threads target ${b.target.id}: progress write failed: ${String(e)}`),
     );
   }
+  // The container reached FINISHED inside publishOne, meaning Meta has
+  // pulled the image bytes; the transcoded scratch copy can go.
+  if (scratchKey) await r2Remove(scratchKey).catch((e) => debug(`threads scratch cleanup: ${String(e)}`));
   return { remoteId, remoteUrl: progressUrl(remoteId) };
 }
