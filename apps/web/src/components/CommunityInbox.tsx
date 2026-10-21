@@ -77,19 +77,28 @@ export default function CommunityInbox({
 
   useEffect(() => { void load(); }, [load]);
 
-  /** Ask the comment-scan to run now for instant freshness. */
+  /** Ask for a fresh platform scan, then reload after the worker had a
+   *  moment. The scan-now endpoint dedupes per user per minute. */
   const scanNow = async () => {
     setScanning(true);
     setErr(null);
     setNote(null);
     try {
       const sb = createClient();
-      // The worker sweeps on an hourly cron; invoking recheck-channels also
-      // nudges avatars, but the scan itself is cron-only, so we read fresh
-      // after a short grace period instead of duplicating the pipeline.
-      await new Promise((r) => setTimeout(r, 1500));
+      const { error } = await sb.functions.invoke('scan-now', {
+        body: { workspace_id: workspaceId },
+      });
+      if (error) {
+        const detail = await edgeErrorMessage(error);
+        throw new Error(detail ?? error.message);
+      }
+      // The worker claims the job within seconds; give it two beats, then
+      // read whatever landed.
+      await new Promise((r) => setTimeout(r, 12000));
       await load();
-      setNote('Refreshed from the latest comment scan.');
+      setNote('Scanned your platforms just now — newest comments are in.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not start the scan.');
     } finally {
       setScanning(false);
       router.refresh();
