@@ -46,6 +46,8 @@ interface OnePost {
   replyToId?: string;
 }
 
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 /** Container → wait FINISHED → publish. Returns the created post id. */
 async function publishOne(a: OnePost): Promise<string> {
   const tok = encodeURIComponent(a.token);
@@ -57,19 +59,39 @@ async function publishOne(a: OnePost): Promise<string> {
     (a.replyToId ? `&reply_to_id=${encodeURIComponent(a.replyToId)}` : '') +
     `&access_token=${tok}`;
 
-  const c = await fetch(`${THREADS_API}/v1.0/${a.threadsId}/threads?${params}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${a.token}` },
-  });
-  const cj: any = await c.json().catch(() => ({}));
-  if (c.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
-  if (cj.error || !cj.id) throw new Error(gerr(cj, 'Threads container failed', 'container'));
+  // Container creation. Meta intermittently answers code 100 subcode 33
+  // ("object does not exist / missing permissions") for perfectly healthy
+  // accounts — their own forum confirms the same call succeeds on retry, the
+  // persistent case is a stale connection and the fix is a reconnect.
+  let cj: any = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const c = await fetch(`${THREADS_API}/v1.0/${a.threadsId}/threads?${params}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${a.token}` },
+    });
+    cj = await c.json().catch(() => ({}));
+    if (c.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
+    if (cj?.error?.code === 100 && cj?.error?.error_subcode === 33 && attempt === 0) {
+      await sleep(5000);
+      continue;
+    }
+    break;
+  }
+  if (cj?.error || !cj?.id) {
+    const raw = gerr(cj, 'Threads container failed', 'container');
+    if (cj?.error?.code === 100 && cj?.error?.error_subcode === 33) {
+      throw new Error(
+        'Threads rejected the container (code 100 subcode 33) — a Meta-side glitch or a stale connection. It usually clears on retry; if it keeps failing, disconnect and reconnect Threads in Connect. ' +
+          raw,
+      );
+    }
+    throw new Error(raw);
+  }
   const creationId = String(cj.id);
 
   // The container must reach FINISHED before publishing, firing
   // threads_publish immediately races Meta's backend (code 24, subcode
   // 4279009). Poll status, bounded.
-  const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
   const start = Date.now();
   for (;;) {
     const s = await fetch(

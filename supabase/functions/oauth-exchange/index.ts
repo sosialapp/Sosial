@@ -119,26 +119,31 @@ async function tiktok(b: ExchangeBody): Promise<Response> {
       if (u.avatar_url) avatar = String(u.avatar_url);
     }
   } catch { /* profile is best-effort */ }
-  if (!name) {
-    try {
-      const cr = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json; charset=UTF-8" },
-        body: "{}",
-      });
-      const cj = await json(cr);
-      const nick = (cj.data as { creator_nickname?: string } | undefined)?.creator_nickname;
-      if (nick) name = `@${nick}`;
-    } catch { /* best-effort */ }
-  }
   if (!openId) return bad("TikTok hid the account id, try again.", 502);
+  // Creator info also carries the privacy levels this account may post with —
+  // the composer needs them for the audience picker (TikTok refuses to
+  // publish a privacy_level outside this list, so it is never guessed).
+  let privacyOptions: string[] = [];
+  try {
+    const cr = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json; charset=UTF-8" },
+      body: "{}",
+    });
+    const cj = await json(cr);
+    const d = cj.data as { creator_nickname?: string; privacy_level_options?: unknown[] } | undefined;
+    if (d?.creator_nickname) name = `@${d.creator_nickname}`;
+    if (Array.isArray(d?.privacy_level_options)) {
+      privacyOptions = d.privacy_level_options.map(String);
+    }
+  } catch { /* best-effort */ }
   return ok({
     access_token: access,
     refresh_token: refresh || undefined,
     expires_at: iso(expiresAt),
     external_id: openId,
     display_name: name,
-    metadata: avatar ? { avatar } : {},
+    metadata: { avatar, ttPrivacyOptions: privacyOptions },
   });
 }
 

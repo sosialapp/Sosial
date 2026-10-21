@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { PROVIDER_META, providerMeta } from '@/lib/providers';
 import { Progress } from '@/components/ui/progress';
@@ -9,8 +9,11 @@ import type { TargetStatus } from '@/lib/types';
 /**
  * Post status popup (mobile parity): watches post_targets for the freshly
  * created post(s) and shows per-channel publish progress, a full bar means
- * sent, with a link out when the channel returns one. Polls every 2.5s;
- * done-state auto-closes into the queue view.
+ * sent, with a link out when the channel returns one. Polls every 2.5s.
+ *
+ * The outcome is confirmed ON SCREEN, never transient: once every target
+ * settles the poller stops and the popup stays open until the user dismisses
+ * it, so "Posted" can't silently vanish while the worker was still mid-run.
  *
  * `mode="schedule"` reuses the same shell for scheduling: there is nothing to
  * publish yet, so it just shows the saving spinner, then a "Scheduled for …"
@@ -21,19 +24,21 @@ export default function PublishMonitor({
   onDone,
   mode = 'now',
   scheduleIso = null,
+  doneLabel = 'Go to queue',
 }: {
   postIds: string[];
   onDone: () => void;
   mode?: 'now' | 'schedule';
   /** Schedule mode: the instant the post is queued for. */
   scheduleIso?: string | null;
+  /** Settled-state button: where landing implies the label (queue nav vs close). */
+  doneLabel?: string;
 }) {
   const scheduled = mode === 'schedule';
   const [rows, setRows] = useState<
     { provider: string; label: string; status: TargetStatus; error: string | null; url: string | null }[]
   >([]);
   const [note, setNote] = useState<string | null>(null);
-  const autoClosed = useRef(false);
   // The dialog opens early in "saving" state (postIds=[]) and receives the
   // real ids a beat later WITHOUT remounting, so the poller must restart
   // when the id set changes, or it watches [] forever ("Reading targets…").
@@ -48,10 +53,10 @@ export default function PublishMonitor({
       return () => clearTimeout(t);
     }
     if (!postIds.length) return; // Still saving, nothing to watch yet.
-    autoClosed.current = false;
     setRows([]);
     const sb = createClient();
     let alive = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
     async function poll() {
       const { data, error } = await sb
         .from('post_targets')
@@ -80,20 +85,20 @@ export default function PublishMonitor({
           url: t.remote_url,
         })),
       );
+      // Stop polling the moment everything settled: the outcome is final and
+      // stays on screen until the user dismisses it. Polling past this point
+      // would only burn battery against rows that can no longer change.
       const settled = list.every((t) => !['pending', 'queued', 'publishing'].includes(t.status));
-      if (settled && list.length > 0 && !autoClosed.current) {
-        autoClosed.current = true;
-        const failed = list.filter((t) => t.status === 'failed').length;
-        setTimeout(() => {
-          if (alive) onDone();
-        }, failed ? 4000 : 1400);
+      if (settled && list.length > 0 && timer) {
+        clearInterval(timer);
+        timer = null;
       }
     }
     void poll();
-    const timer = setInterval(poll, 2500);
+    timer = setInterval(poll, 2500);
     return () => {
       alive = false;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey, mode]);
@@ -101,6 +106,7 @@ export default function PublishMonitor({
   const pending = rows.filter((r) => ['pending', 'queued', 'publishing'].includes(r.status)).length;
   const sent = rows.filter((r) => r.status === 'sent').length;
   const failed = rows.filter((r) => r.status === 'failed').length;
+  const skipped = rows.filter((r) => r.status === 'skipped').length;
   const settled = rows.length > 0 && pending === 0;
 
   // Schedule mode is a two-step save: spinner until the row lands, then done.
@@ -117,7 +123,7 @@ export default function PublishMonitor({
       ? 100
       : 15
     : rows.length
-      ? ((sent + failed) / rows.length) * 100
+      ? ((rows.length - pending) / rows.length) * 100
       : !postIds.length
         ? 8
         : 15;
@@ -160,7 +166,9 @@ export default function PublishMonitor({
                   ? `Publishing to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}…`
                   : failed > 0
                     ? `Posted, ${failed} failed`
-                    : 'Posted to all channels'}
+                    : skipped > 0
+                      ? `Posted, ${skipped} skipped`
+                      : 'Posted to all channels'}
           </p>
         </div>
 
@@ -210,7 +218,7 @@ export default function PublishMonitor({
             {done
               ? scheduled
                 ? 'Queued'
-                : `${sent} sent${failed ? ` · ${failed} failed` : ''}`
+                : `${sent} sent${failed ? ` · ${failed} failed` : ''}${skipped ? ` · ${skipped} skipped` : ''}`
               : 'This usually takes a few seconds…'}
           </p>
           <button
@@ -218,7 +226,7 @@ export default function PublishMonitor({
             onClick={onDone}
             className="rounded-full border border-line px-3.5 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
           >
-            {done ? 'Go to queue' : 'Hide'}
+            {done ? doneLabel : 'Hide'}
           </button>
         </div>
       </div>

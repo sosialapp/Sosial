@@ -367,6 +367,13 @@ export default function CreateHub({
     threadsTopic: string;
     /** Existing assets per part: id kept for the save, url only for preview. */
     mediaParts: { mediaId: string; url?: string; kind: 'image' | 'video' }[][];
+    /**
+     * Set once the edit has been saved: the old rows are deleted, so they must
+     * not be deleted again on a re-submit. Retiring (instead of nulling) keeps
+     * the composer's React key stable, so the publish monitor that is on
+     * screen survives the save instead of being unmounted mid-poll.
+     */
+    retired?: boolean;
   } | null>(null);
   const [renderingKey, setRenderingKey] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -946,8 +953,14 @@ export default function CreateHub({
             initialWhenIso={draftEdit?.whenIso ?? null}
             initialThreadsTopic={draftEdit?.threadsTopic}
             initialMediaParts={draftEdit?.mediaParts}
-            editingIds={draftEdit?.postIds}
-            onEdited={() => setDraftEdit(null)}
+            editingIds={draftEdit?.retired ? undefined : draftEdit?.postIds}
+            onEdited={() =>
+              // Retire (don't null): nulling changes the composer key, which
+              // remounts it and kills the publish monitor while the post is
+              // still queued. The saved rows are gone; only the id list
+              // matters now, and the retired flag drops that.
+              setDraftEdit((d) => (d ? { ...d, retired: true } : null))
+            }
             libraryCaptions={templates}
             libraryDesigns={projects}
           />

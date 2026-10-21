@@ -831,7 +831,19 @@ export default function PostList({
           const inApproval = g.parts.every((p) => p.status === 'approval');
           const busy = busyId === g.key;
           const ids = g.parts.map((p) => p.id);
-          const targetErr = g.parts.flatMap((p) => p.post_targets).find((t) => t.last_error)?.last_error;
+          // Every failed channel gets its message, labelled per provider —
+          // a partial failure that only showed one error hid the others.
+          const targetErrs = Array.from(
+            new Map(
+              g.parts
+                .flatMap((p) => p.post_targets)
+                .filter((t) => t.last_error && t.status === 'failed')
+                .map((t) => [
+                  `${t.provider}:${t.last_error}`,
+                  `${providerMeta(t.provider).label}: ${t.last_error}`,
+                ]),
+            ).values(),
+          );
           const targets = uniqueTargets(g.parts);
           const openPreview = () => setPreviewKey(g.key);
           const cardMedia = g.parts.flatMap((p) => mediaOf(p));
@@ -943,10 +955,17 @@ export default function PostList({
                   {comment && (
                     <p className="mt-1.5 text-xs text-ink">{fill(t('changesReq'), { c: comment })}</p>
                   )}
-                  {targetErr && (
-                    <p className="mt-1.5 text-xs text-[#9F2F2D] dark:text-[#f2a8a8]">
-                      {targetErr}
-                    </p>
+                  {targetErrs.length > 0 && (
+                    <div className="mt-1.5 space-y-0.5">
+                      {targetErrs.map((msg) => (
+                        <p
+                          key={msg}
+                          className="text-xs text-[#9F2F2D] dark:text-[#f2a8a8]"
+                        >
+                          {msg}
+                        </p>
+                      ))}
+                    </div>
                   )}
                 </div>
 

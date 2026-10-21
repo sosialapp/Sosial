@@ -82,6 +82,43 @@ export function postTypeOptions(p: string): { id: string; label: string }[] {
   return (POST_TYPE_OPTIONS as Record<string, { id: string; label: string }[]>)[p] ?? [{ id: 'post', label: 'Post' }];
 }
 
+/**
+ * TikTok audience labels (privacy_level values the Content Posting API takes,
+ * same map as the mobile app's TT_PRIVACY_LABELS). TikTok refuses to publish
+ * without one of the creator's OWN levels, so the composer shows a picker
+ * fed by the account's saved options, never a hardcoded guess.
+ */
+export const TT_PRIVACY_LABELS: Record<string, string> = {
+  PUBLIC_TO_EVERYONE: 'Public',
+  MUTUAL_FOLLOW_FRIENDS: 'Mutual friends',
+  FOLLOWER_OF_CREATOR: 'Followers',
+  SELF_ONLY: 'Only me',
+};
+
+/**
+ * The audience menu for a set of TikTok channels: the levels saved at connect
+ * time (channel metadata.ttPrivacyOptions), intersected when several accounts
+ * are in the mix. Channels connected before that was stored (or an unknown
+ * menu) fall back to the standard set — a wrong guess surfaces as TikTok's
+ * "privacy setting isn't allowed" error on the target.
+ */
+export function ttPrivacyOptionsFor(
+  channels: { provider: string; metadata?: Record<string, unknown> | null }[],
+): string[] {
+  const tt = channels.filter((c) => c.provider === 'tiktok');
+  if (!tt.length) return [];
+  const stored = tt
+    .map(
+      (c) =>
+        ((c.metadata ?? null) as { ttPrivacyOptions?: unknown } | null)?.ttPrivacyOptions,
+    )
+    .filter((o): o is string[] => Array.isArray(o) && o.length > 0 && o.every((x) => typeof x === 'string'));
+  if (stored.length === tt.length) {
+    return stored.reduce((a, b) => a.filter((o) => b.includes(o)));
+  }
+  return Object.keys(TT_PRIVACY_LABELS);
+}
+
 export const POST_STATUS_META: Record<PostStatus, { label: string; className: string }> = {
   draft: { label: 'Draft', className: 'bg-surface text-soft' },
   approval: { label: 'Needs approval', className: 'bg-accent-soft text-accent-ink' },

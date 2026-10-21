@@ -280,12 +280,38 @@ async function publishPhotos(token: string, urls: string[], title: string, priva
   return publishId;
 }
 
+/** Which privacy levels this TikTok account may post with. */
+async function creatorPrivacyOptions(token: string): Promise<string[]> {
+  try {
+    const r = await fetch(`${TT_API}/v2/post/publish/creator_info/query/`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
+      body: '{}',
+    });
+    const j: any = await r.json().catch(() => ({}));
+    if (ok(j) && Array.isArray(j?.data?.privacy_level_options)) {
+      return (j.data.privacy_level_options as unknown[]).map(String);
+    }
+  } catch { /* fall through, treated as no options */ }
+  return [];
+}
+
 /** Full target publish. TikTok returns a publish id (no public URL yet). */
 export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: string }> {
   const b = bundle as Bundle;
-  const privacy = String(b.target.options?.ttPrivacy ?? '').trim();
+  const token = await ensureToken(b);
+  let privacy = String(b.target.options?.ttPrivacy ?? '').trim();
   if (!privacy) {
-    throw new Error('TikTok audience not chosen, open the post, pick an audience, and re-queue (background runs never prompt).');
+    // Background runs never prompt. Sole exception: an account whose menu
+    // holds exactly one audience (unaudited apps get self-only) — choosing
+    // for the user when a real menu exists must stay a composer fix.
+    const allowed = await creatorPrivacyOptions(token);
+    if (allowed.length === 1) {
+      privacy = allowed[0];
+      info(`tiktok target ${b.target.id}: no audience chosen, only ${privacy} is allowed, using it`);
+    } else {
+      throw new Error('TikTok audience not chosen, open the post, pick an audience, and re-queue (background runs never prompt).');
+    }
   }
   const caption = (b.target.caption ?? b.post.body ?? '').trim();
   const title = caption.split('\n')[0] || b.post.title || 'Sosial post';
@@ -295,7 +321,6 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   const images = (b.media ?? [])
     .filter((m) => m.kind === 'image')
     .sort((a, z) => a.position - z.position);
-  const token = await ensureToken(b);
 
   // TikTok has no mixed-media post (single video OR up to 35 photos), so a
   // draft holding both would silently drop the photos. Fail loudly instead.

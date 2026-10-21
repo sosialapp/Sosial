@@ -146,6 +146,7 @@ export default function QuickPost({
       {monitorOpen ? (
         <PublishMonitor
           postIds={monitorId ? [monitorId] : []}
+          doneLabel="Close"
           onDone={() => {
             setMonitorOpen(false);
             setMonitorId(null);

@@ -19,7 +19,7 @@ import SegmentedPills from '@/components/ui/segmented-pills';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
-import { providerMeta, postTypeOptions } from '@/lib/providers';
+import { providerMeta, postTypeOptions, TT_PRIVACY_LABELS, ttPrivacyOptionsFor } from '@/lib/providers';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode, type MediaInput } from '@/lib/posts';
@@ -442,12 +442,18 @@ export default function CreatePost({
   const [confirmNow, setConfirmNow] = useState(false);
   const nowConfirmed = useRef(false);
 
+  /** TikTok audience (TikTok refuses to publish without one of the account's
+   *  own privacy levels). Persisted per submit in target options. */
+  const [ttPrivacy, setTtPrivacy] = useState('');
+
   const chosenProviders = useMemo(
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
     [ready, picked],
   );
   /** Channels currently picked, drives the format pills. */
   const chosenNow = useMemo(() => ready.filter((c) => picked.includes(c.id)), [ready, picked]);
+  /** TikTok audience menu for the picks: account-saved levels or the standard set. */
+  const ttOptions = useMemo(() => ttPrivacyOptionsFor(chosenNow), [chosenNow]);
   /** Website channels (WordPress/Ghost/Dev.to/Hashnode) among the picks. */
   const articlePicked = useMemo(
     () => chosenNow.some((c) => isArticleProvider(c.provider)),
@@ -635,6 +641,10 @@ export default function CreatePost({
     e?.preventDefault();
     setErr(null);
     const chosen = ready.filter((c) => picked.includes(c.id));
+    // TikTok audience: the picked level if still valid, else the first allowed
+    // option (the picker highlights exactly this default).
+    const ttOptionsNow = ttPrivacyOptionsFor(chosen);
+    const ttEffective = ttOptionsNow.includes(ttPrivacy) ? ttPrivacy : (ttOptionsNow[0] ?? '');
     if (!chosen.length) {
       setErr(t('cErrPick'));
       return;
@@ -670,6 +680,12 @@ export default function CreatePost({
         setErr(blockers.map((i) => i.message).join('\n'));
         return;
       }
+      // TikTok publishes with exactly one audience; two accounts with disjoint
+      // menus (or an unknown one, rare) leave nothing valid to send.
+      if (chosen.some((c) => c.provider === 'tiktok') && !ttEffective) {
+        setErr(t('cpTtAudienceErr'));
+        return;
+      }
     }
     // Post-now always confirms with the destination list after validating.
     if (submitMode === 'now' && !nowConfirmed.current) {
@@ -702,6 +718,9 @@ export default function CreatePost({
           for (const c of chosen) {
             if (isArticleProvider(c.provider)) targetOptions[c.provider] = articleOptions(articleDoc);
           }
+        }
+        if (ttEffective && chosen.some((c) => c.provider === 'tiktok')) {
+          targetOptions['tiktok'] = { ttPrivacy: ttEffective };
         }
         if (threadsTopic.trim() && chosen.some((c) => c.provider === 'threads')) {
           targetOptions['threads'] = { ...(targetOptions['threads'] ?? {}), threadsTopic: threadsTopic.trim() };
@@ -978,6 +997,46 @@ export default function CreatePost({
                   </div>
                 );
               })}
+
+            {/* TikTok audience: TikTok refuses to publish without one of the
+                account's own privacy levels (saved at connect time). Highlight
+                follows the submit default: the picked level or the first
+                allowed option. */}
+            {chosenNow.some((c) => c.provider === 'tiktok') && ttOptions.length > 0 ? (
+              <div className="mt-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-24 shrink-0 truncate text-[11px] font-bold text-muted">
+                    {t('cpTtAudience')}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {ttOptions.map((o) => {
+                      const active = (ttOptions.includes(ttPrivacy) ? ttPrivacy : ttOptions[0]) === o;
+                      return (
+                        <button
+                          key={o}
+                          type="button"
+                          onClick={() => setTtPrivacy(o)}
+                          className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${
+                            active ? 'bg-ink text-paper' : 'border border-line text-muted hover:text-ink'
+                          }`}
+                        >
+                          {TT_PRIVACY_LABELS[o] ?? o}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {chosenNow.some(
+                  (c) =>
+                    c.provider === 'tiktok' &&
+                    !(Array.isArray(c.metadata?.ttPrivacyOptions) && (c.metadata!.ttPrivacyOptions as unknown[]).length > 0),
+                ) ? (
+                  <p className="mt-1 text-[10px] font-semibold text-faint">
+                    {t('cpTtAudienceNote')}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {/* Social composer vs. rich article editor, only when a website
                 channel is picked; the toggle defaults to Article in that case. */}
