@@ -497,7 +497,15 @@ async function threads(b: ExchangeBody): Promise<Response> {
   );
   const j2 = await json(r2);
   const token = str(j2.access_token);
-  if (!token) return bad("Threads would not issue a long-lived token.", 502);
+  if (!token) {
+    // Surface Threads' actual refusal (rate limit, token expired mid-flight,
+    // app-mode restriction …) instead of a blind generic line.
+    const e = j2.error as { message?: string } | undefined;
+    return bad(
+      `Threads would not issue a long-lived token. ${str(e?.message).slice(0, 160)} (step2 ${r2.status})`,
+      502,
+    );
+  }
   const userId = str(j1.user_id);
   let username: string | undefined;
   let picture: string | undefined;

@@ -855,10 +855,12 @@ export default function PostList({
                 {/* Header: author pfp + name/handle + time, like a social post */}
                 <div className="flex items-center gap-3 px-4 pt-3.5">
                   {/* Every target's avatar + brand logo, so the card shows at a
-                      glance which channels the post goes to. */}
+                      glance which channels the post goes to. All of them, no
+                      cap: a draft, a sent chain and a failed post each list
+                      every selected channel the same way. */}
                   {targets.length > 0 ? (
-                    <span className="flex shrink-0 flex-wrap items-center gap-1.5">
-                      {targets.slice(0, 5).map((t) => (
+                    <span className="flex shrink-0 flex-wrap items-center gap-1.5 max-w-[14rem]">
+                      {targets.map((t) => (
                         <ChannelAvatar
                           key={t.channel_id ?? t.provider}
                           provider={t.provider}
@@ -866,11 +868,6 @@ export default function PostList({
                           size={36}
                         />
                       ))}
-                      {targets.length > 5 ? (
-                        <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-paper-dim px-2 text-[11px] font-extrabold text-muted">
-                          +{targets.length - 5}
-                        </span>
-                      ) : null}
                     </span>
                   ) : (
                     <ChannelAvatar provider={lead?.provider ?? 'x'} size={36} />
