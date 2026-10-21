@@ -64,15 +64,15 @@ async function publishOne(a: OnePost): Promise<string> {
   // accounts — their own forum confirms the same call succeeds on retry, the
   // persistent case is a stale connection and the fix is a reconnect.
   let cj: any = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     const c = await fetch(`${THREADS_API}/v1.0/${a.threadsId}/threads?${params}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${a.token}` },
     });
     cj = await c.json().catch(() => ({}));
     if (c.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
-    if (cj?.error?.code === 100 && cj?.error?.error_subcode === 33 && attempt === 0) {
-      await sleep(5000);
+    if (cj?.error?.code === 100 && cj?.error?.error_subcode === 33 && attempt < 2) {
+      await sleep(attempt === 0 ? 5000 : 15000);
       continue;
     }
     break;
@@ -91,7 +91,10 @@ async function publishOne(a: OnePost): Promise<string> {
 
   // The container must reach FINISHED before publishing, firing
   // threads_publish immediately races Meta's backend (code 24, subcode
-  // 4279009). Poll status, bounded.
+  // 4279009). Poll status, bounded. A 100/33 on this READ is a known
+  // Meta-side glitch on freshly created objects (it fails even though the
+  // container exists — see the Postiz #1562 write-up for the same bug on
+  // Instagram): treat it as "still processing" and keep polling.
   const start = Date.now();
   for (;;) {
     const s = await fetch(
@@ -103,18 +106,29 @@ async function publishOne(a: OnePost): Promise<string> {
     if (status === 'ERROR') {
       throw new Error(gerr(sj, 'Threads container processing failed', `status:${creationId}`));
     }
-    if (Date.now() - start > 90000) {
+    const read33 = sj?.error?.code === 100 && sj?.error?.error_subcode === 33;
+    if (!read33 && Date.now() - start > 90000) {
       throw new Error(`Threads container not ready after 90s (${status || 'unknown'}), retry shortly.`);
     }
     await sleep(4000);
   }
 
-  const p = await fetch(
-    `${THREADS_API}/v1.0/${a.threadsId}/threads_publish?creation_id=${encodeURIComponent(creationId)}&access_token=${tok}`,
-    { method: 'POST', headers: { Authorization: `Bearer ${a.token}` } },
-  );
-  const pj: any = await p.json().catch(() => ({}));
-  if (p.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
+  // threads_publish. Same 100/33 transient can hit the POST on a fresh
+  // container; one bounded retry before giving up.
+  let pj: any = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const p = await fetch(
+      `${THREADS_API}/v1.0/${a.threadsId}/threads_publish?creation_id=${encodeURIComponent(creationId)}&access_token=${tok}`,
+      { method: 'POST', headers: { Authorization: `Bearer ${a.token}` } },
+    );
+    pj = await p.json().catch(() => ({}));
+    if (p.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
+    if (pj?.error?.code === 100 && pj?.error?.error_subcode === 33 && attempt === 0) {
+      await sleep(5000);
+      continue;
+    }
+    break;
+  }
   if (pj.error || !pj.id) throw new Error(gerr(pj, 'Threads publish failed', `publish:${creationId}`));
   return String(pj.id);
 }
