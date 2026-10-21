@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoaderCircle, MessageCircle, RefreshCw, Send } from 'lucide-react';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import MessagesInbox from '@/components/MessagesInbox';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
 import { providerMeta } from '@/lib/providers';
@@ -27,6 +28,8 @@ interface CommentRow {
 
 const PROVIDERS_WITH_REPLY = new Set(['facebook', 'threads']);
 
+type InboxTab = 'comments' | 'messages';
+
 function when(iso: string): string {
   const d = new Date(iso);
   const diff = Date.now() - d.getTime();
@@ -39,13 +42,21 @@ function when(iso: string): string {
 }
 
 /**
- * Community inbox (web parity with the mobile Community screen): cached
- * platform comments per connected channel, newest first, with inline replies
- * for Facebook + Threads (the same reply-comment pipeline mobile uses —
- * other providers surface a clear note instead of a reply box).
+ * Community inbox (web parity with the mobile Community screen): Comments is
+ * the cached platform-comments pipeline (platform_comments, unchanged);
+ * Messages is the live stateless DM inbox (edge functions, paid only).
  */
-export default function CommunityInbox({ channels }: { channels: ConnectedChannel[] }) {
+export default function CommunityInbox({
+  channels,
+  workspaceId,
+  plan,
+}: {
+  channels: ConnectedChannel[];
+  workspaceId: string;
+  plan: string;
+}) {
   const router = useRouter();
+  const [tab, setTab] = useState<InboxTab>('comments');
   const [rows, setRows] = useState<CommentRow[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [replyFor, setReplyFor] = useState<string | null>(null);
@@ -121,6 +132,32 @@ export default function CommunityInbox({ channels }: { channels: ConnectedChanne
 
   return (
     <div className="space-y-3">
+      <div role="tablist" aria-label="Inbox sections" className="flex w-fit gap-1 rounded-full border border-line bg-card p-1">
+        {(
+          [
+            ['comments', 'Comments'],
+            ['messages', 'Messages'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+              tab === key ? 'bg-accent text-[#0b1220]' : 'text-soft hover:bg-paper-dim'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'messages' ? (
+        <MessagesInbox workspaceId={workspaceId} channels={channels} paid={plan !== 'free'} />
+      ) : (
+        <>
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
       ) : null}
@@ -245,6 +282,8 @@ export default function CommunityInbox({ channels }: { channels: ConnectedChanne
             );
           })}
         </ul>
+      )}
+        </>
       )}
     </div>
   );
