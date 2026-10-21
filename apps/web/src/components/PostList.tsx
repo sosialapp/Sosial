@@ -854,24 +854,7 @@ export default function PostList({
               >
                 {/* Header: author pfp + name/handle + time, like a social post */}
                 <div className="flex items-center gap-3 px-4 pt-3.5">
-                  {/* Every target's avatar + brand logo, so the card shows at a
-                      glance which channels the post goes to. All of them, no
-                      cap: a draft, a sent chain and a failed post each list
-                      every selected channel the same way. */}
-                  {targets.length > 0 ? (
-                    <span className="flex shrink-0 flex-wrap items-center gap-1.5 max-w-[14rem]">
-                      {targets.map((t) => (
-                        <ChannelAvatar
-                          key={t.channel_id ?? t.provider}
-                          provider={t.provider}
-                          avatar={t.channel_id ? avatars[t.channel_id] : undefined}
-                          size={36}
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    <ChannelAvatar provider={lead?.provider ?? 'x'} size={36} />
-                  )}
+                  <ChannelAvatar provider={lead?.provider ?? 'x'} size={36} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-extrabold">{author.name}</span>
@@ -894,6 +877,32 @@ export default function PostList({
                   </span>
                   <span className={`pill ${meta.className}`}>{meta.label}</span>
                 </div>
+
+                {/* Every selected channel, always: drafts, queued, sent and
+                    failed cards all list the full set of destinations. The
+                    strip gets the whole card width so nothing is squeezed
+                    into an unreadable column, and each logo names its
+                    account on hover. */}
+                {targets.length > 0 ? (
+                  <div
+                    className="flex flex-wrap items-center gap-1.5 px-4 pt-2.5"
+                    title={targets
+                      .map((t) => {
+                        const c = channelById.get(t.channel_id);
+                        return c?.display_name?.trim() || providerMeta(t.provider).label;
+                      })
+                      .join(', ')}
+                  >
+                    {targets.map((t) => (
+                      <ChannelAvatar
+                        key={t.channel_id ?? t.provider}
+                        provider={t.provider}
+                        avatar={t.channel_id ? avatars[t.channel_id] : undefined}
+                        size={28}
+                      />
+                    ))}
+                  </div>
+                ) : null}
 
                 {/* Body: full text, expandable */}
                 <div
