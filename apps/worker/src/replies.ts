@@ -8,6 +8,9 @@
  *       (the reply target is the THREAD post id; Sosial comments carry it).
  * IG:   POST /{comment_id}/replies  { message }   — instagram_manage_comments
  *       (the comment_id comes from the scan, which reads the IG graph).
+ * Mastodon: POST /api/v1/statuses with in_reply_to_id + visibility inherited
+ *       from the conversation (direct when it was a DM thread, otherwise the
+ *       default public/unlisted visibility of a normal reply).
  *
  * Job kinds: 'reply_comment' with payload
  *   { provider, channel_id, comment_id, message }
@@ -22,7 +25,6 @@ const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const THREADS_API = 'https://graph.threads.net/v1.0';
 const IG_GRAPH = 'https://graph.instagram.com/v23.0';
 const X_API = 'https://api.x.com/2';
-
 interface ReplyPayload {
   provider: string;
   channel_id: string;
@@ -141,6 +143,43 @@ async function replyX(p: ReplyPayload): Promise<string> {
   return String(j?.data?.id ?? '');
 }
 
+async function replyMastodon(p: ReplyPayload): Promise<string> {
+  const ch = await channelById(p.channel_id);
+  if (!ch || ch.c.provider !== 'mastodon') throw new Error('mastodon channel not found, reconnect it.');
+  const tok = await directToken(ch.c, ch.t);
+  const base = normalizeInstance(ch.c.instance_url);
+  // Visibility: DM threads (comment text starting with @acct, sent as
+  // direct) stay direct; regular post replies are public like the original.
+  // in_reply_to_id keeps the thread chained; Mastodon auto-includes the
+  // mention when replying to a status.
+  const r = await fetch(`${base}/api/v1/statuses`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: p.message.slice(0, 500),
+      in_reply_to_id: p.comment_id,
+      visibility: 'public',
+    }),
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Mastodon refused the reply: ${j?.error ?? `HTTP ${r.status}`}`);
+  return String(j?.id ?? '');
+}
+
+function normalizeInstance(instanceUrl: string | null): string {
+  const host = String(instanceUrl ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '')
+    .split('/')[0]
+    .split('?')[0];
+  if (!host || /\s/.test(host)) {
+    throw new Error('Mastodon channel missing its instance, reconnect it in Connect.');
+  }
+  return `https://${host}`;
+}
+
 export async function handleReplyComment(job: Job): Promise<void> {
   const p = payload(job);
   debug(`reply_comment ${p.provider}/${p.comment_id} (job ${job.id})`);
@@ -154,8 +193,10 @@ export async function handleReplyComment(job: Job): Promise<void> {
             ? await replyInstagram(p)
             : p.provider === 'x'
               ? await replyX(p)
-              : (() => {
-                  throw new Error(`replies not supported for provider '${p.provider}' (facebook, threads, instagram + x only)`);
+              : p.provider === 'mastodon'
+                ? await replyMastodon(p)
+                : (() => {
+                    throw new Error(`replies not supported for provider '${p.provider}' (facebook, threads, instagram, x + mastodon only)`);
                 })();
     info(`reply posted ${p.provider}/${p.comment_id} → ${remoteId}`);
   } catch (e) {

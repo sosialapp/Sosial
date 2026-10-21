@@ -52,8 +52,9 @@ serve(async (req: Request): Promise<Response> => {
   if (!provider || !channelId || !commentId || !message) {
     return bad("provider, channel_id, comment_id and message are required.");
   }
-  if (provider !== "facebook" && provider !== "threads" && provider !== "instagram" && provider !== "x") {
-    return bad("Replies are supported for Facebook, Threads, Instagram and X only.");
+  const dmProviders = new Set(["facebook", "threads", "instagram", "x", "mastodon"]);
+  if (!dmProviders.has(provider)) {
+    return bad("Replies are supported for Facebook, Threads, Instagram, X and Mastodon only.");
   }
   if (message.length > 2200) return bad("Reply exceeds 2200 characters.");
 

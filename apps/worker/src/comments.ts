@@ -16,6 +16,10 @@
  * X: recent search conversation_id:{tweet-id} — replies to the published
  *   tweet (paid X API; conversation search). The stored access token rides
  *   the normal proactive refresh cycle; a stale one warns and skips.
+ * Mastodon: replies arrive as mention notifications on the publishing
+ *   account (type=mention), so the scan reads /api/v1/notifications and
+ *   keeps only replies whose status in_reply_to_id is one of our sent
+ *   remote_ids; the remote post ids come from the same target list.
  *
  * Job kind 'scan_comments' (cron enqueued), payload {}.
  */
@@ -137,6 +141,56 @@ async function xReplies(remoteId: string, token: string): Promise<RawComment[]> 
     });
 }
 
+async function mastodonReplies(
+  ch: ChannelRowX,
+  token: string,
+  ourStatusIds: Set<string>,
+): Promise<RawComment[]> {
+  const base = normalizeBase(ch.instance_url);
+  // Mentions notifications cover every reply to our posts (and DM-style
+  // mentions, filtered out below). Bounded page, newest first.
+  const r = await fetch(`${base}/api/v1/notifications?type=mention&limit=30`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error ?? `mastodon notifications ${r.status}`);
+  const out: RawComment[] = [];
+  for (const n of Array.isArray(j) ? j : []) {
+    const s = n?.status;
+    if (!s?.id || typeof s.content !== 'string') continue;
+    // Keep only actual replies to OUR published statuses (a bare mention of
+    // the account is not a comment on a Sosial post).
+    const parent = String(s.in_reply_to_id ?? '');
+    if (!parent || !ourStatusIds.has(parent)) continue;
+    out.push({
+      comment_id: String(s.id),
+      // Replies chain on the parent reply too — record it so nested threads
+      // can be replied into the right place.
+      parent_id: ourStatusIds.has(String(s.id)) ? null : parent,
+      author: s?.account?.acct ? `@${s.account.acct}` : 'Mastodon user',
+      author_avatar: s?.account?.avatar ?? null,
+      message: String(s.content).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+      like_count: typeof s?.favourites_count === 'number' ? s.favourites_count : null,
+      created_at: typeof s.created_at === 'string' ? s.created_at : null,
+    });
+  }
+  return out;
+}
+
+function normalizeBase(instanceUrl: string | null): string {
+  const host = String(instanceUrl ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '')
+    .split('/')[0]
+    .split('?')[0];
+  if (!host || /\s/.test(host)) {
+    throw new Error('Mastodon channel missing its instance, toggle cloud publishing off and on in Connect.');
+  }
+  return `https://${host}`;
+}
+
 async function threadsReplies(remoteId: string, token: string): Promise<RawComment[]> {
   // Threads reads replies of a published thread post.
   const r = await fetch(
@@ -161,9 +215,10 @@ async function threadsReplies(remoteId: string, token: string): Promise<RawComme
 
 export async function handleScanComments(_job: Job): Promise<void> {
   // Recent sent targets on comment-capable providers, newest first, cap 100
-  // per sweep: enough coverage, bounded work.
+  // per sweep: enough coverage, bounded work. Mastodon is handled per
+  // channel (notifications), the rest per target (per-post reads).
   const targets = await rest<TargetRow[]>(
-    `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads,instagram,x)` +
+    `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads,instagram,x,mastodon)` +
       `&remote_id=neq.&select=id,post_id,remote_id,channel_id,provider,workspace_id,posts(created_by)` +
       `&order=updated_at.desc&limit=100`,
   ).catch(() => [] as TargetRow[]);
@@ -172,7 +227,71 @@ export async function handleScanComments(_job: Job): Promise<void> {
   const cache = new Map<string, { ch: ChannelRowX; t: TokenRow; token: string }>();
   let scanned = 0;
 
-  for (const target of targets ?? []) {
+  // ---- Mastodon: one notifications read per channel, then map to targets.
+  const mastoTargets = (targets ?? []).filter((t) => t.provider === 'mastodon');
+  const otherTargets = (targets ?? []).filter((t) => t.provider !== 'mastodon');
+  if (mastoTargets.length) {
+    const byChannel = new Map<string, TargetRow[]>();
+    for (const t of mastoTargets) {
+      if (!t.channel_id || !t.workspace_id) continue;
+      const list = byChannel.get(t.channel_id) ?? [];
+      list.push(t);
+      byChannel.set(t.channel_id, list);
+    }
+    for (const [channelId, chTargets] of byChannel) {
+      try {
+        let entry = cache.get(channelId);
+        if (!entry) {
+          const rows = await rest<ChannelRowX[]>(
+            `/rest/v1/connected_channels?id=eq.${encodeURIComponent(channelId)}` +
+              `&select=id,workspace_id,provider,external_id,instance_url,metadata,status,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)&limit=1`,
+          );
+          const ch = rows?.[0];
+          if (!ch) continue;
+          entry = { ch, t: tokenRow(ch), token: await tokenOf(ch, tokenRow(ch)) };
+          cache.set(channelId, entry);
+        }
+        if (chProviderDead(entry.ch)) continue;
+        // Any of OUR statuses (posts or our own replies) may be the parent.
+        const ourIds = new Set(chTargets.map((t) => t.remote_id));
+        const list = await mastodonReplies(entry.ch, entry.token, ourIds);
+        if (!list.length) continue;
+        for (const c of list) {
+          // Attribute the comment to the target whose remote_id is the
+          // conversation parent (top-level replies only; nested ones carry
+          // parent_id and are attributed to the same post via their root).
+          const target =
+            chTargets.find((t) => t.remote_id === c.parent_id) ??
+            chTargets.find((t) => t.remote_id === c.comment_id);
+          if (!target) continue;
+          const rows = [{
+            workspace_id: target.workspace_id,
+            channel_id: target.channel_id,
+            provider: 'mastodon',
+            post_target_id: target.id,
+            comment_id: c.comment_id,
+            parent_id: c.parent_id,
+            author: c.author,
+            author_avatar: c.author_avatar,
+            message: c.message,
+            like_count: c.like_count,
+            created_at: c.created_at ?? new Date().toISOString(),
+          }];
+          await rest<unknown>('/rest/v1/platform_comments', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(rows),
+          });
+          scanned += 1;
+        }
+      } catch (e) {
+        warn(`scan_comments skip mastodon channel ${channelId}: ${e instanceof Error ? e.message : e}`);
+      }
+    }
+  }
+
+  // ---- Per-target providers (facebook / threads / instagram / x).
+  for (const target of otherTargets) {
     if (!target.channel_id || !target.workspace_id) continue;
     try {
       let entry = cache.get(target.channel_id);
