@@ -118,6 +118,16 @@ create trigger trg_platform_comment_notify
   for each row
   execute function public.notify_on_platform_comment();
 
+-- Widen the queue's kind check for the two new kinds (keeps sync_inbox).
+alter table public.job_queue drop constraint if exists job_queue_kind_check;
+alter table public.job_queue add constraint job_queue_kind_check check (
+  kind in (
+    'publish_target','refresh_token','snapshot_analytics','cleanup_media',
+    'send_invite','sync_avatars','send_push','reply_comment','sync_inbox',
+    'delete_post_target','scan_comments'
+  )
+);
+
 -- Hourly comment scan (worker picks the job up on its normal loop).
 select cron.schedule(
   'sosial-enqueue-comment-scan',
