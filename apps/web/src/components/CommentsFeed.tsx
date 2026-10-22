@@ -137,7 +137,7 @@ function PostStrip({ post, platform }: { post: PostContext; platform: string }) 
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-bold uppercase tracking-wide text-faint">
+        <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">
           {meta} post{post.posted_at ? ` · ${when(post.posted_at)}` : ''}
         </span>
         <span className="mt-0.5 block break-words text-xs leading-snug text-soft line-clamp-2">
@@ -255,29 +255,36 @@ export default function CommentsFeed({
   }, [rows]);
 
   // Only the identity of the set matters: polling rewrites `rows` every 20s
-  // but the posts behind them almost never change, so refetching on each
-  // poll would be two queries for nothing.
+  // but the posts behind them never change, so a refetch per poll would be a
+  // query for nothing.
   const postPairKey = postPairs.map((p) => `${p.channel}:${p.external}`).join('|');
-  const fetchedPairs = useRef('');
+  const loadedPairs = useRef('');
 
   useEffect(() => {
+    const want = `${workspaceId}|${postPairKey}`;
     if (!postPairKey) {
-      fetchedPairs.current = '';
+      loadedPairs.current = want;
       setPosts({});
       return;
     }
-    if (fetchedPairs.current === postPairKey) return;
-    fetchedPairs.current = postPairKey;
+    if (loadedPairs.current === want) return;
+    // channel ids are uuids and no platform id carries a colon, so the key
+    // splits back into the pair it was built from.
+    const pairs = postPairKey.split('|').map((k) => {
+      const at = k.indexOf(':');
+      return { channel: k.slice(0, at), external: k.slice(at + 1) };
+    });
     let alive = true;
     void (async () => {
       const sb = createClient();
-      const { data } = await sb
+      const { data, error } = await sb
         .from('comment_posts')
         .select(POST_SELECT)
         .eq('workspace_id', workspaceId)
-        .in('channel_id', [...new Set(postPairs.map((p) => p.channel))])
-        .in('external_id', [...new Set(postPairs.map((p) => p.external))]);
-      if (!alive) return;
+        .in('channel_id', [...new Set(pairs.map((p) => p.channel))])
+        .in('external_id', [...new Set(pairs.map((p) => p.external))]);
+      if (!alive || error) return; // a failed read retries on the next poll
+      loadedPairs.current = want;
       const next: Record<string, PostContext> = {};
       for (const p of (data ?? []) as PostContext[]) next[`${p.channel_id}:${p.external_id}`] = p;
       setPosts(next);
@@ -285,7 +292,7 @@ export default function CommentsFeed({
     return () => {
       alive = false;
     };
-  }, [postPairKey, postPairs, workspaceId]);
+  }, [postPairKey, workspaceId]);
 
   const send = async (threadId: string, target: CommentRow) => {
     const text = (drafts[threadId] ?? '').trim();
