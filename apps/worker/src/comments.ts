@@ -198,9 +198,12 @@ function normalizeBase(instanceUrl: string | null): string {
 }
 
 async function threadsReplies(remoteId: string, token: string): Promise<RawComment[]> {
-  // Threads reads replies of a published thread post.
+  // Threads reads replies of a published thread post. /conversation is the
+  // flattened top-level + nested list; replied_to carries the immediate
+  // parent id so reply chains can reach the inbox. profile_picture_url is
+  // available on the same call — free avatars.
   const r = await fetch(
-    `${THREADS_API}/${encodeURIComponent(remoteId)}/replies?fields=id,text,username,timestamp,like_count,has_replies&limit=25`,
+    `${THREADS_API}/${encodeURIComponent(remoteId)}/conversation?fields=id,text,username,profile_picture_url,timestamp,like_count,has_replies,hide_status,replied_to&limit=40`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   const j: any = await r.json().catch(() => ({}));
@@ -210,9 +213,14 @@ async function threadsReplies(remoteId: string, token: string): Promise<RawComme
     .filter((c: any) => c?.id && typeof c.text === 'string')
     .map((c: any) => ({
       comment_id: String(c.id),
-      parent_id: null,
+      // Nested replies carry their immediate parent on replied_to (a reply
+      // id); top-level replies come with none (or replied_to = the root).
+      parent_id:
+        c?.replied_to?.id && String(c.replied_to.id) !== String(remoteId)
+          ? String(c.replied_to.id)
+          : null,
       author: c?.username ? `@${c.username}` : 'Threads user',
-      author_avatar: null,
+      author_avatar: typeof c.profile_picture_url === 'string' ? c.profile_picture_url : null,
       message: String(c.text),
       like_count: typeof c.like_count === 'number' ? c.like_count : null,
       created_at: typeof c.timestamp === 'string' ? c.timestamp : null,
