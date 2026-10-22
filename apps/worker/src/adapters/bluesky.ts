@@ -16,6 +16,8 @@ import type {
 } from './types';
 
 const XRPC = 'https://bsky.social/xrpc';
+/** Bluesky chat is its own service (did:web:api.bsky.chat) - the PDS does not proxy it. */
+const CHAT = 'https://api.bsky.chat/xrpc';
 
 interface BskyCreds { handle: string; appPassword: string; did?: string }
 
@@ -76,7 +78,7 @@ export const bluesky: InboxAdapter = {
     const c = credsOf(account);
     const r = await httpJson({
       provider: 'bluesky',
-      url: withParams(`${XRPC}/chat.bsky.convo.listConvos`, { limit: 50, cursor: cursor ?? undefined }),
+      url: withParams(`${CHAT}/chat.bsky.convo.listConvos`, { limit: 50, cursor: cursor ?? undefined }),
       headers: { Authorization: `Bearer ${(await session(account, c)).jwt}` },
     });
     if (r.status === 400 && /RequiresAuth|chat/.test(String(r.data?.message ?? ''))) {
@@ -105,7 +107,7 @@ export const bluesky: InboxAdapter = {
     const s = await session(account, c);
     const r = await httpJson({
       provider: 'bluesky',
-      url: withParams(`${XRPC}/chat.bsky.convo.getMessages`, {
+      url: withParams(`${CHAT}/chat.bsky.convo.getMessages`, {
         convoId: conversationId,
         limit: 50,
         cursor: cursor ?? undefined,
@@ -135,7 +137,7 @@ export const bluesky: InboxAdapter = {
     const r = await httpJson({
       provider: 'bluesky',
       method: 'POST',
-      url: `${XRPC}/chat.bsky.convo.sendMessage`,
+      url: `${CHAT}/chat.bsky.convo.sendMessage`,
       headers: { Authorization: `Bearer ${s.jwt}` },
       body: {
         convoId: conversationId,
