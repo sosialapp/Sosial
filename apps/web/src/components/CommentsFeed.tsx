@@ -98,7 +98,7 @@ export default function CommentsFeed({
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<CommentRow[]> => {
     const sb = createClient();
     const { data, error } = await sb
       .from('comments')
@@ -106,8 +106,10 @@ export default function CommentsFeed({
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
       .limit(200);
-    setRows((data ?? []) as CommentRow[]);
+    const next = (data ?? []) as CommentRow[];
+    setRows(next);
     if (error) setErr(error.message);
+    return next;
   }, [workspaceId]);
 
   useEffect(() => {
@@ -131,12 +133,28 @@ export default function CommentsFeed({
       }
       setReplyFor(null);
       setDraft('');
-      // The worker posts and stores our reply as an is_own row; poll for it.
-      for (let i = 0; i < 4; i++) {
+
+      // The worker posts the reply on the platform first, then stores it as an
+      // is_own row. That round trip outlives a short poll, so watch the thread
+      // until the reply (or the parent's replied status) actually shows up.
+      const seen = new Set(
+        (rows ?? [])
+          .filter((r) => r.is_own && r.parent_external_id === row.external_id)
+          .map((r) => r.id),
+      );
+      let landed = false;
+      for (let i = 0; i < 24 && !landed; i++) {
         await new Promise((r) => setTimeout(r, 2500));
-        await load();
+        const next = await load();
+        landed =
+          next.some((r) => r.is_own && r.parent_external_id === row.external_id && !seen.has(r.id)) ||
+          next.some((r) => r.id === row.id && r.status === 'replied');
       }
-      setNote(`Reply sent on ${providerMeta(row.platform).label}.`);
+      setNote(
+        landed
+          ? `Reply sent on ${providerMeta(row.platform).label}.`
+          : 'Reply posted, still syncing into Sosial.',
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not send the reply.');
     } finally {

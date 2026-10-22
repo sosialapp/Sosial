@@ -177,9 +177,19 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       await replyToCommunityComment(c.id, text);
       setDraft('');
       setReplyFor(null);
-      for (let i = 0; i < 4; i++) {
+      // The worker posts on the platform first, then stores our reply as an
+      // is_own row; keep watching the thread until that row lands.
+      const seen = new Set(
+        comments.filter((r) => r.is_own && r.parent_external_id === c.external_id).map((r) => r.id),
+      );
+      let landed = false;
+      for (let i = 0; i < 24 && !landed; i++) {
         await new Promise((r) => setTimeout(r, 2500));
-        setComments(await fetchCommunityComments());
+        const next = await fetchCommunityComments();
+        setComments(next);
+        landed =
+          next.some((r) => r.is_own && r.parent_external_id === c.external_id && !seen.has(r.id)) ||
+          next.some((r) => r.id === c.id && r.status === 'replied');
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not send the reply.');
