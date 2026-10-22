@@ -24,6 +24,14 @@ export default function AuthModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const t = useT(authMessages);
+  // The parent recreates onClose on every render; keeping it in a ref stops
+  // the effects below from tearing down and re-running on unrelated renders
+  // (a scroll, the keyboard resizing the viewport) and stealing focus back
+  // to the email field while the user is typing the password.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => setMounted(true), []);
 
@@ -31,7 +39,7 @@ export default function AuthModal({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -55,15 +63,23 @@ export default function AuthModal({
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
-    const t = window.setTimeout(() => {
-      dialogRef.current?.querySelector<HTMLInputElement>('input[type="email"]')?.focus();
-    }, 40);
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
-      window.clearTimeout(t);
     };
-  }, [open, onClose]);
+  }, [open]);
+
+  // Autofocus the email field once per open, and never over a field the user
+  // has already moved to.
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setTimeout(() => {
+      const root = dialogRef.current;
+      if (!root || root.contains(document.activeElement)) return;
+      root.querySelector<HTMLInputElement>('input[type="email"]')?.focus();
+    }, 40);
+    return () => window.clearTimeout(id);
+  }, [open]);
 
   if (!open || !mounted) return null;
 
