@@ -301,12 +301,24 @@ export async function handleSyncComments(job: Job): Promise<void> {
   }
   if (!remoteIds.size) { debug(`sync_comments channel ${channelId}: no posts`); return; }
 
+  let failed = 0;
+  let firstError: unknown = null;
   for (const remoteId of remoteIds) {
-    let page = await adapter.listComments(account, remoteId, null);
-    let flat = page.items;
-    if (page.cursor) { // one extra page — existing threads don't grow that fast
-      const more = await adapter.listComments(account, remoteId, page.cursor);
-      flat = flat.concat(more.items);
+    let flat: NormalizedComment[];
+    try {
+      let page = await adapter.listComments(account, remoteId, null);
+      flat = page.items;
+      if (page.cursor) { // one extra page — existing threads don't grow that fast
+        const more = await adapter.listComments(account, remoteId, page.cursor);
+        flat = flat.concat(more.items);
+      }
+    } catch (e: any) {
+      // A post deleted on the platform (or one we lost access to) must not
+      // kill the sweep for every other thread on the channel.
+      failed++;
+      firstError ??= e;
+      warn(`sync_comments channel ${channelId}: post ${remoteId} unreadable (${String(e?.message ?? e).slice(0, 120)})`);
+      continue;
     }
     const rows: NormalizedComment[] = flat.map((cm) => ({
       ...cm,
@@ -340,6 +352,9 @@ export async function handleSyncComments(job: Job): Promise<void> {
     void newRows;
     debug(`sync_comments channel ${channelId} post ${remoteId}: ${rows.length} seen, ${newRows.length} new`);
   }
+
+  // Nothing readable at all is an auth/permission failure, not a dead post.
+  if (failed && failed === remoteIds.size) throw firstError;
 }
 
 
