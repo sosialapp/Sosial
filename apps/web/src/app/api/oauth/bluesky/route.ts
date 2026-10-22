@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     handle?: string;
     display_name?: string;
     instance_url?: string;
+    token_type?: string;
     metadata?: Record<string, string>;
   };
   const fail = payload.error ?? fnErr?.message;
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
       access_token: payload.access_token,
       refresh_token: payload.refresh_token,
       expires_at: payload.expires_at,
+      token_type: payload.token_type,
     },
   });
   if (impErr) return Response.json({ error: impErr.message }, { status: 502 });

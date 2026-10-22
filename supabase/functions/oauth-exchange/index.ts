@@ -458,15 +458,17 @@ async function bluesky(b: ExchangeBody): Promise<Response> {
     if (gj.avatar) avatar = String(gj.avatar);
   } catch { /* best-effort */ }
   return ok({
-    // Session tokens only, the app password itself is never stored.
-    access_token: String(sj.accessJwt),
-    refresh_token: str(sj.refreshJwt) || undefined,
-    expires_at: iso(Date.now() + 110 * 60 * 1000),
+    // The APP PASSWORD is the stored credential, not the session JWT: the
+    // unified sync engine mints its own 40-min-cached sessions per sweep
+    // from Vault (createSession per sync), and JWTs die in ~2h while app
+    // passwords live until revoked. The verify session is discarded here.
+    access_token: b.app_password,
     external_id: String(sj.did ?? did),
     handle,
     display_name: handle ? `@${handle}` : undefined,
     instance_url: pdsHost,
-    metadata: avatar ? { avatar } : {},
+    token_type: "AppPassword",
+    metadata: { bluesky_handle: handle, ...(avatar ? { avatar } : {}) },
   });
 }
 

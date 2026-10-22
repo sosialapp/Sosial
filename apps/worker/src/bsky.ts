@@ -66,47 +66,74 @@ function linkFacets(text: string): any[] {
 }
 
 async function xrpc(pdsHost: string, method: string, token: string, body: any, contentType: string): Promise<any> {
+  const headers: Record<string, string> = { 'Content-Type': contentType };
+  if (token) headers.Authorization = `Bearer ${token}`;
   const r = await fetch(`${pdsHost}/xrpc/${method}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
+    headers,
     body,
   });
   const j: any = await r.json().catch(() => ({}));
   return { status: r.status, ok: r.ok, json: j };
 }
 
-/** Live session, refreshing proactively (10-min margin, mirrors the app). */
+/** Session access tokens are JWTs ('ey….'); app passwords never look like one. */
+function jwtLike(tok: string): boolean {
+  return /^ey[A-Za-z0-9_-]+\./.test(tok);
+}
+
+/** Live session from whatever credential shape the channel stores:
+ *  - app password (unified connect, p94): mint a session per call from Vault
+ *  - session JWT (legacy channels): use it, refresh proactively (10-min
+ *    margin, mirrors the app) via refreshSession
+ */
 export async function ensureSession(b: Bundle, force = false): Promise<Session> {
   const pdsHost = b.channel.instance_url || 'https://bsky.social';
   const did = b.channel.external_id;
   if (!did) throw new Error('Bluesky channel missing DID, re-enable cloud publishing.');
-  const fresh =
-    !force &&
-    b.secrets.expires_at &&
-    Date.parse(b.secrets.expires_at) > Date.now() + 600000;
-  if (fresh && b.secrets.access_secret_id) {
-    const access = await readSecret(b.secrets.access_secret_id);
-    if (access) return { token: access, did, pdsHost };
+  const access = b.secrets.access_secret_id ? await readSecret(b.secrets.access_secret_id) : null;
+  if (!access) throw new Error('Bluesky token missing, re-enable cloud publishing.');
+
+  if (jwtLike(access)) {
+    const fresh =
+      !force &&
+      b.secrets.expires_at &&
+      Date.parse(b.secrets.expires_at) > Date.now() + 600000;
+    if (fresh) return { token: access, did, pdsHost };
+    if (b.secrets.refresh_secret_id) {
+      const refresh = await readSecret(b.secrets.refresh_secret_id);
+      if (refresh) {
+        const r = await xrpc(pdsHost, 'com.atproto.server.refreshSession', refresh, '', 'application/json');
+        if (r.ok && r.json?.accessJwt) {
+          const newAccess = String(r.json.accessJwt);
+          const newRefresh = String(r.json.refreshJwt || refresh);
+          // Rotate in place, secret ids stay stable, worker + app keep working.
+          if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
+          await updateSecret(b.secrets.refresh_secret_id, newRefresh);
+          await restPatchByChannel(b.channel.id, {
+            expires_at: new Date(Date.now() + 110 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          return { token: newAccess, did: String(r.json.did || did), pdsHost };
+        }
+      }
+    }
+    throw new Error('Bluesky session expired, reconnect in Connect to refresh.');
   }
-  if (!b.secrets.refresh_secret_id) {
-    throw new Error('Bluesky session expired, toggle cloud publishing off and on in Connect to refresh.');
-  }
-  const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('Bluesky session expired, toggle cloud publishing off and on in Connect to refresh.');
-  const r = await xrpc(pdsHost, 'com.atproto.server.refreshSession', refresh, '', 'application/json');
+
+  // App-password credential: mint a short-lived session, nothing stored.
+  const identifier = String(b.channel.metadata?.bluesky_handle ?? did);
+  const r = await xrpc(
+    pdsHost,
+    'com.atproto.server.createSession',
+    '',
+    JSON.stringify({ identifier, password: access }),
+    'application/json',
+  );
   if (!r.ok || !r.json?.accessJwt) {
-    throw new Error('Bluesky session expired, toggle cloud publishing off and on in Connect to refresh.');
+    throw new Error('Bluesky rejected the app password (invalid or revoked). Reconnect the channel in Connect.');
   }
-  const newAccess = String(r.json.accessJwt);
-  const newRefresh = String(r.json.refreshJwt || refresh);
-  // Rotate in place, secret ids stay stable, worker + app keep working.
-  if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
-  await updateSecret(b.secrets.refresh_secret_id, newRefresh);
-  await restPatchByChannel(b.channel.id, {
-    expires_at: new Date(Date.now() + 110 * 60 * 1000).toISOString(),
-    updated_at: new Date().toISOString(),
-  });
-  return { token: newAccess, did: String(r.json.did || did), pdsHost };
+  return { token: String(r.json.accessJwt), did: String(r.json.did || did), pdsHost };
 }
 
 async function restPatchByChannel(channelId: string, body: Record<string, any>): Promise<void> {

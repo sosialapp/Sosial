@@ -30,7 +30,21 @@ function credsOf(account: Account): BskyCreds {
 interface Session { jwt: string; did: string; at: number; for: BskyCreds }
 const sessionCache = new Map<string, Session>();
 
+/** Session access tokens are JWTs ('ey….'); app passwords never look like one. */
+function jwtLike(tok: string): boolean {
+  return /^ey[A-Za-z0-9_-]+\./.test(tok);
+}
+
 async function session(account: Account, c: BskyCreds): Promise<Session> {
+  // Legacy channels store a session JWT in Vault (pre-unified connect):
+  // use it as-is so they keep working until the owner reconnects.
+  if (jwtLike(c.appPassword)) {
+    const cached = sessionCache.get(account.id);
+    if (cached && cached.for === c) return cached;
+    const s: Session = { jwt: c.appPassword, did: c.did ?? account.externalId, at: Date.now(), for: c };
+    sessionCache.set(account.id, s);
+    return s;
+  }
   const hit = sessionCache.get(account.id);
   if (hit && hit.for.handle === c.handle && hit.for.appPassword === c.appPassword && Date.now() - hit.at < 40 * 60_000) {
     return hit;
