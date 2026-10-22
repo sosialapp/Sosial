@@ -884,12 +884,18 @@ export default function ScheduleXBoard({
               : (m.thumb_url ?? m.signed_url ?? ''),
         }))
         .filter((t): t is { id: string; kind: 'video' | 'image'; src: string } => Boolean(t.src));
+      // The block is a visual size, not a duration. Schedule-X files any event
+      // whose end lands on the next date in the all-day row — and that row sits
+      // inside the sticky week header, so a late post appeared pinned over the
+      // day names. Clamp to the last minute of the start day.
+      const blockEnd = start.add({ minutes: thumbs.length === 0 ? 75 : thumbs.length === 1 ? 150 : 135 });
+      const dayEnd = start.startOfDay().add({ days: 1 }).subtract({ seconds: 1 });
+      const end = Temporal.ZonedDateTime.compare(blockEnd, dayEnd) > 0 ? dayEnd : blockEnd;
       out.push({
         id: p.id,
         title: snippet(p),
         start,
-        // Block height follows content: text-only stays compact, media gets room.
-        end: start.add({ minutes: thumbs.length === 0 ? 75 : thumbs.length === 1 ? 150 : 135 }),
+        end,
         calendarId: statusCalendar(p.status),
         sxProvider: t0?.provider,
         sxAvatar: t0 ? avatarOf(t0.channel_id) : undefined,
