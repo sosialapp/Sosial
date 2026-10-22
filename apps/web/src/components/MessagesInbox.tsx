@@ -201,18 +201,26 @@ export default function MessagesInbox({
     setDraft('');
     try {
       const sb = createClient();
-      const { error } = await sb.functions.invoke('inbox-send', {
+      const { data, error } = await sb.functions.invoke('inbox-send', {
         body: { conversation_id: open.id, text },
       });
       if (error) {
         const detail = await edgeErrorMessage(error);
         throw new Error(detail ?? error.message);
       }
-      // The worker sends on the platform async; give it a beat, then read
-      // the stored (provider-id'd) message.
-      await new Promise((r) => setTimeout(r, 6000));
-      await loadThread(open.id);
-      await loadConvs();
+      // inbox-send answers 200 for business refusals too (plan gate, capped
+      // text, provider not supported); only `ok:false` means nothing queued.
+      const res = data as { ok?: boolean; error?: string } | null;
+      if (res && res.ok === false) {
+        throw new Error(res.error ?? 'Could not queue the message.');
+      }
+      // The worker sends on the platform async; poll briefly for the stored
+      // (provider-id'd) message instead of trusting one fixed sleep.
+      for (let i = 0; i < 5; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        await loadThread(open.id);
+        await loadConvs();
+      }
     } catch (e) {
       setMsgs((m) => (m ?? []).filter((x) => x.id !== optimistic.id));
       setErr(e instanceof Error ? e.message : 'Could not send the message.');
