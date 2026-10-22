@@ -200,6 +200,9 @@ export async function handleSyncInbox(job: Job): Promise<void> {
         const have = new Set((stored ?? []).map((x) => String(x)));
         newMessages = newMessages.concat(mp.items.filter((m) => !have.has(m.externalId)));
         if (newMessages.length) {
+          // Two sweeps can overlap on the same thread (cron + webhook), and
+          // both see the same unseen message. Ignore the loser instead of
+          // losing the whole batch to a 23505.
           await restInsert('messages', newMessages.map((m) => ({
             conversation_id: row.id,
             external_id: m.externalId,
@@ -208,7 +211,7 @@ export async function handleSyncInbox(job: Job): Promise<void> {
             attachments: m.attachments ?? [],
             sent_at: m.sentAt,
             status: 'sent',
-          })));
+          })), { onConflict: 'conversation_id,external_id' });
         }
         cursor = mp.cursor;
         await restPatch('conversations', row.id, { cursor });
@@ -371,7 +374,7 @@ export async function handleSendMessage(job: Job): Promise<void> {
     attachments: (attachmentUrls ?? []).map((url) => ({ url })),
     sent_at: res.sentAt,
     status: 'sent',
-  }]);
+  }], { onConflict: 'conversation_id,external_id' });
   await restPatch('conversations', conv.id, { last_message_at: res.sentAt, cursor: null });
 }
 
