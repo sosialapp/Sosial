@@ -6,7 +6,9 @@ import { restPatch } from './rest';
 import { warn } from './logger';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
-const FIELDS = 'messages,messaging_postbacks,messaging_reactions,comments,feed';
+// `comments` and `messaging_reactions` need extra review; requesting a denied
+// field fails the whole call, and `feed` already carries comment events.
+const FIELDS = 'messages,messaging_postbacks,feed';
 
 interface Row {
   id: string;
