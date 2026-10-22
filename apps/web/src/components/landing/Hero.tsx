@@ -72,7 +72,7 @@ export default function Hero() {
             </button>
           </div>
         </div>
-        <div className="animate-rise-2 relative -mx-4 sm:mx-0">
+        <div className="animate-rise-2 relative">
           <Image
             src="/hero-devices.png"
             alt="Sosial composer on a laptop beside the Sosial home screen on a phone"
