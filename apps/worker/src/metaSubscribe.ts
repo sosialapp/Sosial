@@ -49,6 +49,19 @@ export async function ensureMetaWebhook(channelId: string): Promise<'subscribed'
     webhookReady: ok,
     webhookCheckedAt: new Date().toISOString(),
   };
+  if (c.provider === 'instagram') {
+    // Instagram Login hands out two ids: the app-scoped `id` we store in
+    // external_id and the professional `user_id` that webhook entries and
+    // message participants carry. Keep both so the receiver can match either.
+    const me = await fetch(`${IG_GRAPH}/me?fields=id,user_id,username`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .catch(() => null);
+    if (me?.user_id) meta.igUserId = String(me.user_id);
+    if (me?.id) meta.igScopedId = String(me.id);
+    if (me?.username) meta.igUsername = String(me.username);
+  }
   if (ok) {
     delete meta.webhookError;
   } else {

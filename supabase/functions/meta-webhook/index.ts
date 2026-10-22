@@ -76,6 +76,28 @@ serve(async (req: Request): Promise<Response> => {
   const jobs = new Map<string, Record<string, unknown>>();
   const runAt = new Date().toISOString();
 
+  // Instagram Login has two ids for one account: the app-scoped id in
+  // external_id and the professional id webhook entries carry. Match either,
+  // so resolve the whole (small) IG set once instead of querying per entry.
+  let igById: Map<string, string[]> | null = null;
+  if (provider === "instagram") {
+    const { data } = await admin
+      .from("connected_channels")
+      .select("id,external_id,metadata")
+      .eq("provider", "instagram")
+      .eq("status", "connected");
+    igById = new Map<string, string[]>();
+    for (const c of (data ?? []) as { id: string; external_id: string; metadata: any }[]) {
+      for (const key of [c.external_id, c.metadata?.igUserId, c.metadata?.igScopedId]) {
+        const k = String(key ?? "");
+        if (!k) continue;
+        const list = igById.get(k) ?? [];
+        list.push(c.id);
+        igById.set(k, list);
+      }
+    }
+  }
+
   const queue = (kind: string, channelId: string, eventKey: string) => {
     const idempotency_key = `wh:${kind}:${channelId}:${eventKey}`;
     jobs.set(idempotency_key, {
@@ -90,13 +112,18 @@ serve(async (req: Request): Promise<Response> => {
     const externalId = String(entry?.id ?? "");
     if (!externalId) continue;
 
-    const { data: channels } = await admin
-      .from("connected_channels")
-      .select("id")
-      .eq("provider", provider)
-      .eq("external_id", externalId)
-      .eq("status", "connected");
-    const ids = ((channels ?? []) as { id: string }[]).map((c) => c.id);
+    let ids: string[];
+    if (igById) {
+      ids = igById.get(externalId) ?? [];
+    } else {
+      const { data: channels } = await admin
+        .from("connected_channels")
+        .select("id")
+        .eq("provider", provider)
+        .eq("external_id", externalId)
+        .eq("status", "connected");
+      ids = ((channels ?? []) as { id: string }[]).map((c) => c.id);
+    }
     if (!ids.length) continue;
 
     for (const m of Array.isArray(entry?.messaging) ? entry.messaging : []) {
