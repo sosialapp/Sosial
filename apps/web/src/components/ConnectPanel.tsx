@@ -937,14 +937,20 @@ export default function ConnectPanel({
                       <p className="text-[11px] leading-relaxed text-muted">
                         {t('cnBskyNote')}
                       </p>
-                      <input
-                        value={bskyHandle}
-                        onChange={(e) => setBskyHandle(e.target.value)}
-                        placeholder={t('cnBskyHandlePh')}
-                        autoComplete="username"
-                        aria-label={t('cnBskyHandleAria')}
-                        className="field !text-xs"
-                      />
+                      <label className="flex items-center gap-0 rounded-xl border border-line bg-card focus-within:border-accent">
+                        <span className="pl-3 pr-1 text-xs font-bold text-muted" aria-hidden="true">
+                          @
+                        </span>
+                        <input
+                          value={bskyHandle}
+                          onChange={(e) => setBskyHandle(e.target.value.replace(/^@+/, '').trim())}
+                          placeholder={t('cnBskyHandlePh')}
+                          autoComplete="off"
+                          aria-label={t('cnBskyHandleAria')}
+                          className="field !min-w-0 !flex-1 !rounded-none !border-0 !bg-transparent !text-xs focus:!ring-0"
+                        />
+                      </label>
+                      <p className="px-1 text-[10px] leading-relaxed text-faint">{t('cnBskyOk')}</p>
                       <input
                         value={bskyPass}
                         onChange={(e) => setBskyPass(e.target.value)}
