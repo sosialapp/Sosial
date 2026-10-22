@@ -78,5 +78,9 @@ export interface InboxAdapter {
     content: { text: string; attachmentUrls?: string[] },
   ): Promise<SendResult>;
   listComments(account: Account, postId: string, cursor: string | null): Promise<Page<NormalizedComment>>;
+  /** Own posts that can carry comments, for platforms where Sosial can
+   *  enumerate the account timeline. Optional: providers without a cheap
+   *  "my posts" read keep the Sosial-published list only. */
+  listOwnPosts?(account: Account, limit: number): Promise<{ externalId: string; commentCount: number }[]>;
   replyToComment(account: Account, commentId: string, content: { text: string }): Promise<SendResult>;
 }

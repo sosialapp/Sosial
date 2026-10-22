@@ -212,11 +212,27 @@ export async function handleSyncComments(job: Job): Promise<void> {
     `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}&provider=eq.${encodeURIComponent(c.provider)}` +
       `&status=eq.sent&remote_id=not.is.null&select=id,remote_id&limit=${COMMENTS_POSTS_PER_SWEEP}`,
   );
-  if (!targets?.length) { debug(`sync_comments channel ${channelId}: no published posts`); return; }
 
-  for (const t of targets) {
-    const remoteId = String(t.remote_id ?? '');
-    if (!remoteId) continue;
+  // Threads to read: posts Sosial published, plus (when the platform lets us
+  // enumerate the account timeline) any own post that already has replies -
+  // comments on posts published outside Sosial belong in the same inbox.
+  const remoteIds = new Set<string>();
+  for (const t of targets ?? []) {
+    const id = String(t.remote_id ?? '');
+    if (id) remoteIds.add(id);
+  }
+  if (adapter.listOwnPosts) {
+    try {
+      const own = await adapter.listOwnPosts(account, COMMENTS_POSTS_PER_SWEEP);
+      for (const p of own) if (p.commentCount > 0) remoteIds.add(p.externalId);
+      debug(`sync_comments channel ${channelId}: ${own.length} own posts, ${remoteIds.size} threads`);
+    } catch (e: any) {
+      warn(`sync_comments channel ${channelId}: own posts unavailable (${String(e?.message ?? e).slice(0, 120)})`);
+    }
+  }
+  if (!remoteIds.size) { debug(`sync_comments channel ${channelId}: no posts`); return; }
+
+  for (const remoteId of remoteIds) {
     let page = await adapter.listComments(account, remoteId, null);
     let flat = page.items;
     if (page.cursor) { // one extra page — existing threads don't grow that fast
@@ -269,7 +285,7 @@ async function notifyNewComments(c: DbChannel, rows: any[]): Promise<void> {
       kind: 'comment',
       title: `New comment from ${cm.author_name ?? 'someone'}`.slice(0, 120),
       body: String(cm.body ?? '').slice(0, 200),
-      href: '/comments',
+      href: '/community',
     }))));
   } catch (e) {
     warn(`comment bell failed (channel ${c.id}): ${String(e)}`);

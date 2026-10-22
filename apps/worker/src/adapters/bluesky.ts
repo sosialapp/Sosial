@@ -154,6 +154,26 @@ export const bluesky: InboxAdapter = {
     return { externalId: String(r.data?.id ?? ''), sentAt: new Date().toISOString() };
   },
 
+  async listOwnPosts(account, limit): Promise<{ externalId: string; commentCount: number }[]> {
+    // Comments are threads on any of the account's posts, not only the ones
+    // Sosial happened to publish (older factory posts, manual posts). The
+    // author feed is the only official way to enumerate them.
+    const c = credsOf(account);
+    const s = await session(account, c);
+    const r = await httpJson({
+      provider: 'bluesky',
+      url: withParams(`${XRPC}/app.bsky.feed.getAuthorFeed`, { actor: s.did, limit }),
+      headers: { Authorization: `Bearer ${s.jwt}` },
+    });
+    if (r.status !== 200 && r.status !== 201) throw httpError('Bluesky posts', r.data, r.status);
+    return (r.data?.feed ?? [])
+      .filter((it: any) => it?.post?.uri && !it?.reason)
+      .map((it: any) => ({
+        externalId: String(it.post.uri),
+        commentCount: Math.max(0, Number(it.post.replyCount ?? 0)),
+      }));
+  },
+
   async listComments(account, postId, cursor): Promise<Page<NormalizedComment>> {
     // postId is the at-uri of a Sosial-published status. getPostThread
     // returns the full reply tree — the flat normalized list rides out.
