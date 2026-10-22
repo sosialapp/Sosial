@@ -98,7 +98,10 @@ export async function refreshChannelToken(
   channelId: string,
 ): Promise<'refreshed' | 'skipped'> {
   const c = await getChannel(channelId);
-  if (!c || c.status !== 'connected') return 'skipped';
+  // Expired channels are retried too: Sync doubles as a repair button, and a
+  // credential that was only marked dead by an earlier failed check (or a
+  // transient provider outage) can come back valid.
+  if (!c || (c.status !== 'connected' && c.status !== 'expired')) return 'skipped';
   if (!(REFRESHABLE_PROVIDERS as readonly string[]).includes(c.provider)) return 'skipped';
 
   /** Bell-notify owner+admins that this channel's auth is dead (p62). The DB
@@ -160,8 +163,13 @@ export async function refreshChannelToken(
         return 'skipped';
     }
     // Touch the channel so "last checked" is visible; the helpers already
-    // persisted any rotated secrets + expires_at.
-    await restPatch('connected_channels', c.id, { updated_at: new Date().toISOString() });
+    // persisted any rotated secrets + expires_at. A pass clears an earlier
+    // expired verdict, that is the health check actually repairing a channel.
+    await restPatch('connected_channels', c.id, {
+      status: 'connected',
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    });
     info(`refresh ${c.provider}/${c.external_id}: ok`);
     return 'refreshed';
   } catch (e: any) {

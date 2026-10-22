@@ -63,9 +63,9 @@ serve(async (req: Request): Promise<Response> => {
 
   const { data: channels, error: cErr } = await admin
     .from("connected_channels")
-    .select("id")
+    .select("id,status")
     .eq("workspace_id", workspace_id)
-    .eq("status", "connected");
+    .in("status", ["connected", "expired"]);
   if (cErr) return bad("Could not list channels.", 500);
   const ids = ((channels ?? []) as { id: string }[]).map((c) => c.id);
 

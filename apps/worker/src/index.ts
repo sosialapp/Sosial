@@ -13,6 +13,27 @@ declare const process: any;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+/** Reject when a dispatch overruns. The provider call keeps running in the
+ *  background, but the loop moves on instead of starving the queue. */
+function withTimeout(p: Promise<void>, ms: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const t = setTimeout(
+      () => reject(new Error(`job timed out after ${Math.round(ms / 1000)}s`)),
+      ms,
+    );
+    p.then(
+      () => {
+        clearTimeout(t);
+        resolve();
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 async function main(): Promise<void> {
   initDb();
   // Fail fast when pointed at the wrong project, service key is per-project.
@@ -24,6 +45,9 @@ async function main(): Promise<void> {
   // resets the delay immediately, so real work never waits for the ceiling.
   const idleMaxMs = Number(env('WORKER_IDLE_MAX_MS', '60000')) || 60000;
   const errorMs = Number(env('WORKER_ERROR_MS', '15000')) || 15000;
+  // Ceiling for one job. Publish/media jobs are allowed to be slow, sync and
+  // refresh jobs are pure JSON and must never hold the loop hostage.
+  const jobMs = Number(env('WORKER_JOB_TIMEOUT_MS', '120000')) || 120000;
   let stopped = false;
   try {
     process?.on?.('SIGTERM', () => { stopped = true; });
@@ -43,7 +67,7 @@ async function main(): Promise<void> {
       backoff = idleMs;
       info(`claimed job ${job.id} kind=${job.kind} attempt=${job.attempts}/${job.max_attempts}`);
       try {
-        await dispatch(job);
+        await withTimeout(dispatch(job), jobMs);
         await completeJob(job.id, true);
         debug(`job ${job.id} done`);
       } catch (e: any) {

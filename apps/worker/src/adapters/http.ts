@@ -11,6 +11,12 @@ const QPS: Record<string, number> = {
 
 const lastCall = new Map<string, number>();
 
+/** Hard per-request ceiling. Without it a silent TCP stall parks the job
+ *  (and the whole claim loop) for minutes, which is what made Sync look
+ *  broken: health checks queued behind hung provider calls. */
+const TIMEOUT_MS =
+  Number((globalThis as any)?.process?.env?.WORKER_HTTP_TIMEOUT_MS ?? 15000) || 15000;
+
 async function respectBudget(provider: string): Promise<void> {
   const qps = QPS[provider] ?? 2;
   const minGap = 1000 / qps;
@@ -56,6 +62,7 @@ export async function httpJson<T = any>(opts: HttpOpts, attempts = 3): Promise<{
         method: opts.method ?? 'GET',
         headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
         ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch (e) {
       if (i === attempts - 1) throw e instanceof Error ? e : new Error(String(e));
@@ -73,7 +80,9 @@ export async function httpJson<T = any>(opts: HttpOpts, attempts = 3): Promise<{
     if (r.status === 429) {
       const ra = Number(r.headers.get('retry-after') ?? 60);
       if (i === attempts - 1) throw new RateLimited(ra);
-      await new Promise((r2) => setTimeout(r2, Math.min(ra, 120) * 1000));
+      // Cap the park: a provider can ask for an hour, but a job holding the
+      // loop that long starves every other channel's sync.
+      await new Promise((r2) => setTimeout(r2, Math.min(ra, 30) * 1000));
       continue;
     }
     if (r.status >= 500 && i < attempts - 1) {
