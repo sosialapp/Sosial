@@ -37,7 +37,7 @@ interface DbChannel {
     | null;
 }
 
-const UNIFIED_PROVIDERS = ['facebook', 'instagram', 'mastodon', 'x', 'bluesky'];
+const UNIFIED_PROVIDERS = ['facebook', 'instagram', 'mastodon', 'x', 'bluesky', 'threads'];
 
 async function loadChannel(channelId: string): Promise<DbChannel | null> {
   const rows = await rest<DbChannel[]>(
@@ -113,6 +113,12 @@ export async function handleSyncInbox(job: Job): Promise<void> {
   }
   const adapter = adapterFor(c.provider);
   const account = accountOf(c, await channelToken(c));
+
+  // Comments-only providers (Threads) have no DM surface: nothing to sync.
+  if (!adapter.capabilities().inbox) {
+    debug(`sync_inbox channel ${channelId}: ${c.provider} has no messaging API, skipping`);
+    return;
+  }
 
   // A provider that refuses DM reads for a plan/scope reason will refuse
   // forever; probing every 5 minutes only fills the dead-letter queue. Back
@@ -264,6 +270,10 @@ export async function handleSyncComments(job: Job): Promise<void> {
   }
   const adapter = adapterFor(c.provider);
   const account = accountOf(c, await channelToken(c));
+
+  if (!adapter.capabilities().comments) {
+    throw new Error(`Unified comments for ${c.provider} are not supported yet.`);
+  }
 
   // Comment sources = published posts (remote ids). Phase 1 covers the
   // newest 20 posts per sweep; older threads resync on demand.

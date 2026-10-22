@@ -6,8 +6,8 @@
 // Gate: caller must be an ACTIVE member of the comment's workspace
 // (comment → connected_channels → workspace_members via their JWT —
 // never trust body workspace ids). The reply posts AS the connected
-// identity, matching the publishing model. Phase-1 providers only:
-// facebook, instagram, mastodon, x, bluesky — others (threads/youtube/
+// identity, matching the publishing model. Supported providers:
+// facebook, instagram, threads, mastodon, x, bluesky — others (youtube/
 // linkedin/tiktok/pinterest) refuse with a plain-language error.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -23,9 +23,8 @@ function bad(msg: string, status = 400): Response {
   return Response.json({ error: msg }, { status, headers: CORS });
 }
 
-const SUPPORTED = new Set(["facebook", "instagram", "mastodon", "x", "bluesky"]);
+const SUPPORTED = new Set(["facebook", "instagram", "threads", "mastodon", "x", "bluesky"]);
 const NOT_YET: Record<string, string> = {
-  threads: "Unified comments for Threads are coming in the next release.",
   youtube: "Unified comments for YouTube are planned.",
   linkedin: "Unified comments for LinkedIn are planned.",
   tiktok: "Unified comments for TikTok are planned.",

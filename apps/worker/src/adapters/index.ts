@@ -9,6 +9,7 @@ import { instagram } from './instagram';
 import { mastodon } from './mastodon';
 import { x } from './x';
 import { bluesky } from './bluesky';
+import { threads } from './threads';
 
 const registry: Record<string, InboxAdapter> = {
   facebook,
@@ -16,11 +17,11 @@ const registry: Record<string, InboxAdapter> = {
   mastodon,
   x,
   bluesky,
+  threads,
 };
 
 /** Providers with chat/comment capability but no unified support yet. */
 const notAvailable: Record<string, string> = {
-  threads: 'Unified Inbox for Threads is coming in the next release — comments sync still runs per-post.',
   youtube: 'Comments for YouTube are planned; DMs are not offered by the API.',
   linkedin: 'Unified messaging for LinkedIn is planned.',
   tiktok: 'Unified messaging for TikTok is not available — the API only exposes comments.',

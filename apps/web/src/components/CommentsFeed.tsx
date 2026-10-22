@@ -33,10 +33,9 @@ interface CommentRow {
   is_own: boolean;
 }
 
-/** Providers the sync engine can reply on (phase 1). */
-const REPLY_PROVIDERS = new Set(['facebook', 'instagram', 'x', 'mastodon', 'bluesky']);
+/** Providers the sync engine can reply on. */
+const REPLY_PROVIDERS = new Set(['facebook', 'instagram', 'threads', 'x', 'mastodon', 'bluesky']);
 const NO_REPLY_TEXT: Record<string, string> = {
-  threads: 'Unified comments for Threads are coming in the next release.',
   youtube: 'Replies for YouTube are planned.',
   linkedin: 'Replies for LinkedIn are planned.',
   tiktok: 'Replies for TikTok are planned.',
