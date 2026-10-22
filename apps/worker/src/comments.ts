@@ -39,9 +39,12 @@ interface TargetRow {
   remote_id: string;
   channel_id: string | null;
   provider: string;
-  workspace_id: string;
+  posts?: { workspace_id: string } | null;
   post_created_by: string | null;
 }
+
+/** Workspace of the target's post (post_targets itself carries no workspace). */
+const wsOf = (t: TargetRow): string => t.posts?.workspace_id ?? '';
 
 interface ChannelRowX extends ChannelRow {
   workspace_id: string;
@@ -219,9 +222,12 @@ export async function handleScanComments(_job: Job): Promise<void> {
   // channel (notifications), the rest per target (per-post reads).
   const targets = await rest<TargetRow[]>(
     `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads,instagram,x,mastodon)` +
-      `&remote_id=neq.&select=id,post_id,remote_id,channel_id,provider,workspace_id,posts(created_by)` +
+      `&remote_id=neq.&select=id,post_id,remote_id,channel_id,provider,posts(workspace_id)` +
       `&order=updated_at.desc&limit=100`,
-  ).catch(() => [] as TargetRow[]);
+  ).catch((e) => {
+    debug(`scan_comments: target read failed: ${String(e)}`);
+    return [] as TargetRow[];
+  });
   debug(`scan_comments: ${targets?.length ?? 0} candidate targets`);
 
   const cache = new Map<string, { ch: ChannelRowX; t: TokenRow; token: string }>();
@@ -233,7 +239,7 @@ export async function handleScanComments(_job: Job): Promise<void> {
   if (mastoTargets.length) {
     const byChannel = new Map<string, TargetRow[]>();
     for (const t of mastoTargets) {
-      if (!t.channel_id || !t.workspace_id) continue;
+      if (!t.channel_id || !wsOf(t)) continue;
       const list = byChannel.get(t.channel_id) ?? [];
       list.push(t);
       byChannel.set(t.channel_id, list);
@@ -265,7 +271,7 @@ export async function handleScanComments(_job: Job): Promise<void> {
             chTargets.find((t) => t.remote_id === c.comment_id);
           if (!target) continue;
           const rows = [{
-            workspace_id: target.workspace_id,
+            workspace_id: wsOf(target),
             channel_id: target.channel_id,
             provider: 'mastodon',
             post_target_id: target.id,
@@ -292,7 +298,7 @@ export async function handleScanComments(_job: Job): Promise<void> {
 
   // ---- Per-target providers (facebook / threads / instagram / x).
   for (const target of otherTargets) {
-    if (!target.channel_id || !target.workspace_id) continue;
+    if (!target.channel_id || !wsOf(target)) continue;
     try {
       let entry = cache.get(target.channel_id);
       if (!entry) {
@@ -320,7 +326,7 @@ export async function handleScanComments(_job: Job): Promise<void> {
 
       if (!list.length) continue;
             const rows = list.map((c) => ({
-        workspace_id: target.workspace_id,
+        workspace_id: wsOf(target),
         channel_id: target.channel_id,
         provider: target.provider,
         post_target_id: target.id,
