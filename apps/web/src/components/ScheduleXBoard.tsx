@@ -52,30 +52,32 @@ function snippet(p: PostWithTargets): string {
   return text.length > 68 ? `${text.slice(0, 68)}…` : text;
 }
 
-/** Provider → pastel schedule-card tint (fixed hexes, dark text on top). */
-const EVENT_TINT: Record<string, { bg: string; border: string }> = {
-  facebook: { bg: '#DBEAFE', border: '#BFDBFE' },
-  instagram: { bg: '#FCE7F3', border: '#F5C2DF' },
-  threads: { bg: '#E9E7F2', border: '#D3CEE6' },
-  tiktok: { bg: '#DFF5F2', border: '#B7E5DE' },
-  x: { bg: '#FCF3D9', border: '#F0E2B0' },
-  bluesky: { bg: '#DBEAFE', border: '#BFDBFE' },
-  linkedin: { bg: '#DBEAFE', border: '#BFDBFE' },
-  mastodon: { bg: '#E4DFF7', border: '#C9C0EE' },
-  pinterest: { bg: '#FDE2E2', border: '#F6C1C1' },
-  youtube: { bg: '#FDE2E2', border: '#F6C1C1' },
-  telegram: { bg: '#D9EDFB', border: '#B7DBF3' },
-  discord: { bg: '#E3E1FB', border: '#C8C3F3' },
-  wordpress: { bg: '#DDE9F5', border: '#BDD5EC' },
-  devto: { bg: '#E8E8EA', border: '#D4D4D8' },
-  hashnode: { bg: '#E3E9FF', border: '#C2CFFA' },
-  ghost: { bg: '#E8E8EA', border: '#D4D4D8' },
-  vk: { bg: '#DCE9F8', border: '#B9D3EE' },
-  gmb: { bg: '#E2E8F0', border: '#CBD5E1' },
+/** Provider → card edge colour. Cards themselves stay on the neutral surface;
+ *  the brand hue is a 3px rail (time grid) or a 6px dot (month chips), which
+ *  keeps a busy month readable instead of a wall of pastel blocks. Monochrome
+ *  brands point at the ink token so they flip with the theme. */
+const EVENT_ACCENT: Record<string, string> = {
+  facebook: '#1877F2',
+  instagram: '#D6249F',
+  threads: 'var(--color-ink)',
+  tiktok: 'var(--color-ink)',
+  x: 'var(--color-ink)',
+  bluesky: '#0A7AFF',
+  linkedin: '#0A66C2',
+  mastodon: '#6364FF',
+  pinterest: '#E60023',
+  youtube: '#FF0000',
+  telegram: '#229ED9',
+  discord: '#5865F2',
+  wordpress: '#21759B',
+  devto: 'var(--color-ink)',
+  hashnode: '#2962FF',
+  ghost: 'var(--color-ink)',
+  vk: '#0077FF',
+  gmb: '#4285F4',
 };
-const DEFAULT_TINT = { bg: '#F1F5F9', border: '#E2E8F0' };
-const tintOf = (provider: string | undefined): { bg: string; border: string } =>
-  (provider && EVENT_TINT[provider]) || DEFAULT_TINT;
+const accentOf = (provider: string | undefined): string =>
+  (provider && EVENT_ACCENT[provider]) || 'var(--color-ink)';
 
 /** Status dot colours for the status filter list. */
 const STATUS_DOT: Record<string, string> = {
@@ -145,17 +147,11 @@ const SX_CALENDARS = {
 export type SXEvent = CalendarEvent & {
   sxProvider?: string;
   sxAvatar?: string;
-  sxLabel?: string;
-  sxName?: string;
-  sxHandle?: string | null;
-  sxStatusLabel?: string;
-  sxStatusClass?: string;
   sxTime?: string;
   sxThread?: number | null;
   sxStatus?: string;
   sxThumbs?: { id: string; kind: 'video' | 'image'; src: string }[];
-  sxTintBg?: string;
-  sxTintBorder?: string;
+  sxAccent?: string;
 };
 
 /** Dropped event start → UTC ISO for our reschedule pipeline. */
@@ -278,40 +274,30 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   const t = useT(appMessages);
   const time = sxClockLabel(c.start, c.sxTime);
   const pid = String(c.id ?? '');
+  const dot = STATUS_DOT[c.sxStatus ?? ''] ?? 'bg-[#9A958B]';
   return (
     <OpenOnTap
       id={pid}
-      className="sx-event-card overflow-hidden rounded-lg border p-1.5"
-      style={
-        {
-          '--sx-evt-bg': c.sxTintBg ?? '#F1F5F9',
-          '--sx-evt-border': c.sxTintBorder ?? '#E2E8F0',
-        } as CSSProperties
-      }
+      className="sx-event-card flex h-full flex-col overflow-hidden rounded-lg border px-2 py-1.5"
+      style={{ '--sx-evt-accent': c.sxAccent ?? 'var(--color-ink)' } as CSSProperties}
     >
       <div className="flex items-center gap-1.5">
-        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={22} /> : null}
-        <span className="sx-event-sub min-w-0 flex-1 truncate text-[10px]">
+        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={16} /> : null}
+        <span className="sx-event-sub truncate text-[10px] font-medium tabular-nums">
           {time}
           {c.sxThread ? ` · ${fill(t('sxThreadN'), { n: c.sxThread })}` : ''}
         </span>
-        {c.sxStatusLabel ? (
-          <span className={`pill shrink-0 ${c.sxStatusClass ?? ''}`} style={{ fontSize: 9 }}>
-            {c.sxStatusLabel}
-          </span>
-        ) : null}
+        <span className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
       </div>
       {c.title ? (
-        <div className="sx-event-text mt-1 line-clamp-2 text-[11px] leading-snug">{c.title}</div>
+        <div className="sx-event-text mt-1 line-clamp-2 text-[11.5px] font-medium leading-[1.3]">{c.title}</div>
       ) : null}
       {Array.isArray(c.sxThumbs) && c.sxThumbs.length > 0 ? (
         c.sxThumbs.length === 1 ? (
-          <div className="mt-1">{eventMedia(c.sxThumbs[0], 'h-auto max-h-[100px] w-full')}</div>
+          <div className="mt-1.5">{eventMedia(c.sxThumbs[0], 'h-auto max-h-[86px] w-full')}</div>
         ) : (
-          <div className={`mt-1 grid gap-1 ${c.sxThumbs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-            {c.sxThumbs
-              .slice(0, 3)
-              .map((t) => eventMedia(t, 'h-auto max-h-[60px] w-full'))}
+          <div className={`mt-1.5 grid gap-1 ${c.sxThumbs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {c.sxThumbs.slice(0, 3).map((t) => eventMedia(t, 'h-auto max-h-[56px] w-full'))}
           </div>
         )
       ) : null}
@@ -319,26 +305,27 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   );
 }
 
-/** Custom month-grid event: compact one-line chip. */
+/** Custom month-grid event: dot + time + title, no fill — the grid itself is
+ *  already the frame, so a tinted block per post just adds noise. */
 function SXMonthChip({ calendarEvent }: { calendarEvent: SXEvent }) {
   const c = calendarEvent ?? {};
   const pid = String(c.id ?? '');
   return (
     <OpenOnTap
       id={pid}
-      className="sx-event-card flex items-center gap-1 truncate rounded-md border px-1 py-px"
-      style={
-        {
-          '--sx-evt-bg': c.sxTintBg ?? '#F1F5F9',
-          '--sx-evt-border': c.sxTintBorder ?? '#E2E8F0',
-        } as CSSProperties
-      }
+      className="sx-event-card flex h-[22px] w-full min-w-0 items-center gap-1.5 truncate rounded-[6px] px-1.5"
+      style={{ '--sx-evt-accent': c.sxAccent ?? 'var(--color-ink)' } as CSSProperties}
       title={c.title}
     >
-      <span className="sx-event-title shrink-0 text-[10px] font-bold">
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ background: 'var(--sx-evt-accent)' }}
+        aria-hidden="true"
+      />
+      <span className="sx-event-title shrink-0 text-[10px] font-medium tabular-nums">
         {sxClockLabel(c.start, c.sxTime)}
       </span>
-      <span className="sx-event-text truncate text-[11px]">{c.title ?? ''}</span>
+      <span className="sx-event-text truncate text-[11px] font-medium">{c.title ?? ''}</span>
     </OpenOnTap>
   );
 }
@@ -421,14 +408,14 @@ function TimeEditor({
   return (
     <div className="rounded-xl border border-line bg-paper p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs font-bold tabular-nums text-ink">{formatTime(post.scheduled_at)}</span>
+        <span className="font-mono text-xs font-medium tabular-nums text-ink">{formatTime(post.scheduled_at)}</span>
         <Badge className={st.className}>{st.label}</Badge>
       </div>
       <p className="mt-1 text-sm text-ink">{snippet(post)}</p>
 
       {perChannel ? (
         <>
-          <p className="mt-2 text-xs font-bold text-muted">{t('calTimePerChannel')}</p>
+          <p className="mt-2 text-xs font-medium text-muted">{t('calTimePerChannel')}</p>
           <div className="mt-1 space-y-1.5">
             {targets.map((tg) => {
               const meta = providerMeta(tg.provider);
@@ -436,7 +423,7 @@ function TimeEditor({
               return (
                 <div key={tg.channel_id} className="flex items-center gap-2">
                   <ChannelAvatar provider={tg.provider} avatar={avatarOf(tg.channel_id)} size={22} />
-                  <span className="w-16 shrink-0 truncate text-[11px] font-bold">{meta.label}</span>
+                  <span className="w-16 shrink-0 truncate text-[11px] font-medium">{meta.label}</span>
                   <input
                     type="number"
                     min={0}
@@ -451,7 +438,7 @@ function TimeEditor({
                     aria-label={fill(t('calHour'), { label: meta.label })}
                     className="field !w-14 !py-1 text-center !text-xs tabular-nums"
                   />
-                  <span className="text-xs font-bold text-muted">:</span>
+                  <span className="text-xs font-medium text-muted">:</span>
                   <input
                     type="number"
                     min={0}
@@ -476,7 +463,7 @@ function TimeEditor({
         </>
       ) : (
         <>
-          <p className="mt-2 text-xs font-bold text-muted">{t('calMoveTo')}</p>
+          <p className="mt-2 text-xs font-medium text-muted">{t('calMoveTo')}</p>
           <div className="mt-1 flex items-center gap-1.5">
             <input
               type="number"
@@ -487,7 +474,7 @@ function TimeEditor({
               aria-label={t('calHourAria')}
               className="field !w-16 !py-1.5 text-center !text-xs tabular-nums"
             />
-            <span className="font-bold text-muted">:</span>
+            <span className="font-medium text-muted">:</span>
             <input
               type="number"
               min={0}
@@ -565,7 +552,7 @@ function SentPostView({
           size={36}
         />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-extrabold">{name}</span>
+          <span className="block truncate text-sm font-medium">{name}</span>
           <span className="block truncate text-xs text-faint">
             {handle ? `${handle} · ` : ''}
             {when ? formatDateTime(when) : ''}
@@ -885,9 +872,7 @@ export default function ScheduleXBoard({
         minute: d.getMinutes(),
       }).toZonedDateTime(timeZone);
       const t0 = p.post_targets[0];
-      const tint = tintOf(t0?.provider);
-      const ch = t0 ? channelById.get(t0.channel_id) : undefined;
-      const st = statusMetaOf(p.status, t);
+      const accent = accentOf(t0?.provider);
       const thumbs = (media[p.id] ?? [])
         .slice(0, 4)
         .map((m) => ({
@@ -908,17 +893,11 @@ export default function ScheduleXBoard({
         calendarId: statusCalendar(p.status),
         sxProvider: t0?.provider,
         sxAvatar: t0 ? avatarOf(t0.channel_id) : undefined,
-        sxLabel: t0 ? fill(t('sxLabelPost'), { label: providerMeta(t0.provider).label }) : t('sxPost'),
-        sxName: ch?.display_name?.trim() || (t0 ? providerMeta(t0.provider).label : t('sxPost')),
-        sxHandle: cleanHandle(ch?.handle),
-        sxStatusLabel: st.label,
-        sxStatusClass: st.className,
         sxTime: formatTime(p.scheduled_at),
         sxThread: partCount(p) > 1 ? partCount(p) : null,
         sxStatus: p.status,
         sxThumbs: thumbs,
-        sxTintBg: tint.bg,
-        sxTintBorder: tint.border,
+        sxAccent: accent,
       });
     }
     return out;
@@ -1250,21 +1229,24 @@ export default function ScheduleXBoard({
           setSelectedKey(k);
           setSelectedPostId(p.id);
         }}
-        className={`flex w-full items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 text-left transition hover:border-ink/30 ${
-          selectedPostId === p.id ? 'ring-2 ring-accent' : ''
+        className={`flex w-full items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left transition ${
+          selectedPostId === p.id
+            ? 'border-ink/25 ring-1 ring-accent'
+            : 'border-line hover:border-ink/20 hover:bg-paper-dim/40'
         }`}
       >
         <span
-          className={`w-16 shrink-0 text-xs font-bold tabular-nums ${timeFaint ? 'text-faint' : 'text-ink'}`}
+          className={`w-14 shrink-0 text-xs font-medium tabular-nums ${timeFaint ? 'text-faint' : 'text-ink'}`}
         >
           {timeText}
         </span>
+        <span className="h-8 w-px shrink-0 bg-line" aria-hidden="true" />
         {t0 ? (
           <ChannelAvatar provider={t0.provider} avatar={avatarOf(t0.channel_id)} size={22} />
         ) : null}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold">{snippet(p)}</span>
-          <span className="block truncate text-xs text-muted">
+          <span className="block truncate text-[13px] font-medium leading-snug">{snippet(p)}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted">
             {a.handle ? `${a.handle} · ` : ''}
             {a.name}
             {partCount(p) > 1 ? ` · ${fill(t('sxThreadN'), { n: partCount(p) })}` : ''}
@@ -1279,15 +1261,18 @@ export default function ScheduleXBoard({
     <div className={variant === 'mini' ? 'sx-compact' : 'flex min-h-screen flex-col'}>
       {variant === 'mini' ? null : (
       <>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <h1 className="font-display text-xl font-extrabold tracking-tight leading-tight">{title}</h1>
-            {rangeLabel ? (
-              <span className="text-[11px] font-bold text-muted">{rangeLabel}</span>
-            ) : null}
-          </div>
-          <div className="flex items-center rounded-full border border-line p-0.5">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-line px-6 pt-5 pb-4">
+        <div className="min-w-0">
+          <p className="cal-eyebrow">
+            {t(VIEW_TABS.find((v) => v.id === view)?.key ?? 'calMonth')}
+            {rangeLabel ? ` · ${rangeLabel}` : ''}
+          </p>
+          <h1 className="mt-1.5 font-display text-[26px] font-medium leading-none tracking-tight text-ink">
+            {title}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5">
             <button
               type="button"
               onClick={stepPrev}
@@ -1300,7 +1285,7 @@ export default function ScheduleXBoard({
               type="button"
               onClick={stepToday}
               title={t('calJumpToday')}
-              className="min-w-[4.5rem] rounded-full px-3 py-1 text-center text-xs font-bold text-ink transition hover:bg-paper-dim"
+              className="min-w-[4.75rem] rounded-full px-2.5 py-1 text-center text-xs font-medium text-ink transition hover:bg-paper-dim"
             >
               {pill}
             </button>
@@ -1313,17 +1298,6 @@ export default function ScheduleXBoard({
               <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <SegmentedPills
-            ariaLabel={t('calMonth')}
-            role="tablist"
-            variant="paper"
-            value={view}
-            onChange={goView}
-            trackClassName="border-transparent bg-paper-dim"
-            options={VIEW_TABS.map((tb) => ({ value: tb.id, label: t(tb.key) }))}
-          />
           <Link href="/post" className="btn btn-bolt btn-sm">
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             {t('cNewPost')}
@@ -1331,23 +1305,38 @@ export default function ScheduleXBoard({
         </div>
       </header>
 
-      {/* Filters: channel/account + post status. Null = all. */}
+      {/* Mode tabs on the left, filters next to them, count pushed right. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-6 py-2.5">
+        <SegmentedPills
+          ariaLabel={t('calMonth')}
+          role="tablist"
+          variant="paper"
+          value={view}
+          onChange={goView}
+          trackClassName="border border-line bg-card"
+          buttonClassName="font-medium"
+          options={VIEW_TABS.map((tb) => ({ value: tb.id, label: t(tb.key) }))}
+        />
+        <span className="mx-1 hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
         <Popover>
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                chanFilter
+                  ? 'border-transparent bg-accent-soft text-ink'
+                  : 'border-line text-soft hover:bg-paper-dim'
+              }`}
             >
               {t('cChannels')}{chanFilter ? ` · ${chanFilter.length}` : ''}
-              <ChevronDown className="h-3 w-3 text-faint" aria-hidden="true" />
+              <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className="!w-64 !p-2">
             <button
               type="button"
               onClick={() => setChanFilter(null)}
-              className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
+              className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-medium text-muted transition hover:bg-paper-dim hover:text-ink"
             >
               {t('calAllChannels')}
             </button>
@@ -1370,7 +1359,7 @@ export default function ScheduleXBoard({
                     avatar={channelAvatar(c.metadata)}
                     size={20}
                   />
-                  <span className="min-w-0 flex-1 truncate text-xs font-bold">{label}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{label}</span>
                 </label>
               );
             })}
@@ -1381,17 +1370,21 @@ export default function ScheduleXBoard({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                statusFilter
+                  ? 'border-transparent bg-accent-soft text-ink'
+                  : 'border-line text-soft hover:bg-paper-dim'
+              }`}
             >
               {t('calStatus')}{statusFilter ? ` · ${statusFilter.length}` : ''}
-              <ChevronDown className="h-3 w-3 text-faint" aria-hidden="true" />
+              <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className="!w-56 !p-2">
             <button
               type="button"
               onClick={() => setStatusFilter(null)}
-              className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
+              className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-medium text-muted transition hover:bg-paper-dim hover:text-ink"
             >
               {t('calAllStatuses')}
             </button>
@@ -1413,7 +1406,7 @@ export default function ScheduleXBoard({
                     className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[s] ?? 'bg-[#9A958B]'}`}
                     aria-hidden="true"
                   />
-                  <span className="min-w-0 flex-1 truncate text-xs font-bold">{meta.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{meta.label}</span>
                 </label>
               );
             })}
@@ -1427,13 +1420,13 @@ export default function ScheduleXBoard({
               setChanFilter(null);
               setStatusFilter(null);
             }}
-            className="text-xs font-bold text-muted transition hover:text-ink"
+            className="text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
           >
             {t('cpClear')}
           </button>
         ) : null}
         <span className="flex-1" />
-        <span className="text-xs text-faint">{fill(t('calShown'), { n: sxEvents.length })}</span>
+        <span className="cal-count">{fill(t('calShown'), { n: sxEvents.length })}</span>
       </div>
       </> )}
 
@@ -1470,7 +1463,7 @@ export default function ScheduleXBoard({
           <div className="min-h-[300px] animate-pulse rounded-2xl bg-paper-dim" />
         )
       ) : (
-      <div className="min-w-0 flex-1 p-4">
+      <div className="min-w-0 flex-1 px-5 pt-4 pb-6">
         {view === 'year' ? (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -1479,9 +1472,9 @@ export default function ScheduleXBoard({
                 return (
                 <div
                   key={name}
-                  className={`rounded-2xl border bg-card p-4 transition ${
+                  className={`rounded-2xl border bg-card p-4 transition hover:border-ink/20 ${
                     m === anchor.getMonth() && anchor.getFullYear() === new Date().getFullYear()
-                      ? 'border-accent shadow-sm'
+                      ? 'border-ink/25 ring-1 ring-accent/50'
                       : 'border-line'
                   }`}
                 >
@@ -1493,20 +1486,20 @@ export default function ScheduleXBoard({
                           `/calendar-month?d=${anchor.getFullYear()}-${String(m + 1).padStart(2, '0')}-01`,
                         )
                       }
-                      className="text-sm font-extrabold transition hover:underline"
+                      className="font-display text-[13px] font-medium tracking-tight transition hover:underline"
                     >
                       {name}
                     </button>
                     {yearCounts[m] ? (
-                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-bolt-deep">
+                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium tabular-nums text-bolt-deep">
                         {yearCounts[m]}
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-2 grid grid-cols-7 gap-y-1 text-center">
+                  <div className="mt-2.5 grid grid-cols-7 gap-y-1 text-center">
                     {Array.from({ length: 7 }, (_, wi) => (
                       // Monday-first: 2023-01-02 is a Monday.
-                      <span key={wi} className="text-[9px] font-bold text-faint">
+                      <span key={wi} className="text-[9px] font-medium text-faint">
                         {new Date(2023, 0, 2 + wi).toLocaleDateString(undefined, { weekday: 'narrow' })}
                       </span>
                     ))}
@@ -1520,14 +1513,14 @@ export default function ScheduleXBoard({
                         return (
                           <span
                             key={k}
-                            className={`flex flex-col items-center py-0.5 text-[11px] ${
+                            className={`flex flex-col items-center py-0.5 text-[11px] font-medium tabular-nums ${
                               inMonth ? 'text-soft' : 'text-faint opacity-40'
                             }`}
                           >
                             <span
                               className={
                                 isT
-                                  ? 'flex h-4 w-4 items-center justify-center rounded-full bg-bolt font-extrabold text-on-accent'
+                                  ? 'flex h-4 w-4 items-center justify-center rounded-full bg-bolt font-medium text-on-accent'
                                   : ''
                               }
                             >
@@ -1544,7 +1537,7 @@ export default function ScheduleXBoard({
                 );
               })}
             </div>
-              <p className="mt-3 text-xs text-faint">
+              <p className="cal-hint mt-3">
                 {t('calYearHint')}
               </p>
             </>
@@ -1559,10 +1552,10 @@ export default function ScheduleXBoard({
                   {listDays.map((day) => (
                     <section key={day.key}>
                       <div className="mb-2 flex items-baseline gap-2 px-1">
-                        <h2 className="font-display text-base font-extrabold tracking-tight">
+                        <h2 className="font-display text-[15px] font-medium tracking-tight">
                           {dayLabelFor(day.date, day.key)}
                         </h2>
-                        <span className="text-xs text-faint">
+                        <span className="cal-count">
                           {fill(t('calNPosts'), { n: day.items.length })}
                         </span>
                       </div>
@@ -1574,10 +1567,10 @@ export default function ScheduleXBoard({
                   {undatedVisible.length > 0 ? (
                     <section>
                       <div className="mb-2 flex items-baseline gap-2 px-1">
-                        <h2 className="font-display text-base font-extrabold tracking-tight">
+                        <h2 className="font-display text-[15px] font-medium tracking-tight">
                           {t('calNoDateYet')}
                         </h2>
-                        <span className="text-xs text-faint">
+                        <span className="cal-count">
                           {fill(t('calNDrafts'), { n: undatedVisible.length })}
                         </span>
                       </div>
@@ -1590,7 +1583,7 @@ export default function ScheduleXBoard({
                   ) : null}
                 </div>
               )}
-              <p className="mt-3 text-xs text-faint">
+              <p className="cal-hint mt-3">
                 {t('calListHint')}
               </p>
             </>
@@ -1613,7 +1606,7 @@ export default function ScheduleXBoard({
           <div className="h-full min-h-[480px] animate-pulse rounded-2xl bg-paper-dim" />
         )}
         {view !== 'year' ? (
-          <p className="mt-3 text-xs text-faint">
+          <p className="cal-hint mt-3">
             {t('calDragHint')}
           </p>
         ) : null}
@@ -1644,7 +1637,7 @@ export default function ScheduleXBoard({
                 type="button"
                 onClick={() => setSelectedPostId(null)}
                 aria-label={t('calCloseDetails')}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-muted transition hover:bg-paper-dim hover:text-ink"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-medium text-muted transition hover:bg-paper-dim hover:text-ink"
               >
                 ✕
               </button>

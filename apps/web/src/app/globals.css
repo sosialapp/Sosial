@@ -1379,13 +1379,48 @@ body {
   --color-accent-ink: #1C1A14;
 }
 
-/* Schedule-X host: fill the page under our own header (the library header
- * is hidden — Day/Week/Month/Year + Today + New post live in our header). */
+/* =============================== calendar ============================== */
+/* Schedule-X skin. The library ships a Material-Design chrome — tinted
+ * surfaces, dashed rules, pastel blocks — which reads generic next to the
+ * rest of the dashboard. This rebuild strips it back to the brand's own
+ * vocabulary: hairline rules, tabular numerals, one accent, and provider
+ * colour used only as a thin edge on the cards.
+ *
+ * Two structural notes:
+ *  - Schedule-X paints day names and date numbers with `--sx-color-neutral`,
+ *    which it derives from `--sx-color-outline`. Our outline maps to the
+ *    hairline colour, so those labels rendered almost invisible. `neutral`
+ *    is now pointed at real text.
+ *  - `--sx-border` was dashed; every rule in the grid inherited it. Solid. */
+
+.cal-eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 42%, var(--color-card));
+}
+.cal-hint {
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-ink) 45%, var(--color-card));
+}
+.cal-count {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-card));
+  font-variant-numeric: tabular-nums;
+}
+
+/* Host: fill the page under our own header (masthead 68 + board header ~85 +
+ * toolbar ~46 + body padding 16 + hint 24). */
 .sx-react-calendar-wrapper {
   width: 100%;
-  height: calc(100dvh - 210px);
+  height: calc(100dvh - 224px);
   min-height: 520px;
   font-family: var(--font-sans);
+  color: var(--color-ink);
 }
 .sx-react-calendar-wrapper .sx__calendar-header {
   display: none;
@@ -1406,54 +1441,259 @@ body {
   border-radius: 0;
   background: transparent;
 }
-.sx-compact .sx__week-grid__day-name {
-  font-size: 10px;
-}
-.sx-compact .sx__week-grid__date-number {
-  font-size: 15px;
-  height: 1.75em;
-  width: 1.75em;
-}
-.sx-compact .sx__week-grid__hour-text {
-  font-size: 10px;
-}
-.sx-compact .sx__event-card {
-  border-radius: 10px;
-}
 .sx-react-calendar-wrapper .sx__calendar {
   border: 1px solid var(--color-line);
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--color-card);
-  box-shadow: 0 1px 2px rgba(20, 18, 14, 0.04), 0 12px 32px -24px rgba(20, 18, 14, 0.22);
+  overflow: hidden;
 }
 
-/* Week/day grid: today's column header reads yellowish so the current
- * day is visible at a glance. */
+/* Material vars mapped onto brand tokens. The tokens flip inside .theme-dark,
+ * so one block covers both themes. */
+.sx-react-calendar-wrapper,
+.sx-react-calendar-wrapper.is-dark,
+.sx-react-calendar-wrapper .is-dark {
+  --sx-border: 1px solid var(--color-line-soft);
+  --sx-color-primary: var(--color-bolt);
+  --sx-color-on-primary: var(--color-on-accent);
+  --sx-color-primary-container: var(--color-accent-soft);
+  --sx-color-on-primary-container: var(--color-bolt-deep);
+  --sx-color-secondary: var(--color-muted);
+  --sx-color-on-secondary: var(--color-card);
+  --sx-color-secondary-container: var(--color-paper-dim);
+  --sx-color-on-secondary-container: var(--color-ink);
+  --sx-color-tertiary: var(--color-bolt-deep);
+  --sx-color-on-tertiary: var(--color-on-accent);
+  --sx-color-tertiary-container: var(--color-accent-soft);
+  --sx-color-on-tertiary-container: var(--color-bolt-deep);
+  --sx-color-surface: var(--color-card);
+  --sx-color-surface-dim: var(--color-surface);
+  --sx-color-surface-bright: var(--color-card);
+  --sx-color-on-surface: var(--color-ink);
+  --sx-color-surface-container: var(--color-surface);
+  --sx-color-surface-container-low: var(--color-card);
+  --sx-color-surface-container-high: var(--color-surface);
+  --sx-color-background: var(--color-card);
+  --sx-color-on-background: var(--color-ink);
+  --sx-color-outline: var(--color-line);
+  --sx-color-outline-variant: var(--color-line-soft);
+  --sx-color-surface-tint: var(--color-bolt);
+  /* See the note at the top: `neutral` drives every day label in the grid. */
+  --sx-color-neutral: color-mix(in srgb, var(--color-ink) 52%, var(--color-card));
+  --sx-color-neutral-variant: var(--color-line);
+  --sx-internal-color-text: var(--color-ink);
+  --sx-internal-color-light-gray: var(--color-surface);
+  --sx-internal-color-gray-ripple-background: var(--color-line-soft);
+  --sx-rounding-small: 18px;
+  --sx-rounding-extra-small: 8px;
+  --sx-calendar-week-grid-padding-left: 64px;
+}
+
+/* The library gives every event wrapper its own background, a 4px
+ * calendar-colour edge and 4px padding, all as inline styles — and it keeps
+ * setting the width that way, so the overlap maths stays untouched. Only the
+ * paint is stripped: colour moves onto our card's own edge. */
+.sx-react-calendar-wrapper .sx__time-grid-event,
+.sx-react-calendar-wrapper .sx__month-grid-event {
+  border-inline-start-width: 0 !important;
+  background-color: transparent !important;
+  color: inherit !important;
+}
+.sx-react-calendar-wrapper .sx__time-grid-event {
+  padding: 0;
+  overflow: visible;
+}
+.sx-react-calendar-wrapper .sx__month-grid-event {
+  padding: 0 !important;
+  overflow: visible;
+}
+
+/* ------------------------------- month -------------------------------- */
+
+.sx-react-calendar-wrapper .sx__month-grid-week {
+  border-top: 1px solid var(--color-line-soft);
+}
+.sx-react-calendar-wrapper .sx__month-grid-week:first-child {
+  border-top: 0;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day {
+  position: relative;
+  padding: 0;
+  min-height: 108px;
+  transition: background-color 140ms ease;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day:not(:last-child) {
+  border-inline-end: 1px solid var(--color-line-soft);
+}
+.sx-react-calendar-wrapper .sx__month-grid-day:hover {
+  background-color: color-mix(in srgb, var(--color-surface) 70%, var(--color-card));
+}
+/* Weekend columns sit a shade back so the working week reads as the subject. */
+.sx-react-calendar-wrapper .sx__month-grid-day.sx__saturday,
+.sx-react-calendar-wrapper .sx__month-grid-day.sx__sunday {
+  background-color: color-mix(in srgb, var(--color-surface) 55%, var(--color-card));
+}
+.sx-react-calendar-wrapper .sx__month-grid-day.is-leading-or-trailing {
+  background-color: transparent;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day.is-leading-or-trailing .sx__month-grid-day__events {
+  opacity: 0.42;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__header {
+  flex-flow: row nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  min-height: 30px;
+  padding: 7px 8px 2px;
+}
+/* Date number leads, weekday label trails it — the reverse of the library's
+ * centred column, which is what made every cell look like a mini calendar.
+ * The weekday only prints in the first row, where it still teaches the grid. */
+.sx-react-calendar-wrapper .sx__month-grid-day__header-date {
+  order: 1;
+  margin: 0;
+  height: 22px;
+  width: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__header-day-name {
+  order: 2;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sx-color-neutral);
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__header-date.sx__is-today {
+  background: var(--color-bolt);
+  color: var(--color-on-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bolt) 22%, transparent);
+}
+.sx-react-calendar-wrapper .sx__month-grid-day.is-leading-or-trailing .sx__month-grid-day__header-date {
+  color: color-mix(in srgb, var(--color-ink) 32%, var(--color-card));
+  font-weight: 300;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day.is-leading-or-trailing .sx__month-grid-day__header-day-name {
+  opacity: 0.5;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__events {
+  display: grid;
+  grid-gap: 2px;
+  padding: 0 6px 6px;
+}
+.sx-react-calendar-wrapper .sx__month-grid-cell {
+  height: 22px;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__events-more {
+  width: fit-content;
+  margin: 1px 6px 5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-ink) 52%, var(--color-card));
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.sx-react-calendar-wrapper .sx__month-grid-day__events-more:hover {
+  background-color: var(--color-accent-soft);
+  color: var(--color-ink);
+}
+
+/* ----------------------------- week / day ----------------------------- */
+
 .sx-react-calendar-wrapper .sx__week-grid__date-axis {
   border-bottom: 1px solid var(--color-line);
-  background: var(--color-paper-dim);
+  background: var(--color-card);
 }
-.sx-react-calendar-wrapper .sx__week-grid__date--is-today {
-  background: var(--color-accent-soft);
+/* The library draws its own header rule offset by a hard-coded 250px; the
+ * date axis already carries the line, so drop the duplicate. */
+.sx-react-calendar-wrapper .sx__week-header-border {
+  display: none;
+}
+.sx-react-calendar-wrapper .sx__week-grid__date {
+  padding: 9px 0 8px;
+  gap: 4px;
+}
+.sx-react-calendar-wrapper .sx__week-grid__day-name {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--sx-color-neutral);
+}
+.sx-react-calendar-wrapper .sx__week-grid__date-number {
+  height: 28px;
+  width: 28px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+}
+.sx-react-calendar-wrapper .sx__week-grid__date--is-today .sx__week-grid__date-number {
+  background-color: var(--color-bolt);
+  color: var(--color-on-accent);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bolt) 22%, transparent);
 }
 .sx-react-calendar-wrapper .sx__week-grid__date--is-today .sx__week-grid__day-name {
-  color: var(--color-bolt-deep);
+  color: var(--color-ink);
 }
-/* Current-hour row wash: SXMount exposes --sx-now-hour / --sx-day-hours
- * and toggles .sx-show-now-hour while today is in view. Each day column
- * and the time axis paint the same band, so the hour reads as one
- * horizontal strip across the whole grid. */
+.sx-react-calendar-wrapper .sx__week-grid__date.sx__saturday,
+.sx-react-calendar-wrapper .sx__week-grid__date.sx__sunday {
+  background-color: color-mix(in srgb, var(--color-surface) 55%, var(--color-card));
+}
+/* Hour rules: solid hairlines, a label every second hour. Printing all
+ * twenty-four numbers made the axis noisy without adding information. The
+ * axis is offset by the library at a hard-coded 60px while the columns start
+ * at the padding var, so its rules were landing 4px off the day borders. */
+.sx-react-calendar-wrapper .sx__week-grid__time-axis {
+  width: calc(100% - var(--sx-calendar-week-grid-padding-left));
+}
+.sx-react-calendar-wrapper .sx__week-grid__hour {
+  border-top: 1px solid var(--color-line-soft);
+}
+.sx-react-calendar-wrapper .sx__week-grid__hour-text {
+  left: -46px;
+  top: -0.6em;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-ink) 40%, var(--color-card));
+}
+.sx-react-calendar-wrapper .sx__week-grid__hour:nth-child(even) .sx__week-grid__hour-text {
+  visibility: hidden;
+}
+.sx-react-calendar-wrapper .sx__time-grid-day {
+  border-left: 1px solid var(--color-line-soft);
+}
+.sx-react-calendar-wrapper .sx__time-grid-day.sx__saturday,
+.sx-react-calendar-wrapper .sx__time-grid-day.sx__sunday {
+  background-color: color-mix(in srgb, var(--color-surface) 35%, var(--color-card));
+}
+
+/* Current-hour band: one soft accent strip across every column + the axis. */
 .sx-react-calendar-wrapper.sx-show-now-hour .sx__time-grid-day,
 .sx-react-calendar-wrapper.sx-show-now-hour .sx__week-grid__time-axis {
   background-image: linear-gradient(
     to bottom,
     transparent calc(var(--sx-now-hour, 0) / var(--sx-day-hours, 24) * 100%),
-    var(--color-accent-soft) calc(var(--sx-now-hour, 0) / var(--sx-day-hours, 24) * 100%),
-    var(--color-accent-soft) calc((var(--sx-now-hour, 0) + 1) / var(--sx-day-hours, 24) * 100%),
+    color-mix(in srgb, var(--color-bolt) 8%, transparent)
+      calc(var(--sx-now-hour, 0) / var(--sx-day-hours, 24) * 100%),
+    color-mix(in srgb, var(--color-bolt) 8%, transparent)
+      calc((var(--sx-now-hour, 0) + 1) / var(--sx-day-hours, 24) * 100%),
     transparent calc((var(--sx-now-hour, 0) + 1) / var(--sx-day-hours, 24) * 100%)
   );
 }
-/* Now-line: brand instead of the library's pure red, with a soft glow dot. */
 .sx-react-calendar-wrapper .sx__current-time-indicator {
   background-color: var(--color-bolt-deep);
   box-shadow: 0 0 0 1px var(--color-bolt-deep);
@@ -1462,130 +1702,72 @@ body {
   background-color: var(--color-bolt-deep);
   box-shadow: 0 0 0 2px var(--color-card);
 }
-/* Month view: today's date gets the bolt disc, matching the week header. */
-.sx-react-calendar-wrapper .sx__month-grid-day__header-date.sx__is-today {
-  background: var(--color-bolt);
-  color: var(--color-on-accent);
-  border-radius: 999px;
-  width: 1.75em;
-  height: 1.75em;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
-/* Sosial skin for Schedule-X: Material vars remapped onto brand tokens.
- * The tokens flip themselves inside .theme-dark, so one block covers both
- * themes; the .is-dark selectors below outrank the library's own dark
- * block wherever it lands. */
-.sx-react-calendar-wrapper,
-.sx-react-calendar-wrapper.is-dark,
-.sx-react-calendar-wrapper .is-dark {
-  --sx-border: 1px dashed var(--color-line-soft);
-  --sx-color-primary: var(--color-bolt);
-  --sx-color-on-primary: var(--color-on-accent);
-  --sx-color-primary-container: var(--color-accent-soft);
-  --sx-color-on-primary-container: var(--color-bolt-deep);
-  --sx-color-secondary: var(--color-muted);
-  --sx-color-on-secondary: var(--color-paper);
-  --sx-color-secondary-container: var(--color-paper-dim);
-  --sx-color-on-secondary-container: var(--color-ink);
-  --sx-color-tertiary: var(--color-bolt-deep);
-  --sx-color-on-tertiary: var(--color-on-accent);
-  --sx-color-tertiary-container: var(--color-accent-soft);
-  --sx-color-on-tertiary-container: var(--color-bolt-deep);
-  --sx-color-surface: var(--color-card);
-  --sx-color-surface-dim: var(--color-paper-dim);
-  --sx-color-surface-bright: var(--color-card);
-  --sx-color-on-surface: var(--color-ink);
-  --sx-color-surface-container: var(--color-paper-dim);
-  --sx-color-surface-container-low: var(--color-card);
-  --sx-color-surface-container-high: var(--color-paper-dim);
-  --sx-color-background: var(--color-card);
-  --sx-color-on-background: var(--color-ink);
-  --sx-color-outline: var(--color-line);
-  --sx-color-outline-variant: var(--color-line-soft);
-  --sx-color-surface-tint: var(--color-bolt);
-  --sx-internal-color-text: var(--color-ink);
-  --sx-internal-color-light-gray: var(--color-paper-dim);
-  --sx-internal-color-gray-ripple-background: var(--color-line-soft);
-}
+/* ------------------------------- cards -------------------------------- */
 
-/* Eyebrow-style day labels, display-font date numbers, tabular hour axis. */
-.sx-react-calendar-wrapper .sx__week-grid__day-name {
-  letter-spacing: 0.08em;
-  font-weight: 700;
-}
-.sx-react-calendar-wrapper .sx__week-grid__date-number {
-  font-family: var(--font-display);
-  font-weight: 700;
-}
-.sx-react-calendar-wrapper .sx__week-grid__hour-text {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-faint);
-  font-size: 0.6875rem;
-  font-weight: 700;
-}
-.sx-react-calendar-wrapper .sx__month-grid-day__header-date {
-  font-weight: 700;
-}
-.sx-react-calendar-wrapper .sx__month-grid-day__header-day-name {
-  letter-spacing: 0.08em;
-  font-weight: 700;
-}
-.sx-react-calendar-wrapper .sx__month-grid-day__events-more {
-  font-weight: 700;
-  border-radius: 999px;
-}
-.sx-react-calendar-wrapper .sx__month-grid-day__events-more:hover {
-  background-color: var(--color-accent-soft);
-  color: var(--color-ink);
-}
-
-/* Custom event cards: pastel fill in light mode, dark surface in dark mode
- * (provider tint survives as the border). Text follows the same split. */
+/* Neutral surface; the provider reads as a 3px edge (time grid) or a 6px dot
+ * (month chips). The pastel fills were the loudest cheap-looking element. */
 .sx-react-calendar-wrapper .sx-event-card {
-  background: var(--sx-evt-bg);
-  border-color: var(--sx-evt-border);
+  background: var(--color-card);
+  border-color: var(--color-line);
 }
-/* The library wrapper is `overflow: hidden` with a %-height, so a
- * content-sized card gets its bottom border clipped. Let the card own the
- * box exactly (border-box) so the full frame always draws. */
+.sx-react-calendar-wrapper .sx__month-grid-event .sx-event-card {
+  background: transparent;
+  border-color: transparent;
+}
+.sx-react-calendar-wrapper .sx__month-grid-event .sx-event-card:hover {
+  background: var(--color-surface);
+}
 .sx-react-calendar-wrapper .sx__time-grid-event .sx-event-card {
   height: 100%;
+  width: calc(100% - 6px);
   box-sizing: border-box;
+  border-left: 3px solid var(--sx-evt-accent, var(--color-ink));
+  box-shadow: 0 1px 1px rgba(20, 18, 14, 0.03);
+  transition: box-shadow 160ms ease, border-color 160ms ease;
 }
+.sx-react-calendar-wrapper .sx__time-grid-event .sx-event-card:hover {
+  border-color: color-mix(in srgb, var(--color-ink) 22%, var(--color-line));
+  border-left-color: var(--sx-evt-accent, var(--color-ink));
+  box-shadow: 0 2px 4px rgba(20, 18, 14, 0.06), 0 8px 20px -14px rgba(20, 18, 14, 0.35);
+}
+/* Time stamp recedes, title holds the ink. */
 .sx-react-calendar-wrapper .sx-event-card .sx-event-title {
-  color: #1f2937;
-}
-.sx-react-calendar-wrapper .sx-event-card .sx-event-sub {
-  color: #6b7280;
+  color: color-mix(in srgb, var(--color-ink) 52%, var(--color-card));
 }
 .sx-react-calendar-wrapper .sx-event-card .sx-event-text {
-  color: #33302a;
-}
-.sx-react-calendar-wrapper.is-dark .sx-event-card,
-.sx-react-calendar-wrapper .is-dark .sx-event-card {
-  background: var(--color-card);
-  /* The light pastel tint reads as a near-white line on a dark surface —
-   * blend it back into the card so it stays a muted provider-coloured edge. */
-  border-color: color-mix(in srgb, var(--sx-evt-border) 40%, var(--color-card));
-}
-.sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-title,
-.sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-title {
   color: var(--color-ink);
 }
-.sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-sub,
-.sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-sub {
-  color: var(--color-muted);
+.sx-react-calendar-wrapper .sx-event-card .sx-event-sub {
+  color: color-mix(in srgb, var(--color-ink) 45%, var(--color-card));
 }
-.sx-react-calendar-wrapper.is-dark .sx-event-card .sx-event-text,
-.sx-react-calendar-wrapper .is-dark .sx-event-card .sx-event-text {
-  color: var(--color-soft);
+.sx-react-calendar-wrapper.is-dark .sx__time-grid-event .sx-event-card {
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
 }
-/* Overlapping events get a hard-coded white separator from the library's
- * inline border rule — re-tint it to the dark hairline colour. */
-.sx-react-calendar-wrapper.is-dark .sx__time-grid-event,
-.sx-react-calendar-wrapper .is-dark .sx__time-grid-event {
-  border-color: var(--color-line) !important;
+.sx-react-calendar-wrapper.is-dark .sx__time-grid-event .sx-event-card:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 24px -16px rgba(0, 0, 0, 0.8);
 }
+
+/* Compact embed: the dashboard card sits inside its own frame, so the
+ * grid's chrome tightens up and the cards drop their media thumbnails. */
+.sx-compact .sx-react-calendar-wrapper .sx__week-grid__date {
+  padding: 6px 0 5px;
+}
+.sx-compact .sx-react-calendar-wrapper .sx__week-grid__date-number {
+  height: 22px;
+  width: 22px;
+  font-size: 12px;
+}
+.sx-compact .sx-react-calendar-wrapper .sx__week-grid__day-name {
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+}
+.sx-compact .sx-react-calendar-wrapper .sx__week-grid__hour-text {
+  font-size: 9px;
+}
+/* No thumbnails in the compact embed — at 430px they crowd out the titles. */
+.sx-compact .sx-react-calendar-wrapper .sx__time-grid-event .sx-event-card img {
+  display: none;
+}
+
+
