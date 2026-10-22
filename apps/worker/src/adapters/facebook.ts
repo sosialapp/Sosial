@@ -103,6 +103,7 @@ export const facebook: InboxAdapter = {
       authorAvatar: null,
       body: typeof c.message === 'string' ? c.message : '',
       createdAt: c?.created_time ?? new Date().toISOString(),
+      isOwn: String(c?.from?.id ?? '') === account.externalId,
     }));
     return { items, cursor: r.data?.paging?.cursors?.after ?? null };
   },

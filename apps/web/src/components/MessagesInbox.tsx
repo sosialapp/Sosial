@@ -90,10 +90,16 @@ export default function MessagesInbox({
   workspaceId,
   channels,
   paid,
+  reloadKey = 0,
+  scanning = false,
+  onRefresh,
 }: {
   workspaceId: string;
   channels: ConnectedChannel[];
   paid: boolean;
+  reloadKey?: number;
+  scanning?: boolean;
+  onRefresh?: () => void;
 }) {
   const [convs, setConvs] = useState<ConversationRow[] | null>(null);
   const [chan, setChan] = useState<string>('all');
@@ -103,7 +109,6 @@ export default function MessagesInbox({
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
   const scroller = useRef<HTMLDivElement | null>(null);
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
@@ -161,7 +166,7 @@ export default function MessagesInbox({
   useEffect(() => {
     if (!paid || dmChannels.length === 0) return;
     void loadConvs();
-  }, [paid, dmChannels.length, loadConvs]);
+  }, [paid, dmChannels.length, loadConvs, reloadKey]);
 
   const openConv = async (c: ConversationRow) => {
     setOpen(c);
@@ -175,23 +180,13 @@ export default function MessagesInbox({
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs]);
 
-  /** Ask the worker for a fresh sweep, then re-read both convo list and
-   *  thread. scan-now dedupes per workspace per minute server-side. */
-  const refresh = async () => {
-    setScanning(true);
-    try {
-      const sb = createClient();
-      await sb.functions.invoke('scan-now', { body: { workspace_id: workspaceId } });
-      // Jobs claim within seconds; two beats before re-reading.
-      await new Promise((r) => setTimeout(r, 8000));
-      await loadConvs();
-      if (open) await loadThread(open.id);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not start the refresh.');
-    } finally {
-      setScanning(false);
-    }
-  };
+  // Shared sweep from the tab host reloads the list and the open thread.
+  useEffect(() => {
+    if (reloadKey === 0) return;
+    void loadConvs();
+    if (open) void loadThread(open.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   const send = async () => {
     const text = draft.trim();
@@ -406,8 +401,8 @@ export default function MessagesInbox({
           </div>
           <button
             type="button"
-            onClick={() => void refresh()}
-            disabled={scanning}
+            onClick={() => onRefresh?.()}
+            disabled={scanning || !onRefresh}
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
             aria-label="Refresh conversations"
           >

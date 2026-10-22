@@ -2,10 +2,10 @@
 
 /**
  * Comments tab — the unified comment feed (p92). Reads the `comments`
- * table (RLS: workspace members) and renders real-social cards:
- * commenter avatar up front, handle + channel + time on the first line,
- * message aligned under the handle. Replies queue through reply-comment
- * and flip the card to "replied" once the worker posts them.
+ * table (RLS: workspace members) and renders real-social cards: commenter
+ * avatar up front, handle + channel + time on the first line, message
+ * aligned under the handle. Replies queue through reply-comment and land
+ * back in the thread as is_own rows, so what was sent stays visible.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,11 +24,13 @@ interface CommentRow {
   platform: string;
   external_post_id: string | null;
   parent_external_id: string | null;
+  external_id: string;
   author_name: string | null;
   author_avatar: string | null;
   body: string;
   created_at: string;
   status: string;
+  is_own: boolean;
 }
 
 /** Providers the sync engine can reply on (phase 1). */
@@ -75,9 +77,15 @@ function CommentFace({ name, avatar }: { name: string | null; avatar: string | n
 export default function CommentsFeed({
   channels,
   workspaceId,
+  reloadKey = 0,
+  scanning = false,
+  onRefresh,
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
+  reloadKey?: number;
+  scanning?: boolean;
+  onRefresh?: () => void;
 }) {
   const [rows, setRows] = useState<CommentRow[] | null>(null);
   const [chan, setChan] = useState<string>('all');
@@ -87,7 +95,7 @@ export default function CommentsFeed({
   const [draft, setDraft] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
 
@@ -95,40 +103,17 @@ export default function CommentsFeed({
     const sb = createClient();
     const { data, error } = await sb
       .from('comments')
-      .select('id,channel_id,platform,external_post_id,parent_external_id,author_name,author_avatar,body,created_at,status')
+      .select('id,channel_id,platform,external_post_id,parent_external_id,external_id,author_name,author_avatar,body,created_at,status,is_own')
+      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
       .limit(200);
     setRows((data ?? []) as CommentRow[]);
     if (error) setErr(error.message);
-  }, []);
+  }, [workspaceId]);
 
-  useEffect(() => { void load(); }, [load]);
-
-  /** Ask for a fresh unified sweep, then re-read. scan-now dedupes per
-   *  workspace per minute server-side. */
-  const refresh = async () => {
-    setScanning(true);
-    setErr(null);
-    setNote(null);
-    try {
-      const sb = createClient();
-      const { error } = await sb.functions.invoke('scan-now', {
-        body: { workspace_id: workspaceId },
-      });
-      if (error) {
-        const detail = await edgeErrorMessage(error);
-        throw new Error(detail ?? error.message);
-      }
-      // Jobs claim within seconds; two beats, then read whatever landed.
-      await new Promise((r) => setTimeout(r, 8000));
-      await load();
-      setNote('Refreshed — newest comments and messages are in.');
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not start the refresh.');
-    } finally {
-      setScanning(false);
-    }
-  };
+  useEffect(() => {
+    void load();
+  }, [load, reloadKey]);
 
   const reply = async (row: CommentRow) => {
     const text = draft.trim();
@@ -147,10 +132,12 @@ export default function CommentsFeed({
       }
       setReplyFor(null);
       setDraft('');
-      setNote(`Reply queued for ${providerMeta(row.platform).label} — it posts in a few seconds.`);
-      // The worker flips status to replied async; pull the fresh row.
-      await new Promise((r) => setTimeout(r, 6000));
-      await load();
+      // The worker posts and stores our reply as an is_own row; poll for it.
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        await load();
+      }
+      setNote(`Reply sent on ${providerMeta(row.platform).label}.`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not send the reply.');
     } finally {
@@ -162,12 +149,177 @@ export default function CommentsFeed({
     const ids = new Set((rows ?? []).map((r) => r.channel_id));
     return channels.filter((c) => ids.has(c.id));
   }, [channels, rows]);
+
+  /**
+   * Threaded order: newest roots first, each root followed by our reply (and
+   * any platform-side reply) to it. Replies whose parent is filtered out are
+   * promoted to roots so nothing disappears.
+   */
   const visible = useMemo(() => {
     const list = (rows ?? []).filter((r) => chan === 'all' || r.channel_id === chan);
-    return order === 'new'
-      ? list
-      : [...list].reverse();
+    const byExternal = new Map(list.map((r) => [r.external_id, r]));
+    const children = new Map<string, CommentRow[]>();
+    const roots: CommentRow[] = [];
+    for (const r of list) {
+      const parent = r.parent_external_id ? byExternal.get(r.parent_external_id) : undefined;
+      if (parent && !r.is_own) {
+        const arr = children.get(parent.id) ?? [];
+        arr.push(r);
+        children.set(parent.id, arr);
+      } else if (parent && r.is_own) {
+        const arr = children.get(parent.id) ?? [];
+        arr.push(r);
+        children.set(parent.id, arr);
+      } else {
+        roots.push(r);
+      }
+    }
+    roots.sort((a, b) =>
+      order === 'new' ? b.created_at.localeCompare(a.created_at) : a.created_at.localeCompare(b.created_at),
+    );
+    for (const arr of children.values()) {
+      arr.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    }
+    const out: { row: CommentRow; nested: boolean }[] = [];
+    for (const root of roots) {
+      out.push({ row: root, nested: false });
+      for (const child of children.get(root.id) ?? []) out.push({ row: child, nested: true });
+    }
+    return out;
   }, [rows, chan, order]);
+
+  const card = (r: CommentRow, nested: boolean) => {
+    const ch = channelById.get(r.channel_id);
+    const canReply = REPLY_PROVIDERS.has(r.platform) && !r.is_own;
+    const noReply = NO_REPLY_TEXT[r.platform];
+    const replied = r.status === 'replied' || r.status === 'hidden' || r.status === 'deleted';
+    const body = r.body || '(empty comment)';
+    const long = body.length > 240;
+    const open = expanded.has(r.id);
+    return (
+      <li
+        key={r.id}
+        className={`rounded-2xl border p-3.5 ${
+          r.is_own ? 'border-accent/40 bg-accent/[0.06]' : 'border-line bg-card'
+        } ${nested ? 'ml-4 sm:ml-10' : ''}`}
+      >
+        <div className="flex items-start gap-3">
+          {r.is_own ? (
+            <ChannelAvatar provider={r.platform} avatar={ch ? channelAvatar(ch.metadata) : undefined} size={34} />
+          ) : (
+            <CommentFace name={r.author_name} avatar={r.author_avatar} />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+              <span className="min-w-0 truncate text-sm font-bold">
+                {r.is_own ? 'You' : r.author_name || 'Unknown'}
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted">
+                <span>via</span>
+                <ChannelAvatar provider={r.platform} size={14} />
+                <span>
+                  {providerMeta(r.platform).label}
+                  {ch?.display_name ? ` · ${ch.display_name}` : ''}
+                </span>
+              </span>
+              <span className="shrink-0 text-[11px] text-faint">· {when(r.created_at)}</span>
+              {r.is_own ? (
+                <span className="shrink-0 rounded-full bg-accent/20 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-accent-ink">
+                  Sent
+                </span>
+              ) : r.status === 'new' ? (
+                <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-[#0b1220]">
+                  New
+                </span>
+              ) : replied ? (
+                <span className="shrink-0 rounded-full bg-paper-dim px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-muted">
+                  {r.status === 'replied' ? 'Replied' : r.status === 'hidden' ? 'Hidden' : 'Deleted'}
+                </span>
+              ) : null}
+            </p>
+
+            <p
+              className={`mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-soft ${
+                long && !open ? 'line-clamp-4' : ''
+              }`}
+            >
+              {body}
+            </p>
+            {long ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setExpanded((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(r.id)) next.delete(r.id);
+                    else next.add(r.id);
+                    return next;
+                  })
+                }
+                className="mt-1 text-[11px] font-bold text-accent-ink hover:underline"
+              >
+                {open ? 'Show less' : 'Show more'}
+              </button>
+            ) : null}
+
+            {r.is_own || replied ? null : canReply ? (
+              replyFor === r.id ? (
+                <div className="mt-2 flex items-start gap-2">
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    rows={2}
+                    placeholder={`Reply as ${ch?.display_name || providerMeta(r.platform).label}…`}
+                    aria-label="Reply text"
+                    className="field min-h-[52px] flex-1 resize-y !text-xs"
+                    autoFocus
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => void reply(r)}
+                      disabled={busyId === r.id || !draft.trim()}
+                      className="btn btn-primary !px-3 !py-1.5 !text-xs"
+                    >
+                      {busyId === r.id ? (
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      Send
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyFor(null);
+                        setDraft('');
+                      }}
+                      className="btn btn-ghost !px-3 !py-1.5 !text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplyFor(r.id);
+                    setDraft('');
+                  }}
+                  className="mt-2 text-xs font-bold text-accent-ink transition hover:underline"
+                >
+                  Reply
+                </button>
+              )
+            ) : (
+              <p className="mt-2 text-xs text-faint">{noReply ?? 'Replies not available on this platform.'}</p>
+            )}
+          </div>
+        </div>
+      </li>
+    );
+  };
 
   return (
     <div className="space-y-3">
@@ -227,21 +379,30 @@ export default function CommentsFeed({
           </div>
           <button
             type="button"
-            onClick={() => void refresh()}
-            disabled={scanning}
+            onClick={() => onRefresh?.()}
+            disabled={scanning || !onRefresh}
+            title="Refreshes comments and messages in one sweep"
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
           >
-            {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            {scanning ? (
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
             Refresh
           </button>
         </div>
       </div>
 
       {err ? (
-        <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
+        <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+          {err}
+        </p>
       ) : null}
       {note ? (
-        <p className="rounded-xl bg-[#EDF3EC] px-3.5 py-2.5 text-xs font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">{note}</p>
+        <p className="rounded-xl bg-[#EDF3EC] px-3.5 py-2.5 text-xs font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">
+          {note}
+        </p>
       ) : null}
 
       {rows === null ? (
@@ -251,7 +412,9 @@ export default function CommentsFeed({
       ) : visible.length === 0 ? (
         <div className="rounded-2xl border border-line bg-card p-10 text-center">
           <MessageCircle className="mx-auto h-6 w-6 text-faint" aria-hidden="true" />
-          <p className="mt-2 text-sm font-bold">{chan === 'all' ? 'No comments yet' : 'No comments on this channel yet'}</p>
+          <p className="mt-2 text-sm font-bold">
+            {chan === 'all' ? 'No comments yet' : 'No comments on this channel yet'}
+          </p>
           <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
             {chan === 'all'
               ? 'Publish to your channels, get a comment, and it lands here when the engine sweeps - every 5 minutes or on Refresh.'
@@ -259,94 +422,7 @@ export default function CommentsFeed({
           </p>
         </div>
       ) : (
-        <ul className="space-y-2.5">
-          {visible.map((r) => {
-            const ch = channelById.get(r.channel_id);
-            const isReply = !!r.parent_external_id;
-            const canReply = REPLY_PROVIDERS.has(r.platform);
-            const noReply = NO_REPLY_TEXT[r.platform];
-            const replied = r.status === 'replied' || r.status === 'hidden' || r.status === 'deleted';
-            return (
-              <li key={r.id} className={`rounded-2xl border border-line bg-card p-3.5 ${isReply ? 'ml-4 sm:ml-8' : ''}`}>
-                <div className="flex items-start gap-3">
-                  <CommentFace name={r.author_name} avatar={r.author_avatar} />
-                  <div className="min-w-0 flex-1">
-                    {/* Top row: handle · channel · time */}
-                    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                      <span className="min-w-0 truncate text-sm font-bold">{r.author_name || 'Unknown'}</span>
-                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted">
-                        <span>via</span>
-                        <ChannelAvatar provider={r.platform} size={14} />
-                        <span>
-                          {providerMeta(r.platform).label}
-                          {ch?.display_name ? ` · ${ch.display_name}` : ''}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-[11px] text-faint">· {when(r.created_at)}</span>
-                      {r.status === 'new' ? (
-                        <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-[#0b1220]">
-                          New
-                        </span>
-                      ) : replied ? (
-                        <span className="shrink-0 rounded-full bg-paper-dim px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-muted">
-                          {r.status === 'replied' ? 'Replied' : r.status === 'hidden' ? 'Hidden' : 'Deleted'}
-                        </span>
-                      ) : null}
-                    </p>
-                    {/* Comment body aligned under the handle */}
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-soft">
-                      {r.body || '(empty comment)'}
-                    </p>
-
-                    {replied ? null : canReply ? (
-                      replyFor === r.id ? (
-                        <div className="mt-2 flex items-start gap-2">
-                          <textarea
-                            value={draft}
-                            onChange={(e) => setDraft(e.target.value)}
-                            rows={2}
-                            placeholder={`Reply as ${ch?.display_name || providerMeta(r.platform).label}…`}
-                            aria-label="Reply text"
-                            className="field min-h-[52px] flex-1 resize-y !text-xs"
-                            autoFocus
-                          />
-                          <div className="flex flex-col gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => void reply(r)}
-                              disabled={busyId === r.id || !draft.trim()}
-                              className="btn btn-primary !px-3 !py-1.5 !text-xs"
-                            >
-                              {busyId === r.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Send className="h-3.5 w-3.5" aria-hidden="true" />}
-                              Send
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setReplyFor(null); setDraft(''); }}
-                              className="btn btn-ghost !px-3 !py-1.5 !text-xs"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => { setReplyFor(r.id); setDraft(''); }}
-                          className="mt-2 text-xs font-bold text-accent-ink transition hover:underline"
-                        >
-                          Reply
-                        </button>
-                      )
-                    ) : (
-                      <p className="mt-2 text-xs text-faint">{noReply ?? 'Replies not available on this platform.'}</p>
-                    )}
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <ul className="space-y-2.5">{visible.map(({ row, nested }) => card(row, nested))}</ul>
       )}
     </div>
   );

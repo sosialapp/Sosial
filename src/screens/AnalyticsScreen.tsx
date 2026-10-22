@@ -9,6 +9,7 @@ import { BarsChart, HBarList } from '../components/charts';
 import { Card, CardTitle, CardDescription, Tabs } from '../components/ui-kit';
 import { SOCIAL_META, requiresTitle } from '../constants';
 import { currentSession } from '../utils/supabase';
+import { fetchCommunityUnseen } from '../utils/community';
 import {
   fetchCloudAnalytics,
   type CloudAnalytics,
@@ -77,6 +78,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const [preset, setPreset] = useState<RangePreset>('last30');
   const [chanSel, setChanSel] = useState<string[]>([]);
   const [view, setView] = useState<'analytics' | 'community'>('analytics');
+  const [unseen, setUnseen] = useState({ comments: 0, messages: 0 });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,6 +95,15 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
     void load();
     void currentSession().catch(() => null);
   }, [load]);
+
+  // Community badge: unseen comments + messages, same counters the web
+  // masthead uses. Refreshes on focus beat and when switching sections.
+  useEffect(() => {
+    const tick = () => void fetchCommunityUnseen().then(setUnseen);
+    tick();
+    const t = setInterval(tick, 45_000);
+    return () => clearInterval(t);
+  }, [view]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -314,10 +325,35 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
             options={[
               { value: 'analytics', label: 'Analytics' },
               { value: 'community', label: 'Community' },
-            ]}
+            ] as { value: 'analytics' | 'community'; label: string }[]}
             value={view}
             onChange={setView}
             accessibilityLabel="Analytics sections"
+            renderOption={(o, active) => {
+              const count = o.value === 'community' ? unseen.comments + unseen.messages : 0;
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: active ? C.onInk : C.muted }}>{o.label}</Text>
+                  {count > 0 ? (
+                    <View
+                      style={{
+                        minWidth: 17,
+                        paddingHorizontal: 4,
+                        height: 17,
+                        borderRadius: 9,
+                        backgroundColor: active ? C.bone : C.accent,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: active ? C.ink : '#0b1220' }}>
+                        {count > 99 ? '99+' : count}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            }}
           />
         </View>
 

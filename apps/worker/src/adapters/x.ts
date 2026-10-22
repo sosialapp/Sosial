@@ -1,10 +1,12 @@
 /**
  * X adapter — DMs (user-context OAuth2 token) + replies via recent search.
  * DMs: https://docs.x.com/x-api/direct-messages/manage/introduction
- * Integration: https://docs.x.com/x-api/direct-messages/manage/integrate
- * Scopes: dm.read dm.write tweet.read users.read offline.access
+ * Scopes: dm.read dm.write tweet.read tweet.write users.read offline.access
  * Limits: 1,000 DMs/24h (individual), paid tier required for the user's
- * plan (autobilled) — surfaced at runtime as plain Facebook-style errors.
+ * plan (autobilled) — surfaced at runtime as plain-language errors.
+ *
+ * v2 shapes: a DM event carries `text`, `sender_id`, `dm_conversation_id` and
+ * `attachments.media_keys` — NOT the v1.1 `message_create.message_data` blob.
  */
 import { httpJson, httpError, withParams } from './http';
 import type {
@@ -15,7 +17,8 @@ import type {
 const X = 'https://api.x.com/2';
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
-const DM_FIELDS = 'id,created_at,event_type,sender_id,conversation_id,message_create';
+const DM_FIELDS = 'id,text,event_type,created_at,dm_conversation_id,sender_id,participant_ids,attachments';
+const DM_EXPANSIONS = 'sender_id,attachments.media_keys';
 const USER_FIELDS = 'name,username,profile_image_url';
 
 /** X names 1:1 conversations after the two participant ids, sorted. */
@@ -28,8 +31,13 @@ interface XEvent {
   id: string;
   event_type: string;
   created_at?: string;
-  conversation_id?: string;
+  text?: string;
+  dm_conversation_id?: string;
   sender_id?: string;
+  participant_ids?: string[];
+  attachments?: { media_keys?: string[] };
+  /** v1.1 left-overs, kept as a fallback for older payloads. */
+  conversation_id?: string;
   message_create?: { sender_id?: string; message_data?: { text?: string; attachments?: { media_ids?: string[] } } };
 }
 
@@ -45,7 +53,8 @@ interface DmPage {
 function readPage(data: any): DmPage {
   const media = new Map<string, string>();
   for (const m of Array.isArray(data?.includes?.media) ? data.includes.media : []) {
-    if (m?.media_key && typeof m.url === 'string') media.set(String(m.media_key), m.url);
+    const url = m?.url ?? m?.preview_image_url;
+    if (m?.media_key && typeof url === 'string') media.set(String(m.media_key), url);
   }
   const users = new Map<string, XUser>();
   for (const u of Array.isArray(data?.includes?.users) ? data.includes.users : []) {
@@ -60,14 +69,14 @@ function readPage(data: any): DmPage {
 }
 
 /** One paged read of the account's DM events (newest first), used to collage
- *  the conversation list (X has no list endpoint for low tiers). */
+ *  the conversation list (X has no working conversation list on most tiers). */
 async function dmEventsPage(account: Account, cursor: string | null): Promise<DmPage> {
   const url = withParams(`${X}/dm_events`, {
     event_types: 'MessageCreate',
     'dm_event.fields': DM_FIELDS,
-    expansions: 'sender_id,attachments.media_ids',
+    expansions: DM_EXPANSIONS,
     'user.fields': USER_FIELDS,
-    'media.fields': 'url',
+    'media.fields': 'url,preview_image_url',
     max_results: 100,
     ...(cursor ? { pagination_token: cursor } : {}),
   });
@@ -88,9 +97,9 @@ async function dmEventsPage(account: Account, cursor: string | null): Promise<Dm
 async function dmConvoPage(account: Account, convoId: string, cursor: string | null): Promise<DmPage> {
   const url = withParams(`${X}/dm_conversations/${encodeURIComponent(convoId)}/dm_events`, {
     'dm_event.fields': DM_FIELDS,
-    expansions: 'sender_id,attachments.media_ids',
+    expansions: DM_EXPANSIONS,
     'user.fields': USER_FIELDS,
-    'media.fields': 'url',
+    'media.fields': 'url,preview_image_url',
     max_results: 100,
     ...(cursor ? { pagination_token: cursor } : {}),
   });
@@ -100,6 +109,18 @@ async function dmConvoPage(account: Account, convoId: string, cursor: string | n
 }
 
 const eventIdOf = (e: XEvent): string => String(e?.id ?? '');
+const convoIdOf = (e: XEvent): string => String(e?.dm_conversation_id ?? e?.conversation_id ?? '');
+const senderOf = (e: XEvent): string => String(e?.sender_id ?? e?.message_create?.sender_id ?? '');
+const textOf = (e: XEvent): string => {
+  if (typeof e?.text === 'string') return e.text;
+  const legacy = e?.message_create?.message_data?.text;
+  return typeof legacy === 'string' ? legacy : '';
+};
+const mediaKeysOf = (e: XEvent): string[] => {
+  if (Array.isArray(e?.attachments?.media_keys)) return e.attachments.media_keys.map(String);
+  const legacy = e?.message_create?.message_data?.attachments?.media_ids;
+  return Array.isArray(legacy) ? legacy.map(String) : [];
+};
 
 export const x: InboxAdapter = {
   capabilities(): Capabilities {
@@ -110,15 +131,16 @@ export const x: InboxAdapter = {
     const page = await dmEventsPage(account, cursor);
     const seen = new Map<string, NormalizedConversation>();
     for (const e of page.events) {
-      const convoId = String(e?.conversation_id ?? '');
+      const convoId = convoIdOf(e);
       if (!convoId) continue;
       if (seen.has(convoId)) continue;
-      const sender = String(e?.sender_id ?? e?.message_create?.sender_id ?? '');
       const otherId =
-        convoId.split('-').find((part) => part && part !== account.externalId) ?? sender;
-      const u = page.users.get(otherId);
+        (e.participant_ids ?? []).find((id) => String(id) !== account.externalId) ??
+        convoId.split('-').find((part) => part && part !== account.externalId) ??
+        senderOf(e);
+      const u = page.users.get(String(otherId));
       seen.set(convoId, {
-        externalId: otherId,
+        externalId: String(otherId),
         participantName: u?.username ? `@${u.username}` : u?.name ?? `X user ${otherId}`,
         participantAvatar: u?.profile_image_url ?? null,
         lastMessageAt: e?.created_at ?? new Date().toISOString(),
@@ -134,16 +156,14 @@ export const x: InboxAdapter = {
     const convoId = expectedConvoId(account.externalId, conversationExternal);
     const page = await dmConvoPage(account, convoId, cursor);
     const items: NormalizedMessage[] = page.events.map((e) => {
-      const sender = String(e?.sender_id ?? e?.message_create?.sender_id ?? '');
-      const data = e?.message_create?.message_data ?? {};
-      const urls = (Array.isArray(data?.attachments?.media_ids) ? data.attachments.media_ids : [])
-        .map((id: string) => page.mediaUrls.get(String(id)))
-        .filter((u: string | undefined): u is string => !!u)
-        .map((u: string) => ({ url: u }));
+      const urls = mediaKeysOf(e)
+        .map((id) => page.mediaUrls.get(id))
+        .filter((u): u is string => !!u)
+        .map((u) => ({ url: u }));
       return {
         externalId: eventIdOf(e),
-        direction: sender === account.externalId ? 'out' : 'in',
-        body: typeof data.text === 'string' ? data.text : '',
+        direction: senderOf(e) === account.externalId ? 'out' : 'in',
+        body: textOf(e),
         attachments: urls,
         sentAt: e?.created_at ?? new Date().toISOString(),
       };
@@ -162,7 +182,7 @@ export const x: InboxAdapter = {
         ? { text: content.text, attachment: { media_id: content.attachmentUrls[0] } }
         : { text: content.text },
     });
-    if (r.status === 403) throw httpError('X send', { error: { message: 'X refused the send (403) — dm.write or the paid tier is missing.' } }, r.status);
+    if (r.status === 403) throw httpError('X send', { error: { message: 'X refused the send (403) — dm.write or the paid tier is missing. Reconnect the X channel.' } }, r.status);
     if (r.status !== 200 && r.status !== 201) throw httpError('X send', r.data, r.status);
     return {
       externalId: String(r.data?.data?.dm_conversation_id ?? r.data?.data?.id ?? ''),
@@ -193,27 +213,35 @@ export const x: InboxAdapter = {
     const qs = new URLSearchParams({
       query: `conversation_id:${postId} -is:retweet`,
       max_results: '25',
-      'tweet.fields': 'created_at,public_metrics,in_reply_to_user_id',
+      'tweet.fields': 'created_at,public_metrics,referenced_tweets',
       expansions: 'author_id',
       'user.fields': USER_FIELDS,
       ...(cursor ? { pagination_token: cursor } : {}),
     });
     const r = await httpJson({ url: `${X}/tweets/search/recent?${qs.toString()}`, provider: 'x', headers: auth(account.token) });
+    if (r.status === 403) {
+      throw httpError('X comments', { error: { message: 'X refused the comment read (403) — this app needs read access on the X API tier. Check the X dashboard.' } }, r.status);
+    }
     if (r.status !== 200 && r.status !== 201) throw httpError('X comments', r.data, r.status);
     const users = new Map<string, any>((r.data?.includes?.users ?? []).map((u: any) => [String(u.id), u]));
     const items: NormalizedComment[] = (r.data?.data ?? [])
-      // The root tweet comes back with its own thread; our own replies are
-      // thread noise in the Comments inbox, not comments to answer.
-      .filter((c: any) => String(c.id) !== postId && String(c.author_id) !== account.externalId)
+      // The root tweet comes back with its own thread; replies we posted are
+      // kept but flagged as ours so the UI can render them as "You".
+      .filter((c: any) => String(c.id) !== postId)
       .map((c: any): NormalizedComment => {
         const u = users.get(String(c.author_id));
         return {
           externalId: String(c.id),
-          parentExternalId: null,
+          parentExternalId: ((): string | null => {
+            const refs = Array.isArray(c?.referenced_tweets) ? c.referenced_tweets : [];
+            const replied = refs.find((ref: any) => ref?.type === 'replied_to');
+            return replied?.id ? String(replied.id) : null;
+          })(),
           authorName: u?.username ? `@${u.username}` : 'X user',
           authorAvatar: u?.profile_image_url ?? null,
           body: typeof c.text === 'string' ? c.text : '',
           createdAt: c?.created_at ?? new Date().toISOString(),
+          isOwn: String(c.author_id) === account.externalId,
         };
       });
     return { items, cursor: r.data?.meta?.next_token ?? null };

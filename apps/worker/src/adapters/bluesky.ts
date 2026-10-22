@@ -204,6 +204,7 @@ export const bluesky: InboxAdapter = {
             authorAvatar: post?.author?.avatar ?? null,
             body: typeof post?.record?.text === 'string' ? post.record.text : '',
             createdAt: post?.record?.createdAt ?? post?.indexedAt ?? new Date().toISOString(),
+            isOwn: String(post?.author?.did ?? '') === account.externalId,
           });
           walk(n?.replies, String(post.uri));
         }

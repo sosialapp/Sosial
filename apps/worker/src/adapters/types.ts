@@ -54,6 +54,8 @@ export interface NormalizedComment {
   authorAvatar: string | null;
   body: string;
   createdAt: string;
+  /** true when the connected account wrote it (our own reply in the thread) */
+  isOwn?: boolean;
 }
 
 export interface SendResult {

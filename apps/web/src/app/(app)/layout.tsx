@@ -10,6 +10,7 @@ import Dock from '@/components/Dock';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
 import NotificationBell from '@/components/NotificationBell';
+import CommunityLink from '@/components/CommunityLink';
 import { providerMeta } from '@/lib/providers';
 import { fetchLiveChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext, hasSupabaseEnv } from '@/lib/supabase/server';
@@ -118,22 +119,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           />
           <ConnectHeader channels={channels} />
           <ThemeToggle />
-          <Link
-            href="/community"
-            aria-label="Community"
-            title="Community — comments and replies"
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-bone"
-          >
-            <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true">
-              <path
-                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
+          <CommunityLink workspaceId={ctx.workspace.id} />
           <NotificationBell />
         </header>
       </div>

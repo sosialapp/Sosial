@@ -17,6 +17,7 @@ import { adapterFor } from './adapters';
 import type { Account, NormalizedComment } from './adapters/types';
 import { ensureToken as ensureXToken } from './x';
 import { debug, info, warn } from './logger';
+import { reconnectMessage } from './channelAuth';
 
 /* ----------------------------- channel loading ---------------------------- */
 
@@ -137,6 +138,14 @@ export async function handleSyncInbox(job: Job): Promise<void> {
         last_error: msg,
       });
       warn(`sync_inbox channel ${channelId}: provider refused DM access, backing off 6h`);
+      return;
+    }
+    // Dead auth is a reconnect prompt, not a retry loop: mark it expired so
+    // the bell/badge flow can ask for a reconnect once.
+    if (/expired|invalid_grant|invalid_token|unauthorized|\b401\b/i.test(msg)) {
+      const reason = reconnectMessage(c.provider);
+      await restPatch('connected_channels', c.id, { status: 'expired', last_error: reason });
+      warn(`sync_inbox channel ${channelId}: auth-dead, marked expired`);
       return;
     }
     throw e;
@@ -279,7 +288,8 @@ export async function handleSyncComments(job: Job): Promise<void> {
     if (!rows.length) continue;
 
     // Unique (platform, external_id): duplicates are live comments, the
-    // returned list is exactly the genuinely-new ones. Bell only for these.
+    // returned list is exactly the genuinely-new ones. Our own replies are
+    // stored too (is_own), so the thread reads like the platform thread.
     const newRows = await restInsert<any>('comments',
       rows.map((cm) => ({
         workspace_id: c.workspace_id,
@@ -292,36 +302,17 @@ export async function handleSyncComments(job: Job): Promise<void> {
         author_avatar: cm.authorAvatar,
         body: cm.body,
         created_at: cm.createdAt,
-        status: 'new',
+        is_own: !!cm.isOwn,
+        status: cm.isOwn ? 'replied' : 'new',
       })), { onConflict: 'platform,external_id' });
 
-    if (newRows.length) await notifyNewComments(c, newRows);
+    // Badges replace the old per-comment bell, so nothing is inserted into
+    // notifications here; community_unseen() counts these rows directly.
+    void newRows;
     debug(`sync_comments channel ${channelId} post ${remoteId}: ${rows.length} seen, ${newRows.length} new`);
   }
 }
 
-interface WorkspaceMember { user_id: string }
-
-/** One bell per active member per genuinely-new comment (same as the old
- *  trigger, but only on real inserts so the loop can't re-fire). */
-async function notifyNewComments(c: DbChannel, rows: any[]): Promise<void> {
-  try {
-    const members = await rest<WorkspaceMember[]>(
-      `/rest/v1/workspace_members?workspace_id=eq.${encodeURIComponent(c.workspace_id)}&status=eq.active&select=user_id`,
-    );
-    if (!members?.length) return;
-    await restInsert('notifications', rows.flatMap((cm) => members.map((m) => ({
-      workspace_id: c.workspace_id,
-      user_id: m.user_id,
-      kind: 'comment',
-      title: `New comment from ${cm.author_name ?? 'someone'}`.slice(0, 120),
-      body: String(cm.body ?? '').slice(0, 200),
-      href: '/community',
-    }))));
-  } catch (e) {
-    warn(`comment bell failed (channel ${c.id}): ${String(e)}`);
-  }
-}
 
 /* ------------------------------- send_message ----------------------------- */
 
@@ -384,11 +375,25 @@ export async function handleReplyComment(job: Job): Promise<void> {
   const adapter = adapterFor(c.provider);
   const account = accountOf(c, await channelToken(c));
 
-  try {
-    await adapter.replyToComment(account, String(cm.external_id), { text });
-    await restPatch('comments', cm.id, { status: 'replied', synced_at: new Date().toISOString() });
-    info(`reply_comment comment ${cm.id}: replied on ${c.provider}`);
-  } catch (e: any) {
-    throw e;
+  const res = await adapter.replyToComment(account, String(cm.external_id), { text });
+  // Store our reply in the same thread so the feed shows what was sent (and
+  // it survives the next sweep, which sees it as an is_own comment).
+  if (res.externalId) {
+    await restInsert('comments', [{
+      workspace_id: cm.workspace_id,
+      channel_id: c.id,
+      platform: c.provider,
+      external_post_id: cm.external_post_id,
+      external_id: res.externalId,
+      parent_external_id: String(cm.external_id),
+      author_name: c.handle ?? c.display_name ?? null,
+      author_avatar: (c.metadata as any)?.avatar ?? null,
+      body: text,
+      created_at: res.sentAt,
+      is_own: true,
+      status: 'replied',
+    }], { onConflict: 'platform,external_id' });
   }
+  await restPatch('comments', cm.id, { status: 'replied', synced_at: new Date().toISOString() });
+  info(`reply_comment comment ${cm.id}: replied on ${c.provider}`);
 }

@@ -163,10 +163,7 @@ export const mastodon: InboxAdapter = {
       headers: { Authorization: `Bearer ${account.token}` },
     });
     if (r.status !== 200 && r.status !== 201) throw httpError('Mastodon comments', r.data, r.status);
-    // Our own replies live in descendants too; they are thread noise in the
-    // Comments inbox, not comments to answer.
     const items: NormalizedComment[] = (Array.isArray(r.data?.descendants) ? r.data.descendants : [])
-      .filter((s: any) => String(s?.account?.id ?? '') !== account.externalId)
       .map((s: any): NormalizedComment => ({
         externalId: String(s.id),
         parentExternalId: s?.in_reply_to_id ? String(s.in_reply_to_id) : null,
@@ -174,6 +171,7 @@ export const mastodon: InboxAdapter = {
         authorAvatar: s?.account?.avatar ?? null,
         body: strip(String(s?.content ?? '')),
         createdAt: s?.created_at ?? new Date().toISOString(),
+        isOwn: String(s?.account?.id ?? '') === account.externalId,
       }));
     return { items, cursor: null };
   },

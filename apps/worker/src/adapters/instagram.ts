@@ -83,7 +83,7 @@ export const instagram: InboxAdapter = {
     return { externalId: String(r.data?.message_id ?? ''), sentAt: new Date().toISOString() };
   },
 
-  async listComments(_account, postId, cursor): Promise<Page<NormalizedComment>> {
+  async listComments(account, postId, cursor): Promise<Page<NormalizedComment>> {
     const url = withParams(`${GRAPH}/${postId}/comments`, {
       // Graph paging for this edge uses `after` like the rest; keep one
       // canonical cursor path to avoid double-counting params.
@@ -91,8 +91,9 @@ export const instagram: InboxAdapter = {
       limit: 50,
       after: cursor ?? undefined,
     });
-    const r = await httpJson({ url, provider: 'instagram', headers: { Authorization: `Bearer ${_account.token}` } });
+    const r = await httpJson({ url, provider: 'instagram', headers: { Authorization: `Bearer ${account.token}` } });
     if (r.status !== 200 && r.status !== 201) throw httpError('Instagram comments', r.data, r.status);
+    const mine = String(account.displayId ?? '').replace(/^@/, '');
     const items: NormalizedComment[] = [];
     for (const c of r.data?.data ?? []) {
       items.push({
@@ -102,6 +103,7 @@ export const instagram: InboxAdapter = {
         authorAvatar: null,
         body: typeof c.text === 'string' ? c.text : '',
         createdAt: c?.timestamp ?? new Date().toISOString(),
+        isOwn: !!mine && String(c?.username ?? '') === mine,
       });
       for (const rep of Array.isArray(c?.replies?.data) ? c.replies.data : []) {
         items.push({
@@ -111,6 +113,7 @@ export const instagram: InboxAdapter = {
           authorAvatar: null,
           body: typeof rep.text === 'string' ? rep.text : '',
           createdAt: rep?.timestamp ?? new Date().toISOString(),
+          isOwn: !!mine && String(rep?.username ?? '') === mine,
         });
       }
     }
