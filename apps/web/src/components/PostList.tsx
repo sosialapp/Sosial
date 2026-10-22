@@ -859,7 +859,11 @@ export default function PostList({
               >
                 {/* Header: author pfp + name/handle + time, like a social post */}
                 <div className="flex items-center gap-3 px-4 pt-3.5">
-                  <ChannelAvatar provider={lead?.provider ?? 'x'} size={36} />
+                  <ChannelAvatar
+                    provider={lead?.provider ?? 'x'}
+                    avatar={lead?.channel_id ? avatars[lead.channel_id] : undefined}
+                    size={36}
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-extrabold">{author.name}</span>
