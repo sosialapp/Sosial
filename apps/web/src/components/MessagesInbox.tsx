@@ -117,17 +117,6 @@ export default function MessagesInbox({
     const list = (convs ?? []).filter((c) => chan === 'all' || c.channel_id === chan);
     return order === 'new' ? list : [...list].reverse();
   }, [convs, chan, order]);
-  // Connected channels that will never show up here, so the user knows why
-  // the list looks shorter than the channel row.
-  const noDmNote = useMemo(() => {
-    const provs = [...new Set(channels.filter((c) => !DM_PROVIDERS.has(c.provider)).map((c) => c.provider))];
-    if (!provs.length) return null;
-    const names = provs.map((p) => providerMeta(p).label);
-    return names.length > 1
-      ? `${names.join(' and ')} don't expose a messages API — those conversations stay in their own apps.`
-      : `${names[0]} doesn't expose a messages API, you won't find its conversations here.`;
-  }, [channels]);
-
   // Channels whose provider refused DM reads (paid tier / scope). The worker
   // backs off, so say it here instead of showing a permanently empty inbox.
   const blockedNote = useMemo(() => {
@@ -449,9 +438,6 @@ export default function MessagesInbox({
             );
           })}
         </div>
-      ) : null}
-      {noDmNote ? (
-        <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{noDmNote}</p>
       ) : null}
       {blockedNote ? (
         <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{blockedNote}</p>
