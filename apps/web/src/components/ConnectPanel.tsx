@@ -937,26 +937,15 @@ export default function ConnectPanel({
                       <p className="text-[11px] leading-relaxed text-muted">
                         {t('cnBskyNote')}
                       </p>
-                      <label className="flex items-center rounded-xl border border-line bg-card focus-within:border-accent">
-                        <span className="pl-3 pr-1 text-xs font-bold text-muted" aria-hidden="true">
-                          @
-                        </span>
-                        <span className="relative min-w-0 flex-1">
-                          <span className="invisible block whitespace-pre px-0 py-2 text-xs" aria-hidden="true">{bskyHandle}</span>
-                          <input
-                            value={bskyHandle}
-                            onChange={(e) => setBskyHandle(e.target.value.replace(/^@+/, '').trim())}
-                            placeholder={t('cnBskyHandlePh')}
-                            autoComplete="off"
-                            spellCheck={false}
-                            aria-label={t('cnBskyHandleAria')}
-                            className="absolute inset-0 min-w-0 border-0 bg-transparent px-0 py-2 text-xs outline-none focus:ring-0"
-                          />
-                        </span>
-                        <span className="pr-3 text-xs text-faint" aria-hidden="true">
-                          {bskyHandle.includes('.') || !bskyHandle ? '' : '.bsky.social'}
-                        </span>
-                      </label>
+                      <input
+                        value={bskyHandle}
+                        onChange={(e) => setBskyHandle(e.target.value.trim())}
+                        placeholder={t('cnBskyHandlePh')}
+                        autoComplete="username"
+                        spellCheck={false}
+                        aria-label={t('cnBskyHandleAria')}
+                        className="field !text-xs"
+                      />
                       <p className="px-1 text-[10px] leading-relaxed text-faint">{t('cnBskyOk')}</p>
                       <input
                         value={bskyPass}
