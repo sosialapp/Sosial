@@ -154,16 +154,29 @@ export default function MessagesInbox({
   }
 
   if (dmChannels.length === 0) {
+    const anyChannels = channels.length > 0;
     return (
       <div className="rounded-2xl border border-line bg-card p-10 text-center">
-        <p className="text-sm font-bold">No DM channels yet</p>
-        <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-          Connect a Facebook Page, an Instagram business account or Mastodon in
-          Connect, and their direct messages show up here.
+        <p className="text-sm font-bold">
+          {anyChannels ? 'No DM-capable channels yet' : 'No DM channels yet'}
         </p>
-        {noDmNote ? <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-faint">{noDmNote}</p> : null}
+        <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
+          {anyChannels ? (
+            <>
+              Your channels are connected, but none of them support reading
+              direct messages (that's inherent to the platform — e.g. Threads
+              has no messages API). Connect a Facebook Page, an Instagram
+              business account or Mastodon and their DMs show up here.
+            </>
+          ) : (
+            <>
+              Connect a Facebook Page, an Instagram business account or
+              Mastodon in Connect, and their direct messages show up here.
+            </>
+          )}
+        </p>
         <a href="/connect" className="btn btn-primary mt-4 !px-4 !py-2 !text-xs">
-          Connect channels
+          {anyChannels ? 'Connect more channels' : 'Connect channels'}
         </a>
       </div>
     );
