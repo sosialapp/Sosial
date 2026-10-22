@@ -193,36 +193,47 @@ export async function handleSyncInbox(job: Job): Promise<void> {
     const newestAt = conv.lastMessageAt ?? '';
     const storedAt = row.last_message_at ?? '';
     const moved = newestAt !== storedAt || inserted.some((i) => i.external_id === conv.externalId);
-    let cursor: string | null = row.cursor ?? null;
+    const stored = await rest<string[]>(
+      `/rest/v1/messages?conversation_id=eq.${row.id}&select=external_id&external_id=not.is.null&limit=400`,
+    );
+    const have = new Set((stored ?? []).map((x) => String(x)));
 
-    if (moved || cursor) {
-      let newMessages: { externalId: string; direction: 'in' | 'out'; body: string; attachments: { url: string }[]; sentAt: string }[] = [];
+    // `row.cursor` is a legacy flag here: it marks threads that predate the
+    // head-first sweep below, so they keep being polled until they catch up.
+    if (moved || row.cursor || !have.size) {
+      const newMessages: { externalId: string; direction: 'in' | 'out'; body: string; attachments: { url: string }[]; sentAt: string }[] = [];
+      // Every provider pages *backwards* in time, so a stored cursor can only
+      // walk into history. Always start at the head (newest page) — that is
+      // the only place an inbound message can appear. One extra page of
+      // history is imported the first time a thread is seen.
+      let cursor: string | null = null;
+      let pages = 0;
       for (let p = 0; p < INBOX_PAGES_PER_CONVO; p++) {
         const mp = await adapter.listMessages(account, conv.externalId, cursor);
         if (!mp.items.length) break;
-        const stored = await rest<string[]>(
-          `/rest/v1/messages?conversation_id=eq.${row.id}&select=external_id&external_id=not.is.null&limit=400`,
-        );
-        const have = new Set((stored ?? []).map((x) => String(x)));
-        newMessages = newMessages.concat(mp.items.filter((m) => !have.has(m.externalId)));
-        if (newMessages.length) {
-          // Two sweeps can overlap on the same thread (cron + webhook), and
-          // both see the same unseen message. Ignore the loser instead of
-          // losing the whole batch to a 23505.
-          await restInsert('messages', newMessages.map((m) => ({
-            conversation_id: row.id,
-            external_id: m.externalId,
-            direction: m.direction,
-            body: m.body,
-            attachments: m.attachments ?? [],
-            sent_at: m.sentAt,
-            status: 'sent',
-          })), { onConflict: 'conversation_id,external_id' });
-        }
+        newMessages.push(...mp.items.filter((m) => !have.has(m.externalId)));
+        pages += 1;
+        if (have.size || pages >= 2) break;
         cursor = mp.cursor;
-        await restPatch('conversations', row.id, { cursor });
         if (!cursor) break;
       }
+      if (newMessages.length) {
+        // Two sweeps can overlap on the same thread (cron + webhook), and
+        // both see the same unseen message. Ignore the loser instead of
+        // losing the whole batch to a 23505.
+        await restInsert('messages', newMessages.map((m) => ({
+          conversation_id: row.id,
+          external_id: m.externalId,
+          direction: m.direction,
+          body: m.body,
+          attachments: m.attachments ?? [],
+          sent_at: m.sentAt,
+          status: 'sent',
+        })), { onConflict: 'conversation_id,external_id' });
+      }
+      // The legacy backwards cursor is dead weight now; clear it so the
+      // thread falls back to change detection on the next sweep.
+      if (row.cursor) await restPatch('conversations', row.id, { cursor: null });
     }
 
     // Derived unread: inbound messages newer than our last outbound one.
