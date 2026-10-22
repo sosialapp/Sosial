@@ -274,9 +274,13 @@ export default function CommentsFeed({
                     {/* Top row: handle · channel · time */}
                     <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
                       <span className="min-w-0 truncate text-sm font-bold">{r.author_name || 'Unknown'}</span>
-                      <span className="shrink-0 text-[11px] text-muted">
-                        via {providerMeta(r.platform).label}
-                        {ch?.display_name ? ` · ${ch.display_name}` : ''}
+                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted">
+                        <span>via</span>
+                        <ChannelAvatar provider={r.platform} size={14} />
+                        <span>
+                          {providerMeta(r.platform).label}
+                          {ch?.display_name ? ` · ${ch.display_name}` : ''}
+                        </span>
                       </span>
                       <span className="shrink-0 text-[11px] text-faint">· {when(r.created_at)}</span>
                       {r.status === 'new' ? (

@@ -143,7 +143,16 @@ export default function CommunityScreen({ onConnect, bare }: {
                       {c.author} <Text style={s.commentOn}>on {c.postTitle}</Text>
                     </Text>
                     <Text style={s.commentX}>{c.text}</Text>
-                    <Text style={s.commentT}>{c.ts ? timeAgo(c.ts) : ''}</Text>
+                    <View style={s.metaRow}>
+                      <Text style={s.commentT}>via</Text>
+                      <View style={[s.miniLogo, { backgroundColor: SOCIAL_META[c.channel]?.bg ?? C.ink }]}>
+                        <SocialGlyph platform={c.channel} size={8} color="#fff" />
+                      </View>
+                      <Text style={s.commentT} numberOfLines={1}>
+                        {SOCIAL_META[c.channel]?.label ?? c.channel}
+                        {c.ts ? ` · ${timeAgo(c.ts)}` : ''}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               ))}
@@ -199,6 +208,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   commentOn: { fontFamily: 'PlusJakartaSans_400Regular', color: C.muted },
   commentX: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 19, color: C.soft },
   commentT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  miniLogo: { width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   empty: { backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.lineSoft, paddingVertical: 32, paddingHorizontal: 24, alignItems: 'center', gap: 10 },
   emptyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.bone, alignItems: 'center', justifyContent: 'center' },
   emptyT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15.5, color: C.ink },

@@ -494,9 +494,13 @@ export default function MessagesInbox({
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs text-muted">
-                      via {providerMeta(c.platform).label}
-                      {ch?.display_name ? ` · ${ch.display_name}` : ''}
+                    <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted">
+                      <span>via</span>
+                      <ChannelAvatar provider={c.platform} size={14} />
+                      <span className="truncate">
+                        {providerMeta(c.platform).label}
+                        {ch?.display_name ? ` · ${ch.display_name}` : ''}
+                      </span>
                     </span>
                   </span>
                 </button>
