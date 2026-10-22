@@ -45,7 +45,8 @@ export async function POST(req: Request) {
   };
   const fail = payload.error ?? fnErr?.message;
   if (fail || !payload.access_token || !payload.external_id) {
-    return Response.json({ error: fail ?? 'Bluesky login failed.' }, { status: 502 });
+    const detail = fail ?? `no session returned (keys: ${Object.keys(payload).join(', ') || 'none'})`;
+    return Response.json({ error: detail }, { status: 502 });
   }
   // Same account twice is a no-op with a name, but let expired rows heal.
   const { data: existing } = await sb

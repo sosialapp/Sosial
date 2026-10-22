@@ -266,7 +266,7 @@ export default function ConnectPanel({
         window.location.href = '/channels?already=bluesky';
         return;
       }
-      if (!j.ok) throw new Error(j.error ?? t('cnBskyFail'));
+        if (!j.ok) throw new Error(j.error ?? `${t('cnBskyFail')} (${r.status})`);
       window.location.href = '/channels?connected=bluesky';
     } catch (e) {
       setErr(e instanceof Error ? e.message : t('cnBskyFail'));
