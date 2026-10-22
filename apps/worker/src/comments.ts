@@ -24,6 +24,7 @@
  * Job kind 'scan_comments' (cron enqueued), payload {}.
  */
 import { rest, readSecret } from './db';
+import { restPatch } from './rest';
 import type { Job } from './db';
 import { tokenRow, type ChannelRow, type TokenRow } from './avatars';
 import { warn, info, debug } from './logger';
@@ -39,7 +40,7 @@ interface TargetRow {
   remote_id: string;
   channel_id: string | null;
   provider: string;
-  posts?: { workspace_id: string } | null;
+  posts?: { workspace_id: string; body: string | null } | null;
   post_created_by: string | null;
 }
 
@@ -227,13 +228,12 @@ async function threadsReplies(remoteId: string, token: string): Promise<RawComme
     }));
 }
 
-export async function handleScanComments(_job: Job): Promise<void> {
-  // Recent sent targets on comment-capable providers, newest first, cap 100
+export async function handleScanComments(_job: Job): Promise<void> {  // Recent sent targets on comment-capable providers, newest first, cap 100
   // per sweep: enough coverage, bounded work. Mastodon is handled per
   // channel (notifications), the rest per target (per-post reads).
   const targets = await rest<TargetRow[]>(
     `/rest/v1/post_targets?status=eq.sent&provider=in.(facebook,threads,instagram,x,mastodon)` +
-      `&remote_id=neq.&select=id,post_id,remote_id,channel_id,provider,posts(workspace_id)` +
+      `&remote_id=neq.&select=id,post_id,remote_id,channel_id,provider,posts(workspace_id,body)` +
       `&order=updated_at.desc&limit=100`,
   ).catch((e) => {
     debug(`scan_comments: target read failed: ${String(e)}`);
@@ -324,16 +324,22 @@ export async function handleScanComments(_job: Job): Promise<void> {
       }
       if (chProviderDead(entry.ch)) continue;
 
-      const list =
-        target.provider === 'facebook'
-          ? await fbComments(target.remote_id, entry.token)
-          : target.provider === 'threads'
-            ? await threadsReplies(target.remote_id, entry.token)
-            : target.provider === 'instagram'
-              ? await igComments(target.remote_id, entry.token)
-              : target.provider === 'x'
-                ? await xReplies(target.remote_id, entry.token)
-                : [];
+      let remoteId = target.remote_id;
+      let list: RawComment[] = [];
+      try {
+        list = await readCommentsFor(target.provider, remoteId, entry.token);
+      } catch (bad) {
+        // Threads can end up with an unreadable remote_id (Meta sometimes
+        // answers threads_publish with an id that never becomes media, and
+        // manual deletion of a real post leaves the same 100 behind).
+        // Self-heal: match the target's post text against the account's
+        // media list, patch the stored id, and read once more.
+        if (target.provider !== 'threads') throw bad;
+        const healed = await threadsHealTargetId(target, entry.token);
+        if (!healed) throw bad;
+        remoteId = healed;
+        list = await threadsReplies(healed, entry.token);
+      }
 
       if (!list.length) continue;
             const rows = list.map((c) => ({
@@ -364,6 +370,48 @@ export async function handleScanComments(_job: Job): Promise<void> {
     }
   }
   info(`scan_comments: scanned ${scanned} comments across ${(targets ?? []).length} targets`);
+}
+
+/** Read a target's comments by provider; the single entry point the
+ *  per-target loop uses so the Threads self-heal can recover the id. */
+function readCommentsFor(provider: string, remoteId: string, token: string): Promise<RawComment[]> {
+  if (provider === 'facebook') return fbComments(remoteId, token);
+  if (provider === 'threads') return threadsReplies(remoteId, token);
+  if (provider === 'instagram') return igComments(remoteId, token);
+  if (provider === 'x') return xReplies(remoteId, token);
+  return Promise.resolve([]);
+}
+
+/** The stored Threads media id is unreadable (container-id race or the post
+ *  was deleted by hand). Look the real post up by its text on /me/threads —
+ *  first top-level post whose text matches — patch the target, return the id. */
+async function threadsHealTargetId(target: TargetRow, token: string): Promise<string | null> {
+  const want = String(target.posts?.body ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .slice(0, 40);
+  if (want.length < 3) return null;
+  const r = await fetch(
+    `${THREADS_API}/me/threads?fields=id,text,is_reply&limit=25&access_token=${encodeURIComponent(token)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error?.message ?? `threads media list ${r.status}`);
+  const data = Array.isArray(j?.data) ? j.data : [];
+  const hit = data.find(
+    (x: any) =>
+      x?.is_reply === false &&
+      String(x?.id ?? '') !== target.remote_id &&
+      typeof x?.text === 'string' &&
+      x.text.trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 40) === want,
+  );
+  if (!hit) return null;
+  info(`scan_comments: threads id healed ${target.remote_id} -> ${hit.id}`);
+  await restPatch('post_targets', target.id, { remote_id: String(hit.id) }).catch((e: unknown) =>
+    debug(`scan_comments: heal patch failed: ${String(e)}`),
+  );
+  return String(hit.id);
 }
 
 /** Channels in expired/revoked state are skipped without a fetch. */
