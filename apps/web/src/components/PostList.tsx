@@ -114,13 +114,6 @@ function shortRel(iso: string | null, unscheduledLabel = 'unscheduled'): string 
   return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/** Compact count for the card stats bar (1.2k, 3.4M). */
-function fmtCount(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
-}
-
 /** Pill action for the card footer: icon + text label, so the action reads. */
 function CardAction({
   icon: Icon,
@@ -457,7 +450,6 @@ export default function PostList({
   const [monthSel, setMonthSel] = useState('');
   const [mediaSel, setMediaSel] = useState<'all' | 'text' | 'image' | 'video'>('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [stats, setStats] = useState<Record<string, StatRow>>({});
   const [, startTransition] = useTransition();
 
   const channelById = useMemo(() => {
@@ -487,35 +479,6 @@ export default function PostList({
     const name = display.replace(/^@+/, '') || display;
     return { name, handle };
   };
-
-  // Card-level stats: one batch fetch for the visible sent targets (same
-  // query the preview panel uses; best-effort, cards render zeros without it).
-  useEffect(() => {
-    const ids = posts
-      .filter((p) => p.status === 'sent' || p.status === 'partial')
-      .flatMap((p) => p.post_targets.filter((t) => t.status === 'sent').map((t) => t.id));
-    if (!ids.length) return;
-    let live = true;
-    void (async () => {
-      try {
-        const sb = createClient();
-        const { data } = await sb
-          .from('post_stats')
-          .select('post_target_id,likes,comments,shares,views,fetched_at')
-          .eq('workspace_id', workspaceId)
-          .in('post_target_id', ids);
-        if (!live) return;
-        const map: Record<string, StatRow> = {};
-        for (const row of (data ?? []) as StatRow[]) map[row.post_target_id] = row;
-        setStats(map);
-      } catch {
-        // stats are best-effort
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, [posts, workspaceId]);
 
   const dateOf = (p: PostWithTargets) => p.sent_at ?? p.scheduled_at ?? p.created_at ?? '';
 
@@ -844,12 +807,6 @@ export default function PostList({
           const lead = targets[0];
           const author = lead ? authorOf(lead.channel_id, lead.provider) : { name: t('stDraft'), handle: null };
           const when = head.sent_at ?? head.scheduled_at;
-          const sentTargets = g.parts.flatMap((p) => p.post_targets).filter((t) => t.status === 'sent');
-          const cardStats = sentTargets.map((t) => stats[t.id]).filter((s): s is StatRow => Boolean(s));
-          const totalStat = (k: 'likes' | 'comments' | 'shares') =>
-            cardStats.reduce((a, s) => a + (s[k] ?? 0), 0);
-          const viewSum = cardStats.reduce((a, s) => a + (s.views == null ? 0 : Number(s.views)), 0);
-          const showStats = sentTargets.length > 0;
           return (
             <>
               <article
@@ -981,27 +938,8 @@ export default function PostList({
                   <p className="px-4 pt-1 text-xs font-bold text-faint">{fill(t('moreAttachments'), { n: mediaTotal - 4 })}</p>
                 )}
 
-                {/* Footer: post stats (center) · actions (right) */}
+                {/* Footer: actions */}
                 <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-                  {showStats ? (
-                    <>
-                      <span className="flex-1" />
-                      <span className="flex items-center gap-3 text-[11px] font-bold text-muted">
-                        <span title={t('titleViews')}>
-                          {fmtCount(viewSum)} <span className="text-faint">{t('titleViews')}</span>
-                        </span>
-                        <span title={t('titleLikes')}>
-                          {fmtCount(totalStat('likes'))} <span className="text-faint">{t('titleLikes')}</span>
-                        </span>
-                        <span title={t('titleComments')}>
-                          {fmtCount(totalStat('comments'))} <span className="text-faint">{t('titleComments')}</span>
-                        </span>
-                        <span title={t('titleShares')}>
-                          {fmtCount(totalStat('shares'))} <span className="text-faint">{t('titleShares')}</span>
-                        </span>
-                      </span>
-                    </>
-                  ) : null}
                   <span className="flex-1" />
                   {canApprove && inApproval && (
                     <>

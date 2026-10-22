@@ -203,10 +203,6 @@ export default function SiteNav() {
           </Link>
         </div>
 
-        <div className="ml-auto flex items-center gap-1 lg:hidden">
-          <LanguageSwitcher locale={locale} />
-        </div>
-
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <LanguageSwitcher locale={locale} />
           {signedIn ? (
@@ -254,9 +250,7 @@ export default function SiteNav() {
       {open && (
         <div id="mobile-nav" className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-line bg-bone lg:hidden">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-1 px-4 py-4">
-            <div className="flex justify-start px-1 pb-1">
-              <LanguageSwitcher locale={locale} />
-            </div>
+            <LanguageSwitcher locale={locale} variant="menu" label={t('navLanguage')} />
             <MobileSection label={t('navFeatures')} links={FEATURES} onGo={close} />
             <MobileSection
               label={t('navIntegrations')}
