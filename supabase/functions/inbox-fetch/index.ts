@@ -5,7 +5,7 @@
 // Vault; the caller (user JWT) is checked for workspace membership and the
 // workspace plan (Messages is a paid feature; free gets {ok:false,upgrade}).
 //
-// POST { workspace_id, channel_id?, conversation_id?, limit?, after? }
+  // POST { workspace_id, channel_id?, conversation_id?, limit?, after?, fresh? }
 //  - conversations list when conversation_id is absent (per channel, or all
 //    DM-capable channels of the workspace when channel_id is omitted)
 //  - message thread when channel_id + conversation_id are given
@@ -360,14 +360,16 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  // Conversation lists (cached per channel).
+  // Conversation lists (cached per channel; body.fresh=true bypasses the
+  // 60s buffer for the UI's refresh button).
+  const fresh = body["fresh"] === true;
   const conversations: Conv[] = [];
   const chanErrors: string[] = [];
   await Promise.all(
     ctxs.map(async (ctx) => {
       const key = `${ctx.id}:${limit}`;
       try {
-        const cached = cacheGet(key);
+        const cached = fresh ? null : cacheGet(key);
         const list =
           cached ??
           (ctx.provider === "mastodon" ? await mastodonConvs(ctx, limit) : await metaConvs(ctx.provider, ctx, limit));

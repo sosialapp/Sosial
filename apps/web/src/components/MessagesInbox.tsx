@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, LoaderCircle, Lock, Send } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, Lock, RefreshCw, Send } from 'lucide-react';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import {
   fetchConversations,
@@ -52,11 +52,26 @@ export default function MessagesInbox({
   const scroller = useRef<HTMLDivElement | null>(null);
 
   const dmChannels = useMemo(() => channels.filter((c) => DM_PROVIDERS.has(c.provider)), [channels]);
+  // Channels that look connected but cannot ever appear here — surfaced so
+  // a Threads (or X) user is not left wondering why it stays empty.
+  const noDmChannels = useMemo(
+    () => channels.filter((c) => !DM_PROVIDERS.has(c.provider)),
+    [channels],
+  );
+  const noDmNote = useMemo(() => {
+    const provs = [...new Set(noDmChannels.map((c) => c.provider))];
+    if (!provs.length) return null;
+    const names = provs.map((p) => providerMeta(p).label);
+    return names.length > 1
+      ? `${names.join(' and ')} don't offer apps access to direct messages yet — those conversations stay in their own apps.`
+      : `${names[0]} doesn't offer apps access to direct messages yet — those conversations stay in the ${names[0]} app.`;
+  }, [noDmChannels]);
+  const [busyRefresh, setBusyRefresh] = useState(false);
 
-  const loadConvs = useCallback(async () => {
+  const loadConvs = useCallback(async (opts?: { fresh?: boolean }) => {
     setErr(null);
     try {
-      const list = await fetchConversations(workspaceId);
+      const list = await fetchConversations(workspaceId, 15, opts);
       setConvs(list);
     } catch (e) {
       setConvs([]);
@@ -64,11 +79,16 @@ export default function MessagesInbox({
     }
   }, [workspaceId]);
 
+  const refreshConvs = async () => {
+    setBusyRefresh(true);
+    await loadConvs({ fresh: true });
+    setBusyRefresh(false);
+  };
+
   useEffect(() => {
     if (!paid || dmChannels.length === 0) return;
     void loadConvs();
   }, [paid, dmChannels.length, loadConvs]);
-
   const openConv = async (c: InboxConversation) => {
     setOpen(c);
     setMsgs(null);
@@ -141,6 +161,7 @@ export default function MessagesInbox({
           Connect a Facebook Page, an Instagram business account or Mastodon in
           Connect, and their direct messages show up here.
         </p>
+        {noDmNote ? <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-faint">{noDmNote}</p> : null}
         <a href="/connect" className="btn btn-primary mt-4 !px-4 !py-2 !text-xs">
           Connect channels
         </a>
@@ -225,6 +246,23 @@ export default function MessagesInbox({
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="px-1 text-xs font-bold uppercase tracking-wide text-faint">Inbox</p>
+        <button
+          type="button"
+          onClick={() => void refreshConvs()}
+          disabled={busyRefresh}
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim disabled:opacity-50"
+          aria-label="Refresh conversations"
+        >
+          <LoaderCircle className={`h-3.5 w-3.5 ${busyRefresh ? 'animate-spin' : 'hidden'}`} aria-hidden="true" />
+          <RefreshCw className={`h-3.5 w-3.5 ${busyRefresh ? 'hidden' : ''}`} aria-hidden="true" />
+          Refresh
+        </button>
+      </div>
+      {noDmNote ? (
+        <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{noDmNote}</p>
+      ) : null}
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
       ) : null}

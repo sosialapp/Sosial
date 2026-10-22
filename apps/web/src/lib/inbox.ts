@@ -51,10 +51,15 @@ async function call<T>(fn: 'inbox-fetch' | 'inbox-send', body: Record<string, un
   return j as T;
 }
 
-export async function fetchConversations(workspaceId: string, limit = 15): Promise<InboxConversation[]> {
+export async function fetchConversations(
+  workspaceId: string,
+  limit = 15,
+  opts?: { fresh?: boolean },
+): Promise<InboxConversation[]> {
   const j = await call<{ conversations?: InboxConversation[] }>('inbox-fetch', {
     workspace_id: workspaceId,
     limit,
+    ...(opts?.fresh ? { fresh: true } : {}),
   });
   return j.conversations ?? [];
 }
