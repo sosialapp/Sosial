@@ -1,19 +1,47 @@
 'use client';
 
+/**
+ * Messages tab — the unified DM inbox (p92). Reads conversations/messages
+ * straight from Supabase (RLS: members of the workspace); sending goes
+ * through the inbox-send edge function, which queues a send_message job the
+ * worker executes through the platform adapter. The thread re-reads a few
+ * seconds after a send so provider-assigned ids/timestamps land.
+ *
+ * Not-DM channels (Threads, YouTube, LinkedIn, TikTok, Pinterest) get an
+ * honest platform-honesty note instead of an empty mystery.
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, LoaderCircle, Lock, RefreshCw, Send } from 'lucide-react';
-import ChannelAvatar from '@/components/ChannelAvatar';
-import {
-  fetchConversations,
-  fetchThread,
-  sendDirectMessage,
-  InboxConversation,
-  InboxMessage,
-} from '@/lib/inbox';
+import { ArrowLeft, LoaderCircle, Lock, RefreshCw, Send, User } from 'lucide-react';
+import SafeImg from '@/components/SafeImg';
+import { createClient } from '@/lib/supabase/client';
+import { edgeErrorMessage } from '@/lib/functions';
 import { providerMeta } from '@/lib/providers';
 import type { ConnectedChannel } from '@/lib/types';
 
-const DM_PROVIDERS = new Set(['facebook', 'instagram', 'mastodon']);
+/** Phase-1 unified DM providers (capabilities.inbox). */
+const DM_PROVIDERS = new Set(['facebook', 'instagram', 'x', 'mastodon', 'bluesky']);
+
+interface ConversationRow {
+  id: string;
+  channel_id: string;
+  platform: string;
+  participant_name: string | null;
+  participant_avatar: string | null;
+  last_message_at: string | null;
+  unread_count: number | null;
+}
+
+interface MessageRow {
+  id: string;
+  conversation_id: string;
+  external_id: string | null;
+  direction: 'in' | 'out';
+  body: string;
+  attachments: { url: string }[];
+  sent_at: string;
+  status: string;
+}
 
 function when(iso: string | null): string {
   if (!iso) return '';
@@ -27,12 +55,35 @@ function when(iso: string | null): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/**
- * Messages tab: live DM conversations through the stateless inbox-fetch /
- * inbox-send edge functions (Facebook Messenger, Instagram DM, Mastodon).
- * Paid plans only — the gate is enforced server-side; free sees an upgrade
- * card here.
- */
+/** Participant face when the platform gave an avatar url, initial bubble
+ *  when it didn't (real-social parity). */
+function FaceAvatar({
+  name,
+  avatar,
+  size,
+}: {
+  name: string | null;
+  avatar: string | null | undefined;
+  size: number;
+}) {
+  const letter = (name ?? '').trim().charAt(0).toUpperCase();
+  return (
+    <span
+      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-paper text-soft"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      {avatar ? (
+        <SafeImg src={avatar} alt="" width={size} height={size} className="h-full w-full object-cover" />
+      ) : letter ? (
+        <span className="font-extrabold" style={{ fontSize: Math.round(size * 0.42) }}>{letter}</span>
+      ) : (
+        <User style={{ width: Math.round(size * 0.56), height: Math.round(size * 0.56) }} />
+      )}
+    </span>
+  );
+}
+
 export default function MessagesInbox({
   workspaceId,
   channels,
@@ -42,64 +93,62 @@ export default function MessagesInbox({
   channels: ConnectedChannel[];
   paid: boolean;
 }) {
-  const [convs, setConvs] = useState<InboxConversation[] | null>(null);
-  const [open, setOpen] = useState<InboxConversation | null>(null);
-  const [msgs, setMsgs] = useState<InboxMessage[] | null>(null);
+  const [convs, setConvs] = useState<ConversationRow[] | null>(null);
+  const [open, setOpen] = useState<ConversationRow | null>(null);
+  const [msgs, setMsgs] = useState<MessageRow[] | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [warn, setWarn] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const scroller = useRef<HTMLDivElement | null>(null);
 
+  const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
   const dmChannels = useMemo(() => channels.filter((c) => DM_PROVIDERS.has(c.provider)), [channels]);
-  // Channels that look connected but cannot ever appear here — surfaced so
-  // a Threads (or X) user is not left wondering why it stays empty.
-  const noDmChannels = useMemo(
-    () => channels.filter((c) => !DM_PROVIDERS.has(c.provider)),
-    [channels],
-  );
+  // Connected channels that will never show up here, so the user knows why
+  // the list looks shorter than the channel row.
   const noDmNote = useMemo(() => {
-    const provs = [...new Set(noDmChannels.map((c) => c.provider))];
+    const provs = [...new Set(channels.filter((c) => !DM_PROVIDERS.has(c.provider)).map((c) => c.provider))];
     if (!provs.length) return null;
     const names = provs.map((p) => providerMeta(p).label);
     return names.length > 1
-      ? `${names.join(' and ')} don't offer apps access to direct messages yet — those conversations stay in their own apps.`
-      : `${names[0]} doesn't offer apps access to direct messages yet — those conversations stay in the ${names[0]} app.`;
-  }, [noDmChannels]);
-  const [busyRefresh, setBusyRefresh] = useState(false);
+      ? `${names.join(' and ')} don't expose a messages API — those conversations stay in their own apps.`
+      : `${names[0]} doesn't expose a messages API, you won't find its conversations here.`;
+  }, [channels]);
 
-  const loadConvs = useCallback(async (opts?: { fresh?: boolean }) => {
+  const loadConvs = useCallback(async () => {
     setErr(null);
-    try {
-      const list = await fetchConversations(workspaceId, 15, opts);
-      setConvs(list);
-    } catch (e) {
-      setConvs([]);
-      setErr(e instanceof Error ? e.message : 'Could not load conversations.');
-    }
+    const sb = createClient();
+    const { data, error } = await sb
+      .from('conversations')
+      .select('id,channel_id,platform,participant_name,participant_avatar,last_message_at,unread_count')
+      .eq('workspace_id', workspaceId)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(100);
+    setConvs((data ?? []) as ConversationRow[]);
+    if (error) setErr(error.message);
   }, [workspaceId]);
 
-  const refreshConvs = async () => {
-    setBusyRefresh(true);
-    await loadConvs({ fresh: true });
-    setBusyRefresh(false);
-  };
+  const loadThread = useCallback(async (cid: string) => {
+    const sb = createClient();
+    const { data } = await sb
+      .from('messages')
+      .select('id,conversation_id,external_id,direction,body,attachments,sent_at,status')
+      .eq('conversation_id', cid)
+      .order('sent_at', { ascending: true })
+      .limit(500);
+    setMsgs((data ?? []) as MessageRow[]);
+  }, []);
 
   useEffect(() => {
     if (!paid || dmChannels.length === 0) return;
     void loadConvs();
   }, [paid, dmChannels.length, loadConvs]);
-  const openConv = async (c: InboxConversation) => {
+
+  const openConv = async (c: ConversationRow) => {
     setOpen(c);
     setMsgs(null);
     setErr(null);
-    try {
-      const list = await fetchThread(workspaceId, c);
-      setMsgs(list);
-    } catch (e) {
-      setMsgs([]);
-      setErr(e instanceof Error ? e.message : 'Could not load the conversation.');
-    }
+    await loadThread(c.id);
   };
 
   useEffect(() => {
@@ -107,28 +156,55 @@ export default function MessagesInbox({
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs]);
 
+  /** Ask the worker for a fresh sweep, then re-read both convo list and
+   *  thread. scan-now dedupes per workspace per minute server-side. */
+  const refresh = async () => {
+    setScanning(true);
+    try {
+      const sb = createClient();
+      await sb.functions.invoke('scan-now', { body: { workspace_id: workspaceId } });
+      // Jobs claim within seconds; two beats before re-reading.
+      await new Promise((r) => setTimeout(r, 8000));
+      await loadConvs();
+      if (open) await loadThread(open.id);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not start the refresh.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const send = async () => {
     const text = draft.trim();
     if (!text || !open || busy) return;
     setBusy(true);
     setErr(null);
-    const optimistic: InboxMessage = {
-      provider: open.provider,
-      channel_id: open.channel_id,
-      conversation_id: open.id,
+    const optimistic: MessageRow = {
       id: `local:${Date.now()}`,
-      text,
-      from_me: true,
-      from_name: null,
-      ts: new Date().toISOString(),
+      conversation_id: open.id,
+      external_id: null,
+      direction: 'out',
+      body: text,
+      attachments: [],
+      sent_at: new Date().toISOString(),
+      status: 'pending',
     };
     setMsgs((m) => [...(m ?? []), optimistic]);
     setDraft('');
     try {
-      await sendDirectMessage(workspaceId, open, text);
-      // Refresh the thread so ids and ordering come from the provider.
-      const list = await fetchThread(workspaceId, open);
-      setMsgs(list.length ? list : [optimistic]);
+      const sb = createClient();
+      const { error } = await sb.functions.invoke('inbox-send', {
+        body: { conversation_id: open.id, text },
+      });
+      if (error) {
+        const detail = await edgeErrorMessage(error);
+        throw new Error(detail ?? error.message);
+      }
+      // The worker sends on the platform async; give it a beat, then read
+      // the stored (provider-id'd) message.
+      await new Promise((r) => setTimeout(r, 6000));
+      await loadThread(open.id);
+      await loadConvs();
     } catch (e) {
       setMsgs((m) => (m ?? []).filter((x) => x.id !== optimistic.id));
       setErr(e instanceof Error ? e.message : 'Could not send the message.');
@@ -143,8 +219,8 @@ export default function MessagesInbox({
         <Lock className="mx-auto h-6 w-6 text-faint" aria-hidden="true" />
         <p className="mt-2 text-sm font-bold">Messages is a paid feature</p>
         <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-          Read and reply to your Facebook, Instagram and Mastodon direct messages
-          right from Sosial. Upgrade to unlock the Messages inbox.
+          Read and reply to your Facebook, Instagram, X, Mastodon and Bluesky
+          direct messages right from Sosial. Upgrade to unlock the Messages inbox.
         </p>
         <a href="/pricing" className="btn btn-primary mt-4 !px-4 !py-2 !text-xs">
           See plans
@@ -161,19 +237,9 @@ export default function MessagesInbox({
           {anyChannels ? 'No DM-capable channels yet' : 'No DM channels yet'}
         </p>
         <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-          {anyChannels ? (
-            <>
-              Your channels are connected, but none of them support reading
-              direct messages (that's inherent to the platform — e.g. Threads
-              has no messages API). Connect a Facebook Page, an Instagram
-              business account or Mastodon and their DMs show up here.
-            </>
-          ) : (
-            <>
-              Connect a Facebook Page, an Instagram business account or
-              Mastodon in Connect, and their direct messages show up here.
-            </>
-          )}
+          {anyChannels
+            ? 'Your channels are connected, but none of them support reading direct messages. Connect Facebook, Instagram, X, Mastodon or Bluesky and their DMs show up here.'
+            : 'Connect Facebook, Instagram, X, Mastodon or Bluesky in Connect, and their direct messages show up here.'}
         </p>
         <a href="/connect" className="btn btn-primary mt-4 !px-4 !py-2 !text-xs">
           {anyChannels ? 'Connect more channels' : 'Connect channels'}
@@ -183,46 +249,80 @@ export default function MessagesInbox({
   }
 
   if (open) {
-    const ch = channels.find((c) => c.id === open.channel_id);
+    const ch = channelById.get(open.channel_id);
+    const sendAs = ch?.display_name || providerMeta(open.platform).label;
     return (
       <div className="rounded-2xl border border-line bg-card">
-        <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
+        {/* Chat header: partner face, handle, channel tag — messenger parity */}
+        <div className="flex items-center gap-2.5 border-b border-line px-3 py-2.5">
           <button
             type="button"
             onClick={() => { setOpen(null); setMsgs(null); }}
-            className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold text-soft transition hover:bg-paper-dim"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-bone"
+            aria-label="Back to conversations"
           >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Back
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           </button>
-          <ChannelAvatar provider={open.provider} avatar={ch ? avatarOf(ch) : undefined} size={26} />
-          <p className="min-w-0 flex-1 truncate text-sm font-bold">{open.title}</p>
-          <span className="text-xs text-faint">{providerMeta(open.provider).label}</span>
+          <FaceAvatar
+            name={open.participant_name}
+            avatar={open.participant_avatar}
+            size={32}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold">{open.participant_name || 'Unknown'}</p>
+            <p className="text-[11px] text-muted">{sendAs}</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-paper-dim px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-soft">
+            {providerMeta(open.platform).label}
+          </span>
         </div>
-        <div ref={scroller} className="max-h-[420px] space-y-2 overflow-y-auto px-3 py-3">
+        <div ref={scroller} className="max-h-[440px] space-y-1.5 overflow-y-auto px-3 py-3">
           {msgs === null ? (
             <div className="py-8 text-center">
               <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-faint" aria-hidden="true" />
             </div>
           ) : msgs.length === 0 ? (
-            <p className="py-8 text-center text-xs text-muted">No messages loaded yet.</p>
+            <p className="py-8 text-center text-xs text-muted">No messages in this thread yet.</p>
           ) : (
-            msgs.map((m) => (
-              <div key={m.id} className={`flex ${m.from_me ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                    m.from_me
-                      ? 'rounded-br-md bg-accent text-[#0b1220] font-medium'
-                      : 'rounded-bl-md bg-paper-dim text-soft'
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
-                  <p className={`mt-0.5 text-[10px] ${m.from_me ? 'text-right' : ''} text-faint`}>
-                    {when(m.ts)}
-                  </p>
+            msgs.map((m) => {
+              const out = m.direction === 'out';
+              return (
+                <div key={m.id} className={`flex items-end gap-2 ${out ? 'justify-end' : 'justify-start'}`}>
+                  {!out ? (
+                    <FaceAvatar
+                      name={open.participant_name}
+                      avatar={open.participant_avatar}
+                      size={24}
+                    />
+                  ) : null}
+                  <div
+                    className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                      out
+                        ? 'rounded-br-md bg-accent font-medium text-[#0b1220]'
+                        : 'rounded-bl-md border border-line-soft bg-paper text-soft'
+                    }`}
+                  >
+                    {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
+                    {(m.attachments ?? []).map((a, i) =>
+                      a?.url ? (
+                        <SafeImg
+                          key={i}
+                          src={a.url}
+                          alt=""
+                          width={220}
+                          height={140}
+                          className="mt-1 max-w-[220px] rounded-lg border border-line-soft object-cover"
+                        />
+                      ) : null,
+                    )}
+                    <p className={`mt-0.5 text-[10px] text-faint ${out ? 'text-right' : ''}`}>
+                      {when(m.sent_at)}
+                      {out && m.status === 'pending' ? ' · sending…' : ''}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
         {err ? (
@@ -239,7 +339,7 @@ export default function MessagesInbox({
               }
             }}
             rows={2}
-            placeholder={`Reply as ${ch?.display_name ?? providerMeta(open.provider).label}…`}
+            placeholder={`Reply as ${sendAs}…`}
             aria-label="Message text"
             className="field min-h-[44px] flex-1 resize-y !text-xs"
           />
@@ -263,13 +363,12 @@ export default function MessagesInbox({
         <p className="px-1 text-xs font-bold uppercase tracking-wide text-faint">Inbox</p>
         <button
           type="button"
-          onClick={() => void refreshConvs()}
-          disabled={busyRefresh}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim disabled:opacity-50"
+          onClick={() => void refresh()}
+          disabled={scanning}
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
           aria-label="Refresh conversations"
         >
-          <LoaderCircle className={`h-3.5 w-3.5 ${busyRefresh ? 'animate-spin' : 'hidden'}`} aria-hidden="true" />
-          <RefreshCw className={`h-3.5 w-3.5 ${busyRefresh ? 'hidden' : ''}`} aria-hidden="true" />
+          {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
           Refresh
         </button>
       </div>
@@ -278,9 +377,6 @@ export default function MessagesInbox({
       ) : null}
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
-      ) : null}
-      {warn ? (
-        <p className="rounded-xl bg-[#FFF6E5] px-3.5 py-2.5 text-xs font-bold text-[#8a6116] dark:bg-[#2b2314] dark:text-[#e7c886]">{warn}</p>
       ) : null}
       {convs === null ? (
         <div className="rounded-2xl border border-line bg-card p-10 text-center text-sm text-muted">
@@ -291,35 +387,42 @@ export default function MessagesInbox({
           <p className="text-sm font-bold">No conversations yet</p>
           <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
             When someone DMs {dmChannels.map((c) => c.display_name || providerMeta(c.provider).label).join(', ')},
-            the conversation shows up here live.
+            the conversation shows up here within a few minutes.
           </p>
         </div>
       ) : (
         <ul className="space-y-2.5">
           {convs.map((c) => {
-            const ch = channels.find((x) => x.id === c.channel_id);
+            const ch = channelById.get(c.channel_id);
+            const unread = Math.max(0, Number(c.unread_count ?? 0));
             return (
-              <li key={`${c.provider}:${c.channel_id}:${c.id}`}>
+              <li key={c.id}>
                 <button
                   type="button"
                   onClick={() => void openConv(c)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-line bg-card p-4 text-left transition hover:bg-paper-dim"
+                  className="flex w-full items-center gap-3 rounded-2xl border border-line bg-card p-3 text-left transition hover:bg-paper-dim"
                 >
-                  <ChannelAvatar provider={c.provider} avatar={ch ? avatarOf(ch) : undefined} size={36} />
+                  <FaceAvatar
+                    name={c.participant_name}
+                    avatar={c.participant_avatar}
+                    size={38}
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className="min-w-0 truncate text-sm font-bold">{c.title}</span>
-                      <span className="shrink-0 text-xs text-faint">{when(c.updated_at)}</span>
-                      {typeof c.unread === 'number' && c.unread > 0 ? (
-                        <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-[#0b1220]">
-                          {c.unread}
+                      <span className={`min-w-0 truncate text-sm ${unread > 0 ? 'font-extrabold' : 'font-bold'}`}>
+                        {c.participant_name || 'Unknown'}
+                      </span>
+                      <span className="shrink-0 text-xs text-faint">{when(c.last_message_at)}</span>
+                      {unread > 0 ? (
+                        <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-[#0b1220]">
+                          {unread > 9 ? '9+' : unread}
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs text-muted">{c.previewText || '—'}</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-faint">
-                    {providerMeta(c.provider).label}
+                    <span className="mt-0.5 block truncate text-xs text-muted">
+                      via {providerMeta(c.platform).label}
+                      {ch?.display_name ? ` · ${ch.display_name}` : ''}
+                    </span>
                   </span>
                 </button>
               </li>

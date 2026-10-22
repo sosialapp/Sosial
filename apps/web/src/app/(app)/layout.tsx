@@ -122,7 +122,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             href="/community"
             aria-label="Community"
             title="Community — comments and replies"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-soft transition hover:bg-paper-dim hover:text-ink"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-bone"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true">
               <path
