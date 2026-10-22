@@ -10,7 +10,6 @@ import {
   Repeat2,
   Eye,
   Send,
-  Share2,
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
@@ -887,32 +886,6 @@ export default function PostList({
                   <span className={`pill ${meta.className}`}>{meta.label}</span>
                 </div>
 
-                {/* Every selected channel, always: drafts, queued, sent and
-                    failed cards all list the full set of destinations. The
-                    strip gets the whole card width so nothing is squeezed
-                    into an unreadable column, and each logo names its
-                    account on hover. */}
-                {targets.length > 0 ? (
-                  <div
-                    className="flex flex-wrap items-center gap-1.5 px-4 pt-2.5"
-                    title={targets
-                      .map((t) => {
-                        const c = channelById.get(t.channel_id);
-                        return c?.display_name?.trim() || providerMeta(t.provider).label;
-                      })
-                      .join(', ')}
-                  >
-                    {targets.map((t) => (
-                      <ChannelAvatar
-                        key={t.channel_id ?? t.provider}
-                        provider={t.provider}
-                        avatar={t.channel_id ? avatars[t.channel_id] : undefined}
-                        size={28}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-
                 {/* Body: full text, expandable */}
                 <div
                   role="button"
@@ -1013,22 +986,18 @@ export default function PostList({
                   {showStats ? (
                     <>
                       <span className="flex-1" />
-                      <span className="flex items-center gap-3.5 text-xs font-bold text-muted">
-                        <span className="inline-flex items-center gap-1" title={t('titleViews')}>
-                          <Eye className="h-4 w-4" aria-hidden="true" />
-                          {fmtCount(viewSum)}
+                      <span className="flex items-center gap-3 text-[11px] font-bold text-muted">
+                        <span title={t('titleViews')}>
+                          {fmtCount(viewSum)} <span className="text-faint">{t('titleViews')}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1" title={t('titleLikes')}>
-                          <Heart className="h-4 w-4" aria-hidden="true" />
-                          {fmtCount(totalStat('likes'))}
+                        <span title={t('titleLikes')}>
+                          {fmtCount(totalStat('likes'))} <span className="text-faint">{t('titleLikes')}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1" title={t('titleComments')}>
-                          <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                          {fmtCount(totalStat('comments'))}
+                        <span title={t('titleComments')}>
+                          {fmtCount(totalStat('comments'))} <span className="text-faint">{t('titleComments')}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1" title={t('titleShares')}>
-                          <Share2 className="h-4 w-4" aria-hidden="true" />
-                          {fmtCount(totalStat('shares'))}
+                        <span title={t('titleShares')}>
+                          {fmtCount(totalStat('shares'))} <span className="text-faint">{t('titleShares')}</span>
                         </span>
                       </span>
                     </>
