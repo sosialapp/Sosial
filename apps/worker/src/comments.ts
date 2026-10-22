@@ -113,7 +113,7 @@ async function xReplies(remoteId: string, token: string): Promise<RawComment[]> 
   // Replies to a published tweet ride the conversation id, served by recent
   // search (paid X API). Expand authors so the inbox can name them.
   const qs = new URLSearchParams({
-    query: `conversation_id:${remoteId}`,
+    query: `conversation_id:${remoteId} -is:retweet`,
     max_results: '25',
     'tweet.fields': 'created_at,public_metrics,in_reply_to_user_id',
     expansions: 'author_id',
@@ -129,7 +129,10 @@ async function xReplies(remoteId: string, token: string): Promise<RawComment[]> 
   );
   const data = Array.isArray(j?.data) ? j.data : [];
   return data
-    .filter((c: any) => c?.id && typeof c.text === 'string')
+    // The conversation starter carries its own conversation_id, so the
+    // search returns the original tweet alongside its replies — drop the
+    // root or the published post shows up as a "comment" on itself.
+    .filter((c: any) => c?.id && typeof c.text === 'string' && String(c.id) !== remoteId)
     .map((c: any) => {
       const u = users.get(String(c?.author_id ?? ''));
       return {
