@@ -14,8 +14,13 @@ const ig = {
 };
 
 function stub(payload: unknown, status = 200) {
+  return stubRoutes(() => [payload, status]);
+}
+
+function stubRoutes(handler: (url: string) => [unknown, number?]) {
   const calls: { url: string; init: any }[] = [];
   globalThis.fetch = vi.fn(async (url: any, init: any) => {
+    const [payload, status = 200] = handler(String(url));
     calls.push({ url: String(url), init });
     return new Response(JSON.stringify(payload), {
       status,
@@ -61,15 +66,26 @@ describe('facebook adapter', () => {
 
 describe('instagram adapter', () => {
   it('asks conversations only for documented fields and keeps the IGSID', async () => {
-    const calls = stub({
-      data: [{
-        id: 't_1',
-        updated_time: '1729000000',
-        participants: { data: [{ id: '987', username: 'globalfiat' }, { id: '555', username: 'fan' }] },
-      }],
-    });
-    const page = await instagram.listConversations(ig, null);
-    expect(calls[0].url).not.toMatch(/unread_count|snippet|message_count/);
+    const me = { id: '987', user_id: '17841458653207334', username: 'globalfiat' };
+    const calls = stubRoutes((url) =>
+      url.includes('/me?')
+        ? [me]
+        : [{
+            data: [{
+              id: 't_1',
+              updated_time: '1729000000',
+              participants: {
+                data: [
+                  { id: '17841458653207334', username: 'globalfiat' },
+                  { id: '555', username: 'fan' },
+                ],
+              },
+            }],
+          }],
+    );
+    const page = await instagram.listConversations({ ...ig, externalId: '986' }, null);
+    const conv = calls.find((c) => c.url.includes('/conversations'));
+    expect(conv?.url).not.toMatch(/unread_count|snippet|message_count/);
     expect(page.items[0]).toMatchObject({
       externalId: 't_1',
       participantExternalId: '555',
@@ -88,19 +104,33 @@ describe('instagram adapter', () => {
     expect(body.recipient.conversation_id).toBeUndefined();
   });
 
-  it('normalizes Instagram attachment shapes', async () => {
-    stub({
-      data: [{
-        id: 'm1',
-        created_time: '2024-10-15T14:26:40+0000',
-        from: { id: '555', username: 'fan' },
-        message: '',
-        attachments: { data: [{ image_data: { url: 'https://cdn.example/a.jpg' } }] },
-      }],
-    });
-    const page = await instagram.listMessages(ig, 't_1', null);
-    expect(page.items[0].direction).toBe('in');
-    expect(page.items[0].attachments).toEqual([{ url: 'https://cdn.example/a.jpg' }]);
+  it('normalizes Instagram attachment shapes and both directions', async () => {
+    stubRoutes((url) =>
+      url.includes('/me?')
+        ? [{ id: '988', user_id: '17841400000000001', username: 'globalfiat' }]
+        : [{
+            data: [
+              {
+                id: 'm1',
+                created_time: '2024-10-15T14:26:40+0000',
+                from: { id: '555', username: 'fan' },
+                message: '',
+                attachments: { data: [{ image_data: { url: 'https://cdn.example/a.jpg' } }] },
+              },
+              {
+                id: 'm2',
+                created_time: '2024-10-15T14:27:40+0000',
+                from: { id: '17841400000000001', username: 'globalfiat' },
+                message: 'reply',
+              },
+            ],
+          }],
+    );
+    const page = await instagram.listMessages({ ...ig, externalId: '988' }, 't_1', null);
+    expect(page.items.map((m) => m.direction)).toEqual(['out', 'in']);
+    expect(page.items.find((m) => m.externalId === 'm1')?.attachments).toEqual([
+      { url: 'https://cdn.example/a.jpg' },
+    ]);
   });
 
   it('enumerates own media with comment counts', async () => {

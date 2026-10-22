@@ -17,6 +17,28 @@ import type {
 
 const GRAPH = 'https://graph.instagram.com/v23.0';
 
+// `/me` returns the app-scoped id, but participants and message senders carry
+// the professional account id (`user_id`). Without both we mistake our own
+// account for the other side of every thread.
+const selfCache = new Map<string, { ids: string[]; at: number }>();
+const SELF_TTL_MS = 10 * 60 * 1000;
+
+async function selfIds(account: Account): Promise<string[]> {
+  const cached = selfCache.get(account.externalId);
+  if (cached && Date.now() - cached.at < SELF_TTL_MS) return cached.ids;
+  const ids = [String(account.externalId)];
+  const r = await httpJson({
+    provider: 'instagram',
+    url: withParams(`${GRAPH}/me`, { fields: 'id,user_id,username' }),
+    headers: { Authorization: `Bearer ${account.token}` },
+  });
+  if ((r.status === 200 || r.status === 201) && r.data?.user_id) {
+    ids.push(String(r.data.user_id));
+    selfCache.set(account.externalId, { ids, at: Date.now() });
+  }
+  return ids;
+}
+
 export const instagram: InboxAdapter = {
   capabilities(): Capabilities {
     return { inbox: true, comments: true, hideComment: true, deleteComment: true };
@@ -33,9 +55,11 @@ export const instagram: InboxAdapter = {
     });
     const r = await httpJson({ url, provider: 'instagram', headers: { Authorization: `Bearer ${account.token}` } });
     if (r.status !== 200 && r.status !== 201) throw metaError('Instagram messages', r.data, r.status);
+    const self = await selfIds(account);
     const items: NormalizedConversation[] = (r.data?.data ?? []).map((c: any): NormalizedConversation => {
-      const me = account.externalId;
-      const other = (c?.participants?.data ?? []).find((p: any) => String(p?.id ?? '') !== me);
+      const other = (c?.participants?.data ?? []).find(
+        (p: any) => !self.includes(String(p?.id ?? '')),
+      );
       const handle = other?.username ? `@${String(other.username).replace(/^@/, '')}` : null;
       return {
         externalId: String(c.id),
@@ -58,10 +82,11 @@ export const instagram: InboxAdapter = {
     });
     const r = await httpJson({ url, provider: 'instagram', headers: { Authorization: `Bearer ${account.token}` } });
     if (r.status !== 200 && r.status !== 201) throw metaError('Instagram thread', r.data, r.status);
+    const self = await selfIds(account);
     const items: NormalizedMessage[] = (r.data?.data ?? [])
       .map((m: any): NormalizedMessage => ({
         externalId: String(m.id),
-        direction: String(m?.from?.id ?? '') === account.externalId ? 'out' : 'in',
+        direction: self.includes(String(m?.from?.id ?? '')) ? 'out' : 'in',
         body: typeof m.message === 'string' ? m.message : '',
         attachments: attachmentUrls(m.attachments),
         sentAt: isoTime(m?.created_time ?? new Date().toISOString()),
