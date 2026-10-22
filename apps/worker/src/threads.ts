@@ -76,7 +76,7 @@ interface OnePost {
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** Container → wait FINISHED → publish. Returns the created post id. */
-async function publishOne(a: OnePost): Promise<string> {
+export async function publishOne(a: OnePost): Promise<string> {
   const tok = encodeURIComponent(a.token);
   const params =
     `media_type=${a.kind}&text=${encodeURIComponent(a.text)}` +

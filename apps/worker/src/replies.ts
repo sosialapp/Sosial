@@ -20,6 +20,7 @@ import { rest, readSecret } from './db';
 import type { Job } from './db';
 import { tokenRow, type ChannelRow, type TokenRow } from './avatars';
 import { warn, info, debug } from './logger';
+import { publishOne } from './threads';
 
 const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 const THREADS_API = 'https://graph.threads.net/v1.0';
@@ -85,26 +86,21 @@ async function replyFacebook(p: ReplyPayload): Promise<string> {
 async function replyThreads(p: ReplyPayload): Promise<string> {
   const ch = await channelById(p.channel_id);
   if (!ch || ch.c.provider !== 'threads') throw new Error('threads channel not found, reconnect it.');
+  if (!ch.c.external_id) throw new Error('Threads channel missing user ID, reconnect Threads.');
   const tok = await directToken(ch.c, ch.t);
-  // The comment row stores the THREAD post id (external target) — replies
-  // attach to the thread, matching how the reply feed reads conversations.
-  const media = await rest<any[]>(
-    `/rest/v1/post_stats?post_id=eq.${encodeURIComponent(p.comment_id)}&select=post_id&limit=1`,
-  ).catch(() => null);
-  void media; // existence is not required; comment_id for threads IS the post id
-  const r = await fetch(`${THREADS_API}/${encodeURIComponent(p.comment_id)}/replies`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      media_type: 'TEXT',
-      text: p.message,
-      reply_to_id: p.comment_id,
-      access_token: tok,
-    }),
+  // Official flow (Threads docs, "Retrieve and manage replies → Create
+  // replies"): replies are created through the media-container pipeline —
+  // POST /{threads-user-id}/threads with media_type, text and reply_to_id,
+  // then threads_publish once the container reaches FINISHED. The Graph has
+  // no direct /{id}/replies creation endpoint. publishOne implements the
+  // whole flow including the 100/33 retries and status polling.
+  return publishOne({
+    threadsId: ch.c.external_id,
+    token: tok,
+    text: p.message.slice(0, 500),
+    kind: 'TEXT',
+    replyToId: p.comment_id,
   });
-  const j: any = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Threads refused the reply: ${graphErr(j)}`);
-  return String(j?.id ?? '');
 }
 
 async function replyInstagram(p: ReplyPayload): Promise<string> {
