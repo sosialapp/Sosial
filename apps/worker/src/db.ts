@@ -15,7 +15,12 @@ export interface Job {
     | 'send_invite'
     | 'sync_avatars'
     | 'send_push'
-    | 'delete_post_target';
+    | 'delete_post_target'
+    // unified inbox/comments (p92 engine, see src/sync.ts)
+    | 'sync_inbox'
+    | 'sync_comments'
+    | 'send_message'
+    | 'reply_comment';
   payload: Record<string, any>;
   status: string;
   run_at: string;

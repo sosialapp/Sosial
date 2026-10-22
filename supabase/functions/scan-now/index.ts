@@ -1,11 +1,11 @@
-// scan-now — user-triggered comment scan (Community refresh button)
+// scan-now — user-triggered unified sync (refresh buttons)
 //
 // POST { workspace_id } → { ok: true, queued: true }
-// Verifies membership (JWT), then enqueues one scan_comments job. The
-// enqueue function's per-actor-per-minute idempotency key means repeated
-// clicks within the same minute dedupe — hammering the button floods
-// nothing. The worker picks the job up within seconds; the UI polls the
-// comment list for ~20s afterwards.
+// Verifies membership (JWT), then enqueues sync_inbox + sync_comments jobs
+// for every Phase-1 channel in the workspace. The enqueue function's
+// per-workspace-per-minute idempotency key means repeated clicks within the
+// same minute dedupe — hammering the button floods nothing. The worker
+// picks the jobs up within seconds; the UI polls the lists afterwards.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -57,10 +57,10 @@ serve(async (req: Request): Promise<Response> => {
     .limit(1);
   if (!mem || mem.length === 0) return fail("Not a member of this workspace.", 403);
 
-  const { error: qErr } = await admin.rpc("enqueue_comment_scan_on_demand", {
-    p_actor: user.id,
+  const { error: qErr } = await admin.rpc("enqueue_unified_sync_on_demand", {
+    p_workspace: workspace_id,
   });
-  if (qErr) return fail(`Could not queue the scan (${qErr.message}).`, 500);
+  if (qErr) return fail(`Could not queue the refresh (${qErr.message}).`, 500);
 
   return Response.json({ ok: true, queued: true }, { headers: CORS });
 });

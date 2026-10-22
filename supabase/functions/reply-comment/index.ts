@@ -1,13 +1,14 @@
-// reply-comment · queue a comment reply for the worker.
+// reply-comment · queue a comment reply for the unified sync worker (p92).
 //
-// POST { provider: 'facebook'|'threads'|'instagram', channel_id, comment_id, message }
-// → { queued: true }
+// POST { comment_id, text }
+// → 200 { queued: true } | { error }
 //
-// Gate: caller must be an ACTIVE member of the channel's workspace
-// (verified against workspace_members via their JWT — never trust body ids).
-// Replies post AS the connected Page/identity, so members trigger them but
-// the reply is authored by the Page, matching the publishing model.
-// Facebook, Threads + Instagram only; other providers refuse with a clear error.
+// Gate: caller must be an ACTIVE member of the comment's workspace
+// (comment → connected_channels → workspace_members via their JWT —
+// never trust body workspace ids). The reply posts AS the connected
+// identity, matching the publishing model. Phase-1 providers only:
+// facebook, instagram, mastodon, x, bluesky — others (threads/youtube/
+// linkedin/tiktok/pinterest) refuse with a plain-language error.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -21,6 +22,15 @@ const CORS: Record<string, string> = {
 function bad(msg: string, status = 400): Response {
   return Response.json({ error: msg }, { status, headers: CORS });
 }
+
+const SUPPORTED = new Set(["facebook", "instagram", "mastodon", "x", "bluesky"]);
+const NOT_YET: Record<string, string> = {
+  threads: "Unified comments for Threads are coming in the next release.",
+  youtube: "Unified comments for YouTube are planned.",
+  linkedin: "Unified comments for LinkedIn are planned.",
+  tiktok: "Unified comments for TikTok are planned.",
+  pinterest: "Comment replies are not exposed by the Pinterest API.",
+};
 
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
@@ -45,45 +55,50 @@ serve(async (req: Request): Promise<Response> => {
   } catch {
     return bad("Body must be JSON.");
   }
-  const provider = String(body["provider"] ?? "");
-  const channelId = String(body["channel_id"] ?? "");
   const commentId = String(body["comment_id"] ?? "");
-  const message = String(body["message"] ?? "").trim();
-  if (!provider || !channelId || !commentId || !message) {
-    return bad("provider, channel_id, comment_id and message are required.");
-  }
-  const dmProviders = new Set(["facebook", "threads", "instagram", "x", "mastodon"]);
-  if (!dmProviders.has(provider)) {
-    return bad("Replies are supported for Facebook, Threads, Instagram, X and Mastodon only.");
-  }
-  if (message.length > 2200) return bad("Reply exceeds 2200 characters.");
+  const text = String(body["text"] ?? body["message"] ?? "").trim();
+  if (!commentId || !text) return bad("comment_id and text are required.");
+  if (text.length > 2000) return bad("Reply exceeds 2000 characters.");
 
   const admin = createClient(supaUrl, serviceKey);
-  const { data: ch, error: chErr } = await admin
-    .from("connected_channels")
-    .select("id, workspace_id, provider, status")
-    .eq("id", channelId)
+
+  // Comment → channel → workspace, never client-supplied.
+  const { data: cm, error: cErr } = await admin
+    .from("comments")
+    .select("id, workspace_id, channel_id, status")
+    .eq("id", commentId)
     .maybeSingle();
-  if (chErr || !ch) return bad("Channel not found.", 404);
-  if ((ch as any).provider !== provider) return bad("Channel provider mismatch.", 400);
-  if ((ch as any).status !== "connected") return bad("That channel is not connected.", 400);
+  if (cErr || !cm) return bad("Comment not found.", 404);
 
   const { data: mem, error: mErr } = await admin
     .from("workspace_members")
     .select("id")
-    .eq("workspace_id", (ch as any).workspace_id)
+    .eq("workspace_id", (cm as any).workspace_id)
     .eq("user_id", ud.user.id)
     .eq("status", "active")
     .maybeSingle();
-  if (mErr || !mem) return bad("You are not a member of that channel's workspace.", 403);
+  if (mErr || !mem) return bad("You are not a member of that comment's workspace.", 403);
 
-  const { error: qErr } = await admin.from("job_queue").upsert({
-    kind: "reply_comment",
-    payload: { provider, channel_id: channelId, comment_id: commentId, message },
-    run_at: new Date().toISOString(),
-    idempotency_key: `reply_comment:${crypto.randomUUID()}`,
-  }, { onConflict: "idempotency_key" });
-  if (qErr) return bad(`Could not queue the reply (${qErr.message}).`, 500);
+  // Provider gate comes from the comment's own channel (authoritative).
+  const { data: ch } = await admin
+    .from("connected_channels")
+    .select("id, provider, status")
+    .eq("id", (cm as any).channel_id)
+    .maybeSingle();
+  if (!ch) return bad("The channel that owns this comment is gone.", 404);
+  if ((ch as any).status !== "connected") return bad("That channel is disconnected, reconnect it in Connect.");
+  const provider = String((ch as any).provider);
+  if (NOT_YET[provider]) return bad(NOT_YET[provider]);
+  if (!SUPPORTED.has(provider)) return bad("Replies are not supported for this channel yet.");
 
+  const { error: qErr } = await admin.rpc("enqueue_reply_comment", {
+    p_channel: (ch as any).id,
+    p_comment: commentId,
+    p_text: text,
+  });
+  if (qErr) {
+    if (/invalid_message/i.test(String(qErr.message))) return bad("Write a reply between 1 and 2000 characters.");
+    return bad(`Could not queue the reply (${qErr.message}).`, 500);
+  }
   return Response.json({ queued: true }, { headers: CORS });
 });

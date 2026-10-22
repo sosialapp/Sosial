@@ -1,19 +1,13 @@
-// inbox-send — stateless DM sender for the Messages tab (web + mobile)
+// inbox-send — queue a DM send for the unified sync worker (p92).
 //
-// Sends one message through the provider API and returns the normalized
-// message. No database writes, secrets stay in Vault. Same gates as
-// inbox-fetch: user JWT + workspace membership + paid plan + the channel
-// must belong to the workspace and be DM-capable.
+// POST { conversation_id, text }
+// → 200 { queued: true } | { ok:false, error, upgrade? } | hard errors
 //
-// POST { workspace_id, channel_id, conversation_id?, recipient_id?,
-//        recipient_acct?, reply_to_id?, text }
-//  - facebook / instagram: recipient_id required (the other participant)
-//  - mastodon: recipient_acct required (mention), reply_to_id recommended
-// => 200 { ok:true, message } | { ok:false, error, upgrade? }
-//    401 unauthenticated, 403 not a member (mobile-parity hard errors)
-//
-// Phase-1 providers: facebook (Page Messenger send API), instagram
-// (business messaging), mastodon (direct status).
+// Gates: user JWT → active membership of the conversation's workspace →
+// paid plan → the conversation's channel must be connected and speak DM
+// (Phase 1: facebook, instagram, mastodon, x, bluesky). The worker sends
+// through the adapter and writes the message row; the UI sees it land via
+// the next messages read.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -27,40 +21,18 @@ const CORS: Record<string, string> = {
 function fail(msg: string, upgrade = false): Response {
   return Response.json({ ok: false, error: msg, ...(upgrade ? { upgrade: true } : {}) }, { headers: CORS });
 }
-function okj(payload: Record<string, unknown>): Response {
-  return Response.json({ ok: true, ...payload }, { headers: CORS });
+function bad(msg: string, status = 400): Response {
+  return Response.json({ error: msg }, { status, headers: CORS });
 }
 
-const DM_PROVIDERS = new Set(["facebook", "instagram", "mastodon"]);
-const GRAPH = "https://graph.facebook.com/v23.0";
-const TEXT_MAX = 2000;
-
-async function jpost(url: string, token: string, body: Record<string, unknown>): Promise<any> {
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || j?.error) {
-    const m = j?.error?.message ?? `HTTP ${r.status}`;
-    throw new Error(m.slice(0, 300));
-  }
-  return j;
-}
-async function mpost(url: string, token: string, body: Record<string, unknown>): Promise<any> {
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || j?.error) {
-    const m = j?.error ?? `HTTP ${r.status}`;
-    throw new Error(String(typeof m === "string" ? m : JSON.stringify(m)).slice(0, 300));
-  }
-  return j;
-}
+const SUPPORTED = new Set(["facebook", "instagram", "mastodon", "x", "bluesky"]);
+const NOT_YET: Record<string, string> = {
+  threads: "Unified Inbox for Threads is coming in the next release.",
+  youtube: "Messaging is not offered by the YouTube API.",
+  linkedin: "Unified messaging for LinkedIn is planned.",
+  tiktok: "Unified messaging for TikTok is not available — the API only exposes comments.",
+  pinterest: "Messaging is not exposed by the Pinterest API.",
+};
 
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
@@ -72,11 +44,11 @@ serve(async (req: Request): Promise<Response> => {
   if (!supaUrl || !anonKey || !serviceKey) return fail("Function misconfigured, missing Supabase env.");
 
   const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader.toLowerCase().startsWith("bearer ")) return Response.json({ error: "Sign in first." }, { status: 401, headers: CORS });
+  if (!authHeader.toLowerCase().startsWith("bearer ")) return bad("Sign in first.", 401);
   const userClient = createClient(supaUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: ud, error: uErr } = await userClient.auth.getUser();
   const user = ud?.user;
-  if (uErr || !user) return Response.json({ error: "Sign in first." }, { status: 401, headers: CORS });
+  if (uErr || !user) return bad("Sign in first.", 401);
 
   let body: Record<string, unknown>;
   try {
@@ -84,15 +56,22 @@ serve(async (req: Request): Promise<Response> => {
   } catch {
     return fail("Body must be JSON.");
   }
-  const workspace_id = typeof body["workspace_id"] === "string" ? body["workspace_id"] : "";
-  const channel_id = typeof body["channel_id"] === "string" ? body["channel_id"] : "";
-  const text = typeof body["text"] === "string" ? body["text"].trim() : "";
-  if (!workspace_id) return fail("workspace_id required.");
-  if (!channel_id) return fail("channel_id required.");
+  const conversationId = String(body["conversation_id"] ?? "");
+  const text = String(body["text"] ?? body["message"] ?? "").trim();
+  if (!conversationId) return fail("conversation_id required.");
   if (!text) return fail("Write a message first.");
-  if (text.length > TEXT_MAX) return fail(`Messages are limited to ${TEXT_MAX} characters.`);
+  if (text.length > 2000) return fail(`Messages are limited to 2000 characters.`);
 
   const admin = createClient(supaUrl, serviceKey);
+
+  // Conversation → channel → workspace, never client-supplied.
+  const { data: conv, error: cvErr } = await admin
+    .from("conversations")
+    .select("id, workspace_id, channel_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (cvErr || !conv) return fail("Conversation not found, refresh your inbox.");
+  const workspace_id = String((conv as any).workspace_id);
 
   // Membership gate (service client bypasses RLS — this IS the check).
   const { data: mem } = await admin
@@ -102,86 +81,34 @@ serve(async (req: Request): Promise<Response> => {
     .eq("user_id", user.id)
     .eq("status", "active")
     .limit(1);
-  if (!mem || mem.length === 0) return Response.json({ error: "Not a member of this workspace." }, { status: 403, headers: CORS });
+  if (!mem || mem.length === 0) return bad("Not a member of this workspace.", 403);
 
   // Paid-only feature, resolved by the canonical DB function.
   const { data: planRow } = await admin.rpc("workspace_plan", { p_workspace_id: workspace_id });
   const plan = typeof planRow === "string" && planRow ? planRow : "free";
   if (plan === "free") return fail("Direct messages are available on paid plans. Upgrade to unlock the Messages inbox.", true);
 
-  // The channel must belong to this workspace and speak DM.
+  // The channel must still be connected and speak DM.
   const { data: ch, error: chErr } = await admin
     .from("connected_channels")
-    .select("id,provider,external_id,instance_url,channel_tokens(access_token_secret_id)")
-    .eq("id", channel_id)
+    .select("id, provider, status")
+    .eq("id", (conv as any).channel_id)
     .eq("workspace_id", workspace_id)
-    .eq("status", "connected")
     .maybeSingle();
   if (chErr || !ch) return fail("Channel not found in this workspace.");
-  const chan = ch as Record<string, any>;
-  if (!DM_PROVIDERS.has(String(chan.provider))) return fail("This channel cannot send direct messages.");
+  if ((ch as any).status !== "connected") return fail("That channel is disconnected, reconnect it in Connect.");
+  const provider = String((ch as any).provider);
+  if (NOT_YET[provider]) return fail(NOT_YET[provider]);
+  if (!SUPPORTED.has(provider)) return fail("This channel cannot send direct messages.");
 
-  const sid = chan?.channel_tokens?.[0]?.access_token_secret_id ?? chan?.channel_tokens?.access_token_secret_id ?? null;
-  if (!sid) return fail("Channel token missing, reconnect it in Connect.");
-  const { data: tok } = await admin.rpc("vault_read_secret", { secret_id: sid });
-  if (!tok) return fail("Channel token unavailable, reconnect it in Connect.");
-  const token = String(tok);
-  const provider = String(chan.provider);
-  const externalId = String(chan.external_id ?? "");
-  const now = new Date().toISOString();
-
-  try {
-    if (provider === "facebook" || provider === "instagram") {
-      const recipientId = typeof body["recipient_id"] === "string" ? body["recipient_id"] : "";
-      if (!recipientId) return fail("Missing the conversation partner, reopen the thread.");
-      const url = `${GRAPH}/${encodeURIComponent(externalId)}/messages`;
-      const payload: Record<string, unknown> = {
-        recipient: { id: recipientId },
-        message: provider === "instagram" ? { text } : { text },
-        messaging_type: "RESPONSE",
-      };
-      const j = await jpost(url, token, payload);
-      return okj({
-        message: {
-          provider,
-          channel_id,
-          conversation_id: typeof body["conversation_id"] === "string" ? body["conversation_id"] : "",
-          id: String(j?.message_id ?? ""),
-          text,
-          from_me: true,
-          from_name: null,
-          ts: now,
-        },
-      });
-    }
-
-    // mastodon
-    const base = (chan.instance_url as string | null ?? "").replace(/\/+$/, "");
-    if (!base) return fail("Mastodon channel missing its instance URL, reconnect it.");
-    const acct = typeof body["recipient_acct"] === "string" ? body["recipient_acct"] : "";
-    if (!acct) return fail("Missing the conversation partner, reopen the thread.");
-    const replyTo = typeof body["reply_to_id"] === "string" ? body["reply_to_id"] : "";
-    const status = `@${acct} ${text}`.slice(0, 500);
-    const payload: Record<string, unknown> = { status, visibility: "direct" };
-    if (replyTo) payload.in_reply_to_id = replyTo;
-    const j = await mpost(`${base}/api/v1/statuses`, token, payload);
-    return okj({
-      message: {
-        provider: "mastodon",
-        channel_id,
-        conversation_id: typeof body["conversation_id"] === "string" ? body["conversation_id"] : "",
-        id: String(j?.id ?? ""),
-        text,
-        from_me: true,
-        from_name: null,
-        ts: j?.created_at ?? now,
-      },
-    });
-  } catch (e) {
-    const msg = (e as Error).message;
-    if (/expired|invalid.*token|401|OAuthException/i.test(msg)) {
-      return fail(`${provider} rejected the send, the connection looks stale — reconnect the channel in Connect.`);
-    }
-    return fail(`Could not send: ${msg}`);
+  const { error: qErr } = await admin.rpc("enqueue_send_message", {
+    p_channel: (ch as any).id,
+    p_conversation: conversationId,
+    p_text: text,
+  });
+  if (qErr) {
+    if (/invalid_message/i.test(String(qErr.message))) return fail("Write a message between 1 and 2000 characters.");
+    return fail(`Could not queue the message (${qErr.message}).`);
   }
+  return Response.json({ ok: true, queued: true }, { headers: CORS });
 });

@@ -41,6 +41,12 @@ import { refreshChannelToken } from './refresh';
 import { sendPushBroadcast } from './push';
 import { snapshotChannel } from './stats';
 import { handleDeletePostTarget } from './remoteDelete';
+import {
+  handleSyncInbox,
+  handleSyncComments,
+  handleSendMessage,
+  handleReplyComment,
+} from './sync';
 import { info, debug } from './logger';
 
 function notPorted(kind: string): Error {
@@ -338,6 +344,10 @@ export async function dispatch(job: Job): Promise<void> {
     case 'sync_avatars': return handleSyncAvatars(job);
     case 'send_push': return handleSendPush(job);
     case 'delete_post_target': return handleDeletePostTarget(job);
+    case 'sync_inbox': return handleSyncInbox(job);
+    case 'sync_comments': return handleSyncComments(job);
+    case 'send_message': return handleSendMessage(job);
+    case 'reply_comment': return handleReplyComment(job);
     default: throw new Error(`unknown job kind '${String((job as any)?.kind)}' (job ${job.id})`);
   }
 }
