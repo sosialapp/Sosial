@@ -215,10 +215,24 @@ export async function handleSyncInbox(job: Job): Promise<void> {
       }
     }
 
+    // Derived unread: inbound messages newer than our last outbound one.
+    // Platform counters are 0 for some providers (X), which left the dot off.
+    let unread = conv.unreadCount;
+    const lastOut = await rest<any[]>(
+      `/rest/v1/messages?conversation_id=eq.${row.id}&direction=eq.out&select=sent_at&order=sent_at.desc&limit=1`,
+    );
+    const after = lastOut?.[0]?.sent_at ? encodeURIComponent(String(lastOut[0].sent_at)) : null;
+    const inbound = await rest<any[]>(
+      `/rest/v1/messages?conversation_id=eq.${row.id}&direction=eq.in${after ? `&sent_at=gt.${after}` : ''}&select=id&limit=200`,
+    );
+    if (inserted.some((i) => i.external_id === conv.externalId) || (inbound ?? []).length > 0) {
+      unread = Math.min((inbound ?? []).length, 200);
+    }
+
     // Row hygiene: lastMessageAt + unread mirror the platform state.
     await restPatch('conversations', row.id, {
       last_message_at: newestAt || null,
-      unread_count: conv.unreadCount,
+      unread_count: unread,
       participant_name: conv.participantName,
       participant_avatar: conv.participantAvatar,
       synced_at: new Date().toISOString(),
