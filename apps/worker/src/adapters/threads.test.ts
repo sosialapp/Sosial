@@ -33,7 +33,7 @@ describe('threads adapter', () => {
     });
   });
 
-  it('drops our own replies and keeps the parent comment id', async () => {
+  it('keeps our own replies as is_own and roots replies to the post', async () => {
     stubRoutes((url) =>
       url.includes('/me?')
         ? [{ id: '900', username: 'sosial' }]
@@ -60,15 +60,52 @@ describe('threads adapter', () => {
           }],
     );
     const page = await threads.listComments(account, 'p1', null);
-    expect(page.items.map((c) => c.externalId)).toEqual(['r_fan']);
+    expect(page.items.map((c) => c.externalId)).toEqual(['r_fan', 'r_own']);
     expect(page.items[0]).toMatchObject({
-      parentExternalId: 'p1',
+      parentExternalId: null,
       authorName: '@fan',
       authorAvatar: 'https://cdn.example/fan.jpg',
       body: 'love this',
       createdAt: '2026-10-22T10:00:00.000Z',
       isOwn: false,
     });
+    expect(page.items[1]).toMatchObject({
+      parentExternalId: 'r_fan',
+      authorName: '@sosial',
+      isOwn: true,
+    });
+  });
+
+  it('walks one level down for replies to replies', async () => {
+    const calls = stubRoutes((url) => {
+      if (url.includes('/me?')) return [{ id: '900', username: 'sosial' }];
+      if (url.includes('/r_fan/replies')) {
+        return [{
+          data: [{
+            id: 'r_deep',
+            text: 'deep reply',
+            timestamp: '2026-10-22T10:10:00+0000',
+            username: 'other',
+            replied_to: { id: 'r_fan' },
+            has_replies: false,
+          }],
+        }];
+      }
+      return [{
+        data: [{
+          id: 'r_fan',
+          text: 'love this',
+          timestamp: '2026-10-22T10:00:00+0000',
+          username: 'fan',
+          replied_to: { id: 'p1' },
+          has_replies: true,
+        }],
+      }];
+    });
+    const page = await threads.listComments(account, 'p1', null);
+    expect(page.items.map((c) => c.externalId)).toEqual(['r_fan', 'r_deep']);
+    expect(page.items[1]).toMatchObject({ parentExternalId: 'r_fan', body: 'deep reply' });
+    expect(calls.some((c) => c.url.includes('/p1/replies'))).toBe(true);
   });
 
   it('enumerates own threads using has_replies', async () => {

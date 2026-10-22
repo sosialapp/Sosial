@@ -7,10 +7,9 @@
  *   Reply:    POST /<threads-user-id>/threads (reply_to_id) → threads_publish
  *   Docs:     https://developers.facebook.com/docs/threads
  *
- * Own replies are filtered out of the reply list: a Threads chain published
- * by Sosial is a reply to its own head post, so including them would fill the
- * comments inbox with our own thread segments. Replies sent from Sosial are
- * written back by the reply_comment job instead.
+ * Own replies are kept and flagged `isOwn`, the same as Instagram/Facebook, so
+ * a thread reads like the platform thread. `/{post}/replies` only returns the
+ * first level, so comments that advertise children get one extra fetch.
  */
 import { httpJson, withParams } from './http';
 import { isoTime } from './graph';
@@ -22,6 +21,8 @@ import type {
 
 const THREADS = 'https://graph.threads.net/v1.0';
 const MAX_REPLY = 500;
+/** How many comments per page may be expanded into their nested replies. */
+const MAX_NESTED_PARENTS = 10;
 
 const selfCache = new Map<string, { username: string | null; at: number }>();
 const SELF_TTL_MS = 10 * 60 * 1000;
@@ -75,19 +76,23 @@ export const threads: InboxAdapter = {
   },
 
   async listComments(account, postId, cursor): Promise<Page<NormalizedComment>> {
+    const fields = 'id,text,timestamp,username,name,profile_picture_url,replied_to,has_replies';
     const url = withParams(`${THREADS}/${postId}/replies`, {
-      fields: 'id,text,timestamp,username,name,profile_picture_url,replied_to,has_replies',
+      fields,
       limit: 100,
       after: cursor ?? undefined,
     });
     const r = await httpJson({ url, provider: 'threads', headers: { Authorization: `Bearer ${account.token}` } });
     if (r.status !== 200 && r.status !== 201) throw threadsError('Threads replies', r.data, r.status);
     const me = await ownUsername(account);
-    const items: NormalizedComment[] = (r.data?.data ?? [])
-      .filter((c: any) => !me || String(c?.username ?? '').toLowerCase() !== me)
-      .map((c: any): NormalizedComment => ({
+
+    const toComment = (c: any): NormalizedComment => {
+      const repliedTo = c?.replied_to?.id ? String(c.replied_to.id) : '';
+      return {
         externalId: String(c.id),
-        parentExternalId: c?.replied_to?.id ? String(c.replied_to.id) : postId,
+        // A reply aimed at the post itself is a root in the inbox; only a
+        // reply aimed at another comment nests under it.
+        parentExternalId: repliedTo && repliedTo !== postId ? repliedTo : null,
         authorName: c?.username
           ? `@${String(c.username).replace(/^@/, '')}`
           : c?.name
@@ -96,8 +101,33 @@ export const threads: InboxAdapter = {
         authorAvatar: c?.profile_picture_url ?? null,
         body: typeof c?.text === 'string' ? c.text : '',
         createdAt: isoTime(c?.timestamp ?? new Date().toISOString()),
-        isOwn: false,
-      }));
+        isOwn: !!me && String(c?.username ?? '').toLowerCase() === me,
+      };
+    };
+
+    const top = Array.isArray(r.data?.data) ? r.data.data : [];
+    const items: NormalizedComment[] = top.map(toComment);
+
+    // Replies to replies live one level deeper and never appear in the
+    // post's own reply list, so walk down for the comments that have
+    // children (bounded: the Threads API allows 5 calls/s per account).
+    const parents = top.filter((c: any) => c?.has_replies).slice(0, MAX_NESTED_PARENTS);
+    for (const parent of parents) {
+      try {
+        const nested = await httpJson({
+          url: withParams(`${THREADS}/${parent.id}/replies`, { fields, limit: 50 }),
+          provider: 'threads',
+          headers: { Authorization: `Bearer ${account.token}` },
+        });
+        if (nested.status !== 200 && nested.status !== 201) continue;
+        for (const c of Array.isArray(nested.data?.data) ? nested.data.data : []) {
+          items.push(toComment(c));
+        }
+      } catch {
+        // One unreadable branch must not hide the rest of the thread.
+      }
+    }
+
     return { items, cursor: r.data?.paging?.cursors?.after ?? null };
   },
 
