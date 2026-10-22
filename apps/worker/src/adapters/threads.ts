@@ -13,6 +13,7 @@
  */
 import { httpJson, withParams } from './http';
 import { isoTime } from './graph';
+import { isoDate, mediaKind, previewText } from './postPreview';
 import { publishOne } from '../threads';
 import type {
   Account, Page, NormalizedConversation, NormalizedMessage, NormalizedComment,
@@ -133,10 +134,11 @@ export const threads: InboxAdapter = {
 
   /** Newest own threads, including ones published outside Sosial. The API
    *  only exposes a boolean (`has_replies`), which is all the sweep needs:
-   *  posts without replies are skipped. */
+   *  posts without replies are skipped. The caption and permalink come along
+   *  in the same read so the inbox can show what was commented on. */
   async listOwnPosts(account, limit) {
     const url = withParams(`${THREADS}/${account.externalId}/threads`, {
-      fields: 'id,has_replies',
+      fields: 'id,has_replies,text,permalink,timestamp,media_type,media_url,thumbnail_url',
       limit: Math.max(1, Math.min(limit, 50)),
     });
     const r = await httpJson({ url, provider: 'threads', headers: { Authorization: `Bearer ${account.token}` } });
@@ -144,6 +146,12 @@ export const threads: InboxAdapter = {
     return (r.data?.data ?? []).map((p: any) => ({
       externalId: String(p.id),
       commentCount: p?.has_replies ? 1 : 0,
+      url: p?.permalink ?? null,
+      text: previewText(p?.text),
+      // Videos expose a poster frame; images expose the file itself.
+      thumbnail: p?.thumbnail_url ?? p?.media_url ?? null,
+      postedAt: isoDate(p?.timestamp),
+      mediaKind: mediaKind(p?.media_type),
     }));
   },
 

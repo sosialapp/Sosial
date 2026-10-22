@@ -60,6 +60,27 @@ export interface NormalizedComment {
   isOwn?: boolean;
 }
 
+/**
+ * A post that can carry comments, plus enough context to show it above the
+ * thread in the inbox. Adapters fill whatever their API exposes; the sweep
+ * caches the result so the web never has to call a platform to draw it.
+ */
+export interface OwnPost {
+  externalId: string;
+  /** Number of comments, or 1 when the API only says "has some". */
+  commentCount: number;
+  /** Public web URL of the post. */
+  url?: string | null;
+  /** Plain-text caption/body, trimmed for a preview. */
+  text?: string | null;
+  /** Still image for the preview (poster frame for video). */
+  thumbnail?: string | null;
+  /** ISO-8601 UTC. */
+  postedAt?: string | null;
+  /** image | video | carousel | text - picks the preview treatment. */
+  mediaKind?: string | null;
+}
+
 export interface SendResult {
   externalId: string;
   sentAt: string;
@@ -87,6 +108,6 @@ export interface InboxAdapter {
   /** Own posts that can carry comments, for platforms where Sosial can
    *  enumerate the account timeline. Optional: providers without a cheap
    *  "my posts" read keep the Sosial-published list only. */
-  listOwnPosts?(account: Account, limit: number): Promise<{ externalId: string; commentCount: number }[]>;
+  listOwnPosts?(account: Account, limit: number): Promise<OwnPost[]>;
   replyToComment(account: Account, commentId: string, content: { text: string }): Promise<SendResult>;
 }

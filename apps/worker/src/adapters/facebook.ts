@@ -9,6 +9,7 @@
  */
 import { httpJson, withParams } from './http';
 import { attachmentType, attachmentUrls, isoTime, metaError } from './graph';
+import { isoDate, previewText } from './postPreview';
 import type {
   Account, Page, NormalizedConversation, NormalizedMessage, NormalizedComment,
   SendResult, Capabilities, InboxAdapter,
@@ -117,10 +118,11 @@ export const facebook: InboxAdapter = {
   },
 
   /** Newest Page posts (including ones published outside Sosial), so their
-   *  comment threads enter the inbox too. */
+   *  comment threads enter the inbox too. `message`/`permalink_url`/
+   *  `full_picture` come from the same read so the inbox can show the post. */
   async listOwnPosts(account, limit) {
     const url = withParams(`${GRAPH}/${account.externalId}/posts`, {
-      fields: 'id,comments.summary(true).limit(0)',
+      fields: 'id,comments.summary(true).limit(0),message,permalink_url,created_time,full_picture',
       limit: Math.max(1, Math.min(limit, 50)),
     });
     const r = await httpJson({ url, provider: 'facebook', headers: { Authorization: `Bearer ${account.token}` } });
@@ -128,6 +130,11 @@ export const facebook: InboxAdapter = {
     return (r.data?.data ?? []).map((p: any) => ({
       externalId: String(p.id),
       commentCount: Number(p?.comments?.summary?.total_count ?? 0),
+      url: p?.permalink_url ?? null,
+      text: previewText(p?.message),
+      thumbnail: p?.full_picture ?? null,
+      postedAt: isoDate(p?.created_time),
+      mediaKind: p?.full_picture ? 'image' : 'text',
     }));
   },
 

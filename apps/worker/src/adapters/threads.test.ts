@@ -108,11 +108,40 @@ describe('threads adapter', () => {
     expect(calls.some((c) => c.url.includes('/p1/replies'))).toBe(true);
   });
 
-  it('enumerates own threads using has_replies', async () => {
-    stubRoutes(() => [{ data: [{ id: 'p1', has_replies: true }, { id: 'p2', has_replies: false }] }]);
+  it('enumerates own threads with the post context the inbox shows', async () => {
+    stubRoutes(() => [{
+      data: [
+        {
+          id: 'p1',
+          has_replies: true,
+          text: 'Launch day',
+          permalink: 'https://www.threads.net/post/p1',
+          timestamp: '2026-10-22T10:00:00+0000',
+          media_type: 'VIDEO',
+          thumbnail_url: 'https://cdn.example/p1.jpg',
+        },
+        { id: 'p2', has_replies: false },
+      ],
+    }]);
     await expect(threads.listOwnPosts?.(account, 10)).resolves.toEqual([
-      { externalId: 'p1', commentCount: 1 },
-      { externalId: 'p2', commentCount: 0 },
+      {
+        externalId: 'p1',
+        commentCount: 1,
+        url: 'https://www.threads.net/post/p1',
+        text: 'Launch day',
+        thumbnail: 'https://cdn.example/p1.jpg',
+        postedAt: '2026-10-22T10:00:00.000Z',
+        mediaKind: 'video',
+      },
+      {
+        externalId: 'p2',
+        commentCount: 0,
+        url: null,
+        text: null,
+        thumbnail: null,
+        postedAt: null,
+        mediaKind: 'text',
+      },
     ]);
   });
 

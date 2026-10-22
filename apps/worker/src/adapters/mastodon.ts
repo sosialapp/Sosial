@@ -7,9 +7,10 @@
  * Scopes: read:notifications read:statuses write:statuses write:conversations
  */
 import { httpJson, httpError, withParams } from './http';
+import { isoDate, mediaKind, plainText, previewText } from './postPreview';
 import type {
   Account, Page, NormalizedConversation, NormalizedMessage, NormalizedComment,
-  SendResult, Capabilities, InboxAdapter,
+  SendResult, Capabilities, InboxAdapter, OwnPost,
 } from './types';
 
 export function normalizeInstance(instanceUrl: string | null): string {
@@ -133,8 +134,9 @@ export const mastodon: InboxAdapter = {
   },
 
   /** Own recent statuses, so replies on posts made outside Sosial reach the
-   *  Comments inbox (the context read is per-status). */
-  async listOwnPosts(account, limit): Promise<{ externalId: string; commentCount: number }[]> {
+   *  Comments inbox (the context read is per-status). Statuses already carry
+   *  the content and media, so the post strip needs no extra call. */
+  async listOwnPosts(account, limit): Promise<OwnPost[]> {
     const base = normalizeInstance(account.instanceUrl);
     const r = await httpJson({
       provider: 'mastodon',
@@ -148,10 +150,19 @@ export const mastodon: InboxAdapter = {
     if (r.status !== 200 && r.status !== 201) throw httpError('Mastodon posts', r.data, r.status);
     return (Array.isArray(r.data) ? r.data : [])
       .filter((s: any) => s?.id && !s?.reblog)
-      .map((s: any) => ({
-        externalId: String(s.id),
-        commentCount: Math.max(0, Number(s.replies_count ?? 0)),
-      }));
+      .map((s: any) => {
+        const media = Array.isArray(s?.media_attachments) ? s.media_attachments : [];
+        const first = media.find((m: any) => m?.preview_url || m?.url);
+        return {
+          externalId: String(s.id),
+          commentCount: Math.max(0, Number(s.replies_count ?? 0)),
+          url: s?.url ?? null,
+          text: previewText(plainText(s?.content)),
+          thumbnail: first?.preview_url ?? first?.url ?? null,
+          postedAt: isoDate(s?.created_at),
+          mediaKind: mediaKind(first?.type),
+        };
+      });
   },
 
   async listComments(account, postId, cursor): Promise<Page<NormalizedComment>> {

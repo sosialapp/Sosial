@@ -10,6 +10,7 @@
  */
 import { httpJson, withParams } from './http';
 import { attachmentType, attachmentUrls, isoTime, metaError } from './graph';
+import { isoDate, mediaKind, previewText } from './postPreview';
 import type {
   Account, Page, NormalizedConversation, NormalizedMessage, NormalizedComment,
   SendResult, Capabilities, InboxAdapter,
@@ -159,10 +160,11 @@ export const instagram: InboxAdapter = {
   },
 
   /** Newest media (including posts published outside Sosial), so their
-   *  comment threads enter the inbox too. */
+   *  comment threads enter the inbox too. Caption/permalink/thumbnail ride
+   *  along on the same read for the post strip in the inbox. */
   async listOwnPosts(account, limit) {
     const url = withParams(`${GRAPH}/${account.externalId}/media`, {
-      fields: 'id,comments_count,timestamp',
+      fields: 'id,comments_count,timestamp,caption,permalink,media_type,media_url,thumbnail_url',
       limit: Math.max(1, Math.min(limit, 50)),
     });
     const r = await httpJson({ url, provider: 'instagram', headers: { Authorization: `Bearer ${account.token}` } });
@@ -170,6 +172,12 @@ export const instagram: InboxAdapter = {
     return (r.data?.data ?? []).map((m: any) => ({
       externalId: String(m.id),
       commentCount: Number(m?.comments_count ?? 0),
+      url: m?.permalink ?? null,
+      text: previewText(m?.caption),
+      // Reels expose a poster frame; single images expose the file itself.
+      thumbnail: m?.thumbnail_url ?? m?.media_url ?? null,
+      postedAt: isoDate(m?.timestamp),
+      mediaKind: mediaKind(m?.media_type),
     }));
   },
 

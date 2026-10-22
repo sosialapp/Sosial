@@ -56,11 +56,27 @@ describe('facebook adapter', () => {
     );
   });
 
-  it('enumerates own posts with comment counts', async () => {
-    stub({ data: [{ id: 'p1', comments: { summary: { total_count: 4 } } }] });
-    await expect(facebook.listOwnPosts?.(fb, 10)).resolves.toEqual([
-      { externalId: 'p1', commentCount: 4 },
-    ]);
+  it('enumerates own posts with comment counts and the post context', async () => {
+    const calls = stub({
+      data: [{
+        id: 'p1',
+        comments: { summary: { total_count: 4 } },
+        message: 'Big news',
+        permalink_url: 'https://facebook.com/p1',
+        created_time: '2026-10-22T10:00:00+0000',
+        full_picture: 'https://cdn.example/p1.jpg',
+      }],
+    });
+    await expect(facebook.listOwnPosts?.(fb, 10)).resolves.toEqual([{
+      externalId: 'p1',
+      commentCount: 4,
+      url: 'https://facebook.com/p1',
+      text: 'Big news',
+      thumbnail: 'https://cdn.example/p1.jpg',
+      postedAt: '2026-10-22T10:00:00.000Z',
+      mediaKind: 'image',
+    }]);
+    expect(calls[0].url).toContain('full_picture');
   });
 });
 
@@ -133,10 +149,26 @@ describe('instagram adapter', () => {
     ]);
   });
 
-  it('enumerates own media with comment counts', async () => {
-    stub({ data: [{ id: 'media_1', comments_count: 2 }] });
-    await expect(instagram.listOwnPosts?.(ig, 10)).resolves.toEqual([
-      { externalId: 'media_1', commentCount: 2 },
-    ]);
+  it('enumerates own media with comment counts and the post context', async () => {
+    stub({
+      data: [{
+        id: 'media_1',
+        comments_count: 2,
+        caption: 'Reel caption',
+        permalink: 'https://instagram.com/p/media_1',
+        media_type: 'VIDEO',
+        thumbnail_url: 'https://cdn.example/media_1.jpg',
+        timestamp: '2026-10-22T10:00:00+0000',
+      }],
+    });
+    await expect(instagram.listOwnPosts?.(ig, 10)).resolves.toEqual([{
+      externalId: 'media_1',
+      commentCount: 2,
+      url: 'https://instagram.com/p/media_1',
+      text: 'Reel caption',
+      thumbnail: 'https://cdn.example/media_1.jpg',
+      postedAt: '2026-10-22T10:00:00.000Z',
+      mediaKind: 'video',
+    }]);
   });
 });

@@ -14,7 +14,7 @@ import type { Job } from './db';
 import { rest, readSecret } from './db';
 import { restPatch } from './rest';
 import { adapterFor } from './adapters';
-import type { Account, NormalizedComment } from './adapters/types';
+import type { Account, NormalizedComment, OwnPost } from './adapters/types';
 import { ensureToken as ensureXToken } from './x';
 import { debug, info, warn } from './logger';
 import { reconnectMessage } from './channelAuth';
@@ -266,6 +266,94 @@ export async function handleSyncInbox(job: Job): Promise<void> {
 
 const COMMENTS_POSTS_PER_SWEEP = 20;
 
+/** Longest caption kept for the post strip; the feed shows two lines. */
+const POST_CONTEXT_CHARS = 400;
+
+interface CommentTarget {
+  remote_id: string | null;
+  remote_url?: string | null;
+  post_id?: string | null;
+}
+
+/**
+ * Cache the post behind each thread (p101) so the inbox can show what was
+ * commented on. The adapter read that found the comments already carried the
+ * caption, permalink and poster frame, so this costs no extra platform call.
+ * Posts the platform did not hand back — older Sosial posts, providers with
+ * no timeline read — fall back to the row we published, which still gives a
+ * caption and a link. Failures are logged, never raised: the strip is
+ * decoration and must not fail a comment sweep.
+ */
+async function cachePostContext(
+  channel: DbChannel,
+  targets: CommentTarget[],
+  fromPlatform: Map<string, OwnPost>,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const base = {
+    workspace_id: channel.workspace_id,
+    channel_id: channel.id,
+    platform: channel.provider,
+    synced_at: now,
+  };
+  const rows: Record<string, any>[] = [];
+  const missing: CommentTarget[] = [];
+
+  for (const t of targets) {
+    const id = String(t.remote_id ?? '');
+    if (!id) continue;
+    const p = fromPlatform.get(id);
+    if (!p) { missing.push(t); continue; }
+    rows.push({
+      ...base,
+      external_id: id,
+      url: p.url ?? t.remote_url ?? null,
+      body: p.text ? p.text.slice(0, POST_CONTEXT_CHARS) : null,
+      thumbnail: p.thumbnail ?? null,
+      media_kind: p.mediaKind ?? null,
+      posted_at: p.postedAt ?? null,
+    });
+  }
+
+  if (missing.length) {
+    try {
+      const postIds = missing.map((m) => String(m.post_id ?? '')).filter(Boolean);
+      const posts = postIds.length
+        ? await rest<any[]>(
+            `/rest/v1/posts?id=in.(${postIds.map((id) => `"${id}"`).join(',')})&select=id,title,body`,
+          )
+        : [];
+      const byId = new Map((posts ?? []).map((p) => [String(p.id), p]));
+      for (const m of missing) {
+        const post = byId.get(String(m.post_id ?? ''));
+        const caption = [post?.title, post?.body].filter(Boolean).join('\n\n');
+        rows.push({
+          ...base,
+          external_id: String(m.remote_id),
+          url: m.remote_url ?? null,
+          body: caption ? caption.slice(0, POST_CONTEXT_CHARS) : null,
+          thumbnail: null,
+          media_kind: null,
+          posted_at: null,
+        });
+      }
+    } catch (e: any) {
+      warn(`sync_comments channel ${channel.id}: post context read failed (${String(e?.message ?? e).slice(0, 120)})`);
+    }
+  }
+
+  if (!rows.length) return;
+  try {
+    await rest('/rest/v1/comment_posts?on_conflict=channel_id,external_id', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal,resolution=merge-duplicates' },
+      body: JSON.stringify(rows),
+    });
+  } catch (e: any) {
+    warn(`sync_comments channel ${channel.id}: post cache write failed (${String(e?.message ?? e).slice(0, 120)})`);
+  }
+}
+
 export async function handleSyncComments(job: Job): Promise<void> {
   const channelId = String(job.payload?.channel_id ?? '');
   if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
@@ -288,15 +376,16 @@ export async function handleSyncComments(job: Job): Promise<void> {
 
   // Comment sources = published posts (remote ids). Phase 1 covers the
   // newest 20 posts per sweep; older threads resync on demand.
-  const targets = await rest<any[]>(
+  const targets = await rest<CommentTarget[]>(
     `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}&provider=eq.${encodeURIComponent(c.provider)}` +
-      `&status=eq.sent&remote_id=not.is.null&select=id,remote_id&limit=${COMMENTS_POSTS_PER_SWEEP}`,
+      `&status=eq.sent&remote_id=not.is.null&select=remote_id,remote_url,post_id&limit=${COMMENTS_POSTS_PER_SWEEP}`,
   );
 
   // Threads to read: posts Sosial published, plus (when the platform lets us
   // enumerate the account timeline) any own post that already has replies -
   // comments on posts published outside Sosial belong in the same inbox.
   const remoteIds = new Set<string>();
+  const fromPlatform = new Map<string, OwnPost>();
   for (const t of targets ?? []) {
     const id = String(t.remote_id ?? '');
     if (id) remoteIds.add(id);
@@ -304,13 +393,30 @@ export async function handleSyncComments(job: Job): Promise<void> {
   if (adapter.listOwnPosts) {
     try {
       const own = await adapter.listOwnPosts(account, COMMENTS_POSTS_PER_SWEEP);
-      for (const p of own) if (p.commentCount > 0) remoteIds.add(p.externalId);
+      for (const p of own) {
+        fromPlatform.set(p.externalId, p);
+        if (p.commentCount > 0) remoteIds.add(p.externalId);
+      }
       debug(`sync_comments channel ${channelId}: ${own.length} own posts, ${remoteIds.size} threads`);
     } catch (e: any) {
       warn(`sync_comments channel ${channelId}: own posts unavailable (${String(e?.message ?? e).slice(0, 120)})`);
     }
   }
   if (!remoteIds.size) { debug(`sync_comments channel ${channelId}: no posts`); return; }
+
+  // What each thread is about, cached before the per-thread reads so a
+  // comment failure still leaves the strip drawable. Posts published outside
+  // Sosial have no post_targets row, so they are passed through bare.
+  const targetByRemote = new Map<string, CommentTarget>();
+  for (const t of targets ?? []) {
+    const id = String(t.remote_id ?? '');
+    if (id) targetByRemote.set(id, t);
+  }
+  await cachePostContext(
+    c,
+    [...remoteIds].map((id) => targetByRemote.get(id) ?? { remote_id: id }),
+    fromPlatform,
+  );
 
   let failed = 0;
   let firstError: unknown = null;

@@ -9,9 +9,10 @@
  * `attachments.media_keys` — NOT the v1.1 `message_create.message_data` blob.
  */
 import { httpJson, httpError, withParams } from './http';
+import { isoDate, mediaKind, previewText } from './postPreview';
 import type {
   Account, Page, NormalizedConversation, NormalizedMessage, NormalizedComment,
-  SendResult, Capabilities, InboxAdapter,
+  SendResult, Capabilities, InboxAdapter, OwnPost,
 } from './types';
 
 const X = 'https://api.x.com/2';
@@ -191,22 +192,40 @@ export const x: InboxAdapter = {
   },
 
   /** Your own recent tweets, so replies on posts made outside Sosial still
-   *  reach the Comments inbox (X's recent-search is per-conversation). */
-  async listOwnPosts(account, limit): Promise<{ externalId: string; commentCount: number }[]> {
+   *  reach the Comments inbox (X's recent-search is per-conversation).
+   *  Text + first media preview come from the same read. */
+  async listOwnPosts(account, limit): Promise<OwnPost[]> {
     const r = await httpJson({
       provider: 'x',
       url: withParams(`${X}/users/${encodeURIComponent(account.externalId)}/tweets`, {
         max_results: Math.min(100, Math.max(5, limit)),
         exclude: 'retweets,replies',
-        'tweet.fields': 'public_metrics',
+        'tweet.fields': 'public_metrics,created_at,text,attachments',
+        expansions: 'attachments.media_keys',
+        'media.fields': 'preview_image_url,url,type',
       }),
       headers: auth(account.token),
     });
     if (r.status !== 200 && r.status !== 201) throw httpError('X posts', r.data, r.status);
-    return (Array.isArray(r.data?.data) ? r.data.data : []).map((t: any) => ({
-      externalId: String(t.id),
-      commentCount: Math.max(0, Number(t?.public_metrics?.reply_count ?? 0)),
-    }));
+    const media = new Map<string, any>(
+      (Array.isArray(r.data?.includes?.media) ? r.data.includes.media : [])
+        .filter((m: any) => m?.media_key)
+        .map((m: any) => [String(m.media_key), m]),
+    );
+    return (Array.isArray(r.data?.data) ? r.data.data : []).map((t: any) => {
+      const first = (t?.attachments?.media_keys ?? [])
+        .map((k: string) => media.get(String(k)))
+        .find(Boolean);
+      return {
+        externalId: String(t.id),
+        commentCount: Math.max(0, Number(t?.public_metrics?.reply_count ?? 0)),
+        url: `https://x.com/i/status/${t.id}`,
+        text: previewText(t?.text),
+        thumbnail: first?.preview_image_url ?? first?.url ?? null,
+        postedAt: isoDate(t?.created_at),
+        mediaKind: mediaKind(first?.type),
+      };
+    });
   },
 
   async listComments(account, postId, cursor): Promise<Page<NormalizedComment>> {

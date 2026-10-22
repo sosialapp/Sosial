@@ -12,7 +12,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CornerDownRight, LoaderCircle, MessageCircle, RefreshCw, Send, X } from 'lucide-react';
+import {
+  CornerDownRight, ExternalLink, FileText, LoaderCircle, MessageCircle, Play, RefreshCw, Send, X,
+} from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -49,6 +51,20 @@ const NO_REPLY_TEXT: Record<string, string> = {
 
 const SELECT =
   'id,channel_id,platform,external_post_id,parent_external_id,external_id,author_name,author_avatar,body,created_at,status,is_own';
+
+/** The post a thread hangs off (p101), cached by the comment sweep. */
+interface PostContext {
+  channel_id: string;
+  external_id: string;
+  platform: string;
+  url: string | null;
+  body: string | null;
+  thumbnail: string | null;
+  media_kind: string | null;
+  posted_at: string | null;
+}
+
+const POST_SELECT = 'channel_id,external_id,platform,url,body,thumbnail,media_kind,posted_at';
 
 function when(iso: string): string {
   const d = new Date(iso);
@@ -88,6 +104,70 @@ function grow(el: HTMLTextAreaElement | null) {
   el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
 }
 
+/**
+ * What the thread is commenting on: the post's poster frame, a two-line
+ * caption and a link out to the platform. Everything here comes from the
+ * cached row, so opening the feed never calls a platform API.
+ */
+function PostStrip({ post, platform }: { post: PostContext; platform: string }) {
+  const caption = (post.body ?? '').trim();
+  const video = post.media_kind === 'video';
+  const meta = providerMeta(platform).label;
+
+  const inner = (
+    <>
+      {post.thumbnail ? (
+        <span className="relative block h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-surface">
+          <SafeImg
+            src={post.thumbnail}
+            alt=""
+            width={44}
+            height={44}
+            className="h-full w-full object-cover"
+          />
+          {video ? (
+            <span className="absolute inset-0 grid place-items-center bg-black/30 text-white">
+              <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+            </span>
+          ) : null}
+        </span>
+      ) : (
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-surface text-faint">
+          <FileText className="h-4 w-4" aria-hidden="true" />
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-bold uppercase tracking-wide text-faint">
+          {meta} post{post.posted_at ? ` · ${when(post.posted_at)}` : ''}
+        </span>
+        <span className="mt-0.5 block break-words text-xs leading-snug text-soft line-clamp-2">
+          {caption || `A ${meta} post`}
+        </span>
+      </span>
+      {post.url ? (
+        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
+      ) : null}
+    </>
+  );
+
+  const shell =
+    'mb-3 flex items-center gap-2.5 rounded-xl border border-line-soft bg-paper px-2.5 py-2 transition';
+
+  return post.url ? (
+    <a
+      href={post.url}
+      target="_blank"
+      rel="noreferrer"
+      title={`Open the ${meta} post`}
+      className={`${shell} hover:border-line hover:bg-surface`}
+    >
+      {inner}
+    </a>
+  ) : (
+    <div className={shell}>{inner}</div>
+  );
+}
+
 export default function CommentsFeed({
   channels,
   workspaceId,
@@ -102,6 +182,7 @@ export default function CommentsFeed({
   onRefresh?: () => void;
 }) {
   const [rows, setRows] = useState<CommentRow[] | null>(null);
+  const [posts, setPosts] = useState<Record<string, PostContext>>({});
   const [chan, setChan] = useState<string>('all');
   const [order, setOrder] = useState<'new' | 'old'>('new');
   /** thread id -> draft text */
@@ -159,6 +240,52 @@ export default function CommentsFeed({
     const id = window.setInterval(tick, 20_000);
     return () => window.clearInterval(id);
   }, [load]);
+
+  /** Distinct (channel, post) pairs the loaded comments belong to. */
+  const postPairs = useMemo(() => {
+    const seen = new Map<string, { channel: string; external: string }>();
+    for (const r of rows ?? []) {
+      if (!r.external_post_id) continue;
+      seen.set(`${r.channel_id}:${r.external_post_id}`, {
+        channel: r.channel_id,
+        external: r.external_post_id,
+      });
+    }
+    return [...seen.values()];
+  }, [rows]);
+
+  // Only the identity of the set matters: polling rewrites `rows` every 20s
+  // but the posts behind them almost never change, so refetching on each
+  // poll would be two queries for nothing.
+  const postPairKey = postPairs.map((p) => `${p.channel}:${p.external}`).join('|');
+  const fetchedPairs = useRef('');
+
+  useEffect(() => {
+    if (!postPairKey) {
+      fetchedPairs.current = '';
+      setPosts({});
+      return;
+    }
+    if (fetchedPairs.current === postPairKey) return;
+    fetchedPairs.current = postPairKey;
+    let alive = true;
+    void (async () => {
+      const sb = createClient();
+      const { data } = await sb
+        .from('comment_posts')
+        .select(POST_SELECT)
+        .eq('workspace_id', workspaceId)
+        .in('channel_id', [...new Set(postPairs.map((p) => p.channel))])
+        .in('external_id', [...new Set(postPairs.map((p) => p.external))]);
+      if (!alive) return;
+      const next: Record<string, PostContext> = {};
+      for (const p of (data ?? []) as PostContext[]) next[`${p.channel_id}:${p.external_id}`] = p;
+      setPosts(next);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [postPairKey, postPairs, workspaceId]);
 
   const send = async (threadId: string, target: CommentRow) => {
     const text = (drafts[threadId] ?? '').trim();
@@ -577,12 +704,18 @@ export default function CommentsFeed({
         </div>
       ) : (
         <div className="space-y-2.5">
-          {threads.roots.map((root) => (
-            <article key={root.id} className="rounded-2xl border border-line bg-card p-3.5">
-              <ol className="space-y-2.5">{chain(root, 0)}</ol>
-              {composer(root)}
-            </article>
-          ))}
+          {threads.roots.map((root) => {
+            const post = root.external_post_id
+              ? posts[`${root.channel_id}:${root.external_post_id}`]
+              : undefined;
+            return (
+              <article key={root.id} className="rounded-2xl border border-line bg-card p-3.5">
+                {post ? <PostStrip post={post} platform={root.platform} /> : null}
+                <ol className="space-y-2.5">{chain(root, 0)}</ol>
+                {composer(root)}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>

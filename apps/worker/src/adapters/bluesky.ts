@@ -10,9 +10,10 @@
  * app password (stored as one of the Vault-backed ZaP creds on connect).
  */
 import { httpJson, httpError, withParams } from './http';
+import { isoDate, previewText } from './postPreview';
 import type {
   Account, Page, NormalizedConversation, NormalizedMessage, NormalizedComment,
-  SendResult, Capabilities, InboxAdapter,
+  SendResult, Capabilities, InboxAdapter, OwnPost,
 } from './types';
 
 const XRPC = 'https://bsky.social/xrpc';
@@ -31,6 +32,27 @@ function credsOf(account: Account): BskyCreds {
 
 interface Session { jwt: string; did: string; at: number; for: BskyCreds }
 const sessionCache = new Map<string, Session>();
+
+/**
+ * A Bluesky post hides its picture in `embed`, which is either the raw record
+ * embed or a hydrated `#view` depending on the feed. Walk both.
+ */
+function embedPreview(embed: any): { thumbnail: string | null; kind: string } {
+  if (!embed) return { thumbnail: null, kind: 'text' };
+  const type = String(embed.$type ?? '');
+  if (type.includes('recordWithMedia')) return embedPreview(embed.media);
+  if (type.includes('images')) {
+    const first = Array.isArray(embed.images) ? embed.images[0] : null;
+    return { thumbnail: first?.thumb ?? first?.fullsize ?? null, kind: 'image' };
+  }
+  if (type.includes('video')) {
+    return { thumbnail: embed.thumbnail ?? embed.poster ?? null, kind: 'video' };
+  }
+  if (type.includes('external')) {
+    return { thumbnail: embed.external?.thumb ?? null, kind: 'text' };
+  }
+  return { thumbnail: null, kind: 'text' };
+}
 
 /** Session access tokens are JWTs ('ey….'); app passwords never look like one. */
 function jwtLike(tok: string): boolean {
@@ -154,10 +176,11 @@ export const bluesky: InboxAdapter = {
     return { externalId: String(r.data?.id ?? ''), sentAt: new Date().toISOString() };
   },
 
-  async listOwnPosts(account, limit): Promise<{ externalId: string; commentCount: number }[]> {
+  async listOwnPosts(account, limit): Promise<OwnPost[]> {
     // Comments are threads on any of the account's posts, not only the ones
     // Sosial happened to publish (older factory posts, manual posts). The
-    // author feed is the only official way to enumerate them.
+    // author feed is the only official way to enumerate them, and it already
+    // carries the record text + embeds for the inbox post strip.
     const c = credsOf(account);
     const s = await session(account, c);
     const r = await httpJson({
@@ -168,10 +191,22 @@ export const bluesky: InboxAdapter = {
     if (r.status !== 200 && r.status !== 201) throw httpError('Bluesky posts', r.data, r.status);
     return (r.data?.feed ?? [])
       .filter((it: any) => it?.post?.uri && !it?.reason)
-      .map((it: any) => ({
-        externalId: String(it.post.uri),
-        commentCount: Math.max(0, Number(it.post.replyCount ?? 0)),
-      }));
+      .map((it: any) => {
+        const p = it.post;
+        const embed = p?.embed ?? p?.record?.embed ?? null;
+        const preview = embedPreview(embed);
+        const author = String(p?.author?.handle ?? c.handle).replace(/^@/, '');
+        const rkey = String(p.uri).split('/').pop() ?? '';
+        return {
+          externalId: String(p.uri),
+          commentCount: Math.max(0, Number(p.replyCount ?? 0)),
+          url: author && rkey ? `https://bsky.app/profile/${author}/post/${rkey}` : null,
+          text: previewText(p?.record?.text),
+          thumbnail: preview.thumbnail,
+          postedAt: isoDate(p?.record?.createdAt ?? p?.indexedAt),
+          mediaKind: preview.kind,
+        };
+      });
   },
 
   async listComments(account, postId, cursor): Promise<Page<NormalizedComment>> {
