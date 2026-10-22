@@ -33,6 +33,8 @@ export interface Page<T> {
 
 export interface NormalizedConversation {
   externalId: string;
+  /** Platform id of the other person (PSID/IGSID), when sending needs it. */
+  participantExternalId?: string | null;
   participantName: string;
   participantAvatar: string | null;
   lastMessageAt: string;
@@ -78,6 +80,8 @@ export interface InboxAdapter {
     account: Account,
     conversationId: string,
     content: { text: string; attachmentUrls?: string[] },
+    /** The other party's platform id (Messenger PSID / Instagram IGSID). */
+    recipientId?: string | null,
   ): Promise<SendResult>;
   listComments(account: Account, postId: string, cursor: string | null): Promise<Page<NormalizedComment>>;
   /** Own posts that can carry comments, for platforms where Sosial can

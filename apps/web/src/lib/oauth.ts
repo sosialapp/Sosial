@@ -49,13 +49,26 @@ export function redirectUri(origin: string): string {
 }
 
 const TT_SCOPES = ['user.info.basic', 'user.info.stats', 'video.upload', 'video.publish', 'video.list'];
+// Instagram Login (instagram.com) scopes. insights is deliberately absent:
+// it is unused and Meta rejects the whole login while the app is unreviewed.
 const IG_SCOPES = [
   'instagram_business_basic',
   'instagram_business_content_publish',
   'instagram_business_manage_comments',
-  'instagram_business_manage_insights',
+  'instagram_business_manage_messages',
 ];
-const FB_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_read_user_content', 'pages_manage_posts'];
+const FB_SCOPES = [
+  'pages_show_list',
+  'pages_read_engagement',
+  'pages_read_user_content',
+  'pages_manage_posts',
+  // Comment replies/hide/delete and the Page's own timeline.
+  'pages_manage_engagement',
+  // Messenger reads + Send API.
+  'pages_messaging',
+  // subscribed_apps (webhook subscription).
+  'pages_manage_metadata',
+];
 const THREADS_SCOPES = ['threads_basic', 'threads_content_publish', 'threads_read_replies', 'threads_manage_insights'];
 const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write', 'dm.read', 'dm.write'];
 const YT_SCOPES = [

@@ -20,7 +20,8 @@ export interface Job {
     | 'sync_inbox'
     | 'sync_comments'
     | 'send_message'
-    | 'reply_comment';
+    | 'reply_comment'
+    | 'meta_subscribe';
   payload: Record<string, any>;
   status: string;
   run_at: string;

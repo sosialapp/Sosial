@@ -38,6 +38,7 @@ import { publishVkTarget } from './vk';
 import { publishGmbTarget } from './gmb';
 import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
+import { ensureMetaWebhook } from './metaSubscribe';
 import { sendPushBroadcast } from './push';
 import { snapshotChannel } from './stats';
 import { handleDeletePostTarget } from './remoteDelete';
@@ -249,6 +250,13 @@ async function handleRefreshToken(job: Job): Promise<void> {
   debug(`refresh_token channel ${channelId}: ${outcome} (job ${job.id})`);
 }
 
+async function handleMetaSubscribe(job: Job): Promise<void> {
+  const channelId = String(job.payload?.channel_id ?? '');
+  if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
+  const outcome = await ensureMetaWebhook(channelId);
+  debug(`meta_subscribe channel ${channelId}: ${outcome} (job ${job.id})`);
+}
+
 async function handleSnapshotAnalytics(job: Job): Promise<void> {
   const channelId = String(job.payload?.channel_id ?? '');
   if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
@@ -338,6 +346,7 @@ export async function dispatch(job: Job): Promise<void> {
   switch (job.kind) {
     case 'publish_target': return handlePublishTarget(job);
     case 'refresh_token': return handleRefreshToken(job);
+    case 'meta_subscribe': return handleMetaSubscribe(job);
     case 'snapshot_analytics': return handleSnapshotAnalytics(job);
     case 'cleanup_media': return handleCleanupMedia(job);
     case 'send_invite': return handleSendInvite(job);

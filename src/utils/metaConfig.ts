@@ -23,16 +23,28 @@ export const FB_SCOPES = [
   'pages_read_engagement',
   'pages_read_user_content',
   'pages_manage_posts',
+  // Comment replies/hide/delete and the Page's own timeline.
+  'pages_manage_engagement',
+  // Messenger reads + Send API.
+  'pages_messaging',
+  // subscribed_apps (webhook subscription).
+  'pages_manage_metadata',
 ];
 
 // Instagram Business Login is its own OAuth flow (instagram.com) with its own
 // app credentials, these scopes are INVALID on Facebook's dialog.
 export const IG_APP_ID = process.env.EXPO_PUBLIC_IG_APP_ID ?? '';
 export const IG_APP_SECRET = process.env.EXPO_PUBLIC_IG_APP_SECRET ?? '';
-// instagram_manage_insights is deliberately NOT requested: asking for it makes
-// Meta reject the entire login ("Invalid platform app") until/unless the app
-// passes review for it. Follower history stays off; follower count still works.
-export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish'];
+// instagram_business_manage_insights is deliberately NOT requested: asking for
+// it makes Meta reject the entire login ("Invalid platform app") until/unless
+// the app passes review for it. Follower history stays off; follower count
+// still works. manage_comments/manage_messages power the Community inbox.
+export const IG_SCOPES = [
+  'instagram_business_basic',
+  'instagram_business_content_publish',
+  'instagram_business_manage_comments',
+  'instagram_business_manage_messages',
+];
 export const IG_AUTH_ENDPOINT = 'https://www.instagram.com/oauth/authorize';
 export const IG_TOKEN_ENDPOINT = 'https://api.instagram.com/oauth/access_token';
 export const IG_GRAPH = 'https://graph.instagram.com';

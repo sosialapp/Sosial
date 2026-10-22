@@ -254,5 +254,20 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Could not link the token.", 500);
   }
 
+  // Webhook subscription needs `pages_manage_metadata`; the worker owns the
+  // token, so queue the subscription instead of calling Meta from here.
+  // Best-effort: a failed queue must never fail the import.
+  if (provider === "facebook") {
+    await admin.from("job_queue").upsert(
+      {
+        kind: "meta_subscribe",
+        payload: { channel_id: ch.id },
+        run_at: new Date().toISOString(),
+        idempotency_key: `meta_subscribe:${ch.id}:${Math.floor(Date.now() / 60000)}`,
+      },
+      { onConflict: "idempotency_key" },
+    );
+  }
+
   return Response.json({ channel_id: ch.id });
 });

@@ -164,6 +164,7 @@ export async function handleSyncInbox(job: Job): Promise<void> {
       channel_id: c.id,
       platform: c.provider,
       external_id: conv.externalId,
+      participant_external_id: conv.participantExternalId ?? null,
       participant_name: conv.participantName,
       participant_avatar: conv.participantAvatar,
       last_message_at: conv.lastMessageAt,
@@ -233,6 +234,9 @@ export async function handleSyncInbox(job: Job): Promise<void> {
     await restPatch('conversations', row.id, {
       last_message_at: newestAt || null,
       unread_count: unread,
+      ...(conv.participantExternalId
+        ? { participant_external_id: conv.participantExternalId }
+        : {}),
       participant_name: conv.participantName,
       participant_avatar: conv.participantAvatar,
       synced_at: new Date().toISOString(),
@@ -340,7 +344,7 @@ export async function handleSendMessage(job: Job): Promise<void> {
   debug(`send_message conversation ${conversationId} (job ${job.id})`);
 
   const rows = await rest<any[]>(
-    `/rest/v1/conversations?id=eq.${encodeURIComponent(conversationId)}&select=id,external_id,channel_id,platform,workspace_id`,
+    `/rest/v1/conversations?id=eq.${encodeURIComponent(conversationId)}&select=id,external_id,participant_external_id,channel_id,platform,workspace_id`,
   );
   const conv = rows?.[0];
   if (!conv) throw new Error('Conversation no longer exists.');
@@ -349,19 +353,22 @@ export async function handleSendMessage(job: Job): Promise<void> {
   const adapter = adapterFor(c.provider);
   const account = accountOf(c, await channelToken(c));
 
-  const res = await adapter.sendMessage(account, String(conv.external_id), {
-    text,
-    attachmentUrls: Array.isArray(job.payload?.attachment_urls)
-      ? (job.payload.attachment_urls as unknown[]).filter((u): u is string => typeof u === 'string')
-      : undefined,
-  });
+  const attachmentUrls = Array.isArray(job.payload?.attachment_urls)
+    ? (job.payload.attachment_urls as unknown[]).filter((u): u is string => typeof u === 'string')
+    : undefined;
+  const res = await adapter.sendMessage(
+    account,
+    String(conv.external_id),
+    { text, attachmentUrls },
+    conv.participant_external_id ? String(conv.participant_external_id) : null,
+  );
 
   await restInsert('messages', [{
     conversation_id: conv.id,
     external_id: res.externalId || null,
     direction: 'out',
     body: text,
-    attachments: [],
+    attachments: (attachmentUrls ?? []).map((url) => ({ url })),
     sent_at: res.sentAt,
     status: 'sent',
   }]);

@@ -135,7 +135,7 @@ export default function MessagesInbox({
     if (!blocked.length) return null;
     const names = blocked.map((c) => c.display_name || providerMeta(c.provider).label).join(', ');
     const why = blocked.map((c) => c.last_error).find(Boolean) ??
-      'that account\u2019s API plan does not include direct messages.';
+      'that account has not granted message access yet.';
     return `${names}: messages can't sync yet \u2014 ${why}`;
   }, [dmChannels]);
 
