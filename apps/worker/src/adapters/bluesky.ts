@@ -88,7 +88,8 @@ export const bluesky: InboxAdapter = {
     }
     if (r.status !== 200 && r.status !== 201) throw httpError('Bluesky DMs', r.data, r.status);
     const meDid = (await session(account, c)).did;
-    const items: NormalizedConversation[] = (r.data?.convs ?? []).map((cv: any): NormalizedConversation => {
+    // chat.bsky.convo.listConvos returns { convos: [...] }.
+    const items: NormalizedConversation[] = (r.data?.convos ?? []).map((cv: any): NormalizedConversation => {
       const members = Array.isArray(cv?.members) ? cv.members : [];
       const other = members.find((m: any) => String(m?.did ?? '') !== meDid) ?? members[0];
       return {
