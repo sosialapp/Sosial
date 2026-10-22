@@ -41,7 +41,14 @@ serve(async (req: Request): Promise<Response> => {
   const supaUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("SB_URL") ?? "";
   const serviceKey =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SB_SECRET_KEY") ?? "";
-  const appSecret = Deno.env.get("META_APP_SECRET") ?? "";
+  // Facebook/Page events are signed with the Meta app secret, Instagram-Login
+  // events with the Instagram app secret, Threads with its own. Accept any of
+  // them: the signature is only used to prove Meta sent the body.
+  const secrets = [
+    Deno.env.get("META_APP_SECRET") ?? "",
+    Deno.env.get("IG_APP_SECRET") ?? "",
+    Deno.env.get("THREADS_APP_SECRET") ?? "",
+  ].filter((s) => s.length > 0);
   const verifyToken = Deno.env.get("META_WEBHOOK_VERIFY_TOKEN") ?? "";
 
   if (req.method === "GET") {
@@ -54,12 +61,18 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   if (req.method !== "POST") return text("POST only", 405);
-  if (!supaUrl || !serviceKey || !appSecret) return text("Function misconfigured.", 500);
+  if (!supaUrl || !serviceKey || !secrets.length) return text("Function misconfigured.", 500);
 
   const raw = await req.text();
-  if (!(await validSignature(raw, req.headers.get("x-hub-signature-256"), appSecret))) {
-    return text("bad signature", 401);
+  const sig = req.headers.get("x-hub-signature-256");
+  let signed = false;
+  for (const secret of secrets) {
+    if (await validSignature(raw, sig, secret)) {
+      signed = true;
+      break;
+    }
   }
+  if (!signed) return text("bad signature", 401);
 
   let payload: any;
   try {
