@@ -24,6 +24,7 @@ function normalizeHandle(raw: string): string {
   id = id.replace(/[?#].*$/, '');
   id = id.replace(/\/+$/, '');
   id = id.replace(/^@+/, '');
+  if (!id.startsWith('did:')) id = id.toLowerCase();
   if (!id || id.startsWith('did:') || id.includes('.') || id.includes('@')) return id;
   return `${id}.bsky.social`;
 }
