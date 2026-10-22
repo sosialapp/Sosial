@@ -11,6 +11,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LoaderCircle, MessageCircle, RefreshCw, Send } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
+import ChannelAvatar from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
 import { providerMeta } from '@/lib/providers';
@@ -78,7 +80,8 @@ export default function CommentsFeed({
   workspaceId: string;
 }) {
   const [rows, setRows] = useState<CommentRow[] | null>(null);
-  const [platform, setPlatform] = useState<string>('all');
+  const [chan, setChan] = useState<string>('all');
+  const [order, setOrder] = useState<'new' | 'old'>('new');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [replyFor, setReplyFor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -155,50 +158,83 @@ export default function CommentsFeed({
     }
   };
 
-  const platforms = useMemo(
-    () => [...new Set((rows ?? []).map((r) => r.platform))],
-    [rows],
-  );
-  const visible = useMemo(
-    () => (rows ?? []).filter((r) => platform === 'all' || r.platform === platform),
-    [rows, platform],
-  );
+  const channelsWithRows = useMemo(() => {
+    const ids = new Set((rows ?? []).map((r) => r.channel_id));
+    return channels.filter((c) => ids.has(c.id));
+  }, [channels, rows]);
+  const visible = useMemo(() => {
+    const list = (rows ?? []).filter((r) => chan === 'all' || r.channel_id === chan);
+    return order === 'new'
+      ? list
+      : [...list].reverse();
+  }, [rows, chan, order]);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex w-fit gap-1 overflow-x-auto rounded-full border border-line bg-card p-1">
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
           <button
             type="button"
-            onClick={() => setPlatform('all')}
-            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-              platform === 'all' ? 'bg-accent text-[#0b1220]' : 'text-soft hover:bg-paper-dim'
+            onClick={() => setChan('all')}
+            aria-pressed={chan === 'all'}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+              chan === 'all' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
             }`}
           >
-            All
+            All channels
           </button>
-          {platforms.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPlatform(p)}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                platform === p ? 'bg-accent text-[#0b1220]' : 'text-soft hover:bg-paper-dim'
-              }`}
-            >
-              {providerMeta(p).label}
-            </button>
-          ))}
+          {channelsWithRows.map((c) => {
+            const on = chan === c.id;
+            const name = c.display_name || providerMeta(c.provider).label;
+            const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setChan(on ? 'all' : c.id)}
+                aria-pressed={on}
+                title={`${name}${handle ? ` ${handle}` : ''} - ${providerMeta(c.provider).label}`}
+                className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
+                  on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
+                }`}
+              >
+                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
+                <span className="flex min-w-0 max-w-40 flex-col leading-tight">
+                  <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
+                  {handle ? (
+                    <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          disabled={scanning}
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
-        >
-          {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-          Refresh
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Sort comments">
+            {(['new', 'old'] as const).map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => setOrder(o)}
+                aria-pressed={order === o}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                  order === o ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {o === 'new' ? 'Newest' : 'Oldest'}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            disabled={scanning}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
+          >
+            {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            Refresh
+          </button>
+        </div>
       </div>
 
       {err ? (
@@ -215,10 +251,11 @@ export default function CommentsFeed({
       ) : visible.length === 0 ? (
         <div className="rounded-2xl border border-line bg-card p-10 text-center">
           <MessageCircle className="mx-auto h-6 w-6 text-faint" aria-hidden="true" />
-          <p className="mt-2 text-sm font-bold">No comments yet</p>
+          <p className="mt-2 text-sm font-bold">{chan === 'all' ? 'No comments yet' : 'No comments on this channel yet'}</p>
           <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-            Publish to your channels, get a comment, and it lands here when the
-            engine sweeps — every 5 minutes or on Refresh.
+            {chan === 'all'
+              ? 'Publish to your channels, get a comment, and it lands here when the engine sweeps - every 5 minutes or on Refresh.'
+              : 'Comments on this account land here when the engine sweeps - every 5 minutes or on Refresh.'}
           </p>
         </div>
       ) : (

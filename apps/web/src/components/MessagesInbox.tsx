@@ -14,6 +14,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, LoaderCircle, Lock, RefreshCw, Send, User } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
+import ChannelAvatar from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
 import { providerMeta } from '@/lib/providers';
@@ -94,6 +96,8 @@ export default function MessagesInbox({
   paid: boolean;
 }) {
   const [convs, setConvs] = useState<ConversationRow[] | null>(null);
+  const [chan, setChan] = useState<string>('all');
+  const [order, setOrder] = useState<'new' | 'old'>('new');
   const [open, setOpen] = useState<ConversationRow | null>(null);
   const [msgs, setMsgs] = useState<MessageRow[] | null>(null);
   const [draft, setDraft] = useState('');
@@ -104,6 +108,10 @@ export default function MessagesInbox({
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
   const dmChannels = useMemo(() => channels.filter((c) => DM_PROVIDERS.has(c.provider)), [channels]);
+  const visibleConvs = useMemo(() => {
+    const list = (convs ?? []).filter((c) => chan === 'all' || c.channel_id === chan);
+    return order === 'new' ? list : [...list].reverse();
+  }, [convs, chan, order]);
   // Connected channels that will never show up here, so the user knows why
   // the list looks shorter than the channel row.
   const noDmNote = useMemo(() => {
@@ -361,17 +369,73 @@ export default function MessagesInbox({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="px-1 text-xs font-bold uppercase tracking-wide text-faint">Inbox</p>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          disabled={scanning}
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
-          aria-label="Refresh conversations"
-        >
-          {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-          Refresh
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Sort conversations">
+            {(['new', 'old'] as const).map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => setOrder(o)}
+                aria-pressed={order === o}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                  order === o ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {o === 'new' ? 'Newest' : 'Oldest'}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            disabled={scanning}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
+            aria-label="Refresh conversations"
+          >
+            {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            Refresh
+          </button>
+        </div>
       </div>
+      {dmChannels.length > 1 ? (
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
+          <button
+            type="button"
+            onClick={() => setChan('all')}
+            aria-pressed={chan === 'all'}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+              chan === 'all' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
+            }`}
+          >
+            All channels
+          </button>
+          {dmChannels.map((c) => {
+            const on = chan === c.id;
+            const name = c.display_name || providerMeta(c.provider).label;
+            const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setChan(on ? 'all' : c.id)}
+                aria-pressed={on}
+                title={`${name}${handle ? ` ${handle}` : ''} - ${providerMeta(c.provider).label}`}
+                className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
+                  on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
+                }`}
+              >
+                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
+                <span className="flex min-w-0 max-w-40 flex-col leading-tight">
+                  <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
+                  {handle ? (
+                    <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       {noDmNote ? (
         <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{noDmNote}</p>
       ) : null}
@@ -382,17 +446,20 @@ export default function MessagesInbox({
         <div className="rounded-2xl border border-line bg-card p-10 text-center text-sm text-muted">
           <LoaderCircle className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
         </div>
-      ) : convs.length === 0 ? (
+      ) : visibleConvs.length === 0 ? (
         <div className="rounded-2xl border border-line bg-card p-10 text-center">
-          <p className="text-sm font-bold">No conversations yet</p>
+          <p className="text-sm font-bold">
+            {chan === 'all' ? 'No conversations yet' : 'No conversations on this channel yet'}
+          </p>
           <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-            When someone DMs {dmChannels.map((c) => c.display_name || providerMeta(c.provider).label).join(', ')},
-            the conversation shows up here within a few minutes.
+            {chan === 'all'
+              ? `When someone DMs ${dmChannels.map((c) => c.display_name || providerMeta(c.provider).label).join(', ')}, the conversation shows up here within a few minutes.`
+              : 'Direct messages on this account show up here within a few minutes.'}
           </p>
         </div>
       ) : (
         <ul className="space-y-2.5">
-          {convs.map((c) => {
+          {visibleConvs.map((c) => {
             const ch = channelById.get(c.channel_id);
             const unread = Math.max(0, Number(c.unread_count ?? 0));
             return (
