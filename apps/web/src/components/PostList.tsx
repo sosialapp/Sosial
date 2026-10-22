@@ -12,12 +12,6 @@ import {
   Send,
   Share2,
   Trash2,
-  CircleCheckBig,
-  CircleX,
-  Clock,
-  ClipboardCheck,
-  FileText,
-  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -73,13 +67,13 @@ const MEDIA_KEY: Record<'all' | 'text' | 'image' | 'video', string> = {
   video: 'fVideo',
 };
 
-const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: 'all', label: 'All', icon: LayoutGrid },
-  { id: 'sent', label: 'Sent', icon: CircleCheckBig },
-  { id: 'failed', label: 'Failed', icon: CircleX },
-  { id: 'queue', label: 'Queue', icon: Clock },
-  { id: 'drafts', label: 'Drafts', icon: FileText },
-  { id: 'approvals', label: 'Approvals', icon: ClipboardCheck },
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'sent', label: 'Sent' },
+  { id: 'failed', label: 'Failed' },
+  { id: 'queue', label: 'Queue' },
+  { id: 'drafts', label: 'Drafts' },
+  { id: 'approvals', label: 'Approvals' },
 ];
 
 export const TAB_MATCH: Record<Tab, (s: PostStatus) => boolean> = {
@@ -664,7 +658,6 @@ export default function PostList({
                   tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface text-soft hover:bg-line'
                 }`}
               >
-                <tb.icon className="h-3.5 w-3.5" aria-hidden="true" />
                 {t(TAB_KEY[tb.id])}
                 {count > 0 && <span className="opacity-60">{count}</span>}
               </button>
