@@ -123,6 +123,17 @@ export default function MessagesInbox({
       : `${names[0]} doesn't expose a messages API, you won't find its conversations here.`;
   }, [channels]);
 
+  // Channels whose provider refused DM reads (paid tier / scope). The worker
+  // backs off, so say it here instead of showing a permanently empty inbox.
+  const blockedNote = useMemo(() => {
+    const blocked = dmChannels.filter((c) => c.metadata?.['dmBlocked'] === true);
+    if (!blocked.length) return null;
+    const names = blocked.map((c) => c.display_name || providerMeta(c.provider).label).join(', ');
+    const why = blocked.map((c) => c.last_error).find(Boolean) ??
+      'that account\u2019s API plan does not include direct messages.';
+    return `${names}: messages can't sync yet \u2014 ${why}`;
+  }, [dmChannels]);
+
   const loadConvs = useCallback(async () => {
     setErr(null);
     const sb = createClient();
@@ -446,6 +457,9 @@ export default function MessagesInbox({
       ) : null}
       {noDmNote ? (
         <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{noDmNote}</p>
+      ) : null}
+      {blockedNote ? (
+        <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{blockedNote}</p>
       ) : null}
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>

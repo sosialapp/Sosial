@@ -36,8 +36,9 @@ export const X_API = 'https://api.x.com/2';
 export const X_MEDIA_UPLOAD = 'https://api.x.com/2/media/upload';
 
 /** tweet.read rides along with write; offline.access mints the refresh token;
- *  media.write is what lets image uploads through (without it: 403 on files). */
-export const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write'];
+ *  media.write is what lets image uploads through (without it: 403 on files);
+ *  dm.read/dm.write power the unified Messages inbox (paid X tier required). */
+export const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write', 'dm.read', 'dm.write'];
 
 /** X post caps enforced client-side; the composer shows them. */
 export const X_MAX_IMAGES = 4;

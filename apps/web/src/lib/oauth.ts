@@ -57,7 +57,7 @@ const IG_SCOPES = [
 ];
 const FB_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_read_user_content', 'pages_manage_posts'];
 const THREADS_SCOPES = ['threads_basic', 'threads_content_publish', 'threads_read_replies', 'threads_manage_insights'];
-const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write'];
+const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write', 'dm.read', 'dm.write'];
 const YT_SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',
   'https://www.googleapis.com/auth/youtube.readonly',

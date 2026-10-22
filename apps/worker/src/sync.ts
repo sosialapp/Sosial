@@ -113,8 +113,39 @@ export async function handleSyncInbox(job: Job): Promise<void> {
   const adapter = adapterFor(c.provider);
   const account = accountOf(c, await channelToken(c));
 
-  const page = await adapter.listConversations(account, null);
+  // A provider that refuses DM reads for a plan/scope reason will refuse
+  // forever; probing every 5 minutes only fills the dead-letter queue. Back
+  // off for six hours (or until the channel is reconnected / metadata reset).
+  const blockedAt = Date.parse(String(c.metadata?.dmBlockedAt ?? '')) || 0;
+  if (c.metadata?.dmBlocked && Date.now() - blockedAt < 6 * 60 * 60 * 1000) {
+    debug(`sync_inbox channel ${channelId}: ${c.provider} DM access blocked, backing off`);
+    return;
+  }
+
+  let page;
+  try {
+    page = await adapter.listConversations(account, null);
+  } catch (e: any) {
+    const msg = String(e?.message ?? e);
+    if (/\b403\b/.test(msg) && /(dm|message)/i.test(msg)) {
+      await restPatch('connected_channels', c.id, {
+        metadata: {
+          ...(c.metadata ?? {}),
+          dmBlocked: true,
+          dmBlockedAt: new Date().toISOString(),
+        },
+        last_error: msg,
+      });
+      warn(`sync_inbox channel ${channelId}: provider refused DM access, backing off 6h`);
+      return;
+    }
+    throw e;
+  }
   const incoming = page.items.slice(0, INBOX_CONVOS_PER_SWEEP);
+  if (c.metadata?.dmBlocked) {
+    const { dmBlocked: _blocked, dmBlockedAt: _blockedAt, ...restMeta } = c.metadata;
+    await restPatch('connected_channels', c.id, { metadata: restMeta, last_error: null });
+  }
   if (!incoming.length) return;
 
   // upsert-ignore: conflicts are live rows, only new ones come back

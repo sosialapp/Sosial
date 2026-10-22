@@ -42,6 +42,7 @@ export const REFRESHABLE_PROVIDERS = [
   'pinterest',
   'youtube',
   'bluesky',
+  'mastodon',
 ] as const;
 
 async function getChannel(channelId: string): Promise<ChannelRow | null> {
