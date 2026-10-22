@@ -27,17 +27,14 @@ const CORS: Record<string, string> = {
 };
 
 function bad(msg: string, status = 400): Response {
-  // 200-with-error, not a non-2xx: Cloudflare in front of the gateway
-  // REPLACES every 4xx/5xx body with its own "error code: N" page, so a
-  // refused login would reach the caller as the generic "Edge Function
-  // returned a non-2xx status code" instead of the reason. Carrying the
-  // failure inside a 200 body keeps the real message intact through CF.
-  // Consumers read payload.error (web callback) or j.error (bluesky route);
-  // hard 401s stay 401 for the mobile-parity contract.
-  if (status >= 500 || status === 402) {
-    return Response.json({ ok: false, error: msg }, { status: 200, headers: CORS });
-  }
-  return Response.json({ error: msg }, { status, headers: CORS });
+  // Cloudflare in front of the gateway REPLACES every 4xx/5xx body with its
+  // own "error code: N" page, so a refused login would reach the caller as
+  // the generic "Edge Function returned a non-2xx status code" instead of the
+  // reason. Carry every provider refusal inside a 200 body so the real
+  // message survives; only the "Sign in first." gate keeps a hard 401 for
+  // the mobile-parity contract.
+  if (status === 401) return Response.json({ error: msg }, { status, headers: CORS });
+  return Response.json({ error: msg }, { status: 200, headers: CORS });
 }
 
 function ok(payload: Record<string, unknown>): Response {
@@ -398,17 +395,27 @@ async function linkedin(b: ExchangeBody): Promise<Response> {
 }
 
 function normalizeHandle(identifier: string): string {
-  const id = identifier.trim().replace(/^@/, "");
-  if (!id || id.startsWith("did:") || id.includes(".")) return id;
+  let id = identifier.trim();
+  // Full profile URLs are what people actually copy from the app.
+  id = id.replace(/^https?:\/\/(?:www\.)?bsky\.app\/profile\//i, "");
+  id = id.replace(/^https?:\/\//i, "");
+  id = id.replace(/[?#].*$/, "");
+  id = id.replace(/\/+$/, "");
+  id = id.replace(/^@+/, "");
+  if (!id || id.startsWith("did:") || id.includes(".") || id.includes("@")) return id;
   return `${id}.bsky.social`;
 }
 
 async function bluesky(b: ExchangeBody): Promise<Response> {
   const identifier = normalizeHandle(b.handle);
+  const password = b.app_password.trim();
   if (!identifier) return bad("Enter your Bluesky handle first.", 400);
-  if (!b.app_password) return bad("Paste the app password too.", 400);
+  if (!password) return bad("Paste the app password too.", 400);
+  // Emails are a valid createSession identifier but can't be resolved to a
+  // DID, so pass them straight through to the PDS.
+  const isEmail = identifier.includes("@");
   let did = identifier;
-  if (!did.startsWith("did:")) {
+  if (!did.startsWith("did:") && !isEmail) {
     const rr = await fetch(
       `https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(identifier)}`,
     );
@@ -441,11 +448,11 @@ async function bluesky(b: ExchangeBody): Promise<Response> {
   const sr = await fetch(`${pdsHost}/xrpc/com.atproto.server.createSession`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier: did, password: b.app_password }),
+    body: JSON.stringify({ identifier: did, password }),
   });
   const sj = await json(sr);
   if (!sj.accessJwt) {
-    return bad("Wrong handle or app password, mint a fresh one at bsky.app → Settings → App passwords.", 401);
+    return bad("Wrong handle or app password, mint a fresh one at bsky.app → Settings → App passwords.", 400);
   }
   const handle = String(sj.handle ?? identifier).replace(/^@/, "");
   let avatar: string | undefined;
@@ -462,7 +469,7 @@ async function bluesky(b: ExchangeBody): Promise<Response> {
     // unified sync engine mints its own 40-min-cached sessions per sweep
     // from Vault (createSession per sync), and JWTs die in ~2h while app
     // passwords live until revoked. The verify session is discarded here.
-    access_token: b.app_password,
+    access_token: password,
     external_id: String(sj.did ?? did),
     handle,
     display_name: handle ? `@${handle}` : undefined,
