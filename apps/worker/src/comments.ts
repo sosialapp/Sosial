@@ -369,6 +369,75 @@ export async function handleScanComments(_job: Job): Promise<void> {  // Recent 
       warn(`scan_comments skip ${target.provider}/${target.remote_id}: ${e instanceof Error ? e.message : e}`);
     }
   }
+
+  // ---- Threads account-wide: comments on posts that were never routed
+  // through Sosial (published from the app, or whose stored id drifted).
+  // Reads the channel's recent top-level media and flattens each
+  // conversation; rows carry post_target_id = null. Bounded: 15 media.
+  const threadsRemoteIds = new Set(
+    otherTargets.filter((t) => t.provider === 'threads').map((t) => t.remote_id),
+  );
+  const threadsChannelIds = [
+    ...new Set(
+      otherTargets
+        .filter((t) => t.provider === 'threads' && t.channel_id)
+        .map((t) => t.channel_id as string),
+    ),
+  ];
+  for (const channelId of threadsChannelIds) {
+    try {
+      let entry = cache.get(channelId);
+      if (!entry) {
+        const rows = await rest<ChannelRowX[]>(
+          `/rest/v1/connected_channels?id=eq.${encodeURIComponent(channelId)}` +
+            `&select=id,workspace_id,provider,external_id,instance_url,metadata,status,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)&limit=1`,
+        );
+        const ch = rows?.[0];
+        if (!ch) continue;
+        entry = { ch, t: tokenRow(ch), token: await tokenOf(ch, tokenRow(ch)) };
+        cache.set(channelId, entry);
+      }
+      if (chProviderDead(entry.ch)) continue;
+      const mr = await fetch(
+        `${THREADS_API}/me/threads?fields=id,text,is_reply&limit=15&access_token=${encodeURIComponent(entry.token)}`,
+        { headers: { Authorization: `Bearer ${entry.token}` } },
+      );
+      const mj: any = await mr.json().catch(() => ({}));
+      if (!mr.ok) throw new Error(mj?.error?.message ?? `threads media list ${mr.status}`);
+      const media = (Array.isArray(mj?.data) ? mj.data : []).filter(
+        (x: any) => x?.id && x?.is_reply === false && !threadsRemoteIds.has(String(x.id)),
+      );
+      for (const m of media) {
+        try {
+          const list = await threadsReplies(String(m.id), entry.token);
+          if (!list.length) continue;
+          const rows = list.map((c) => ({
+            workspace_id: entry.ch.workspace_id,
+            channel_id: channelId,
+            provider: 'threads' as const,
+            post_target_id: null,
+            comment_id: c.comment_id,
+            parent_id: c.parent_id,
+            author: c.author,
+            author_avatar: c.author_avatar,
+            message: c.message,
+            like_count: c.like_count,
+            created_at: c.created_at ?? new Date().toISOString(),
+          }));
+          await rest<unknown>('/rest/v1/platform_comments', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(rows),
+          });
+          scanned += list.length;
+        } catch (e) {
+          debug(`scan_comments skip threads media ${m.id}: ${e instanceof Error ? e.message : e}`);
+        }
+      }
+    } catch (e) {
+      warn(`scan_comments skip threads account-wide ${channelId}: ${e instanceof Error ? e.message : e}`);
+    }
+  }
   info(`scan_comments: scanned ${scanned} comments across ${(targets ?? []).length} targets`);
 }
 
