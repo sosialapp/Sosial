@@ -1,14 +1,18 @@
-/** Subscribe the Page to Messenger/comment webhooks. Best-effort: without
- *  `pages_manage_metadata` Meta refuses, and polling still works, so a
+/** Subscribe the Page/IG account to comment + message webhooks. Best-effort:
+ *  without the matching permission Meta refuses, and polling still works, so a
  *  refusal is recorded in metadata instead of failing the job. */
 import { readSecret, rest } from './db';
 import { restPatch } from './rest';
 import { warn } from './logger';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
+const IG_GRAPH = 'https://graph.instagram.com/v21.0';
 // `comments` and `messaging_reactions` need extra review; requesting a denied
 // field fails the whole call, and `feed` already carries comment events.
 const FIELDS = 'messages,messaging_postbacks,feed';
+// Instagram Login has no `feed` object and no postbacks: comments and messages
+// are the only account-level webhook fields it exposes.
+const IG_FIELDS = 'comments,messages';
 
 interface Row {
   id: string;
@@ -25,14 +29,17 @@ export async function ensureMetaWebhook(channelId: string): Promise<'subscribed'
       `&select=id,provider,external_id,status,metadata,channel_tokens(access_token_secret_id)&limit=1`,
   );
   const c = rows?.[0];
-  if (!c || c.provider !== 'facebook' || c.status !== 'connected') return 'skipped';
+  if (!c || (c.provider !== 'facebook' && c.provider !== 'instagram')) return 'skipped';
+  if (c.status !== 'connected') return 'skipped';
 
   const t = Array.isArray(c.channel_tokens) ? c.channel_tokens[0] : c.channel_tokens;
   const token = t?.access_token_secret_id ? await readSecret(t.access_token_secret_id) : null;
   if (!token) return 'skipped';
 
+  const base = c.provider === 'instagram' ? IG_GRAPH : GRAPH;
+  const fields = c.provider === 'instagram' ? IG_FIELDS : FIELDS;
   const r = await fetch(
-    `${GRAPH}/${encodeURIComponent(c.external_id)}/subscribed_apps?subscribed_fields=${FIELDS}`,
+    `${base}/${encodeURIComponent(c.external_id)}/subscribed_apps?subscribed_fields=${fields}`,
     { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
   );
   const j = await r.json().catch(() => null);

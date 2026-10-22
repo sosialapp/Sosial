@@ -254,10 +254,10 @@ serve(async (req: Request): Promise<Response> => {
     return bad("Could not link the token.", 500);
   }
 
-  // Webhook subscription needs `pages_manage_metadata`; the worker owns the
-  // token, so queue the subscription instead of calling Meta from here.
+  // Webhook subscription needs the matching Meta permission; the worker owns
+  // the token, so queue the subscription instead of calling Meta from here.
   // Best-effort: a failed queue must never fail the import.
-  if (provider === "facebook") {
+  if (provider === "facebook" || provider === "instagram") {
     await admin.from("job_queue").upsert(
       {
         kind: "meta_subscribe",
