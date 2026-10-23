@@ -20,9 +20,6 @@ jobs:
       # Edge functions are Deno and run on Supabase, not here.
       - run: npm test
         working-directory: apps/web
-      # The worker has its own package.json and lockfile (not a workspace), so install it separately.
-      - run: npm ci
-        working-directory: apps/worker
       - run: npm test
         working-directory: apps/worker
       - run: npm test

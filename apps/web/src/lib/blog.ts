@@ -1,4 +1,3 @@
-import { cache } from 'react';
 import { createClient as createAnonClient } from '@supabase/supabase-js';
 import type { Article, Block, Category } from '@/content/types';
 
@@ -18,8 +17,8 @@ interface BlogRow {
   slug: string;
   title: string;
   description: string | null;
-  body?: unknown;
-  body_html?: string | null;
+  body: unknown;
+  body_html: string | null;
   cover_url: string | null;
   cover_alt: string | null;
   show_cover_home: boolean | null;
@@ -29,10 +28,6 @@ interface BlogRow {
 }
 
 const COLS = 'slug, title, description, body, body_html, cover_url, cover_alt, show_cover_home, tag, minutes, published_at';
-/** Lists (index, sitemap, related, static params) never render the body, so skip the heavy
- *  body/body_html columns. Fetching every article's full body once per page made
- *  `next build` time out when generating all blog pages at once. */
-const LIST_COLS = 'slug, title, description, cover_url, cover_alt, show_cover_home, tag, minutes, published_at';
 
 function isBlock(b: unknown): b is Block {
   if (typeof b !== 'object' || b === null) return false;
@@ -75,13 +70,13 @@ export async function allArticles(): Promise<Article[]> {
   const sb = publicClient();
   const { data } = await sb
     .from('blog_posts')
-    .select(LIST_COLS)
+    .select(COLS)
     .eq('status', 'published')
     .order('published_at', { ascending: false });
   return ((data ?? []) as BlogRow[]).map(toArticle);
 }
 
-export const article = cache(async (slug: string): Promise<Article | undefined> => {
+export async function article(slug: string): Promise<Article | undefined> {
   const sb = publicClient();
   const { data } = await sb
     .from('blog_posts')
@@ -90,7 +85,7 @@ export const article = cache(async (slug: string): Promise<Article | undefined> 
     .eq('slug', slug)
     .maybeSingle();
   return data ? toArticle(data as BlogRow) : undefined;
-});
+}
 
 export async function articlesByTag(tag: string): Promise<Article[]> {
   return (await allArticles()).filter((a) => a.tag === tag);
