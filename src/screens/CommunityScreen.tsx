@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   TextInput,
   Image,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T } from '../theme';
@@ -56,30 +58,73 @@ function providerLabel(provider: string): string {
   return SOCIAL_META[provider]?.label ?? provider;
 }
 
-function Face({ name, avatar, size = 34 }: { name: string | null; avatar: string | null; size?: number }) {
+/** Quick replies: one tap drops the text into the composer, never sends. */
+const QUICK_COMMENT = ['Thanks for the kind words!', 'Thanks for reaching out', 'Check your DMs'];
+const QUICK_DM = ['Thanks for reaching out', 'We are looking into it'];
+
+type Status = 'needs' | 'replied' | 'all';
+
+/** Person's picture (initial when there is none), with the platform's logo
+ *  riding in the corner when `provider` is given. */
+function Face({
+  name,
+  avatar,
+  size = 34,
+  provider,
+  ring,
+}: {
+  name: string | null;
+  avatar: string | null;
+  size?: number;
+  provider?: string;
+  /** Colour of the surface behind the face, so the logo ring blends in. */
+  ring?: string;
+}) {
   const { C } = useTheme();
   const letter = (name ?? '').trim().replace('@', '').charAt(0).toUpperCase();
+  const badge = Math.max(16, Math.round(size * 0.46));
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: C.bone,
-        borderWidth: 1,
-        borderColor: C.lineSoft,
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-      }}
-    >
-      {avatar ? (
-        <Image source={{ uri: avatar }} style={{ width: size, height: size }} />
-      ) : letter ? (
-        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: Math.round(size * 0.4), color: C.soft }}>{letter}</Text>
-      ) : (
-        <Ionicons name="chatbubble-outline" size={Math.round(size * 0.45)} color={C.faint} />
-      )}
+    <View style={{ width: size, height: size }}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: C.surface,
+          borderWidth: 1,
+          borderColor: C.lineSoft,
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        {avatar ? (
+          <Image source={{ uri: avatar }} style={{ width: size, height: size }} />
+        ) : letter ? (
+          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: Math.round(size * 0.4), color: C.soft }}>{letter}</Text>
+        ) : (
+          <Ionicons name="chatbubble-outline" size={Math.round(size * 0.45)} color={C.faint} />
+        )}
+      </View>
+      {provider ? (
+        <View
+          style={{
+            position: 'absolute',
+            right: -3,
+            bottom: -3,
+            width: badge,
+            height: badge,
+            borderRadius: badge / 2,
+            backgroundColor: SOCIAL_META[provider]?.bg ?? C.ink,
+            borderWidth: 2,
+            borderColor: ring ?? C.card,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <SocialGlyph platform={provider} size={Math.round(badge * 0.5)} color="#fff" />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -98,8 +143,10 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [channel, setChannel] = useState('all');
+  const [status, setStatus] = useState<Status>('all');
   const [drawer, setDrawer] = useState(false);
-  const [replyFor, setReplyFor] = useState<string | null>(null);
+  const [openRootId, setOpenRootId] = useState<string | null>(null);
+  const [replyTarget, setReplyTarget] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [openConv, setOpenConv] = useState<CommunityConversation | null>(null);
@@ -176,7 +223,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     try {
       await replyToCommunityComment(c.id, text);
       setDraft('');
-      setReplyFor(null);
+      setReplyTarget(null);
       // The worker posts on the platform first, then stores our reply as an
       // is_own row; keep watching the thread until that row lands.
       const seen = new Set(
@@ -239,104 +286,113 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     }
   };
 
-  const shownComments = comments.filter((c) => channel === 'all' || c.channel_id === channel);
   const providerOf = (id: string) => channels.find((c) => c.id === id)?.provider ?? 'x';
-  const channelLabel = channel === 'all' ? 'All channels' : channels.find((c) => c.id === channel)?.label ?? 'Channel';
 
-  const commentCard = (c: CommunityComment, nested: boolean) => {
+  /** Threads: roots (comments nobody in this view replies to), each with its
+   *  reply tree. A reply whose parent is filtered out is promoted to a root. */
+  const threads = useMemo(() => {
+    const list = comments.filter((c) => channel === 'all' || c.channel_id === channel);
+    const byKey = new Map(list.map((c) => [`${c.channel_id}:${c.external_id}`, c]));
+    const kids = new Map<string, CommunityComment[]>();
+    const roots: CommunityComment[] = [];
+    for (const c of list) {
+      const parent = c.parent_external_id ? byKey.get(`${c.channel_id}:${c.parent_external_id}`) : undefined;
+      if (parent && parent.id !== c.id) {
+        const arr = kids.get(parent.id) ?? [];
+        arr.push(c);
+        kids.set(parent.id, arr);
+      } else {
+        roots.push(c);
+      }
+    }
+    roots.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    for (const arr of kids.values()) arr.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const info = new Map<string, { last: CommunityComment; hasNew: boolean; needs: boolean; count: number }>();
+    const collect = (r: CommunityComment, acc: CommunityComment[]): CommunityComment[] => {
+      acc.push(r);
+      for (const k of kids.get(r.id) ?? []) collect(k, acc);
+      return acc;
+    };
+    for (const root of roots) {
+      const all = collect(root, []);
+      const last = all.reduce((a, b) => (b.created_at > a.created_at ? b : a));
+      const hasNew = all.some((r) => !r.is_own && r.status === 'new');
+      const closed = last.status === 'replied' || last.status === 'hidden' || last.status === 'deleted';
+      info.set(root.id, { last, hasNew, needs: hasNew || (!last.is_own && !closed), count: all.length });
+    }
+    return { roots, kids, info };
+  }, [comments, channel]);
+
+  const needsCount = threads.roots.filter((r) => threads.info.get(r.id)?.needs).length;
+  const visibleRoots = threads.roots.filter((r) => {
+    const i = threads.info.get(r.id);
+    if (status === 'needs') return !!i?.needs;
+    if (status === 'replied') return !i?.needs;
+    return true;
+  });
+  const openRoot = openRootId ? threads.roots.find((r) => r.id === openRootId) ?? null : null;
+
+  /** New-comment count per channel, for the little badges on the logo row. */
+  const newByChannel = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of comments) {
+      if (!c.is_own && c.status === 'new') m.set(c.channel_id, (m.get(c.channel_id) ?? 0) + 1);
+    }
+    return m;
+  }, [comments]);
+
+  const closeThread = () => {
+    setOpenRootId(null);
+    setReplyTarget(null);
+    setDraft('');
+  };
+
+  const commentRow = (c: CommunityComment, depth: number): React.ReactNode => {
     const provider = c.platform;
     const meta = SOCIAL_META[provider];
     const canReply = !c.is_own;
-    const long = (c.body ?? '').length > 220;
+    const kids = threads.kids.get(c.id) ?? [];
     return (
-      <View
-        key={c.id}
-        style={[
-          s.commentCard,
-          c.is_own && { borderColor: C.accent, backgroundColor: C.accentSoft },
-          nested && { marginLeft: 18 },
-        ]}
-      >
-        {c.is_own ? (
-          <View style={[s.faceWrap, { backgroundColor: meta?.bg ?? C.ink }]}>
-            <SocialGlyph platform={provider} size={16} color="#fff" />
-          </View>
-        ) : (
-          <Face name={c.author_name} avatar={c.author_avatar} />
-        )}
-        <View style={{ flex: 1, gap: 3 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Text style={s.author} numberOfLines={1}>
-              {c.is_own ? 'You' : c.author_name || 'Unknown'}
-            </Text>
-            {c.is_own ? (
-              <View style={s.sentPill}>
-                <Text style={s.sentPillT}>Sent</Text>
-              </View>
-            ) : c.status === 'new' ? (
-              <View style={[s.sentPill, { backgroundColor: C.accent }]}>
-                <Text style={[s.sentPillT, { color: '#0b1220' }]}>New</Text>
-              </View>
-            ) : c.status === 'replied' ? (
-              <View style={[s.sentPill, { backgroundColor: C.bone }]}>
-                <Text style={[s.sentPillT, { color: C.muted }]}>Replied</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={s.body} numberOfLines={long ? 4 : undefined}>
-            {c.body || '(empty comment)'}
-          </Text>
-          <View style={s.metaRow}>
-            <Text style={s.commentT}>via</Text>
-            <View style={[s.miniLogo, { backgroundColor: meta?.bg ?? C.ink }]}>
-              <SocialGlyph platform={provider} size={8} color="#fff" />
+      <View key={c.id} style={{ gap: 14 }}>
+        <View style={{ flexDirection: 'row', gap: 11 }}>
+          {c.is_own ? (
+            <View style={[s.faceWrap, { backgroundColor: meta?.bg ?? C.ink, width: depth ? 30 : 40, height: depth ? 30 : 40, borderRadius: depth ? 15 : 20 }]}>
+              <SocialGlyph platform={provider} size={depth ? 14 : 18} color="#fff" />
             </View>
-            <Text style={s.commentT} numberOfLines={1}>
-              {meta?.label ?? provider}
-              {c.created_at ? ` · ${timeAgo(c.created_at)}` : ''}
-            </Text>
-          </View>
-
-          {canReply ? (
-            replyFor === c.id ? (
-              <View style={{ marginTop: 6, gap: 6 }}>
-                <TextInput
-                  value={draft}
-                  onChangeText={setDraft}
-                  placeholder={`Reply on ${meta?.label ?? provider}`}
-                  placeholderTextColor={C.faint}
-                  multiline
-                  style={s.input}
-                  autoFocus
-                />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TouchableOpacity
-                    onPress={() => void sendCommentReply(c)}
-                    disabled={busy || !draft.trim()}
-                    style={[s.smallBtn, { backgroundColor: C.ink, opacity: busy || !draft.trim() ? 0.5 : 1 }]}
-                    activeOpacity={0.8}
-                  >
-                    {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.smallBtnT}>Send reply</Text>}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setReplyFor(null);
-                      setDraft('');
-                    }}
-                    style={[s.smallBtn, { backgroundColor: C.bone }]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[s.smallBtnT, { color: C.muted }]}>Cancel</Text>
-                  </TouchableOpacity>
+          ) : (
+            <Face name={c.author_name} avatar={c.author_avatar} size={depth ? 30 : 40} />
+          )}
+          <View style={{ flex: 1, gap: 3 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Text style={s.author} numberOfLines={1}>
+                {c.is_own ? 'You' : c.author_name || 'Unknown'}
+              </Text>
+              {c.is_own ? (
+                <View style={s.pill}>
+                  <Text style={s.pillT}>Sent</Text>
                 </View>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={() => setReplyFor(c.id)} activeOpacity={0.7} style={{ marginTop: 4 }}>
+              ) : c.status === 'new' ? (
+                <View style={[s.pill, { backgroundColor: C.accent }]}>
+                  <Text style={[s.pillT, { color: '#0b1220' }]}>New</Text>
+                </View>
+              ) : null}
+              <Text style={s.commentT}>{c.created_at ? timeAgo(c.created_at) : ''}</Text>
+            </View>
+            <Text style={s.body}>{c.body || '(empty comment)'}</Text>
+            {canReply ? (
+              <TouchableOpacity
+                onPress={() => setReplyTarget(c.id)}
+                activeOpacity={0.7}
+                style={{ marginTop: 4, alignSelf: 'flex-start', paddingVertical: 4 }}
+              >
                 <Text style={s.replyLink}>Reply</Text>
               </TouchableOpacity>
-            )
-          ) : null}
+            ) : null}
+          </View>
         </View>
+        {kids.length ? (
+          <View style={[s.rail, { marginLeft: depth ? 14 : 19 }]}>{kids.map((k) => commentRow(k, depth + 1))}</View>
+        ) : null}
       </View>
     );
   };
@@ -353,7 +409,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         </View>
       )}
 
-      <View style={{ paddingHorizontal: 24, marginTop: bare ? 0 : 14 }}>
+      <View style={{ paddingHorizontal: 20, marginTop: bare ? 0 : 16 }}>
         <Tabs
           options={[
             { value: 'comments', label: 'Comments' },
@@ -366,20 +422,20 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
             const count = unseen[o.value as 'comments' | 'messages'] ?? 0;
             return (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={[active ? s.tabOnT : s.tabT, active && { color: C.onInk }]}>{o.label}</Text>
+                <Text style={[s.tabT, active && { color: C.onInk }]}>{o.label}</Text>
                 {count > 0 ? (
                   <View
                     style={{
-                      minWidth: 17,
-                      paddingHorizontal: 4,
-                      height: 17,
+                      minWidth: 18,
+                      paddingHorizontal: 5,
+                      height: 18,
                       borderRadius: 9,
                       backgroundColor: active ? C.bone : C.accent,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: active ? C.ink : '#0b1220' }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 10, color: active ? C.ink : '#0b1220' }}>
                       {count > 99 ? '99+' : count}
                     </Text>
                   </View>
@@ -390,46 +446,157 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         />
       </View>
 
-      <View style={{ paddingHorizontal: 24, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <TouchableOpacity onPress={() => setDrawer(true)} style={[s.chanBtn, { flex: 1 }]} activeOpacity={0.75}>
-          {channel === 'all' ? (
-            <Ionicons name="globe" size={18} color={C.accentInk} />
-          ) : (
-            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: SOCIAL_META[providerOf(channel)]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
-              <SocialGlyph platform={providerOf(channel)} size={14} color="#fff" />
-            </View>
-          )}
-          <Text style={s.chanBtnT} numberOfLines={1}>{channelLabel}</Text>
-          <Ionicons name="chevron-down" size={18} color={C.faint} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => void onRefresh()} style={s.iconBtn} activeOpacity={0.75} disabled={refreshing}>
-          {refreshing ? <ActivityIndicator size="small" color={C.muted} /> : <Ionicons name="refresh" size={15} color={C.muted} />}
-        </TouchableOpacity>
+      {/* Channel logos: tap one to filter, the list button opens the full drawer. */}
+      <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center' }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: 20, paddingRight: 8, gap: 8, alignItems: 'center', paddingVertical: 6 }}
+          style={{ flex: 1 }}
+        >
+          <TouchableOpacity
+            onPress={() => setChannel('all')}
+            style={[s.allChip, channel === 'all' && { backgroundColor: C.accent, borderColor: C.accent }]}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityState={{ selected: channel === 'all' }}
+          >
+            <Text style={[s.allChipT, channel === 'all' && { color: '#0b1220' }]}>All</Text>
+          </TouchableOpacity>
+          {channels.map((ch) => {
+            const on = channel === ch.id;
+            const n = newByChannel.get(ch.id) ?? 0;
+            return (
+              <TouchableOpacity
+                key={ch.id}
+                onPress={() => setChannel(on ? 'all' : ch.id)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`${ch.label}${n ? `, ${n} new` : ''}`}
+                accessibilityState={{ selected: on }}
+                style={[s.logoChip, { backgroundColor: SOCIAL_META[ch.provider]?.bg ?? C.ink }, on && { borderColor: C.accent, borderWidth: 2.5 }]}
+              >
+                <SocialGlyph platform={ch.provider} size={17} color="#fff" />
+                {n > 0 ? (
+                  <View style={[s.chipBadge, { borderColor: C.bone }]}>
+                    <Text style={s.chipBadgeT}>{n > 9 ? '9+' : n}</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        <View style={{ flexDirection: 'row', gap: 8, paddingRight: 20, paddingLeft: 4 }}>
+          <TouchableOpacity onPress={() => setDrawer(true)} style={s.iconBtn} activeOpacity={0.75} accessibilityLabel="All channels">
+            <Ionicons name="list" size={17} color={C.muted} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => void onRefresh()} style={s.iconBtn} activeOpacity={0.75} disabled={refreshing} accessibilityLabel="Refresh">
+            {refreshing ? <ActivityIndicator size="small" color={C.muted} /> : <Ionicons name="refresh" size={16} color={C.muted} />}
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {segment === 'comments' ? (
+        <View style={{ paddingHorizontal: 20, marginTop: 10, flexDirection: 'row', gap: 8 }}>
+          {(
+            [
+              { key: 'needs', label: `Needs reply${needsCount ? ` · ${needsCount}` : ''}` },
+              { key: 'replied', label: 'Replied' },
+              { key: 'all', label: 'All' },
+            ] as { key: Status; label: string }[]
+          ).map(({ key, label }) => {
+            const on = status === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setStatus(key)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                style={[s.statusChip, on && { borderColor: C.accent, backgroundColor: C.accentSoft }]}
+              >
+                <Text style={[s.statusChipT, on && { color: C.yellowText }]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
+
       {err ? (
-        <View style={{ paddingHorizontal: 24, marginTop: 10 }}>
+        <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
           <Text style={s.err}>{err}</Text>
         </View>
       ) : null}
 
-      <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
+      <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
         {loading ? (
           <View style={s.empty}>
             <ActivityIndicator size="small" color={C.accent} />
             <Text style={s.emptyS}>Loading inbox…</Text>
           </View>
         ) : segment === 'comments' ? (
-          shownComments.length === 0 ? (
+          visibleRoots.length === 0 ? (
             <View style={s.empty}>
               <View style={s.emptyIcon}>
                 <Ionicons name="chatbubbles" size={20} color={C.faint} />
               </View>
-              <Text style={s.emptyT}>No comments yet</Text>
-              <Text style={s.emptyS}>Comments on your posts land here when the engine sweeps, every 5 minutes or on Refresh.</Text>
+              <Text style={s.emptyT}>{threads.roots.length === 0 ? 'No comments yet' : 'Nothing here'}</Text>
+              <Text style={s.emptyS}>
+                {threads.roots.length === 0
+                  ? 'Comments on your posts land here when the engine sweeps, every 5 minutes or on Refresh.'
+                  : status === 'needs'
+                    ? 'Nothing needs a reply. Nice.'
+                    : 'No threads match this filter.'}
+              </Text>
             </View>
           ) : (
-            <View style={{ gap: 8 }}>{shownComments.map((c) => commentCard(c, !!c.parent_external_id))}</View>
+            <View style={{ gap: 10 }}>
+              {visibleRoots.map((root) => {
+                const i = threads.info.get(root.id);
+                const meta = SOCIAL_META[root.platform];
+                const last = i?.last ?? root;
+                return (
+                  <TouchableOpacity key={root.id} style={s.card} onPress={() => setOpenRootId(root.id)} activeOpacity={0.8}>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      {root.is_own ? (
+                        <View style={[s.faceWrap, { backgroundColor: meta?.bg ?? C.ink, width: 40, height: 40, borderRadius: 20 }]}>
+                          <SocialGlyph platform={root.platform} size={18} color="#fff" />
+                        </View>
+                      ) : (
+                        <Face name={root.author_name} avatar={root.author_avatar} size={40} provider={root.platform} />
+                      )}
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[s.author, { flexShrink: 1 }]} numberOfLines={1}>
+                            {root.is_own ? 'You' : root.author_name || 'Unknown'}
+                          </Text>
+                          <Text style={s.commentT}>{timeAgo(last.created_at)}</Text>
+                          {i?.hasNew ? <View style={[s.unreadDot, { marginLeft: 'auto' }]} /> : null}
+                        </View>
+                        <Text style={s.body} numberOfLines={3}>
+                          {last.is_own ? 'You: ' : ''}
+                          {last.body || '(empty comment)'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={s.cardFoot}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <View style={[s.miniLogo, { backgroundColor: meta?.bg ?? C.ink }]}>
+                          <SocialGlyph platform={root.platform} size={8} color="#fff" />
+                        </View>
+                        <Text style={s.commentT} numberOfLines={1}>
+                          {meta?.label ?? root.platform}
+                          {i && i.count > 1 ? ` · ${i.count - 1} ${i.count - 1 === 1 ? 'reply' : 'replies'}` : ''}
+                        </Text>
+                      </View>
+                      <View style={[s.smallBtn, i?.needs ? { backgroundColor: C.accent } : { backgroundColor: C.surface }]}>
+                        <Text style={[s.smallBtnT, { color: i?.needs ? '#0b1220' : C.soft }]}>{i?.needs ? 'Reply' : 'View'}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )
         ) : convs.length === 0 ? (
           <View style={s.empty}>
@@ -440,29 +607,41 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
             <Text style={s.emptyS}>Direct messages from connected channels arrive here when the engine sweeps.</Text>
           </View>
         ) : (
-          <View style={s.feed}>
-            {convs.map((c) => {
-              const meta = SOCIAL_META[c.platform];
-              return (
-                <TouchableOpacity key={c.id} style={s.convRow} onPress={() => void openThread(c)} activeOpacity={0.7}>
-                  <Face name={c.participant_name} avatar={c.participant_avatar} size={38} />
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={s.convName} numberOfLines={1}>{c.participant_name || 'Conversation'}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <View style={[s.miniLogo, { backgroundColor: meta?.bg ?? C.ink }]}>
-                        <SocialGlyph platform={c.platform} size={8} color="#fff" />
+          <View style={{ gap: 2 }}>
+            {convs
+              .filter((c) => channel === 'all' || c.channel_id === channel)
+              .map((c) => {
+                const meta = SOCIAL_META[c.platform];
+                const unread = c.unread_count > 0;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[s.convRow, unread && { backgroundColor: C.card, borderColor: C.lineSoft }]}
+                    onPress={() => void openThread(c)}
+                    activeOpacity={0.7}
+                  >
+                    <Face name={c.participant_name} avatar={c.participant_avatar} size={48} provider={c.platform} ring={unread ? C.card : C.bone} />
+                    <View style={{ flex: 1, gap: 3 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[s.convName, { flex: 1 }, unread && { fontFamily: 'PlusJakartaSans_800ExtraBold' }]} numberOfLines={1}>
+                          {c.participant_name || 'Conversation'}
+                        </Text>
+                        <Text style={[s.commentT, unread && { color: C.yellowText }]}>{c.last_message_at ? timeAgo(c.last_message_at) : ''}</Text>
                       </View>
                       <Text style={s.commentT} numberOfLines={1}>
                         {meta?.label ?? c.platform}
-                        {c.last_message_at ? ` · ${timeAgo(c.last_message_at)}` : ''}
                       </Text>
                     </View>
-                  </View>
-                  {c.unread_count > 0 ? <View style={s.unreadDot} /> : null}
-                  <Ionicons name="chevron-forward" size={16} color={C.faint} />
-                </TouchableOpacity>
-              );
-            })}
+                    {unread ? (
+                      <View style={s.countBadge}>
+                        <Text style={s.countBadgeT}>{c.unread_count > 9 ? '9+' : c.unread_count}</Text>
+                      </View>
+                    ) : (
+                      <Ionicons name="chevron-forward" size={16} color={C.faint} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
           </View>
         )}
       </View>
@@ -481,68 +660,179 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     />
   );
 
-  const threadModal = (
-    <Modal visible={!!openConv} animationType="slide" onRequestClose={() => setOpenConv(null)}>
-      <View style={{ flex: 1, backgroundColor: C.bone }}>
+  const replyingTo = openRoot
+    ? (replyTarget && replyTarget !== openRoot.id
+        ? comments.find((x) => x.id === replyTarget) ?? null
+        : null)
+    : null;
+  const replyTargetRow = replyingTo ?? openRoot;
+  const rootMeta = openRoot ? SOCIAL_META[openRoot.platform] : undefined;
+
+  const commentThreadModal = (
+    <Modal visible={!!openRoot} animationType="slide" onRequestClose={closeThread}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: C.bone }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={s.threadHead}>
-          <TouchableOpacity onPress={() => setOpenConv(null)} style={{ padding: 4 }} activeOpacity={0.7}>
+          <TouchableOpacity onPress={closeThread} style={s.headBtn} activeOpacity={0.7} accessibilityLabel="Back to comments">
             <Ionicons name="chevron-back" size={22} color={C.ink} />
           </TouchableOpacity>
-          <Face name={openConv?.participant_name ?? null} avatar={openConv?.participant_avatar ?? null} size={30} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.convName} numberOfLines={1}>Comment thread</Text>
+            <Text style={s.commentT}>{openRoot ? providerLabel(openRoot.platform) : ''}</Text>
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 18 }} keyboardShouldPersistTaps="handled">
+          {openRoot ? commentRow(openRoot, 0) : null}
+        </ScrollView>
+
+        {openRoot ? (
+          <View style={s.sheet}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} keyboardShouldPersistTaps="handled">
+              {QUICK_COMMENT.map((t) => (
+                <TouchableOpacity key={t} onPress={() => setDraft(t)} style={s.quick} activeOpacity={0.8}>
+                  <Text style={s.quickT}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="return-down-forward" size={13} color={C.muted} />
+              <Text style={s.commentT} numberOfLines={1}>
+                Replying to <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', color: C.ink }}>{replyTargetRow?.author_name || 'comment'}</Text>
+                {rootMeta ? ` on ${rootMeta.label}` : ''}
+              </Text>
+              {replyingTo ? (
+                <TouchableOpacity onPress={() => setReplyTarget(null)} style={{ marginLeft: 'auto', padding: 2 }} accessibilityLabel="Reply to the whole thread instead">
+                  <Ionicons name="close" size={14} color={C.muted} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder={`Reply on ${rootMeta?.label ?? providerLabel(openRoot.platform)}`}
+                placeholderTextColor={C.faint}
+                multiline
+                style={[s.input, { flex: 1 }]}
+              />
+              <TouchableOpacity
+                onPress={() => replyTargetRow && void sendCommentReply(replyTargetRow)}
+                disabled={busy || !draft.trim() || !replyTargetRow || replyTargetRow.is_own}
+                style={[s.sendBtn, { backgroundColor: C.accent, opacity: busy || !draft.trim() || !replyTargetRow || replyTargetRow.is_own ? 0.5 : 1 }]}
+                activeOpacity={0.8}
+                accessibilityLabel="Send reply"
+              >
+                {busy ? <ActivityIndicator size="small" color="#0b1220" /> : <Ionicons name="send" size={17} color="#0b1220" />}
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  const dmThreadModal = (
+    <Modal visible={!!openConv} animationType="slide" onRequestClose={() => setOpenConv(null)}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: C.bone }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={s.threadHead}>
+          <TouchableOpacity onPress={() => setOpenConv(null)} style={s.headBtn} activeOpacity={0.7} accessibilityLabel="Back to messages">
+            <Ionicons name="chevron-back" size={22} color={C.ink} />
+          </TouchableOpacity>
+          <Face
+            name={openConv?.participant_name ?? null}
+            avatar={openConv?.participant_avatar ?? null}
+            size={40}
+            provider={openConv?.platform}
+            ring={C.bone}
+          />
           <View style={{ flex: 1 }}>
             <Text style={s.convName} numberOfLines={1}>{openConv?.participant_name ?? 'Conversation'}</Text>
             <Text style={s.commentT}>{openConv ? providerLabel(openConv.platform) : ''}</Text>
           </View>
-          <TouchableOpacity onPress={() => void onRefresh()} style={{ padding: 4 }} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => void onRefresh()} style={s.headBtn} activeOpacity={0.7} accessibilityLabel="Refresh">
             <Ionicons name="refresh" size={18} color={C.muted} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 18, gap: 8 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 6 }} keyboardShouldPersistTaps="handled">
           {thread === null ? (
             <ActivityIndicator color={C.accent} />
           ) : thread.length === 0 ? (
             <Text style={[s.emptyS, { textAlign: 'center', marginTop: 24 }]}>No messages in this thread yet.</Text>
           ) : (
-            thread.map((m) => (
-              <View
-                key={m.id}
-                style={[
-                  s.bubble,
-                  m.direction === 'out'
-                    ? { alignSelf: 'flex-end', backgroundColor: C.ink }
-                    : { alignSelf: 'flex-start', backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
-                ]}
-              >
-                <Text style={[s.bubbleT, { color: m.direction === 'out' ? C.onInk : C.ink }]}>{m.body}</Text>
-                <Text style={[s.bubbleT, { fontSize: 10, marginTop: 4, color: m.direction === 'out' ? C.onInk : C.faint, opacity: 0.7 }]}>
-                  {timeAgo(m.sent_at)}
-                  {m.status === 'pending' ? ' · sending' : ''}
-                </Text>
-              </View>
-            ))
+            thread.map((m, idx) => {
+              const out = m.direction === 'out';
+              const prev = idx > 0 ? thread[idx - 1] : null;
+              const newDay = !prev || new Date(prev.sent_at).toDateString() !== new Date(m.sent_at).toDateString();
+              return (
+                <View key={m.id} style={{ gap: 6 }}>
+                  {newDay ? (
+                    <Text style={[s.commentT, { textAlign: 'center', marginVertical: 8, fontFamily: 'PlusJakartaSans_700Bold' }]}>
+                      {new Date(m.sent_at).toDateString() === new Date().toDateString()
+                        ? 'Today'
+                        : new Date(m.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </Text>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, justifyContent: out ? 'flex-end' : 'flex-start' }}>
+                    {!out ? (
+                      <Face name={openConv?.participant_name ?? null} avatar={openConv?.participant_avatar ?? null} size={26} ring={C.bone} />
+                    ) : null}
+                    <View
+                      style={[
+                        s.bubble,
+                        out
+                          ? { backgroundColor: C.accent, borderBottomRightRadius: 6, opacity: m.status === 'pending' ? 0.7 : 1 }
+                          : { backgroundColor: C.surface, borderBottomLeftRadius: 6 },
+                      ]}
+                    >
+                      <Text style={[s.bubbleT, { color: out ? '#0b1220' : C.ink }]}>{m.body}</Text>
+                      <Text style={[s.bubbleT, { fontSize: 10.5, marginTop: 3, color: out ? '#0b1220' : C.muted, opacity: out ? 0.65 : 1 }]}>
+                        {timeAgo(m.sent_at)}
+                        {m.status === 'pending' ? ' · sending' : ''}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })
           )}
         </ScrollView>
 
-        <View style={s.composer}>
-          <TextInput
-            value={msgDraft}
-            onChangeText={setMsgDraft}
-            placeholder="Write a message…"
-            placeholderTextColor={C.faint}
-            style={[s.input, { flex: 1 }]}
-            multiline
-          />
-          <TouchableOpacity
-            onPress={() => void sendDm()}
-            disabled={busy || !msgDraft.trim()}
-            style={[s.sendBtn, { opacity: busy || !msgDraft.trim() ? 0.5 : 1 }]}
-            activeOpacity={0.8}
-          >
-            {busy ? <ActivityIndicator size="small" color={C.onInk} /> : <Ionicons name="send" size={16} color={C.onInk} />}
-          </TouchableOpacity>
+        <View style={s.sheet}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} keyboardShouldPersistTaps="handled">
+            {QUICK_DM.map((t) => (
+              <TouchableOpacity key={t} onPress={() => setMsgDraft(t)} style={s.quick} activeOpacity={0.8}>
+                <Text style={s.quickT}>{t}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+            <TextInput
+              value={msgDraft}
+              onChangeText={setMsgDraft}
+              placeholder="Write a message…"
+              placeholderTextColor={C.faint}
+              style={[s.input, { flex: 1 }]}
+              multiline
+            />
+            <TouchableOpacity
+              onPress={() => void sendDm()}
+              disabled={busy || !msgDraft.trim()}
+              style={[s.sendBtn, { backgroundColor: C.accent, opacity: busy || !msgDraft.trim() ? 0.5 : 1 }]}
+              activeOpacity={0.8}
+              accessibilityLabel="Send message"
+            >
+              {busy ? <ActivityIndicator size="small" color="#0b1220" /> : <Ionicons name="send" size={17} color="#0b1220" />}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
@@ -551,7 +841,8 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       <View>
         {content}
         {drawerModal}
-        {threadModal}
+        {commentThreadModal}
+        {dmThreadModal}
       </View>
     );
   }
@@ -565,44 +856,54 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         {content}
       </ScrollView>
       {drawerModal}
-      {threadModal}
+      {commentThreadModal}
+      {dmThreadModal}
     </View>
   );
 }
 
 const makeS = (C: Palette) => StyleSheet.create({
-  masthead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
+  masthead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20 },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6 },
-  tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13 },
-  tabOnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13 },
-  chanBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 14, paddingVertical: 9 },
-  chanBtnT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
-  feed: { backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 15 },
-  commentCard: { flexDirection: 'row', gap: 11, backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.lineSoft, padding: 12 },
+  tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 },
+  allChip: { height: 40, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: C.line, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  allChipT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.ink },
+  logoChip: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
+  chipBadge: { position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: C.accent, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  chipBadgeT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: '#0b1220' },
+  statusChip: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
+  statusChipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
+  card: { backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.lineSoft, padding: 14, gap: 12 },
+  cardFoot: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   faceWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  author: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink, maxWidth: '70%' },
-  body: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 19, color: C.soft },
-  commentT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  author: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14, color: C.ink },
+  body: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14.5, lineHeight: 21, color: C.soft },
+  commentT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted },
   miniLogo: { width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  replyLink: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.accentInk },
-  sentPill: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
-  sentPillT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 8.5, letterSpacing: 0.4, color: '#0b1220', textTransform: 'uppercase' },
-  convRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft },
-  convName: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
+  replyLink: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk },
+  rail: { borderLeftWidth: 2, borderLeftColor: C.line, paddingLeft: 20, gap: 16 },
+  pill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
+  pillT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 8.5, letterSpacing: 0.4, color: C.yellowText, textTransform: 'uppercase' },
+  unreadDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: C.accent },
+  convRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: 'transparent' },
+  convName: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink },
+  countBadge: { minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  countBadgeT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 11, color: '#0b1220' },
   empty: { backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.lineSoft, paddingVertical: 32, paddingHorizontal: 24, alignItems: 'center', gap: 10 },
-  emptyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.bone, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
   emptyT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15.5, color: C.ink },
   emptyS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, textAlign: 'center', lineHeight: 19 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, alignItems: 'center', justifyContent: 'center' },
   err: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#9F2F2D', backgroundColor: '#FDEBEC', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
-  input: { backgroundColor: C.bone, borderRadius: 12, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 12, paddingVertical: 9, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.ink, maxHeight: 110 },
-  smallBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  smallBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#fff' },
-  threadHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft, backgroundColor: C.card },
-  bubble: { maxWidth: '82%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 9 },
-  bubbleT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 19 },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.lineSoft, backgroundColor: C.card },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
+  input: { backgroundColor: C.bone, borderRadius: 24, borderWidth: 1, borderColor: C.line, paddingHorizontal: 16, paddingTop: 13, paddingBottom: 13, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: C.ink, maxHeight: 120, minHeight: 48 },
+  smallBtn: { borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 },
+  smallBtnT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13 },
+  threadHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingTop: 16, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft, backgroundColor: C.bone },
+  headBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  bubble: { maxWidth: '80%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 },
+  bubbleT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14.5, lineHeight: 21 },
+  sheet: { gap: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.lineSoft, backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  quick: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
+  quickT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.soft },
+  sendBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
 });
