@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CornerDownRight, ExternalLink, FileText, LoaderCircle, MessageCircle, Play, RefreshCw, Send, X,
+  ArrowLeft, CornerDownRight, ExternalLink, FileText, LoaderCircle, MessageCircle, Play, Search, Send, X,
 } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
@@ -77,22 +77,39 @@ function when(iso: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/** Commenter face: platform avatar when known, initial bubble when not. */
-function CommentFace({ name, avatar }: { name: string | null; avatar: string | null }) {
+/** Quick replies: one tap drops the text into the composer, never sends. */
+const QUICK_REPLIES = ['Thanks for the kind words!', 'Thanks for reaching out', 'Check your DMs'];
+
+/** Commenter face: platform avatar when known, initial bubble when not.
+ *  `provider` adds the platform's logo disc in the corner. */
+function CommentFace({
+  name,
+  avatar,
+  size = 32,
+  provider,
+}: {
+  name: string | null;
+  avatar: string | null;
+  size?: number;
+  provider?: string;
+}) {
   const letter = (name ?? '').trim().replace('@', '').charAt(0).toUpperCase();
   return (
-    <span
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-paper text-soft"
-      style={{ width: 32, height: 32 }}
-      aria-hidden="true"
-    >
-      {avatar ? (
-        <SafeImg src={avatar} alt="" width={32} height={32} className="h-full w-full object-cover" />
-      ) : letter ? (
-        <span className="text-sm font-extrabold">{letter}</span>
-      ) : (
-        <MessageCircle className="h-4 w-4" />
-      )}
+    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }} aria-hidden="true">
+      <span className="inline-flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-line bg-paper text-soft">
+        {avatar ? (
+          <SafeImg src={avatar} alt="" width={size} height={size} className="h-full w-full object-cover" />
+        ) : letter ? (
+          <span className="font-extrabold" style={{ fontSize: Math.round(size * 0.42) }}>{letter}</span>
+        ) : (
+          <MessageCircle className="h-4 w-4" />
+        )}
+      </span>
+      {provider ? (
+        <span className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-card">
+          <ChannelAvatar provider={provider} size={Math.max(16, Math.round(size * 0.46))} />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -172,19 +189,21 @@ export default function CommentsFeed({
   channels,
   workspaceId,
   reloadKey = 0,
-  scanning = false,
-  onRefresh,
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
   reloadKey?: number;
-  scanning?: boolean;
-  onRefresh?: () => void;
 }) {
   const [rows, setRows] = useState<CommentRow[] | null>(null);
   const [posts, setPosts] = useState<Record<string, PostContext>>({});
   const [chan, setChan] = useState<string>('all');
   const [order, setOrder] = useState<'new' | 'old'>('new');
+  const [status, setStatus] = useState<'all' | 'needs' | 'replied'>('all');
+  const [q, setQ] = useState('');
+  /** Open thread (root comment id); falls back to the first visible one. */
+  const [selId, setSelId] = useState<string | null>(null);
+  /** Below the lg breakpoint list and thread are separate screens. */
+  const [mobileOpen, setMobileOpen] = useState(false);
   /** thread id -> draft text */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   /** thread id -> comment id the next message replies to (defaults to root) */
@@ -403,6 +422,45 @@ export default function CommentsFeed({
     return { roots, kids, rootOf };
   }, [rows, chan, order]);
 
+  /** Per thread: newest comment, whether anything is unseen, whether it still needs us. */
+  const threadInfo = useMemo(() => {
+    const info = new Map<string, { last: CommentRow; hasNew: boolean; needs: boolean; count: number }>();
+    const collect = (r: CommentRow, acc: CommentRow[]): CommentRow[] => {
+      acc.push(r);
+      for (const k of threads.kids.get(r.id) ?? []) collect(k, acc);
+      return acc;
+    };
+    for (const root of threads.roots) {
+      const all = collect(root, []);
+      const last = all.reduce((a, b) => (b.created_at > a.created_at ? b : a));
+      const hasNew = all.some((r) => !r.is_own && r.status === 'new');
+      const closed = last.status === 'replied' || last.status === 'hidden' || last.status === 'deleted';
+      info.set(root.id, { last, hasNew, needs: hasNew || (!last.is_own && !closed), count: all.length });
+    }
+    return info;
+  }, [threads]);
+
+  const needsCount = useMemo(
+    () => threads.roots.filter((r) => threadInfo.get(r.id)?.needs).length,
+    [threads, threadInfo],
+  );
+
+  const visibleRoots = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return threads.roots.filter((r) => {
+      const i = threadInfo.get(r.id);
+      if (status === 'needs' && !i?.needs) return false;
+      if (status === 'replied' && i?.needs) return false;
+      if (needle) {
+        const hay = `${r.author_name ?? ''} ${r.body} ${i?.last.body ?? ''}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      return true;
+    });
+  }, [threads, threadInfo, status, q]);
+
+  const activeRoot = visibleRoots.find((r) => r.id === selId) ?? visibleRoots[0] ?? null;
+
   const bubble = (r: CommentRow, depth: number) => {
     const ch = channelById.get(r.channel_id);
     const canReply = REPLY_PROVIDERS.has(r.platform) && !r.is_own;
@@ -531,19 +589,40 @@ export default function CommentsFeed({
 
     if (!REPLY_PROVIDERS.has(root.platform)) {
       return (
-        <p className="mt-3 border-t border-line-soft pt-2.5 text-[11px] text-faint">
+        <p className="text-[11px] text-faint">
           {NO_REPLY_TEXT[root.platform] ?? 'Replies not available on this platform.'}
         </p>
       );
     }
 
     return (
+      <>
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] font-bold text-muted">Quick replies</span>
+        {QUICK_REPLIES.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => {
+              setDrafts((d) => ({ ...d, [threadId]: t }));
+              requestAnimationFrame(() => {
+                const el = document.getElementById(`composer-${threadId}`) as HTMLTextAreaElement | null;
+                el?.focus();
+                grow(el);
+              });
+            }}
+            className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-soft transition hover:bg-surface"
+          >
+            {t}
+          </button>
+        ))}
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           void send(threadId, replyingTo ?? root);
         }}
-        className="mt-3 flex items-end gap-2 rounded-2xl border border-line bg-paper p-2 transition focus-within:border-accent/70"
+        className="flex items-end gap-2 rounded-2xl border border-line bg-paper p-2 transition focus-within:border-accent/70"
       >
         <ChannelAvatar
           provider={root.platform}
@@ -606,8 +685,15 @@ export default function CommentsFeed({
           )}
         </button>
       </form>
+      </>
     );
   };
+
+  const statusTabs: { key: 'all' | 'needs' | 'replied'; label: string }[] = [
+    { key: 'needs', label: `Needs reply${needsCount > 0 ? ` · ${needsCount}` : ''}` },
+    { key: 'replied', label: 'Replied' },
+    { key: 'all', label: 'All' },
+  ];
 
   return (
     <div className="space-y-3">
@@ -617,8 +703,8 @@ export default function CommentsFeed({
             type="button"
             onClick={() => setChan('all')}
             aria-pressed={chan === 'all'}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-              chan === 'all' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
+            className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${
+              chan === 'all' ? 'border-ink bg-ink text-bone' : 'border-line bg-card text-muted hover:bg-surface'
             }`}
           >
             All channels
@@ -635,7 +721,7 @@ export default function CommentsFeed({
                 aria-pressed={on}
                 title={`${name}${handle ? ` ${handle}` : ''} - ${providerMeta(c.provider).label}`}
                 className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
-                  on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
+                  on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-surface'
                 }`}
               >
                 <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
@@ -649,7 +735,22 @@ export default function CommentsFeed({
             );
           })}
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Filter by status">
+            {statusTabs.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatus(key)}
+                aria-pressed={status === key}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                  status === key ? 'bg-accent/25 text-ink' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Sort comments">
             {(['new', 'old'] as const).map((o) => (
               <button
@@ -658,27 +759,13 @@ export default function CommentsFeed({
                 onClick={() => setOrder(o)}
                 aria-pressed={order === o}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  order === o ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
+                  order === o ? 'bg-accent/25 text-ink' : 'text-muted hover:text-ink'
                 }`}
               >
                 {o === 'new' ? 'Newest' : 'Oldest'}
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => onRefresh?.()}
-            disabled={scanning || !onRefresh}
-            title="Refreshes comments and messages in one sweep"
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
-          >
-            {scanning ? (
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            Refresh
-          </button>
         </div>
       </div>
 
@@ -710,19 +797,118 @@ export default function CommentsFeed({
           </p>
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {threads.roots.map((root) => {
-            const post = root.external_post_id
-              ? posts[`${root.channel_id}:${root.external_post_id}`]
-              : undefined;
-            return (
-              <article key={root.id} className="rounded-2xl border border-line bg-card p-3.5">
-                {post ? <PostStrip post={post} platform={root.platform} /> : null}
-                <ol className="space-y-2.5">{chain(root, 0)}</ol>
-                {composer(root)}
-              </article>
-            );
-          })}
+        <div className="flex overflow-hidden rounded-3xl border border-line bg-card lg:h-[calc(100vh-17rem)] lg:min-h-[560px]">
+          {/* Thread list */}
+          <aside
+            aria-label="Comment threads"
+            className={`${mobileOpen ? 'hidden' : 'flex'} min-w-0 w-full flex-col lg:flex lg:w-[380px] lg:shrink-0 lg:border-r lg:border-line-soft`}
+          >
+            <label className="flex items-center gap-2 border-b border-line-soft px-4 py-3 text-muted">
+              <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="sr-only">Search comments</span>
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search comments and people"
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+              />
+            </label>
+            <ul className="min-h-0 flex-1 overflow-y-auto">
+              {visibleRoots.length === 0 ? (
+                <li className="px-4 py-10 text-center text-xs text-muted">
+                  {status === 'needs' ? 'Nothing needs a reply. Nice.' : 'No threads match.'}
+                </li>
+              ) : null}
+              {visibleRoots.map((root) => {
+                const i = threadInfo.get(root.id);
+                const on = activeRoot?.id === root.id;
+                const post = root.external_post_id
+                  ? posts[`${root.channel_id}:${root.external_post_id}`]
+                  : undefined;
+                const last = i?.last ?? root;
+                return (
+                  <li key={root.id}>
+                    <button
+                      type="button"
+                      aria-current={on ? 'true' : undefined}
+                      onClick={() => {
+                        setSelId(root.id);
+                        setMobileOpen(true);
+                      }}
+                      className={`flex w-full items-start gap-3 border-b border-line-soft px-4 py-3.5 text-left transition ${
+                        on ? 'bg-accent/15' : 'hover:bg-surface'
+                      }`}
+                    >
+                      <CommentFace name={root.author_name} avatar={root.author_avatar} size={40} provider={root.platform} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-[13.5px] font-extrabold">
+                            {root.is_own ? 'You' : root.author_name || 'Unknown'}
+                          </span>
+                          <span className="shrink-0 text-[11.5px] text-muted">{when(last.created_at)}</span>
+                        </span>
+                        <span className="mt-0.5 line-clamp-2 break-words text-[13px] leading-snug text-soft">
+                          {last.is_own ? 'You: ' : ''}
+                          {last.body || '(empty comment)'}
+                        </span>
+                        <span className="mt-1 flex items-center gap-1.5 text-[11.5px] text-muted">
+                          <span className="truncate">
+                            {post?.body?.trim() || `${providerMeta(root.platform).label} post`}
+                          </span>
+                          {i?.hasNew ? (
+                            <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-[#0b1220]">
+                              New
+                            </span>
+                          ) : i && !i.needs ? (
+                            <span className="shrink-0 rounded-full bg-paper-dim px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-muted">
+                              Replied
+                            </span>
+                          ) : null}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
+
+          {/* Open thread */}
+          <section
+            aria-label="Thread"
+            className={`${mobileOpen ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col lg:flex`}
+          >
+            {activeRoot ? (
+              <>
+                <div className="flex items-center gap-2 border-b border-line-soft px-3 py-2 lg:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setMobileOpen(false)}
+                    aria-label="Back to threads"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-surface"
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <span className="text-sm font-bold">Thread</span>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4">
+                  {(() => {
+                    const post = activeRoot.external_post_id
+                      ? posts[`${activeRoot.channel_id}:${activeRoot.external_post_id}`]
+                      : undefined;
+                    return post ? <PostStrip post={post} platform={activeRoot.platform} /> : null;
+                  })()}
+                  <ol className="space-y-2.5 pb-4 pt-1">{chain(activeRoot, 0)}</ol>
+                </div>
+                <div className="border-t border-line-soft px-5 pb-4 pt-3">{composer(activeRoot)}</div>
+              </>
+            ) : (
+              <div className="grid flex-1 place-items-center p-10 text-center text-sm text-muted">
+                Select a thread to read and reply.
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>

@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, LoaderCircle, Lock, RefreshCw, Send, User } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, Lock, Search, Send, User } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
@@ -57,6 +57,19 @@ function when(iso: string | null): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+/** Quick replies: one tap drops the text into the composer, never sends. */
+const QUICK_REPLIES = ['Thanks for reaching out', 'We are looking into it'];
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const yest = new Date();
+  yest.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return 'Today';
+  if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 /** Participant face when the platform gave an avatar url, initial bubble
  *  when it didn't (real-social parity). */
 function FaceAvatar({
@@ -91,20 +104,21 @@ export default function MessagesInbox({
   channels,
   paid,
   reloadKey = 0,
-  scanning = false,
-  onRefresh,
 }: {
   workspaceId: string;
   channels: ConnectedChannel[];
   paid: boolean;
   reloadKey?: number;
-  scanning?: boolean;
-  onRefresh?: () => void;
 }) {
   const [convs, setConvs] = useState<ConversationRow[] | null>(null);
   const [chan, setChan] = useState<string>('all');
   const [order, setOrder] = useState<'new' | 'old'>('new');
   const [open, setOpen] = useState<ConversationRow | null>(null);
+  const [onlyUnread, setOnlyUnread] = useState(false);
+  const [q, setQ] = useState('');
+  /** Below the lg breakpoint list and chat are separate screens. */
+  const [mobileChat, setMobileChat] = useState(false);
+  const autoOpened = useRef(false);
   const [msgs, setMsgs] = useState<MessageRow[] | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -114,9 +128,19 @@ export default function MessagesInbox({
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
   const dmChannels = useMemo(() => channels.filter((c) => DM_PROVIDERS.has(c.provider)), [channels]);
   const visibleConvs = useMemo(() => {
-    const list = (convs ?? []).filter((c) => chan === 'all' || c.channel_id === chan);
+    const needle = q.trim().toLowerCase();
+    const list = (convs ?? []).filter(
+      (c) =>
+        (chan === 'all' || c.channel_id === chan) &&
+        (!onlyUnread || Number(c.unread_count ?? 0) > 0) &&
+        (!needle || (c.participant_name ?? '').toLowerCase().includes(needle)),
+    );
     return order === 'new' ? list : [...list].reverse();
-  }, [convs, chan, order]);
+  }, [convs, chan, order, onlyUnread, q]);
+  const unreadTotal = useMemo(
+    () => (convs ?? []).reduce((n, c) => n + (Number(c.unread_count ?? 0) > 0 ? 1 : 0), 0),
+    [convs],
+  );
   // Channels whose provider refused DM reads (paid tier / scope). The worker
   // backs off, so say it here instead of showing a permanently empty inbox.
   const blockedNote = useMemo(() => {
@@ -163,6 +187,17 @@ export default function MessagesInbox({
     setErr(null);
     await loadThread(c.id);
   };
+
+  // On a wide screen the chat pane is always visible, so open the newest
+  // conversation once instead of showing an empty pane.
+  useEffect(() => {
+    if (autoOpened.current || open || !convs || visibleConvs.length === 0) return;
+    autoOpened.current = true;
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      void openConv(visibleConvs[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convs, visibleConvs, open]);
 
   useEffect(() => {
     const el = scroller.current;
@@ -259,120 +294,79 @@ export default function MessagesInbox({
     );
   }
 
-  if (open) {
-    const ch = channelById.get(open.channel_id);
-    const sendAs = ch?.display_name || providerMeta(open.platform).label;
-    return (
-      <div className="rounded-2xl border border-line bg-card">
-        {/* Chat header: partner face, handle, channel tag — messenger parity */}
-        <div className="flex items-center gap-2.5 border-b border-line px-3 py-2.5">
-          <button
-            type="button"
-            onClick={() => { setOpen(null); setMsgs(null); }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-bone"
-            aria-label="Back to conversations"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <FaceAvatar
-            name={open.participant_name}
-            avatar={open.participant_avatar}
-            size={32}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{open.participant_name || 'Unknown'}</p>
-            <p className="text-[11px] text-muted">{sendAs}</p>
-          </div>
-          <span className="shrink-0 rounded-full bg-paper-dim px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-soft">
-            {providerMeta(open.platform).label}
-          </span>
-        </div>
-        <div ref={scroller} className="max-h-[440px] space-y-1.5 overflow-y-auto px-3 py-3">
-          {msgs === null ? (
-            <div className="py-8 text-center">
-              <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-faint" aria-hidden="true" />
-            </div>
-          ) : msgs.length === 0 ? (
-            <p className="py-8 text-center text-xs text-muted">No messages in this thread yet.</p>
-          ) : (
-            msgs.map((m) => {
-              const out = m.direction === 'out';
-              return (
-                <div key={m.id} className={`flex items-end gap-2 ${out ? 'justify-end' : 'justify-start'}`}>
-                  {!out ? (
-                    <FaceAvatar
-                      name={open.participant_name}
-                      avatar={open.participant_avatar}
-                      size={24}
-                    />
-                  ) : null}
-                  <div
-                    className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                      out
-                        ? 'rounded-br-md bg-accent font-medium text-[#0b1220]'
-                        : 'rounded-bl-md border border-line-soft bg-paper text-soft'
-                    }`}
-                  >
-                    {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
-                    {(m.attachments ?? []).map((a, i) =>
-                      a?.url ? (
-                        <SafeImg
-                          key={i}
-                          src={a.url}
-                          alt=""
-                          width={220}
-                          height={140}
-                          className="mt-1 max-w-[220px] rounded-lg border border-line-soft object-cover"
-                        />
-                      ) : null,
-                    )}
-                    <p className={`mt-0.5 text-[10px] text-faint ${out ? 'text-right' : ''}`}>
-                      {when(m.sent_at)}
-                      {out && m.status === 'pending' ? ' · sending…' : ''}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-        {err ? (
-          <p className="mx-3 mb-2 rounded-xl bg-[#FDEBEC] px-3 py-2 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
-        ) : null}
-        <div className="flex items-end gap-2 border-t border-line px-3 py-2.5">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            rows={2}
-            placeholder={`Reply as ${sendAs}…`}
-            aria-label="Message text"
-            className="field min-h-[44px] flex-1 resize-y !text-xs"
-          />
-          <button
-            type="button"
-            onClick={() => void send()}
-            disabled={busy || !draft.trim()}
-            className="btn btn-primary !px-3 !py-2"
-            aria-label="Send message"
-          >
-            {busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
-          </button>
-        </div>
+  const openCh = open ? channelById.get(open.channel_id) : undefined;
+  const sendAs = open ? openCh?.display_name || providerMeta(open.platform).label : '';
+
+  const channelChips =
+    dmChannels.length > 1 ? (
+      <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
+        <button
+          type="button"
+          onClick={() => setChan('all')}
+          aria-pressed={chan === 'all'}
+          className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${
+            chan === 'all' ? 'border-ink bg-ink text-bone' : 'border-line bg-card text-muted hover:bg-surface'
+          }`}
+        >
+          All channels
+        </button>
+        {dmChannels.map((c) => {
+          const on = chan === c.id;
+          const name = c.display_name || providerMeta(c.provider).label;
+          const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setChan(on ? 'all' : c.id)}
+              aria-pressed={on}
+              title={`${name}${handle ? ` ${handle}` : ''} - ${providerMeta(c.provider).label}`}
+              className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
+                on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-surface'
+              }`}
+            >
+              <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
+              <span className="flex min-w-0 max-w-40 flex-col leading-tight">
+                <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
+                {handle ? (
+                  <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
+                ) : null}
+              </span>
+            </button>
+          );
+        })}
       </div>
+    ) : (
+      <span />
     );
-  }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="px-1 text-xs font-bold uppercase tracking-wide text-faint">Inbox</p>
-        <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {channelChips}
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Filter conversations">
+            <button
+              type="button"
+              onClick={() => setOnlyUnread(true)}
+              aria-pressed={onlyUnread}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                onlyUnread ? 'bg-accent/25 text-ink' : 'text-muted hover:text-ink'
+              }`}
+            >
+              Unread{unreadTotal > 0 ? ` · ${unreadTotal}` : ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOnlyUnread(false)}
+              aria-pressed={!onlyUnread}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                !onlyUnread ? 'bg-accent/25 text-ink' : 'text-muted hover:text-ink'
+              }`}
+            >
+              All
+            </button>
+          </div>
           <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Sort conversations">
             {(['new', 'old'] as const).map((o) => (
               <button
@@ -381,128 +375,272 @@ export default function MessagesInbox({
                 onClick={() => setOrder(o)}
                 aria-pressed={order === o}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  order === o ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
+                  order === o ? 'bg-accent/25 text-ink' : 'text-muted hover:text-ink'
                 }`}
               >
                 {o === 'new' ? 'Newest' : 'Oldest'}
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => onRefresh?.()}
-            disabled={scanning || !onRefresh}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
-            aria-label="Refresh conversations"
-          >
-            {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-            Refresh
-          </button>
         </div>
       </div>
-      {dmChannels.length > 1 ? (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
-          <button
-            type="button"
-            onClick={() => setChan('all')}
-            aria-pressed={chan === 'all'}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-              chan === 'all' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
-            }`}
-          >
-            All channels
-          </button>
-          {dmChannels.map((c) => {
-            const on = chan === c.id;
-            const name = c.display_name || providerMeta(c.provider).label;
-            const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setChan(on ? 'all' : c.id)}
-                aria-pressed={on}
-                title={`${name}${handle ? ` ${handle}` : ''} - ${providerMeta(c.provider).label}`}
-                className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
-                  on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
-                }`}
-              >
-                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
-                <span className="flex min-w-0 max-w-40 flex-col leading-tight">
-                  <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
-                  {handle ? (
-                    <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
-                  ) : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+
       {blockedNote ? (
         <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{blockedNote}</p>
       ) : null}
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
       ) : null}
+
       {convs === null ? (
         <div className="rounded-2xl border border-line bg-card p-10 text-center text-sm text-muted">
           <LoaderCircle className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
         </div>
-      ) : visibleConvs.length === 0 ? (
+      ) : convs.length === 0 ? (
         <div className="rounded-2xl border border-line bg-card p-10 text-center">
-          <p className="text-sm font-bold">
-            {chan === 'all' ? 'No conversations yet' : 'No conversations on this channel yet'}
-          </p>
+          <p className="text-sm font-bold">No conversations yet</p>
           <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-            {chan === 'all'
-              ? `When someone DMs ${dmChannels.map((c) => c.display_name || providerMeta(c.provider).label).join(', ')}, the conversation shows up here within a few minutes.`
-              : 'Direct messages on this account show up here within a few minutes.'}
+            {`When someone DMs ${dmChannels.map((c) => c.display_name || providerMeta(c.provider).label).join(', ')}, the conversation shows up here within a few minutes.`}
           </p>
         </div>
       ) : (
-        <ul className="space-y-2.5">
-          {visibleConvs.map((c) => {
-            const ch = channelById.get(c.channel_id);
-            const unread = Math.max(0, Number(c.unread_count ?? 0));
-            return (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => void openConv(c)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-line bg-card p-3 text-left transition hover:bg-paper-dim"
-                >
-                  <FaceAvatar
-                    name={c.participant_name}
-                    avatar={c.participant_avatar}
-                    size={38}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className={`min-w-0 truncate text-sm ${unread > 0 ? 'font-extrabold' : 'font-bold'}`}>
-                        {c.participant_name || 'Unknown'}
-                      </span>
-                      <span className="shrink-0 text-xs text-faint">{when(c.last_message_at)}</span>
-                      {unread > 0 ? (
-                        <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-[#0b1220]">
-                          {unread > 9 ? '9+' : unread}
+        <div className="flex overflow-hidden rounded-3xl border border-line bg-card lg:h-[calc(100vh-17rem)] lg:min-h-[560px]">
+          {/* Conversations */}
+          <aside
+            aria-label="Conversations"
+            className={`${mobileChat ? 'hidden' : 'flex'} min-w-0 w-full flex-col lg:flex lg:w-[340px] lg:shrink-0 lg:border-r lg:border-line-soft`}
+          >
+            <label className="flex items-center gap-2 border-b border-line-soft px-4 py-3 text-muted">
+              <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="sr-only">Search conversations</span>
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search conversations"
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+              />
+            </label>
+            <ul className="min-h-0 flex-1 overflow-y-auto">
+              {visibleConvs.length === 0 ? (
+                <li className="px-4 py-10 text-center text-xs text-muted">
+                  {onlyUnread ? 'No unread conversations.' : chan === 'all' ? 'No conversations match.' : 'No conversations on this channel yet.'}
+                </li>
+              ) : null}
+              {visibleConvs.map((c) => {
+                const ch = channelById.get(c.channel_id);
+                const unread = Math.max(0, Number(c.unread_count ?? 0));
+                const on = open?.id === c.id;
+                return (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      aria-current={on ? 'true' : undefined}
+                      onClick={() => {
+                        setMobileChat(true);
+                        void openConv(c);
+                      }}
+                      className={`flex w-full items-center gap-3 border-b border-line-soft px-4 py-3.5 text-left transition ${
+                        on ? 'bg-accent/15' : 'hover:bg-surface'
+                      }`}
+                    >
+                      <span className="relative inline-flex shrink-0">
+                        <FaceAvatar name={c.participant_name} avatar={c.participant_avatar} size={44} />
+                        <span className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-card">
+                          <ChannelAvatar provider={c.platform} size={20} />
                         </span>
-                      ) : null}
-                    </span>
-                    <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted">
-                      <span>via</span>
-                      <ChannelAvatar provider={c.platform} size={14} />
-                      <span className="truncate">
-                        {providerMeta(c.platform).label}
-                        {ch?.display_name ? ` · ${ch.display_name}` : ''}
                       </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className={`min-w-0 flex-1 truncate text-sm ${unread > 0 ? 'font-extrabold' : 'font-bold'}`}>
+                            {c.participant_name || 'Unknown'}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted">{when(c.last_message_at)}</span>
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-xs text-muted">
+                            {providerMeta(c.platform).label}
+                            {ch?.display_name ? ` · ${ch.display_name}` : ''}
+                          </span>
+                          {unread > 0 ? (
+                            <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-[#0b1220]">
+                              {unread > 9 ? '9+' : unread}
+                            </span>
+                          ) : null}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
+
+          {/* Chat */}
+          <section
+            aria-label="Conversation"
+            className={`${mobileChat ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col lg:flex`}
+          >
+            {open ? (
+              <>
+                <div className="flex items-center gap-2.5 border-b border-line-soft px-3 py-2.5 sm:px-5">
+                  <button
+                    type="button"
+                    onClick={() => setMobileChat(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-surface lg:hidden"
+                    aria-label="Back to conversations"
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <span className="relative inline-flex shrink-0">
+                    <FaceAvatar name={open.participant_name} avatar={open.participant_avatar} size={40} />
+                    <span className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-card">
+                      <ChannelAvatar provider={open.platform} size={18} />
                     </span>
                   </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">{open.participant_name || 'Unknown'}</p>
+                    <p className="truncate text-[11px] text-muted">
+                      {providerMeta(open.platform).label} · replying as {sendAs}
+                    </p>
+                  </div>
+                </div>
+
+                <div ref={scroller} className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-4 py-4 sm:px-5">
+                  {msgs === null ? (
+                    <div className="py-8 text-center">
+                      <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-faint" aria-hidden="true" />
+                    </div>
+                  ) : msgs.length === 0 ? (
+                    <p className="py-8 text-center text-xs text-muted">No messages in this thread yet.</p>
+                  ) : (
+                    msgs.map((m, idx) => {
+                      const out = m.direction === 'out';
+                      const showDay =
+                        idx === 0 ||
+                        new Date(m.sent_at).toDateString() !== new Date(msgs[idx - 1].sent_at).toDateString();
+                      return (
+                        <div key={m.id}>
+                          {showDay ? (
+                            <p className="my-3 text-center text-[11px] font-bold text-muted">{dayLabel(m.sent_at)}</p>
+                          ) : null}
+                          <div className={`flex items-end gap-2 ${out ? 'justify-end' : 'justify-start'}`}>
+                            {!out ? (
+                              <FaceAvatar name={open.participant_name} avatar={open.participant_avatar} size={24} />
+                            ) : null}
+                            <div
+                              className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                                out
+                                  ? 'rounded-br-md bg-accent font-medium text-[#0b1220]'
+                                  : 'rounded-bl-md bg-surface text-ink'
+                              } ${out && m.status === 'pending' ? 'opacity-70' : ''}`}
+                            >
+                              {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
+                              {(m.attachments ?? []).map((a, i) =>
+                                a?.url ? (
+                                  <SafeImg
+                                    key={i}
+                                    src={a.url}
+                                    alt=""
+                                    width={220}
+                                    height={140}
+                                    className="mt-1 max-w-[220px] rounded-lg border border-line-soft object-cover"
+                                  />
+                                ) : null,
+                              )}
+                              <p className={`mt-0.5 text-[10px] ${out ? 'text-right text-[#0b1220]/60' : 'text-muted'}`}>
+                                {when(m.sent_at)}
+                                {out && m.status === 'pending' ? ' · sending…' : ''}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="border-t border-line-soft px-4 pb-4 pt-3 sm:px-5">
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-muted">Quick replies</span>
+                    {QUICK_REPLIES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setDraft(t)}
+                        className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-soft transition hover:bg-surface"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-end gap-2 rounded-2xl border border-line bg-paper p-2 transition focus-within:border-accent/70">
+                    <textarea
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          void send();
+                        }
+                      }}
+                      rows={2}
+                      placeholder={`Reply as ${sendAs}…`}
+                      aria-label="Message text"
+                      className="block min-h-[44px] flex-1 resize-none bg-transparent px-1.5 py-1 text-sm leading-relaxed text-soft outline-none placeholder:text-faint"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void send()}
+                      disabled={busy || !draft.trim()}
+                      className="btn btn-primary !px-3 !py-2 disabled:opacity-40"
+                      aria-label="Send message"
+                    >
+                      {busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="grid flex-1 place-items-center p-10 text-center text-sm text-muted">
+                Select a conversation to read and reply.
+              </div>
+            )}
+          </section>
+
+          {/* Details */}
+          {open ? (
+            <aside
+              aria-label="Conversation details"
+              className="hidden w-[280px] shrink-0 flex-col gap-5 overflow-y-auto border-l border-line-soft p-5 xl:flex"
+            >
+              <div className="flex flex-col items-center gap-1.5 text-center">
+                <span className="relative inline-flex">
+                  <FaceAvatar name={open.participant_name} avatar={open.participant_avatar} size={64} />
+                  <span className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-card">
+                    <ChannelAvatar provider={open.platform} size={24} />
+                  </span>
+                </span>
+                <p className="mt-1 text-[15px] font-extrabold">{open.participant_name || 'Unknown'}</p>
+                <p className="text-xs text-muted">{providerMeta(open.platform).label}</p>
+              </div>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2.5 text-xs">
+                <dt className="text-muted">Channel</dt>
+                <dd className="truncate text-right font-bold">{sendAs}</dd>
+                {msgs && msgs.length > 0 ? (
+                  <>
+                    <dt className="text-muted">Started</dt>
+                    <dd className="text-right font-bold">{dayLabel(msgs[0].sent_at)}</dd>
+                    <dt className="text-muted">Messages</dt>
+                    <dd className="text-right font-bold">{msgs.length}</dd>
+                  </>
+                ) : null}
+                <dt className="text-muted">Status</dt>
+                <dd className="text-right font-bold">{Number(open.unread_count ?? 0) > 0 ? 'Unread' : 'Read'}</dd>
+              </dl>
+            </aside>
+          ) : null}
+        </div>
       )}
     </div>
   );
