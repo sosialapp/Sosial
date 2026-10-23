@@ -271,5 +271,14 @@ serve(async (req: Request): Promise<Response> => {
     );
   }
 
+  // Analytics begins at connect time. The daily sweep only runs at 05:20 UTC,
+  // so without this a channel connected minutes ago showed no followers on the
+  // analytics page until the next morning. Best-effort, never fail the import.
+  await admin.from("job_queue").insert({
+    kind: "snapshot_analytics",
+    payload: { channel_id: ch.id },
+    run_at: new Date().toISOString(),
+  });
+
   return Response.json({ channel_id: ch.id });
 });
