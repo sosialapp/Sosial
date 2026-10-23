@@ -10,9 +10,13 @@
 ///        handle?, app_password? } → 200 payload (per provider below)
 //   · 401 unauthenticated · 402 provider not configured · 502 upstream failure
 //
-// facebook returns { pages: [{ id, name, access_token, picture?, ig? }] } -
-// the web route shows a Page picker and imports the chosen Page (tokens are
-// per-Page on Meta, there is no user-level channel to store).
+// facebook returns { pages: [{ id, name, access_token, picture?, ig?,
+// missing?, viaBusiness? }] } - every Page the user can reach, paged to the
+// end and including business-portfolio pages when business_management is
+// granted. `missing` marks a Page with no token (no content task), so the
+// picker can grey it out instead of dropping it. The web route shows a Page
+// picker and imports the chosen Page (tokens are per-Page on Meta, there is
+// no user-level channel to store).
 //
 // Supabase secrets: TT_CLIENT_KEY, TT_CLIENT_SECRET, META_APP_ID,
 // META_APP_SECRET, IG_APP_ID, IG_APP_SECRET, X_CLIENT_ID, YT_CLIENT_ID,
@@ -202,6 +206,41 @@ async function instagram(b: ExchangeBody): Promise<Response> {
   });
 }
 
+const FB_FIELDS = "id,name,access_token,picture,instagram_business_account{id,username}";
+
+interface FbPage {
+  id: string;
+  name: string;
+  access_token: string;
+  picture?: string;
+  ig?: string;
+  /** Listed but with no Page token: the role carries no content task, so the
+   *  Page can be shown greyed out instead of silently disappearing. */
+  missing?: boolean;
+  /** Only reachable through a business portfolio, not a direct Page role. */
+  viaBusiness?: boolean;
+}
+
+/** Walk a Graph edge to the end. Graph pages at 25 rows by default, which is
+ *  the usual reason a user who manages a dozen Pages only sees a couple.
+ *  `strict` keeps the old contract for the main call: a refusal fails the
+ *  connect instead of reading as an empty account list. */
+async function fbEdge(url: string, strict = false): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  let next: string | null = url;
+  for (let i = 0; next && i < 20; i += 1) {
+    const j = await json(await fetch(next));
+    if (j.error) {
+      if (strict) throw new Error(str((j.error as { message?: unknown })?.message) || "Graph refused the call.");
+      return out;
+    }
+    if (Array.isArray(j.data)) out.push(...(j.data as Record<string, unknown>[]));
+    const paging = j.paging as { next?: unknown } | undefined;
+    next = typeof paging?.next === "string" && paging.next ? paging.next : null;
+  }
+  return out;
+}
+
 async function facebook(b: ExchangeBody): Promise<Response> {
   const id = Deno.env.get("META_APP_ID") ?? "";
   const secret = Deno.env.get("META_APP_SECRET") ?? "";
@@ -226,34 +265,71 @@ async function facebook(b: ExchangeBody): Promise<Response> {
   const j2 = await json(r2);
   const userToken = str(j2.access_token);
   if (!userToken) return bad("Facebook would not issue a long-lived token.", 502);
-  const r3 = await fetch(
-    `${G}/me/accounts?${form({
-      fields: "id,name,access_token,picture,instagram_business_account{id,username}",
-      access_token: userToken,
-    })}`,
-  );
-  const j3 = await json(r3);
-  if (j3.error) {
-    const e = j3.error as { message?: string } | undefined;
-    return bad(`Could not list your Pages. ${str(e?.message).slice(0, 140)}`, 502);
+
+  const pages = new Map<string, FbPage>();
+  const remember = (raw: Record<string, unknown>, viaBusiness: boolean) => {
+    const id = str(raw.id);
+    if (!id) return;
+    const token = str(raw.access_token);
+    const prev = pages.get(id);
+    // First sighting wins unless the newcomer actually carries a token.
+    if (prev && (prev.access_token || !token)) {
+      if (viaBusiness) prev.viaBusiness = true;
+      return;
+    }
+    const pic = raw.picture as { data?: { url?: unknown } } | undefined;
+    const ig = raw.instagram_business_account as { username?: unknown } | undefined;
+    pages.set(id, {
+      id,
+      name: str(raw.name) || "Page",
+      access_token: token,
+      picture: typeof pic?.data?.url === "string" ? pic.data.url : undefined,
+      ig: typeof ig?.username === "string" ? `@${ig.username}` : undefined,
+      missing: token ? undefined : true,
+      viaBusiness: viaBusiness || undefined,
+    });
+  };
+
+  let accounts: Record<string, unknown>[];
+  try {
+    accounts = await fbEdge(
+      `${G}/me/accounts?${form({ fields: FB_FIELDS, limit: "100", access_token: userToken })}`,
+      true,
+    );
+  } catch (e) {
+    return bad(`Could not list your Pages. ${str((e as Error)?.message).slice(0, 140)}`, 502);
   }
-  const pages = (Array.isArray(j3.data) ? j3.data : []).map((p: unknown) => {
-    const pg = p as {
-      id?: unknown; name?: unknown; access_token?: unknown;
-      picture?: { data?: { url?: unknown } };
-      instagram_business_account?: { id?: unknown; username?: unknown };
-    };
-    return {
-      id: String(pg.id ?? ""),
-      name: String(pg.name ?? "Page"),
-      access_token: String(pg.access_token ?? ""),
-      picture: typeof pg.picture?.data?.url === "string" ? pg.picture.data.url : undefined,
-      ig: typeof pg.instagram_business_account?.username === "string"
-        ? `@${pg.instagram_business_account.username}`
-        : undefined,
-    };
-  }).filter((p: { id: string; access_token: string }) => p.id && p.access_token);
-  return ok({ pages });
+  for (const a of accounts) remember(a, false);
+
+  // Pages held by a business portfolio (owned/client) never appear in
+  // /me/accounts; that edge needs business_management. Probe the grant first
+  // and stay quiet without it, the direct list above is still complete.
+  try {
+    const granted = new Set(
+      (await fbEdge(`${G}/me/permissions?${form({ limit: "100", access_token: userToken })}`))
+        .filter((p) => str(p.status) === "granted")
+        .map((p) => str(p.permission)),
+    );
+    if (granted.has("business_management")) {
+      const businesses = await fbEdge(
+        `${G}/me/businesses?${form({ fields: "id,name", limit: "100", access_token: userToken })}`,
+      );
+      for (const biz of businesses) {
+        const bid = str(biz.id);
+        if (!bid) continue;
+        for (const edge of ["owned_pages", "client_pages"]) {
+          const list = await fbEdge(
+            `${G}/${encodeURIComponent(bid)}/${edge}?${form({ fields: FB_FIELDS, limit: "100", access_token: userToken })}`,
+          );
+          for (const p of list) remember(p, true);
+        }
+      }
+    }
+  } catch {
+    /* portfolio pages are best-effort, never break the connect */
+  }
+
+  return ok({ pages: [...pages.values()] });
 }
 
 async function xAuth(b: ExchangeBody): Promise<Response> {

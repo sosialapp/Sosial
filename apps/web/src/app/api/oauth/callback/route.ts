@@ -115,7 +115,7 @@ export async function GET(req: Request) {
     const pick: PickState = { workspace_id: flow.workspace_id, nonce: flow.nonce, pages: payload.pages };
     const res = NextResponse.redirect(`${origin}/channels?connect=facebook`);
     res.cookies.delete(FLOW_COOKIE);
-    res.cookies.set(PICK_COOKIE, b64e(pick), cookieOpts(origin));
+    res.cookies.set(PICK_COOKIE, fitPick(pick), cookieOpts(origin));
     return res;
   }
 
@@ -206,12 +206,43 @@ export async function GET(req: Request) {
 }
 
 /**
+ * Browsers drop a Set-Cookie over ~4KB without a word, which reads back as
+ * "that login expired" right after a successful Facebook round-trip. Page
+ * tokens are the payload, pictures and IG handles are decoration, so shed the
+ * decoration first, then the tail of the list, and report how many went.
+ */
+const MAX_PICK_COOKIE = 3800;
+
+function fitPick(pick: PickState): string {
+  const size = (value: string) => Buffer.byteLength(value, 'utf8');
+  let pages = pick.pages.map((p) => ({ ...p }));
+  const encode = (omitted: number) => b64e({ ...pick, pages, omitted });
+
+  if (size(encode(0)) <= MAX_PICK_COOKIE) return encode(0);
+
+  pages = pages.map((p) => ({
+    id: p.id,
+    name: p.name,
+    access_token: p.access_token,
+    missing: p.missing,
+    viaBusiness: p.viaBusiness,
+  }));
+  if (size(encode(0)) <= MAX_PICK_COOKIE) return encode(0);
+
+  let omitted = 0;
+  while (pages.length > 1 && size(encode(omitted)) > MAX_PICK_COOKIE) {
+    pages = pages.slice(0, -1);
+    omitted += 1;
+  }
+  return encode(omitted);
+}
+
+/**
  * Media-source picker landing (state `cloud:<provider>:<nonce>` from the
  * composer's "add media" dialog). Swaps the code for tokens via
  * cloud-exchange, nothing is imported or stored, and hands the result to
  * the opener window, which keeps tokens in sessionStorage (device-only).
- */
-async function cloudPickerResult(url: URL, origin: string) {
+ */async function cloudPickerResult(url: URL, origin: string) {
   const page = (payload: Record<string, unknown>) => {
     const safe = JSON.stringify(payload).replace(/</g, '\\u003c');
     return new Response(

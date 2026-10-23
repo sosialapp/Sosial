@@ -27,12 +27,22 @@ export default async function ChannelsPage({
 
   // Facebook Page pick pending from the OAuth callback (httpOnly cookie).
   let fbPick: FbPickPage[] | null = null;
+  let fbOmitted = 0;
   if (params.connect === 'facebook') {
     try {
       const jar = await cookies();
       const raw = jar.get('sosial_fb_pick')?.value;
-      const pick = raw ? (JSON.parse(Buffer.from(raw, 'base64url').toString()) as { workspace_id?: string; pages?: FbPickPage[] }) : null;
-      if (pick?.workspace_id === ctx.workspace.id && Array.isArray(pick.pages)) fbPick = pick.pages;
+      const pick = raw
+        ? (JSON.parse(Buffer.from(raw, 'base64url').toString()) as {
+            workspace_id?: string;
+            pages?: FbPickPage[];
+            omitted?: number;
+          })
+        : null;
+      if (pick?.workspace_id === ctx.workspace.id && Array.isArray(pick.pages)) {
+        fbPick = pick.pages;
+        fbOmitted = typeof pick.omitted === 'number' ? pick.omitted : 0;
+      }
     } catch {
       fbPick = null;
     }
@@ -77,6 +87,7 @@ export default async function ChannelsPage({
           workspaceId={ctx.workspace.id}
           channels={channels}
           fbPick={fbPick}
+          fbOmitted={fbOmitted}
           gmbPick={gmbPick}
           status={{ connected: params.connected, already: params.already, error: params.error }}
           canManage={ctx.workspace.role === 'owner' || ctx.workspace.role === 'admin'}

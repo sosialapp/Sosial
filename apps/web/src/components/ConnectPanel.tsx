@@ -21,6 +21,8 @@ export interface FbPickPage {
   name: string;
   picture?: string;
   ig?: string;
+  /** Graph listed the Page but issued no token (no content role). */
+  missing?: boolean;
 }
 
 export interface GmbPickLocation {
@@ -81,6 +83,7 @@ export default function ConnectPanel({
   workspaceId,
   channels,
   fbPick,
+  fbOmitted = 0,
   gmbPick,
   status,
   canManage,
@@ -90,6 +93,8 @@ export default function ConnectPanel({
   channels: ConnectedChannel[];
   /** Facebook Pages waiting for a pick (from ?connect=facebook). */
   fbPick: FbPickPage[] | null;
+  /** Pages dropped from the pick cookie because they did not fit. */
+  fbOmitted?: number;
   /** GBP locations waiting for a pick (from ?connect=gmb). */
   gmbPick: GmbPickLocation[] | null;
   /** Result banners (from ?connected= / ?error=). */
@@ -1284,7 +1289,10 @@ export default function ConnectPanel({
                       <p className="text-xs font-bold">{t('cnPickFbPage')}</p>
                       <p className="-mt-1 text-[11px] text-muted">{t('cnFbPageNote')}</p>
                       {fbPick.map((pg) => (
-                        <div key={pg.id} className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2">
+                        <div
+                          key={pg.id}
+                          className={`flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2 ${pg.missing ? 'opacity-60' : ''}`}
+                        >
                           {pg.picture ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={pg.picture} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
@@ -1293,18 +1301,27 @@ export default function ConnectPanel({
                           )}
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold">{pg.name}</span>
-                            {pg.ig ? <span className="block truncate text-[11px] text-muted">{pg.ig} {t('cnOnInstagram')}</span> : null}
+                            {pg.missing ? (
+                              <span className="block text-[11px] text-muted">{t('cnFbNoToken')}</span>
+                            ) : pg.ig ? (
+                              <span className="block truncate text-[11px] text-muted">{pg.ig} {t('cnOnInstagram')}</span>
+                            ) : null}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => pickPage(pg.id)}
-                            disabled={picking !== null || !canManage}
-                            className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
-                          >
-                            {picking === pg.id ? t('cnConnecting') : t('cnConnect')}
-                          </button>
+                          {pg.missing ? null : (
+                            <button
+                              type="button"
+                              onClick={() => pickPage(pg.id)}
+                              disabled={picking !== null || !canManage}
+                              className="btn btn-primary shrink-0 !px-3.5 !py-1.5 !text-xs"
+                            >
+                              {picking === pg.id ? t('cnConnecting') : t('cnConnect')}
+                            </button>
+                          )}
                         </div>
                       ))}
+                      {fbOmitted > 0 ? (
+                        <p className="text-[11px] text-muted">{fill(t('cnFbOmitted'), { n: fbOmitted })}</p>
+                      ) : null}
                     </div>
                   ) : null}
 

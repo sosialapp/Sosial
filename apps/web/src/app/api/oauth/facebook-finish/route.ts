@@ -24,6 +24,18 @@ export async function POST(req: Request) {
   if (!pick || !page) {
     return NextResponse.json({ error: 'That login expired, connect Facebook again.' }, { status: 400 });
   }
+  if (!page.access_token) {
+    // Graph listed the Page but issued no token: the role has no content task,
+    // so publishing would fail on the first post. Say so instead of importing
+    // a dead channel, and keep the pick cookie so another Page can be chosen.
+    return NextResponse.json(
+      {
+        error:
+          'That Page has no content role, so it cannot publish. Ask a Page admin for a Create content role, then connect again.',
+      },
+      { status: 400 },
+    );
+  }
 
   const sb = await createClient();
   const {

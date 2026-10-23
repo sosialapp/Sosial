@@ -29,7 +29,13 @@ export interface PickState {
     access_token: string;
     picture?: string;
     ig?: string;
+    /** Listed by Graph with no Page token (role has no content task). */
+    missing?: boolean;
+    /** Only reachable through a business portfolio. */
+    viaBusiness?: boolean;
   }[];
+  /** Pages that did not fit in the 4KB cookie and were dropped. */
+  omitted?: number;
   /** Google Business Profile only: staged location pick. */
   gmb?: {
     access_token: string;
