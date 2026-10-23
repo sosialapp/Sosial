@@ -278,6 +278,9 @@ serve(async (req: Request): Promise<Response> => {
     kind: "snapshot_analytics",
     payload: { channel_id: ch.id },
     run_at: new Date().toISOString(),
+    // job_queue.idempotency_key is NOT NULL; connect-time runs are keyed
+    // separately from the daily sweep so both can land in one day.
+    idempotency_key: `snapshot:connect:${ch.id}:${Math.floor(Date.now() / 60000)}`,
   });
 
   return Response.json({ channel_id: ch.id });
