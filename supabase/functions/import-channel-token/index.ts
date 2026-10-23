@@ -146,7 +146,9 @@ serve(async (req: Request): Promise<Response> => {
         const res = await admin
           .from("connected_channels")
           .select("id", { count: "exact", head: true })
-          .in("workspace_id", ownedIds);
+          .in("workspace_id", ownedIds)
+          // Revoked rows are post history, not capacity (p102).
+          .neq("status", "revoked");
         totalInPool = res.count ?? 0;
       }
       if (totalInPool >= cap) {

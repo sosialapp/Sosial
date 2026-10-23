@@ -68,7 +68,11 @@ export default async function ChannelsPage({
     }
   }
 
-  const missingAvatars = channels.filter(
+  // Disconnected accounts are revoked, not deleted: the row stays so old posts
+  // keep their destination, but it is no longer a connected account to show.
+  const visibleChannels = channels.filter((c) => c.status !== 'revoked');
+
+  const missingAvatars = visibleChannels.filter(
     (c) => c.status === 'connected' && !channelAvatar(c.metadata),
   ).length;
 
@@ -85,7 +89,7 @@ export default async function ChannelsPage({
       <div className="mx-auto w-full max-w-2xl px-4 pt-4 sm:px-6 sm:pt-6">
         <ConnectPanel
           workspaceId={ctx.workspace.id}
-          channels={channels}
+          channels={visibleChannels}
           fbPick={fbPick}
           fbOmitted={fbOmitted}
           gmbPick={gmbPick}

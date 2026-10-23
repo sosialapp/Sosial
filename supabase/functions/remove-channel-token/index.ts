@@ -1,9 +1,16 @@
 // remove-channel-token · cloud opt-out / disconnect cleanup
 //
 // Auth model: caller JWT → active membership check → OWNER check (only the
-// workspace owner may disconnect/remove a connected account) → delete the
-// channel row (token row cascades) → delete the Vault secrets so nothing
-// orphaned survives. Idempotent: unknown channel → 200 { removed: false }.
+// workspace owner may disconnect/remove a connected account) → revoke the
+// channel row → delete the Vault secrets so nothing orphaned survives.
+// Idempotent: unknown channel → 200 { removed: false }.
+//
+// The row is REVOKED, never deleted: post_targets.channel_id cascades on
+// delete, so a hard remove used to erase every post's link to that account and
+// old cards fell back to whichever destination was left. A revoked row keeps
+// history (post cards, analytics) while publishing and every cron only look at
+// status='connected'. import-channel-token upserts on workspace+provider+
+// external id, so reconnecting revives the same row and its posts.
 //
 // POST { workspace_id, provider, external_id? }
 // Without external_id, removes ALL rows of that provider in the workspace
@@ -90,14 +97,25 @@ serve(async (req: Request): Promise<Response> => {
   const { data: rows } = await query;
   if (!rows || rows.length === 0) return Response.json({ removed: false }, { headers: CORS });
 
-  // Collect secret ids BEFORE the cascade deletes the token rows.
+  // Collect secret ids BEFORE the token row is dropped.
   const ids = rows.map((r: { id: string }) => r.id);
   const { data: toks } = await admin
     .from("channel_tokens")
     .select("access_token_secret_id, refresh_token_secret_id")
     .in("channel_id", ids);
 
-  await admin.from("connected_channels").delete().in("id", ids);
+  // Revoke, never delete: post history and analytics rows hang off this id and
+  // the FK cascades on delete. Token row goes so nothing can publish.
+  const { error: rErr } = await admin
+    .from("connected_channels")
+    .update({
+      status: "revoked",
+      last_error: "Disconnected. Reconnect this account to publish again.",
+    })
+    .in("id", ids);
+  if (rErr) return bad(`Could not disconnect: ${rErr.message}`, 500);
+
+  await admin.from("channel_tokens").delete().in("channel_id", ids);
 
   const secrets = (toks ?? []).flatMap((t: Record<string, unknown>) => [
     t.access_token_secret_id,
