@@ -350,7 +350,7 @@ export default function AnalyticsDashboard({
     },
     {
       metric: 'interactions',
-      label: t('anTotalInteractions') ?? t('anTotalInt'),
+      label: t('anTotalInt'),
       value: full(interactions),
       icon: Heart,
       hint: t('anIntHint'),
