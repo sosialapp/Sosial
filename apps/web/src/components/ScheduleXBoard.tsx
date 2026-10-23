@@ -27,6 +27,7 @@ import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
 import { chainPartsByChain, isChainHead, threadCount } from '@/lib/chains';
+import { primaryTarget } from '@/lib/postTargets';
 import { queueTooSoon } from '@/lib/queue';
 import {
   MONTHS,
@@ -535,7 +536,7 @@ function SentPostView({
   busy: boolean;
 }) {
   const t = useT(appMessages);
-  const t0 = post.post_targets[0];
+  const t0 = primaryTarget(post);
   const provider = t0?.provider ?? 'x';
   const ch = t0 ? channelById.get(t0.channel_id) : undefined;
   const name = ch?.display_name?.trim() || providerMeta(provider).label;
@@ -871,7 +872,7 @@ export default function ScheduleXBoard({
         hour: d.getHours(),
         minute: d.getMinutes(),
       }).toZonedDateTime(timeZone);
-      const t0 = p.post_targets[0];
+      const t0 = primaryTarget(p);
       const accent = accentOf(t0?.provider);
       const thumbs = (media[p.id] ?? [])
         .slice(0, 4)
@@ -1212,7 +1213,7 @@ export default function ScheduleXBoard({
   };
 
   const authorLine = (p: PostWithTargets): { name: string; handle: string | null; provider: string } => {
-    const t0 = p.post_targets[0];
+    const t0 = primaryTarget(p);
     const provider = t0?.provider ?? 'x';
     const ch = t0 ? channelById.get(t0.channel_id) : undefined;
     return {
@@ -1224,7 +1225,7 @@ export default function ScheduleXBoard({
 
   /** One list row: time · account · text · status. Opens the same popup. */
   const listRow = (p: PostWithTargets, k: string, timeText: string, timeFaint?: boolean) => {
-    const t0 = p.post_targets[0];
+    const t0 = primaryTarget(p);
     const a = authorLine(p);
     const st = statusMetaOf(p.status, t);
     return (

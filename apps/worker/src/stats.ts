@@ -115,6 +115,14 @@ async function jget(url: string, headers?: Record<string, string>): Promise<any>
   return r.json().catch(() => ({}));
 }
 
+/** A follower count where 0 is data, not "unknown" (num() flattens both to 0,
+ *  and `num(x) || null` then threw away every brand-new account's real zero). */
+const count = (v: any): number | null => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+};
+
 /* --------------------------- follower snapshots --------------------------- */
 
 /**
@@ -129,13 +137,13 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
       const tok = encodeURIComponent(await token());
       const prof = await jget(`${FB_GRAPH}/${encodeURIComponent(c.external_id)}?fields=fan_count,followers_count&access_token=${tok}`);
       if (prof?.error) throw new Error(prof.error.message ?? 'facebook profile read failed');
-      return { followers: num(prof.followers_count) || num(prof.fan_count) || null };
+      return { followers: count(prof.followers_count) ?? count(prof.fan_count) };
     }
     case 'instagram': {
       const tok = encodeURIComponent(await token());
       const prof = await jget(`${IG_GRAPH}/me?fields=followers_count,media_count&access_token=${tok}`);
       if (prof?.error) throw new Error(prof.error.message ?? 'instagram profile read failed');
-      return { followers: num(prof.followers_count) || null };
+      return { followers: count(prof.followers_count) };
     }
     case 'threads': {
       const tok = await token();
@@ -143,15 +151,15 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
       const prof = await jget(`${THREADS_API}/v1.0/me?fields=followers_count&access_token=${enc}`, {
         Authorization: `Bearer ${tok}`,
       });
-      let followers = typeof prof?.followers_count === 'number' ? prof.followers_count : null;
+      let followers = count(prof?.followers_count);
       if (followers === null) {
         // followers_count is a Total Value metric: { data: [{ total_value: { value } }] }
         const ins = await jget(
           `${THREADS_API}/v1.0/${encodeURIComponent(c.external_id)}/threads_insights?metric=followers_count&access_token=${enc}`,
           { Authorization: `Bearer ${tok}` },
         );
-        const v = Number(ins?.data?.[0]?.total_value?.value);
-        if (Number.isFinite(v) && v > 0) followers = Math.round(v);
+        const v = count(ins?.data?.[0]?.total_value?.value);
+        if (v !== null) followers = v;
       }
       return { followers, note: followers === null ? 'Threads does not expose follower counts to this app yet.' : undefined };
     }
@@ -162,7 +170,7 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
       });
       const data = u?.data?.user ?? u?.user;
       if (!data) throw new Error(u?.error?.message ?? 'tiktok profile read failed');
-      return { followers: num(data.follower_count) || null };
+      return { followers: count(data.follower_count) };
     }
     case 'x': {
       const tok = await token();
@@ -170,7 +178,7 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
         Authorization: `Bearer ${tok}`,
       });
       if (!prof?.data) throw new Error(prof?.detail ?? 'x profile read failed');
-      return { followers: num(prof.data.public_metrics?.followers_count) || null };
+      return { followers: count(prof.data.public_metrics?.followers_count) };
     }
     case 'bluesky': {
       const sess = await ensureBlueskySession(bundleFor(c, t));
@@ -178,7 +186,7 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
         `${bskyApi(sess.pdsHost)}/app.bsky.actor.getProfile?actor=${encodeURIComponent(c.external_id)}`,
         { Authorization: `Bearer ${sess.token}` },
       );
-      return { followers: num(prof?.followersCount) || null };
+      return { followers: count(prof?.followersCount) };
     }
     case 'mastodon': {
       const tok = await token();
@@ -188,13 +196,13 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
         Authorization: `Bearer ${tok}`,
       });
       if (prof?.error) throw new Error(prof.error ?? 'mastodon profile read failed');
-      return { followers: num(prof?.followers_count) || null };
+      return { followers: count(prof?.followers_count) };
     }
     case 'pinterest': {
       const tok = await token();
       const acct = await jget(`${PIN_API}/user_account`, { Authorization: `Bearer ${tok}` });
       if (acct?.message) throw new Error(acct.message);
-      return { followers: num(acct?.follower_count) || null };
+      return { followers: count(acct?.follower_count) };
     }
     case 'youtube': {
       const tok = await token();
@@ -203,7 +211,7 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
       });
       const item = j?.items?.[0];
       if (!item) throw new Error(j?.error?.message ?? 'youtube channel read failed');
-      return { followers: num(item.statistics?.subscriberCount) || null };
+      return { followers: count(item.statistics?.subscriberCount) };
     }
     case 'linkedin': {
       // Only Company Pages expose follower counts to third-party apps.
@@ -215,7 +223,7 @@ async function followersFor(c: ChannelRow, t: TokenRow): Promise<{ followers: nu
         { Authorization: `Bearer ${tok}`, 'LinkedIn-Version': LI_VERSION },
       );
       const total = j?.elements?.[0]?.totalMemberCount ?? j?.elements?.[0]?.followerCounts?.organicFollowerCount;
-      return { followers: num(total) || null };
+      return { followers: count(total) };
     }
     default:
       return { followers: null };

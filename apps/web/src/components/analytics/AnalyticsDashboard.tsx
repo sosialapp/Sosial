@@ -18,6 +18,7 @@ import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/cha
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import ChannelBreakdownDialog from '@/components/analytics/ChannelBreakdownDialog';
 import { channelAvatar } from '@/lib/channelAvatar';
+import { primaryTarget } from '@/lib/postTargets';
 import { fetchMediaForPosts } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
 import PostPreviewDialog, { type PreviewPostData } from '@/components/PostPreviewDialog';
@@ -174,7 +175,7 @@ export default function AnalyticsDashboard({
     stats: { likes: number; comments: number; shares: number; views: number | null } | null,
   ) => {
     const t = ++openToken.current;
-    const t0 = post.post_targets?.[0];
+    const t0 = primaryTarget(post);
     const provider = t0?.provider ?? 'instagram';
     const author = t0
       ? authorOf(t0.channel_id, provider)
@@ -269,7 +270,14 @@ export default function AnalyticsDashboard({
   const funnelMax = Math.max(1, drafts, queued, sent.length, failed);
 
   // ---- engagement aggregates (latest snapshots; not date-bound) ----
-  const chanOk = (channelId: string): boolean => chanSel.length === 0 || chanSel.includes(channelId);
+  // Totals are about live accounts: a revoked or reconnected-away channel must
+  // not keep contributing followers and reactions to the workspace numbers.
+  const connectedIds = useMemo(
+    () => new Set(channels.filter((c) => c.status === 'connected').map((c) => c.id)),
+    [channels],
+  );
+  const chanOk = (channelId: string): boolean =>
+    chanSel.length === 0 ? connectedIds.has(channelId) : chanSel.includes(channelId);
   const statsScoped = useMemo(
     () => postStats.filter((r) => chanOk(r.channel_id)),
     [postStats, chanSel],
@@ -289,6 +297,10 @@ export default function AnalyticsDashboard({
   );
   const followers = chanStatsScoped.reduce((a, r) => a + (r.followers ?? 0), 0);
   const hasFollowers = chanStatsScoped.some((r) => r.followers !== null);
+  // How much of the account the follower total actually covers, so a partial
+  // sum never reads as the whole audience.
+  const followersReporting = chanStatsScoped.filter((r) => r.followers !== null).length;
+  const followersScope = chanSel.length > 0 ? chanSel.length : connectedIds.size;
   const eng =
     hasFollowers && followers > 0 ? `${(((likes + comments + shares) / followers) * 100).toFixed(1)}%` : null;
 
@@ -303,7 +315,14 @@ export default function AnalyticsDashboard({
 
   // Stat cards are pickers: clicking one drives the Performance-over-time
   // chart, the ⓘ explains each number.
-  const stats: { metric: PerfMetric; label: string; value: string; icon: typeof Send; hint: string }[] = [
+  const stats: {
+    metric: PerfMetric;
+    label: string;
+    value: string;
+    icon: typeof Send;
+    hint: string;
+    note?: string | null;
+  }[] = [
     {
       metric: 'posts',
       label: t('anPostsPublished'),
@@ -317,6 +336,10 @@ export default function AnalyticsDashboard({
       value: hasFollowers ? full(followers) : '-',
       icon: Users,
       hint: t('anFollowersHint'),
+      note:
+        followersScope > 0 && followersReporting < followersScope
+          ? fill(t('anFollowersPartial'), { n: followersReporting, m: followersScope })
+          : null,
     },
     {
       metric: 'engagement',
@@ -836,6 +859,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               </div>
               <p className="mt-2 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{s.value}</p>
               <p className="mt-1 text-xs text-muted">{s.label}</p>
+              {s.note ? <p className="mt-0.5 text-[10px] leading-tight text-faint">{s.note}</p> : null}
             </Card>
           );
         })}

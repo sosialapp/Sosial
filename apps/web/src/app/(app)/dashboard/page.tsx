@@ -11,6 +11,7 @@ import ScheduleXBoard from '@/components/ScheduleXBoard';
 import { Card } from '@/components/ui/card';
 import { providerMeta } from '@/lib/providers';
 import { chainPartsByChain, isChainHead } from '@/lib/chains';
+import { primaryTarget } from '@/lib/postTargets';
 import { fetchChannels, fetchMediaForPosts, fetchPostsLite } from '@/lib/posts';
 import { addDays, dayKey } from '@/lib/format';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
@@ -163,7 +164,7 @@ export default async function DashboardPage() {
     recentFeed.map(({ p }) => p.id),
   );
   const recentItems: RecentActivityItem[] = recentFeed.map(({ p }) => {
-    const t0 = p.post_targets?.[0];
+    const t0 = primaryTarget(p);
     const provider = t0?.provider ?? 'instagram';
     const author = t0 ? authorOf(t0.channel_id, provider) : { name: providerMeta(provider).label, handle: null };
     const isQueued = p.status === 'queued' || p.status === 'publishing';
