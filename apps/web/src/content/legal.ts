@@ -96,7 +96,24 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '5. Content sources, automation and AI',
+      title: '5. Messages and comments',
+      blocks: [
+        {
+          t: 'p',
+          c: 'Some connected channels also let you read and answer direct messages and comments inside Sosial. Today that covers direct messages on Facebook Pages, Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon and Bluesky. Replies are sent from your own account through the platform\'s official API, exactly as if you had sent them there yourself.',
+        },
+        {
+          t: 'p',
+          c: 'Messages and comments are written by other people, not by us. You are responsible for what you send from a connected account, and for complying with that platform\'s rules and applicable law, including any consent or anti-spam requirement that applies to messaging. Do not use the inbox to harass, spam or deceive anyone.',
+        },
+        {
+          t: 'p',
+          c: 'To fill the inbox we read recent conversations and comments for the channels you connect. Nothing is sent to anyone unless you write the reply and press send. Disconnecting a channel stops further reads; deleting your workspace removes the messages and comments we stored.',
+        },
+      ],
+    },
+    {
+      title: '6. Content sources, automation and AI',
       blocks: [
         {
           t: 'p',
@@ -109,7 +126,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '6. Team workspaces',
+      title: '7. Team workspaces',
       blocks: [
         {
           t: 'p',
@@ -118,7 +135,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '7. Availability and changes',
+      title: '8. Availability and changes',
       blocks: [
         {
           t: 'p',
@@ -127,7 +144,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '8. Liability',
+      title: '9. Liability',
       blocks: [
         {
           t: 'p',
@@ -136,7 +153,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '9. Marketing emails',
+      title: '10. Marketing emails',
       blocks: [
         {
           t: 'p',
@@ -145,7 +162,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '10. Inactive accounts',
+      title: '11. Inactive accounts',
       blocks: [
         {
           t: 'p',
@@ -154,7 +171,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '11. Deleting your data',
+      title: '12. Deleting your data',
       blocks: [
         {
           t: 'p',
@@ -163,7 +180,7 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      title: '12. Contact',
+      title: '13. Contact',
       blocks: [
         {
           t: 'p',
@@ -201,7 +218,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Sosial publishes to 18 channels. When you connect one, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We do not store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored. Only short-lived session tokens are kept. We do not read your private messages on any platform.',
+          c: 'Sosial publishes to 18 channels. When you connect one, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We do not store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored. Only short-lived session tokens are kept. We read messages and comments only on the channels where you use the inbox or comments features, and only as described in "Messages and comments" below.',
         },
         {
           t: 'ul',
@@ -293,6 +310,30 @@ export const PRIVACY: LegalDoc = {
         {
           t: 'p',
           c: 'When you use the AI writer, the brief you submit is sent to the configured AI provider to generate a draft, and the result is returned to your workspace. We do not use your briefs or drafts to train models. If you enable web research for a post, the writer performs a live search to ground the copy and returns the sources it used.',
+        },
+      ],
+    },
+    {
+      title: 'Messages and comments',
+      blocks: [
+        {
+          t: 'p',
+          c: 'If you use the inbox or comments features, we read the direct messages and comments that arrive on the channels you connect, so they can be shown in one place and answered from Sosial. This covers direct messages on Facebook Pages (Messenger), Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon and Bluesky. No other connected channel exposes messages or comments to us.',
+        },
+        {
+          t: 'ul',
+          c: [
+            'Conversations and messages: the participant\'s display name and avatar, the text you and they write, attachments, whether each message is incoming or outgoing, its timestamp, and its delivery status.',
+            'Comments: the author\'s display name and avatar, the comment text, the post it belongs to, its timestamp, and whether you have replied to, hidden or deleted it.',
+          ],
+        },
+        {
+          t: 'p',
+          c: 'We read this through each platform\'s API on a sync schedule and through the platforms\' webhooks, only for channels in your workspace, and we store it in our database so the inbox loads without calling the platform on every visit. Replies you send go to the platform through its API and are stored the same way as received messages. We do not sell this data, do not use it for advertising, and do not use it to train models.',
+        },
+        {
+          t: 'p',
+          c: 'Anyone in your workspace who can see the channel can read its inbox and comments feed. Messages and comments are kept while the workspace exists: disconnecting a channel stops new reads but leaves what was already synced, and deleting the workspace removes it along with everything else. Deleting a message or comment on the platform itself does not delete it from Sosial, so you can still see the thread you were working on.',
         },
       ],
     },
