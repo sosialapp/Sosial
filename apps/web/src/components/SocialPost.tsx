@@ -70,7 +70,7 @@ function Tile({ m, className }: { m: SocialMedia; className: string }) {
         playsInline
         controls
         preload="metadata"
-        className="h-full w-full object-cover"
+        className="block h-full max-h-[inherit] w-full object-cover"
       />
       <span className="pointer-events-none absolute top-2 left-2 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white">
         <Play className="h-3 w-3 fill-current" aria-hidden="true" />
@@ -88,14 +88,14 @@ export function MediaGrid({ media }: { media: SocialMedia[] }) {
   if (!shown.length) return null;
   if (shown.length === 1) {
     return (
-      <div className="mt-3 overflow-hidden rounded-2xl border border-line">
-        <Tile m={shown[0]} className="max-h-[480px] w-full" />
+      <div className="mt-3 max-w-md overflow-hidden rounded-2xl border border-line">
+        <Tile m={shown[0]} className="max-h-80 w-full" />
       </div>
     );
   }
   return (
     <div
-      className={`mt-3 grid aspect-[16/10] gap-0.5 overflow-hidden rounded-2xl border border-line ${
+      className={`mt-3 grid aspect-[16/10] max-w-md gap-0.5 overflow-hidden rounded-2xl border border-line ${
         shown.length === 2 ? 'grid-cols-2' : 'grid-cols-2 grid-rows-2'
       }`}
     >

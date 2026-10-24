@@ -113,10 +113,10 @@ export function MediaGrid({ media }: { media: SocialMediaItem[] }) {
     </View>
   );
 
-  const h = w * 0.62;
+  const h = w * 0.56;
   let body: React.ReactNode = null;
   if (w > 0) {
-    if (shown.length === 1) body = tile(shown[0], w, w * 0.8, true);
+    if (shown.length === 1) body = tile(shown[0], w, w * 0.62, true);
     else if (shown.length === 2) {
       const cw = (w - gap) / 2;
       body = <View style={{ flexDirection: 'row', gap }}>{shown.map((m, i) => tile(m, cw, h, i === 1))}</View>;
