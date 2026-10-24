@@ -599,13 +599,17 @@ export async function importChannelToken(body: Record<string, unknown>): Promise
 
 /** Remove one channel's cloud copy (Vault secrets included). Idempotent.
  * Without external_id, removes ALL rows of that provider in the workspace
- * (cleanup when device tokens are already gone). */
+ * (cleanup when device tokens are already gone).
+ * `mode: 'purge'` also erases the history the cloud kept for the channel
+ * (posts, stats, comments, messages) instead of just revoking the tokens. */
 export async function removeChannelToken(body: {
   workspace_id: string;
   provider: string;
   external_id?: string;
-}): Promise<void> {
-  await callChannelFunction('remove-channel-token', body);
+  mode?: 'revoke' | 'purge';
+  dry_run?: boolean;
+}): Promise<any> {
+  return callChannelFunction('remove-channel-token', body);
 }
 
 /* ---------------- Generic Edge Function bridge ---------------- */

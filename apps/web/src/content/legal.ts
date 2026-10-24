@@ -249,7 +249,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'You can disconnect a channel at any time from the Channels screen, which deletes the stored token. You can also revoke Sosial\'s access directly from the connected platform\'s settings. Doing so immediately stops publishing to that channel.',
+          c: 'You can disconnect a channel at any time from the Channels screen, which deletes the stored token and pauses publishing to that channel. A separate Delete data action erases the posts, stats, comments and messages we stored for that channel if you want it forgotten completely. You can also revoke Sosial\'s access directly from the connected platform\'s settings. Doing so immediately stops publishing to that channel.',
         },
       ],
     },
@@ -333,7 +333,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'Anyone in your workspace who can see the channel can read its inbox and comments feed. Messages and comments are kept while the workspace exists: disconnecting a channel stops new reads but leaves what was already synced, and deleting the workspace removes it along with everything else. Deleting a message or comment on the platform itself does not delete it from Sosial, so you can still see the thread you were working on.',
+          c: 'Anyone in your workspace who can see the channel can read its inbox and comments feed. Messages and comments are kept while the workspace exists: disconnecting a channel stops new reads but leaves what was already synced, unless you choose Delete data for that channel, which removes the messages and comments we stored for it. Deleting the workspace removes everything. Deleting a message or comment on the platform itself does not delete it from Sosial, so you can still see the thread you were working on.',
         },
       ],
     },
@@ -372,7 +372,7 @@ export const PRIVACY: LegalDoc = {
             'Access control: internal access to production systems is limited to the personnel who operate the service, is protected by multi-factor authentication, and is logged. There is no public or unauthenticated access to user data.',
             'Token minimization: Google Photos are accessed through Google\'s own picker and only the photos you select are read; Google Drive is read-only. We never store your Google password, and we store no Google data beyond the fields needed to publish and display your account.',
             'Key management: encryption keys are stored in a managed secrets service, are not committed to source control, and are rotated on a schedule and on staff departure.',
-            'Retention and secure deletion: tokens are deleted when you disconnect a channel; your data is deleted when you delete your workspace, and residual copies in backups expire on a rolling schedule.',
+            'Retention and secure deletion: tokens are deleted when you disconnect a channel, and choosing Delete data for a channel removes the posts, stats, comments, messages and queue entries we stored for it; your data is deleted when you delete your workspace, and residual copies in backups expire on a rolling schedule.',
             'Incident response: we monitor for anomalies, restrict and revoke compromised credentials, and will notify affected users and Google without undue delay if a breach affects their data.',
           ],
         },

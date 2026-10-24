@@ -677,7 +677,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                     : `Always on · ${cloudImp} of ${cloudConn} channel${cloudConn === 1 ? '' : 's'} in cloud`,
                 () => Alert.alert(
                   'Cloud publishing',
-                  'Always on: connecting a channel stores an encrypted copy of its tokens so scheduled posts publish while the app is closed. To revoke a channel, disconnect it in Connect.',
+                  'Always on: connecting a channel stores an encrypted copy of its tokens so scheduled posts publish while the app is closed. Disconnecting a channel in Connect revokes those tokens and pauses its queue; Delete data there also erases the history Sosial kept for it.',
                 ),
               )}
               {row('card-outline', 'Subscription plan', planName, () => setView('plan'))}

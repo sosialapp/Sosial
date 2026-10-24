@@ -1,21 +1,27 @@
 // remove-channel-token · cloud opt-out / disconnect cleanup
 //
-// Auth model: caller JWT → active membership check → OWNER check (only the
-// workspace owner may disconnect/remove a connected account) → revoke the
-// channel row → delete the Vault secrets so nothing orphaned survives.
+// Auth model: caller JWT → active membership check → OWNER/ADMIN check (only
+// owners and admins may disconnect a connected account) → act on the channel.
 // Idempotent: unknown channel → 200 { removed: false }.
 //
-// The row is REVOKED, never deleted: post_targets.channel_id cascades on
-// delete, so a hard remove used to erase every post's link to that account and
-// old cards fell back to whichever destination was left. A revoked row keeps
-// history (post cards, analytics) while publishing and every cron only look at
-// status='connected'. import-channel-token upserts on workspace+provider+
-// external id, so reconnecting revives the same row and its posts.
-//
-// POST { workspace_id, provider, external_id? }
-// Without external_id, removes ALL rows of that provider in the workspace
+// POST { workspace_id, provider, external_id?, mode?, dry_run? }
+// Without external_id, acts on ALL rows of that provider in the workspace
 // (cleanup path when device tokens are already gone).
-// → 200 { removed: boolean }
+//
+// mode 'revoke' (default) REVOKES: the row keeps status='revoked' so post cards
+// and analytics keep their destination while publishing and every cron only
+// look at status='connected'. import-channel-token upserts on workspace+
+// provider+external id, so reconnecting revives the same row and its posts.
+// This is the safe path for repairing a channel (expired token, new scopes).
+//
+// mode 'purge' FORGETS the account: purge_channel_data() removes the channel
+// row, its destinations, stats, comments, messages, queue jobs and Vault
+// secrets in one transaction, so the workspace looks as if the account was
+// never connected. Media and posts with another destination survive.
+//
+// dry_run: true runs no writes and returns the exact counts a purge would
+// remove, for the confirmation dialog.
+// → 200 { removed: boolean, purged?: boolean, counts?: Counts }
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -35,6 +41,25 @@ const CORS: Record<string, string> = {
 
 function bad(msg: string, status = 400): Response {
   return Response.json({ error: msg }, { status, headers: CORS });
+}
+
+// Shape returned to the confirmation dialog; kept in sync with
+// public.channel_purge_counts().
+const COUNT_KEYS = [
+  "targets", "scheduled", "posts", "comments", "messages", "conversations", "stats",
+] as const;
+type Counts = Record<(typeof COUNT_KEYS)[number], number>;
+
+function zeroCounts(): Counts {
+  return { targets: 0, scheduled: 0, posts: 0, comments: 0, messages: 0, conversations: 0, stats: 0 };
+}
+
+function addCounts(acc: Counts, data: unknown): void {
+  if (!data || typeof data !== "object") return;
+  for (const k of COUNT_KEYS) {
+    const v = (data as Record<string, unknown>)[k];
+    if (typeof v === "number") acc[k] += v;
+  }
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -69,6 +94,8 @@ serve(async (req: Request): Promise<Response> => {
   const provider = body["provider"];
   const external_id =
     typeof body["external_id"] === "string" && body["external_id"] ? body["external_id"] : null;
+  const mode = body["mode"] === "purge" ? "purge" : "revoke";
+  const dryRun = body["dry_run"] === true;
   if (typeof workspace_id !== "string" || !workspace_id) return bad("workspace_id required.");
   if (typeof provider !== "string" || !PROVIDERS.has(provider)) return bad("Unknown provider.");
 
@@ -97,8 +124,38 @@ serve(async (req: Request): Promise<Response> => {
   const { data: rows } = await query;
   if (!rows || rows.length === 0) return Response.json({ removed: false }, { headers: CORS });
 
-  // Collect secret ids BEFORE the token row is dropped.
   const ids = rows.map((r: { id: string }) => r.id);
+
+  // Preview for the confirmation dialog: exact counts, no writes.
+  if (dryRun) {
+    const counts = zeroCounts();
+    for (const id of ids) {
+      const { data, error } = await admin.rpc("channel_purge_counts", { p_channel: id });
+      if (error) return bad(`Could not read the account data: ${error.message}`, 500);
+      addCounts(counts, data);
+    }
+    return Response.json({ removed: false, counts }, { headers: CORS });
+  }
+
+  // Forget the account entirely: one transaction per channel row.
+  if (mode === "purge") {
+    const counts = zeroCounts();
+    let any = false;
+    for (const id of ids) {
+      const { data, error } = await admin.rpc("purge_channel_data", {
+        p_channel: id,
+        p_workspace: workspace_id,
+      });
+      if (error) return bad(`Could not delete the account data: ${error.message}`, 500);
+      if (data && typeof data === "object" && (data as { removed?: unknown }).removed === true) {
+        any = true;
+      }
+      addCounts(counts, data);
+    }
+    return Response.json({ removed: any, purged: true, counts }, { headers: CORS });
+  }
+
+  // Default: revoke. Collect secret ids BEFORE the token row is dropped.
   const { data: toks } = await admin
     .from("channel_tokens")
     .select("access_token_secret_id, refresh_token_secret_id")

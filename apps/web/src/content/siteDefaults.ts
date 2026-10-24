@@ -68,7 +68,7 @@ function publishBlocks(): B[] {
       { q: 'Do I need my phone nearby for posts to go out?', a: 'No. Publishing runs on the cloud worker, not your device. Schedule from anywhere and close the app. Posts still ship on time.' },
       { q: 'Can I publish immediately instead of scheduling?', a: 'Yes. Post now and schedule later live in the same composer with the same channels, previews and results.' },
       { q: 'What happens if a platform is down at my slot?', a: 'That channel reports failed in the queue while the rest go out normally. Fix the connection and re-queue just the failed channel.' },
-      { q: 'What happens if I disconnect a channel with posts queued?', a: 'Its queued items pause instead of failing. Reconnect and they resume. Nothing is lost.' },
+      { q: 'What happens if I disconnect a channel with posts queued?', a: 'Its queued items pause instead of failing. Reconnect and they resume. Disconnecting loses nothing; only the separate Delete data action removes the account and the history we stored for it.' },
       { q: 'How fast does publishing happen?', a: 'The worker ships every channel inside about a minute of the scheduled time, and each result lands back in the queue.' },
     ]),
   ];

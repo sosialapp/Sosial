@@ -296,7 +296,8 @@ export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
  * flag clear. Never throws, the toggle must always move. Pass the
  * pre-clear snapshot when called from a disconnect handler (avoids a
  * load-vs-clear race on SecureStore).
- */export async function disableCloudChannel(key: CloudChannelKey, snapshot?: MetaState): Promise<void> {
+ */
+export async function disableCloudChannel(key: CloudChannelKey, snapshot?: MetaState, mode: 'revoke' | 'purge' = 'revoke'): Promise<void> {
   try {
     const session = await currentSession();
     const meta = snapshot ?? (await loadMetaState());
@@ -306,15 +307,35 @@ export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
         workspace_id: session.workspace.id,
         provider: payload.provider,
         external_id: payload.external_id,
+        mode,
       });
     } else if (session) {
       // Tokens already gone (disconnect cleared first), provider-wide sweep.
-      await removeChannelToken({ workspace_id: session.workspace.id, provider: key });
+      await removeChannelToken({ workspace_id: session.workspace.id, provider: key, mode });
     }
   } catch {
     // server cleanup is best-effort; the flag still clears below
   }
   await setCloudChannel(key, false);
+}
+
+/**
+ * Delete data for one account: purges the cloud channel AND the history the
+ * cloud kept for it (posts, scheduled items, stats, comments, messages),
+ * keeping the workspace media library. Precise external id when known so a
+ * sibling account on the same provider is never touched. Throws on failure:
+ * unlike a disconnect this must not silently claim success.
+ */
+export async function purgeCloudChannelAccount(account: ConnectedAccount): Promise<void> {
+  const session = await currentSession();
+  if (!session) throw new Error('Sign in to Sosial Cloud first (Account tab), deleting needs your workspace.');
+  const externalId = accountExternalId(account);
+  await removeChannelToken({
+    workspace_id: session.workspace.id,
+    provider: account.provider,
+    ...(externalId ? { external_id: externalId } : {}),
+    mode: 'purge',
+  });
 }
 
 /**

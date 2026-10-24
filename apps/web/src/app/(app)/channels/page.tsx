@@ -70,6 +70,7 @@ export default async function ChannelsPage({
 
   // Disconnected accounts are revoked, not deleted: the row stays so old posts
   // keep their destination, but it is no longer a connected account to show.
+  // (Delete data is the separate opt-in path that removes the row for good.)
   const visibleChannels = channels.filter((c) => c.status !== 'revoked');
 
   const missingAvatars = visibleChannels.filter(
@@ -100,8 +101,9 @@ export default async function ChannelsPage({
       </div>
 
       <p className="mx-auto w-full max-w-2xl px-6 py-6 text-xs text-faint">
-        Only the team owner can disconnect an account here, its tokens are deleted from the vault.
-        Members see the accounts they are assigned on the Team page.
+        Owners and admins can disconnect an account here: disconnecting deletes its tokens from the
+        vault and pauses anything scheduled for it, while Delete data also erases the history Sosial
+        kept for it. Members see the accounts they are assigned on the Team page.
       </p>
     </div>
   );

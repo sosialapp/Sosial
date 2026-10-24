@@ -922,6 +922,7 @@ export default function ConnectPanel({
                             workspaceId={workspaceId}
                             provider={c.provider}
                             externalId={c.external_id}
+                            label={accountName(c)}
                           />
                         ) : null}
                       </div>

@@ -7,7 +7,7 @@ import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount, onAccountsChanged } from '../utils/metaStore';
 import { canConnectProvider } from '../utils/plans';
-import { accountName, accountAvatar, accountExpired, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
+import { accountName, accountAvatar, accountExpired, accountExternalId, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
 import {
   loginFacebook, exchangeFacebookCode, fetchPages, pickPage, FbPage,
   loginInstagram, exchangeInstagramCode, fetchInstagramProfile,
@@ -34,7 +34,8 @@ import { loginPinterest, completePinLogin } from '../utils/pinAuth';
 import { PIN_CLIENT_ID } from '../utils/pinConfig';
 import { listPinBoards, PinBoard } from '../utils/pinPublish';
 import { loadCloudTeam } from '../utils/teamCloud';
-import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount, lastPullSummary } from '../utils/cloudChannels';
+import { disableCloudChannel, syncCloudChannels, pullCloudChannels, removeCloudChannelAccount, purgeCloudChannelAccount, setCloudChannel, lastPullSummary } from '../utils/cloudChannels';
+import { dropLocalChannel, requestCloudPostSync } from '../utils/cloudPosts';
 import { activeWorkspaceId } from '../utils/activeWorkspace';
 import { channelPool } from '../utils/entitlement';
 import { currentSession, getTeamAvatar, teamAvatarSignedUrl, callEdgeFunction } from '../utils/supabase';
@@ -409,6 +410,22 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     }
   };
 
+  /** Local row + picker cleanup shared by the disconnect and delete paths. */
+  const dropAccountLocally = async (account: ConnectedAccount) => {
+    setAccounts(await removeAccount(account.id));
+    setOpenProvider(null);
+    if (account.provider === 'facebook') setPages([]);
+    if (account.provider === 'pinterest') setPinBoards(null);
+    if (account.provider === 'linkedin') setLiOrgs([]);
+  };
+
+  /**
+   * Two-path removal. Disconnect (revoke) is the default: cloud tokens are
+   * deleted and scheduled posts pause, everything Sosial stored is kept.
+   * Delete data is destructive: it also erases the posts, stats, comments and
+   * messages the cloud kept for the account. Posts already live on the
+   * platform itself are never touched.
+   */
   const disconnectAccount = async (account: ConnectedAccount) => {
     if (isCloudOnly(account)) {
       // Placeholder only, the live channel belongs to another device, so
@@ -417,15 +434,67 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setAccounts(await removeAccount(account.id));
       return;
     }
-    // Disconnect revokes the cloud copy too, provider-wide sweep when it's the
-    // last account (precise external_id removal lands with Slice 4).
+    const name = accountName(account) ?? account.provider;
+    Alert.alert(
+      `Disconnect ${name}?`,
+      'Disconnect stops publishing and keeps everything Sosial already saved for this account. Delete data also erases its posts, scheduled items, stats, comments and messages. Posts already live on the platform are never touched.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete data', style: 'destructive', onPress: () => confirmDeleteData(account) },
+        { text: 'Disconnect', onPress: () => void revokeAccount(account) },
+      ],
+    );
+  };
+
+  const revokeAccount = async (account: ConnectedAccount) => {
+    // Revoke the cloud copy too, provider-wide sweep when it's the last
+    // account of that provider.
     const remaining = accounts.filter((a) => a.provider === account.provider && a.id !== account.id);
     if (remaining.length === 0) void disableCloudChannel(account.provider, meta);
-    setAccounts(await removeAccount(account.id));
-    setOpenProvider(null);
-    if (account.provider === 'facebook') setPages([]);
-    if (account.provider === 'pinterest') setPinBoards(null);
-    if (account.provider === 'linkedin') setLiOrgs([]);
+    await dropAccountLocally(account);
+  };
+
+  const confirmDeleteData = (account: ConnectedAccount) => {
+    const name = accountName(account) ?? account.provider;
+    Alert.alert(
+      `Delete ${name}'s data?`,
+      'This permanently erases the posts, scheduled items, stats, comments and messages Sosial stored for this account, then disconnects it. Your media library stays. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete data', style: 'destructive', onPress: () => void deleteAccountData(account) },
+      ],
+    );
+  };
+
+  const deleteAccountData = async (account: ConnectedAccount) => {
+    const externalId = accountExternalId(account);
+    const remaining = accounts.filter((a) => a.provider === account.provider && a.id !== account.id);
+    // Without a per-account id the cloud can only sweep the whole provider,
+    // which would erase a sibling account's history too. Refuse instead.
+    if (!externalId && remaining.length > 0) {
+      Alert.alert(
+        'Remove the others first',
+        `Sosial can't tell your ${account.provider} accounts apart in the cloud, so deleting this one would also erase the history of the others. Disconnect them first, then delete the data here.`,
+      );
+      return;
+    }
+    setBusy('Deleting data…');
+    try {
+      await purgeCloudChannelAccount(account);
+    } catch (e: any) {
+      setBusy(null);
+      Alert.alert('Failed', e?.message ?? 'Could not delete the account data.');
+      return;
+    }
+    try {
+      await dropLocalChannel(account.provider, externalId);
+      if (remaining.length === 0) await setCloudChannel(account.provider, false);
+    } catch {
+      // local cleanup is best-effort; the cloud purge already happened
+    }
+    await dropAccountLocally(account);
+    setBusy(null);
+    void requestCloudPostSync(0);
   };
 
   /**
@@ -1734,7 +1803,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                           ) : (
                             !cloudUser || isManager ? (
                             <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7} style={s.discBtn}>
-                              <Text style={s.discT}>Remove</Text>
+                              <Text style={s.discT}>Disconnect</Text>
                             </TouchableOpacity>
                             ) : null
                           )}

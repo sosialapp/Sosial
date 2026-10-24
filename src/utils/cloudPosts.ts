@@ -1067,6 +1067,51 @@ let lastPullAt = 0;
 let pulling: Promise<PullPostsResult> | null = null;
 
 /**
+ * Purge support: strip a disconnected-and-erased channel from the device's
+ * local posts. The server already removed the channel's destinations (and any
+ * post that only went there), so this mirrors that locally without writing to
+ * the cloud again: drop the channel key, and that account id when the channel
+ * still has other accounts, from every local post; delete the posts left with
+ * no destination. Media files stay on the device (same as the library).
+ */
+export async function dropLocalChannel(provider: string, accountId?: string): Promise<{ removed: number; stripped: number }> {
+  const key = provider.toLowerCase();
+  let removed = 0;
+  let stripped = 0;
+  for (const p of await loadManagedPosts()) {
+    const platforms = (p.platforms ?? []).map((x) => String(x).toLowerCase());
+    if (!platforms.includes(key)) continue;
+    const ids = asIdList((p.accountIds ?? {})[key]);
+    // Another account on this channel still needs the post: only drop this id.
+    if (accountId && ids.length > 0 && ids.some((id) => id !== accountId)) {
+      p.accountIds = { ...(p.accountIds ?? {}), [key]: ids.filter((id) => id !== accountId) };
+      await saveManagedPostLocal(p);
+      stripped += 1;
+      continue;
+    }
+    const remaining = (p.platforms ?? []).filter((x) => String(x).toLowerCase() !== key);
+    if (remaining.length === 0) {
+      await deleteManagedPost(p.id);
+      removed += 1;
+      continue;
+    }
+    p.platforms = remaining;
+    if (p.accountIds) { const { [key]: _a, ...rest } = p.accountIds; p.accountIds = rest; }
+    if (p.platformTypes) {
+      const rest = { ...(p.platformTypes as Record<string, unknown>) };
+      delete rest[key];
+      p.platformTypes = rest as typeof p.platformTypes;
+    }
+    if (p.channelErr) { const { [key]: _e, ...rest } = p.channelErr; p.channelErr = rest; }
+    if (p.remoteIds) { const { [key]: _r, ...rest } = p.remoteIds; p.remoteIds = rest; }
+    if (p.retryAfter) { const { [key]: _w, ...rest } = p.retryAfter; p.retryAfter = rest; }
+    await saveManagedPostLocal(p);
+    stripped += 1;
+  }
+  return { removed, stripped };
+}
+
+/**
  * Single-flight, throttled pull. The app shell and the composer sweep both
  * ask for post sync (launch, foreground, tab switch); this guarantees one
  * run at a time and skips redundant passes, which is what made launch feel
