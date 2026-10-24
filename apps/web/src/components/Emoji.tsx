@@ -54,11 +54,14 @@ export function EmojiButton({
   onPick,
   align = 'bottom',
   className,
+  label,
 }: {
   onPick: (emoji: string) => void;
   /** Preferred opening direction when both fit. */
   align?: 'top' | 'bottom';
   className?: string;
+  /** Optional text beside the icon (hidden on phones). */
+  label?: string;
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -115,6 +118,7 @@ export function EmojiButton({
         }
       >
         <Smile className="h-4 w-4" aria-hidden="true" />
+        {label ? <span className="hidden sm:inline">{label}</span> : null}
       </button>
       {open && typeof document !== 'undefined'
         ? createPortal(

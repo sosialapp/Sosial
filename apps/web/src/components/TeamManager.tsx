@@ -121,6 +121,7 @@ export default function TeamManager({
   const [err, setErr] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(members.length <= 1);
 
   const [assigning, setAssigning] = useState<string | null>(null);
   const [gAll, setGAll] = useState(true);
@@ -392,62 +393,50 @@ export default function TeamManager({
   /* ------------------------------ team identity ------------------------------ */
 
   const identity = (
-    <section className="card overflow-hidden" aria-label={t('tmTeamNameAria')}>
-      <div className="h-16 bg-gradient-to-br from-accent/60 via-accent-soft to-transparent" aria-hidden="true" />
-      <div className="-mt-9 px-5 pb-5">
-        <div className="flex items-end gap-3">
-          <span className="relative shrink-0">
-            {teamAvatarUrl && !teamAvatarFailed ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={teamAvatarUrl}
-                alt={t('tmTeamPicture')}
-                onError={() => setTeamAvatarFailed(true)}
-                className="h-[72px] w-[72px] rounded-[22px] border-4 border-card object-cover"
-              />
-            ) : (
-              <span className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px] border-4 border-card bg-ink font-display text-2xl font-extrabold text-bone">
-                {(draftName.trim() || workspaceName || 'T')[0].toUpperCase()}
-              </span>
-            )}
-            {avatarBusy ? (
-              <span className="absolute inset-1 flex items-center justify-center rounded-[18px] bg-black/40" aria-hidden="true">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              </span>
-            ) : null}
-            {canManage ? (
-              <label
-                className="absolute -right-1 -bottom-1 grid h-7 w-7 cursor-pointer place-items-center rounded-full border-2 border-card bg-ink text-bone transition hover:scale-105"
-                title={teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}
-              >
-                <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="sr-only">{teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = '';
-                    if (f) void changeTeamAvatar(f);
-                  }}
-                />
-              </label>
-            ) : null}
+    <section className="card flex flex-wrap items-center gap-4 p-4 sm:p-5" aria-label={t('tmTeamNameAria')}>
+      <span className="relative shrink-0">
+        {teamAvatarUrl && !teamAvatarFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={teamAvatarUrl}
+            alt={t('tmTeamPicture')}
+            onError={() => setTeamAvatarFailed(true)}
+            className="h-14 w-14 rounded-2xl object-cover ring-1 ring-line"
+          />
+        ) : (
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink font-display text-xl font-extrabold text-bone">
+            {(draftName.trim() || workspaceName || 'T')[0].toUpperCase()}
           </span>
-          {canManage && teamAvatarUrl ? (
-            <button
-              type="button"
-              onClick={() => void removeTeamAvatar()}
-              className="mb-1 rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
-            >
-              {t('tmRemove')}
-            </button>
-          ) : null}
-        </div>
+        )}
+        {avatarBusy ? (
+          <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40" aria-hidden="true">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+          </span>
+        ) : null}
+        {canManage ? (
+          <label
+            className="absolute -right-1.5 -bottom-1.5 grid h-6 w-6 cursor-pointer place-items-center rounded-full border-2 border-card bg-ink text-bone transition hover:scale-105"
+            title={teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}
+          >
+            <Camera className="h-3 w-3" aria-hidden="true" />
+            <span className="sr-only">{teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) void changeTeamAvatar(f);
+              }}
+            />
+          </label>
+        ) : null}
+      </span>
 
+      <div className="min-w-0 flex-1">
         {editingName ? (
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="flex max-w-md flex-col gap-2 sm:flex-row">
             <input
               ref={nameRef}
               value={draftName}
@@ -461,13 +450,13 @@ export default function TeamManager({
               }}
               placeholder={t('tmTeamPh')}
               aria-label={t('tmTeamNameAria')}
-              className="field min-w-0"
+              className="field min-w-0 flex-1"
             />
             <div className="flex gap-2">
-              <button type="button" disabled={busy} onClick={() => void saveName()} className="btn btn-primary flex-1">
+              <button type="button" disabled={busy} onClick={() => void saveName()} className="btn btn-primary btn-sm">
                 {busy ? t('tmSaving') : t('tmSave')}
               </button>
-              <button type="button" disabled={busy} onClick={cancelNameEdit} className="btn flex-1">
+              <button type="button" disabled={busy} onClick={cancelNameEdit} className="btn btn-sm">
                 {t('tmCancel')}
               </button>
             </div>
@@ -478,47 +467,41 @@ export default function TeamManager({
             onClick={startNameEdit}
             title={t('tmRenameTeam')}
             aria-label={t('tmRenameTeam')}
-            className="group mt-3 flex max-w-full items-center gap-2 rounded-lg text-left"
+            className="group flex max-w-full items-center gap-2 rounded-lg text-left"
           >
-            <span className="truncate font-display text-2xl font-extrabold tracking-tight">{workspaceName}</span>
-            <Pencil className="h-4 w-4 shrink-0 text-faint transition group-hover:text-ink" aria-hidden="true" />
+            <span className="truncate font-display text-xl font-extrabold tracking-tight">{workspaceName}</span>
+            <Pencil className="h-3.5 w-3.5 shrink-0 text-faint transition group-hover:text-ink" aria-hidden="true" />
           </button>
         ) : (
-          <p className="mt-3 truncate font-display text-2xl font-extrabold tracking-tight">{workspaceName}</p>
+          <p className="truncate font-display text-xl font-extrabold tracking-tight">{workspaceName}</p>
         )}
-
-        {avatarMsg ? <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#8fd0a0]">{avatarMsg}</p> : null}
-
-        <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-          {(
-            [
-              [members.length, t('tmMembersLbl')],
-              [leads, t('tmLeadsLbl')],
-              [invites.length, t('tmPendingShort')],
-            ] as const
-          ).map(([n, label]) => (
-            <div key={label} className="rounded-2xl bg-surface px-2 py-2.5">
-              <dd className="font-display text-xl font-extrabold tabular-nums leading-none">{n}</dd>
-              <dt className="mt-1 truncate text-[11px] font-bold text-muted">{label}</dt>
-            </div>
-          ))}
-        </dl>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+          <span>
+            <b className="font-bold text-ink">{members.length}</b> {t('tmMembersLbl').toLowerCase()}
+          </span>
+          <span>
+            <b className="font-bold text-ink">{leads}</b> {t('tmLeadsLbl').toLowerCase()}
+          </span>
+          <span>
+            <b className="font-bold text-ink">{invites.length}</b> {t('tmPendingShort').toLowerCase()}
+          </span>
+          {canManage && teamAvatarUrl ? (
+            <button type="button" onClick={() => void removeTeamAvatar()} className="font-bold text-faint transition hover:text-[#9F2F2D]">
+              {t('tmRemove')} photo
+            </button>
+          ) : null}
+        </p>
+        {avatarMsg ? <p className="mt-1 text-xs font-bold text-[#346538] dark:text-[#8fd0a0]">{avatarMsg}</p> : null}
       </div>
     </section>
   );
 
   /* -------------------------------- invite -------------------------------- */
 
-  const inviteCard = canManage ? (
-    <section className="card p-5" aria-label={t('tmInviteTeammate')}>
-      <div className="flex items-center gap-2.5">
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-on-accent">
-          <UserPlus className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <p className="font-display text-base font-extrabold tracking-tight">{t('tmInviteTeammate')}</p>
-      </div>
-      <form onSubmit={invite} className="mt-4 space-y-4">
-        <div className="relative">
+  const invitePanel = canManage && inviteOpen ? (
+    <form onSubmit={invite} className="space-y-3 border-b border-line bg-surface/50 px-5 py-4" aria-label={t('tmInviteTeammate')}>
+      <div className="flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="relative min-w-0 flex-1">
           <Mail className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-faint" aria-hidden="true" />
           <input
             value={email}
@@ -528,69 +511,61 @@ export default function TeamManager({
             autoCapitalize="none"
             className="field !pl-10"
             aria-label={t('tmEmailAria')}
+            autoFocus
           />
         </div>
-        <div>
-          <p className="mb-2 text-xs font-bold text-muted">{t('tmRole')}</p>
-          <SegmentedPills
-            ariaLabel={t('tmRole')}
-            value={role}
-            onChange={setRole}
-            buttonClassName="flex-1"
-            options={[
-              { value: 'member', label: t('roleMember') },
-              { value: 'admin', label: t('roleAdmin') },
-            ]}
-          />
-        </div>
-        <div>
-          <p className="mb-2 text-xs font-bold text-muted">{t('tmAccountsFor')}</p>
-          <ChannelScopePills
-            channels={channels}
-            all={inviteAll}
-            selected={inviteSel}
-            onChange={(all, sel) => {
-              setInviteAll(all);
-              setInviteSel(sel);
-            }}
-          />
-          {channels.length === 0 ? <p className="mt-2 text-xs text-muted">{t('tmNoChannelsYet')}</p> : null}
-        </div>
-        {inviteLink ? (
-          <div className="rounded-2xl bg-surface p-3 text-sm">
-            <p className="font-bold">{t('tmAlreadyOnSosial')}</p>
-            <p className="mt-1 break-all text-xs text-muted">{inviteLink}</p>
-            <button
-              type="button"
-              onClick={() => void navigator.clipboard?.writeText(inviteLink)}
-              className="btn btn-ghost mt-2"
-            >
-              <Link2 className="h-4 w-4" aria-hidden="true" />
-              {t('tmCopyLink')}
-            </button>
-          </div>
-        ) : null}
-        <button type="submit" disabled={busy} className="btn btn-primary w-full justify-center">
+        <SegmentedPills
+          ariaLabel={t('tmRole')}
+          value={role}
+          onChange={setRole}
+          className="shrink-0"
+          options={[
+            { value: 'member', label: t('roleMember') },
+            { value: 'admin', label: t('roleAdmin') },
+          ]}
+        />
+        <button type="submit" disabled={busy} className="btn btn-primary shrink-0 justify-center">
           {busy ? t('tmSending') : t('tmSendInvite')}
         </button>
-      </form>
-    </section>
-  ) : (
-    <p className="card p-5 text-sm leading-relaxed text-muted">{t('tmMemberOnly')}</p>
-  );
+      </div>
+      <div>
+        <p className="mb-2 text-xs font-bold text-muted">{t('tmAccountsFor')}</p>
+        <ChannelScopePills
+          channels={channels}
+          all={inviteAll}
+          selected={inviteSel}
+          onChange={(all, sel) => {
+            setInviteAll(all);
+            setInviteSel(sel);
+          }}
+        />
+        {channels.length === 0 ? <p className="mt-2 text-xs text-muted">{t('tmNoChannelsYet')}</p> : null}
+      </div>
+      {inviteLink ? (
+        <div className="rounded-2xl bg-card p-3 text-sm ring-1 ring-line">
+          <p className="font-bold">{t('tmAlreadyOnSosial')}</p>
+          <p className="mt-1 break-all text-xs text-muted">{inviteLink}</p>
+          <button type="button" onClick={() => void navigator.clipboard?.writeText(inviteLink)} className="btn btn-ghost btn-sm mt-2">
+            <Link2 className="h-4 w-4" aria-hidden="true" />
+            {t('tmCopyLink')}
+          </button>
+        </div>
+      ) : null}
+    </form>
+  ) : null;
 
   /* ------------------------------- pending -------------------------------- */
 
   const pending =
     invites.length > 0 ? (
-      <section className="card p-5" aria-label={t('tmPendingInvites')}>
-        <p className="font-display text-base font-extrabold tracking-tight">
-          {t('tmPendingInvites')} <span className="text-faint">· {invites.length}</span>
+      <div className="border-t border-line">
+        <p className="bg-surface/50 px-5 py-2 text-[11px] font-bold uppercase tracking-wide text-muted">
+          {t('tmPendingInvites')} · {invites.length}
         </p>
-        <ul className="mt-3 space-y-2">
+        <ul className="divide-y divide-line-soft">
           {invites.map((inv) => (
-            <li key={inv.id} className="flex items-center gap-3 rounded-2xl border border-dashed border-line p-2.5">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface text-faint">
+            <li key={inv.id} className="flex items-center gap-3 px-5 py-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-dashed border-line text-faint">
                 <Mail className="h-4 w-4" aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
@@ -636,18 +611,32 @@ export default function TeamManager({
             </li>
           ))}
         </ul>
-      </section>
+      </div>
     ) : null;
 
   /* ------------------------------- members -------------------------------- */
 
   const roster = (
     <section className="card overflow-hidden" aria-label={t('tmMembersLbl')}>
-      <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">
         <p className="font-display text-base font-extrabold tracking-tight">
           {t('tmMembersLbl')} <span className="text-faint">· {members.length}</span>
         </p>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={() => setInviteOpen((v) => !v)}
+            aria-expanded={inviteOpen}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-bold transition ${
+              inviteOpen ? 'bg-surface text-ink' : 'bg-ink text-bone hover:opacity-90'
+            }`}
+          >
+            {inviteOpen ? <X className="h-4 w-4" aria-hidden="true" /> : <UserPlus className="h-4 w-4" aria-hidden="true" />}
+            {inviteOpen ? t('tmCancel') : t('tmInviteTeammate')}
+          </button>
+        ) : null}
       </div>
+      {invitePanel}
       <ul className="divide-y divide-line-soft">
         {members.map((m) => {
           const self = m.user_id === myUserId;
@@ -780,11 +769,13 @@ export default function TeamManager({
           );
         })}
       </ul>
+      {pending}
+      {!canManage ? <p className="border-t border-line px-5 py-3 text-xs leading-relaxed text-muted">{t('tmMemberOnly')}</p> : null}
     </section>
   );
 
-  // Desktop: roster on the left, team card / invite / pending on the right.
-  // Phone: team card, then the roster, then invite and pending.
+  // One full-width flow: team strip, then the members card (invite panel and
+  // pending invites live inside it), so no column is left half empty.
   return (
     <div className="space-y-4">
       {err ? (
@@ -792,22 +783,8 @@ export default function TeamManager({
           {err}
         </p>
       ) : null}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-4 lg:order-2">
-          {identity}
-          <div className="hidden space-y-4 lg:block">
-            {inviteCard}
-            {pending}
-          </div>
-        </div>
-        <div className="min-w-0 space-y-4 lg:order-1">
-          {roster}
-          <div className="space-y-4 lg:hidden">
-            {inviteCard}
-            {pending}
-          </div>
-        </div>
-      </div>
+      {identity}
+      {roster}
     </div>
   );
 }

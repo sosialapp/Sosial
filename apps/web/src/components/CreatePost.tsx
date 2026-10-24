@@ -7,7 +7,7 @@ import ChannelAvatar from '@/components/ChannelAvatar';
 import SafeImg from '@/components/SafeImg';
 import PublishMonitor from '@/components/PublishMonitor';
 import { channelAvatar } from '@/lib/channelAvatar';
-import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
+import PostBox, { type MediaItem, type PostAuthor, type Segment } from '@/components/PostBox';
 import AiCard from '@/components/AiCard';
 import SendIcon from '@/components/SendIcon';
 import ArticleEditor from '@/components/ArticleEditor';
@@ -491,26 +491,20 @@ export default function CreatePost({
    * judge the CURRENT draft, picking them mid-compose is allowed so the
    * user sees exactly what's missing and fixes it in place.
    */
-  /** Who the composer writes as: the first picked account, like the face
-   *  beside a social compose box. Nothing picked yet shows a blank face. */
-  const composeAs = useMemo(() => {
-    const c = ready.find((x) => picked.includes(x.id));
-    if (!c) {
-      return {
-        name: '',
-        handle: null,
-        avatar: <span className="block h-10 w-10 rounded-full bg-surface ring-1 ring-line" aria-hidden="true" />,
-      };
-    }
-    const handle = c.handle ? `@${c.handle.replace(/^@+/, '')}` : null;
-    const extra = picked.length - 1;
-    return {
-      name: c.display_name?.trim() || providerMeta(c.provider).label,
-      handle: extra > 0 ? `${handle ?? ''}${handle ? ' ' : ''}+${extra}` : handle,
-      avatar: <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={40} />,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, picked]);
+  /** Every picked account, stacked in the composer header ("Posting to …"). */
+  const composeAs = useMemo<PostAuthor[]>(
+    () =>
+      ready
+        .filter((x) => picked.includes(x.id))
+        .map((c) => ({
+          id: c.id,
+          provider: c.provider,
+          avatar: channelAvatar(c.metadata),
+          // The network, not the account: several accounts often share one name.
+          name: providerMeta(c.provider).label,
+        })),
+    [ready, picked],
+  );
 
   const allReady = useMemo(() => {
     const totalMedia = segs.reduce((n, s) => n + s.media.length, 0);
@@ -1197,8 +1191,8 @@ export default function CreatePost({
                   placeholder={t('cpMindPh')}
                   limit={limit}
                   label={t('cpPostText')}
-                  author={composeAs}
-                  threaded={thread}
+                  authors={composeAs}
+                  partLabel={thread ? `1/${segs.length}` : undefined}
                 />
               )}
             </div>
@@ -1237,8 +1231,8 @@ export default function CreatePost({
                         rows={3}
                         limit={limit}
                         label={fill(t('hubIdeaThreadLbl'), { n: idx + 1 })}
-                        author={composeAs}
-                        threaded={idx < segs.length - 1}
+                        authors={composeAs}
+                        partLabel={`${idx + 1}/${segs.length}`}
                       />
                     </div>
                   );

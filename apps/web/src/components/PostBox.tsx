@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
-import { Image, ChevronDown, Film, X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Image as ImageIcon, ChevronDown, Film, Plus, X } from 'lucide-react';
 import { EmojiButton } from '@/components/Emoji';
+import ChannelAvatar from '@/components/ChannelAvatar';
 import SafeImg from '@/components/SafeImg';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
 import { useT } from '@/lib/i18n/client';
@@ -23,12 +24,20 @@ export interface Segment {
   media: MediaItem[];
 }
 
+/** An account the post goes out as (one face in the stack). */
+export interface PostAuthor {
+  id: string;
+  provider: string;
+  avatar?: string;
+  name: string;
+}
+
 /**
- * One composer box, laid out like writing a post on X or Threads: the
- * posting account's face on the left (with the thread line running down to
- * the next part), the text, media previewed the way the feed will show it
- * (hold + drag to rearrange), then the media / emoji tools and a ring
- * counter. Used for the first post, every thread part, and idea parts.
+ * One composer box. A header stacks the faces of every account the post goes
+ * to ("Posting to …"), then the text, then the media strip (compact tiles,
+ * hold + drag to rearrange, a + tile to add more), then a toolbar of labelled
+ * Media / Emoji buttons with a ring counter. Used for the first post, every
+ * thread part, and idea parts (which have no accounts, so no header).
  */
 export default function PostBox({
   seg,
@@ -40,8 +49,8 @@ export default function PostBox({
   rows = 5,
   limit,
   label,
-  author,
-  threaded = false,
+  authors,
+  partLabel,
 }: {
   seg: Segment;
   onChange: (body: string) => void;
@@ -52,16 +61,17 @@ export default function PostBox({
   rows?: number;
   limit: number;
   label: string;
-  /** Who this posts as: avatar on the rail, name above the text. */
-  author?: { name: string; handle?: string | null; avatar: ReactNode };
-  /** Draw the thread line from the avatar down toward the next part. */
-  threaded?: boolean;
+  /** Accounts the post goes to; omitted for ideas. Empty = none picked yet. */
+  authors?: PostAuthor[];
+  /** Thread part tag shown on the header's right ("2/4"). */
+  partLabel?: string;
 }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const t = useT(appMessages);
   const mediaBtnRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const dragFrom = useRef<number | null>(null);
   const over = seg.body.length > limit;
 
@@ -72,164 +82,214 @@ export default function PostBox({
     el.click();
   }
 
-  // Ring counter, the way social composers show it: fills as you type, turns
-  // amber near the limit and red past it, with the remaining count close in.
+  /** Emoji lands at the caret, not just at the end. */
+  function insertEmoji(emoji: string) {
+    const el = textRef.current;
+    if (!el) return onChange(seg.body + emoji);
+    const start = el.selectionStart ?? seg.body.length;
+    const end = el.selectionEnd ?? seg.body.length;
+    onChange(seg.body.slice(0, start) + emoji + seg.body.slice(end));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  }
+
+  // Ring counter: fills as you type, amber near the limit, red past it.
   const used = seg.body.length;
   const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
   const left = limit - used;
-  const ringTone = over ? '#E5484D' : left <= Math.max(20, limit * 0.1) ? '#F2A400' : 'var(--color-sky)';
-  const R = 9;
-  const C = 2 * Math.PI * R;
-  const many = seg.media.length > 1;
+  const near = left <= Math.max(20, limit * 0.1);
+  const ringTone = over ? '#E5484D' : near ? '#F2A400' : 'var(--color-ink)';
+  const R = 8;
+  const CIRC = 2 * Math.PI * R;
+
+  const stack = authors?.slice(0, 5) ?? [];
+  const extra = (authors?.length ?? 0) - stack.length;
+  const names = authors?.map((a) => a.name) ?? [];
+  const toLine =
+    names.length === 0
+      ? 'Pick accounts above'
+      : names.length <= 2
+        ? names.join(' & ')
+        : `${names.slice(0, 2).join(', ')} +${names.length - 2} more`;
+
+  const toolBtn =
+    'inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold text-soft transition hover:bg-surface hover:text-ink';
 
   return (
-    <div className="flex gap-3 rounded-2xl border border-line bg-card p-3 transition focus-within:border-ink/30 sm:p-4">
-      {author ? (
-        <div className="flex shrink-0 flex-col items-center">
-          {author.avatar}
-          {threaded ? <span className="mt-1.5 w-0.5 flex-1 rounded-full bg-line" aria-hidden="true" /> : null}
-        </div>
-      ) : null}
-      <div className="min-w-0 flex-1">
-        {author?.name ? (
-          <p className="flex min-w-0 items-baseline gap-1.5 leading-tight">
-            <span className="truncate text-[15px] font-bold text-ink">{author.name}</span>
-            {author.handle ? <span className="truncate text-sm text-muted">{author.handle}</span> : null}
-          </p>
-        ) : null}
-
-        <textarea
-          value={seg.body}
-          onChange={(e) => onChange(e.target.value)}
-          onPaste={(e) => {
-            const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
-              f.type.startsWith('image/') || f.type.startsWith('video/'),
-            );
-            if (files.length) {
-              e.preventDefault();
-              onAddFiles(files);
-            }
-          }}
-          placeholder={placeholder}
-          rows={rows}
-          aria-label={label}
-          className="mt-1 min-h-[96px] w-full resize-y bg-transparent text-base leading-relaxed text-ink placeholder:text-faint focus:outline-none sm:text-[15px]"
-        />
-
-        {/* Media as it will sit in the feed: one large, or a grid. Hold + drag to reorder. */}
-        {seg.media.length > 0 ? (
-          <div className={`mt-2 grid gap-1.5 ${many ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            {seg.media.map((f, i) => (
-              <span
-                key={`${f.assetId ?? f.file?.name ?? 'media'}-${i}`}
-                draggable
-                onDragStart={() => {
-                  dragFrom.current = i;
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  const from = dragFrom.current;
-                  if (from !== null && from !== i) {
-                    onReorderMedia(from, i);
-                    dragFrom.current = i;
-                  }
-                }}
-                onDragEnd={() => {
-                  dragFrom.current = null;
-                }}
-                className={`relative block cursor-zoom-in overflow-hidden rounded-2xl border border-line bg-surface ${
-                  many ? 'aspect-square' : 'max-h-[360px]'
-                }`}
-                title={t('pbEnlarge')}
-                onClick={() => {
-                  if (f.url) setLightbox(f);
-                }}
-              >
-                {!f.url ? (
-                  // Stored asset whose signed preview expired: keep the tile (and
-                  // the asset id) so saving still carries the media.
-                  <span className="flex h-full min-h-32 w-full items-center justify-center text-ink/40">
-                    {f.kind === 'image' ? <Image className="h-6 w-6" aria-hidden="true" /> : <Film className="h-6 w-6" aria-hidden="true" />}
-                  </span>
-                ) : f.kind === 'image' ? (
-                  <SafeImg
-                    src={f.url}
-                    alt=""
-                    className={`w-full object-cover ${many ? 'h-full' : 'max-h-[360px]'}`}
-                    fallback={
-                      <span className="flex h-full min-h-32 w-full items-center justify-center text-ink/40">
-                        <Image className="h-6 w-6" aria-hidden="true" />
-                      </span>
-                    }
-                  />
-                ) : (
-                  <video src={f.url} muted playsInline className={`w-full object-cover ${many ? 'h-full' : 'max-h-[360px]'}`} />
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveMedia(i);
-                  }}
-                  aria-label={t('pbRemoveMedia')}
-                  className="absolute top-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-black/65 text-white backdrop-blur-sm transition hover:bg-black/80"
+    <div className="overflow-hidden rounded-2xl border border-line bg-card transition focus-within:border-ink/35 focus-within:shadow-[0_0_0_3px_rgba(255,198,46,0.18)]">
+      {/* Who it goes out as: every picked account, stacked. */}
+      {authors ? (
+        <div className="flex items-center gap-2.5 border-b border-line-soft px-3.5 py-2.5">
+          {stack.length ? (
+            <span className="flex shrink-0 items-center">
+              {stack.map((a, i) => (
+                <span
+                  key={a.id}
+                  className="rounded-full ring-2 ring-card"
+                  style={{ marginLeft: i ? -9 : 0, zIndex: stack.length - i }}
+                  title={a.name}
                 >
-                  <X className="h-4 w-4" aria-hidden="true" />
-                </button>
-                {many ? (
-                  <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white" aria-hidden="true">
-                    {i + 1}
-                  </span>
-                ) : null}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="mt-2 flex items-center gap-0.5 border-t border-line-soft pt-2">
-          <button
-            type="button"
-            ref={mediaBtnRef}
-            onClick={() => setSourcesOpen(true)}
-            aria-label={t('pbAddMedia')}
-            title={t('pbAddMedia')}
-            className="flex h-8 items-center gap-0.5 rounded-full px-2 text-sky transition hover:bg-sky/10"
-          >
-            <Image className="h-[18px] w-[18px]" aria-hidden="true" />
-            <ChevronDown className="h-3 w-3" aria-hidden="true" />
-          </button>
-          <span className="text-sky [&_button]:rounded-full [&_button:hover]:bg-sky/10">
-            <EmojiButton align="top" onPick={(emoji) => onChange(seg.body + emoji)} />
-          </span>
-          <span className="flex-1" />
-          {used > 0 ? (
-            <span className="flex items-center gap-2" title={`${used} / ${limit}`}>
-              {left <= Math.max(20, limit * 0.1) ? (
-                <span className={`text-xs font-bold tabular-nums ${over ? 'text-[#E5484D]' : 'text-muted'}`}>{left}</span>
+                  <ChannelAvatar provider={a.provider} avatar={a.avatar} size={28} />
+                </span>
+              ))}
+              {extra > 0 ? (
+                <span className="-ml-2 grid h-7 min-w-7 place-items-center rounded-full bg-surface px-1.5 text-[10px] font-extrabold text-muted ring-2 ring-card">
+                  +{extra}
+                </span>
               ) : null}
-              <svg viewBox="0 0 24 24" className="h-6 w-6 -rotate-90" aria-hidden="true">
-                <circle cx="12" cy="12" r={R} fill="none" stroke="var(--color-line)" strokeWidth="2.5" />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r={R}
-                  fill="none"
-                  stroke={ringTone}
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - ratio)}
-                  className="transition-[stroke-dashoffset] duration-200"
-                />
-              </svg>
-              <span className="sr-only">
-                {used} / {limit}
-              </span>
             </span>
           ) : (
-            <span className="text-[11px] tabular-nums text-faint">0 / {limit}</span>
+            <span className="h-7 w-7 shrink-0 rounded-full border border-dashed border-line" aria-hidden="true" />
           )}
+          <span className="min-w-0 flex-1 truncate text-xs">
+            <span className="text-faint">{names.length ? 'Posting to ' : ''}</span>
+            <span className={`font-bold ${names.length ? 'text-soft' : 'text-faint'}`}>{toLine}</span>
+          </span>
+          {partLabel ? <span className="shrink-0 text-[11px] font-bold text-faint">{partLabel}</span> : null}
         </div>
+      ) : null}
+
+      <textarea
+        ref={textRef}
+        value={seg.body}
+        onChange={(e) => onChange(e.target.value)}
+        onPaste={(e) => {
+          const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+            f.type.startsWith('image/') || f.type.startsWith('video/'),
+          );
+          if (files.length) {
+            e.preventDefault();
+            onAddFiles(files);
+          }
+        }}
+        placeholder={placeholder}
+        rows={rows}
+        aria-label={label}
+        className="block min-h-[110px] w-full resize-y bg-transparent px-4 pt-3 pb-2 text-base leading-relaxed text-ink placeholder:text-faint focus:outline-none sm:text-[15px]"
+      />
+
+      {/* Media strip: compact tiles, hold + drag to rearrange, + to add more. */}
+      {seg.media.length > 0 ? (
+        <div className="flex gap-2 overflow-x-auto px-4 pb-3">
+          {seg.media.map((f, i) => (
+            <span
+              key={`${f.assetId ?? f.file?.name ?? 'media'}-${i}`}
+              draggable
+              onDragStart={() => {
+                dragFrom.current = i;
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                const from = dragFrom.current;
+                if (from !== null && from !== i) {
+                  onReorderMedia(from, i);
+                  dragFrom.current = i;
+                }
+              }}
+              onDragEnd={() => {
+                dragFrom.current = null;
+              }}
+              className="group/tile relative block h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-xl bg-surface ring-1 ring-line"
+              title={t('pbEnlarge')}
+              onClick={() => {
+                if (f.url) setLightbox(f);
+              }}
+            >
+              {!f.url ? (
+                // Stored asset whose signed preview expired: keep the tile (and
+                // the asset id) so saving still carries the media.
+                <span className="flex h-full w-full items-center justify-center text-ink/40">
+                  {f.kind === 'image' ? <ImageIcon className="h-6 w-6" aria-hidden="true" /> : <Film className="h-6 w-6" aria-hidden="true" />}
+                </span>
+              ) : f.kind === 'image' ? (
+                <SafeImg
+                  src={f.url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  fallback={
+                    <span className="flex h-full w-full items-center justify-center text-ink/40">
+                      <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                    </span>
+                  }
+                />
+              ) : (
+                <>
+                  <video src={f.url} muted playsInline className="h-full w-full object-cover" />
+                  <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[9px] font-bold text-white" aria-hidden="true">
+                    Video
+                  </span>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveMedia(i);
+                }}
+                aria-label={t('pbRemoveMedia')}
+                className="absolute top-1 right-1 grid h-5 w-5 place-items-center rounded-full bg-black/65 text-white opacity-90 transition hover:bg-black/80 group-hover/tile:opacity-100"
+              >
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+              {seg.media.length > 1 && f.kind !== 'video' ? (
+                <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 text-[9px] font-bold text-white" aria-hidden="true">
+                  {i + 1}
+                </span>
+              ) : null}
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={() => setSourcesOpen(true)}
+            aria-label={t('pbAddMedia')}
+            className="grid h-20 w-20 shrink-0 place-items-center rounded-xl border border-dashed border-line text-faint transition hover:border-ink/40 hover:text-ink"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+
+      <div className="flex items-center gap-1 border-t border-line-soft px-2 py-1.5">
+        <button
+          type="button"
+          ref={mediaBtnRef}
+          onClick={() => setSourcesOpen(true)}
+          aria-label={t('pbAddMedia')}
+          title={t('pbAddMedia')}
+          className={toolBtn}
+        >
+          <ImageIcon className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Media</span>
+          <ChevronDown className="h-3 w-3 text-faint" aria-hidden="true" />
+        </button>
+        <EmojiButton align="top" onPick={insertEmoji} className={toolBtn} label="Emoji" />
+        <span className="flex-1" />
+        <span className="flex items-center gap-2 pr-1.5" title={`${used} / ${limit}`}>
+          {used > 0 && near ? (
+            <span className={`text-xs font-bold tabular-nums ${over ? 'text-[#E5484D]' : 'text-muted'}`}>{left}</span>
+          ) : (
+            <span className="text-[11px] tabular-nums text-faint">
+              {used} / {limit}
+            </span>
+          )}
+          <svg viewBox="0 0 20 20" className="h-5 w-5 -rotate-90" aria-hidden="true">
+            <circle cx="10" cy="10" r={R} fill="none" stroke="var(--color-line)" strokeWidth="2.5" />
+            <circle
+              cx="10"
+              cy="10"
+              r={R}
+              fill="none"
+              stroke={ringTone}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray={CIRC}
+              strokeDashoffset={CIRC * (1 - ratio)}
+              className="transition-[stroke-dashoffset] duration-200"
+            />
+          </svg>
+        </span>
       </div>
       <input
         ref={fileRef}

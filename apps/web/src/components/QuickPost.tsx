@@ -10,7 +10,7 @@ import { CAPABILITIES } from '@/lib/compat';
 import { channelAvatar } from '@/lib/channelAvatar';
 import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
-import { EmojiTextarea } from '@/components/Emoji';
+import { EmojiButton } from '@/components/Emoji';
 import { createPost } from '@/lib/posts';
 import { leadTimeMessage, minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
@@ -46,7 +46,9 @@ export default function QuickPost({
     (c) => c.status === 'connected' && !CAPABILITIES[c.provider]?.requiresMedia,
   );
   const [body, setBody] = useState('');
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [picked, setPicked] = useState<string[]>([]);
+  const pickedChannels = ready.filter((c) => picked.includes(c.id));
   const [mode, setMode] = useState<'now' | 'schedule'>('now');
   const [when, setWhen] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
@@ -300,17 +302,70 @@ export default function QuickPost({
               </button>
             </div>
           ) : null}
-          <EmojiTextarea
-            value={body}
-            onChange={(v) => {
-              setBody(v);
-              setDone(null);
-            }}
-            placeholder="What's on your mind?"
-            rows={3}
-            aria-label="Post text"
-            className="field mt-3 min-h-[84px] resize-y"
-          />
+          {/* Same box as the full composer: who it goes to, the text, emoji. */}
+          <div className="mt-3 overflow-hidden rounded-2xl border border-line bg-card transition focus-within:border-ink/35 focus-within:shadow-[0_0_0_3px_rgba(255,198,46,0.18)]">
+            <div className="flex items-center gap-2.5 border-b border-line-soft px-3.5 py-2.5">
+              {pickedChannels.length ? (
+                <span className="flex shrink-0 items-center">
+                  {pickedChannels.slice(0, 5).map((c, i) => (
+                    <span key={c.id} className="rounded-full ring-2 ring-card" style={{ marginLeft: i ? -9 : 0, zIndex: 5 - i }}>
+                      <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
+                    </span>
+                  ))}
+                  {pickedChannels.length > 5 ? (
+                    <span className="-ml-2 grid h-7 min-w-7 place-items-center rounded-full bg-surface px-1.5 text-[10px] font-extrabold text-muted ring-2 ring-card">
+                      +{pickedChannels.length - 5}
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
+                <span className="h-7 w-7 shrink-0 rounded-full border border-dashed border-line" aria-hidden="true" />
+              )}
+              <span className="min-w-0 flex-1 truncate text-xs">
+                {pickedChannels.length ? (
+                  <>
+                    <span className="text-faint">Posting to </span>
+                    <span className="font-bold text-soft">
+                      {pickedChannels.length <= 2
+                        ? pickedChannels.map((c) => providerMeta(c.provider).label).join(' & ')
+                        : `${pickedChannels
+                            .slice(0, 2)
+                            .map((c) => providerMeta(c.provider).label)
+                            .join(', ')} +${pickedChannels.length - 2} more`}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-bold text-faint">Pick accounts above</span>
+                )}
+              </span>
+            </div>
+            <textarea
+              ref={bodyRef}
+              value={body}
+              onChange={(e) => {
+                setBody(e.target.value);
+                setDone(null);
+              }}
+              placeholder="What's on your mind?"
+              rows={3}
+              aria-label="Post text"
+              className="block min-h-[84px] w-full resize-y bg-transparent px-4 pt-3 pb-2 text-base leading-relaxed text-ink placeholder:text-faint focus:outline-none sm:text-[15px]"
+            />
+            <div className="flex items-center gap-1 border-t border-line-soft px-2 py-1.5">
+              <EmojiButton
+                align="top"
+                label="Emoji"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold text-soft transition hover:bg-surface hover:text-ink"
+                onPick={(emoji) => {
+                  const el = bodyRef.current;
+                  const at = el?.selectionStart ?? body.length;
+                  setBody(body.slice(0, at) + emoji + body.slice(el?.selectionEnd ?? at));
+                }}
+              />
+              <span className="flex-1" />
+              <span className="pr-2 text-[11px] tabular-nums text-faint">{body.length} characters</span>
+            </div>
+          </div>
 
           {done ? <p className="mt-2 text-xs font-bold text-[#346538]">{done}</p> : null}
 
