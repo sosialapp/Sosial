@@ -10,6 +10,7 @@ import type { UsageSnapshot } from '@/lib/billing/usage';
 import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 interface EntitlementView {
   plan: PlanKey;
@@ -329,19 +330,16 @@ export default function BillingPanel({
       {/* ---- change plan ---- */}
       <section id="change-plan" className="card scroll-mt-24 p-5" aria-label={t('blChangePlan')}>
         <p className="eyebrow">{t('blChangePlan')}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={t('blIntervalAria')}>
-          {(['monthly', 'annual'] as const).map((i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setInterval(i)}
-              aria-pressed={interval === i}
-              className={`pill border ${interval === i ? 'border-ink bg-[#191512] text-white' : 'border-line bg-card text-soft'}`}
-            >
-              {i === 'monthly' ? t('blMonthly') : fill(t('blAnnualSave'), { n: annualSavingsPct('team') })}
-            </button>
-          ))}
-        </div>
+        <SegmentedPills
+          ariaLabel={t('blIntervalAria')}
+          className="mt-3 w-fit"
+          value={interval}
+          onChange={setInterval}
+          options={(['monthly', 'annual'] as const).map((i) => ({
+            value: i,
+            label: i === 'monthly' ? t('blMonthly') : fill(t('blAnnualSave'), { n: annualSavingsPct('team') }),
+          }))}
+        />
 
         <div className="mt-3 space-y-2">
           {PLAN_ORDER.filter((k) => k !== 'free').map((k) => {

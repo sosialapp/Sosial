@@ -81,9 +81,9 @@ export default async function TeamPage() {
     .sort((a, b) => (b.id === ctx.workspace.id ? 1 : 0) - (a.id === ctx.workspace.id ? 1 : 0));
 
   return (
-    <div className="w-full px-4 pt-6 sm:px-6">
-      <p className="eyebrow">{t('tmWorkspace')}</p>
-      <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{t('tmTeamH1')}</h1>
+    <div className="w-full pt-3 sm:px-2 sm:pt-4">
+      <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{t('tmTeamH1')}</h1>
+      <p className="mt-0.5 text-sm text-muted">{t('tmTeamSub')}</p>
       <TeamPicker
         current={{
           id: ctx.workspace.id,

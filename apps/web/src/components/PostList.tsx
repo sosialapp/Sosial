@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Check,
+  CircleAlert,
+  CircleCheck,
+  Clock3,
+  Hourglass,
+  PencilLine,
   Heart,
   MessageCircle,
   Pencil,
@@ -29,9 +34,11 @@ import { requiresTitle } from '@/lib/compat';
 import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import SocialPost from '@/components/SocialPost';
 import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 export type Tab = 'all' | 'queue' | 'drafts' | 'approvals' | 'sent' | 'failed';
 
@@ -112,6 +119,42 @@ function shortRel(iso: string | null, unscheduledLabel = 'unscheduled'): string 
   const d = Math.round(h / 24);
   if (d < 7) return `${d}d`;
   return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Feed time: "2h", "3d", "Mar 4" for the past; "in 2h", "Tue 9:00 AM" ahead. */
+function relTime(iso: string | null, unscheduledLabel = 'unscheduled'): string {
+  if (!iso) return unscheduledLabel;
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return '-';
+  if (at <= Date.now()) return shortRel(iso, unscheduledLabel);
+  const m = Math.round((at - Date.now()) / 60000);
+  if (m < 60) return `in ${Math.max(1, m)}m`;
+  if (m < 24 * 60) return `in ${Math.round(m / 60)}h`;
+  return new Date(at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/** The small line above a post, like a feed's "Pinned": what state it is in. */
+function statusContext(p: PostWithTargets, t: (k: string) => string) {
+  const label = statusMeta(p.status, t).label;
+  switch (p.status) {
+    case 'sent':
+      return { icon: <CircleCheck />, text: label, tone: 'muted' as const };
+    case 'partial':
+      return { icon: <CircleAlert />, text: label, tone: 'danger' as const };
+    case 'failed':
+      return { icon: <CircleAlert />, text: label, tone: 'danger' as const };
+    case 'queued':
+    case 'publishing':
+      return {
+        icon: <Clock3 />,
+        text: p.scheduled_at ? `${label} · ${formatDateTime(p.scheduled_at)}` : label,
+        tone: 'accent' as const,
+      };
+    case 'approval':
+      return { icon: <Hourglass />, text: label, tone: 'accent' as const };
+    default:
+      return { icon: <PencilLine />, text: label, tone: 'muted' as const };
+  }
 }
 
 /** Pill action for the card footer: icon + text label, so the action reads. */
@@ -207,6 +250,7 @@ function PreviewDialog({
   workspaceId,
   onClose,
   onEdit,
+  author,
 }: {
   parts: PostWithTargets[];
   avatars: Record<string, string>;
@@ -215,6 +259,8 @@ function PreviewDialog({
   workspaceId: string;
   onClose: () => void;
   onEdit: (() => void) | null;
+  /** The lead account, as the card shows it. */
+  author: { name: string; handle: string | null };
 }) {
   const [stats, setStats] = useState<Record<string, StatRow>>({});
   const t = useT(appMessages);
@@ -264,7 +310,16 @@ function PreviewDialog({
    *  photo/text post with no title simply shows its body. */
   const needsTitle = requiresTitle(targets.map((tg) => tg.provider));
   const hasBody = parts.some((p) => (p.body ?? '').trim().length > 0);
-  const media = parts.flatMap((p) => mediaOf(p));
+  /** Every sent channel's numbers summed, for the feed-style action bar. */
+  const totals = Object.values(stats).reduce(
+    (acc, r) => ({
+      comments: acc.comments + (r.comments ?? 0),
+      reposts: acc.reposts + (r.shares ?? 0),
+      likes: acc.likes + (r.likes ?? 0),
+      views: r.views == null ? acc.views : (acc.views ?? 0) + r.views,
+    }),
+    { comments: 0, reposts: 0, likes: 0, views: null as number | null },
+  );
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Post preview">
       <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
@@ -297,6 +352,41 @@ function PreviewDialog({
               ))}
             </div>
           ) : null}
+          {/* The post as a feed shows it: one entry per thread part, joined by
+              the thread line. Live numbers sit on the head's action bar. */}
+          <div className="mt-4 max-h-[60vh] overflow-y-auto pr-1">
+            {parts.map((p, i) => {
+              const tg = targets[0];
+              const pm = mediaOf(p);
+              return (
+                <SocialPost
+                  key={p.id}
+                  author={{
+                    name: author.name,
+                    handle: author.handle,
+                    provider: tg?.provider ?? 'x',
+                    avatar: tg ? avatars[tg.channel_id] : undefined,
+                  }}
+                  time={i === 0 ? relTime(head.sent_at ?? head.scheduled_at, t('unscheduled')) : undefined}
+                  title={i === 0 && (needsTitle || (head.title && !hasBody)) ? head.title || t('untitled') : null}
+                  body={p.body ?? ''}
+                  clamp={0}
+                  emptyLabel={t('noTextMedia')}
+                  badge={isChain ? <span className="text-xs font-bold text-faint">{i + 1}/{parts.length}</span> : undefined}
+                  media={pm
+                    .map((m) => ({
+                      id: m.id,
+                      kind: m.kind,
+                      src: m.kind === 'video' ? (m.signed_url ?? '') : (mediaThumbUrl(m) ?? ''),
+                      poster: m.thumb_url,
+                    }))
+                    .filter((m) => m.src)}
+                  metrics={i === 0 && sent ? totals : null}
+                  threaded={i < parts.length - 1}
+                />
+              );
+            })}
+          </div>
           {sent ? (
             <div className="mt-4 space-y-2 rounded-2xl border border-line-soft bg-bone/60 p-3">
               <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">{t('performance')}</p>
@@ -338,57 +428,6 @@ function PreviewDialog({
                       </div>
                     );
                   }),
-              )}
-            </div>
-          ) : null}
-          {/* Article channels (dev.to, WordPress…) carry a real headline, so
-              the title shows. A social post's body IS the post, so repeating
-              the title above it is noise; the title only stands in when there
-              is no body at all. */}
-          {needsTitle || (head.title && !hasBody) ? (
-            <p className="mt-3 font-display text-base font-extrabold tracking-tight">
-              {head.title || t('untitled')}
-            </p>
-          ) : null}
-          <div className="mt-2 max-h-64 space-y-3 overflow-y-auto">
-            {parts.map((p, i) => (
-              <div key={p.id}>
-                {isChain ? (
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">
-                    {fill(t('partOf'), { i: i + 1, n: parts.length })}
-                  </p>
-                ) : null}
-                {p.body ? (
-                  <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap break-words text-soft">
-                    {p.body}
-                  </p>
-                ) : null}
-              </div>
-            ))}
-          </div>
-          {media.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {media.map((m) =>
-                m.kind === 'video' ? (
-                  <video
-                    key={m.id}
-                    src={m.signed_url}
-                    muted
-                    playsInline
-                    controls
-                    preload="metadata"
-                    poster={m.thumb_url ?? undefined}
-                    className="h-20 w-20 rounded-lg border border-line bg-bone object-cover"
-                  />
-                ) : mediaThumbUrl(m) ? (
-                  <SafeImg
-                    key={m.id}
-                    src={mediaThumbUrl(m)}
-                    alt=""
-                    loading="lazy"
-                    className="h-20 w-20 rounded-lg border border-line object-cover"
-                  />
-                ) : null,
               )}
             </div>
           ) : null}
@@ -725,21 +764,15 @@ export default function PostList({
 
             <div className="mt-3">
               <p className="text-[11px] font-bold text-muted">{t('fMedia')}</p>
-              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                {(['all', 'text', 'image', 'video'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    aria-pressed={mediaSel === m}
-                    onClick={() => setMediaSel(m)}
-                    className={`rounded-xl px-2 py-1.5 text-xs font-bold transition ${
-                      mediaSel === m ? 'bg-accent text-on-accent' : 'text-soft hover:bg-paper'
-                    }`}
-                  >
-                    {t(MEDIA_KEY[m])}
-                  </button>
-                ))}
-              </div>
+              <SegmentedPills
+                ariaLabel={t('fMedia')}
+                className="mt-1.5"
+                trackClassName="flex-wrap overflow-visible rounded-2xl"
+                buttonClassName="min-w-[calc(50%-2px)] flex-1"
+                value={mediaSel}
+                onChange={setMediaSel}
+                options={(['all', 'text', 'image', 'video'] as const).map((m) => ({ value: m, label: t(MEDIA_KEY[m]) }))}
+              />
             </div>
           </aside>
         </div>
@@ -809,187 +842,124 @@ export default function PostList({
           const when = head.sent_at ?? head.scheduled_at;
           return (
             <>
-              <article
-                key={g.key}
-                className="overflow-hidden rounded-3xl border border-line bg-card"
-              >
-                {/* Header: author pfp + name/handle + time, like a social post */}
-                <div className="flex items-center gap-3 px-4 pt-3.5">
-                  <ChannelAvatar
-                    provider={lead?.provider ?? 'x'}
-                    avatar={lead?.channel_id ? avatars[lead.channel_id] : undefined}
-                    size={36}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-extrabold">{author.name}</span>
+              <article key={g.key} className="rounded-3xl border border-line bg-card px-4 pt-3 pb-3.5 sm:px-5">
+                <SocialPost
+                  author={{
+                    name: author.name,
+                    handle: author.handle,
+                    provider: lead?.provider ?? 'x',
+                    avatar: lead?.channel_id ? avatars[lead.channel_id] : undefined,
+                  }}
+                  time={relTime(when, t('unscheduled'))}
+                  timeTitle={when ? formatDateTime(when) : undefined}
+                  context={statusContext(head, t)}
+                  badge={
+                    <>
                       {isChain ? (
-                        <span className="shrink-0 rounded-full bg-paper-dim px-1.5 py-0.5 text-[10px] font-extrabold text-muted">
+                        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-bold text-muted">
                           {fill(t('chainShort'), { n: g.parts.length })}
                         </span>
                       ) : null}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-faint">
-                      {author.handle ? <span className="truncate">{author.handle}</span> : null}
-                      {author.handle ? <span aria-hidden="true">·</span> : null}
-                      <span
-                        className="shrink-0"
-                        title={head.sent_at ? formatDateTime(head.sent_at) : formatDateTime(head.scheduled_at)}
-                      >
-                        {shortRel(when, t('unscheduled'))}
-                      </span>
-                    </span>
-                  </span>
-                  <span className={`pill ${meta.className}`}>{meta.label}</span>
-                </div>
-
-                {/* Body: full text, expandable */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={openPreview}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      openPreview();
-                    }
-                  }}
-                  aria-label={`Preview ${head.title || 'post'}`}
-                  title="Preview"
-                  className="cursor-pointer px-4 pt-2 text-left"
-                >
-                  {fullText || head.title ? (
-                    <>
-                      <p className={`whitespace-pre-wrap break-words text-sm leading-relaxed text-soft ${expanded ? '' : 'line-clamp-4'}`}>
-                        {fullText || head.title}
-                      </p>
-                      {(fullText || head.title || '').length > 220 ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedKey(expanded ? null : g.key);
-                          }}
-                          className="mt-1 text-xs font-bold text-muted hover:text-ink"
-                        >
-                        {expanded ? t('showLess') : t('showMore')}
-                        </button>
+                      {targets.length > 1 ? (
+                        <span className="flex items-center" title={targets.map((tg) => providerMeta(tg.provider).label).join(', ')}>
+                          {targets.slice(1, 4).map((tg, i) => (
+                            <span key={tg.channel_id ?? tg.provider} className="rounded-full ring-2 ring-card" style={{ marginLeft: i ? -6 : 0 }}>
+                              <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={20} badge={false} />
+                            </span>
+                          ))}
+                          {targets.length > 4 ? (
+                            <span className="ml-1 text-[11px] font-bold text-muted">+{targets.length - 4}</span>
+                          ) : null}
+                        </span>
                       ) : null}
                     </>
-                  ) : (
-                    <p className="mt-0.5 text-sm italic text-faint">{t('noTextMedia')}</p>
-                  )}
-                  {comment && (
-                    <p className="mt-1.5 text-xs text-ink">{fill(t('changesReq'), { c: comment })}</p>
-                  )}
-                  {targetErrs.length > 0 && (
-                    <div className="mt-1.5 space-y-0.5">
-                      {targetErrs.map((msg) => (
-                        <p
-                          key={msg}
-                          className="text-xs text-[#9F2F2D] dark:text-[#f2a8a8]"
-                        >
-                          {msg}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Media: social sizing, full-width single, square grid for many */}
-                {cardMedia.length > 0 && (
-                  <div
-                    className={`mt-2.5 flex flex-wrap gap-1.5 px-4 ${cardMedia.length > 1 ? 'max-w-[420px]' : ''} justify-center`}
-                  >
-                    {cardMedia.slice(0, 4).map((m) =>
-                      m.kind === 'video' ? (
-                        <video
-                          key={m.id}
-                          src={m.signed_url}
-                          muted
-                          playsInline
-                          controls
-                          preload="metadata"
-                          poster={m.thumb_url ?? undefined}
-                          className="h-auto max-h-[360px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
-                        />
-                      ) : m.signed_url || m.thumb_url ? (
-                        <SafeImg
-                          key={m.id}
-                          src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.md) : m.thumb_url ?? undefined}
-                          alt=""
-                          loading="lazy"
-                          className={`h-auto w-auto rounded-xl border border-line bg-bone object-contain ${
-                            cardMedia.length > 1 ? 'max-h-[190px] max-w-[calc(50%-0.375rem)]' : 'max-h-[360px] max-w-full'
-                          }`}
-                        />
-                      ) : (
-                        <span
-                          key={m.id}
-                          className="flex h-24 w-24 items-center justify-center rounded-xl border border-line bg-bone text-[10px] text-faint"
-                        >
-                          {m.kind}
-                        </span>
-                      ),
-                    )}
-                  </div>
-                )}
-                {mediaTotal > 4 && (
-                  <p className="px-4 pt-1 text-xs font-bold text-faint">{fill(t('moreAttachments'), { n: mediaTotal - 4 })}</p>
-                )}
-
-                {/* Footer: actions */}
-                <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-                  <span className="flex-1" />
-                  {canApprove && inApproval && (
+                  }
+                  title={!fullText && head.title ? head.title : null}
+                  body={fullText}
+                  emptyLabel={t('noTextMedia')}
+                  media={cardMedia.map((m) => ({
+                    id: m.id,
+                    kind: m.kind,
+                    src:
+                      m.kind === 'video'
+                        ? m.signed_url ?? ''
+                        : m.signed_url
+                          ? imageThumb(m.signed_url, THUMB_WIDTHS.md) ?? ''
+                          : (m.thumb_url ?? ''),
+                    poster: m.thumb_url,
+                  })).filter((m) => m.src)}
+                  onOpen={openPreview}
+                  notes={
+                    comment || targetErrs.length > 0 ? (
+                      <>
+                        {comment ? (
+                          <p className="rounded-xl bg-accent-soft px-3 py-2 text-xs text-ink">
+                            {fill(t('changesReq'), { c: comment })}
+                          </p>
+                        ) : null}
+                        {targetErrs.map((msg) => (
+                          <p key={msg} className="rounded-xl bg-[#FDEBEC] px-3 py-2 text-xs text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                            {msg}
+                          </p>
+                        ))}
+                      </>
+                    ) : null
+                  }
+                  footer={
                     <>
+                      <span className="flex-1" />
+                      {canApprove && inApproval && (
+                        <>
+                          <CardAction
+                            icon={Check}
+                            label={isChain ? fill(t('approveN'), { n: ids.length }) : t('approve')}
+                            disabled={busy}
+                            onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
+                          />
+                          <CardAction
+                            icon={MessageCircle}
+                            label={t('reqChanges')}
+                            disabled={busy}
+                            onClick={() => askChanges(head)}
+                          />
+                        </>
+                      )}
+                      {draftish && (
+                        <CardAction
+                          icon={Pencil}
+                          label={t('edit')}
+                          disabled={busy}
+                          onClick={() => {
+                            if (onEdit) onEdit(head.id);
+                            else router.push(`/post?edit=${head.id}`);
+                          }}
+                        />
+                      )}
+                      {!canApprove && draftish && (
+                        <CardAction
+                          icon={Send}
+                          label={t('submitApproval')}
+                          disabled={busy}
+                          onClick={() =>
+                            runMany(g.key, ids, (sb, id) => submitForApproval(sb, { postId: id, workspaceId, userId }))
+                          }
+                        />
+                      )}
                       <CardAction
-                        icon={Check}
-                        label={isChain ? fill(t('approveN'), { n: ids.length }) : t('approve')}
+                        icon={Trash2}
+                        label={isChain ? fill(t('deleteN'), { n: ids.length }) : t('deleteLbl')}
+                        danger
                         disabled={busy}
-                        onClick={() => runMany(g.key, ids, (sb, id) => approvePost(sb, { postId: id, userId }))}
-                      />
-                      <CardAction
-                        icon={MessageCircle}
-                        label={t('reqChanges')}
-                        disabled={busy}
-                        onClick={() => askChanges(head)}
+                        onClick={() => runMany(g.key, ids, (sb, id) => deletePost(sb, id))}
                       />
                     </>
-                  )}
-                  {draftish && (
-                    <CardAction
-                      icon={Pencil}
-                      label={t('edit')}
-                      disabled={busy}
-                      onClick={() => {
-                        if (onEdit) onEdit(head.id);
-                        else router.push(`/post?edit=${head.id}`);
-                      }}
-                    />
-                  )}
-                  {!canApprove && draftish && (
-                    <CardAction
-                      icon={Send}
-                      label={t('submitApproval')}
-                      disabled={busy}
-                      onClick={() =>
-                        runMany(g.key, ids, (sb, id) => submitForApproval(sb, { postId: id, workspaceId, userId }))
-                      }
-                    />
-                  )}
-                  <CardAction
-                    icon={Trash2}
-                    label={isChain ? fill(t('deleteN'), { n: ids.length }) : t('deleteLbl')}
-                    danger
-                    disabled={busy}
-                    onClick={() => runMany(g.key, ids, (sb, id) => deletePost(sb, id))}
-                  />
-                </div>
+                  }
+                />
               </article>
             {previewKey === g.key ? (
               <PreviewDialog
                 parts={g.parts}
+                author={author}
                 avatars={avatars}
                 draftish={draftish}
                 sent={g.parts.some((p) => p.status === 'sent' || p.status === 'partial')}

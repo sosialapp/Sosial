@@ -19,7 +19,7 @@ interface MenuLink {
   desc: string;
 }
 
-const FEATURES_HREF = ['/publish', '/features/create', '/ai-assistant'] as const;
+const FEATURES_HREF = ['/features', '/publish', '/features/create', '/ai-assistant'] as const;
 const RESOURCES_HREF = ['/blog', '/resources'] as const;
 
 /** Soft rounded chevron, no sharp triangles. */
@@ -88,6 +88,7 @@ export default function SiteNav() {
     { href: '/publish', title: t('pubTitle'), desc: t('pubDesc') },
     { href: '/features/create', title: t('createTitle'), desc: t('createDesc') },
     { href: '/ai-assistant', title: t('aiTitle'), desc: t('aiDesc') },
+    { href: '/features', title: t('allFeatures'), desc: t('allFeaturesDesc') },
   ];
   const RESOURCES: MenuLink[] = [
     { href: '/blog', title: t('blogTitle'), desc: t('blogDesc') },

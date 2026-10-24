@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import ChannelAvatar from '@/components/ChannelAvatar';
-import SafeImg from '@/components/SafeImg';
+import SocialPost from '@/components/SocialPost';
 import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { POST_STATUS_META } from '@/lib/providers';
 import type { MediaAssetRow, PostStatus } from '@/lib/types';
@@ -24,8 +23,8 @@ export interface RecentActivityItem {
 const isPostStatus = (s: string): s is PostStatus => s in POST_STATUS_META;
 
 /**
- * Recent activity as a social-style single-post carousel: avatar + handle +
- * time on top, text + media below, with a vertical dot rail on the right.
+ * Recent activity as a single-post carousel, each slide drawn as a feed
+ * post (SocialPost), with a vertical dot rail on the right.
  * Scrolling over the card, swiping, or clicking a dot flips to the next post.
  */
 export default function RecentActivityCarousel({
@@ -96,68 +95,28 @@ export default function RecentActivityCarousel({
           title={onOpen ? 'Open preview' : undefined}
           className={onOpen ? 'cursor-pointer rounded-xl' : undefined}
         >
-          {/* Header: avatar + name/handle + time + status */}
-          <div className="flex items-center gap-2.5">
-            <ChannelAvatar provider={item.provider} avatar={item.avatar} size={36} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-extrabold">{item.authorName}</span>
-              <span className="flex items-center gap-1 text-[11px] text-faint">
-                {item.authorHandle ? <span className="truncate">{item.authorHandle}</span> : null}
-                {item.authorHandle ? (
-                  <span aria-hidden="true">·</span>
-                ) : null}
-                <span className="shrink-0" title={item.timeTitle}>
-                  {item.timeLabel}
-                </span>
-              </span>
-            </span>
-            {meta ? <span className={`pill shrink-0 ${meta.className}`}>{meta.label}</span> : null}
-          </div>
-
-          {/* Body: single text block */}
-          {item.text ? (
-            <p className="mt-2 line-clamp-4 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-soft">
-              {item.text}
-            </p>
-          ) : (
-            <p className="mt-2 text-[13px] italic text-faint">No text, media only.</p>
-          )}
-
-          {/* Media: centered, natural ratio, rail-sized */}
-          {media.length > 0 && (
-            <div className={`mt-2 flex flex-wrap justify-center gap-1 ${media.length > 1 ? 'max-w-[320px]' : ''}`}>
-              {media.map((m) =>
-                m.kind === 'video' ? (
-                  <video
-                    key={m.id}
-                    src={m.signed_url}
-                    muted
-                    playsInline
-                    controls
-                    preload="metadata"
-                    className="h-auto max-h-[220px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
-                  />
-                ) : m.signed_url || m.thumb_url ? (
-                  <SafeImg
-                    key={m.id}
-                    src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.md) : m.thumb_url ?? undefined}
-                    alt=""
-                    loading="lazy"
-                    className={`h-auto w-auto rounded-xl border border-line bg-bone object-contain ${
-                      media.length > 1 ? 'max-h-[120px] max-w-[calc(50%-0.25rem)]' : 'max-h-[220px] max-w-full'
-                    }`}
-                  />
-                ) : (
-                  <span
-                    key={m.id}
-                    className="flex h-20 w-20 items-center justify-center rounded-xl border border-line bg-bone text-[10px] text-faint"
-                  >
-                    {m.kind}
-                  </span>
-                ),
-              )}
-            </div>
-          )}
+          <SocialPost
+            author={{ name: item.authorName, handle: item.authorHandle, provider: item.provider, avatar: item.avatar }}
+            time={item.timeLabel}
+            timeTitle={item.timeTitle}
+            badge={meta ? <span className={`pill shrink-0 ${meta.className}`}>{meta.label}</span> : undefined}
+            body={item.text}
+            emptyLabel="No text, media only."
+            clamp={4}
+            media={media
+              .map((m) => ({
+                id: m.id,
+                kind: m.kind,
+                src:
+                  m.kind === 'video'
+                    ? (m.signed_url ?? '')
+                    : m.signed_url
+                      ? (imageThumb(m.signed_url, THUMB_WIDTHS.md) ?? '')
+                      : (m.thumb_url ?? ''),
+                poster: m.thumb_url,
+              }))
+              .filter((m) => m.src)}
+          />
         </article>
       </div>
 

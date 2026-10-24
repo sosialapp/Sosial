@@ -41,6 +41,9 @@ type Props<T extends string> = {
 
 type Layout = { x: number; y: number; width: number; height: number };
 
+/** Ease-out with a soft landing, matching the web switch (cubic-bezier .22,1,.36,1). */
+const GLIDE = Easing.bezier(0.22, 1, 0.36, 1);
+
 /**
  * Animated segmented control, one sliding thumb glides to the active pill
  * on every switch (Post/Queue/Sent tabs, billing rhythm, analytics ranges,
@@ -60,7 +63,7 @@ export function Segmented<T extends string>({
   scrollable = false,
   grow = false,
   accessibilityLabel,
-  duration = 220,
+  duration = 300,
 }: Props<T>) {
   const layouts = useRef<Record<string, Layout>>({});
   const [tick, setTick] = useState(0);
@@ -85,8 +88,8 @@ export function Segmented<T extends string>({
     const d = shown.current ? duration : 0;
     shown.current = true;
     Animated.parallel([
-      Animated.timing(x, { toValue: t.x, duration: d, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(w, { toValue: t.width, duration: d, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(x, { toValue: t.x, duration: d, easing: GLIDE, useNativeDriver: false }),
+      Animated.timing(w, { toValue: t.width, duration: d, easing: GLIDE, useNativeDriver: false }),
     ]).start();
     if (scrollable) scroller.current?.scrollTo({ x: Math.max(0, t.x - 24), animated: d > 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { WriterPreview } from '@/components/landing/Preview';
 import { FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import AppPreview from '@/components/site/app-preview/AppPreview';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
@@ -29,11 +29,7 @@ export default async function AiAssistantPage() {
         lede="Rough thought in, post-ready caption out. Grounded by live research with linked sources, written in your style, in 100+ languages. Nothing publishes without you."
         meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/features/create', label: 'See the composer' }}
-        visual={
-          <div className="card p-3 md:p-4">
-            <WriterPreview />
-          </div>
-        }
+        visual={<AppPreview screen="composer" caption="The AI writer sits beside the composer: idea in, draft out, nothing posts without you." />}
       />
 
       <PageCms slug="ai-assistant" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
@@ -49,6 +45,7 @@ export default async function AiAssistantPage() {
               'Sources returned with every draft',
               'Uncertainties flagged instead of smoothed over',
             ],
+            visual: <AppPreview screen="ai-writer" caption="Language, tone, style, format and structure, all before you generate." />,
           },
           {
             eyebrow: 'Languages',

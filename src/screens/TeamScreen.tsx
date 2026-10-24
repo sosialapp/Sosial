@@ -6,8 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   supabase, getTeamAvatar, teamAvatarSignedUrl, avatarSignedUrl, setTeamAvatarFromUri, clearTeamAvatar,
 } from '../utils/supabase';
-import { useTheme, Palette, R, T } from '../theme';
-import { Txt, Field, ChannelAvatar } from '../components/ui';
+import { useTheme, Palette, T } from '../theme';
+import { Txt, ChannelAvatar, Seg } from '../components/ui';
 import TeamSwitcher from '../components/TeamSwitcher';
 import {
   loadCloudTeam, createInvite, removeMember, setMemberGrants, cancelInvite,
@@ -287,143 +287,214 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
     setMProviders((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
   };
 
-  const initial = (email || teamName || 'Z')[0].toUpperCase();
-  // The header above already shows the current user, the roster lists teammates only.
-  const others = (team?.members ?? []).filter((m) => !(m.user_id && team?.myUserId && m.user_id === team.myUserId));
+  const members = team?.members ?? [];
+  const leads = members.filter((m) => m.role === 'owner' || m.role === 'admin').length;
+  const roleIcon = (r: string): keyof typeof Ionicons.glyphMap =>
+    r === 'owner' ? 'ribbon' : r === 'admin' ? 'shield-checkmark' : 'person';
+  const roleName = (r: string) => (r === 'owner' ? 'Owner' : r === 'admin' ? 'Admin' : 'Member');
+
+  const teamPicMenu = () => {
+    if (!isManager) return;
+    Alert.alert('Team picture', teamPicUri ? 'Change or remove the team picture.' : 'Add a picture for this team.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: teamPicUri ? 'Change photo' : 'Add photo', onPress: () => void changeTeamPic() },
+      ...(teamPicUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => void removeTeamPic() }] : []),
+    ]);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={20} color={C.ink} />
-        </TouchableOpacity>
-        <Text style={s.kicker}>Workspace</Text>
-        <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Team</Text>
-        {team ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-            <TouchableOpacity
-              onPress={() => {
-                if (!isManager) return;
-                Alert.alert('Team picture', teamPicUri ? 'Change or remove the team picture.' : 'Add a picture for this team.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: teamPicUri ? 'Change photo' : 'Add photo', onPress: () => void changeTeamPic() },
-                  ...(teamPicUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => void removeTeamPic() }] : []),
-                ]);
-              }}
-              disabled={!isManager}
-              accessibilityLabel={isManager ? 'Change team picture' : 'Team picture'}
-              activeOpacity={isManager ? 0.75 : 1}
-            >
-              {teamPicUri && !teamPicFailed ? (
-                <Image source={{ uri: teamPicUri }} onError={() => setTeamPicFailed(true)} style={{ width: 44, height: 44, borderRadius: 22 }} />
-              ) : (
-                <View style={[s.avatar, { width: 44, height: 44, borderRadius: 22 }]}>
-                  <Text style={s.avatarT}>{(team.workspaceName || 'T')[0].toUpperCase()}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <View style={{ flex: 1, gap: 1 }}>
-              <Text style={s.sub} numberOfLines={1}>
-                {team.workspaceName} · {team.members.length} member{team.members.length === 1 ? '' : 's'}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-        {team && isManager ? (
-          renamingTeam ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Txt value={teamNameDraft} onChangeText={setTeamNameDraft} placeholder="Team name" />
-              </View>
-              <TouchableOpacity onPress={() => void saveTeamName()} style={[s.miniBtn, { backgroundColor: C.ink }]} activeOpacity={0.7}>
-                <Text style={[s.miniBtnT, { color: C.onInk }]}>Save</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setRenamingTeam(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={18} color={C.redText} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={() => { setTeamNameDraft(team.workspaceName); setRenamingTeam(true); }} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Rename team</Text>
-            </TouchableOpacity>
-          )
-        ) : null}
-
-        <View style={{ marginTop: 20 }}>
-          <Text style={s.sectionLabel}>SWITCH TEAM</Text>
-          <View style={{ marginTop: 8 }}>
-            <TeamSwitcher team={team?.workspaceName ?? teamName} onSwitched={onSwitched} full />
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={s.topRow}>
+          <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn} accessibilityLabel="Back">
+            <Ionicons name="chevron-back" size={20} color={C.ink} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={[T.h1, { color: C.ink, fontSize: 28, lineHeight: 34 }]}>Team</Text>
+            <Text style={s.sub}>Who can post where, and who can invite.</Text>
           </View>
         </View>
 
-        {plan !== 'team' ? (
-          <View style={{ marginTop: 16, gap: 12 }}>
-            <View style={s.empty}>
-              <Text style={s.emptyT}>Team tools need Sosial Team</Text>
-              <Text style={s.emptyS}>The roster, roles and per-channel assignment unlock on the Team plan.</Text>
-              <TouchableOpacity onPress={onSeePlans} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
-                <Text style={s.saveT}>See plans</Text>
+        {/* Team card: picture, name, headcount at a glance. */}
+        {team ? (
+          <View style={[s.card, { marginTop: 18, overflow: 'hidden', padding: 0 }]}>
+            <View style={s.banner} />
+            <View style={{ paddingHorizontal: 18, paddingBottom: 18, marginTop: -36 }}>
+              <TouchableOpacity
+                onPress={teamPicMenu}
+                disabled={!isManager}
+                accessibilityLabel={isManager ? 'Change team picture' : 'Team picture'}
+                activeOpacity={isManager ? 0.8 : 1}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {teamPicUri && !teamPicFailed ? (
+                  <Image source={{ uri: teamPicUri }} onError={() => setTeamPicFailed(true)} style={s.teamPic} />
+                ) : (
+                  <View style={[s.teamPic, { backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={s.teamPicT}>{(team.workspaceName || 'T')[0].toUpperCase()}</Text>
+                  </View>
+                )}
+                {teamPicBusy ? (
+                  <View style={[s.teamPic, s.teamPicBusy]}>
+                    <ActivityIndicator color="#fff" />
+                  </View>
+                ) : null}
+                {isManager ? (
+                  <View style={s.camBadge}>
+                    <Ionicons name="camera" size={13} color={C.onInk} />
+                  </View>
+                ) : null}
               </TouchableOpacity>
+
+              {isManager && renamingTeam ? (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  <Txt value={teamNameDraft} onChangeText={setTeamNameDraft} placeholder="Team name" />
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity onPress={() => void saveTeamName()} disabled={busy} style={[s.save, { flex: 1 }]} activeOpacity={0.85}>
+                      <Text style={s.saveT}>{busy ? 'Saving…' : 'Save'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setRenamingTeam(false)} style={[s.ghost, { flex: 1 }]} activeOpacity={0.85}>
+                      <Text style={s.ghostT}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!isManager) return;
+                    setTeamNameDraft(team.workspaceName);
+                    setRenamingTeam(true);
+                  }}
+                  disabled={!isManager}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}
+                  accessibilityLabel={isManager ? 'Rename team' : undefined}
+                >
+                  <Text style={s.teamName} numberOfLines={1}>{team.workspaceName}</Text>
+                  {isManager ? <Ionicons name="pencil" size={15} color={C.faint} /> : null}
+                </TouchableOpacity>
+              )}
+
+              <View style={s.stats}>
+                {([
+                  [members.length, 'Members'],
+                  [leads, 'Leads'],
+                  [team.invites.length, 'Pending'],
+                ] as const).map(([n, label]) => (
+                  <View key={label} style={s.stat}>
+                    <Text style={s.statN}>{n}</Text>
+                    <Text style={s.statL}>{label}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
+          </View>
+        ) : null}
+
+        <Text style={[s.sectionLabel, { marginTop: 22 }]}>SWITCH TEAM</Text>
+        <View style={{ marginTop: 8 }}>
+          <TeamSwitcher team={team?.workspaceName ?? teamName} onSwitched={onSwitched} full />
+        </View>
+
+        {plan !== 'team' ? (
+          <View style={[s.empty, { marginTop: 16 }]}>
+            <View style={s.emptyIcon}><Ionicons name="people" size={22} color={C.ink} /></View>
+            <Text style={s.emptyT}>Team tools need Sosial Team</Text>
+            <Text style={s.emptyS}>The roster, roles and per-channel assignment unlock on the Team plan.</Text>
+            <TouchableOpacity onPress={onSeePlans} style={[s.save, { marginTop: 14, alignSelf: 'stretch' }]} activeOpacity={0.85}>
+              <Text style={s.saveT}>See plans</Text>
+            </TouchableOpacity>
           </View>
         ) : loading ? (
           <ActivityIndicator style={{ marginTop: 32 }} color={C.muted} />
         ) : !team ? (
-          <View style={{ marginTop: 16 }}>
-            <View style={s.empty}>
-              <Text style={s.emptyT}>Not signed in</Text>
-              <Text style={s.emptyS}>Sign in to Sosial Cloud (Account tab) to manage your team across devices.</Text>
-            </View>
+          <View style={[s.empty, { marginTop: 16 }]}>
+            <Text style={s.emptyT}>Not signed in</Text>
+            <Text style={s.emptyS}>Sign in to Sosial Cloud (Account tab) to manage your team across devices.</Text>
           </View>
         ) : (
-          <View style={{ marginTop: 16, gap: 12 }}>
-            <View style={s.head}>
-              <View style={s.avatar}><Text style={s.avatarT}>{initial}</Text></View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={s.email} numberOfLines={1}>{email || 'No email set'}</Text>
-                <Text style={s.team} numberOfLines={1}>{team.workspaceName} · {team.myRole}</Text>
-              </View>
-            </View>
-
-            {others.map((m) => {
-              const isSelf = !!m.user_id && m.user_id === team.myUserId;
-              const showChannels = !isSelf && canAssignChannels(actor, m);
-              const showTrash = !isSelf && canRemoveMember(actor, m);
-              return (
-                <View key={m.id} style={s.member}>
-                  {m.user_id && memberPics[m.user_id] && !failedPics[m.user_id] ? (
-                    <Image source={{ uri: memberPics[m.user_id] }} onError={() => setFailedPics((p) => ({ ...p, [m.user_id as string]: true }))} style={{ width: 36, height: 36, borderRadius: 18 }} />
-                  ) : (
-                    <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(m.email || '?')[0].toUpperCase()}</Text></View>
-                  )}
-                  <View style={{ flex: 1, gap: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                      <Text style={s.rowT} numberOfLines={1}>{m.email}</Text>
-                      {isSelf ? <Text style={s.youTag}>(you)</Text> : null}
-                      <View style={s.rolePill}><Text style={s.rolePillT}>{m.role}</Text></View>
-                    </View>
-                    <Text style={s.rowS} numberOfLines={1}>{channelsSummary(m, team.channels)}</Text>
-                    {showChannels || showTrash || canChangeRole(m) ? (
-                      <View style={s.actions}>
-                        {canChangeRole(m) ? (
-                          <MiniBtn
-                            label={m.role === 'admin' ? 'Make member' : 'Make admin'}
-                            disabled={busy}
-                            onPress={() => void saveRole(m, m.role === 'admin' ? 'member' : 'admin')}
+          <View style={{ marginTop: 16, gap: 14 }}>
+            {/* Roster: everyone, you first. */}
+            <View style={[s.card, { padding: 0 }]}>
+              <Text style={[s.cardT, { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }]}>
+                Members <Text style={{ color: C.faint }}>· {members.length}</Text>
+              </Text>
+              {[...members]
+                .sort((a, b) => Number(b.user_id === team.myUserId) - Number(a.user_id === team.myUserId))
+                .map((m, i) => {
+                  const isSelf = !!m.user_id && m.user_id === team.myUserId;
+                  const showChannels = !isSelf && canAssignChannels(actor, m);
+                  const showTrash = !isSelf && canRemoveMember(actor, m);
+                  const open = assigningId === m.id;
+                  return (
+                    <View key={m.id} style={[s.memberRow, i > 0 && s.memberDivider, open && { backgroundColor: C.surface }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        {m.user_id && memberPics[m.user_id] && !failedPics[m.user_id] ? (
+                          <Image
+                            source={{ uri: memberPics[m.user_id] }}
+                            onError={() => setFailedPics((p) => ({ ...p, [m.user_id as string]: true }))}
+                            style={{ width: 40, height: 40, borderRadius: 20 }}
                           />
-                        ) : null}                        {showChannels ? (
-                          <MiniBtn label={assigningId === m.id ? 'Done' : 'Assign channels'} disabled={busy} onPress={() => openAssign(m)} />
-                        ) : null}
-                        {showTrash ? (
-                          <MiniBtn label="Remove" danger disabled={busy} onPress={() => dropMember(m)} />
-                        ) : null}
+                        ) : (
+                          <View style={s.miniAvatar}><Text style={s.miniAvatarT}>{(m.email || '?')[0].toUpperCase()}</Text></View>
+                        )}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={s.rowT} numberOfLines={1}>{m.email}</Text>
+                            {isSelf ? <View style={s.youTag}><Text style={s.youTagT}>you</Text></View> : null}
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <View style={[s.rolePill, m.role === 'owner' && { backgroundColor: C.ink }, m.role === 'member' && { backgroundColor: C.surface }]}>
+                              <Ionicons name={roleIcon(m.role)} size={11} color={m.role === 'owner' ? C.onInk : C.ink} />
+                              <Text style={[s.rolePillT, m.role === 'owner' && { color: C.onInk }]}>{roleName(m.role)}</Text>
+                            </View>
+                            <Text style={s.rowS} numberOfLines={1}>{channelsSummary(m, team.channels)}</Text>
+                          </View>
+                        </View>
                       </View>
-                    ) : null}
 
-                    {assigningId === m.id ? (
-                      <View style={s.plan}>
-                        <Text style={s.planT}>Accounts for {m.email}</Text>
-                        <View style={{ marginTop: 8 }}>
+                      {showChannels || showTrash || canChangeRole(m) ? (
+                        <View style={s.actions}>
+                          {canChangeRole(m) ? (
+                            <Seg
+                              accessibilityLabel={`Role for ${m.email}`}
+                              grow={false}
+                              value={m.role as 'member' | 'admin'}
+                              onChange={(r) => { if (!busy) void saveRole(m, r); }}
+                              options={[
+                                { value: 'member', label: 'Member' },
+                                { value: 'admin', label: 'Admin' },
+                              ]}
+                            />
+                          ) : null}
+                          {showChannels ? (
+                            <TouchableOpacity
+                              onPress={() => openAssign(m)}
+                              disabled={busy}
+                              activeOpacity={0.75}
+                              style={[s.pillBtn, open && { backgroundColor: C.ink, borderColor: C.ink }]}
+                            >
+                              <Ionicons name="at" size={13} color={open ? C.onInk : C.soft} />
+                              <Text style={[s.pillBtnT, open && { color: C.onInk }]}>{open ? 'Done' : 'Channels'}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                          {showTrash ? (
+                            <TouchableOpacity
+                              onPress={() => dropMember(m)}
+                              disabled={busy}
+                              activeOpacity={0.75}
+                              style={s.trashBtn}
+                              accessibilityLabel={`Remove ${m.email}`}
+                            >
+                              <Ionicons name="trash-outline" size={16} color={C.redText} />
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      ) : null}
+
+                      {open ? (
+                        <View style={[s.card, { marginTop: 12, gap: 10 }]}>
+                          <Text style={s.fieldL}>Accounts {m.email} can post to</Text>
                           <ScopePills
                             C={C}
                             s={s}
@@ -433,83 +504,43 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                             onAll={() => { setGAll(true); setGProviders([]); }}
                             onToggle={toggleGProvider}
                           />
-                        </View>
-                        {team.channels.length === 0 ? (
-                          <Text style={s.hint}>Connect an account first, there are no channels to appoint yet.</Text>
-                        ) : null}
-                        <TouchableOpacity onPress={() => saveGrants(m)} disabled={busy} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
-                          <Text style={s.saveT}>{busy ? 'Saving…' : 'Save channels'}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })}
-
-            {team.invites.length > 0 ? (
-              <View style={s.plan}>
-                <Text style={s.planT}>Pending invites</Text>
-                {team.invites.map((inv) => (
-                  <TouchableOpacity
-                    key={inv.id}
-                    onPress={() => {
-                      if (inv.emailed_at) return;
-                      const url = `https://sosial.app/invite/${inv.token}`;
-                      Alert.alert(
-                        'Email never sent',
-                        `Share this invite link directly:\n${url}`,
-                        [
-                          { text: 'Close', style: 'cancel' },
-                          { text: 'Copy link', onPress: () => { void Clipboard.setStringAsync(url); } },
-                        ],
-                      );
-                    }}
-                    disabled={!!inv.emailed_at}
-                    activeOpacity={inv.emailed_at ? 1 : 0.7}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Text style={s.rowS} numberOfLines={1}>{inv.email}</Text>
-                          <View style={s.rolePill}><Text style={s.rolePillT}>{inv.role}</Text></View>
-                          {isManager ? (
-                            <TouchableOpacity onPress={() => cancelPendingInvite(inv.id, inv.email)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                              <Ionicons name="close-circle" size={17} color={C.redText} />
-                            </TouchableOpacity>
+                          {team.channels.length === 0 ? (
+                            <Text style={s.hint}>Connect an account first, there are no channels to appoint yet.</Text>
                           ) : null}
+                          <TouchableOpacity onPress={() => saveGrants(m)} disabled={busy} style={s.save} activeOpacity={0.85}>
+                            <Text style={s.saveT}>{busy ? 'Saving…' : 'Save channels'}</Text>
+                          </TouchableOpacity>
                         </View>
-                        <Text style={[s.rowS, { color: inv.emailed_at ? C.faint : C.accentInk }]}>
-                          {inv.emailed_at ? 'Invite sent' : 'Email pending, tap for the link'}
-                        </Text>
-                      </View>
+                      ) : null}
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : null}
+                  );
+                })}
+            </View>
 
             {isManager ? (
-              <View style={s.plan}>
-                <Text style={s.planT}>Invite teammate</Text>
-                <Field label="Email">
+              <View style={[s.card, { gap: 14 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={s.inviteIcon}><Ionicons name="person-add" size={16} color="#0b1220" /></View>
+                  <Text style={s.cardT}>Invite teammate</Text>
+                </View>
+                <View style={{ gap: 6 }}>
+                  <Text style={s.fieldL}>Email</Text>
                   <Txt value={mEmail} onChangeText={setMEmail} placeholder="teammate@studio.com" keyboardType="email-address" autoCapitalize="none" />
-                </Field>
-                <Field label="Role">
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {(['member', 'admin'] as const).map((r) => (
-                      <TouchableOpacity
-                        key={r}
-                        onPress={() => setMRole(r)}
-                        style={[s.chan, mRole === r && { backgroundColor: C.ink, borderColor: C.ink }]}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={[s.chanT, mRole === r && { color: C.onInk }]}>{r === 'admin' ? 'Admin' : 'Member'}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </Field>
-                <Field label="Accounts they can post to">
+                </View>
+                <View style={{ gap: 6 }}>
+                  <Text style={s.fieldL}>Role</Text>
+                  <Seg
+                    accessibilityLabel="Role"
+                    value={mRole}
+                    onChange={setMRole}
+                    options={[
+                      { value: 'member', label: 'Member' },
+                      { value: 'admin', label: 'Admin' },
+                    ]}
+                  />
+                </View>
+                <View style={{ gap: 8 }}>
+                  <Text style={s.fieldL}>Accounts they can post to</Text>
                   <ScopePills
                     C={C}
                     s={s}
@@ -519,18 +550,67 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                     onAll={() => { setMAll(true); setMProviders([]); }}
                     onToggle={toggleMProvider}
                   />
-                </Field>
-                <TouchableOpacity onPress={invite} disabled={busy} style={[s.save, { marginTop: 12 }]} activeOpacity={0.85}>
+                </View>
+                <TouchableOpacity onPress={invite} disabled={busy} style={s.save} activeOpacity={0.85}>
                   <Text style={s.saveT}>{busy ? 'Sending…' : 'Send invite'}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <Text style={s.hint}>Only the owner and admins can invite or appoint accounts. Ask one to add your teammates.</Text>
+              <View style={s.card}>
+                <Text style={s.hint}>Only the owner and admins can invite or appoint accounts. Ask one to add your teammates.</Text>
+              </View>
             )}
 
+            {team.invites.length > 0 ? (
+              <View style={[s.card, { gap: 10 }]}>
+                <Text style={s.cardT}>
+                  Pending invites <Text style={{ color: C.faint }}>· {team.invites.length}</Text>
+                </Text>
+                {team.invites.map((inv) => (
+                  <TouchableOpacity
+                    key={inv.id}
+                    onPress={() => {
+                      if (inv.emailed_at) return;
+                      const url = `https://sosial.app/invite/${inv.token}`;
+                      Alert.alert('Email never sent', `Share this invite link directly:\n${url}`, [
+                        { text: 'Close', style: 'cancel' },
+                        { text: 'Copy link', onPress: () => { void Clipboard.setStringAsync(url); } },
+                      ]);
+                    }}
+                    disabled={!!inv.emailed_at}
+                    activeOpacity={inv.emailed_at ? 1 : 0.7}
+                    style={s.inviteRow}
+                  >
+                    <View style={s.mailDot}><Ionicons name="mail-outline" size={16} color={C.faint} /></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.rowT} numberOfLines={1}>{inv.email}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <Ionicons name={roleIcon(inv.role)} size={11} color={C.muted} />
+                        <Text style={s.rowS}>{roleName(inv.role)}</Text>
+                        <Text style={[s.rowS, { color: inv.emailed_at ? C.faint : C.accentInk }]} numberOfLines={1}>
+                          · {inv.emailed_at ? 'Invite sent' : 'Email pending, tap for the link'}
+                        </Text>
+                      </View>
+                    </View>
+                    {isManager ? (
+                      <TouchableOpacity
+                        onPress={() => cancelPendingInvite(inv.id, inv.email)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={s.trashBtn}
+                        accessibilityLabel={`Cancel invite to ${inv.email}`}
+                      >
+                        <Ionicons name="close" size={16} color={C.redText} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+
             {actor.role !== 'owner' ? (
-              <TouchableOpacity onPress={leave} activeOpacity={0.7} style={{ marginTop: 4, alignSelf: 'center' }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.redText }}>Leave team</Text>
+              <TouchableOpacity onPress={leave} activeOpacity={0.7} style={s.leaveBtn}>
+                <Ionicons name="log-out-outline" size={16} color={C.redText} />
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText }}>Leave team</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -589,62 +669,51 @@ function ScopePills({ C, s, channels, all, selected, onAll, onToggle }: {
   );
 }
 
-/** Compact pill action, one quiet row per member instead of stacked full-width buttons. */
-function MiniBtn({ label, onPress, danger, disabled }: { label: string; onPress: () => void; danger?: boolean; disabled?: boolean }) {
-  const { C } = useTheme();
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.75}
-      style={{
-        borderRadius: 999,
-        paddingHorizontal: 13,
-        paddingVertical: 7,
-        opacity: disabled ? 0.5 : 1,
-        backgroundColor: danger ? C.paleRed : C.surface,
-        borderWidth: 1,
-        borderColor: danger ? C.redText : C.lineSoft,
-      }}
-    >
-      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: danger ? C.redText : C.soft }}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
 const makeS = (C: Palette) => StyleSheet.create({
-  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
-  kicker: { ...T.tag, color: C.accent, marginTop: 8 },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   sectionLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, letterSpacing: 1, color: C.faint },
-  sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 4 },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
-  avatarT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 22, color: C.onInk },
-  email: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, letterSpacing: -0.2, color: C.ink },
-  team: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted },
-  member: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 13 },
-  miniAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
-  miniAvatarT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14, color: C.onInk },
-  rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
-  youTag: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted },
-  rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 1 },
-  del: { fontSize: 14, color: C.faint },
-  miniBtn: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: R.md, backgroundColor: C.card },
-  miniBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.ink },
-  rolePill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  rolePillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, color: C.accentInk, textTransform: 'capitalize' },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 2 },
+  card: { backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.lineSoft, padding: 16 },
+  cardT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 16, color: C.ink },
+  banner: { height: 64, backgroundColor: C.accentSoft },
+  teamPic: { width: 72, height: 72, borderRadius: 22, borderWidth: 4, borderColor: C.card },
+  teamPicT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 26, color: C.onInk },
+  teamPicBusy: { position: 'absolute', top: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+  camBadge: { position: 'absolute', right: -4, bottom: -4, width: 28, height: 28, borderRadius: 14, backgroundColor: C.ink, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  teamName: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 22, letterSpacing: -0.3, color: C.ink, flexShrink: 1 },
+  stats: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  stat: { flex: 1, backgroundColor: C.surface, borderRadius: 16, paddingVertical: 10, alignItems: 'center' },
+  statN: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: C.ink },
+  statL: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.muted, marginTop: 2 },
+  memberRow: { paddingHorizontal: 16, paddingVertical: 14 },
+  memberDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.lineSoft },
+  miniAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
+  miniAvatarT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15, color: C.onInk },
+  rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink, flexShrink: 1 },
+  youTag: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
+  youTagT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 10, color: '#0b1220' },
+  rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, flexShrink: 1 },
+  rolePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  rolePillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.ink },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12, marginLeft: 52 },
+  pillBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 8 },
+  pillBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.soft },
+  trashBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.paleRed, alignItems: 'center', justifyContent: 'center' },
+  fieldL: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted },
+  inviteIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  inviteRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, padding: 10 },
+  mailDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
   chan: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: C.paper, borderWidth: 1, borderColor: C.lineSoft },
   chanT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
-  plan: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 16, gap: 6 },
-  planT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, color: C.ink },
-  save: { backgroundColor: C.ink, borderRadius: R.md + 2, paddingVertical: 12, alignItems: 'center' },
+  save: { backgroundColor: C.ink, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
   saveT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.onInk },
-  note: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted, margin: 14 },
+  ghost: { backgroundColor: C.surface, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
+  ghostT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
+  leaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, backgroundColor: C.paleRed },
   hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted },
-  empty: { backgroundColor: C.card, borderRadius: R.lg, padding: 28, alignItems: 'center' },
+  empty: { backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.lineSoft, padding: 24, alignItems: 'center' },
+  emptyIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   emptyT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: C.ink },
   emptyS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6, textAlign: 'center', lineHeight: 19 },
 });

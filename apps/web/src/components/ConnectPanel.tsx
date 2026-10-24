@@ -15,6 +15,7 @@ import type { ConnectedChannel } from '@/lib/types';
 import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 export interface FbPickPage {
   id: string;
@@ -771,22 +772,17 @@ export default function ConnectPanel({
         </p>
       ) : null}
 
-      <div className="flex gap-2" role="tablist" aria-label={t('cChannels')}>
-        {(['channels', 'integrations'] as const).map((tb) => (
-          <button
-            key={tb}
-            type="button"
-            role="tab"
-            aria-selected={tab === tb}
-            onClick={() => setTab(tb)}
-            className={`rounded-full px-4 py-2 text-xs font-bold transition ${
-              tab === tb ? 'bg-ink text-paper' : 'border border-line bg-card text-muted hover:text-ink'
-            }`}
-          >
-            {tb === 'channels' ? t('cnTabChannels') : t('cnTabIntegrations')}
-          </button>
-        ))}
-      </div>
+      <SegmentedPills
+        ariaLabel={t('cChannels')}
+        role="tablist"
+        className="w-fit"
+        value={tab}
+        onChange={setTab}
+        options={(['channels', 'integrations'] as const).map((tb) => ({
+          value: tb,
+          label: tb === 'channels' ? t('cnTabChannels') : t('cnTabIntegrations'),
+        }))}
+      />
 
       {tab === 'integrations' ? (
         <IntegrationsTab />

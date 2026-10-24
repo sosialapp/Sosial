@@ -23,6 +23,7 @@ import { createDragAndDropPlugin } from '@schedule-x/drag-and-drop';
 import { createScrollControllerPlugin } from '@schedule-x/scroll-controller';
 import type { ConnectedChannel, MediaAssetRow, PostWithTargets } from '@/lib/types';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import SocialPost from '@/components/SocialPost';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { deletePost, publishPostNow, rescheduleChannels, reschedulePost } from '@/lib/posts';
@@ -412,7 +413,6 @@ function TimeEditor({
         <span className="font-mono text-xs font-medium tabular-nums text-ink">{formatTime(post.scheduled_at)}</span>
         <Badge className={st.className}>{st.label}</Badge>
       </div>
-      <p className="mt-1 text-sm text-ink">{snippet(post)}</p>
 
       {perChannel ? (
         <>
@@ -516,100 +516,6 @@ function TimeEditor({
 }
 
 type BoardView = 'day' | 'week' | 'month' | 'year' | 'list';
-
-/** Sent-post popup body: the dashboard Recent-posts social view (author, text, media). */
-function SentPostView({
-  post,
-  mediaItems,
-  avatarOf,
-  channelById,
-  cleanHandle,
-  onDelete,
-  busy,
-}: {
-  post: PostWithTargets;
-  mediaItems: MediaAssetRow[];
-  avatarOf: (channelId: string) => string | undefined;
-  channelById: Map<string, ConnectedChannel>;
-  cleanHandle: (raw: string | null | undefined) => string | null;
-  onDelete: () => void;
-  busy: boolean;
-}) {
-  const t = useT(appMessages);
-  const t0 = primaryTarget(post);
-  const provider = t0?.provider ?? 'x';
-  const ch = t0 ? channelById.get(t0.channel_id) : undefined;
-  const name = ch?.display_name?.trim() || providerMeta(provider).label;
-  const handle = cleanHandle(ch?.handle);
-  const when = post.sent_at ?? post.scheduled_at;
-  const st = statusMetaOf(post.status, t);
-  const text = post.body || post.title || '';
-  return (
-    <div>
-      <div className="flex items-center gap-2.5">
-        <ChannelAvatar
-          provider={provider}
-          avatar={t0 ? avatarOf(t0.channel_id) : undefined}
-          size={36}
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{name}</span>
-          <span className="block truncate text-xs text-faint">
-            {handle ? `${handle} · ` : ''}
-            {when ? formatDateTime(when) : ''}
-          </span>
-        </span>
-        <Badge className={st.className}>{st.label}</Badge>
-      </div>
-      {text ? (
-        <p className="mt-3 max-h-[30vh] overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-soft">
-          {text}
-        </p>
-      ) : (
-        <p className="mt-3 text-sm italic text-faint">{t('noTextMedia')}</p>
-      )}
-      {mediaItems.length > 0 ? (
-        <div
-          className={`mt-3 flex flex-wrap justify-center gap-1.5 ${mediaItems.length > 1 ? 'mx-auto max-w-[320px]' : ''}`}
-        >
-          {mediaItems.map((m) =>
-            m.kind === 'video' ? (
-              <video
-                key={m.id}
-                src={m.signed_url}
-                muted
-                playsInline
-                controls
-                preload="metadata"
-                poster={m.thumb_url ?? undefined}
-                className="h-auto max-h-[220px] w-auto max-w-full rounded-xl border border-line bg-bone object-contain"
-              />
-            ) : m.signed_url || m.thumb_url ? (
-              <SafeImg
-                key={m.id}
-                src={m.signed_url ? imageThumb(m.signed_url, THUMB_WIDTHS.md) : m.thumb_url ?? undefined}
-                alt=""
-                loading="lazy"
-                className={`h-auto w-auto rounded-xl border border-line bg-bone object-contain ${
-                  mediaItems.length > 1 ? 'max-h-[120px] max-w-[calc(50%-0.25rem)]' : 'max-h-[220px] max-w-full'
-                }`}
-              />
-            ) : null,
-          )}
-        </div>
-      ) : null}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mt-3 w-full !text-[#9F2F2D]"
-        onClick={onDelete}
-        disabled={busy}
-      >
-        {t('deleteLbl')}
-      </Button>
-    </div>
-  );
-}
 
 /** Schedule-X mount: creates the calendar once, then syncs events + date via plugins. */
 function SXMount({
@@ -767,6 +673,15 @@ export default function ScheduleXBoard({
   // Schedule-X renders client-side only (local timezone + Temporal).
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  // Below md the time grid gives way to the phone agenda.
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
   // Dark mode follows the ThemeScope root: class mutations plus the
   // 'sosial-theme' broadcast the toggle emits. The calendar remounts on change.
   const [dark, setDark] = useState(false);
@@ -1264,27 +1179,265 @@ export default function ScheduleXBoard({
     );
   };
 
-  return (
-    <div className={variant === 'mini' ? 'sx-compact' : 'flex min-h-screen flex-col'}>
-      {variant === 'mini' ? null : (
-      <>
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-line px-6 pt-5 pb-4">
-        <div className="min-w-0">
-          <p className="cal-eyebrow">
-            {t(VIEW_TABS.find((v) => v.id === view)?.key ?? 'calMonth')}
-            {rangeLabel ? ` · ${rangeLabel}` : ''}
-          </p>
-          <h1 className="mt-1.5 font-display text-[26px] font-medium leading-none tracking-tight text-ink">
-            {title}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5">
+  /* ----------------------- shared bits for new surfaces ----------------------- */
+
+  /** Next few posts still to go out, soonest first (sidebar + empty states). */
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    const out: PostWithTargets[] = [];
+    for (const items of byDay.values()) {
+      for (const p of items) {
+        if (p.status === 'sent' || !p.scheduled_at) continue;
+        if (new Date(p.scheduled_at).getTime() < now) continue;
+        out.push(p);
+      }
+    }
+    return out.sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? '')).slice(0, 6);
+  }, [byDay]);
+
+  /** Monday of the anchor's week and its seven days. */
+  const weekDays = useMemo(() => {
+    const mon = addDays(anchor, -((anchor.getDay() + 6) % 7));
+    return Array.from({ length: 7 }, (_, i) => addDays(mon, i));
+  }, [anchor]);
+
+  /** Status mix for the viewed week, sidebar summary. */
+  const weekMix = useMemo(() => {
+    const mix = { draft: 0, queued: 0, sent: 0, failed: 0 };
+    for (const d of weekDays) {
+      for (const p of byDay.get(dayKey(d)) ?? []) mix[statusCalendar(p.status) as keyof typeof mix] += 1;
+    }
+    return mix;
+  }, [weekDays, byDay]);
+
+  const openPost = (p: PostWithTargets) => {
+    if (p.scheduled_at) setSelectedKey(dayKey(new Date(p.scheduled_at)));
+    setSelectedPostId(p.id);
+  };
+
+  /** Drop on another day: same wall-clock time, new date (whole chain moves). */
+  const moveToDay = (id: string, key: string) => {
+    const p = posts.find((x) => x.id === id);
+    if (!p?.scheduled_at || dayKey(new Date(p.scheduled_at)) === key) return;
+    const { h, m } = partsOf(p.scheduled_at);
+    void retime(id, isoAt(key, h, m));
+  };
+
+  /** Small month grid: dots for busy days, click to jump there. */
+  const miniMonth = (base: Date, onPick: (d: Date) => void, activeKey: string) => (
+    <div className="grid grid-cols-7 gap-y-0.5 text-center">
+      {Array.from({ length: 7 }, (_, wi) => (
+        <span key={wi} className="pb-1 text-[10px] font-medium text-faint">
+          {new Date(2023, 0, 2 + wi).toLocaleDateString(undefined, { weekday: 'narrow' })}
+        </span>
+      ))}
+      {monthMatrix(base)
+        .flat()
+        .map((d) => {
+          const k = dayKey(d);
+          const inMonth = d.getMonth() === base.getMonth();
+          const n = (byDay.get(k) ?? []).length;
+          const isT = k === todayKey;
+          const on = k === activeKey;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onPick(d)}
+              aria-label={d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              aria-pressed={on}
+              className={`mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-full text-xs tabular-nums transition ${
+                on
+                  ? 'bg-ink font-bold text-bone'
+                  : isT
+                    ? 'bg-accent font-bold text-on-accent'
+                    : inMonth
+                      ? 'text-soft hover:bg-surface'
+                      : 'text-faint/50 hover:bg-surface'
+              }`}
+            >
+              {d.getDate()}
+              <span
+                className={`mt-0.5 h-1 w-1 rounded-full ${n ? (on ? 'bg-accent' : isT ? 'bg-on-accent' : 'bg-bolt-deep') : 'bg-transparent'}`}
+                aria-hidden="true"
+              />
+            </button>
+          );
+        })}
+    </div>
+  );
+
+  /** Compact post card used by the phone agenda, sidebar and dashboard week. */
+  const postChip = (p: PostWithTargets, opts: { compact?: boolean; draggable?: boolean } = {}) => {
+    const t0 = primaryTarget(p);
+    const thumb = (media[p.id] ?? [])[0];
+    const thumbSrc = thumb
+      ? thumb.kind === 'image' && thumb.signed_url
+        ? imageThumb(thumb.signed_url, THUMB_WIDTHS.xs)
+        : (thumb.thumb_url ?? '')
+      : '';
+    const canDrag = !!opts.draggable && p.status !== 'sent' && p.status !== 'partial';
+    return (
+      <button
+        key={p.id}
+        type="button"
+        draggable={canDrag}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/sosial-post', p.id);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onClick={() => openPost(p)}
+        className={`group relative flex w-full items-start gap-2 overflow-hidden rounded-xl border border-line bg-card text-left transition hover:border-ink/20 hover:shadow-[0_2px_10px_rgba(28,26,20,0.08)] ${
+          opts.compact ? 'p-2' : 'p-2.5'
+        } ${canDrag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        style={{ boxShadow: `inset 3px 0 0 ${accentOf(t0?.provider)}` }}
+      >
+        {t0 ? <ChannelAvatar provider={t0.provider} avatar={avatarOf(t0.channel_id)} size={opts.compact ? 18 : 22} /> : null}
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold tabular-nums text-ink">{formatTime(p.scheduled_at)}</span>
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[p.status] ?? 'bg-[#9A958B]'}`} aria-hidden="true" />
+            {partCount(p) > 1 ? (
+              <span className="text-[10px] text-faint">{fill(t('sxThreadN'), { n: partCount(p) })}</span>
+            ) : null}
+          </span>
+          <span className={`mt-0.5 block text-xs leading-snug text-soft ${opts.compact ? 'line-clamp-2' : 'line-clamp-3'}`}>
+            {snippet(p)}
+          </span>
+        </span>
+        {thumbSrc ? (
+          <SafeImg
+            src={thumbSrc}
+            alt=""
+            loading="lazy"
+            className={`shrink-0 rounded-lg object-cover ${opts.compact ? 'h-8 w-8' : 'h-10 w-10'}`}
+          />
+        ) : null}
+      </button>
+    );
+  };
+
+  /** Post details: centered dialog on desktop, bottom sheet on a phone. */
+  const detailsPortal =
+    selectedPost && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('calDetails')}
+          >
             <button
               type="button"
-              onClick={stepPrev}
+              aria-label={t('close')}
+              onClick={() => setSelectedPostId(null)}
+              className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-[2px]"
+            />
+            <div className="relative max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border border-line bg-card px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl sm:pt-5">
+              <span className="mx-auto mb-3 block h-1 w-10 rounded-full bg-line sm:hidden" aria-hidden="true" />
+              <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="eyebrow">
+                {fill(t('calPostEyebrow'), { key: selectedKey })}
+                {partCount(selectedPost) > 1 ? fill(t('calThreadOf'), { n: partCount(selectedPost) }) : ''}
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedPostId(null)}
+                aria-label={t('calCloseDetails')}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-medium text-muted transition hover:bg-paper-dim hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+            {partCount(selectedPost) > 1 ? (
+              <p className="mb-2 text-xs text-muted">
+                {t('calThreadNote')}
+              </p>
+            ) : null}
+            {/* The post as it reads (or will read) in the feed. */}
+            {(() => {
+              const p = selectedPost;
+              const t0 = primaryTarget(p);
+              const provider = t0?.provider ?? 'x';
+              const ch = t0 ? channelById.get(t0.channel_id) : undefined;
+              const at = p.sent_at ?? p.scheduled_at;
+              return (
+                <div className="mb-3">
+                  <SocialPost
+                    author={{
+                      name: ch?.display_name?.trim() || providerMeta(provider).label,
+                      handle: cleanHandle(ch?.handle),
+                      provider,
+                      avatar: t0 ? avatarOf(t0.channel_id) : undefined,
+                    }}
+                    time={at ? formatDateTime(at) : undefined}
+                    body={p.body || p.title || ''}
+                    emptyLabel={t('noTextMedia')}
+                    badge={
+                      <Badge className={statusMetaOf(p.status, t).className}>{statusMetaOf(p.status, t).label}</Badge>
+                    }
+                    media={(media[p.id] ?? [])
+                      .map((m) => ({
+                        id: m.id,
+                        kind: m.kind,
+                        src:
+                          m.kind === 'video'
+                            ? (m.signed_url ?? '')
+                            : m.signed_url
+                              ? (imageThumb(m.signed_url, THUMB_WIDTHS.md) ?? '')
+                              : (m.thumb_url ?? ''),
+                        poster: m.thumb_url,
+                      }))
+                      .filter((m) => m.src)}
+                    clamp={8}
+                  />
+                </div>
+              );
+            })()}
+            {selectedPost.status === 'sent' ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full !text-[#9F2F2D]"
+                onClick={() => void remove()}
+                disabled={pending}
+              >
+                {t('deleteLbl')}
+              </Button>
+            ) : (
+              <TimeEditor
+                key={selectedPost.id}
+                post={selectedPost}
+                dayLabel={selectedKey}
+                avatarOf={avatarOf}
+                onSave={(iso) => void retime(selectedPost.id, iso)}
+                onSaveChannels={(times) => void persistChannels(times)}
+                onPublish={() => void publishNow()}
+                onDelete={() => void remove()}
+                busy={pending}
+              />
+            )}
+          </div>
+          </div>,
+          // Inside the theme scope so `.theme-dark` variables apply;
+          // document.body would strand the panel outside dark mode.
+          document.querySelector('[data-theme-root]') ?? document.body,
+        )
+      : null;
+
+  /* ------------------------- dashboard: week overview ------------------------ */
+
+  if (variant === 'mini') {
+    const weekLabel = `${weekDays[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekDays[6].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+    return (
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex items-center rounded-full border border-line bg-card p-0.5">
+            <button
+              type="button"
+              onClick={() => setAnchor(addDays(anchor, -7))}
               aria-label={t('calPrev')}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
+              className="grid h-7 w-7 place-items-center rounded-full text-muted transition hover:bg-surface hover:text-ink"
             >
               <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -1292,7 +1445,408 @@ export default function ScheduleXBoard({
               type="button"
               onClick={stepToday}
               title={t('calJumpToday')}
-              className="min-w-[4.75rem] rounded-full px-2.5 py-1 text-center text-xs font-medium text-ink transition hover:bg-paper-dim"
+              className="rounded-full px-2.5 py-1 text-xs font-bold text-ink transition hover:bg-surface"
+            >
+              {todayInView('week', dayKey(anchor)) ? t('thisWeek') : weekLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnchor(addDays(anchor, 7))}
+              aria-label={t('calNext')}
+              className="grid h-7 w-7 place-items-center rounded-full text-muted transition hover:bg-surface hover:text-ink"
+            >
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+          <span className="cal-count hidden sm:inline">{weekLabel}</span>
+        </div>
+        {/* Seven columns on a wide card; a swipeable row of days on a phone. */}
+        <div className="no-scrollbar -mx-5 grid snap-x snap-mandatory auto-cols-[minmax(168px,72%)] grid-flow-col gap-2 overflow-x-auto px-5 pb-1 sm:auto-cols-[minmax(168px,1fr)] lg:mx-0 lg:grid-flow-row lg:grid-cols-7 lg:overflow-visible lg:px-0">
+          {weekDays.map((d) => {
+            const k = dayKey(d);
+            const items = byDay.get(k) ?? [];
+            const isT = k === todayKey;
+            const past = k < todayKey;
+            return (
+              <div
+                key={k}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes('text/sosial-post')) {
+                    e.preventDefault();
+                    e.currentTarget.dataset.over = '1';
+                  }
+                }}
+                onDragLeave={(e) => {
+                  delete e.currentTarget.dataset.over;
+                }}
+                onDrop={(e) => {
+                  delete e.currentTarget.dataset.over;
+                  const id = e.dataTransfer.getData('text/sosial-post');
+                  if (id) moveToDay(id, k);
+                }}
+                className={`flex min-h-[220px] snap-start flex-col rounded-2xl border p-2 transition data-[over]:border-accent data-[over]:bg-accent-soft ${
+                  isT ? 'border-accent/70 bg-accent-soft/50' : 'border-line bg-surface/50'
+                }`}
+              >
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <span className={`text-[11px] font-bold uppercase tracking-wide ${past ? 'text-faint' : 'text-muted'}`}>
+                    {d.toLocaleDateString(undefined, { weekday: 'short' })}
+                  </span>
+                  <span
+                    className={`grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs font-bold tabular-nums ${
+                      isT ? 'bg-accent text-on-accent' : past ? 'text-faint' : 'text-ink'
+                    }`}
+                  >
+                    {d.getDate()}
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  {items.slice(0, 4).map((p) => postChip(p, { compact: true, draggable: true }))}
+                  {items.length > 4 ? (
+                    <Link
+                      href={`/calendar-day?d=${k}`}
+                      className="rounded-lg px-1 py-0.5 text-[11px] font-bold text-muted transition hover:text-ink"
+                    >
+                      +{items.length - 4}
+                    </Link>
+                  ) : null}
+                  {!past ? (
+                    <Link
+                      href="/post"
+                      aria-label={t('calAddPost')}
+                      className={`mt-auto grid place-items-center rounded-xl border border-dashed border-line text-faint transition hover:border-ink/30 hover:text-ink ${
+                        items.length ? 'h-7' : 'h-full min-h-[96px]'
+                      }`}
+                    >
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="cal-hint mt-2.5">{t('calWeekDropHint')}</p>
+        {err ? <p className="mt-2 rounded-xl bg-[#FDEBEC] px-3 py-2 text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
+        {detailsPortal}
+      </div>
+    );
+  }
+
+  /* ------------------------------ phone agenda ------------------------------ */
+
+  // Below md the time grid has no room; Day/Week/Month become a date strip
+  // (or compact month) with the chosen day's posts listed underneath.
+  const agendaKey = (() => {
+    if (view === 'month') {
+      const [y, m] = selectedKey.split('-').map(Number);
+      return y === anchor.getFullYear() && m === anchor.getMonth() + 1 ? selectedKey : dayKey(anchor);
+    }
+    if (view === 'day') return dayKey(anchor);
+    return weekDays.some((d) => dayKey(d) === selectedKey) ? selectedKey : dayKey(weekDays[0]) <= todayKey && todayKey <= dayKey(weekDays[6]) ? todayKey : dayKey(weekDays[0]);
+  })();
+  const agendaItems = byDay.get(agendaKey) ?? [];
+  const agendaDate = (() => {
+    const [y, m, d] = agendaKey.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  })();
+
+  /**
+   * Month as a real wall calendar: equal cells on a ruled grid, the date in
+   * each corner, posts inside the day. Desktop cells hold up to three post
+   * chips (drag one to another day to move it); the phone version is the
+   * same grid with brand dots, and tapping a day lists it underneath.
+   */
+  const monthGrid = (compact: boolean) => {
+    const cells = monthMatrix(anchor).flat();
+    return (
+      <div className="overflow-hidden rounded-2xl border border-line bg-card">
+        <div className="grid grid-cols-7 border-b border-line bg-surface/70">
+          {Array.from({ length: 7 }, (_, wi) => {
+            const d = new Date(2023, 0, 2 + wi); // 2023-01-02 is a Monday
+            return (
+              <span
+                key={wi}
+                className={`py-2 text-center text-[11px] font-bold uppercase tracking-wide ${wi >= 5 ? 'text-faint' : 'text-muted'}`}
+              >
+                {d.toLocaleDateString(undefined, { weekday: compact ? 'narrow' : 'short' })}
+              </span>
+            );
+          })}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((d, i) => {
+            const k = dayKey(d);
+            const inMonth = d.getMonth() === anchor.getMonth();
+            const items = byDay.get(k) ?? [];
+            const isT = k === todayKey;
+            const weekend = i % 7 >= 5;
+            const edges = `${i % 7 === 6 ? '' : 'border-r'} ${i >= cells.length - 7 ? '' : 'border-b'} border-line`;
+            const dateNum = (
+              <span
+                className={`grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs font-bold tabular-nums ${
+                  isT ? 'bg-accent text-on-accent' : inMonth ? 'text-ink' : 'text-faint'
+                }`}
+              >
+                {d.getDate()}
+              </span>
+            );
+
+            if (compact) {
+              const on = k === agendaKey;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setSelectedKey(k)}
+                  aria-pressed={on}
+                  aria-label={`${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${items.length ? `, ${fill(t('calNPosts'), { n: items.length })}` : ''}`}
+                  className={`relative flex h-14 flex-col items-center gap-1 pt-1 transition ${edges} ${
+                    on ? 'bg-accent-soft' : weekend || !inMonth ? 'bg-surface/40' : ''
+                  } ${inMonth ? '' : 'opacity-50'}`}
+                >
+                  {on ? <span className="absolute inset-0 ring-2 ring-inset ring-ink" aria-hidden="true" /> : null}
+                  {dateNum}
+                  {items.length ? (
+                    <span className="flex items-center gap-0.5" aria-hidden="true">
+                      {items.slice(0, 3).map((p) => (
+                        <span
+                          key={p.id}
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ background: accentOf(primaryTarget(p)?.provider) }}
+                        />
+                      ))}
+                      {items.length > 3 ? <span className="text-[9px] font-bold leading-none text-muted">+</span> : null}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            }
+
+            return (
+              <div
+                key={k}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes('text/sosial-post')) {
+                    e.preventDefault();
+                    e.currentTarget.dataset.over = '1';
+                  }
+                }}
+                onDragLeave={(e) => {
+                  delete e.currentTarget.dataset.over;
+                }}
+                onDrop={(e) => {
+                  delete e.currentTarget.dataset.over;
+                  const id = e.dataTransfer.getData('text/sosial-post');
+                  if (id) moveToDay(id, k);
+                }}
+                className={`group/day flex min-h-[124px] min-w-0 flex-col gap-1 p-1.5 transition data-[over]:bg-accent-soft ${edges} ${
+                  isT ? 'bg-accent-soft/60' : weekend || !inMonth ? 'bg-surface/40' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={inMonth ? '' : 'opacity-60'}>{dateNum}</span>
+                  {k >= todayKey ? (
+                    <Link
+                      href="/post"
+                      aria-label={t('calAddPost')}
+                      className="grid h-6 w-6 place-items-center rounded-full text-faint opacity-0 transition hover:bg-surface hover:text-ink focus-visible:opacity-100 group-hover/day:opacity-100"
+                    >
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                  ) : null}
+                </div>
+                {items.slice(0, 3).map((p) => {
+                  const canDrag = p.status !== 'sent' && p.status !== 'partial';
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      draggable={canDrag}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/sosial-post', p.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      onClick={() => openPost(p)}
+                      title={snippet(p)}
+                      className={`flex h-[22px] w-full min-w-0 items-center gap-1.5 rounded-md bg-card px-1.5 text-left ring-1 ring-line transition hover:ring-ink/25 ${
+                        canDrag ? 'cursor-grab active:cursor-grabbing' : ''
+                      } ${inMonth ? '' : 'opacity-60'}`}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: accentOf(primaryTarget(p)?.provider) }}
+                        aria-hidden="true"
+                      />
+                      <span className="shrink-0 text-[10px] font-bold tabular-nums text-muted">
+                        {formatTime(p.scheduled_at)}
+                      </span>
+                      <span className="min-w-0 truncate text-[11px] font-medium text-ink">{snippet(p)}</span>
+                    </button>
+                  );
+                })}
+                {items.length > 3 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Open that day; the URL follows like any view switch.
+                      setAnchor(d);
+                      setSelectedKey(k);
+                      setView('day');
+                      window.history.replaceState(null, '', `/calendar-day?d=${k}`);
+                    }}
+                    className="rounded-md px-1.5 text-left text-[11px] font-bold text-muted transition hover:text-ink"
+                  >
+                    +{items.length - 3}
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const phoneAgenda = (
+    <div className="space-y-4">
+      {view === 'month' ? (
+        monthGrid(true)
+      ) : view === 'week' ? (
+        <div className="grid grid-cols-7 gap-1">
+          {weekDays.map((d) => {
+            const k = dayKey(d);
+            const on = k === agendaKey;
+            const n = (byDay.get(k) ?? []).length;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setSelectedKey(k)}
+                aria-pressed={on}
+                className={`flex flex-col items-center gap-0.5 rounded-2xl py-2 transition ${
+                  on ? 'bg-ink text-bone' : k === todayKey ? 'bg-accent-soft text-ink' : 'text-soft hover:bg-surface'
+                }`}
+              >
+                <span className={`text-[10px] font-bold uppercase ${on ? 'text-bone/70' : 'text-faint'}`}>
+                  {d.toLocaleDateString(undefined, { weekday: 'narrow' })}
+                </span>
+                <span className="text-base font-bold tabular-nums">{d.getDate()}</span>
+                <span className={`h-1 w-1 rounded-full ${n ? (on ? 'bg-accent' : 'bg-bolt-deep') : 'bg-transparent'}`} />
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <section>
+        <div className="mb-2 flex items-baseline justify-between gap-2 px-1">
+          <h2 className="font-display text-[15px] font-bold tracking-tight">{dayLabelFor(agendaDate, agendaKey)}</h2>
+          {agendaItems.length ? <span className="cal-count">{fill(t('calNPosts'), { n: agendaItems.length })}</span> : null}
+        </div>
+        {agendaItems.length ? (
+          <div className="space-y-2">{agendaItems.map((p) => postChip(p))}</div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-line px-4 py-8 text-center">
+            <p className="text-sm text-muted">{t('calNothingDay')}</p>
+            {agendaKey >= todayKey ? (
+              <Link href="/post" className="btn btn-bolt btn-sm mt-3 inline-flex">
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('calAddPost')}
+              </Link>
+            ) : null}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+
+  /* -------------------------------- sidebar --------------------------------- */
+
+  const sidebar = (
+    <aside className="hidden w-[300px] shrink-0 space-y-4 xl:block">
+      <div className="rounded-2xl border border-line bg-card p-3.5">
+        <p className="mb-2 px-1 font-display text-sm font-bold tracking-tight">
+          {anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+        </p>
+        {miniMonth(
+          anchor,
+          (d) => {
+            setAnchor(d);
+            setSelectedKey(dayKey(d));
+          },
+          dayKey(anchor),
+        )}
+      </div>
+      <div className="rounded-2xl border border-line bg-card p-3.5">
+        <p className="mb-2.5 px-1 font-display text-sm font-bold tracking-tight">{t('calThisWeekLoad')}</p>
+        <div className="grid grid-cols-4 gap-1.5 text-center">
+          {(
+            [
+              ['queued', 'stQueued', 'bg-[#B45309]'],
+              ['sent', 'stSent', 'bg-[#12914A]'],
+              ['draft', 'stDraft', 'bg-[#9A958B]'],
+              ['failed', 'stFailed', 'bg-[#E5484D]'],
+            ] as const
+          ).map(([k, label, dot]) => (
+            <div key={k} className="rounded-xl bg-surface px-1 py-2">
+              <p className="font-display text-lg font-bold tabular-nums leading-none">{weekMix[k]}</p>
+              <p className="mt-1 flex items-center justify-center gap-1 text-[10px] font-medium text-muted">
+                <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
+                <span className="truncate">{t(label)}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-2xl border border-line bg-card p-3.5">
+        <p className="mb-2.5 px-1 font-display text-sm font-bold tracking-tight">{t('calUpNext')}</p>
+        {upcoming.length ? (
+          <div className="space-y-1.5">
+            {upcoming.map((p) => (
+              <div key={p.id}>
+                <p className="mb-0.5 px-1 text-[10px] font-bold uppercase tracking-wide text-faint">
+                  {p.scheduled_at
+                    ? dayLabelFor(new Date(p.scheduled_at), dayKey(new Date(p.scheduled_at)))
+                    : ''}
+                </p>
+                {postChip(p, { compact: true })}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="px-1 text-xs leading-relaxed text-muted">{t('calNothingUpcoming')}</p>
+        )}
+      </div>
+    </aside>
+  );
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-3 px-1 pt-4 pb-3 sm:px-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-[28px]">
+            {title}
+          </h1>
+          <p className="cal-count mt-0.5">
+            {t(VIEW_TABS.find((v) => v.id === view)?.key ?? 'calMonth')}
+            {rangeLabel ? ` · ${rangeLabel}` : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-full border border-line bg-card p-0.5">
+            <button
+              type="button"
+              onClick={stepPrev}
+              aria-label={t('calPrev')}
+              className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface hover:text-ink"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={stepToday}
+              title={t('calJumpToday')}
+              className="min-w-[4.75rem] rounded-full px-2.5 py-1.5 text-center text-xs font-bold text-ink transition hover:bg-surface"
             >
               {pill}
             </button>
@@ -1300,30 +1854,32 @@ export default function ScheduleXBoard({
               type="button"
               onClick={stepNext}
               aria-label={t('calNext')}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-paper-dim hover:text-ink"
+              className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface hover:text-ink"
             >
-              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-          <Link href="/post" className="btn btn-bolt btn-sm">
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('cNewPost')}
+          <Link href="/post" className="btn btn-bolt btn-sm !h-9" aria-label={t('cNewPost')}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">{t('cNewPost')}</span>
           </Link>
         </div>
       </header>
 
-      {/* Mode tabs on the left, filters next to them, count pushed right. */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line px-6 py-2.5">
-        <SegmentedPills
-          ariaLabel={t('calMonth')}
-          role="tablist"
-          variant="paper"
-          value={view}
-          onChange={goView}
-          trackClassName="border border-line bg-card"
-          buttonClassName="font-medium"
-          options={VIEW_TABS.map((tb) => ({ value: tb.id, label: t(tb.key) }))}
-        />
+      {/* View tabs swipe sideways on a phone; filters and count follow. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-1 pb-3 sm:px-2">
+        <div className="no-scrollbar -mx-1 w-full overflow-x-auto px-1 sm:mx-0 sm:w-auto sm:px-0">
+          <SegmentedPills
+            ariaLabel={t('calMonth')}
+            role="tablist"
+            variant="paper"
+            value={view}
+            onChange={goView}
+            trackClassName="w-max"
+            buttonClassName="font-medium"
+            options={VIEW_TABS.map((tb) => ({ value: tb.id, label: t(tb.key) }))}
+          />
+        </div>
         <span className="mx-1 hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
         <Popover>
           <PopoverTrigger asChild>
@@ -1435,7 +1991,6 @@ export default function ScheduleXBoard({
         <span className="flex-1" />
         <span className="cal-count">{fill(t('calShown'), { n: sxEvents.length })}</span>
       </div>
-      </> )}
 
       {err && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
@@ -1453,24 +2008,8 @@ export default function ScheduleXBoard({
         </div>
       )}
 
-      {variant === 'mini' ? (
-        mounted ? (
-          <SXMount
-            view="week"
-            anchorKey={dayKey(anchor)}
-            events={sxEvents}
-            dark={dark}
-            timeZone={timeZone}
-            notify={setErr}
-            resolveDrop={resolveDrop}
-            onSelectPost={handleSelectPost}
-            persistDrop={persistDrop}
-          />
-        ) : (
-          <div className="min-h-[300px] animate-pulse rounded-2xl bg-paper-dim" />
-        )
-      ) : (
-      <div className="min-w-0 flex-1 px-5 pt-4 pb-6">
+      <div className="flex min-w-0 flex-1 gap-5 px-1 pt-4 pb-6 sm:px-2">
+      <div className="min-w-0 flex-1">
         {view === 'year' ? (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -1594,6 +2133,10 @@ export default function ScheduleXBoard({
                 {t('calListHint')}
               </p>
             </>
+          ) : mounted && narrow ? (
+            phoneAgenda
+          ) : mounted && view === 'month' ? (
+            monthGrid(false)
           ) : mounted ? (
           <div className={view === 'month' ? 'sx-height-auto' : undefined}>
             <SXMount
@@ -1612,78 +2155,16 @@ export default function ScheduleXBoard({
         ) : (
           <div className="h-full min-h-[480px] animate-pulse rounded-2xl bg-paper-dim" />
         )}
-        {view !== 'year' ? (
+        {view !== 'year' && view !== 'list' && !narrow ? (
           <p className="cal-hint mt-3">
             {t('calDragHint')}
           </p>
         ) : null}
       </div>
-      )}
+      {mounted ? sidebar : null}
+      </div>
 
-      {selectedPost && typeof document !== 'undefined'
-        ? createPortal(
-            <div
-              className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-              role="dialog"
-              aria-modal="true"
-              aria-label={t('calDetails')}
-            >
-          <button
-            type="button"
-            aria-label={t('close')}
-            onClick={() => setSelectedPostId(null)}
-            className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-[2px]"
-          />
-          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-card p-5 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="eyebrow">
-                {fill(t('calPostEyebrow'), { key: selectedKey })}
-                {partCount(selectedPost) > 1 ? fill(t('calThreadOf'), { n: partCount(selectedPost) }) : ''}
-              </p>
-              <button
-                type="button"
-                onClick={() => setSelectedPostId(null)}
-                aria-label={t('calCloseDetails')}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-medium text-muted transition hover:bg-paper-dim hover:text-ink"
-              >
-                ✕
-              </button>
-            </div>
-            {partCount(selectedPost) > 1 ? (
-              <p className="mb-2 text-xs text-muted">
-                {t('calThreadNote')}
-              </p>
-            ) : null}
-            {selectedPost.status === 'sent' ? (
-              <SentPostView
-                post={selectedPost}
-                mediaItems={(media[selectedPost.id] ?? []).slice(0, 4)}
-                avatarOf={avatarOf}
-                channelById={channelById}
-                cleanHandle={cleanHandle}
-                onDelete={() => void remove()}
-                busy={pending}
-              />
-            ) : (
-              <TimeEditor
-                key={selectedPost.id}
-                post={selectedPost}
-                dayLabel={selectedKey}
-                avatarOf={avatarOf}
-                onSave={(iso) => void retime(selectedPost.id, iso)}
-                onSaveChannels={(times) => void persistChannels(times)}
-                onPublish={() => void publishNow()}
-                onDelete={() => void remove()}
-                busy={pending}
-              />
-            )}
-          </div>
-        </div>,
-        // Inside the theme scope so `.theme-dark` variables apply;
-        // document.body would strand the panel outside dark mode.
-        document.querySelector('[data-theme-root]') ?? document.body,
-      )
-        : null}
+      {detailsPortal}
     </div>
   );
 }

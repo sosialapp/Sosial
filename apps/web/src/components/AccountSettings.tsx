@@ -42,6 +42,7 @@ import { createClient } from '@/lib/supabase/client';
 import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META } from '@/lib/i18n/locales';
 import { useSignedUrl } from '@/lib/useSignedUrl';
 import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal' | 'delete' | 'ticket';
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
@@ -883,21 +884,14 @@ export default function AccountSettings({
             <p className="text-xs leading-relaxed text-muted">
               {t('asNewTicketInfo')}
             </p>
-            <div className="flex gap-1.5" role="group" aria-label={t('asReportKindAria')}>
-              {(['bug', 'idea', 'billing', 'other'] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setRepKind(k)}
-                  aria-pressed={repKind === k}
-                  className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold capitalize transition ${
-                    repKind === k ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
-                  }`}
-                >
-                  {k}
-                </button>
-              ))}
-            </div>
+            <SegmentedPills
+              ariaLabel={t('asReportKindAria')}
+              size="sm"
+              buttonClassName="flex-1 capitalize"
+              value={repKind}
+              onChange={setRepKind}
+              options={(['bug', 'idea', 'billing', 'other'] as const).map((k) => ({ value: k, label: k }))}
+            />
             <input
               value={repSubject}
               onChange={(e) => setRepSubject(e.target.value)}

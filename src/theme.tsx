@@ -35,6 +35,8 @@ export interface Palette {
   greenText: string;
   paleRed: string;
   redText: string;
+  /** Sliding thumb of pill switches: lifted above the surface track in both themes. */
+  thumb: string;
 }
 
 export const LIGHT: Palette = {
@@ -60,6 +62,7 @@ export const LIGHT: Palette = {
   greenText: '#346538',
   paleRed: '#FDEBEC',
   redText: '#9F2F2D',
+  thumb: '#FFFFFF',
 };
 
 export const DARK: Palette = {
@@ -85,6 +88,7 @@ export const DARK: Palette = {
   greenText: '#9BD8A6',
   paleRed: '#3D1D1E',
   redText: '#F2A3A3',
+  thumb: '#2E2E2E',
 };
 
 const THEME_KEY = 'zap_theme_v1';

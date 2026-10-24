@@ -14,14 +14,15 @@ export type SegmentedPillOption<T extends string | number> = {
 
 type ThumbRect = { left: number; top: number; width: number; height: number; ready: boolean };
 
-const VARIANTS = {
-  /** Dark ink thumb, Post now/Schedule, pricing, AI card. */
-  ink: { thumb: 'bg-ink shadow-sm', active: 'text-paper', idle: 'text-muted hover:text-ink' },
-  /** Brand yellow thumb, composer kind, calendar-adjacent switches. */
-  accent: { thumb: 'bg-accent shadow-sm', active: 'text-on-accent', idle: 'text-muted hover:text-ink' },
-  /** Paper thumb on a dim track, calendar Day/Week/Month/Year/List. */
-  paper: { thumb: 'bg-paper shadow-sm', active: 'text-ink', idle: 'text-muted hover:text-ink' },
-} as const;
+/**
+ * One look for every pill switch in the app (light and dark): a soft
+ * surface track with a raised card-coloured thumb that slides under the
+ * active pill. Colours live on `.seg-track` / `.seg-thumb` in globals.css so
+ * the dark theme can lift the thumb above the track. The old ink / accent /
+ * paper variants all resolve to it; the prop stays so callers need no edits.
+ */
+const LOOK = { thumb: 'seg-thumb', active: 'text-ink', idle: 'text-muted hover:text-ink' } as const;
+const VARIANTS = { ink: LOOK, accent: LOOK, paper: LOOK } as const;
 
 const SIZES = {
   sm: 'px-3 py-1 text-[11px]',
@@ -46,8 +47,9 @@ export type SegmentedPillsProps<T extends string | number> = {
 /**
  * Segmented pill switch with a sliding active thumb. One component backs
  * every mutually-exclusive pill group (Post now/Schedule, billing interval,
- * calendar views, AI card options, …) so switching animates the same way
- * everywhere: the thumb glides to the pressed pill via left/top/width/height.
+ * calendar views, Community tabs, filters, AI card options, …) so switching
+ * looks and animates the same everywhere: the thumb glides to the pressed
+ * pill via left/top/width/height.
  */
 export default function SegmentedPills<T extends string | number>({
   options,
@@ -99,7 +101,7 @@ export default function SegmentedPills<T extends string | number>({
       role={role}
       aria-label={ariaLabel}
       className={cn(
-        'relative flex max-w-full items-stretch gap-1 overflow-x-auto no-scrollbar rounded-full border border-line bg-paper p-1',
+        'seg-track relative flex max-w-full items-stretch gap-1 overflow-x-auto no-scrollbar rounded-full p-1',
         trackClassName,
         className,
       )}
@@ -107,7 +109,7 @@ export default function SegmentedPills<T extends string | number>({
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute rounded-full transition-[left,top,width,height] duration-200 ease-out motion-reduce:transition-none',
+          'pointer-events-none absolute rounded-full transition-[left,top,width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
           v.thumb,
           thumb.ready ? 'opacity-100' : 'opacity-0',
         )}

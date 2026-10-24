@@ -2,8 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Pencil } from 'lucide-react';
+import {
+  AtSign, Camera, Crown, Link2, LogOut, Mail, Pencil, ShieldCheck, Trash2, UserPlus, UserRound, X,
+} from 'lucide-react';
 import ChannelScopePills from '@/components/ChannelScopePills';
+import SegmentedPills from '@/components/ui/segmented-pills';
 import { fileToAvatarDataUrl } from '@/lib/avatar';
 import { createClient } from '@/lib/supabase/client';
 import { useSignedUrl } from '@/lib/useSignedUrl';
@@ -378,30 +381,47 @@ export default function TeamManager({
     }
   };
 
-  return (
-    <div className="space-y-3">
-      {canManage ? (
-        <section className="card p-5" aria-label={t('tmTeamNameAria')}>
-          <p className="eyebrow">{t('tmTeamPicture')}</p>
-          <div className="mt-2 flex items-center gap-3">
-            <span className="relative shrink-0">
-              {teamAvatarUrl && !teamAvatarFailed ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={teamAvatarUrl} alt={t('tmTeamPicture')} onError={() => setTeamAvatarFailed(true)} className="h-12 w-12 rounded-full border border-line object-cover" />
-              ) : (
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink font-display text-base font-extrabold text-paper">
-                  {(draftName.trim() || workspaceName || 'T')[0].toUpperCase()}
-                </span>
-              )}
-              {avatarBusy ? (
-                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40" aria-hidden="true">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                </span>
-              ) : null}
-            </span>
-            <span className="flex flex-wrap items-center gap-2">
-              <label className="cursor-pointer rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink">
-                {teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}
+  const roleLabel = (r: string) =>
+    r === 'member' ? t('roleMember') : r === 'admin' ? t('roleAdmin') : r === 'owner' ? t('roleOwner') : r;
+  const RoleIcon = ({ r }: { r: string }) => {
+    const Icon = r === 'owner' ? Crown : r === 'admin' ? ShieldCheck : UserRound;
+    return <Icon className="h-3 w-3" aria-hidden="true" />;
+  };
+  const leads = members.filter((m) => m.role === 'owner' || m.role === 'admin').length;
+
+  /* ------------------------------ team identity ------------------------------ */
+
+  const identity = (
+    <section className="card overflow-hidden" aria-label={t('tmTeamNameAria')}>
+      <div className="h-16 bg-gradient-to-br from-accent/60 via-accent-soft to-transparent" aria-hidden="true" />
+      <div className="-mt-9 px-5 pb-5">
+        <div className="flex items-end gap-3">
+          <span className="relative shrink-0">
+            {teamAvatarUrl && !teamAvatarFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={teamAvatarUrl}
+                alt={t('tmTeamPicture')}
+                onError={() => setTeamAvatarFailed(true)}
+                className="h-[72px] w-[72px] rounded-[22px] border-4 border-card object-cover"
+              />
+            ) : (
+              <span className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px] border-4 border-card bg-ink font-display text-2xl font-extrabold text-bone">
+                {(draftName.trim() || workspaceName || 'T')[0].toUpperCase()}
+              </span>
+            )}
+            {avatarBusy ? (
+              <span className="absolute inset-1 flex items-center justify-center rounded-[18px] bg-black/40" aria-hidden="true">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              </span>
+            ) : null}
+            {canManage ? (
+              <label
+                className="absolute -right-1 -bottom-1 grid h-7 w-7 cursor-pointer place-items-center rounded-full border-2 border-card bg-ink text-bone transition hover:scale-105"
+                title={teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}
+              >
+                <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">{teamAvatarUrl ? t('tmChange') : t('tmAddPhoto')}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -413,163 +433,332 @@ export default function TeamManager({
                   }}
                 />
               </label>
-              {teamAvatarUrl ? (
-                <button
-                  type="button"
-                  onClick={() => void removeTeamAvatar()}
-                  className="rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
-                >
-                  {t('tmRemove')}
-                </button>
-              ) : null}
-            </span>
-          </div>
-          {avatarMsg ? (
-            <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#8fd0a0]">{avatarMsg}</p>
-          ) : null}
-          <p className="eyebrow mt-4">{t('tmTeamName')}</p>
-          {editingName ? (
-            <div className="mt-1.5">
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  ref={nameRef}
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      void saveName();
-                    }
-                    if (e.key === 'Escape') cancelNameEdit();
-                  }}
-                  placeholder={t('tmTeamPh')}
-                  aria-label={t('tmTeamNameAria')}
-                  className="field min-w-0 flex-1"
-                />
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void saveName()}
-                    className="btn btn-primary flex-1 sm:flex-none"
-                  >
-                    {busy ? t('tmSaving') : t('tmSave')}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={cancelNameEdit}
-                    className="btn flex-1 sm:flex-none"
-                  >
-                    {t('tmCancel')}
-                  </button>
-                </div>
-              </div>
-              {err ? (
-                <p className="mt-1.5 text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p>
-              ) : null}
-            </div>
-          ) : (
+            ) : null}
+          </span>
+          {canManage && teamAvatarUrl ? (
             <button
               type="button"
-              onClick={startNameEdit}
-              title={t('tmRenameTeam')}
-              aria-label={t('tmRenameTeam')}
-              className="group mt-1 flex max-w-full items-center gap-2 rounded-lg text-left"
+              onClick={() => void removeTeamAvatar()}
+              className="mb-1 rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
             >
-              <span className="truncate font-display text-xl font-extrabold tracking-tight">{workspaceName}</span>
-              <Pencil className="h-4 w-4 shrink-0 text-faint transition group-hover:text-ink" aria-hidden="true" />
+              {t('tmRemove')}
             </button>
-          )}
-        </section>
-      ) : null}
-      <section className="card divide-y divide-line-soft" aria-label="Members">
+          ) : null}
+        </div>
+
+        {editingName ? (
+          <div className="mt-3 flex flex-col gap-2">
+            <input
+              ref={nameRef}
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void saveName();
+                }
+                if (e.key === 'Escape') cancelNameEdit();
+              }}
+              placeholder={t('tmTeamPh')}
+              aria-label={t('tmTeamNameAria')}
+              className="field min-w-0"
+            />
+            <div className="flex gap-2">
+              <button type="button" disabled={busy} onClick={() => void saveName()} className="btn btn-primary flex-1">
+                {busy ? t('tmSaving') : t('tmSave')}
+              </button>
+              <button type="button" disabled={busy} onClick={cancelNameEdit} className="btn flex-1">
+                {t('tmCancel')}
+              </button>
+            </div>
+          </div>
+        ) : canManage ? (
+          <button
+            type="button"
+            onClick={startNameEdit}
+            title={t('tmRenameTeam')}
+            aria-label={t('tmRenameTeam')}
+            className="group mt-3 flex max-w-full items-center gap-2 rounded-lg text-left"
+          >
+            <span className="truncate font-display text-2xl font-extrabold tracking-tight">{workspaceName}</span>
+            <Pencil className="h-4 w-4 shrink-0 text-faint transition group-hover:text-ink" aria-hidden="true" />
+          </button>
+        ) : (
+          <p className="mt-3 truncate font-display text-2xl font-extrabold tracking-tight">{workspaceName}</p>
+        )}
+
+        {avatarMsg ? <p className="mt-2 text-xs font-bold text-[#346538] dark:text-[#8fd0a0]">{avatarMsg}</p> : null}
+
+        <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+          {(
+            [
+              [members.length, t('tmMembersLbl')],
+              [leads, t('tmLeadsLbl')],
+              [invites.length, t('tmPendingShort')],
+            ] as const
+          ).map(([n, label]) => (
+            <div key={label} className="rounded-2xl bg-surface px-2 py-2.5">
+              <dd className="font-display text-xl font-extrabold tabular-nums leading-none">{n}</dd>
+              <dt className="mt-1 truncate text-[11px] font-bold text-muted">{label}</dt>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+
+  /* -------------------------------- invite -------------------------------- */
+
+  const inviteCard = canManage ? (
+    <section className="card p-5" aria-label={t('tmInviteTeammate')}>
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-on-accent">
+          <UserPlus className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <p className="font-display text-base font-extrabold tracking-tight">{t('tmInviteTeammate')}</p>
+      </div>
+      <form onSubmit={invite} className="mt-4 space-y-4">
+        <div className="relative">
+          <Mail className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-faint" aria-hidden="true" />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t('tmEmailPh')}
+            type="email"
+            autoCapitalize="none"
+            className="field !pl-10"
+            aria-label={t('tmEmailAria')}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-bold text-muted">{t('tmRole')}</p>
+          <SegmentedPills
+            ariaLabel={t('tmRole')}
+            value={role}
+            onChange={setRole}
+            buttonClassName="flex-1"
+            options={[
+              { value: 'member', label: t('roleMember') },
+              { value: 'admin', label: t('roleAdmin') },
+            ]}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-bold text-muted">{t('tmAccountsFor')}</p>
+          <ChannelScopePills
+            channels={channels}
+            all={inviteAll}
+            selected={inviteSel}
+            onChange={(all, sel) => {
+              setInviteAll(all);
+              setInviteSel(sel);
+            }}
+          />
+          {channels.length === 0 ? <p className="mt-2 text-xs text-muted">{t('tmNoChannelsYet')}</p> : null}
+        </div>
+        {inviteLink ? (
+          <div className="rounded-2xl bg-surface p-3 text-sm">
+            <p className="font-bold">{t('tmAlreadyOnSosial')}</p>
+            <p className="mt-1 break-all text-xs text-muted">{inviteLink}</p>
+            <button
+              type="button"
+              onClick={() => void navigator.clipboard?.writeText(inviteLink)}
+              className="btn btn-ghost mt-2"
+            >
+              <Link2 className="h-4 w-4" aria-hidden="true" />
+              {t('tmCopyLink')}
+            </button>
+          </div>
+        ) : null}
+        <button type="submit" disabled={busy} className="btn btn-primary w-full justify-center">
+          {busy ? t('tmSending') : t('tmSendInvite')}
+        </button>
+      </form>
+    </section>
+  ) : (
+    <p className="card p-5 text-sm leading-relaxed text-muted">{t('tmMemberOnly')}</p>
+  );
+
+  /* ------------------------------- pending -------------------------------- */
+
+  const pending =
+    invites.length > 0 ? (
+      <section className="card p-5" aria-label={t('tmPendingInvites')}>
+        <p className="font-display text-base font-extrabold tracking-tight">
+          {t('tmPendingInvites')} <span className="text-faint">· {invites.length}</span>
+        </p>
+        <ul className="mt-3 space-y-2">
+          {invites.map((inv) => (
+            <li key={inv.id} className="flex items-center gap-3 rounded-2xl border border-dashed border-line p-2.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface text-faint">
+                <Mail className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold">{inv.email}</span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted">
+                  <span className="inline-flex items-center gap-1 font-bold">
+                    <RoleIcon r={inv.role} />
+                    {roleLabel(inv.role)}
+                  </span>
+                  {inv.expires_at ? (
+                    // Server and browser locales can format the date differently.
+                    <span suppressHydrationWarning>
+                      {fill(t('tmExpires'), {
+                        date: new Date(inv.expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                      })}
+                    </span>
+                  ) : null}
+                  {inv.emailed_at ? (
+                    <span className="text-faint">{t('tmInviteSent')}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void navigator.clipboard?.writeText(`https://sosial.app/invite/${inv.token}`)}
+                      className="font-bold text-accent-ink hover:underline"
+                    >
+                      {t('tmEmailPending')}
+                    </button>
+                  )}
+                </span>
+              </span>
+              {canManage ? (
+                <button
+                  type="button"
+                  onClick={() => void cancelPendingInvite(inv)}
+                  disabled={busy}
+                  aria-label={fill(t('tmCancelInviteAria'), { email: inv.email })}
+                  title={t('tmCancelInvite')}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-faint transition hover:bg-[#FDEBEC] hover:text-[#9F2F2D] disabled:opacity-40 dark:hover:bg-[#2c1b1b]"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null;
+
+  /* ------------------------------- members -------------------------------- */
+
+  const roster = (
+    <section className="card overflow-hidden" aria-label={t('tmMembersLbl')}>
+      <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <p className="font-display text-base font-extrabold tracking-tight">
+          {t('tmMembersLbl')} <span className="text-faint">· {members.length}</span>
+        </p>
+      </div>
+      <ul className="divide-y divide-line-soft">
         {members.map((m) => {
           const self = m.user_id === myUserId;
+          const open = assigning === m.id;
           return (
-            <div key={m.id} className="px-5 py-4">
-              <div className="flex items-center gap-3">
-                <MemberAvatar path={m.user_id ? memberAvatars[m.user_id] : undefined} email={m.email} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">
-                    {m.email}
-                    {self ? <span className="ml-2 text-xs font-medium text-muted">{t('tmYou')}</span> : null}
-                  </p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                    <span className="pill bg-accent-soft text-accent-ink">{m.role === 'member' ? t('roleMember') : m.role === 'admin' ? t('roleAdmin') : m.role}</span>
-                    <span className="pill bg-surface text-soft">{summary(m)}</span>
-                  </p>
+            <li key={m.id} className={`px-5 py-4 transition ${open ? 'bg-surface/50' : ''}`}>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+                <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">
+                  <MemberAvatar path={m.user_id ? memberAvatars[m.user_id] : undefined} email={m.email} />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-sm font-bold">{m.email}</span>
+                      {self ? (
+                        <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[10px] font-extrabold text-on-accent">
+                          {t('tmYou').replace(/[()]/g, '')}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                          m.role === 'owner'
+                            ? 'bg-ink text-bone'
+                            : m.role === 'admin'
+                              ? 'bg-accent-soft text-ink'
+                              : 'bg-surface text-soft'
+                        }`}
+                      >
+                        <RoleIcon r={m.role} />
+                        {roleLabel(m.role)}
+                      </span>
+                      <span className="truncate rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-muted">
+                        {summary(m)}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <span className="flex shrink-0 items-center gap-1.5">
+                <div className="flex max-w-full flex-wrap items-center gap-1.5">
                   {canChangeRole(m) ? (
-                    <select
-                      value={m.role}
-                      disabled={busy}
-                      onChange={(e) => void saveRole(m, e.target.value as 'member' | 'admin')}
-                      aria-label={fill(t('tmRoleFor'), { email: m.email })}
-                      title={t('tmChangeRole')}
-                      className="rounded-full border border-line bg-card px-2.5 py-1.5 text-xs font-bold text-soft disabled:opacity-50"
+                    <SegmentedPills
+                      ariaLabel={fill(t('tmRoleFor'), { email: m.email })}
+                      size="sm"
+                      value={m.role as 'member' | 'admin'}
+                      onChange={(r) => void saveRole(m, r)}
+                      options={[
+                        { value: 'member', label: t('roleMember'), disabled: busy },
+                        { value: 'admin', label: t('roleAdmin'), disabled: busy },
+                      ]}
+                    />
+                  ) : null}
+                  {canAssign(m) ? (
+                    <button
+                      type="button"
+                      onClick={() => openAssign(m)}
+                      aria-expanded={open}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        open ? 'border-ink bg-ink text-bone' : 'border-line text-soft hover:bg-surface'
+                      }`}
                     >
-                      <option value="member">{t('roleMember')}</option>
-                      <option value="admin">{t('roleAdmin')}</option>
-                    </select>
+                      <AtSign className="h-3.5 w-3.5" aria-hidden="true" />
+                      {open ? t('tmDone') : t('tmManageChannels')}
+                    </button>
                   ) : null}
                   {self && myRole !== 'owner' ? (
                     <button
                       type="button"
                       onClick={() => void leave()}
                       disabled={busy}
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft hover:bg-surface disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft hover:bg-surface disabled:opacity-50"
                     >
+                      <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                       {t('tmLeaveTeam')}
-                    </button>
-                  ) : null}
-                  {canAssign(m) ? (
-                    <button
-                      type="button"
-                      onClick={() => openAssign(m)}
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft hover:bg-surface"
-                    >
-                      {assigning === m.id ? t('tmDone') : t('tmManageChannels')}
                     </button>
                   ) : null}
                   {canRemove(m) ? (
                     confirmRemove === m.id ? (
-                      <>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#FDEBEC] p-0.5 dark:bg-[#2c1b1b]">
                         <button
                           type="button"
                           disabled={busy}
                           onClick={() => remove(m)}
-                          className="rounded-full bg-[#E60023] px-3 py-1.5 text-xs font-bold text-white"
+                          className="rounded-full bg-[#E5484D] px-3 py-1 text-xs font-bold text-white"
                         >
                           {t('tmConfirm')}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmRemove(null)}
-                          className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft"
+                          className="rounded-full px-3 py-1 text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]"
                         >
                           {t('tmKeep')}
                         </button>
-                      </>
+                      </span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => setConfirmRemove(m.id)}
-                        className="rounded-full px-3 py-1.5 text-xs font-bold text-[#9F2F2D] hover:bg-[#FDEBEC] dark:text-[#f2a8a8] dark:hover:bg-[#2c1b1b]"
+                        aria-label={`${t('tmRemove')} ${m.email}`}
+                        title={t('tmRemove')}
+                        className="grid h-8 w-8 place-items-center rounded-full text-faint transition hover:bg-[#FDEBEC] hover:text-[#9F2F2D] dark:hover:bg-[#2c1b1b] dark:hover:text-[#f2a8a8]"
                       >
-                        {t('tmRemove')}
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </button>
                     )
                   ) : null}
-                </span>
+                </div>
               </div>
 
-              {assigning === m.id ? (
-                <div className="mt-3 rounded-2xl border border-line bg-surface/60 p-4">
-                  <p className="text-xs font-bold">
-                    {fill(t('tmAccountsPost'), { email: m.email })}
-                  </p>
+              {open ? (
+                <div className="mt-3 rounded-2xl border border-line bg-card p-4">
+                  <p className="text-xs font-bold">{fill(t('tmAccountsPost'), { email: m.email })}</p>
                   <div className="mt-3">
                     <ChannelScopePills
                       channels={channels}
@@ -581,140 +770,44 @@ export default function TeamManager({
                       }}
                     />
                   </div>
-                  {channels.length === 0 ? (
-                    <p className="mt-2 text-xs text-muted">
-                      {t('tmNoChannelsYet')}
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => saveGrants(m)}
-                    className="btn btn-primary mt-3"
-                  >
+                  {channels.length === 0 ? <p className="mt-2 text-xs text-muted">{t('tmNoChannelsYet')}</p> : null}
+                  <button type="button" disabled={busy} onClick={() => saveGrants(m)} className="btn btn-primary mt-3">
                     {busy ? t('tmSaving') : t('tmSaveAccounts')}
                   </button>
                 </div>
               ) : null}
-            </div>
+            </li>
           );
         })}
-      </section>
+      </ul>
+    </section>
+  );
 
-      {invites.length > 0 ? (
-        <section className="card p-5" aria-label="Pending invites">
-          <p className="eyebrow">{t('tmPendingInvites')}</p>
-          <ul className="mt-3 space-y-2">
-            {invites.map((inv) => (
-              <li key={inv.id} className="flex items-center gap-2 text-sm">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-bold">{inv.email}</span>
-                  {inv.emailed_at ? (
-                    <span className="block text-xs text-faint">{t('tmInviteSent')}</span>
-                  ) : (
-                    <span className="block text-xs">
-                      <button
-                        type="button"
-                        onClick={() => void navigator.clipboard?.writeText(`https://sosial.app/invite/${inv.token}`)}
-                        className="font-bold text-accent-ink hover:underline"
-                      >
-                        {t('tmEmailPending')}
-                      </button>
-                    </span>
-                  )}
-                </span>
-                <span className="pill shrink-0 bg-surface text-soft">{inv.role === 'member' ? t('roleMember') : inv.role === 'admin' ? t('roleAdmin') : inv.role}</span>
-                {inv.expires_at ? (
-                  <span className="shrink-0 text-xs text-muted">
-                    {fill(t('tmExpires'), { date: new Date(inv.expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) })}
-                  </span>
-                ) : null}
-                {canManage ? (
-                  <button
-                    type="button"
-                    onClick={() => void cancelPendingInvite(inv)}
-                    disabled={busy}
-                    aria-label={fill(t('tmCancelInviteAria'), { email: inv.email })}
-                    title={t('tmCancelInvite')}
-                    className="shrink-0 rounded-full px-2 py-1 text-sm font-bold text-faint transition hover:text-[#9F2F2D] disabled:opacity-40"
-                  >
-                    ✕
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {canManage ? (
-        <section className="card p-5" aria-label="Invite teammate">
-          <p className="eyebrow">{t('tmInviteTeammate')}</p>
-          <form onSubmit={invite} className="mt-3 space-y-3">
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('tmEmailPh')}
-              type="email"
-              autoCapitalize="none"
-              className="field"
-              aria-label={t('tmEmailAria')}
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="text-xs font-bold text-muted" htmlFor="team-role">
-                {t('tmRole')}
-              </label>
-              <select
-                id="team-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'member' | 'admin')}
-                className="field w-auto"
-              >
-                <option value="member">{t('roleMember')}</option>
-                <option value="admin">{t('roleAdmin')}</option>
-              </select>
-            </div>
-            <div>
-              <p className="mb-2 text-xs font-bold text-muted">{t('tmAccountsFor')}</p>
-              <ChannelScopePills
-                channels={channels}
-                all={inviteAll}
-                selected={inviteSel}
-                onChange={(all, sel) => {
-                  setInviteAll(all);
-                  setInviteSel(sel);
-                }}
-              />
-              {channels.length === 0 ? (
-                <p className="mt-2 text-xs text-muted">
-                  {t('tmNoChannelsYet')}
-                </p>
-              ) : null}
-            </div>
-            {err ? <p className="text-sm font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p> : null}
-            {inviteLink ? (
-              <div className="rounded-xl border border-line bg-surface/60 p-3 text-sm">
-                <p className="font-bold">{t('tmAlreadyOnSosial')}</p>
-                <p className="mt-1 break-all text-xs text-muted">{inviteLink}</p>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard?.writeText(inviteLink)}
-                  className="btn btn-ghost mt-2"
-                >
-                  {t('tmCopyLink')}
-                </button>
-              </div>
-            ) : null}
-            <button type="submit" disabled={busy} className="btn btn-primary w-full sm:w-auto">
-              {busy ? t('tmSending') : t('tmSendInvite')}
-            </button>
-          </form>
-        </section>
-      ) : (
-        <p className="card p-5 text-sm text-muted">
-                      {t('tmMemberOnly')}
+  // Desktop: roster on the left, team card / invite / pending on the right.
+  // Phone: team card, then the roster, then invite and pending.
+  return (
+    <div className="space-y-4">
+      {err ? (
+        <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+          {err}
         </p>
-      )}
+      ) : null}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-4 lg:order-2">
+          {identity}
+          <div className="hidden space-y-4 lg:block">
+            {inviteCard}
+            {pending}
+          </div>
+        </div>
+        <div className="min-w-0 space-y-4 lg:order-1">
+          {roster}
+          <div className="space-y-4 lg:hidden">
+            {inviteCard}
+            {pending}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

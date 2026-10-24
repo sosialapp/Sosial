@@ -9,6 +9,7 @@ import { SegMediaStrip } from './SegMediaStrip';
 import { useVerticalReorder } from './useVerticalReorder';
 import { PubRow } from './PublishNotice';
 import { SocialGlyph, ChannelAvatar, AccountStack } from './ui';
+import SocialPost, { RingCounter, captionLimit } from './SocialPost';
 import MediaSources, { type SourceAttachment } from './MediaSources';
 import { SOCIAL_META, requiresTitle } from '../constants';
 import { MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
@@ -777,6 +778,32 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     const def = defaultAccountIdFor(c);
     return def ? [def] : [];
   };
+  /** Who the composer writes as, like the face beside a social compose box:
+   *  the first picked channel's chosen account. */
+  const composeLead = plats.find((c) => c !== 'any') ?? null;
+  const composeAcc = composeLead
+    ? accounts.find((x) => x.id === selectedAccountIds(composeLead)[0]) ?? accounts.find((x) => x.provider === composeLead)
+    : undefined;
+  const composeName = (composeAcc && accountName(composeAcc)) || (composeLead ? SOCIAL_META[composeLead]?.label ?? composeLead : '');
+  const composeHandle = composeAcc ? accountHandle(composeAcc) : undefined;
+  const composeExtra = plats.filter((c) => c !== 'any').length - 1;
+  const composeFace = composeLead ? (
+    <ChannelAvatar platform={composeLead} avatar={composeAcc ? accountAvatar(composeAcc) : undefined} size={40} />
+  ) : (
+    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.lineSoft }} />
+  );
+  const composeHead = composeName ? (
+    <Text numberOfLines={1} style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink }}>
+      {composeName}
+      {composeHandle || composeExtra > 0 ? (
+        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, color: C.muted }}>
+          {'  '}{composeHandle ?? ''}{composeExtra > 0 ? ` +${composeExtra}` : ''}
+        </Text>
+      ) : null}
+    </Text>
+  ) : null;
+  const capLimit = captionLimit(plats.filter((c) => c !== 'any'));
+
   /** Per-channel account ids for the selected channels (provider → account ids). */
   const finalAccountIds = (): Record<string, string[]> | undefined => {
     const out: Record<string, string[]> = {};
@@ -917,12 +944,19 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
           {composer ? (
             <View style={st.post}>
               {readOnly ? (
-                <>
-                  {composer.title || requiresTitle(initialPlatforms) ? (
-                    <Text style={st.postT} numberOfLines={2}>{composer.title || 'Untitled'}</Text>
-                  ) : null}
-                  {composer.caption ? <Text style={st.postCap}>{composer.caption}</Text> : null}
-                </>
+                // A sent post reads as it does in the feed (its media and
+                // stats follow below in the sheet).
+                <SocialPost
+                  author={{
+                    name: composeName || 'Sosial',
+                    handle: composeHandle ?? null,
+                    platform: composeLead ?? 'x',
+                    avatar: composeAcc ? accountAvatar(composeAcc) : undefined,
+                  }}
+                  title={composer.title || (requiresTitle(initialPlatforms) ? 'Untitled' : null)}
+                  body={composer.caption}
+                  numberOfLines={0}
+                />
               ) : threadOn && composer.onThread && chainCap ? (
                 <>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -981,13 +1015,25 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                             onMove={(from, to) => composer.onMoveThreadMedia?.(i, from, to)}
                           />
                         ) : null}
-                        <Txt
-                          value={seg}
-                          onChangeText={(v) => composer.onThread!(composer.thread!.map((s, j) => (j === i ? v : s)))}
-                          placeholder={i === 0 ? 'First post…' : 'Reply…'}
-                          multiline
-                          style={{ minHeight: 72, textAlignVertical: 'top' }}
-                        />
+                        <View style={{ flexDirection: 'row', gap: 11 }}>
+                          <View style={{ alignItems: 'center' }}>
+                            {composeFace}
+                            {i < composer.thread!.length - 1 ? (
+                              <View style={{ width: 2, flex: 1, minHeight: 16, marginTop: 6, borderRadius: 1, backgroundColor: C.line }} />
+                            ) : null}
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            {composeHead}
+                            <TextInput
+                              value={seg}
+                              onChangeText={(v) => composer.onThread!(composer.thread!.map((s, j) => (j === i ? v : s)))}
+                              placeholder={i === 0 ? "What's happening?" : 'Add another post'}
+                              placeholderTextColor={C.faint}
+                              multiline
+                              style={[st.composeInput, { minHeight: 64 }]}
+                            />
+                          </View>
+                        </View>
                       </Animated.View>
                     );
                   })}
@@ -999,57 +1045,64 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                 </>
               ) : (
                 <>
-                  <Txt
-                    value={composer.caption}
-                    onChangeText={composer.onCaption}
-                    placeholder="Write your post…"
-                    multiline
-                    style={{ minHeight: 96, textAlignVertical: 'top' }}
-                  />
-                  {(!readOnly && media) || onAi || (chainCap && composer.onThread) ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
-                      {!readOnly && media ? (
-                        <TouchableOpacity
-                          onPress={() => openSources(null)}
-                          hitSlop={6}
-                          accessibilityLabel="Attach media"
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-                        >
-                          <Ionicons name="image-outline" size={15} color={C.accentInk} />
-                          <Ionicons name="chevron-down" size={12} color={C.accentInk} />
-                        </TouchableOpacity>
-                      ) : null}
-                      {onAi ? (
-                        <TouchableOpacity onPress={onAi} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Ionicons name="sparkles" size={15} color={C.accentInk} />
-                          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>AI writer</Text>
-                        </TouchableOpacity>
-                      ) : null}
-                      {chainCap && composer.onThread ? (
-                        <TouchableOpacity
-                          onPress={() => {
-                            const next = splitThread(composer.caption, chainCap);
-                            const n = next.length ? next : [''];
-                            composer.onThread!(n);
-                            // Carry the first shared attachment onto the head post
-                            // so it isn't stranded in the hidden strip.
-                            const firstAtt = media?.items.find((a) => a.kind === 'image' || a.kind === 'video');
-                            if (firstAtt && composer.onThreadMedia) {
-                            const cur = composer.threadMedia ?? [];
-                            if (!cur[0]?.length) {
-                              composer.onThreadMedia(Array.from({ length: n.length }, (_, j) => (j === 0 ? [{ uri: firstAtt.uri, kind: firstAtt.kind }] : (cur[j] ?? null))));
-                            }
-                            }
-                          }}
-                          hitSlop={6}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                        >
-                          <Ionicons name="git-branch" size={15} color={C.accentInk} />
-                          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Chain post</Text>
-                        </TouchableOpacity>
-                      ) : null}
+                  <View style={{ flexDirection: 'row', gap: 11 }}>
+                    {composeFace}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      {composeHead}
+                      <TextInput
+                        value={composer.caption}
+                        onChangeText={composer.onCaption}
+                        placeholder="What's happening?"
+                        placeholderTextColor={C.faint}
+                        multiline
+                        style={st.composeInput}
+                      />
                     </View>
-                  ) : null}
+                  </View>
+                  <View style={st.composeTools}>
+                    {!readOnly && media ? (
+                      <TouchableOpacity
+                        onPress={() => openSources(null)}
+                        hitSlop={6}
+                        accessibilityLabel="Attach media"
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+                      >
+                        <Ionicons name="image-outline" size={15} color={C.accentInk} />
+                        <Ionicons name="chevron-down" size={12} color={C.accentInk} />
+                      </TouchableOpacity>
+                    ) : null}
+                    {onAi ? (
+                      <TouchableOpacity onPress={onAi} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="sparkles" size={15} color={C.accentInk} />
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>AI writer</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    {chainCap && composer.onThread ? (
+                      <TouchableOpacity
+                        onPress={() => {
+                          const next = splitThread(composer.caption, chainCap);
+                          const n = next.length ? next : [''];
+                          composer.onThread!(n);
+                          // Carry the first shared attachment onto the head post
+                          // so it isn't stranded in the hidden strip.
+                          const firstAtt = media?.items.find((a) => a.kind === 'image' || a.kind === 'video');
+                          if (firstAtt && composer.onThreadMedia) {
+                          const cur = composer.threadMedia ?? [];
+                          if (!cur[0]?.length) {
+                            composer.onThreadMedia(Array.from({ length: n.length }, (_, j) => (j === 0 ? [{ uri: firstAtt.uri, kind: firstAtt.kind }] : (cur[j] ?? null))));
+                          }
+                          }
+                        }}
+                        hitSlop={6}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                      >
+                        <Ionicons name="git-branch" size={15} color={C.accentInk} />
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Chain post</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <View style={{ flex: 1 }} />
+                    <RingCounter used={composer.caption.length} limit={capLimit} />
+                  </View>
                 </>
               )}
             </View>
@@ -1610,7 +1663,10 @@ const makeSt = (C: Palette) => ({
   sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, gap: 10, maxHeight: '92%' } as const,
   title: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.3, color: C.ink } as const,
   label: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6 } as const,
-  post: { backgroundColor: C.card, borderRadius: R.lg, padding: 12, gap: 8 } as const,
+  post: { backgroundColor: C.card, borderRadius: 20, padding: 14, gap: 10 } as const,
+  // 16px so iOS never zooms; borderless like a social compose box.
+  composeInput: { minHeight: 88, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, lineHeight: 22, color: C.ink, textAlignVertical: 'top', paddingTop: 4, paddingBottom: 4, paddingHorizontal: 0 } as const,
+  composeTools: { flexDirection: 'row', alignItems: 'center', gap: 18, borderTopWidth: 1, borderTopColor: C.lineSoft, paddingTop: 10 } as const,
   postT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15, letterSpacing: -0.2, color: C.ink } as const,
   postCap: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, lineHeight: 20, color: C.ink } as const,
   sentNote: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk } as const,

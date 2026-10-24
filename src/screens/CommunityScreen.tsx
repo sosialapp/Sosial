@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,11 @@ import {
   TextInput,
   Image,
   Modal,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T } from '../theme';
 import { SocialGlyph } from '../components/ui';
@@ -47,6 +51,35 @@ function timeAgo(iso: string): string {
   if (days < 7) return `${days}d ago`;
   try {
     return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+function dayKey(iso: string): string {
+  return new Date(iso).toDateString();
+}
+
+/** Chat separator: Today, Yesterday, weekday this week, else the date. */
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((start(new Date()) - start(d)) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  try {
+    return d.toLocaleDateString('en-US', days < 7 ? { weekday: 'long' } : { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+function clock(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  try {
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   } catch {
     return '';
   }
@@ -105,6 +138,20 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   const [openConv, setOpenConv] = useState<CommunityConversation | null>(null);
   const [thread, setThread] = useState<CommunityMessage[] | null>(null);
   const [msgDraft, setMsgDraft] = useState('');
+  const [kbOpen, setKbOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  const threadScroll = useRef<ScrollView>(null);
+
+  // With the keyboard up the home indicator is covered, so the composer drops
+  // its bottom inset and sits flush on the keys.
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const loadChannels = useCallback(async () => {
     const { data } = await supabase()
@@ -366,7 +413,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
             const count = unseen[o.value as 'comments' | 'messages'] ?? 0;
             return (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={[active ? s.tabOnT : s.tabT, active && { color: C.onInk }]}>{o.label}</Text>
+                <Text style={[active ? s.tabOnT : s.tabT, { color: active ? C.ink : C.muted }]}>{o.label}</Text>
                 {count > 0 ? (
                   <View
                     style={{
@@ -374,12 +421,12 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                       paddingHorizontal: 4,
                       height: 17,
                       borderRadius: 9,
-                      backgroundColor: active ? C.bone : C.accent,
+                      backgroundColor: C.accent,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: active ? C.ink : '#0b1220' }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: '#0b1220' }}>
                       {count > 99 ? '99+' : count}
                     </Text>
                   </View>
@@ -481,67 +528,154 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     />
   );
 
+  const openMeta = openConv ? SOCIAL_META[openConv.platform] : undefined;
+  const openChannel = openConv ? channels.find((c) => c.id === openConv.channel_id)?.label : undefined;
+  const canSend = !busy && !!msgDraft.trim();
+
+  // Full-screen chat, messenger-style. The modal sits outside the app's safe
+  // area, so it pads for the notch and home indicator itself, and the
+  // KeyboardAvoidingView keeps the composer on top of the keyboard instead of
+  // letting the thread run underneath it.
   const threadModal = (
-    <Modal visible={!!openConv} animationType="slide" onRequestClose={() => setOpenConv(null)}>
-      <View style={{ flex: 1, backgroundColor: C.bone }}>
+    <Modal
+      visible={!!openConv}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      onRequestClose={() => setOpenConv(null)}
+    >
+      <View style={{ flex: 1, backgroundColor: C.bone, paddingTop: insets.top }}>
         <View style={s.threadHead}>
-          <TouchableOpacity onPress={() => setOpenConv(null)} style={{ padding: 4 }} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color={C.ink} />
-          </TouchableOpacity>
-          <Face name={openConv?.participant_name ?? null} avatar={openConv?.participant_avatar ?? null} size={30} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.convName} numberOfLines={1}>{openConv?.participant_name ?? 'Conversation'}</Text>
-            <Text style={s.commentT}>{openConv ? providerLabel(openConv.platform) : ''}</Text>
-          </View>
-          <TouchableOpacity onPress={() => void onRefresh()} style={{ padding: 4 }} activeOpacity={0.7}>
-            <Ionicons name="refresh" size={18} color={C.muted} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView contentContainerStyle={{ padding: 18, gap: 8 }}>
-          {thread === null ? (
-            <ActivityIndicator color={C.accent} />
-          ) : thread.length === 0 ? (
-            <Text style={[s.emptyS, { textAlign: 'center', marginTop: 24 }]}>No messages in this thread yet.</Text>
-          ) : (
-            thread.map((m) => (
-              <View
-                key={m.id}
-                style={[
-                  s.bubble,
-                  m.direction === 'out'
-                    ? { alignSelf: 'flex-end', backgroundColor: C.ink }
-                    : { alignSelf: 'flex-start', backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
-                ]}
-              >
-                <Text style={[s.bubbleT, { color: m.direction === 'out' ? C.onInk : C.ink }]}>{m.body}</Text>
-                <Text style={[s.bubbleT, { fontSize: 10, marginTop: 4, color: m.direction === 'out' ? C.onInk : C.faint, opacity: 0.7 }]}>
-                  {timeAgo(m.sent_at)}
-                  {m.status === 'pending' ? ' · sending' : ''}
-                </Text>
-              </View>
-            ))
-          )}
-        </ScrollView>
-
-        <View style={s.composer}>
-          <TextInput
-            value={msgDraft}
-            onChangeText={setMsgDraft}
-            placeholder="Write a message…"
-            placeholderTextColor={C.faint}
-            style={[s.input, { flex: 1 }]}
-            multiline
-          />
           <TouchableOpacity
-            onPress={() => void sendDm()}
-            disabled={busy || !msgDraft.trim()}
-            style={[s.sendBtn, { opacity: busy || !msgDraft.trim() ? 0.5 : 1 }]}
-            activeOpacity={0.8}
+            onPress={() => setOpenConv(null)}
+            style={s.headBtn}
+            activeOpacity={0.7}
+            accessibilityLabel="Back to messages"
           >
-            {busy ? <ActivityIndicator size="small" color={C.onInk} /> : <Ionicons name="send" size={16} color={C.onInk} />}
+            <Ionicons name="chevron-back" size={24} color={C.ink} />
+          </TouchableOpacity>
+          <View>
+            <Face name={openConv?.participant_name ?? null} avatar={openConv?.participant_avatar ?? null} size={36} />
+            {openConv ? (
+              <View style={[s.faceBadge, { backgroundColor: openMeta?.bg ?? C.ink, borderColor: C.card }]}>
+                <SocialGlyph platform={openConv.platform} size={8} color="#fff" />
+              </View>
+            ) : null}
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.threadName} numberOfLines={1}>{openConv?.participant_name ?? 'Conversation'}</Text>
+            <Text style={s.commentT} numberOfLines={1}>
+              {openConv ? providerLabel(openConv.platform) : ''}
+              {openChannel ? ` · ${openChannel}` : ''}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => void onRefresh()}
+            style={s.headBtn}
+            activeOpacity={0.7}
+            disabled={refreshing}
+            accessibilityLabel="Refresh conversation"
+          >
+            {refreshing ? <ActivityIndicator size="small" color={C.muted} /> : <Ionicons name="refresh" size={19} color={C.muted} />}
           </TouchableOpacity>
         </View>
+
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <ScrollView
+            ref={threadScroll}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, flexGrow: 1, justifyContent: 'flex-end' }}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => threadScroll.current?.scrollToEnd({ animated: false })}
+            onLayout={() => threadScroll.current?.scrollToEnd({ animated: false })}
+          >
+            {thread === null ? (
+              <ActivityIndicator color={C.accent} style={{ marginBottom: 24 }} />
+            ) : thread.length === 0 ? (
+              <Text style={[s.emptyS, { marginBottom: 24 }]}>No messages in this thread yet.</Text>
+            ) : (
+              thread.map((m, i) => {
+                const out = m.direction === 'out';
+                const prev = thread[i - 1];
+                const next = thread[i + 1];
+                const newDay = !prev || dayKey(prev.sent_at) !== dayKey(m.sent_at);
+                // Consecutive lines from one side sit tight and share one face.
+                const joinPrev = !newDay && prev?.direction === m.direction;
+                const joinNext = !!next && next.direction === m.direction && dayKey(next.sent_at) === dayKey(m.sent_at);
+                return (
+                  <View key={m.id}>
+                    {newDay ? (
+                      <View style={s.dayRow}>
+                        <View style={s.dayLine} />
+                        <Text style={s.dayT}>{dayLabel(m.sent_at)}</Text>
+                        <View style={s.dayLine} />
+                      </View>
+                    ) : null}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'flex-end',
+                        justifyContent: out ? 'flex-end' : 'flex-start',
+                        gap: 6,
+                        marginTop: joinPrev ? 2 : 10,
+                      }}
+                    >
+                      {!out ? (
+                        joinNext ? (
+                          <View style={{ width: 26 }} />
+                        ) : (
+                          <Face name={openConv?.participant_name ?? null} avatar={openConv?.participant_avatar ?? null} size={26} />
+                        )
+                      ) : null}
+                      <View
+                        style={[
+                          s.bubble,
+                          out
+                            ? { backgroundColor: C.accent, borderBottomRightRadius: joinNext ? 20 : 6 }
+                            : { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderBottomLeftRadius: joinNext ? 20 : 6 },
+                          m.status === 'pending' && { opacity: 0.65 },
+                        ]}
+                      >
+                        <Text style={[s.bubbleT, { color: out ? '#0b1220' : C.ink }]}>{m.body}</Text>
+                        {!joinNext || m.status === 'pending' ? (
+                          <Text style={[s.bubbleTime, { color: out ? 'rgba(11,18,32,0.55)' : C.faint, textAlign: out ? 'right' : 'left' }]}>
+                            {clock(m.sent_at)}
+                            {m.status === 'pending' ? ' · sending' : ''}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+
+          {err ? <Text style={[s.err, { marginHorizontal: 12, marginBottom: 6 }]}>{err}</Text> : null}
+
+          <View style={[s.composer, { paddingBottom: kbOpen ? 8 : Math.max(insets.bottom, 8) }]}>
+            <View style={s.composerField}>
+              <TextInput
+                value={msgDraft}
+                onChangeText={setMsgDraft}
+                placeholder={openChannel ? `Message as ${openChannel}` : 'Write a message…'}
+                placeholderTextColor={C.faint}
+                style={s.composerInput}
+                multiline
+              />
+              <TouchableOpacity
+                onPress={() => void sendDm()}
+                disabled={!canSend}
+                style={[s.sendBtn, { opacity: canSend ? 1 : 0.4 }]}
+                activeOpacity={0.8}
+                accessibilityLabel="Send message"
+              >
+                {busy ? <ActivityIndicator size="small" color="#0b1220" /> : <Ionicons name="arrow-up" size={18} color="#0b1220" />}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -600,9 +734,19 @@ const makeS = (C: Palette) => StyleSheet.create({
   input: { backgroundColor: C.bone, borderRadius: 12, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 12, paddingVertical: 9, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.ink, maxHeight: 110 },
   smallBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   smallBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#fff' },
-  threadHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft, backgroundColor: C.card },
-  bubble: { maxWidth: '82%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 9 },
-  bubbleT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 19 },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.lineSoft, backgroundColor: C.card },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
+  threadHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft, backgroundColor: C.bone },
+  headBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  threadName: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink },
+  faceBadge: { position: 'absolute', right: -2, bottom: -2, width: 16, height: 16, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, marginBottom: 4 },
+  dayLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: C.lineSoft },
+  dayT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10.5, letterSpacing: 0.4, color: C.faint, textTransform: 'uppercase' },
+  bubble: { maxWidth: '80%', borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8 },
+  bubbleT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, lineHeight: 20 },
+  bubbleTime: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10.5, marginTop: 2 },
+  composer: { paddingHorizontal: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.lineSoft, backgroundColor: C.bone },
+  composerField: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.lineSoft, paddingLeft: 14, paddingRight: 4, paddingVertical: 4 },
+  // 16px keeps iOS from zooming the field; the cap stops a long draft from eating the thread.
+  composerInput: { flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, lineHeight: 21, color: C.ink, maxHeight: 120, paddingTop: Platform.OS === 'ios' ? 8 : 6, paddingBottom: Platform.OS === 'ios' ? 8 : 6 },
+  sendBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
 });

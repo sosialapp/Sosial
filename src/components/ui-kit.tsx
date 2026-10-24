@@ -221,9 +221,9 @@ const makeS = (C: Palette) => StyleSheet.create({
 
   tabs: { flexDirection: 'row', gap: 4, backgroundColor: C.surface, borderRadius: 999, padding: 3, alignSelf: 'stretch' },
   tab: { flex: 1, alignItems: 'center', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 7 },
-  tabOn: { backgroundColor: C.ink, borderRadius: 999 },
+  tabOn: { backgroundColor: C.thumb, borderRadius: 999, shadowColor: '#1C1917', shadowOpacity: 0.14, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   tabT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted },
-  tabTOn: { color: C.onInk },
+  tabTOn: { color: C.ink },
 
   table: { borderWidth: 1, borderColor: C.lineSoft, borderRadius: R.md, overflow: 'hidden' },
   thead: {

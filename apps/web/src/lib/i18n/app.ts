@@ -2,6 +2,11 @@ import type { Locale } from './locales';
 
 /** App dashboard dictionary (in-app surfaces; blog/legal stay English). */
 const en: Record<string, string> = {
+  tmMembersLbl: 'Members',
+  tmLeadsLbl: 'Leads',
+  tmPendingShort: 'Pending',
+  roleOwner: 'Owner',
+  tmTeamSub: 'Who can post where, and who can invite.',
   // Dock
   dockHome: 'Home',
   dockCalendar: 'Calendar',
@@ -338,6 +343,12 @@ const en: Record<string, string> = {
   calTodayDate: 'Today, {date}',
   calTomorrowDate: 'Tomorrow, {date}',
   calNothing14: 'Nothing scheduled in these 14 days.',
+  calUpNext: 'Up next',
+  calNothingUpcoming: 'Nothing queued yet. Schedule a post and it shows up here.',
+  calNothingDay: 'Nothing scheduled this day.',
+  calAddPost: 'Add a post',
+  calThisWeekLoad: 'This week',
+  calWeekDropHint: 'Drag a post to another day to move it. It keeps its time.',
   calListHint: 'Click a post to open it. Dragging lives on the Day, Week and Month views.',
   calDragHint: 'Drag a post to another slot to reschedule it. Click a post to retime it exactly.',
   calYearHint: 'The whole year at a glance, dots mark days with posts. Pick a month to open it.',
@@ -979,6 +990,11 @@ const en: Record<string, string> = {
 };
 
 const es: Record<string, string> = {
+  tmMembersLbl: 'Miembros',
+  tmLeadsLbl: 'Líderes',
+  tmPendingShort: 'Pendientes',
+  roleOwner: 'Propietario',
+  tmTeamSub: 'Quién publica dónde y quién puede invitar.',
   dockHome: 'Inicio',
   dockCalendar: 'Calendario',
   dockPost: 'Publicar',
@@ -1307,6 +1323,12 @@ const es: Record<string, string> = {
   calTodayDate: 'Hoy, {date}',
   calTomorrowDate: 'Mañana, {date}',
   calNothing14: 'Nada programado en estos 14 días.',
+  calUpNext: 'Próximamente',
+  calNothingUpcoming: 'Aún no hay nada en cola. Programa una publicación y aparecerá aquí.',
+  calNothingDay: 'No hay nada programado este día.',
+  calAddPost: 'Añadir una publicación',
+  calThisWeekLoad: 'Esta semana',
+  calWeekDropHint: 'Arrastra una publicación a otro día para moverla. Mantiene su hora.',
   calListHint: 'Toca una publicación para abrirla. El arrastre está en las vistas Día, Semana y Mes.',
   calDragHint: 'Arrastra una publicación a otra franja para reprogramarla. Tócala para cambiar la hora exacta.',
   calYearHint: 'Todo el año de un vistazo; los puntos marcan días con publicaciones. Toca un mes para abrirlo.',
@@ -1940,6 +1962,11 @@ const es: Record<string, string> = {
 };
 
 const fr: Record<string, string> = {
+  tmMembersLbl: 'Membres',
+  tmLeadsLbl: 'Responsables',
+  tmPendingShort: 'En attente',
+  roleOwner: 'Propriétaire',
+  tmTeamSub: 'Qui publie où, et qui peut inviter.',
   dockHome: 'Accueil',
   dockCalendar: 'Calendrier',
   dockPost: 'Publier',
@@ -2219,6 +2246,12 @@ const fr: Record<string, string> = {
   calTodayDate: 'Aujourd’hui, {date}',
   calTomorrowDate: 'Demain, {date}',
   calNothing14: 'Rien de planifié ces 14 jours.',
+  calUpNext: 'À venir',
+  calNothingUpcoming: 'Rien en file pour l’instant. Planifiez une publication et elle apparaîtra ici.',
+  calNothingDay: 'Rien de planifié ce jour-là.',
+  calAddPost: 'Ajouter une publication',
+  calThisWeekLoad: 'Cette semaine',
+  calWeekDropHint: 'Faites glisser une publication vers un autre jour pour la déplacer. Elle garde son heure.',
   calListHint: 'Touchez une publication pour l’ouvrir. Le glisser vit sur les vues Jour, Semaine et Mois.',
   calDragHint: 'Glissez une publication vers un autre créneau pour la replanifier. Touchez-la pour régler l’heure exacte.',
   calYearHint: 'L’année entière d’un coup d’œil ; les points marquent les jours avec publications. Touchez un mois pour l’ouvrir.',
@@ -2901,6 +2934,11 @@ const fr: Record<string, string> = {
 };
 
 const de: Record<string, string> = {
+  tmMembersLbl: 'Mitglieder',
+  tmLeadsLbl: 'Leitung',
+  tmPendingShort: 'Ausstehend',
+  roleOwner: 'Inhaber',
+  tmTeamSub: 'Wer wo posten darf und wer einladen kann.',
   dockHome: 'Start',
   dockCalendar: 'Kalender',
   dockPost: 'Posten',
@@ -3229,6 +3267,12 @@ const de: Record<string, string> = {
   calTodayDate: 'Heute, {date}',
   calTomorrowDate: 'Morgen, {date}',
   calNothing14: 'Nichts in diesen 14 Tagen geplant.',
+  calUpNext: 'Als Nächstes',
+  calNothingUpcoming: 'Noch nichts in der Warteschlange. Plane einen Beitrag, dann erscheint er hier.',
+  calNothingDay: 'An diesem Tag ist nichts geplant.',
+  calAddPost: 'Beitrag hinzufügen',
+  calThisWeekLoad: 'Diese Woche',
+  calWeekDropHint: 'Ziehe einen Beitrag auf einen anderen Tag, um ihn zu verschieben. Die Uhrzeit bleibt gleich.',
   calListHint: 'Tippe einen Post an, um ihn zu öffnen. Ziehen gibt es in Tag-, Wochen- und Monatsansicht.',
   calDragHint: 'Ziehe einen Post auf einen anderen Slot, um ihn umzuplanen. Tippe ihn an für die exakte Zeit.',
   calYearHint: 'Das ganze Jahr auf einen Blick; Punkte markieren Tage mit Posts. Tippe einen Monat an, um ihn zu öffnen.',
@@ -3862,6 +3906,11 @@ const de: Record<string, string> = {
 };
 
 const ja: Record<string, string> = {
+  tmMembersLbl: 'メンバー',
+  tmLeadsLbl: 'リーダー',
+  tmPendingShort: '保留中',
+  roleOwner: 'オーナー',
+  tmTeamSub: '誰がどこに投稿でき、誰が招待できるか。',
   dockHome: 'ホーム',
   dockCalendar: 'カレンダー',
   dockPost: '投稿',
@@ -4190,6 +4239,12 @@ const ja: Record<string, string> = {
   calTodayDate: '今日、{date}',
   calTomorrowDate: '明日、{date}',
   calNothing14: 'この 14 日間に予定はありません。',
+  calUpNext: '次の予定',
+  calNothingUpcoming: 'まだキューに何もありません。投稿を予約するとここに表示されます。',
+  calNothingDay: 'この日の予定はありません。',
+  calAddPost: '投稿を追加',
+  calThisWeekLoad: '今週',
+  calWeekDropHint: '投稿を別の日にドラッグすると移動できます。時刻はそのままです。',
   calListHint: '投稿をタップして開きます。ドラッグは日・週・月ビューで使えます。',
   calDragHint: '投稿を別の枠へドラッグすると再予約されます。タップすれば正確な時刻を設定できます。',
   calYearHint: '一年がひと目でわかります。点は投稿のある日、月をタップで開きます。',
@@ -4823,6 +4878,11 @@ const ja: Record<string, string> = {
 };
 
 const ko: Record<string, string> = {
+  tmMembersLbl: '멤버',
+  tmLeadsLbl: '관리자',
+  tmPendingShort: '대기 중',
+  roleOwner: '소유자',
+  tmTeamSub: '누가 어디에 게시하고 누가 초대할 수 있는지.',
   dockHome: '홈',
   dockCalendar: '캘린더',
   dockPost: '게시',
@@ -5151,6 +5211,12 @@ const ko: Record<string, string> = {
   calTodayDate: '오늘, {date}',
   calTomorrowDate: '내일, {date}',
   calNothing14: '이 14일 동안 예약된 것이 없습니다.',
+  calUpNext: '다음 예정',
+  calNothingUpcoming: '아직 대기 중인 게시물이 없습니다. 게시물을 예약하면 여기에 표시됩니다.',
+  calNothingDay: '이 날에는 예약된 것이 없습니다.',
+  calAddPost: '게시물 추가',
+  calThisWeekLoad: '이번 주',
+  calWeekDropHint: '게시물을 다른 날로 드래그해 옮기세요. 시간은 그대로 유지됩니다.',
   calListHint: '게시물을 눌러 여세요. 드래그는 일·주·월 보기에서 가능합니다.',
   calDragHint: '게시물을 다른 칸으로 드래그하면 일정이 변경됩니다. 눌러서 정확한 시간을 정하세요.',
   calYearHint: '1년이 한눈에 보입니다. 점은 게시물이 있는 날, 월을 누르면 열립니다.',
@@ -5784,6 +5850,11 @@ const ko: Record<string, string> = {
 };
 
 const zh: Record<string, string> = {
+  tmMembersLbl: '成员',
+  tmLeadsLbl: '负责人',
+  tmPendingShort: '待接受',
+  roleOwner: '所有者',
+  tmTeamSub: '谁能在哪里发布，谁能邀请成员。',
   dockHome: '首页',
   dockCalendar: '日历',
   dockPost: '发布',
@@ -6112,6 +6183,12 @@ const zh: Record<string, string> = {
   calTodayDate: '今天，{date}',
   calTomorrowDate: '明天，{date}',
   calNothing14: '这 14 天内没有排期。',
+  calUpNext: '即将发布',
+  calNothingUpcoming: '队列里还没有内容。排期一篇帖子，它就会出现在这里。',
+  calNothingDay: '这一天没有排期。',
+  calAddPost: '添加帖子',
+  calThisWeekLoad: '本周',
+  calWeekDropHint: '把帖子拖到另一天即可移动，发布时间保持不变。',
   calListHint: '点按帖子即可打开。拖动功能在日、周、月视图中可用。',
   calDragHint: '把帖子拖到其他时段即可重新排期。点按可精确设置时间。',
   calYearHint: '全年一览；圆点表示有帖子的日子。点按月份即可打开。',

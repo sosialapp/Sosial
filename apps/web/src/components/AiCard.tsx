@@ -9,6 +9,7 @@ import { providerMeta } from '@/lib/providers';
 import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 type EmojiMode = 'auto' | 'on' | 'off';
 const EMOJI_KEY: Record<EmojiMode, string> = { auto: 'emAuto', on: 'emSome', off: 'emNone' };
@@ -319,23 +320,18 @@ export default function AiCard({
 
       {/* Tone */}
       <p className="mt-4 text-xs font-bold text-soft">{t('aiSound')}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={t('aiToneLbl')}>
-        {STUDIO_TONES.map((toneOpt) => (
-          <button
-            key={toneOpt.id}
-            type="button"
-            onClick={() => setTone(toneOpt.id)}
-            aria-pressed={tone === toneOpt.id}
-            className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-              tone === toneOpt.id
-                ? 'border-ink bg-ink text-paper'
-                : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
-            }`}
-          >
-            {t(`tone${toneOpt.id[0].toUpperCase()}${toneOpt.id.slice(1)}`)}
-          </button>
-        ))}
-      </div>
+      <SegmentedPills
+        ariaLabel={t('aiToneLbl')}
+        className="mt-1.5"
+        trackClassName="flex-wrap overflow-visible rounded-2xl"
+        size="sm"
+        value={tone}
+        onChange={setTone}
+        options={STUDIO_TONES.map((toneOpt) => ({
+          value: toneOpt.id,
+          label: t(`tone${toneOpt.id[0].toUpperCase()}${toneOpt.id.slice(1)}`),
+        }))}
+      />
 
       {/* Style */}
       <button
@@ -386,23 +382,17 @@ export default function AiCard({
 
       {/* Format */}
       <p className="mt-4 text-xs font-bold text-soft">{t('aiFormat')}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={t('aiFormat')}>
-        {[{ value: 'post', label: t('aiFmtPost') }, { value: 'thread', label: t('aiFmtThread') }].map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => onThreadChange(f.value === 'thread')}
-            aria-pressed={(thread ? 'thread' : 'post') === f.value}
-            className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-              (thread ? 'thread' : 'post') === f.value
-                ? 'border-ink bg-ink text-paper'
-                : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedPills
+        ariaLabel={t('aiFormat')}
+        className="mt-1.5 w-fit"
+        size="sm"
+        value={thread ? 'thread' : 'post'}
+        onChange={(v) => onThreadChange(v === 'thread')}
+        options={[
+          { value: 'post', label: t('aiFmtPost') },
+          { value: 'thread', label: t('aiFmtThread') },
+        ]}
+      />
       {thread ? (
         <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#E3D9FA] bg-white/60 px-3 py-2 dark:border-white/10 dark:bg-white/5">
           <span className="text-xs font-bold text-soft">{t('aiPosts')}</span>
@@ -430,27 +420,18 @@ export default function AiCard({
 
       {/* Structure preset, suggested from the topic, applied by tap */}
       <p className="mt-4 text-xs font-bold text-soft">{t('aiStructure')}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={t('aiStructLbl')}>
-        {(['auto', ...AI_FORMATS.map((f) => f.id)] as const).map((id) => {
-          const on = format === id;
-          const label = id === 'auto' ? t('aiStyleAuto') : t(`fmt${id[0].toUpperCase()}${id.slice(1)}`);
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => pickFormat(id)}
-              aria-pressed={on}
-              className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-                on
-                  ? 'border-ink bg-ink text-paper'
-                  : 'border-[#E3D9FA] bg-white/60 text-muted hover:text-ink dark:border-white/10 dark:bg-white/5'
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedPills
+        ariaLabel={t('aiStructLbl')}
+        className="mt-1.5"
+        trackClassName="flex-wrap overflow-visible rounded-2xl"
+        size="sm"
+        value={format}
+        onChange={(id) => pickFormat(id)}
+        options={(['auto', ...AI_FORMATS.map((f) => f.id)] as const).map((id) => ({
+          value: id,
+          label: id === 'auto' ? t('aiStyleAuto') : t(`fmt${id[0].toUpperCase()}${id.slice(1)}`),
+        }))}
+      />
       {format !== 'auto' ? (
         <p className="mt-1 text-[11px] text-muted">
           {t(`fmt${format[0].toUpperCase()}${format.slice(1)}Blurb`)}
@@ -504,21 +485,15 @@ export default function AiCard({
           </div>
           <div>
             <p className="text-xs font-bold">{t('aiEmoji')}</p>
-            <div className="mt-1 flex gap-1" role="group" aria-label={t('aiEmojiLbl')}>
-              {(['auto', 'on', 'off'] as EmojiMode[]).map((o) => (
-                <button
-                  key={o}
-                  type="button"
-                  onClick={() => setEmoji(o)}
-                  aria-pressed={emoji === o}
-                  className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold transition ${
-                    emoji === o ? 'bg-ink text-paper' : 'bg-paper-dim text-muted hover:text-ink'
-                  }`}
-                >
-                  {t(EMOJI_KEY[o])}
-                </button>
-              ))}
-            </div>
+            <SegmentedPills
+              ariaLabel={t('aiEmojiLbl')}
+              className="mt-1"
+              size="sm"
+              buttonClassName="flex-1"
+              value={emoji}
+              onChange={setEmoji}
+              options={(['auto', 'on', 'off'] as EmojiMode[]).map((o) => ({ value: o, label: t(EMOJI_KEY[o]) }))}
+            />
           </div>
           <div className="flex items-center gap-2">
             <span className="flex-1">
@@ -554,25 +529,24 @@ export default function AiCard({
           </div>
 
           {draft.length > 1 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label={t('aiChannelDrafts')}>
-              {draft.map((v, i) => (
-                <button
-                  key={v.platform}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === tab}
-                  onClick={() => setTab(i)}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
-                    i === tab
-                      ? 'border-ink bg-ink text-paper'
-                      : 'border-line bg-paper text-muted hover:text-ink'
-                  }`}
-                >
-                  {v.platform === 'any' ? null : <PlatformGlyph id={v.platform} />}
-                  {platformLabel(v.platform)}
-                </button>
-              ))}
-            </div>
+            <SegmentedPills
+              ariaLabel={t('aiChannelDrafts')}
+              role="tablist"
+              className="mt-2"
+              trackClassName="flex-wrap overflow-visible rounded-2xl"
+              size="sm"
+              value={tab}
+              onChange={setTab}
+              options={draft.map((v, i) => ({
+                value: i,
+                label: (
+                  <>
+                    {v.platform === 'any' ? null : <PlatformGlyph id={v.platform} />}
+                    {platformLabel(v.platform)}
+                  </>
+                ),
+              }))}
+            />
           ) : null}
 
           <div className="mt-2 space-y-2">

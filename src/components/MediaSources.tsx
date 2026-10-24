@@ -25,6 +25,7 @@ import {
   canvaConnected, loginCanva, disconnectCanva,
   listCanvaDesigns, downloadCanvaDesigns, type CanvaDesign,
 } from '../utils/canvaAuth';
+import { Seg } from './ui';
 
 export interface SourceAttachment {
   uri: string;
@@ -581,17 +582,15 @@ export default function MediaSources({
 
               {source === 'canva' ? (
                 <View style={s.typeRow}>
-                  {(['photo', 'video'] as const).map((t) => (
-                    <TouchableOpacity
-                      key={t}
-                      onPress={() => (source === 'canva' ? setCanvaKind(t === 'photo' ? 'image' : 'video') : setType(t))}
-                      style={[s.typePill, (source === 'canva' ? canvaKind === (t === 'photo' ? 'image' : 'video') : type === t) && { backgroundColor: C.ink }]}
-                    >
-                      <Text style={[s.typeT, (source === 'canva' ? canvaKind === (t === 'photo' ? 'image' : 'video') : type === t) && { color: C.onInk }]}>
-                        {t === 'photo' ? 'Photos' : 'Videos'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  <Seg
+                    accessibilityLabel="Media type"
+                    value={canvaKind === 'image' ? 'photo' : 'video'}
+                    onChange={(t) => setCanvaKind(t === 'photo' ? 'image' : 'video')}
+                    options={[
+                      { value: 'photo', label: 'Photos' },
+                      { value: 'video', label: 'Videos' },
+                    ]}
+                  />
                 </View>
               ) : null}
               {source === 'unsplash' ? (
@@ -825,17 +824,18 @@ export default function MediaSources({
               ) : (
                 <>
                   <View style={s.typeRow}>
-                    {(['photo', 'video'] as const).map((t) => (
-                      <TouchableOpacity
-                        key={t}
-                        onPress={() => { setType(t); setItems([]); }}
-                        style={[s.typePill, type === t && { backgroundColor: C.ink }]}
-                      >
-                        <Text style={[s.typeT, type === t && { color: C.onInk }]}>
-                          {t === 'photo' ? 'Photos' : 'Videos'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    <Seg
+                      accessibilityLabel="Media type"
+                      value={type}
+                      onChange={(t) => {
+                        setType(t);
+                        setItems([]);
+                      }}
+                      options={[
+                        { value: 'photo', label: 'Photos' },
+                        { value: 'video', label: 'Videos' },
+                      ]}
+                    />
                   </View>
                   <FlatList
                     data={items}

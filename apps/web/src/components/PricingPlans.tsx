@@ -140,7 +140,6 @@ export default function PricingPlans({
             size="lg"
             value={interval}
             onChange={setInterval}
-            trackClassName="bg-white shadow-[0_2px_10px_rgba(28,26,20,0.06)]"
             buttonClassName="font-semibold"
             options={[
               { value: 'monthly', label: t('blMonthly') },

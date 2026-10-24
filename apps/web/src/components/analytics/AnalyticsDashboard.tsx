@@ -9,7 +9,8 @@ import ChannelAvatar from '@/components/ChannelAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import SegmentedPills from '@/components/ui/segmented-pills';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
@@ -728,33 +729,38 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
 
       {/* Range + channel controls */}
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
-        {PRESETS.filter((p) => p.id !== 'custom').map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            aria-pressed={preset === p.id}
-            onClick={() => setPreset(p.id)}
-            className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-              preset === p.id ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
-            }`}
-          >
-            {t(p.key ?? p.label)}
-          </button>
-        ))}
+        {/* One sliding switch for the range; "Custom" also opens the date
+            picker, anchored to the switch. */}
         <Popover open={calOpen} onOpenChange={setCalOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-pressed={preset === 'custom'}
-              onClick={() => setPreset('custom')}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition ${
-                preset === 'custom' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
-              }`}
-            >
-              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-              {preset === 'custom' && custom?.from ? range.label : t('anCustom')}
-            </button>
-          </PopoverTrigger>
+          <PopoverAnchor asChild>
+            <div className="max-w-full">
+              <SegmentedPills
+                ariaLabel={t('anCustom')}
+                value={preset}
+                onChange={setPreset}
+                size="md"
+                options={[
+                  ...PRESETS.filter((p) => p.id !== 'custom').map((p) => ({
+                    value: p.id,
+                    label: t(p.key ?? p.label),
+                  })),
+                  {
+                    value: 'custom' as const,
+                    onSelect: () => {
+                      setPreset('custom');
+                      setCalOpen(true);
+                    },
+                    label: (
+                      <>
+                        <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                        {preset === 'custom' && custom?.from ? range.label : t('anCustom')}
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            </div>
+          </PopoverAnchor>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="range"

@@ -293,11 +293,14 @@ export function Seg<T extends string>({
   scrollable,
   renderOption,
   accessibilityLabel,
+  grow = true,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
   scrollable?: boolean;
+  /** Full width (default) or hug the labels. */
+  grow?: boolean;
   renderOption?: (o: { value: T; label: string }, active: boolean) => React.ReactNode;
   accessibilityLabel?: string;
 }) {
@@ -316,7 +319,7 @@ export function Seg<T extends string>({
       renderOption={renderOption}
       scrollable={scrollable}
       accessibilityLabel={accessibilityLabel}
-      grow
+      grow={grow}
     />
   );
 }
@@ -746,10 +749,10 @@ const makeS = (C: Palette) => StyleSheet.create({
   secHint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 17, color: C.muted },
   label: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.soft },
   hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint },
-  segWrap: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: R.md, padding: 3, gap: 2 },
-  seg: { flex: 1, minWidth: 0, paddingVertical: 7.5, paddingHorizontal: 2, alignItems: 'center', borderRadius: R.sm },
-  segOn: { backgroundColor: C.paper, borderRadius: R.sm, shadowColor: '#1C1917', shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  segT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted, textAlign: 'center' },
+  segWrap: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 999, padding: 3, gap: 2 },
+  seg: { flex: 1, minWidth: 0, paddingVertical: 7.5, paddingHorizontal: 12, alignItems: 'center', borderRadius: 999 },
+  segOn: { backgroundColor: C.thumb, borderRadius: 999, shadowColor: '#1C1917', shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  segT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, textAlign: 'center' },
   segTOn: { fontFamily: 'PlusJakartaSans_700Bold', color: C.ink },
   stepWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   stepBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

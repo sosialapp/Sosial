@@ -40,6 +40,7 @@ import {
 import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 interface IdeaMedia {
   url: string;
@@ -851,86 +852,45 @@ export default function CreateHub({
         </>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label={tr('hubEyebrow')}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'create' || statusView !== null}
-          onClick={() => router.push('/post', { scroll: false })}
-          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-            view === 'create' || statusView !== null
-              ? 'border-accent bg-accent text-on-accent'
-              : 'border-line bg-card text-muted hover:bg-paper'
-          }`}
-        >
-          {tr('hubTabPost')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'templates'}
-          onClick={() => router.push('/post-templates', { scroll: false })}
-          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-            view === 'templates'
-              ? 'border-accent bg-accent text-on-accent'
-              : 'border-line bg-card text-muted hover:bg-paper'
-          }`}
-        >
-          {tr('hubTabTemplates')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'ideas'}
-          onClick={() => router.push('/post-ideas', { scroll: false })}
-          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-            view === 'ideas'
-              ? 'border-accent bg-accent text-on-accent'
-              : 'border-line bg-card text-muted hover:bg-paper'
-          }`}
-        >
-          {tr('hubTabIdeas')}
-          {ideas.length ? ` · ${ideas.length}` : ''}
-        </button>
-      </div>
+      <SegmentedPills
+        ariaLabel={tr('hubEyebrow')}
+        role="tablist"
+        className="mt-4 w-fit"
+        value={view === 'create' || statusView !== null ? 'create' : (view as string)}
+        onChange={(v) =>
+          router.push(v === 'templates' ? '/post-templates' : v === 'ideas' ? '/post-ideas' : '/post', { scroll: false })
+        }
+        options={[
+          { value: 'create', label: tr('hubTabPost') },
+          { value: 'templates', label: tr('hubTabTemplates') },
+          { value: 'ideas', label: `${tr('hubTabIdeas')}${ideas.length ? ` · ${ideas.length}` : ''}` },
+        ]}
+      />
       {(view === 'create' || statusView !== null) && (
-        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label={tr('filters')}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'create'}
-            onClick={() => goFilter(null)}
-            className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-              view === 'create'
-                ? 'border-accent bg-accent text-on-accent'
-                : 'border-line bg-card text-muted hover:bg-paper'
-            }`}
-          >
-            {tr('cNewPost')}
-          </button>
-          {STATUS_ORDER.map((s) => {
-            const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
-            const Icon = STATUS_PILL_ICON[s];
-            return (
-              <button
-                key={s}
-                type="button"
-                role="tab"
-                aria-selected={statusView === s}
-                onClick={() => goFilter(s)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition ${
-                  statusView === s
-                    ? 'border-accent bg-accent text-on-accent'
-                    : 'border-line bg-card text-muted hover:bg-paper'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {tr(STATUS_PILL_KEY[s])}
-                {count > 0 && <span className="opacity-60">{count}</span>}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedPills
+          ariaLabel={tr('filters')}
+          role="tablist"
+          className="mt-2 w-fit"
+          value={statusView ?? 'new'}
+          onChange={(v) => goFilter(v === 'new' ? null : (v as StatusTab))}
+          options={[
+            { value: 'new', label: tr('cNewPost') },
+            ...STATUS_ORDER.map((s) => {
+              const count = initialPosts.filter((p) => TAB_MATCH[s](p.status)).length;
+              const Icon = STATUS_PILL_ICON[s];
+              return {
+                value: s as string,
+                label: (
+                  <>
+                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {tr(STATUS_PILL_KEY[s])}
+                    {count > 0 && <span className="opacity-60">{count}</span>}
+                  </>
+                ),
+              };
+            }),
+          ]}
+        />
       )}
 
       {view === 'create' ? (

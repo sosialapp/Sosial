@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { SocialGlyph, Txt, ChannelAvatar, AccountStack } from '../components/ui';
+import { SocialGlyph, Txt, ChannelAvatar, AccountStack, Seg } from '../components/ui';
 import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount, onAccountsChanged } from '../utils/metaStore';
@@ -1542,26 +1542,16 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         <Text style={s.kicker}>{tab === 'channels' ? 'Channels' : 'Integrations'}</Text>
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Connect</Text>
 
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-          {(['channels', 'integrations'] as const).map((t) => (
-            <TouchableOpacity
-              key={t}
-              onPress={() => setTab(t)}
-              activeOpacity={0.75}
-              style={{
-                borderRadius: 999,
-                paddingHorizontal: 18,
-                paddingVertical: 9,
-                backgroundColor: tab === t ? C.ink : C.card,
-                borderWidth: 1,
-                borderColor: C.lineSoft,
-              }}
-            >
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: tab === t ? C.onInk : C.muted }}>
-                {t === 'channels' ? 'Channels' : 'Integrations'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={{ marginTop: 16 }}>
+          <Seg
+            accessibilityLabel="Channels or integrations"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'channels', label: 'Channels' },
+              { value: 'integrations', label: 'Integrations' },
+            ]}
+          />
         </View>
 
         {!isManager && cloudUser ? (

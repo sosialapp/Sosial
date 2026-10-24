@@ -333,7 +333,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               const count = o.value === 'community' ? unseen.comments + unseen.messages : 0;
               return (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: active ? C.onInk : C.muted }}>{o.label}</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: active ? C.ink : C.muted }}>{o.label}</Text>
                   {count > 0 ? (
                     <View
                       style={{
@@ -341,12 +341,12 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                         paddingHorizontal: 4,
                         height: 17,
                         borderRadius: 9,
-                        backgroundColor: active ? C.bone : C.accent,
+                        backgroundColor: C.accent,
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
                     >
-                      <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: active ? C.ink : '#0b1220' }}>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: '#0b1220' }}>
                         {count > 99 ? '99+' : count}
                       </Text>
                     </View>

@@ -22,11 +22,10 @@ export default async function CommunityPage() {
     getEntitlement(ctx.workspace.id),
   ]);
   return (
-    <div className="w-full px-4 pt-6 sm:px-6">
-      <p className="eyebrow">Community</p>
-      <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Community</h1>
-      <p className="mt-1 text-sm text-muted">Comments on your posts and your direct messages, in one place.</p>
-      <div className="mt-4">
+    <div className="w-full pt-3 sm:px-2 sm:pt-4">
+      <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Community</h1>
+      <p className="mt-0.5 hidden text-sm text-muted sm:block">Comments on your posts and your direct messages, in one place.</p>
+      <div className="mt-3">
         <CommunityInbox channels={channels} workspaceId={ctx.workspace.id} plan={ent.plan} />
       </div>
     </div>

@@ -2,9 +2,11 @@
 
 /**
  * Comments tab — the unified comment feed (p92). Reads the `comments`
- * table (RLS: workspace members) and renders real-social chains: one card
- * per thread, the comment at the top and every reply hanging off a rail
- * beneath it, with a single composer pinned to the bottom of the thread.
+ * table (RLS: workspace members) and lays it out like a messaging inbox:
+ * one row per thread on the left (who, what, which post, needs-a-reply),
+ * the open thread on the right with the comment chain on a rail and a
+ * single composer pinned to the bottom. Below lg the two panes stack: the
+ * list first, the thread full-width with a back button.
  *
  * Replies are shown the moment they are sent (optimistic row, marked
  * "Sending…") and reconciled with the worker's stored row afterwards, so the
@@ -13,10 +15,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CornerDownRight, ExternalLink, FileText, LoaderCircle, MessageCircle, Play, RefreshCw, Send, X,
+  ArrowLeft, CornerDownRight, ExternalLink, FileText, Inbox, LoaderCircle, MessageCircle, MessagesSquare, Play, Send, X,
 } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
+import {
+  ChannelStrip, Face, InboxShell, PaneEmpty, Segmented, composerText, errorBox, grow, isWide, paneFoot, paneHead, when,
+} from '@/components/community/parts';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
@@ -66,105 +71,39 @@ interface PostContext {
 
 const POST_SELECT = 'channel_id,external_id,platform,url,body,thumbnail,media_kind,posted_at';
 
-function when(iso: string): string {
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+/** One thread as the list sees it. */
+interface ThreadSummary {
+  root: CommentRow;
+  replies: number;
+  /** Newest activity anywhere in the chain; the list sorts on it. */
+  last: string;
+  /** Someone else spoke last and nobody on our side has answered. */
+  needsReply: boolean;
+  unread: boolean;
 }
 
-/** Commenter face: platform avatar when known, initial bubble when not. */
-function CommentFace({ name, avatar }: { name: string | null; avatar: string | null }) {
-  const letter = (name ?? '').trim().replace('@', '').charAt(0).toUpperCase();
-  return (
+/** Poster frame of the post a thread is on; a page glyph when there is none. */
+function PostThumb({ post, size }: { post: PostContext | undefined; size: number }) {
+  const video = post?.media_kind === 'video';
+  return post?.thumbnail ? (
     <span
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-paper text-soft"
-      style={{ width: 32, height: 32 }}
-      aria-hidden="true"
+      className="relative block shrink-0 overflow-hidden rounded-lg bg-surface"
+      style={{ width: size, height: size }}
     >
-      {avatar ? (
-        <SafeImg src={avatar} alt="" width={32} height={32} className="h-full w-full object-cover" />
-      ) : letter ? (
-        <span className="text-sm font-extrabold">{letter}</span>
-      ) : (
-        <MessageCircle className="h-4 w-4" />
-      )}
-    </span>
-  );
-}
-
-/** Grow a textarea with its content, up to a comfortable cap. */
-function grow(el: HTMLTextAreaElement | null) {
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-}
-
-/**
- * What the thread is commenting on: the post's poster frame, a two-line
- * caption and a link out to the platform. Everything here comes from the
- * cached row, so opening the feed never calls a platform API.
- */
-function PostStrip({ post, platform }: { post: PostContext; platform: string }) {
-  const caption = (post.body ?? '').trim();
-  const video = post.media_kind === 'video';
-  const meta = providerMeta(platform).label;
-
-  const inner = (
-    <>
-      {post.thumbnail ? (
-        <span className="relative block h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-surface">
-          <SafeImg
-            src={post.thumbnail}
-            alt=""
-            width={44}
-            height={44}
-            className="h-full w-full object-cover"
-          />
-          {video ? (
-            <span className="absolute inset-0 grid place-items-center bg-black/30 text-white">
-              <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-            </span>
-          ) : null}
+      <SafeImg src={post.thumbnail} alt="" width={size} height={size} className="h-full w-full object-cover" />
+      {video ? (
+        <span className="absolute inset-0 grid place-items-center bg-black/25 text-white">
+          <Play className="h-3 w-3 fill-current" aria-hidden="true" />
         </span>
-      ) : (
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-surface text-faint">
-          <FileText className="h-4 w-4" aria-hidden="true" />
-        </span>
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">
-          {meta} post{post.posted_at ? ` · ${when(post.posted_at)}` : ''}
-        </span>
-        <span className="mt-0.5 block break-words text-xs leading-snug text-soft line-clamp-2">
-          {caption || `A ${meta} post`}
-        </span>
-      </span>
-      {post.url ? (
-        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
       ) : null}
-    </>
-  );
-
-  const shell =
-    'mb-3 flex items-center gap-2.5 rounded-xl border border-line-soft bg-paper px-2.5 py-2 transition';
-
-  return post.url ? (
-    <a
-      href={post.url}
-      target="_blank"
-      rel="noreferrer"
-      title={`Open the ${meta} post`}
-      className={`${shell} hover:border-line hover:bg-surface`}
-    >
-      {inner}
-    </a>
+    </span>
   ) : (
-    <div className={shell}>{inner}</div>
+    <span
+      className="grid shrink-0 place-items-center rounded-lg bg-surface text-faint"
+      style={{ width: size, height: size }}
+    >
+      <FileText className="h-4 w-4" aria-hidden="true" />
+    </span>
   );
 }
 
@@ -172,19 +111,18 @@ export default function CommentsFeed({
   channels,
   workspaceId,
   reloadKey = 0,
-  scanning = false,
-  onRefresh,
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
   reloadKey?: number;
-  scanning?: boolean;
-  onRefresh?: () => void;
 }) {
   const [rows, setRows] = useState<CommentRow[] | null>(null);
   const [posts, setPosts] = useState<Record<string, PostContext>>({});
   const [chan, setChan] = useState<string>('all');
   const [order, setOrder] = useState<'new' | 'old'>('new');
+  const [show, setShow] = useState<'all' | 'open'>('all');
+  /** Open thread (root comment id). */
+  const [sel, setSel] = useState<string | null>(null);
   /** thread id -> draft text */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   /** thread id -> comment id the next message replies to (defaults to root) */
@@ -193,6 +131,8 @@ export default function CommentsFeed({
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const threadScroll = useRef<HTMLDivElement | null>(null);
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
 
@@ -323,6 +263,7 @@ export default function CommentsFeed({
       delete next[threadId];
       return next;
     });
+    grow(composerRef.current);
     setBusy(threadId);
     setErr(null);
     setNote(null);
@@ -367,9 +308,9 @@ export default function CommentsFeed({
   }, [channels, rows]);
 
   /**
-   * Threads: roots (comments nobody in this view replies to) sorted by the
-   * chosen order, each carrying its reply tree. A reply whose parent is
-   * filtered out is promoted to a root so nothing disappears.
+   * Threads: roots (comments nobody in this view replies to), each carrying
+   * its reply tree. A reply whose parent is filtered out is promoted to a
+   * root so nothing disappears.
    */
   const threads = useMemo(() => {
     const list = (rows ?? []).filter((r) => chan === 'all' || r.channel_id === chan);
@@ -388,112 +329,246 @@ export default function CommentsFeed({
         roots.push(r);
       }
     }
-    roots.sort((a, b) =>
-      order === 'new' ? b.created_at.localeCompare(a.created_at) : a.created_at.localeCompare(b.created_at),
-    );
     for (const arr of kids.values()) arr.sort((a, b) => a.created_at.localeCompare(b.created_at));
     // Every row points at the thread it belongs to, so a "Reply" click deep in
     // the chain drives the composer pinned at the bottom of that thread.
     const rootOf = new Map<string, string>();
-    const walk = (r: CommentRow, rootId: string) => {
-      rootOf.set(r.id, rootId);
-      for (const k of kids.get(r.id) ?? []) walk(k, rootId);
-    };
-    for (const root of roots) walk(root, root.id);
-    return { roots, kids, rootOf };
+    const summaries: ThreadSummary[] = [];
+    for (const root of roots) {
+      const all: CommentRow[] = [];
+      const walk = (r: CommentRow) => {
+        rootOf.set(r.id, root.id);
+        all.push(r);
+        for (const k of kids.get(r.id) ?? []) walk(k);
+      };
+      walk(root);
+      const newest = all.reduce((a, b) => (b.created_at > a.created_at ? b : a), root);
+      summaries.push({
+        root,
+        replies: all.length - 1,
+        last: newest.created_at,
+        needsReply: !newest.is_own && REPLY_PROVIDERS.has(root.platform),
+        unread: all.some((r) => !r.is_own && r.status === 'new'),
+      });
+    }
+    summaries.sort((a, b) => (order === 'new' ? b.last.localeCompare(a.last) : a.last.localeCompare(b.last)));
+    return { summaries, kids, rootOf };
   }, [rows, chan, order]);
+
+  const shown = useMemo(
+    () => (show === 'open' ? threads.summaries.filter((t) => t.needsReply) : threads.summaries),
+    [threads.summaries, show],
+  );
+  const openCount = useMemo(() => threads.summaries.filter((t) => t.needsReply).length, [threads.summaries]);
+
+  // Desktop shows both panes, so open the first thread instead of an empty
+  // right side; a phone stays on the list until a thread is tapped.
+  useEffect(() => {
+    if (!shown.length) return;
+    if (sel && shown.some((t) => t.root.id === sel)) return;
+    if (sel || isWide()) setSel(isWide() ? shown[0].root.id : null);
+  }, [shown, sel]);
+
+  const current = sel ? threads.summaries.find((t) => t.root.id === sel) : undefined;
+
+  // A freshly opened thread starts at its top; a new reply scrolls into view.
+  useEffect(() => {
+    threadScroll.current?.scrollTo({ top: 0 });
+  }, [sel]);
+
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const postFor = (r: CommentRow) =>
+    r.external_post_id ? posts[`${r.channel_id}:${r.external_post_id}`] : undefined;
+
+  /* ------------------------------ list pane ------------------------------ */
+
+  const listRow = (t: ThreadSummary) => {
+    const r = t.root;
+    const on = r.id === sel;
+    const post = postFor(r);
+    return (
+      <li key={r.id}>
+        <button
+          type="button"
+          onClick={() => setSel(r.id)}
+          aria-current={on ? 'true' : undefined}
+          className={`relative flex w-full items-start gap-3 px-4 py-3 text-left transition ${
+            on ? 'bg-accent-soft' : 'hover:bg-surface'
+          }`}
+        >
+          {on ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-accent" aria-hidden="true" /> : null}
+          {r.is_own ? (
+            <ChannelAvatar
+              provider={r.platform}
+              avatar={(() => {
+                const ch = channelById.get(r.channel_id);
+                return ch ? channelAvatar(ch.metadata) : undefined;
+              })()}
+              size={40}
+            />
+          ) : (
+            <Face name={r.author_name} avatar={r.author_avatar} platform={r.platform} size={40} />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
+              <span className={`min-w-0 flex-1 truncate text-sm ${t.unread ? 'font-extrabold text-ink' : 'font-bold text-soft'}`}>
+                {r.is_own ? 'You' : r.author_name || 'Unknown'}
+              </span>
+              <span className="shrink-0 text-[11px] text-faint">{when(t.last)}</span>
+            </span>
+            <span className={`mt-0.5 block text-[13px] leading-snug line-clamp-2 ${t.unread ? 'text-ink' : 'text-muted'}`}>
+              {r.body || '(empty comment)'}
+            </span>
+            <span className="mt-1.5 flex items-center gap-1.5 text-[11px] text-faint">
+              {t.unread ? (
+                <span className="rounded-full bg-accent px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-[#0b1220]">
+                  New
+                </span>
+              ) : t.needsReply ? (
+                <span className="rounded-full border border-line px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-muted">
+                  Needs reply
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide">
+                  <CornerDownRight className="h-3 w-3" aria-hidden="true" />
+                  Answered
+                </span>
+              )}
+              {t.replies > 0 ? (
+                <span className="inline-flex items-center gap-1">
+                  <MessagesSquare className="h-3 w-3" aria-hidden="true" />
+                  {t.replies}
+                </span>
+              ) : null}
+            </span>
+          </span>
+          <PostThumb post={post} size={44} />
+        </button>
+      </li>
+    );
+  };
+
+  const list = (
+    <>
+      <div className="space-y-2.5 border-b border-line px-4 pt-3.5 pb-3">
+        <ChannelStrip channels={channelsWithRows} value={chan} onChange={setChan} />
+        <div className="flex items-center justify-between gap-2">
+          <Segmented
+            label="Show"
+            value={show}
+            onChange={setShow}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'open', label: openCount ? `Needs reply · ${openCount}` : 'Needs reply' },
+            ]}
+          />
+          <Segmented
+            label="Sort comments"
+            value={order}
+            onChange={setOrder}
+            options={[
+              { value: 'new', label: 'Newest' },
+              { value: 'old', label: 'Oldest' },
+            ]}
+          />
+        </div>
+      </div>
+      {rows === null ? (
+        <div className="flex flex-1 items-center justify-center">
+          <LoaderCircle className="h-5 w-5 animate-spin text-faint" aria-hidden="true" />
+        </div>
+      ) : shown.length === 0 ? (
+        <PaneEmpty
+          icon={show === 'open' ? <Inbox className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+          title={show === 'open' && threads.summaries.length ? 'All caught up' : chan === 'all' ? 'No comments yet' : 'No comments on this channel yet'}
+        >
+          {show === 'open' && threads.summaries.length
+            ? 'Every comment has an answer from you.'
+            : 'Publish to your channels, get a comment, and it lands here when the engine sweeps - every 5 minutes or on Refresh.'}
+        </PaneEmpty>
+      ) : (
+        <ul className="min-h-0 flex-1 divide-y divide-line-soft overflow-y-auto">{shown.map(listRow)}</ul>
+      )}
+    </>
+  );
+
+  /* ----------------------------- thread pane ----------------------------- */
 
   const bubble = (r: CommentRow, depth: number) => {
     const ch = channelById.get(r.channel_id);
     const canReply = REPLY_PROVIDERS.has(r.platform) && !r.is_own;
     const body = r.body || '(empty comment)';
-    const long = body.length > 240;
+    const long = body.length > 280;
     const open = expanded.has(r.id);
     const threadId = threads.rootOf.get(r.id) ?? r.id;
+    const size = depth === 0 ? 36 : 28;
     return (
       <div className="flex items-start gap-2.5">
         {r.is_own ? (
-          <ChannelAvatar
-            provider={r.platform}
-            avatar={ch ? channelAvatar(ch.metadata) : undefined}
-            size={depth > 0 ? 28 : 32}
-          />
+          <ChannelAvatar provider={r.platform} avatar={ch ? channelAvatar(ch.metadata) : undefined} size={size} />
         ) : (
-          <CommentFace name={r.author_name} avatar={r.author_avatar} />
+          <Face name={r.author_name} avatar={r.author_avatar} size={size} />
         )}
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-            <span className="min-w-0 truncate text-sm font-bold">
-              {r.is_own ? 'You' : r.author_name || 'Unknown'}
-            </span>
-            {depth === 0 ? (
-              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted">
-                <span>via</span>
-                <ChannelAvatar provider={r.platform} size={14} />
-                <span>
-                  {providerMeta(r.platform).label}
-                  {ch?.display_name ? ` · ${ch.display_name}` : ''}
-                </span>
-              </span>
-            ) : null}
-            <span className="shrink-0 text-[11px] text-faint">· {when(r.created_at)}</span>
-            {r.pending ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-paper-dim px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-muted">
-                <LoaderCircle className="h-2.5 w-2.5 animate-spin" aria-hidden="true" />
-                Sending
-              </span>
-            ) : r.is_own ? (
-              <span className="shrink-0 rounded-full bg-accent/20 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-accent-ink">
-                Sent
-              </span>
-            ) : r.status === 'new' ? (
-              <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-[#0b1220]">
-                New
-              </span>
-            ) : r.status === 'replied' || r.status === 'hidden' || r.status === 'deleted' ? (
-              <span className="shrink-0 rounded-full bg-paper-dim px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-muted">
-                {r.status === 'replied' ? 'Replied' : r.status === 'hidden' ? 'Hidden' : 'Deleted'}
-              </span>
-            ) : null}
-          </p>
-
-          <p
-            className={`mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-soft ${
-              long && !open ? 'line-clamp-4' : ''
+          <div
+            className={`inline-block max-w-full rounded-2xl rounded-tl-md px-3.5 py-2.5 ${
+              r.is_own ? 'bg-accent-soft' : 'bg-surface'
             }`}
           >
-            {body}
-          </p>
-          {long ? (
-            <button
-              type="button"
-              onClick={() =>
-                setExpanded((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(r.id)) next.delete(r.id);
-                  else next.add(r.id);
-                  return next;
-                })
-              }
-              className="mt-1 text-[11px] font-bold text-accent-ink hover:underline"
+            <p className="flex flex-wrap items-baseline gap-x-1.5">
+              <span className="min-w-0 truncate text-[13px] font-bold">
+                {r.is_own ? (ch?.display_name ? `You · ${ch.display_name}` : 'You') : r.author_name || 'Unknown'}
+              </span>
+              {r.pending ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-muted">
+                  <LoaderCircle className="h-2.5 w-2.5 animate-spin" aria-hidden="true" />
+                  Sending
+                </span>
+              ) : r.status === 'hidden' || r.status === 'deleted' ? (
+                <span className="text-[10px] font-bold uppercase tracking-wide text-faint">
+                  {r.status === 'hidden' ? 'Hidden' : 'Deleted'}
+                </span>
+              ) : null}
+            </p>
+            <p
+              className={`mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-soft ${
+                long && !open ? 'line-clamp-5' : ''
+              }`}
             >
-              {open ? 'Show less' : 'Show more'}
-            </button>
-          ) : null}
-
-          {canReply ? (
-            <button
-              type="button"
-              onClick={() => {
-                setTargets((t) => ({ ...t, [threadId]: r.id }));
-                const el = document.getElementById(`composer-${threadId}`);
-                el?.focus();
-              }}
-              className="mt-1.5 text-[11px] font-bold text-muted transition hover:text-accent-ink"
-            >
-              Reply
-            </button>
-          ) : null}
+              {body}
+            </p>
+            {long ? (
+              <button
+                type="button"
+                onClick={() => toggleExpanded(r.id)}
+                className="mt-1 text-[11px] font-bold text-accent-ink hover:underline"
+              >
+                {open ? 'Show less' : 'Show more'}
+              </button>
+            ) : null}
+          </div>
+          <div className="mt-1 flex items-center gap-3 pl-1 text-[11px] text-faint">
+            <span>{when(r.created_at)}</span>
+            {canReply ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setTargets((t) => ({ ...t, [threadId]: r.id }));
+                  composerRef.current?.focus();
+                }}
+                className="font-bold text-muted transition hover:text-ink"
+              >
+                Reply
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     );
@@ -503,14 +578,10 @@ export default function CommentsFeed({
   const chain = (r: CommentRow, depth: number) => {
     const kids = threads.kids.get(r.id) ?? [];
     return (
-      <li key={r.id} className="relative">
+      <li key={r.id}>
         {bubble(r, depth)}
         {kids.length ? (
-          <ol
-            className={`mt-2.5 space-y-2.5 border-l border-line ${
-              depth > 1 ? 'ml-3 pl-3' : 'ml-4 pl-4'
-            }`}
-          >
+          <ol className={`mt-3 space-y-3 border-l-2 border-line-soft ${depth > 1 ? 'ml-3 pl-3' : 'ml-[17px] pl-4'}`}>
             {kids.map((k) => chain(k, depth + 1))}
           </ol>
         ) : null}
@@ -518,7 +589,6 @@ export default function CommentsFeed({
     );
   };
 
-  /** One composer per thread, pinned under the chain. */
   const composer = (root: CommentRow) => {
     const threadId = root.id;
     const ch = channelById.get(root.channel_id);
@@ -531,7 +601,7 @@ export default function CommentsFeed({
 
     if (!REPLY_PROVIDERS.has(root.platform)) {
       return (
-        <p className="mt-3 border-t border-line-soft pt-2.5 text-[11px] text-faint">
+        <p className="border-t border-line px-4 py-3 text-center text-xs text-faint">
           {NO_REPLY_TEXT[root.platform] ?? 'Replies not available on this platform.'}
         </p>
       );
@@ -543,44 +613,39 @@ export default function CommentsFeed({
           e.preventDefault();
           void send(threadId, replyingTo ?? root);
         }}
-        className="mt-3 flex items-end gap-2 rounded-2xl border border-line bg-paper p-2 transition focus-within:border-accent/70"
+        className={paneFoot}
       >
-        <ChannelAvatar
-          provider={root.platform}
-          avatar={ch ? channelAvatar(ch.metadata) : undefined}
-          size={28}
-        />
-        <div className="min-w-0 flex-1">
-          {replyingTo ? (
-            <div className="mb-1 flex items-center gap-1 text-[11px] text-muted">
-              <CornerDownRight className="h-3 w-3 shrink-0" aria-hidden="true" />
-              <span className="truncate">
-                Replying to <b className="font-bold text-soft">{replyingTo.author_name || 'comment'}</b>
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setTargets((t) => {
-                    const next = { ...t };
-                    delete next[threadId];
-                    return next;
-                  })
-                }
-                aria-label="Reply to the whole thread instead"
-                className="ml-auto shrink-0 rounded p-0.5 text-faint transition hover:bg-paper-dim hover:text-soft"
-              >
-                <X className="h-3 w-3" aria-hidden="true" />
-              </button>
-            </div>
-          ) : null}
+        {replyingTo ? (
+          <div className="mb-1.5 flex items-center gap-1 px-1 text-[11px] text-muted">
+            <CornerDownRight className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              Replying to <b className="font-bold text-soft">{replyingTo.author_name || 'comment'}</b>
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setTargets((t) => {
+                  const next = { ...t };
+                  delete next[threadId];
+                  return next;
+                })
+              }
+              aria-label="Reply to the whole thread instead"
+              className="ml-auto shrink-0 rounded p-0.5 text-faint transition hover:bg-surface hover:text-soft"
+            >
+              <X className="h-3 w-3" aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
+        <div className="flex items-end gap-2 rounded-2xl border border-line bg-paper py-1.5 pr-1.5 pl-2 transition focus-within:border-accent">
+          <ChannelAvatar provider={root.platform} avatar={ch ? channelAvatar(ch.metadata) : undefined} size={28} badge={false} />
           <textarea
-            id={`composer-${threadId}`}
+            ref={composerRef}
             value={draft}
             onChange={(e) => {
               setDrafts((d) => ({ ...d, [threadId]: e.target.value }));
               grow(e.target);
             }}
-            onInput={(e) => grow(e.currentTarget)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -590,141 +655,85 @@ export default function CommentsFeed({
             rows={1}
             placeholder={`Reply as ${name}…`}
             aria-label={`Reply as ${name}`}
-            className="block w-full resize-none bg-transparent py-1 text-sm leading-relaxed text-soft outline-none placeholder:text-faint"
+            className={composerText}
           />
+          <button
+            type="submit"
+            disabled={disabled}
+            aria-label="Send reply"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent text-[#0b1220] transition hover:bg-accent-bright disabled:opacity-40"
+          >
+            {busy === threadId ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Send className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
         </div>
-        <button
-          type="submit"
-          disabled={disabled}
-          aria-label="Send reply"
-          className="btn btn-primary !px-2.5 !py-2 disabled:opacity-40"
-        >
-          {busy === threadId ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Send className="h-4 w-4" aria-hidden="true" />
-          )}
-        </button>
       </form>
     );
   };
 
+  const detail = current ? (() => {
+    const root = current.root;
+    const post = postFor(root);
+    const ch = channelById.get(root.channel_id);
+    const meta = providerMeta(root.platform).label;
+    const caption = (post?.body ?? '').trim();
+    return (
+      <>
+        <header className={paneHead}>
+          <button
+            type="button"
+            onClick={() => setSel(null)}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-soft transition hover:bg-surface lg:hidden"
+            aria-label="Back to comments"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <PostThumb post={post} size={40} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-faint">
+              {meta} post{ch?.display_name ? ` · ${ch.display_name}` : ''}
+              {post?.posted_at ? ` · ${when(post.posted_at)}` : ''}
+            </p>
+            <p className="truncate text-[13px] text-soft">{caption || `A ${meta} post`}</p>
+          </div>
+          {post?.url ? (
+            <a
+              href={post.url}
+              target="_blank"
+              rel="noreferrer"
+              title={`Open the ${meta} post`}
+              aria-label={`Open the ${meta} post`}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface hover:text-ink"
+            >
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            </a>
+          ) : null}
+        </header>
+        <div ref={threadScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-4">
+          {err ? <p className={`${errorBox} mb-3`}>{err}</p> : null}
+          {note ? (
+            <p className="mb-3 rounded-xl bg-[#EDF3EC] px-3.5 py-2.5 text-xs font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">
+              {note}
+            </p>
+          ) : null}
+          <ol className="space-y-3">{chain(root, 0)}</ol>
+        </div>
+        {composer(root)}
+      </>
+    );
+  })() : (
+    <PaneEmpty icon={<MessageCircle className="h-5 w-5" />} title="Pick a comment">
+      Open a thread on the left to read it and reply.
+    </PaneEmpty>
+  );
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
-          <button
-            type="button"
-            onClick={() => setChan('all')}
-            aria-pressed={chan === 'all'}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-              chan === 'all' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
-            }`}
-          >
-            All channels
-          </button>
-          {channelsWithRows.map((c) => {
-            const on = chan === c.id;
-            const name = c.display_name || providerMeta(c.provider).label;
-            const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setChan(on ? 'all' : c.id)}
-                aria-pressed={on}
-                title={`${name}${handle ? ` ${handle}` : ''} - ${providerMeta(c.provider).label}`}
-                className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
-                  on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
-                }`}
-              >
-                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
-                <span className="flex min-w-0 max-w-40 flex-col leading-tight">
-                  <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
-                  {handle ? (
-                    <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
-                  ) : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Sort comments">
-            {(['new', 'old'] as const).map((o) => (
-              <button
-                key={o}
-                type="button"
-                onClick={() => setOrder(o)}
-                aria-pressed={order === o}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  order === o ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
-                }`}
-              >
-                {o === 'new' ? 'Newest' : 'Oldest'}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => onRefresh?.()}
-            disabled={scanning || !onRefresh}
-            title="Refreshes comments and messages in one sweep"
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
-          >
-            {scanning ? (
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {err ? (
-        <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
-          {err}
-        </p>
-      ) : null}
-      {note ? (
-        <p className="rounded-xl bg-[#EDF3EC] px-3.5 py-2.5 text-xs font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">
-          {note}
-        </p>
-      ) : null}
-
-      {rows === null ? (
-        <div className="rounded-2xl border border-line bg-card p-10 text-center text-sm text-muted">
-          <LoaderCircle className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
-        </div>
-      ) : threads.roots.length === 0 ? (
-        <div className="rounded-2xl border border-line bg-card p-10 text-center">
-          <MessageCircle className="mx-auto h-6 w-6 text-faint" aria-hidden="true" />
-          <p className="mt-2 text-sm font-bold">
-            {chan === 'all' ? 'No comments yet' : 'No comments on this channel yet'}
-          </p>
-          <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-            {chan === 'all'
-              ? 'Publish to your channels, get a comment, and it lands here when the engine sweeps - every 5 minutes or on Refresh.'
-              : 'Comments on this account land here when the engine sweeps - every 5 minutes or on Refresh.'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {threads.roots.map((root) => {
-            const post = root.external_post_id
-              ? posts[`${root.channel_id}:${root.external_post_id}`]
-              : undefined;
-            return (
-              <article key={root.id} className="rounded-2xl border border-line bg-card p-3.5">
-                {post ? <PostStrip post={post} platform={root.platform} /> : null}
-                <ol className="space-y-2.5">{chain(root, 0)}</ol>
-                {composer(root)}
-              </article>
-            );
-          })}
-        </div>
-      )}
+      {err && !current ? <p className={errorBox}>{err}</p> : null}
+      <InboxShell list={list} detail={detail} detailOpen={!!current} />
     </div>
   );
 }

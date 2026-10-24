@@ -11,8 +11,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Mail, MessageCircle, RefreshCw } from 'lucide-react';
 import CommentsFeed from '@/components/CommentsFeed';
 import MessagesInbox from '@/components/MessagesInbox';
+import SegmentedPills from '@/components/ui/segmented-pills';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel } from '@/lib/types';
 
@@ -89,42 +91,52 @@ export default function CommunityInbox({
     }
   }, [scanning, workspaceId, fetchUnseen]);
 
-  const tabs: { key: InboxTab; label: string }[] = [
-    { key: 'comments', label: 'Comments' },
-    { key: 'messages', label: 'Messages' },
+  const tabs: { key: InboxTab; label: string; Icon: typeof MessageCircle }[] = [
+    { key: 'comments', label: 'Comments', Icon: MessageCircle },
+    { key: 'messages', label: 'Messages', Icon: Mail },
   ];
 
   return (
     <div className="space-y-3">
-      <div role="tablist" aria-label="Inbox sections" className="flex w-fit gap-1 rounded-full border border-line bg-card p-1">
-        {tabs.map(({ key, label }) => {
-          const on = tab === key;
-          const count = unseen[key];
-          return (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              aria-label={count > 0 ? `${label}, ${count} new` : label}
-              onClick={() => setTab(key)}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition ${
-                on ? 'bg-accent text-[#0b1220]' : 'text-soft hover:bg-paper-dim'
-              }`}
-            >
-              {label}
-              {count > 0 ? (
-                <span
-                  className={`min-w-[16px] rounded-full px-1 text-center text-[10px] font-extrabold leading-4 ${
-                    on ? 'bg-[#0b1220] text-accent' : 'bg-accent text-[#0b1220]'
-                  }`}
-                >
-                  {count > 99 ? '99+' : count}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-2">
+        <SegmentedPills
+          ariaLabel="Inbox sections"
+          role="tablist"
+          size="lg"
+          value={tab}
+          onChange={setTab}
+          className="min-w-0 flex-1 sm:flex-none"
+          buttonClassName="flex-1 sm:flex-none !px-4"
+          options={tabs.map(({ key, label, Icon }) => {
+            const count = unseen[key];
+            return {
+              value: key,
+              title: count > 0 ? `${label}, ${count} new` : label,
+              label: (
+                <>
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{label}</span>
+                  {count > 0 ? (
+                    <span className="min-w-[18px] shrink-0 rounded-full bg-accent px-1 text-center text-[10px] font-extrabold leading-[18px] text-on-accent">
+                      {count > 99 ? '99+' : count}
+                    </span>
+                  ) : null}
+                </>
+              ),
+            };
+          })}
+        />
+        <button
+          type="button"
+          onClick={() => void refreshAll()}
+          disabled={scanning}
+          title="Refreshes comments and messages in one sweep"
+          aria-label="Refresh comments and messages"
+          className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-xs font-bold text-soft transition hover:bg-surface disabled:opacity-60 sm:px-4"
+        >
+          <RefreshCw className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} aria-hidden="true" />
+          <span className="hidden sm:inline">{scanning ? 'Refreshing…' : 'Refresh'}</span>
+        </button>
       </div>
 
       {err ? (
@@ -134,21 +146,13 @@ export default function CommunityInbox({
       ) : null}
 
       {tab === 'comments' ? (
-        <CommentsFeed
-          channels={channels}
-          workspaceId={workspaceId}
-          reloadKey={reloadKey}
-          scanning={scanning}
-          onRefresh={() => void refreshAll()}
-        />
+        <CommentsFeed channels={channels} workspaceId={workspaceId} reloadKey={reloadKey} />
       ) : (
         <MessagesInbox
           workspaceId={workspaceId}
           channels={channels}
           paid={plan !== 'free'}
           reloadKey={reloadKey}
-          scanning={scanning}
-          onRefresh={() => void refreshAll()}
         />
       )}
     </div>

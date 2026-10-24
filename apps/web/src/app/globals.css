@@ -1771,3 +1771,31 @@ body {
 }
 
 
+
+/* ------------------------------ pill switches ------------------------------ */
+/* SegmentedPills (every single-choice pill row): soft track, raised thumb.
+ * Dark theme: the card colour is darker than the surface, so the thumb gets
+ * its own lifted tone to stay the brightest thing in the row. */
+.seg-track {
+  background: var(--color-surface);
+}
+.seg-thumb {
+  background: var(--color-card);
+  box-shadow: 0 1px 4px rgba(28, 26, 20, 0.16), 0 0 0 0.5px rgba(28, 26, 20, 0.04);
+}
+.theme-dark .seg-thumb {
+  background: #3a3731;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+/* Publish progress: indeterminate sweep on a channel's row while it posts. */
+@keyframes pub-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.pub-sweep {
+  animation: pub-sweep 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pub-sweep { animation: none; width: 55%; }
+}

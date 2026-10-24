@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { SocialGlyph, FeedPhoto, FeedVideo } from '../components/ui';
+import { SocialGlyph } from '../components/ui';
 import NotificationBell from '../components/NotificationBell';
 import ConnectButton from '../components/ConnectButton';
 import ChannelDrawer from '../components/ChannelDrawer';
@@ -11,7 +11,11 @@ import { loadManagedPosts, onManagedPostsChanged, ManagedPost, MAX_AUTO_TRIES, p
 import { pullCloudStatus } from '../utils/cloudPosts';
 import { pullCloudChannels } from '../utils/cloudChannels';
 import { loadMetaState, loadAccounts, MetaState, onAccountsChanged } from '../utils/metaStore';
-import { schedulableProviders } from '../utils/socialAccounts';
+import {
+  schedulableProviders, accountName, accountHandle, accountAvatar, findAccount, findAccountForProvider, asIdList,
+  type ConnectedAccount,
+} from '../utils/socialAccounts';
+import SocialPost from '../components/SocialPost';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
 import { useComposer } from '../store/ComposerContext';
 import { loadActor, canApprove, canSubmit, Actor } from '../utils/team';
@@ -83,6 +87,7 @@ export default function PostScreen({ onConnect, bare }: {
   const [posts, setPosts] = useState<ManagedPost[]>([]);
   const [meta, setMeta] = useState<MetaState>({});
   const [sched, setSched] = useState<Set<string>>(new Set());
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [actor, setActor] = useState<Actor>({ id: null, role: 'owner' });
   const [channel, setChannel] = useState('all');
   const [drawer, setDrawer] = useState(false);
@@ -99,7 +104,10 @@ export default function PostScreen({ onConnect, bare }: {
     // Cloud-only placeholders count as connected here: the worker publishes
     // for them even though this device holds no tokens.
     loadAccounts()
-      .then((all) => setSched(new Set<string>(schedulableProviders(all))))
+      .then((all) => {
+        setSched(new Set<string>(schedulableProviders(all)));
+        setAccounts(all);
+      })
       .catch(() => {});
   };
 
@@ -216,7 +224,6 @@ export default function PostScreen({ onConnect, bare }: {
 
   const row = (p: ManagedPost) => {
     const plats = p.platforms?.length ? p.platforms : ['any'];
-    const first = postAttachments(p)[0];
     const overdue = tab === 'queued' && !!p.scheduledAt && p.scheduledAt <= Date.now();
     const when =
       tab === 'sent' && p.sentAt ? `Sent ${fmtDateTime(p.sentAt)}` :
@@ -224,81 +231,75 @@ export default function PostScreen({ onConnect, bare }: {
       p.scheduledAt ? `${overdue ? 'Overdue · ' : ''}${fmtDateTime(p.scheduledAt)}` : 'Not scheduled';
     const legErr = Object.values(p.channelErr ?? {})[0] as string | undefined;
     const parked = tab === 'queued' && (p.autoTries ?? 0) >= MAX_AUTO_TRIES;
+    // Posting account: the picked account for the first channel, else that
+    // channel's primary account; the network's name when none is connected.
+    const lead = plats[0] === 'any' ? null : plats[0];
+    const pickId = lead ? asIdList(p.accountIds?.[lead])[0] : undefined;
+    const acc = lead ? (pickId ? findAccount(accounts, pickId) : undefined) ?? findAccountForProvider(accounts, lead as never) : undefined;
+    const author = {
+      name: (acc && accountName(acc)) || (lead ? SOCIAL_META[lead]?.label ?? lead : 'Sosial'),
+      handle: acc ? accountHandle(acc) ?? null : null,
+      platform: lead ?? 'x',
+      avatar: acc ? accountAvatar(acc) : undefined,
+    };
+    const ctx =
+      tab === 'sent' ? { icon: 'checkmark-circle-outline' as const, text: when, tone: 'muted' as const } :
+      tab === 'failed' ? { icon: 'alert-circle-outline' as const, text: when, tone: 'danger' as const } :
+      tab === 'approval' ? { icon: 'hourglass-outline' as const, text: 'Waiting for approval', tone: 'accent' as const } :
+      tab === 'queued' ? { icon: 'time-outline' as const, text: when, tone: overdue ? 'danger' as const : 'accent' as const } :
+      { icon: 'create-outline' as const, text: p.scheduledAt ? `Draft · ${fmtDateTime(p.scheduledAt)}` : 'Draft', tone: 'muted' as const };
+    const text = p.thread && p.thread.length > 1 ? p.thread.join('\n\n') : p.body;
     return (
-      <View key={p.id}>
-        <TouchableOpacity onPress={() => openComposer(p)} style={st.card} activeOpacity={0.75}>
-          {first ? (
-            <View style={st.cardRow}>
-              <View style={{ width: 104 }}>
-            {first.kind === 'video'
-              ? <FeedVideo uri={first.uri} />
-              : <FeedPhoto uri={first.uri} aspect={4 / 5} />}
+      <View key={p.id} style={st.card}>
+        <SocialPost
+          author={author}
+          context={ctx}
+          badge={plats.length > 1 ? <ChannelStack plats={plats.slice(1)} C={C} /> : undefined}
+          title={p.title || (requiresTitle(plats) ? 'Untitled' : null)}
+          body={text || ''}
+          emptyLabel={platformsLabel(plats)}
+          media={postAttachments(p)
+            .filter((m) => m.kind === 'image' || m.kind === 'video')
+            .map((m) => ({ uri: m.uri, kind: m.kind as 'image' | 'video' }))}
+          onPress={() => openComposer(p)}
+          notes={
+            (tab === 'queued' || tab === 'failed') && legErr ? (
+              <View style={st.errBar}>
+                <Ionicons name="alert-circle" size={13} color={C.redText} />
+                <Text style={st.errT} numberOfLines={2}>{legErr}</Text>
               </View>
-              <View style={{ flex: 1, gap: 5 }}>
-                {p.title || requiresTitle(plats) ? (
-                  <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
-                ) : null}
-                <Text style={st.body} numberOfLines={3}>{p.body || platformsLabel(plats)}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                  <View style={[st.whenDot, { backgroundColor: overdue ? C.redText : C.faint }]} />
-                  <Text style={[st.when, overdue && { color: C.redText }]} numberOfLines={1}>{when}</Text>
-                </View>
-                <ChannelStack plats={plats} C={C} />
+            ) : tab === 'queued' && parked ? (
+              <View style={st.errBar}>
+                <Ionicons name="pause-circle" size={13} color={C.redText} />
+                <Text style={st.errT} numberOfLines={2}>Auto-retry stopped, open to retry manually</Text>
               </View>
-            </View>
-          ) : (
-            <>
-              <View style={st.cardTop}>
-                <View style={{ flex: 1, gap: 3 }}>
-                  {p.title || requiresTitle(plats) ? (
-                    <Text style={st.t} numberOfLines={1}>{p.title || 'Untitled'}</Text>
-                  ) : null}
-                  <Text style={st.body} numberOfLines={2}>{p.body || platformsLabel(plats)}</Text>
-                </View>
-              </View>
-              <View style={st.cardFoot}>
-                <View style={[st.whenDot, { backgroundColor: overdue ? C.redText : C.faint }]} />
-                <Text style={[st.when, overdue && { color: C.redText }]} numberOfLines={1}>{when}</Text>
-                <View style={{ flex: 1 }} />
-                <ChannelStack plats={plats} C={C} />
-              </View>
-            </>
-          )}
-          {(tab === 'queued' || tab === 'failed') && legErr ? (
-            <View style={st.errBar}>
-              <Ionicons name="alert-circle" size={13} color={C.redText} />
-              <Text style={st.errT} numberOfLines={2}>{legErr}</Text>
-            </View>
-          ) : null}
-          {tab === 'queued' && !legErr && parked ? (
-            <View style={st.errBar}>
-              <Ionicons name="pause-circle" size={13} color={C.redText} />
-              <Text style={st.errT} numberOfLines={2}>Auto-retry stopped, open to retry manually</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
-        {showSubmit || showApprove ? (
-          <View style={st.actions}>
-            {showSubmit ? (
-              <TouchableOpacity onPress={() => submitForApproval(p.id)} style={st.actionBtn} activeOpacity={0.8}>
-                <Ionicons name="send" size={13} color={C.onInk} />
-                <Text style={st.actionBtnT}>Submit for approval</Text>
-              </TouchableOpacity>
-            ) : null}
-            {showApprove ? (
+            ) : undefined
+          }
+          footer={
+            showSubmit || showApprove ? (
               <>
-                <TouchableOpacity onPress={() => approvePost(p.id)} style={st.actionBtn} activeOpacity={0.8}>
-                  <Ionicons name="checkmark" size={14} color={C.onInk} />
-                  <Text style={st.actionBtnT}>Approve</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => rejectPost(p.id)} style={[st.actionBtn, st.actionBtnGhost]} activeOpacity={0.8}>
-                  <Ionicons name="close" size={14} color={C.redText} />
-                  <Text style={[st.actionBtnT, { color: C.redText }]}>Reject</Text>
-                </TouchableOpacity>
+                {showSubmit ? (
+                  <TouchableOpacity onPress={() => submitForApproval(p.id)} style={st.actionBtn} activeOpacity={0.8}>
+                    <Ionicons name="send" size={13} color={C.onInk} />
+                    <Text style={st.actionBtnT}>Submit for approval</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {showApprove ? (
+                  <>
+                    <TouchableOpacity onPress={() => approvePost(p.id)} style={st.actionBtn} activeOpacity={0.8}>
+                      <Ionicons name="checkmark" size={14} color={C.onInk} />
+                      <Text style={st.actionBtnT}>Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => rejectPost(p.id)} style={[st.actionBtn, st.actionBtnGhost]} activeOpacity={0.8}>
+                      <Ionicons name="close" size={14} color={C.redText} />
+                      <Text style={[st.actionBtnT, { color: C.redText }]}>Reject</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
               </>
-            ) : null}
-          </View>
-        ) : null}
+            ) : undefined
+          }
+        />
       </View>
     );
   };
@@ -445,7 +446,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   newBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.accent, borderRadius: R.lg, paddingVertical: 14 },
   newBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.onInk },
   day: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 12.5, letterSpacing: 0.6, textTransform: 'uppercase', color: C.accentInk },
-  card: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 12, gap: 10 },
+  card: { backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   cardRow: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
   cardFoot: { flexDirection: 'row', alignItems: 'center', gap: 7, borderTopWidth: 1, borderTopColor: C.lineSoft, paddingTop: 9 },

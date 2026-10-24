@@ -11,6 +11,7 @@ saveProjectPreset, ProjectPreset } from '../utils/presets';
 import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/managed';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
 import { activeWorkspaceId, scopedKey } from '../utils/activeWorkspace';
+import { Seg } from '../components/ui';
 
 const KEY = 'quickpost_projects_v1';
 
@@ -270,16 +271,16 @@ export default function HomeScreen({ onNew, onOpen, onQueue, onPrivacy, onConnec
         <View style={{ paddingHorizontal: 24, marginTop: 36 }}>
           <View style={s.secHead}>
             <Text style={s.secT}>Library</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {(['designs', 'templates'] as const).map((t) => {
-                const on = libTab === t;
-                return (
-                  <TouchableOpacity key={t} onPress={() => setLibTab(t)} style={[s.miniTab, on && { backgroundColor: C.ink }]} activeOpacity={0.75}>
-                    <Text style={[s.miniTabT, on && { color: C.onInk }]}>{t === 'designs' ? 'Designs' : 'Templates'}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <Seg
+              accessibilityLabel="Library"
+              grow={false}
+              value={libTab}
+              onChange={setLibTab}
+              options={[
+                { value: 'designs', label: 'Designs' },
+                { value: 'templates', label: 'Templates' },
+              ]}
+            />
           </View>
           {libTab === 'templates' ? (
             presets.length === 0 ? (

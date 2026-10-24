@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { ComposerPreview } from '@/components/landing/Preview';
 import { FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
+import AppPreview from '@/components/site/app-preview/AppPreview';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
@@ -29,11 +29,7 @@ export default async function CreatePage() {
         lede="One composer writes for ten networks at once, with live previews, honest character counts, reusable templates and media that fits everywhere."
         meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/ai-assistant', label: 'Meet the AI writer' }}
-        visual={
-          <div className="card p-3 md:p-4">
-            <ComposerPreview />
-          </div>
-        }
+        visual={<AppPreview screen="composer" caption="Create post: pick channels, write once, post now or schedule." />}
       />
 
       <PageCms slug="features/create" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
@@ -49,26 +45,7 @@ export default async function CreatePage() {
               'Live counters against true platform limits',
               'Over-long captions trim before scheduling, not after',
             ],
-            visual: (
-              <div className="card p-4" aria-hidden="true">
-                <p className="eyebrow">This week, from one draft</p>
-                <div className="mt-3 space-y-2">
-                  {[
-                    ['Launch teaser · 10 channels', 'Scheduled'],
-                    ['Roundup video · 6 channels', 'Queued'],
-                    ['Founder story · 4 channels', 'Draft'],
-                  ].map(([label, status]) => (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between rounded-lg border border-line bg-paper px-2.5 py-2"
-                    >
-                      <span className="text-xs font-semibold text-soft">{label}</span>
-                      <span className="pill bg-paper-dim text-ink">{status}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ),
+            visual: <AppPreview screen="quick-post" caption="Quick post on the dashboard, for text that ships right now." />,
           },
           {
             eyebrow: 'Templates',

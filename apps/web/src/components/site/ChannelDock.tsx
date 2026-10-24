@@ -4,72 +4,54 @@ import { CHANNEL_GUIDES } from '@/content/channels';
 import { channelHref } from '@/content/types';
 import { providerMeta } from '@/lib/providers';
 
-/** Listed but not connectable yet, the tile carries a Soon tag. */
+/** Listed but not connectable yet. */
 const SOON = new Set<BrandProvider>(['gmb', 'linkedin']);
 
-function SoonTag() {
-  return (
-    <span className="pointer-events-none absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full border border-line bg-white px-1 py-px text-[8px] font-bold uppercase leading-none tracking-wide text-faint">
-      Soon
-    </span>
-  );
-}
-
 /**
- * Integration dock: every channel Sosial publishes to, in one wrapped panel.
- * The page's own channel sits enlarged with an accent ring; the rest link to
- * their guides and lift on hover. Shared by every integration page.
+ * Integration dock: every channel Sosial publishes to as one row of equal
+ * icon tiles. The page's own channel opens up to show its name on an ink
+ * tile; the rest are quiet bordered squares that link to their guides.
+ * One row that swipes sideways on a phone, wraps on wide screens.
+ * Shared by the integrations index and every integration page.
  */
-export default function ChannelDock({ active }: { active: string }) {
+export default function ChannelDock({ active, label = 'All integrations' }: { active?: string; label?: string }) {
   return (
-    <nav
-      aria-label="All integrations"
-      className="rounded-[26px] border border-line bg-white/60 p-2.5 shadow-[0_20px_50px_-32px_rgba(28,26,20,0.5)] backdrop-blur-sm"
-    >
-      <div className="flex flex-wrap items-stretch justify-center gap-1.5 sm:gap-2">
+    <nav aria-label={label} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+      <span className="shrink-0 text-xs font-bold text-muted">{label}</span>
+      <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
         {CHANNEL_GUIDES.map((g) => {
           const isActive = g.key === active;
           const soon = SOON.has(g.key as BrandProvider);
-          const label = providerMeta(g.key).label;
+          const name = providerMeta(g.key).label;
+          const title = soon ? `${name} (coming soon)` : name;
 
-          const tile = isActive
-            ? 'border-accent bg-white shadow-[0_14px_30px_-14px_rgba(28,26,20,0.45)] ring-2 ring-accent'
-            : 'border-transparent bg-white/0 hover:-translate-y-1 hover:border-line hover:bg-white hover:shadow-[0_12px_26px_-18px_rgba(28,26,20,0.4)]';
-
-          const body = (
-            <>
-              <span className="relative">
-                <BrandIcon
-                  provider={g.key}
-                  className={isActive ? 'h-9 w-9' : 'h-7 w-7 opacity-90 transition group-hover:opacity-100'}
-                />
-                {soon ? <SoonTag /> : null}
-              </span>
+          if (isActive) {
+            return (
               <span
-                className={`mt-1.5 text-[10px] leading-none ${
-                  isActive ? 'font-extrabold text-ink' : 'font-semibold text-muted'
-                }`}
+                key={g.key}
+                aria-current="page"
+                title={title}
+                className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-ink pr-3.5 pl-2.5 text-sm font-bold text-bone"
               >
-                {label}
+                <BrandIcon provider={g.key} mono className="h-5 w-5 text-bone" />
+                {name}
               </span>
-            </>
-          );
-
-          const cls = `group flex w-[74px] shrink-0 flex-col items-center rounded-2xl border px-1.5 pb-2 pt-2.5 transition duration-200 ${tile}`;
-
-          return isActive ? (
-            <span key={g.key} aria-current="page" title={label} className={cls}>
-              {body}
-            </span>
-          ) : (
+            );
+          }
+          return (
             <Link
               key={g.key}
               href={channelHref(g.key)}
-              aria-label={`${label} integration`}
-              title={label}
-              className={cls}
+              title={title}
+              aria-label={`${title} integration`}
+              className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line bg-card transition hover:border-ink/30 ${
+                soon ? 'opacity-55 hover:opacity-100' : ''
+              }`}
             >
-              {body}
+              <BrandIcon provider={g.key} className="h-5 w-5" />
+              {soon ? (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-faint ring-2 ring-card" aria-hidden="true" />
+              ) : null}
             </Link>
           );
         })}

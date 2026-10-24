@@ -142,41 +142,31 @@ function RailPanel({
   const shown = channels.filter((c) => picked.includes(c.id));
   return (
     <div className="card space-y-3 p-4 sm:p-5">
-      <div className="flex rounded-full border border-line bg-paper p-1" role="group" aria-label={t('railPanel')}>
-        {(['template', 'preview', 'ai'] as const).map((tb) => (
-          <button
-            key={tb}
-            type="button"
-            onClick={() => onTab(tb)}
-            aria-pressed={tab === tb}
-            className={`flex-1 rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
-              tab === tb ? 'bg-ink text-paper shadow-sm' : 'text-muted hover:text-ink'
-            }`}
-          >
-            {tb === 'ai' ? 'AI' : tb === 'template' ? t('railTemplate') : t('railPreview')}
-          </button>
-        ))}
-      </div>
+      <SegmentedPills
+        ariaLabel={t('railPanel')}
+        value={tab}
+        onChange={onTab}
+        buttonClassName="flex-1"
+        options={(['template', 'preview', 'ai'] as const).map((tb) => ({
+          value: tb,
+          label: tb === 'ai' ? 'AI' : tb === 'template' ? t('railTemplate') : t('railPreview'),
+        }))}
+      />
 
       {tab === 'ai' ? ai : null}
 
       {tab === 'template' ? (
         <div className="space-y-3">
-          <div className="flex gap-1.5" role="group" aria-label={t('railTemplate')}>
-            {(['text', 'design'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => onTplKind(k)}
-                aria-pressed={tplKind === k}
-                className={`flex-1 rounded-full border px-3 py-1.5 text-xs font-bold capitalize transition ${
-                  tplKind === k ? 'border-ink bg-paper text-ink' : 'border-line text-muted hover:text-ink'
-                }`}
-              >
-                {k === 'text' ? t('railTplText') : t('railTplDesign')}
-              </button>
-            ))}
-          </div>
+          <SegmentedPills
+            ariaLabel={t('railTemplate')}
+            value={tplKind}
+            onChange={onTplKind}
+            buttonClassName="flex-1"
+            options={(['text', 'design'] as const).map((k) => ({
+              value: k,
+              label: k === 'text' ? t('railTplText') : t('railTplDesign'),
+            }))}
+          />
           {tplKind === 'text' ? (
             captions.length === 0 ? (
               <p className="text-sm text-muted">{t('railNoCaptions')}</p>
@@ -501,6 +491,27 @@ export default function CreatePost({
    * judge the CURRENT draft, picking them mid-compose is allowed so the
    * user sees exactly what's missing and fixes it in place.
    */
+  /** Who the composer writes as: the first picked account, like the face
+   *  beside a social compose box. Nothing picked yet shows a blank face. */
+  const composeAs = useMemo(() => {
+    const c = ready.find((x) => picked.includes(x.id));
+    if (!c) {
+      return {
+        name: '',
+        handle: null,
+        avatar: <span className="block h-10 w-10 rounded-full bg-surface ring-1 ring-line" aria-hidden="true" />,
+      };
+    }
+    const handle = c.handle ? `@${c.handle.replace(/^@+/, '')}` : null;
+    const extra = picked.length - 1;
+    return {
+      name: c.display_name?.trim() || providerMeta(c.provider).label,
+      handle: extra > 0 ? `${handle ?? ''}${handle ? ' ' : ''}+${extra}` : handle,
+      avatar: <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={40} />,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, picked]);
+
   const allReady = useMemo(() => {
     const totalMedia = segs.reduce((n, s) => n + s.media.length, 0);
     const hasVideo = segs.some((s) => s.media.some((m) => m.kind === 'video'));
@@ -1186,6 +1197,8 @@ export default function CreatePost({
                   placeholder={t('cpMindPh')}
                   limit={limit}
                   label={t('cpPostText')}
+                  author={composeAs}
+                  threaded={thread}
                 />
               )}
             </div>
@@ -1224,6 +1237,8 @@ export default function CreatePost({
                         rows={3}
                         limit={limit}
                         label={fill(t('hubIdeaThreadLbl'), { n: idx + 1 })}
+                        author={composeAs}
+                        threaded={idx < segs.length - 1}
                       />
                     </div>
                   );

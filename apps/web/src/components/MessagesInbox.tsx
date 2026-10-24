@@ -7,15 +7,20 @@
  * worker executes through the platform adapter. The thread re-reads a few
  * seconds after a send so provider-assigned ids/timestamps land.
  *
+ * Layout is a messenger: conversations on the left with the latest line as
+ * a preview, the open chat on the right (day separators, grouped bubbles,
+ * composer pinned to the bottom). Below lg the chat replaces the list.
+ *
  * Not-DM channels (Threads, YouTube, LinkedIn, TikTok, Pinterest) get an
  * honest platform-honesty note instead of an empty mystery.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, LoaderCircle, Lock, RefreshCw, Send, User } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ArrowLeft, Link2, LoaderCircle, Lock, Mail, Send } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
-import ChannelAvatar from '@/components/ChannelAvatar';
-import { channelAvatar } from '@/lib/channelAvatar';
+import {
+  ChannelStrip, Face, InboxShell, PaneEmpty, Segmented, clock, dayLabel, composerText, errorBox, grow, isWide, paneFoot, paneHead, when,
+} from '@/components/community/parts';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
 import { providerMeta } from '@/lib/providers';
@@ -45,45 +50,11 @@ interface MessageRow {
   status: string;
 }
 
-function when(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-/** Participant face when the platform gave an avatar url, initial bubble
- *  when it didn't (real-social parity). */
-function FaceAvatar({
-  name,
-  avatar,
-  size,
-}: {
-  name: string | null;
-  avatar: string | null | undefined;
-  size: number;
-}) {
-  const letter = (name ?? '').trim().charAt(0).toUpperCase();
-  return (
-    <span
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-paper text-soft"
-      style={{ width: size, height: size }}
-      aria-hidden="true"
-    >
-      {avatar ? (
-        <SafeImg src={avatar} alt="" width={size} height={size} className="h-full w-full object-cover" />
-      ) : letter ? (
-        <span className="font-extrabold" style={{ fontSize: Math.round(size * 0.42) }}>{letter}</span>
-      ) : (
-        <User style={{ width: Math.round(size * 0.56), height: Math.round(size * 0.56) }} />
-      )}
-    </span>
-  );
+/** Latest line of each conversation, for the list preview. */
+interface Preview {
+  direction: 'in' | 'out';
+  body: string;
+  attachments: boolean;
 }
 
 export default function MessagesInbox({
@@ -91,17 +62,14 @@ export default function MessagesInbox({
   channels,
   paid,
   reloadKey = 0,
-  scanning = false,
-  onRefresh,
 }: {
   workspaceId: string;
   channels: ConnectedChannel[];
   paid: boolean;
   reloadKey?: number;
-  scanning?: boolean;
-  onRefresh?: () => void;
 }) {
   const [convs, setConvs] = useState<ConversationRow[] | null>(null);
+  const [previews, setPreviews] = useState<Record<string, Preview>>({});
   const [chan, setChan] = useState<string>('all');
   const [order, setOrder] = useState<'new' | 'old'>('new');
   const [open, setOpen] = useState<ConversationRow | null>(null);
@@ -110,6 +78,7 @@ export default function MessagesInbox({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const input = useRef<HTMLTextAreaElement | null>(null);
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
   const dmChannels = useMemo(() => channels.filter((c) => DM_PROVIDERS.has(c.provider)), [channels]);
@@ -125,7 +94,7 @@ export default function MessagesInbox({
     const names = blocked.map((c) => c.display_name || providerMeta(c.provider).label).join(', ');
     const why = blocked.map((c) => c.last_error).find(Boolean) ??
       'that account has not granted message access yet.';
-    return `${names}: messages can't sync yet \u2014 ${why}`;
+    return `${names}: messages can't sync yet — ${why}`;
   }, [dmChannels]);
 
   const loadConvs = useCallback(async () => {
@@ -137,8 +106,27 @@ export default function MessagesInbox({
       .eq('workspace_id', workspaceId)
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .limit(100);
-    setConvs((data ?? []) as ConversationRow[]);
+    const rows = (data ?? []) as ConversationRow[];
+    setConvs(rows);
     if (error) setErr(error.message);
+    if (!rows.length) return;
+    // One read for every preview: newest first, first hit per conversation wins.
+    const { data: last } = await sb
+      .from('messages')
+      .select('conversation_id,direction,body,attachments,sent_at')
+      .in('conversation_id', rows.map((r) => r.id))
+      .order('sent_at', { ascending: false })
+      .limit(400);
+    const next: Record<string, Preview> = {};
+    for (const m of (last ?? []) as MessageRow[]) {
+      if (next[m.conversation_id]) continue;
+      next[m.conversation_id] = {
+        direction: m.direction,
+        body: m.body ?? '',
+        attachments: (m.attachments ?? []).length > 0,
+      };
+    }
+    setPreviews(next);
   }, [workspaceId]);
 
   const loadThread = useCallback(async (cid: string) => {
@@ -157,17 +145,39 @@ export default function MessagesInbox({
     void loadConvs();
   }, [paid, dmChannels.length, loadConvs, reloadKey]);
 
-  const openConv = async (c: ConversationRow) => {
-    setOpen(c);
-    setMsgs(null);
-    setErr(null);
-    await loadThread(c.id);
-  };
+  const openConv = useCallback(
+    async (c: ConversationRow) => {
+      setOpen(c);
+      setMsgs(null);
+      setErr(null);
+      setDraft('');
+      await loadThread(c.id);
+    },
+    [loadThread],
+  );
+
+  // Desktop shows both panes: open the newest chat instead of an empty side.
+  useEffect(() => {
+    if (open || !visibleConvs.length || !isWide()) return;
+    void openConv(visibleConvs[0]);
+  }, [visibleConvs, open, openConv]);
 
   useEffect(() => {
     const el = scroller.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs]);
+
+  // The keyboard opening shrinks the chat on a phone; keep the newest line
+  // in view instead of letting it slide under the composer.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !open) return;
+    const ro = new ResizeObserver(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open]);
 
   // Shared sweep from the tab host reloads the list and the open thread.
   useEffect(() => {
@@ -194,6 +204,7 @@ export default function MessagesInbox({
     };
     setMsgs((m) => [...(m ?? []), optimistic]);
     setDraft('');
+    grow(input.current);
     try {
       const sb = createClient();
       const { data, error } = await sb.functions.invoke('inbox-send', {
@@ -218,284 +229,129 @@ export default function MessagesInbox({
       }
     } catch (e) {
       setMsgs((m) => (m ?? []).filter((x) => x.id !== optimistic.id));
+      setDraft(text);
       setErr(e instanceof Error ? e.message : 'Could not send the message.');
     } finally {
       setBusy(false);
     }
   };
 
+  const gate = (icon: ReactNode, title: string, body: string, href: string, cta: string) => (
+    <div className="flex min-h-[420px] flex-col rounded-[var(--radius-card)] border border-line bg-card">
+      <PaneEmpty
+        icon={icon}
+        title={title}
+        action={
+          <a href={href} className="btn btn-primary !px-4 !py-2 !text-xs">
+            {cta}
+          </a>
+        }
+      >
+        {body}
+      </PaneEmpty>
+    </div>
+  );
+
   if (!paid) {
-    return (
-      <div className="rounded-2xl border border-line bg-card p-10 text-center">
-        <Lock className="mx-auto h-6 w-6 text-faint" aria-hidden="true" />
-        <p className="mt-2 text-sm font-bold">Messages is a paid feature</p>
-        <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-          Read and reply to your Facebook, Instagram, X, Mastodon and Bluesky
-          direct messages right from Sosial. Upgrade to unlock the Messages inbox.
-        </p>
-        <a href="/pricing" className="btn btn-primary mt-4 !px-4 !py-2 !text-xs">
-          See plans
-        </a>
-      </div>
+    return gate(
+      <Lock className="h-5 w-5" />,
+      'Messages is a paid feature',
+      'Read and reply to your Facebook, Instagram, X, Mastodon and Bluesky direct messages right from Sosial. Upgrade to unlock the Messages inbox.',
+      '/pricing',
+      'See plans',
     );
   }
 
   if (dmChannels.length === 0) {
     const anyChannels = channels.length > 0;
-    return (
-      <div className="rounded-2xl border border-line bg-card p-10 text-center">
-        <p className="text-sm font-bold">
-          {anyChannels ? 'No DM-capable channels yet' : 'No DM channels yet'}
-        </p>
-        <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-          {anyChannels
-            ? 'Your channels are connected, but none of them support reading direct messages. Connect Facebook, Instagram, X, Mastodon or Bluesky and their DMs show up here.'
-            : 'Connect Facebook, Instagram, X, Mastodon or Bluesky in Connect, and their direct messages show up here.'}
-        </p>
-        <a href="/connect" className="btn btn-primary mt-4 !px-4 !py-2 !text-xs">
-          {anyChannels ? 'Connect more channels' : 'Connect channels'}
-        </a>
-      </div>
+    return gate(
+      <Link2 className="h-5 w-5" />,
+      anyChannels ? 'No DM-capable channels yet' : 'No DM channels yet',
+      anyChannels
+        ? 'Your channels are connected, but none of them support reading direct messages. Connect Facebook, Instagram, X, Mastodon or Bluesky and their DMs show up here.'
+        : 'Connect Facebook, Instagram, X, Mastodon or Bluesky in Connect, and their direct messages show up here.',
+      '/connect',
+      anyChannels ? 'Connect more channels' : 'Connect channels',
     );
   }
 
-  if (open) {
-    const ch = channelById.get(open.channel_id);
-    const sendAs = ch?.display_name || providerMeta(open.platform).label;
-    return (
-      <div className="rounded-2xl border border-line bg-card">
-        {/* Chat header: partner face, handle, channel tag — messenger parity */}
-        <div className="flex items-center gap-2.5 border-b border-line px-3 py-2.5">
-          <button
-            type="button"
-            onClick={() => { setOpen(null); setMsgs(null); }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-bone"
-            aria-label="Back to conversations"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <FaceAvatar
-            name={open.participant_name}
-            avatar={open.participant_avatar}
-            size={32}
+  /* ------------------------------ list pane ------------------------------ */
+
+  const list = (
+    <>
+      <div className="space-y-2.5 border-b border-line px-4 pt-3.5 pb-3">
+        <ChannelStrip channels={dmChannels} value={chan} onChange={setChan} />
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-faint">
+            {convs ? `${visibleConvs.length} conversation${visibleConvs.length === 1 ? '' : 's'}` : 'Inbox'}
+          </p>
+          <Segmented
+            label="Sort conversations"
+            value={order}
+            onChange={setOrder}
+            options={[
+              { value: 'new', label: 'Newest' },
+              { value: 'old', label: 'Oldest' },
+            ]}
           />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{open.participant_name || 'Unknown'}</p>
-            <p className="text-[11px] text-muted">{sendAs}</p>
-          </div>
-          <span className="shrink-0 rounded-full bg-paper-dim px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-soft">
-            {providerMeta(open.platform).label}
-          </span>
         </div>
-        <div ref={scroller} className="max-h-[440px] space-y-1.5 overflow-y-auto px-3 py-3">
-          {msgs === null ? (
-            <div className="py-8 text-center">
-              <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-faint" aria-hidden="true" />
-            </div>
-          ) : msgs.length === 0 ? (
-            <p className="py-8 text-center text-xs text-muted">No messages in this thread yet.</p>
-          ) : (
-            msgs.map((m) => {
-              const out = m.direction === 'out';
-              return (
-                <div key={m.id} className={`flex items-end gap-2 ${out ? 'justify-end' : 'justify-start'}`}>
-                  {!out ? (
-                    <FaceAvatar
-                      name={open.participant_name}
-                      avatar={open.participant_avatar}
-                      size={24}
-                    />
-                  ) : null}
-                  <div
-                    className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                      out
-                        ? 'rounded-br-md bg-accent font-medium text-[#0b1220]'
-                        : 'rounded-bl-md border border-line-soft bg-paper text-soft'
-                    }`}
-                  >
-                    {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
-                    {(m.attachments ?? []).map((a, i) =>
-                      a?.url ? (
-                        <SafeImg
-                          key={i}
-                          src={a.url}
-                          alt=""
-                          width={220}
-                          height={140}
-                          className="mt-1 max-w-[220px] rounded-lg border border-line-soft object-cover"
-                        />
-                      ) : null,
-                    )}
-                    <p className={`mt-0.5 text-[10px] text-faint ${out ? 'text-right' : ''}`}>
-                      {when(m.sent_at)}
-                      {out && m.status === 'pending' ? ' · sending…' : ''}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-        {err ? (
-          <p className="mx-3 mb-2 rounded-xl bg-[#FDEBEC] px-3 py-2 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
+        {blockedNote ? (
+          <p className="rounded-xl bg-surface px-3 py-2 text-[11px] leading-relaxed text-muted">{blockedNote}</p>
         ) : null}
-        <div className="flex items-end gap-2 border-t border-line px-3 py-2.5">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            rows={2}
-            placeholder={`Reply as ${sendAs}…`}
-            aria-label="Message text"
-            className="field min-h-[44px] flex-1 resize-y !text-xs"
-          />
-          <button
-            type="button"
-            onClick={() => void send()}
-            disabled={busy || !draft.trim()}
-            className="btn btn-primary !px-3 !py-2"
-            aria-label="Send message"
-          >
-            {busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
-          </button>
-        </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="px-1 text-xs font-bold uppercase tracking-wide text-faint">Inbox</p>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5" role="group" aria-label="Sort conversations">
-            {(['new', 'old'] as const).map((o) => (
-              <button
-                key={o}
-                type="button"
-                onClick={() => setOrder(o)}
-                aria-pressed={order === o}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  order === o ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
-                }`}
-              >
-                {o === 'new' ? 'Newest' : 'Oldest'}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => onRefresh?.()}
-            disabled={scanning || !onRefresh}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-soft transition hover:bg-paper disabled:opacity-50"
-            aria-label="Refresh conversations"
-          >
-            {scanning ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-            Refresh
-          </button>
-        </div>
-      </div>
-      {dmChannels.length > 1 ? (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by channel">
-          <button
-            type="button"
-            onClick={() => setChan('all')}
-            aria-pressed={chan === 'all'}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-              chan === 'all' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
-            }`}
-          >
-            All channels
-          </button>
-          {dmChannels.map((c) => {
-            const on = chan === c.id;
-            const name = c.display_name || providerMeta(c.provider).label;
-            const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setChan(on ? 'all' : c.id)}
-                aria-pressed={on}
-                title={`${name}${handle ? ` ${handle}` : ''} - ${providerMeta(c.provider).label}`}
-                className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
-                  on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
-                }`}
-              >
-                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
-                <span className="flex min-w-0 max-w-40 flex-col leading-tight">
-                  <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
-                  {handle ? (
-                    <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
-                  ) : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-      {blockedNote ? (
-        <p className="rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs leading-relaxed text-muted">{blockedNote}</p>
-      ) : null}
-      {err ? (
-        <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
-      ) : null}
       {convs === null ? (
-        <div className="rounded-2xl border border-line bg-card p-10 text-center text-sm text-muted">
-          <LoaderCircle className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
+        <div className="flex flex-1 items-center justify-center">
+          <LoaderCircle className="h-5 w-5 animate-spin text-faint" aria-hidden="true" />
         </div>
       ) : visibleConvs.length === 0 ? (
-        <div className="rounded-2xl border border-line bg-card p-10 text-center">
-          <p className="text-sm font-bold">
-            {chan === 'all' ? 'No conversations yet' : 'No conversations on this channel yet'}
-          </p>
-          <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
-            {chan === 'all'
-              ? `When someone DMs ${dmChannels.map((c) => c.display_name || providerMeta(c.provider).label).join(', ')}, the conversation shows up here within a few minutes.`
-              : 'Direct messages on this account show up here within a few minutes.'}
-          </p>
-        </div>
+        <PaneEmpty
+          icon={<Mail className="h-5 w-5" />}
+          title={chan === 'all' ? 'No conversations yet' : 'No conversations on this channel yet'}
+        >
+          {chan === 'all'
+            ? `When someone DMs ${dmChannels.map((c) => c.display_name || providerMeta(c.provider).label).join(', ')}, the conversation shows up here within a few minutes.`
+            : 'Direct messages on this account show up here within a few minutes.'}
+        </PaneEmpty>
       ) : (
-        <ul className="space-y-2.5">
+        <ul className="min-h-0 flex-1 divide-y divide-line-soft overflow-y-auto">
           {visibleConvs.map((c) => {
             const ch = channelById.get(c.channel_id);
             const unread = Math.max(0, Number(c.unread_count ?? 0));
+            const on = open?.id === c.id;
+            const p = previews[c.id];
+            const line = p
+              ? `${p.direction === 'out' ? 'You: ' : ''}${p.body || (p.attachments ? 'Sent an attachment' : '')}`
+              : `via ${providerMeta(c.platform).label}${ch?.display_name ? ` · ${ch.display_name}` : ''}`;
             return (
               <li key={c.id}>
                 <button
                   type="button"
                   onClick={() => void openConv(c)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-line bg-card p-3 text-left transition hover:bg-paper-dim"
+                  aria-current={on ? 'true' : undefined}
+                  className={`relative flex w-full items-center gap-3 px-4 py-3 text-left transition ${
+                    on ? 'bg-accent-soft' : 'hover:bg-surface'
+                  }`}
                 >
-                  <FaceAvatar
-                    name={c.participant_name}
-                    avatar={c.participant_avatar}
-                    size={38}
-                  />
+                  {on ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-accent" aria-hidden="true" /> : null}
+                  <Face name={c.participant_name} avatar={c.participant_avatar} platform={c.platform} size={44} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className={`min-w-0 truncate text-sm ${unread > 0 ? 'font-extrabold' : 'font-bold'}`}>
+                      <span className={`min-w-0 flex-1 truncate text-sm ${unread > 0 ? 'font-extrabold text-ink' : 'font-bold text-soft'}`}>
                         {c.participant_name || 'Unknown'}
                       </span>
-                      <span className="shrink-0 text-xs text-faint">{when(c.last_message_at)}</span>
+                      <span className={`shrink-0 text-[11px] ${unread > 0 ? 'font-bold text-ink' : 'text-faint'}`}>
+                        {when(c.last_message_at)}
+                      </span>
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-2">
+                      <span className={`min-w-0 flex-1 truncate text-[13px] ${unread > 0 ? 'text-ink' : 'text-muted'}`}>
+                        {line}
+                      </span>
                       {unread > 0 ? (
-                        <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-[#0b1220]">
+                        <span className="min-w-[18px] shrink-0 rounded-full bg-accent px-1.5 text-center text-[10px] font-extrabold leading-[18px] text-[#0b1220]">
                           {unread > 9 ? '9+' : unread}
                         </span>
                       ) : null}
-                    </span>
-                    <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted">
-                      <span>via</span>
-                      <ChannelAvatar provider={c.platform} size={14} />
-                      <span className="truncate">
-                        {providerMeta(c.platform).label}
-                        {ch?.display_name ? ` · ${ch.display_name}` : ''}
-                      </span>
                     </span>
                   </span>
                 </button>
@@ -504,13 +360,158 @@ export default function MessagesInbox({
           })}
         </ul>
       )}
+    </>
+  );
+
+  /* ------------------------------ chat pane ------------------------------ */
+
+  const chat = (() => {
+    if (!open) {
+      return (
+        <PaneEmpty icon={<Mail className="h-5 w-5" />} title="Pick a conversation">
+          Open a chat on the left to read it and reply.
+        </PaneEmpty>
+      );
+    }
+    const ch = channelById.get(open.channel_id);
+    const sendAs = ch?.display_name || providerMeta(open.platform).label;
+    return (
+      <>
+        <header className={paneHead}>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(null);
+              setMsgs(null);
+            }}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-soft transition hover:bg-surface lg:hidden"
+            aria-label="Back to conversations"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <Face name={open.participant_name} avatar={open.participant_avatar} platform={open.platform} size={36} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold">{open.participant_name || 'Unknown'}</p>
+            <p className="truncate text-[11px] text-muted">
+              {providerMeta(open.platform).label} · {sendAs}
+            </p>
+          </div>
+        </header>
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-2.5 py-3 sm:px-5 sm:py-4">
+          {msgs === null ? (
+            <div className="py-10 text-center">
+              <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-faint" aria-hidden="true" />
+            </div>
+          ) : msgs.length === 0 ? (
+            <p className="py-10 text-center text-xs text-muted">No messages in this thread yet.</p>
+          ) : (
+            msgs.map((m, i) => {
+              const out = m.direction === 'out';
+              const prev = msgs[i - 1];
+              const next = msgs[i + 1];
+              const newDay = !prev || new Date(prev.sent_at).toDateString() !== new Date(m.sent_at).toDateString();
+              // Consecutive lines from one side sit tight and share one face.
+              const joinPrev = !newDay && prev?.direction === m.direction;
+              const joinNext =
+                !!next &&
+                next.direction === m.direction &&
+                new Date(next.sent_at).toDateString() === new Date(m.sent_at).toDateString();
+              return (
+                <Fragment key={m.id}>
+                  {newDay ? (
+                    <div className="my-3 flex items-center gap-3 first:mt-0" role="separator">
+                      <span className="h-px flex-1 bg-line" />
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-faint">{dayLabel(m.sent_at)}</span>
+                      <span className="h-px flex-1 bg-line" />
+                    </div>
+                  ) : null}
+                  <div className={`flex items-end gap-2 ${out ? 'justify-end' : 'justify-start'} ${joinPrev ? 'mt-0.5' : 'mt-2.5'}`}>
+                    {!out ? (
+                      joinNext ? (
+                        <span className="w-7 shrink-0" aria-hidden="true" />
+                      ) : (
+                        <Face name={open.participant_name} avatar={open.participant_avatar} size={28} />
+                      )
+                    ) : null}
+                    <div
+                      className={`max-w-[82%] rounded-[20px] px-3 py-1.5 text-[15px] leading-snug sm:max-w-[68%] lg:px-3.5 lg:py-2 lg:text-sm lg:leading-relaxed ${
+                        out
+                          ? `bg-accent text-[#0b1220] ${joinNext ? '' : 'rounded-br-md'}`
+                          : `border border-line-soft bg-card text-ink ${joinNext ? '' : 'rounded-bl-md'}`
+                      } ${m.status === 'pending' ? 'opacity-70' : ''}`}
+                      title={clock(m.sent_at)}
+                    >
+                      {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
+                      {(m.attachments ?? []).map((a, k) =>
+                        a?.url ? (
+                          <SafeImg
+                            key={k}
+                            src={a.url}
+                            alt=""
+                            width={220}
+                            height={140}
+                            className="mt-1 max-w-full rounded-lg object-cover sm:max-w-[240px]"
+                          />
+                        ) : null,
+                      )}
+                      {!joinNext || m.status === 'pending' ? (
+                        <p className={`mt-0.5 text-[10px] ${out ? 'text-right text-[#0b1220]/60' : 'text-faint'}`}>
+                          {clock(m.sent_at)}
+                          {out && m.status === 'pending' ? ' · sending…' : ''}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </Fragment>
+              );
+            })
+          )}
+        </div>
+        {err ? <p className={`${errorBox} mx-3 mt-2`}>{err}</p> : null}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+          className={paneFoot}
+        >
+          <div className="flex items-end gap-2 rounded-2xl border border-line bg-paper py-1.5 pr-1.5 pl-3.5 transition focus-within:border-accent">
+            <textarea
+              ref={input}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                grow(e.target);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              rows={1}
+              placeholder={`Message as ${sendAs}…`}
+              aria-label="Message text"
+              className={composerText}
+            />
+            <button
+              type="submit"
+              disabled={busy || !draft.trim()}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent text-[#0b1220] transition hover:bg-accent-bright disabled:opacity-40"
+              aria-label="Send message"
+            >
+              {busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+            </button>
+          </div>
+        </form>
+      </>
+    );
+  })();
+
+  return (
+    <div className="space-y-3">
+      {err && !open ? <p className={errorBox}>{err}</p> : null}
+      <InboxShell list={list} detail={chat} detailOpen={!!open} />
     </div>
   );
-}
-
-function avatarOf(c: ConnectedChannel): string | undefined {
-  const md = (c.metadata ?? {}) as Record<string, unknown>;
-  if (typeof md.avatar === 'string' && md.avatar) return md.avatar;
-  if (typeof md.picture === 'string' && md.picture) return md.picture;
-  return undefined;
 }

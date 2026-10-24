@@ -275,13 +275,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Content calendar, full width, Schedule-X week in the same skin as /calendar */}
+      {/* Content calendar: the week as seven day columns (swipeable on a
+          phone), posts as cards you can drag between days. */}
       <Card className="mt-4 overflow-hidden" aria-label={t('contentCalendar')}>
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-5 py-4">
           <p className="font-display text-base font-extrabold tracking-tight">{t('contentCalendar')}</p>
-          <p className="text-xs text-muted">{t('thisWeek')}</p>
           <span className="flex-1" />
-          <span className="flex items-center gap-3 text-[11px] font-bold text-muted">
+          <span className="hidden items-center gap-3 text-[11px] font-bold text-muted sm:flex">
             {[
               [t('stDraft'), 'bg-[#9A958B]'],
               [t('stQueued'), 'bg-[#B45309]'],

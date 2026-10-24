@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { PROVIDER_META, providerMeta } from '@/lib/providers';
-import { Progress } from '@/components/ui/progress';
+import { ArrowUpRight, Check, LoaderCircle, Minus, Send, X } from 'lucide-react';
+import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import type { TargetStatus } from '@/lib/types';
 
 /**
@@ -14,6 +15,10 @@ import type { TargetStatus } from '@/lib/types';
  * The outcome is confirmed ON SCREEN, never transient: once every target
  * settles the poller stops and the popup stays open until the user dismisses
  * it, so "Posted" can't silently vanish while the worker was still mid-run.
+ *
+ * Each channel shows as its own brand tile with a live status line; the
+ * header stacks the channel logos with a spinner / check / cross badge, and
+ * the card's top edge is the overall progress. Bottom sheet on a phone.
  *
  * `mode="schedule"` reuses the same shell for scheduling: there is nothing to
  * publish yet, so it just shows the saving spinner, then a "Scheduled for …"
@@ -128,105 +133,181 @@ export default function PublishMonitor({
         ? 8
         : 15;
 
-  const bar = (s: TargetStatus) => {
-    if (s === 'sent') return 100;
-    if (s === 'failed' || s === 'skipped') return 100;
-    // Indeterminate crawl: keep the bar moving between polls so it reads as
-    // active rather than stuck.
-    return 55;
-  };
+  const isLive = (s: TargetStatus) => ['pending', 'queued', 'publishing'].includes(s);
 
-  const icon = (s: TargetStatus) => {
-    if (s === 'sent') return <span className="text-[#346538] dark:text-[#8fd0a0]">✓</span>;
-    if (s === 'failed') return <span className="text-[#9F2F2D] dark:text-[#f2a8a8]">✕</span>;
-    if (s === 'skipped') return <span className="text-faint">-</span>;
-    return null;
-  };
+  const statusText = (r: (typeof rows)[number]) =>
+    r.status === 'sent'
+      ? 'Posted'
+      : r.status === 'failed'
+        ? r.error || 'Failed'
+        : r.status === 'skipped'
+          ? 'Skipped'
+          : r.status === 'publishing'
+            ? 'Publishing…'
+            : 'Waiting…';
+
+  // Logos for the header stack: the channels being posted to.
+  const stack = rows.slice(0, 5);
+
+  const title = scheduled
+    ? saved
+      ? 'Scheduled'
+      : 'Scheduling…'
+    : !postIds.length
+      ? 'Getting your post ready…'
+      : !settled
+        ? `Posting to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}`
+        : failed > 0
+          ? `Posted, ${failed} failed`
+          : skipped > 0
+            ? `Posted, ${skipped} skipped`
+            : 'Posted everywhere';
+
+  const subtitle = scheduled
+    ? saved
+      ? whenLabel
+        ? `Goes out ${whenLabel}`
+        : 'Queued to publish at the scheduled time.'
+      : 'Saving your post…'
+    : !postIds.length
+      ? 'Uploading media…'
+      : !settled
+        ? 'This usually takes a few seconds.'
+        : `${sent} sent${failed ? ` · ${failed} failed` : ''}${skipped ? ` · ${skipped} skipped` : ''}`;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Publishing status">
-      <div className="absolute inset-0 bg-ink/60" aria-hidden="true" />
-      <div className="relative w-[calc(100%-2rem)] max-w-sm rounded-3xl border border-line bg-card p-5 shadow-2xl">
-        <div className="flex items-center gap-3">
-          {busy ? (
-            <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-line border-t-ink" aria-hidden="true" />
-          ) : !scheduled && failed > 0 ? (
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#FDEBEC] text-sm font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">!</span>
-          ) : (
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EDF3EC] text-sm font-bold text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">✓</span>
-          )}
-          <p className="font-display text-base font-extrabold">
-            {scheduled
-              ? saved
-                ? `Scheduled${whenLabel ? ` for ${whenLabel}` : ''}`
-                : 'Scheduling…'
-              : !postIds.length
-                ? 'Posting…'
-                : !settled
-                  ? `Publishing to ${rows.length || '…'} channel${rows.length === 1 ? '' : 's'}…`
-                  : failed > 0
-                    ? `Posted, ${failed} failed`
-                    : skipped > 0
-                      ? `Posted, ${skipped} skipped`
-                      : 'Posted to all channels'}
-          </p>
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Publishing status"
+    >
+      <div className="absolute inset-0 bg-ink/50 backdrop-blur-[2px]" aria-hidden="true" />
+      <div className="relative w-full overflow-hidden rounded-t-3xl border border-line bg-card shadow-2xl sm:w-[calc(100%-2rem)] sm:max-w-[400px] sm:rounded-3xl">
+        {/* Overall progress rides the top edge of the card. */}
+        <div className="h-1 w-full bg-surface" aria-hidden="true">
+          <div
+            className={`h-full transition-[width] duration-500 ease-out ${!scheduled && failed > 0 && done ? 'bg-[#E5484D]' : done ? 'bg-[#12914A]' : 'bg-accent'}`}
+            style={{ width: `${pct}%` }}
+          />
         </div>
 
-        <div className="mt-4">
-          <Progress value={pct} />
-        </div>
+        <div className="px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-center gap-3.5">
+            {/* Channel logos, stacked like avatars; a status badge pins the corner. */}
+            <span className="relative flex shrink-0 items-center">
+              {stack.length ? (
+                stack.map((r, i) => (
+                  <span
+                    key={r.provider + i}
+                    className="grid h-11 w-11 place-items-center rounded-2xl ring-[3px] ring-card"
+                    style={{ background: providerMeta(r.provider).color, marginLeft: i ? -14 : 0, zIndex: stack.length - i }}
+                  >
+                    <BrandIcon provider={r.provider as BrandProvider} mono className="h-5 w-5 text-white" />
+                  </span>
+                ))
+              ) : (
+                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-surface text-muted">
+                  <Send className="h-5 w-5" aria-hidden="true" />
+                </span>
+              )}
+              <span
+                className={`absolute -right-1.5 -bottom-1.5 z-10 grid h-6 w-6 place-items-center rounded-full ring-[3px] ring-card ${
+                  busy
+                    ? 'bg-card'
+                    : !scheduled && failed > 0
+                      ? 'bg-[#E5484D] text-white'
+                      : 'bg-[#12914A] text-white'
+                }`}
+                aria-hidden="true"
+              >
+                {busy ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin text-ink" />
+                ) : !scheduled && failed > 0 ? (
+                  <X className="h-3.5 w-3.5" strokeWidth={3} />
+                ) : (
+                  <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                )}
+              </span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-[17px] font-extrabold leading-tight tracking-tight">{title}</p>
+              <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>
+            </div>
+          </div>
 
-        <div className="mt-4 space-y-1.5">
-          {scheduled ? (
-            <p className="py-3 text-center text-xs text-muted">
-              {saved
-                ? 'Your post is queued and will publish at the scheduled time.'
-                : 'Saving your post…'}
-            </p>
-          ) : rows.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted">
-              {!postIds.length ? 'Uploading media…' : (note ?? 'Reading targets…')}
-            </p>
-          ) : (
-            rows.map((r) => (
-              <div key={r.provider + (r.url ?? '')} className="rounded-xl bg-paper px-3 py-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex w-4 shrink-0 items-center justify-center text-xs font-bold">{icon(r.status)}</span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{r.label}</span>
-                  {r.status === 'sent' && r.url ? (
-                    <a href={r.url} target="_blank" rel="noopener" className="shrink-0 text-[11px] font-bold text-accent-ink">
-                      View
-                    </a>
-                  ) : r.status === 'failed' && r.error ? (
-                    <span className="max-w-[55%] truncate text-[11px] text-[#9F2F2D] dark:text-[#f2a8a8]" title={r.error}>
-                      {r.error}
-                    </span>
-                  ) : null}
-                </div>
-                {!['sent', 'failed', 'skipped'].includes(r.status) ? (
-                  <div className="mt-1.5">
-                    <Progress value={bar(r.status)} className="h-1" />
-                  </div>
-                ) : null}
-              </div>
-            ))
-          )}
-        </div>
+          {!scheduled && rows.length > 0 ? (
+            <ul className="mt-5 max-h-[45vh] space-y-2 overflow-y-auto">
+              {rows.map((r) => {
+                const live = isLive(r.status);
+                const meta = providerMeta(r.provider);
+                return (
+                  <li key={r.provider + (r.url ?? '')} className="rounded-2xl border border-line-soft bg-paper p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: meta.color }}>
+                        <BrandIcon provider={r.provider as BrandProvider} mono className="h-[18px] w-[18px] text-white" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold">{r.label}</span>
+                        <span
+                          className={`block truncate text-xs ${
+                            r.status === 'failed'
+                              ? 'text-[#9F2F2D] dark:text-[#f2a8a8]'
+                              : r.status === 'sent'
+                                ? 'text-[#346538] dark:text-[#8fd0a0]'
+                                : 'text-muted'
+                          }`}
+                          title={r.status === 'failed' ? (r.error ?? undefined) : undefined}
+                        >
+                          {statusText(r)}
+                        </span>
+                      </span>
+                      {r.status === 'sent' && r.url ? (
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noopener"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs font-bold text-ink transition hover:bg-surface"
+                        >
+                          View
+                          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </a>
+                      ) : live ? (
+                        <LoaderCircle className="h-5 w-5 shrink-0 animate-spin text-faint" aria-hidden="true" />
+                      ) : r.status === 'sent' ? (
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]">
+                          <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
+                        </span>
+                      ) : r.status === 'failed' ? (
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">
+                          <X className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
+                        </span>
+                      ) : (
+                        <Minus className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+                      )}
+                    </div>
+                    {live ? (
+                      // Indeterminate sweep in the channel's colour while the worker runs.
+                      <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-surface" aria-hidden="true">
+                        <div className="pub-sweep h-full w-1/3 rounded-full" style={{ background: meta.color }} />
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : !scheduled && postIds.length > 0 && note ? (
+            <p className="mt-4 text-xs text-muted">{note}</p>
+          ) : null}
 
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-[11px] text-faint">
-            {done
-              ? scheduled
-                ? 'Queued'
-                : `${sent} sent${failed ? ` · ${failed} failed` : ''}${skipped ? ` · ${skipped} skipped` : ''}`
-              : 'This usually takes a few seconds…'}
-          </p>
           <button
             type="button"
             onClick={onDone}
-            className="rounded-full border border-line px-3.5 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
+            className={`mt-5 w-full rounded-full py-2.5 text-sm font-bold transition ${
+              done ? 'bg-ink text-bone hover:opacity-90' : 'bg-surface text-soft hover:text-ink'
+            }`}
           >
-            {done ? doneLabel : 'Hide'}
+            {done ? doneLabel : 'Hide, keep posting in the background'}
           </button>
         </div>
       </div>
