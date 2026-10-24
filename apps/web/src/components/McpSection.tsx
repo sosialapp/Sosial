@@ -37,8 +37,10 @@ const PERMISSIONS: { scope: string; label: string; hint: string; default: boolea
   { scope: 'posts:read', label: 'View posts & schedule', hint: 'Read the queue and calendar', default: true },
   { scope: 'channels:read', label: 'View connected channels', hint: 'See which accounts exist', default: true },
   { scope: 'media:read', label: 'View uploaded media', hint: 'Browse the media library', default: true },
+  { scope: 'comments:read', label: 'Read comments on your posts', hint: 'See what people replied', default: true },
   { scope: 'posts:write', label: 'Create & edit drafts', hint: 'Draft and revise posts', default: true },
   { scope: 'posts:schedule', label: 'Schedule & unschedule posts', hint: 'Queue and pull from the calendar', default: true },
+  { scope: 'comments:write', label: 'Reply to comments', hint: 'Answer people as your channel', default: true },
   { scope: 'posts:delete', label: 'Delete posts', hint: 'Permanently remove published posts', default: false },
 ];
 

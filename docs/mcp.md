@@ -30,6 +30,8 @@ checklist (delete posts is off by default).
 | `posts:delete` | delete_post (off by default) |
 | `channels:read` | get_channels, get_channel_status |
 | `media:read` | get_media |
+| `comments:read` | list_comments |
+| `comments:write` | reply_to_comment (implies comments:read) |
 | `analytics:read` | reserved — not yet registered |
 
 Missing scope → `{"success":false,"error_code":"insufficient_scope",...}`.
@@ -47,6 +49,8 @@ Missing scope → `{"success":false,"error_code":"insufficient_scope",...}`.
 | `get_scheduled_posts` | Window + channel filters, page size ≤ 50, cursor pagination. |
 | `get_channels` / `get_channel_status` | Connected channels only; never tokens. |
 | `get_media` | Uploaded media metadata. |
+| `list_comments` | Comments received across the workspace's channels, newest first. Filters: `channel_id`, `status`, `unanswered_only`; page size ≤ 50 with `cursor`. Never tokens. |
+| `reply_to_comment` | Answer a comment as the connected channel (public). Requires comments:write; unsupported providers (youtube, linkedin, tiktok, pinterest) are rejected. Confirmation required. |
 
 \* `media_ids` is validated but not yet attachable (planned).
 

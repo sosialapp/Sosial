@@ -15,10 +15,12 @@ import { ok, fail, withLogging } from './respond';
  *   posts:delete    delete_post (off by default, do not grant to clients)
  *   channels:read   get_channels, get_channel_status
  *   media:read      get_media
+ *   comments:read   list_comments
+ *   comments:write  reply_to_comment
  *   analytics:read  (unregistered: post_stats has no clean service yet)
  */
 
-const SCOPE_ORDER = ['posts:read', 'posts:write', 'posts:schedule', 'posts:delete', 'channels:read', 'media:read'] as const;
+const SCOPE_ORDER = ['posts:read', 'posts:write', 'posts:schedule', 'posts:delete', 'channels:read', 'media:read', 'comments:read', 'comments:write'] as const;
 type Scope = (typeof SCOPE_ORDER)[number];
 
 /** Implied scopes: schedule ⇒ write ⇒ read (a scheduler must read). */
@@ -27,6 +29,7 @@ function hasScope(granted: string[], needed: Scope): boolean {
   const implies: Partial<Record<Scope, Scope[]>> = {
     'posts:schedule': ['posts:write'],
     'posts:write': ['posts:read'],
+    'comments:write': ['comments:read'],
   };
   for (const [s, implied] of Object.entries(implies)) {
     if (implied.includes(needed) && granted.includes(s)) return true;

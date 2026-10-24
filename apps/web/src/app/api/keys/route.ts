@@ -38,6 +38,7 @@ export async function POST(req: Request) {
       const allowed = new Set([
         'posts:read', 'posts:write', 'posts:schedule', 'posts:delete',
         'channels:read', 'media:read', 'analytics:read',
+        'comments:read', 'comments:write',
       ]);
       const picked = b.scopes.filter((s): s is string => typeof s === 'string' && allowed.has(s));
       if (picked.length > 0) scopes = [...new Set(picked)];

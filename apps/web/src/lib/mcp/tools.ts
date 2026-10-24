@@ -62,6 +62,29 @@ const ScheduleShape = z.object({
   confirm: z.string().optional(),
 });
 
+const ListCommentsShape = z.object({
+  channel_id: z.string().uuid().optional().describe('Only comments on this channel.'),
+  status: z.enum(['new', 'replied', 'hidden', 'deleted']).optional().describe('Only comments in this state.'),
+  unanswered_only: z.boolean().optional().describe('Only comments nobody on this side has answered yet.'),
+  limit: z.number().int().min(1).max(50).optional().describe('Default 20.'),
+  cursor: z.string().optional().describe('Opaque cursor from a previous page.'),
+});
+
+const ReplyCommentShape = z.object({
+  comment_id: z.string().uuid().describe('The comment to answer (from list_comments).'),
+  text: z.string().min(1).max(2000).describe('Reply body, 1-2000 characters. Public on the platform.'),
+  confirm: z.string().optional(),
+});
+
+/** Providers the sync engine can reply on; mirrors the reply-comment function. */
+const REPLY_PROVIDERS = new Set(['facebook', 'instagram', 'threads', 'mastodon', 'x', 'bluesky']);
+const NO_REPLY_YET: Record<string, string> = {
+  youtube: 'Unified comments for YouTube are planned.',
+  linkedin: 'Unified comments for LinkedIn are planned.',
+  tiktok: 'Unified comments for TikTok are planned.',
+  pinterest: 'Comment replies are not exposed by the Pinterest API.',
+};
+
 /* ------------------------------ utilities ------------------------------ */
 
 /** Resolve an ISO time to UTC + a display zone; null when unparseable. */
@@ -118,6 +141,9 @@ export function createMcpTools(opts: {
       await logTool(admin, keyId, workspaceId, userId, tool, 'rate_limited', 0);
       return { blocked: fail('rate_limited', `Rate limit reached. Retry after ${r.retryAfterSeconds}s.`) };
     }
+    // Only destructive or externally-visible calls need a confirmation
+    // round-trip; plain reads (and other harmless calls) execute straight away.
+    if (opts2.destructive !== true && opts2.write !== true) return {};
     const c = await writeGuard.check(tool, args, opts2.summary, opts2.destructive === true, (args as { confirm?: string }).confirm);
     if (c.required) {
       await logTool(admin, keyId, workspaceId, userId, tool, 'confirmation_required', 0);
@@ -141,6 +167,7 @@ export function createMcpTools(opts: {
       summaryText: 'Create a post (draft, or scheduled when scheduled_at is provided). This targets the channels you list.',
       run: async (args: z.infer<typeof CreatePostShape>) => {
         const g = await guardTyped('create_post', args, {
+          write: true,
           summary: () => {
             const when = args.scheduled_at ? resolveTime(args.scheduled_at, args.timezone) : null;
             return `${when ? 'Schedule' : 'Create'} a post on ${args.channel_ids.length} channel(s): “${args.content.slice(0, 80)}${args.content.length > 80 ? '…' : ''}-${when ? ` at ${when.local} (${when.zone})` : ''}`;
@@ -272,6 +299,7 @@ export function createMcpTools(opts: {
       summaryText: 'Schedule an existing draft for publishing at the given time. It will go out to its channels at that time.',
       run: async (args: z.infer<typeof ScheduleShape>) => {
         const g = await guardTyped('schedule_post', args, {
+          write: true,
           summary: () => {
             const when = resolveTime(args.scheduled_at, args.timezone);
             return `Schedule post ${args.post_id.slice(0, 8)}… for ${when?.local ?? args.scheduled_at} (${when?.zone ?? '?'})`;
@@ -496,6 +524,94 @@ export function createMcpTools(opts: {
         const { data, error } = await q;
         if (error) return fail('internal_error', 'Could not list media.');
         return ok({ media: data ?? [] });
+      },
+    },
+
+    list_comments: {
+      scope: 'comments:read' as const,
+      destructive: false,
+      shape: ListCommentsShape,
+      summaryText: 'Read comments people left on this workspace\u2019s posts, newest first. Never tokens.',
+      run: async (args: z.infer<typeof ListCommentsShape>) => {
+        const g = await guardTyped('list_comments', args, { summary: () => 'Read comments' });
+        if (g.blocked) return g.blocked;
+        const limit = args.limit ?? 20;
+        let q = admin
+          .from('comments')
+          .select('id, channel_id, platform, external_post_id, parent_external_id, author_name, body, created_at, status, is_own')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false })
+          .limit(limit); // cursor page: range window; cursor adds an offset
+        if (args.channel_id) q = q.eq('channel_id', args.channel_id);
+        if (args.status) q = q.eq('status', args.status);
+        if (args.unanswered_only) q = q.eq('status', 'new').eq('is_own', false);
+        if (args.cursor) {
+          const off = Number.parseInt(args.cursor, 10);
+          if (Number.isFinite(off)) q = q.range(off, off + limit - 1);
+        }
+        const { data, error } = await q;
+        if (error) return fail('internal_error', 'Could not load comments.');
+        const rows = (data ?? []) as { id: string }[];
+        const next = rows.length === limit ? String((args.cursor ? Number.parseInt(args.cursor, 10) : 0) + limit) : null;
+        return ok({ comments: data ?? [], next_cursor: next });
+      },
+    },
+
+    reply_to_comment: {
+      scope: 'comments:write' as const,
+      destructive: true,
+      shape: ReplyCommentShape,
+      summaryText: 'Post a public reply to a comment, as the connected channel. This is externally visible.',
+      run: async (args: z.infer<typeof ReplyCommentShape>) => {
+        const g = await guardTyped('reply_to_comment', args, {
+          destructive: true,
+          write: true,
+          summary: async () => {
+            const { data: c } = await admin
+              .from('comments')
+              .select('author_name, body')
+              .eq('id', args.comment_id)
+              .eq('workspace_id', workspaceId)
+              .maybeSingle();
+            const cm = c as { author_name?: string | null } | null;
+            return `Reply to ${cm?.author_name ?? 'a comment'}: \u201c${args.text.slice(0, 80)}${args.text.length > 80 ? '\u2026' : ''}\u201d`;
+          },
+        });
+        if (g.blocked) return g.blocked;
+
+        const { data: c } = await admin
+          .from('comments')
+          .select('id, workspace_id, channel_id, is_own, status')
+          .eq('id', args.comment_id)
+          .eq('workspace_id', workspaceId)
+          .maybeSingle();
+        const cm = c as { id: string; channel_id: string; is_own: boolean; status: string } | null;
+        if (!cm) return fail('not_found', 'Comment not found in this workspace.');
+        if (cm.is_own) return fail('validation_failed', 'That is a reply already sent from this side, not a comment to answer.');
+        if (cm.status === 'deleted') return fail('validation_failed', 'That comment was deleted.');
+
+        const { data: ch } = await admin
+          .from('connected_channels')
+          .select('id, provider, status')
+          .eq('id', cm.channel_id)
+          .eq('workspace_id', workspaceId)
+          .maybeSingle();
+        const channel = ch as { id: string; provider: string; status: string } | null;
+        if (!channel) return fail('not_found', 'The channel that owns this comment is gone.');
+        if (channel.status !== 'connected') return fail('channel_not_connected', 'That channel is disconnected. Reconnect it in Connect.');
+        if (NO_REPLY_YET[channel.provider]) return fail('validation_failed', NO_REPLY_YET[channel.provider]);
+        if (!REPLY_PROVIDERS.has(channel.provider)) return fail('validation_failed', 'Replies are not supported for this channel yet.');
+
+        const { error } = await admin.rpc('enqueue_reply_comment', {
+          p_channel: channel.id,
+          p_comment: cm.id,
+          p_text: args.text,
+        });
+        if (error) {
+          if (/invalid_message/i.test(error.message)) return fail('validation_failed', 'Write a reply between 1 and 2000 characters.');
+          return fail('internal_error', 'Could not queue the reply.');
+        }
+        return ok({ comment_id: cm.id, channel_id: channel.id, provider: channel.provider, queued: true });
       },
     },
   };
