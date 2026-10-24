@@ -12,6 +12,7 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import WelcomeScreen, { WelcomeProfile } from './src/screens/WelcomeScreen';
 import LandingScreen from './src/screens/LandingScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import CommunityScreen from './src/screens/CommunityScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import SizeScreen from './src/screens/SizeScreen';
 import EditorScreen from './src/screens/EditorScreen';
@@ -33,7 +34,7 @@ import { pullCloudChannels, prefetchWorkspaceChannels } from './src/utils/cloudC
 import { pullCloudPosts } from './src/utils/cloudPosts';
 import { useTheme, ThemeProvider } from './src/theme';
 
-type Route = 'home' | 'create' | 'analytics' | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
+type Route = 'home' | 'create' | 'analytics' | 'community' | 'size' | 'editor' | 'export' | 'connect' | 'privacy' | 'account' | 'team';
 
 // Canvas is a fixed-size export artifact — ignore the OS font-size setting
 // so it renders pixel-identical on every device (esp. Android). Also kill
@@ -71,9 +72,10 @@ function Shell() {
   routeRef.current = route;
   /** Tabs mount once and stay mounted (hidden when inactive): switching tabs
    *  no longer refetches the whole screen, and scroll/form state survives. */
+  const [insightsFrom, setInsightsFrom] = useState<Route>('home');
   const [seenTabs, setSeenTabs] = useState<Set<Route>>(() => new Set<Route>(['home']));
   React.useEffect(() => {
-    const tab = route === 'home' || route === 'create' || route === 'analytics' || route === 'account';
+    const tab = route === 'home' || route === 'create' || route === 'analytics' || route === 'community' || route === 'account';
     if (!tab) return;
     setSeenTabs((prev) => (prev.has(route) ? prev : new Set(prev).add(route)));
   }, [route]);
@@ -257,6 +259,10 @@ function Shell() {
         return true;
       }
       if (r === 'analytics') {
+        setRoute(insightsFrom);
+        return true;
+      }
+      if (r === 'community') {
         setRoute('home');
         return true;
       }
@@ -369,15 +375,20 @@ function Shell() {
   }
 
   // Dock shows on the four tab routes; the composer highlights Post.
-  const isTab = route === 'home' || route === 'create' || route === 'analytics' || route === 'account';
-  const activeTab: MainTab =
-    route === 'create' ? 'post' : route === 'analytics' ? 'analytics' : route === 'account' ? 'profile' : 'home';
+  const isTab = route === 'home' || route === 'create' || route === 'analytics' || route === 'community' || route === 'account';
+  const activeTab: MainTab | null =
+    route === 'create' ? 'post' : route === 'community' ? 'community' : route === 'account' ? 'profile' : route === 'analytics' ? null : 'home';
+  /** Insights opens from the header of Home or Post; back returns there. */
+  const openInsights = (from: Route) => {
+    setInsightsFrom(from);
+    setRoute('analytics');
+  };
   /** Plan the UI gates on: the server's when known, else the local fallback. */
   const planInternal = entitlement ? internalKeyFor(entitlement.plan) : account.plan;
   const goTab = (t: MainTab) => {
     if (t === 'home') setRoute('home');
     else if (t === 'post') goCreatePost();
-    else if (t === 'analytics') setRoute('analytics');
+    else if (t === 'community') setRoute('community');
     else setRoute('account');
   };
 
@@ -394,7 +405,7 @@ function Shell() {
                   team={account.team}
                   onConnect={() => goConnect('home')}
                   onPost={goCreatePost}
-                  onAnalytics={() => setRoute('analytics')}
+                  onAnalytics={() => openInsights('home')}
                 />
               </View>
             ) : null}
@@ -402,6 +413,7 @@ function Shell() {
               <View style={{ flex: 1, display: route === 'create' ? 'flex' : 'none' }}>
                 <CreateScreen
                   onConnect={() => goConnect('create')}
+                  onAnalytics={() => openInsights('create')}
                   onTemplate={newTemplate}
                   onOpenProject={(p) => { loadPost(p); setRoute('editor'); }}
                   postSignal={postSignal}
@@ -413,8 +425,13 @@ function Shell() {
               <View style={{ flex: 1, display: route === 'analytics' ? 'flex' : 'none' }}>
                 <AnalyticsScreen
                   onConnect={() => goConnect('analytics')}
-                  onBack={() => setRoute('home')}
+                  onBack={() => setRoute(insightsFrom)}
                 />
+              </View>
+            ) : null}
+            {seenTabs.has('community') ? (
+              <View style={{ flex: 1, display: route === 'community' ? 'flex' : 'none' }}>
+                <CommunityScreen onConnect={() => goConnect('community')} />
               </View>
             ) : null}
             {seenTabs.has('account') ? (

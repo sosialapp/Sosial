@@ -4,12 +4,10 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import NotificationBell from '../components/NotificationBell';
 import { SocialGlyph, Seg } from '../components/ui';
-import CommunityScreen from './CommunityScreen';
 import { BarsChart, HBarList } from '../components/charts';
 import { Tabs } from '../components/ui-kit';
 import { SOCIAL_META, requiresTitle } from '../constants';
 import { currentSession } from '../utils/supabase';
-import { fetchCommunityUnseen } from '../utils/community';
 import {
   fetchCloudAnalytics,
   type CloudAnalytics,
@@ -77,8 +75,6 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const [refreshing, setRefreshing] = useState(false);
   const [preset, setPreset] = useState<RangePreset>('last30');
   const [chanSel, setChanSel] = useState<string[]>([]);
-  const [view, setView] = useState<'analytics' | 'community'>('analytics');
-  const [unseen, setUnseen] = useState({ comments: 0, messages: 0 });
   const [metric, setMetric] = useState<'posts' | 'followers' | 'engagement' | 'interactions'>('posts');
   const [rhythm, setRhythm] = useState<'weeks' | 'weekdays'>('weeks');
 
@@ -97,15 +93,6 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
     void load();
     void currentSession().catch(() => null);
   }, [load]);
-
-  // Community badge: unseen comments + messages, same counters the web
-  // masthead uses. Refreshes on focus beat and when switching sections.
-  useEffect(() => {
-    const tick = () => void fetchCommunityUnseen().then(setUnseen);
-    tick();
-    const t = setInterval(tick, 45_000);
-    return () => clearInterval(t);
-  }, [view]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -355,52 +342,13 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               </TouchableOpacity>
             ) : null}
             <View>
-              <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>{view === 'community' ? 'Community' : 'Analytics'}</Text>
-              {view === 'community' ? <Text style={s.heroSub}>Replies, comments and mentions.</Text> : null}
+              <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>Insights</Text>
             </View>
           </View>
           <NotificationBell />
         </View>
 
-        <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-          <Tabs
-            options={[
-              { value: 'analytics', label: 'Analytics' },
-              { value: 'community', label: 'Community' },
-            ] as { value: 'analytics' | 'community'; label: string }[]}
-            value={view}
-            onChange={setView}
-            accessibilityLabel="Analytics sections"
-            renderOption={(o, active) => {
-              const count = o.value === 'community' ? unseen.comments + unseen.messages : 0;
-              return (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: active ? C.ink : C.muted }}>{o.label}</Text>
-                  {count > 0 ? (
-                    <View
-                      style={{
-                        minWidth: 17,
-                        paddingHorizontal: 4,
-                        height: 17,
-                        borderRadius: 9,
-                        backgroundColor: C.accent,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 9.5, color: '#0b1220' }}>
-                        {count > 99 ? '99+' : count}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              );
-            }}
-          />
-        </View>
-
-        {view === 'analytics' ? (
-          <>
+        <>
             {/* Range presets */}
             <View style={{ paddingHorizontal: 24, marginTop: 12 }}>
               <Tabs
@@ -661,12 +609,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 </View>
               </>
             )}
-          </>
-        ) : (
-          <View style={{ marginTop: 14 }}>
-            <CommunityScreen bare onConnect={onConnect} />
-          </View>
-        )}
+        </>
       </ScrollView>
     </View>
   );

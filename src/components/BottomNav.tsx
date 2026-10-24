@@ -4,11 +4,12 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 import PostIcon from './PostIcon';
 
-export type MainTab = 'home' | 'post' | 'analytics' | 'profile';
+export type MainTab = 'home' | 'post' | 'community' | 'profile';
 
-/** Home | Post | (+) | Analytics | Profile, left to right. + expands to Template / Post. */
+/** Home | Post | (+) | Community | Profile, left to right. + expands to Template / Post. */
 export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
-  tab: MainTab;
+  /** null on a page reached from a header (Insights): no tab lit. */
+  tab: MainTab | null;
   onTab: (t: MainTab) => void;
   onTemplate: () => void;
   onPost: () => void;
@@ -36,7 +37,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
           <Ionicons name="add" size={28} color={C.onInk} />
         </View>
       </TouchableOpacity>
-      {item('analytics', (on) => <Ionicons name="bar-chart" size={24} color={on ? C.accent : C.faint} />, 'Insights')}
+      {item('community', (on) => <Ionicons name="chatbubbles" size={24} color={on ? C.accent : C.faint} />, 'Community')}
       {item('profile', (on) => <Ionicons name="person" size={24} color={on ? C.accent : C.faint} />, 'Profile')}
     </>
   );

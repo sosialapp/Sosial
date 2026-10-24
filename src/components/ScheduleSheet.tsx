@@ -786,21 +786,49 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     : undefined;
   const composeName = (composeAcc && accountName(composeAcc)) || (composeLead ? SOCIAL_META[composeLead]?.label ?? composeLead : '');
   const composeHandle = composeAcc ? accountHandle(composeAcc) : undefined;
-  const composeExtra = plats.filter((c) => c !== 'any').length - 1;
   const composeFace = composeLead ? (
     <ChannelAvatar platform={composeLead} avatar={composeAcc ? accountAvatar(composeAcc) : undefined} size={40} />
   ) : (
     <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.lineSoft }} />
   );
-  const composeHead = composeName ? (
-    <Text numberOfLines={1} style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: C.ink }}>
-      {composeName}
-      {composeHandle || composeExtra > 0 ? (
-        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, color: C.muted }}>
-          {'  '}{composeHandle ?? ''}{composeExtra > 0 ? ` +${composeExtra}` : ''}
+  /** Every account the post goes out as, across all picked channels (web PostBox parity). */
+  const composeAuthors = plats
+    .filter((c) => c !== 'any')
+    .flatMap((c) => {
+      const ids = selectedAccountIds(c);
+      if (ids.length === 0) return [{ key: c, platform: c, avatar: undefined as string | undefined }];
+      return ids.map((id) => {
+        const a = accounts.find((x) => x.id === id);
+        return { key: `${c}:${id}`, platform: c, avatar: a ? accountAvatar(a) : undefined };
+      });
+    });
+  const composeNets = plats.filter((c) => c !== 'any').map((c) => SOCIAL_META[c]?.label ?? c);
+  const STACK_MAX = 5;
+  const composeStack = composeAuthors.length > 0 ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {composeAuthors.slice(0, STACK_MAX).map((a, i) => (
+          <View
+            key={a.key}
+            style={{ marginLeft: i ? -9 : 0, zIndex: STACK_MAX - i, borderWidth: 2, borderColor: C.card, borderRadius: 16, backgroundColor: C.card }}
+          >
+            <ChannelAvatar platform={a.platform} avatar={a.avatar} size={28} />
+          </View>
+        ))}
+        {composeAuthors.length > STACK_MAX ? (
+          <View style={{ marginLeft: -9, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: C.card, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.ink }}>+{composeAuthors.length - STACK_MAX}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text numberOfLines={1} style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted }}>
+        Posting to{' '}
+        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', color: C.ink }}>
+          {composeNets.slice(0, 2).join(', ')}
         </Text>
-      ) : null}
-    </Text>
+        {composeNets.length > 2 ? ` +${composeNets.length - 2} more` : ''}
+      </Text>
+    </View>
   ) : null;
   const capLimit = captionLimit(plats.filter((c) => c !== 'any'));
 
@@ -965,6 +993,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                       <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Turn off</Text>
                     </TouchableOpacity>
                   </View>
+                  {composeStack}
                   {composer.thread!.map((seg, i) => {
                     const over = seg.length > chainCap;
                     const segMed = composer.threadMedia?.[i] ?? null;
@@ -1023,7 +1052,6 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                             ) : null}
                           </View>
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            {composeHead}
                             <TextInput
                               value={seg}
                               onChangeText={(v) => composer.onThread!(composer.thread!.map((s, j) => (j === i ? v : s)))}
@@ -1045,20 +1073,15 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                 </>
               ) : (
                 <>
-                  <View style={{ flexDirection: 'row', gap: 11 }}>
-                    {composeFace}
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      {composeHead}
-                      <TextInput
-                        value={composer.caption}
-                        onChangeText={composer.onCaption}
-                        placeholder="What's happening?"
-                        placeholderTextColor={C.faint}
-                        multiline
-                        style={st.composeInput}
-                      />
-                    </View>
-                  </View>
+                  {composeStack}
+                  <TextInput
+                    value={composer.caption}
+                    onChangeText={composer.onCaption}
+                    placeholder="What's happening?"
+                    placeholderTextColor={C.faint}
+                    multiline
+                    style={st.composeInput}
+                  />
                   <View style={st.composeTools}>
                     {!readOnly && media ? (
                       <TouchableOpacity
