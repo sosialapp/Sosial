@@ -130,7 +130,7 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
   ) => {
     if (!sheet) return;
     if (queueTooSoon(at)) {
-      Alert.alert('Too soon', `Earliest is ${minQueueLabel()}, scheduled posts need at least 5 minutes lead time.`);
+      Alert.alert('Too soon', `Earliest is ${minQueueLabel()}, scheduled posts need at least 1 minute lead time.`);
       return;
     }
     if (!tBody.trim() && !tUri) {

@@ -37,8 +37,10 @@ services:
       R2_PUBLIC_URL: ${R2_PUBLIC_URL}
       MEDIA_ENV: prod
       STORAGE_BACKEND: r2
-      WORKER_IDLE_MS: 5000
-      WORKER_IDLE_MAX_MS: 15000
+      # Fast claim poll + a few parallel slots: a queued post, reply or DM
+      # starts within ~1s instead of waiting out an idle backoff.
+      WORKER_POLL_MS: 1000
+      WORKER_CONCURRENCY: 4
       WORKER_ERROR_MS: 15000
     logging:
       driver: json-file

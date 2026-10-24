@@ -28,6 +28,8 @@ import {
   CommunityConversation,
   CommunityMessage,
   fetchCommunityComments,
+  fetchCommentPosts,
+  CommunityCommentPost,
   fetchCommunityConversations,
   fetchCommunityThread,
   fetchCommunityUnseen,
@@ -133,6 +135,10 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   const [channel, setChannel] = useState('all');
   const [drawer, setDrawer] = useState(false);
   const [replyFor, setReplyFor] = useState<string | null>(null);
+  /** Open post (group key) and the posts' captions/thumbnails. */
+  const [openPost, setOpenPost] = useState<string | null>(null);
+  const [postCtx, setPostCtx] = useState<Record<string, CommunityCommentPost>>({});
+  const postScroll = useRef<ScrollView>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [openConv, setOpenConv] = useState<CommunityConversation | null>(null);
@@ -215,6 +221,18 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     }
   };
 
+  const postPairKey = [...new Set(comments.filter((c) => c.external_post_id).map((c) => `${c.channel_id}:${c.external_post_id}`))]
+    .sort()
+    .join('|');
+  useEffect(() => {
+    if (!postPairKey) return;
+    const pairs = postPairKey.split('|').map((k) => {
+      const at = k.indexOf(':');
+      return { channel: k.slice(0, at), external: k.slice(at + 1) };
+    });
+    void fetchCommentPosts(pairs).then(setPostCtx).catch(() => {});
+  }, [postPairKey]);
+
   const sendCommentReply = async (c: CommunityComment) => {
     const text = draft.trim();
     if (!text || busy) return;
@@ -290,101 +308,109 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   const providerOf = (id: string) => channels.find((c) => c.id === id)?.provider ?? 'x';
   const channelLabel = channel === 'all' ? 'All channels' : channels.find((c) => c.id === channel)?.label ?? 'Channel';
 
-  const commentCard = (c: CommunityComment, nested: boolean) => {
-    const provider = c.platform;
-    const meta = SOCIAL_META[provider];
-    const canReply = !c.is_own;
-    const long = (c.body ?? '').length > 220;
+  /** Comments bucketed by the post they were left on: one topic per post. */
+  const groups = (() => {
+    const by = new Map<string, { key: string; channelId: string; platform: string; postId: string | null; list: CommunityComment[] }>();
+    for (const c of shownComments) {
+      const key = `${c.channel_id}:${c.external_post_id ?? '-'}`;
+      const g = by.get(key) ?? { key, channelId: c.channel_id, platform: c.platform, postId: c.external_post_id, list: [] };
+      g.list.push(c);
+      by.set(key, g);
+    }
+    return [...by.values()]
+      .map((g) => {
+        const list = [...g.list].sort((x, y) => x.created_at.localeCompare(y.created_at));
+        const answered = new Set(list.filter((c) => c.is_own && c.parent_external_id).map((c) => c.parent_external_id));
+        const open = list.filter((c) => !c.is_own && c.status !== 'replied' && !answered.has(c.external_id));
+        const seen = new Set<string>();
+        const people = [...list].reverse().filter((c) => {
+          if (c.is_own) return false;
+          const who = c.author_name ?? c.id;
+          if (seen.has(who)) return false;
+          seen.add(who);
+          return true;
+        });
+        return {
+          ...g,
+          list,
+          open,
+          answered,
+          people,
+          unread: list.filter((c) => !c.is_own && c.status === 'new').length,
+          last: list[list.length - 1]?.created_at ?? '',
+          post: g.postId ? postCtx[`${g.channelId}:${g.postId}`] : undefined,
+        };
+      })
+      .sort((x, y) => y.last.localeCompare(x.last));
+  })();
+  const current = openPost ? groups.find((g) => g.key === openPost) : undefined;
+
+  /** One post as a topic card: its caption, who is talking, what needs an answer. */
+  const postCard = (g: (typeof groups)[number]) => {
+    const meta = SOCIAL_META[g.platform];
+    const latest = g.list[g.list.length - 1];
+    const others = g.list.filter((c) => !c.is_own).length;
+    const caption = (g.post?.body ?? '').trim();
     return (
-      <View
-        key={c.id}
-        style={[
-          s.commentCard,
-          c.is_own && { borderColor: C.accent, backgroundColor: C.accentSoft },
-          nested && { marginLeft: 18 },
-        ]}
+      <TouchableOpacity
+        key={g.key}
+        onPress={() => {
+          setOpenPost(g.key);
+          setReplyFor(null);
+          setDraft('');
+        }}
+        style={s.postCard}
+        activeOpacity={0.8}
       >
-        {c.is_own ? (
-          <View style={[s.faceWrap, { backgroundColor: meta?.bg ?? C.ink }]}>
-            <SocialGlyph platform={provider} size={16} color="#fff" />
+        <View>
+          {g.post?.thumbnail ? (
+            <Image source={{ uri: g.post.thumbnail }} style={s.postThumb} />
+          ) : (
+            <View style={[s.postThumb, { alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="document-text-outline" size={20} color={C.faint} />
+            </View>
+          )}
+          <View style={[s.postBadge, { backgroundColor: meta?.bg ?? C.ink }]}>
+            <SocialGlyph platform={g.platform} size={9} color="#fff" />
           </View>
-        ) : (
-          <Face name={c.author_name} avatar={c.author_avatar} />
-        )}
-        <View style={{ flex: 1, gap: 3 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Text style={s.author} numberOfLines={1}>
-              {c.is_own ? 'You' : c.author_name || 'Unknown'}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[s.postTitle, g.unread > 0 && { fontFamily: 'PlusJakartaSans_800ExtraBold' }]} numberOfLines={1}>
+              {caption || `${meta?.label ?? g.platform} post`}
             </Text>
-            {c.is_own ? (
-              <View style={s.sentPill}>
-                <Text style={s.sentPillT}>Sent</Text>
-              </View>
-            ) : c.status === 'new' ? (
+            <Text style={s.commentT}>{latest ? timeAgo(latest.created_at) : ''}</Text>
+          </View>
+          {latest ? (
+            <Text style={s.postLatest} numberOfLines={1}>
+              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>{latest.is_own ? 'You' : latest.author_name || 'Someone'}: </Text>
+              {latest.body}
+            </Text>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <View style={{ flexDirection: 'row' }}>
+              {g.people.slice(0, 4).map((p, i) => (
+                <View key={p.id} style={{ marginLeft: i ? -7 : 0, borderRadius: 11, borderWidth: 2, borderColor: C.card }}>
+                  <Face name={p.author_name} avatar={p.author_avatar} size={20} />
+                </View>
+              ))}
+            </View>
+            <Text style={s.commentT}>{others} comment{others === 1 ? '' : 's'}</Text>
+            <View style={{ flex: 1 }} />
+            {g.unread > 0 ? (
               <View style={[s.sentPill, { backgroundColor: C.accent }]}>
-                <Text style={[s.sentPillT, { color: '#0b1220' }]}>New</Text>
+                <Text style={[s.sentPillT, { color: '#0b1220' }]}>{g.unread} new</Text>
               </View>
-            ) : c.status === 'replied' ? (
-              <View style={[s.sentPill, { backgroundColor: C.bone }]}>
-                <Text style={[s.sentPillT, { color: C.muted }]}>Replied</Text>
+            ) : g.open.length > 0 ? (
+              <View style={[s.sentPill, { backgroundColor: C.surface }]}>
+                <Text style={[s.sentPillT, { color: C.muted }]}>{g.open.length} to answer</Text>
               </View>
+            ) : others > 0 ? (
+              <Text style={[s.commentT, { color: C.greenText }]}>✓ All answered</Text>
             ) : null}
           </View>
-          <Text style={s.body} numberOfLines={long ? 4 : undefined}>
-            {c.body || '(empty comment)'}
-          </Text>
-          <View style={s.metaRow}>
-            <Text style={s.commentT}>via</Text>
-            <View style={[s.miniLogo, { backgroundColor: meta?.bg ?? C.ink }]}>
-              <SocialGlyph platform={provider} size={8} color="#fff" />
-            </View>
-            <Text style={s.commentT} numberOfLines={1}>
-              {meta?.label ?? provider}
-              {c.created_at ? ` · ${timeAgo(c.created_at)}` : ''}
-            </Text>
-          </View>
-
-          {canReply ? (
-            replyFor === c.id ? (
-              <View style={{ marginTop: 6, gap: 6 }}>
-                <TextInput
-                  value={draft}
-                  onChangeText={setDraft}
-                  placeholder={`Reply on ${meta?.label ?? provider}`}
-                  placeholderTextColor={C.faint}
-                  multiline
-                  style={s.input}
-                  autoFocus
-                />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TouchableOpacity
-                    onPress={() => void sendCommentReply(c)}
-                    disabled={busy || !draft.trim()}
-                    style={[s.smallBtn, { backgroundColor: C.ink, opacity: busy || !draft.trim() ? 0.5 : 1 }]}
-                    activeOpacity={0.8}
-                  >
-                    {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.smallBtnT}>Send reply</Text>}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setReplyFor(null);
-                      setDraft('');
-                    }}
-                    style={[s.smallBtn, { backgroundColor: C.bone }]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[s.smallBtnT, { color: C.muted }]}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={() => setReplyFor(c.id)} activeOpacity={0.7} style={{ marginTop: 4 }}>
-                <Text style={s.replyLink}>Reply</Text>
-              </TouchableOpacity>
-            )
-          ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -476,7 +502,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
               <Text style={s.emptyS}>Comments on your posts land here when the engine sweeps, every 5 minutes or on Refresh.</Text>
             </View>
           ) : (
-            <View style={{ gap: 8 }}>{shownComments.map((c) => commentCard(c, !!c.parent_external_id))}</View>
+            <View style={{ gap: 10 }}>{groups.map(postCard)}</View>
           )
         ) : convs.length === 0 ? (
           <View style={s.empty}>
@@ -514,6 +540,147 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         )}
       </View>
     </>
+  );
+
+  const target = current
+    ? (replyFor ? current.list.find((c) => c.id === replyFor) : undefined) ??
+      current.open[current.open.length - 1] ??
+      [...current.list].reverse().find((c) => !c.is_own)
+    : undefined;
+  const byExternal = new Map((current?.list ?? []).map((c) => [c.external_id, c]));
+
+  const postModal = (
+    <Modal
+      visible={!!current}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      onRequestClose={() => setOpenPost(null)}
+    >
+      <View style={{ flex: 1, backgroundColor: C.bone, paddingTop: insets.top }}>
+        <View style={s.threadHead}>
+          <TouchableOpacity onPress={() => setOpenPost(null)} style={s.headBtn} activeOpacity={0.7} accessibilityLabel="Back to posts">
+            <Ionicons name="chevron-back" size={24} color={C.ink} />
+          </TouchableOpacity>
+          {current?.post?.thumbnail ? (
+            <Image source={{ uri: current.post.thumbnail }} style={{ width: 36, height: 36, borderRadius: 10 }} />
+          ) : (
+            <View style={[s.faceWrap, { width: 36, height: 36, borderRadius: 10, backgroundColor: SOCIAL_META[current?.platform ?? '']?.bg ?? C.ink }]}>
+              <SocialGlyph platform={current?.platform ?? 'x'} size={16} color="#fff" />
+            </View>
+          )}
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.commentT} numberOfLines={1}>
+              {providerLabel(current?.platform ?? '')} post · {current ? current.list.filter((c) => !c.is_own).length : 0} comments
+            </Text>
+            <Text style={s.threadName} numberOfLines={1}>
+              {(current?.post?.body ?? '').trim() || `${providerLabel(current?.platform ?? '')} post`}
+            </Text>
+          </View>
+        </View>
+
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <ScrollView
+            ref={postScroll}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, flexGrow: 1, justifyContent: 'flex-end' }}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => postScroll.current?.scrollToEnd({ animated: false })}
+          >
+            {(current?.list ?? []).map((c, i, all) => {
+              const prev = all[i - 1];
+              const newDay = !prev || dayKey(prev.created_at) !== dayKey(c.created_at);
+              const parent = c.parent_external_id ? byExternal.get(c.parent_external_id) : undefined;
+              const isTarget = target?.id === c.id;
+              const done = !c.is_own && (c.status === 'replied' || !!current?.answered.has(c.external_id));
+              return (
+                <View key={c.id}>
+                  {newDay ? (
+                    <View style={s.dayRow}>
+                      <View style={s.dayLine} />
+                      <Text style={s.dayT}>{dayLabel(c.created_at)}</Text>
+                      <View style={s.dayLine} />
+                    </View>
+                  ) : null}
+                  {c.is_own ? (
+                    <View style={{ alignItems: 'flex-end', marginTop: 10 }}>
+                      {parent && !parent.is_own ? (
+                        <Text style={[s.commentT, { marginBottom: 3, maxWidth: '80%' }]} numberOfLines={1}>
+                          ↳ to {parent.author_name || 'comment'}: {parent.body}
+                        </Text>
+                      ) : null}
+                      <View style={[s.bubble, { backgroundColor: C.accent, borderBottomRightRadius: 6 }]}>
+                        <Text style={[s.bubbleT, { color: '#0b1220' }]}>{c.body}</Text>
+                      </View>
+                      <Text style={[s.bubbleTime, { color: C.faint }]}>You · {timeAgo(c.created_at)}</Text>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 10 }}>
+                      <Face name={c.author_name} avatar={c.author_avatar} size={28} />
+                      <View style={{ maxWidth: '80%' }}>
+                        <View
+                          style={[
+                            s.bubble,
+                            { maxWidth: '100%', backgroundColor: C.card, borderWidth: 1, borderColor: isTarget ? C.accent : C.lineSoft, borderBottomLeftRadius: 6 },
+                            isTarget && { borderWidth: 2 },
+                          ]}
+                        >
+                          <Text style={s.author} numberOfLines={1}>{c.author_name || 'Unknown'}</Text>
+                          {parent ? (
+                            <Text style={s.commentT} numberOfLines={1}>↳ {parent.is_own ? 'to you' : `to ${parent.author_name || 'a comment'}`}</Text>
+                          ) : null}
+                          <Text style={[s.bubbleT, { color: C.ink, marginTop: 2 }]}>{c.body || '(empty comment)'}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4, marginLeft: 4 }}>
+                          <Text style={s.commentT}>{timeAgo(c.created_at)}</Text>
+                          <TouchableOpacity onPress={() => setReplyFor(c.id)} hitSlop={8}>
+                            <Text style={[s.replyLink, isTarget && { color: C.ink }]}>{isTarget ? 'Replying…' : 'Reply'}</Text>
+                          </TouchableOpacity>
+                          {done ? <Text style={[s.commentT, { color: C.greenText }]}>✓ Answered</Text> : null}
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          {err ? <Text style={[s.err, { marginHorizontal: 12, marginBottom: 6 }]}>{err}</Text> : null}
+
+          {target ? (
+            <View style={[s.composer, { paddingBottom: kbOpen ? 8 : Math.max(insets.bottom, 8) }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, paddingHorizontal: 4 }}>
+                <Face name={target.author_name} avatar={target.author_avatar} size={18} />
+                <Text style={[s.commentT, { flex: 1 }]} numberOfLines={1}>
+                  Replying to <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', color: C.soft }}>{target.author_name || 'comment'}</Text> · {target.body}
+                </Text>
+              </View>
+              <View style={s.composerField}>
+                <TextInput
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder={`Reply to ${target.author_name || 'comment'}`}
+                  placeholderTextColor={C.faint}
+                  style={s.composerInput}
+                  multiline
+                />
+                <TouchableOpacity
+                  onPress={() => void sendCommentReply(target)}
+                  disabled={busy || !draft.trim()}
+                  style={[s.sendBtn, { opacity: busy || !draft.trim() ? 0.4 : 1 }]}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Send reply"
+                >
+                  {busy ? <ActivityIndicator size="small" color="#0b1220" /> : <Ionicons name="arrow-up" size={18} color="#0b1220" />}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   );
 
   const drawerModal = (
@@ -686,6 +853,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         {content}
         {drawerModal}
         {threadModal}
+        {postModal}
       </View>
     );
   }
@@ -700,6 +868,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       </ScrollView>
       {drawerModal}
       {threadModal}
+      {postModal}
     </View>
   );
 }
@@ -712,6 +881,11 @@ const makeS = (C: Palette) => StyleSheet.create({
   chanBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 14, paddingVertical: 9 },
   chanBtnT: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   feed: { backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 15 },
+  postCard: { flexDirection: 'row', gap: 12, backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.lineSoft, padding: 12 },
+  postThumb: { width: 54, height: 54, borderRadius: 14, backgroundColor: C.surface },
+  postBadge: { position: 'absolute', right: -4, bottom: -4, width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  postTitle: { flex: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink },
+  postLatest: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 2 },
   commentCard: { flexDirection: 'row', gap: 11, backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.lineSoft, padding: 12 },
   faceWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   author: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink, maxWidth: '70%' },

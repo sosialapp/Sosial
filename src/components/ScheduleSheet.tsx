@@ -906,7 +906,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     // Loud stop for custom times under the 5-minute floor (scoped to custom -
     // the Now/bulk path queues at +60s by design and has its own guards).
     if (preset === 'custom' && queueTooSoon(at)) {
-      Alert.alert('Too soon to queue', `Earliest is ${minQueueLabel()}, scheduled posts need at least 5 minutes lead time. Pick a later time.`);
+      Alert.alert('Too soon to queue', `Earliest is ${minQueueLabel()}, scheduled posts need at least 1 minute lead time. Pick a later time.`);
       return;
     }
     if (at <= Date.now() + 30000) {
@@ -1386,7 +1386,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               <Ionicons name="warning" size={20} color={C.redText} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={st.warnT}>Too soon to queue</Text>
-                <Text style={st.warnS}>Earliest is {minQueueLabel()}, scheduled posts need at least 5 minutes lead time. Pick a later time.</Text>
+                <Text style={st.warnS}>Earliest is {minQueueLabel()}, scheduled posts need at least 1 minute lead time. Pick a later time.</Text>
               </View>
             </View>
           ) : null}

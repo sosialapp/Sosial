@@ -71,11 +71,91 @@ interface OnePost {
   kind: 'TEXT' | 'IMAGE' | 'VIDEO';
   topicTag?: string;
   replyToId?: string;
+  /** Replies and other user-facing sends: publish immediately instead of
+   *  waiting for a FINISHED poll cycle. Text containers are ready on
+   *  creation, so the poll only exists for media and for the rare
+   *  "still cooking" answer. */
+  fast?: boolean;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/** Container → wait FINISHED → publish. Returns the created post id. */
+/** No Threads call may hang a worker slot; the job ceiling is 120s and one
+ *  stalled socket used to eat all of it. */
+const HTTP_TIMEOUT_MS = 20_000;
+const signal = (): AbortSignal => AbortSignal.timeout(HTTP_TIMEOUT_MS);
+
+function codeHint(j: any): string {
+  if (j?.error?.code === 10) {
+    return ' Threads reports the app lacks permission for this action (code 10) — disconnect and reconnect Threads in Connect so the reply permission is granted.';
+  }
+  return '';
+}
+
+/** Poll the container until FINISHED. Always bounded: a 100/33 read is a
+ *  known Meta-side glitch on fresh objects and used to loop forever. */
+async function waitFinished(creationId: string, tok: string, budgetMs: number): Promise<void> {
+  const start = Date.now();
+  let last = '';
+  while (Date.now() - start < budgetMs) {
+    await sleep(1000);
+    const s = await fetch(
+      `${THREADS_API}/v1.0/${encodeURIComponent(creationId)}?fields=status&access_token=${tok}`,
+      { signal: signal() },
+    );
+    const sj: any = await s.json().catch(() => ({}));
+    const status = String(sj?.status ?? '').toUpperCase();
+    last = status;
+    if (status === 'FINISHED') return;
+    if (status === 'ERROR') {
+      throw new Error(gerr(sj, 'Threads container processing failed', `status:${creationId}`));
+    }
+  }
+  throw new Error(`Threads container not ready after ${Math.round(budgetMs / 1000)}s (${last || 'unknown'}), retry shortly.`);
+}
+
+interface PublishTry {
+  id?: string;
+  err?: string;
+  code?: number;
+  subcode?: number;
+}
+
+/** threads_publish. The 100/33 transient can hit the POST on a fresh
+ *  container; one bounded retry before giving up. */
+async function publishContainer(
+  a: OnePost,
+  creationId: string,
+  tok: string,
+): Promise<PublishTry> {
+  let pj: any = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const p = await fetch(
+      `${THREADS_API}/v1.0/${a.threadsId}/threads_publish?creation_id=${encodeURIComponent(creationId)}&access_token=${tok}`,
+      { method: 'POST', headers: { Authorization: `Bearer ${a.token}` }, signal: signal() },
+    );
+    pj = await p.json().catch(() => ({}));
+    if (p.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
+    if (pj?.error?.code === 100 && pj?.error?.error_subcode === 33 && attempt === 0) {
+      await sleep(5000);
+      continue;
+    }
+    break;
+  }
+  if (pj?.id) return { id: String(pj.id) };
+  return {
+    err: gerr(pj, 'Threads publish failed', `publish:${creationId}`),
+    code: pj?.error?.code,
+    subcode: pj?.error?.error_subcode,
+  };
+}
+
+/** Container → publish. Returns the created post id.
+ *
+ *  Slow mode (media, threads): wait for FINISHED, then publish.
+ *  Fast mode (text replies): publish straight away — text containers are
+ *  FINISHED on creation — and only poll when Meta answers code 24 / subcode
+ *  4279009 ("container still processing"). */
 export async function publishOne(a: OnePost): Promise<string> {
   const tok = encodeURIComponent(a.token);
   const params =
@@ -95,6 +175,7 @@ export async function publishOne(a: OnePost): Promise<string> {
     const c = await fetch(`${THREADS_API}/v1.0/${a.threadsId}/threads?${params}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${a.token}` },
+      signal: signal(),
     });
     cj = await c.json().catch(() => ({}));
     if (c.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
@@ -112,52 +193,28 @@ export async function publishOne(a: OnePost): Promise<string> {
           raw,
       );
     }
-    throw new Error(raw);
+    throw new Error(raw + codeHint(cj));
   }
   const creationId = String(cj.id);
 
-  // The container must reach FINISHED before publishing, firing
-  // threads_publish immediately races Meta's backend (code 24, subcode
-  // 4279009). Poll status, bounded. A 100/33 on this READ is a known
-  // Meta-side glitch on freshly created objects (it fails even though the
-  // container exists — see the Postiz #1562 write-up for the same bug on
-  // Instagram): treat it as "still processing" and keep polling.
-  const start = Date.now();
-  for (;;) {
-    const s = await fetch(
-      `${THREADS_API}/v1.0/${encodeURIComponent(creationId)}?fields=status&access_token=${tok}`,
-    );
-    const sj: any = await s.json().catch(() => ({}));
-    const status = String(sj?.status ?? '').toUpperCase();
-    if (status === 'FINISHED') break;
-    if (status === 'ERROR') {
-      throw new Error(gerr(sj, 'Threads container processing failed', `status:${creationId}`));
-    }
-    const read33 = sj?.error?.code === 100 && sj?.error?.error_subcode === 33;
-    if (!read33 && Date.now() - start > 90000) {
-      throw new Error(`Threads container not ready after 90s (${status || 'unknown'}), retry shortly.`);
-    }
-    await sleep(4000);
+  if (a.fast) {
+    const first = await publishContainer(a, creationId, tok);
+    if (first.id) return first.id;
+    // 24 / 4279009 = the container is genuinely still processing; wait it
+    // out briefly, then one last publish. Everything else is a real error.
+    const cooking = first.code === 24 || first.subcode === 4279009;
+    if (!cooking) throw new Error((first.err ?? 'Threads publish failed') + codeHint({ error: { code: first.code } }));
+    await waitFinished(creationId, tok, 20_000);
+    const second = await publishContainer(a, creationId, tok);
+    if (second.id) return second.id;
+    throw new Error((second.err ?? 'Threads publish failed') + codeHint({ error: { code: second.code } }));
   }
 
-  // threads_publish. Same 100/33 transient can hit the POST on a fresh
-  // container; one bounded retry before giving up.
-  let pj: any = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const p = await fetch(
-      `${THREADS_API}/v1.0/${a.threadsId}/threads_publish?creation_id=${encodeURIComponent(creationId)}&access_token=${tok}`,
-      { method: 'POST', headers: { Authorization: `Bearer ${a.token}` } },
-    );
-    pj = await p.json().catch(() => ({}));
-    if (p.status === 401) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
-    if (pj?.error?.code === 100 && pj?.error?.error_subcode === 33 && attempt === 0) {
-      await sleep(5000);
-      continue;
-    }
-    break;
-  }
-  if (pj.error || !pj.id) throw new Error(gerr(pj, 'Threads publish failed', `publish:${creationId}`));
-  return String(pj.id);
+  // Media needs Meta to pull the bytes, so the container must reach FINISHED.
+  await waitFinished(creationId, tok, 90_000);
+  const pub = await publishContainer(a, creationId, tok);
+  if (pub.id) return pub.id;
+  throw new Error((pub.err ?? 'Threads publish failed') + codeHint({ error: { code: pub.code } }));
 }
 
 export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {

@@ -516,7 +516,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
-      showInfo('Too soon', `Earliest is ${minQueueLabel()}, scheduled posts need at least 5 minutes lead time.`);
+      showInfo('Too soon', `Earliest is ${minQueueLabel()}, scheduled posts need at least 1 minute lead time.`);
       return false;
     }
     if (isEmptyPost({ body: tBody, attachments: tMedia })) {

@@ -69,7 +69,15 @@ const FB_SCOPES = [
   // subscribed_apps (webhook subscription).
   'pages_manage_metadata',
 ];
-const THREADS_SCOPES = ['threads_basic', 'threads_content_publish', 'threads_read_replies', 'threads_manage_insights'];
+// threads_manage_replies is what lets us post a reply to someone else's
+// comment; without it Meta answers code 10 on the container create.
+const THREADS_SCOPES = [
+  'threads_basic',
+  'threads_content_publish',
+  'threads_read_replies',
+  'threads_manage_replies',
+  'threads_manage_insights',
+];
 const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write', 'dm.read', 'dm.write'];
 const YT_SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',

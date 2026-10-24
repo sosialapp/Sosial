@@ -260,13 +260,13 @@ export function withStatus(p: ManagedPost): ManagedPost {
   return { ...p, status: p.scheduledAt ? 'queued' : 'draft' };
 }
 
-/** Queue rule: scheduled posts need ≥5 min lead (pipeline lag + no overdue-on-arrival). */
-export const MIN_QUEUE_LEAD_MS = 5 * 60 * 1000;
+/** Queue rule: scheduled posts need ≥1 min lead (picker must not land in the past). */
+export const MIN_QUEUE_LEAD_MS = 60 * 1000;
 
 /**
  * Earliest queueable instant, floored to the minute, pickers are
- * minute-granular, so without flooring the exact +5min minute would almost
- * always be (seconds-)blocked. 7:51:37 → 7:56:00 allowed, 7:55 blocked.
+ * minute-granular, so without flooring the exact +1min minute would almost
+ * always be (seconds-)blocked. 7:51:37 → 7:52:00 allowed, 7:51 blocked.
  */
 export function minQueueTime(now: number = Date.now()): number {
   return Math.floor((now + MIN_QUEUE_LEAD_MS) / 60000) * 60000;
@@ -277,12 +277,12 @@ export function queueTooSoon(at: number, now: number = Date.now()): boolean {
   return at < minQueueTime(now);
 }
 
-/** "7:56" style label for the guard messages. */
+/** "7:52" style label for the guard messages. */
 export function minQueueLabel(now: number = Date.now()): string {
   try {
     return new Date(minQueueTime(now)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   } catch {
-    return '5 minutes from now';
+    return '1 minute from now';
   }
 }
 

@@ -163,12 +163,15 @@ export const threads: InboxAdapter = {
     }
     // Replies are containers with reply_to_id, then published — same flow as
     // a normal post, so the publish adapter's retry/status handling is reused.
+    // fast: text-only, so publish immediately instead of paying the media
+    // status-poll cycle.
     const externalId = await publishOne({
       threadsId: account.externalId,
       token: account.token,
       text,
       kind: 'TEXT',
       replyToId: commentId,
+      fast: true,
     });
     return { externalId, sentAt: new Date().toISOString() };
   },

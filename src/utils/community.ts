@@ -22,6 +22,45 @@ export interface CommunityComment {
   is_own: boolean;
 }
 
+/** The post a comment was left on (cached by the comment sweep, p101). */
+export interface CommunityCommentPost {
+  channel_id: string;
+  external_id: string;
+  platform: string;
+  url: string | null;
+  body: string | null;
+  thumbnail: string | null;
+  posted_at: string | null;
+}
+
+/** Post context for the (channel, post) pairs the loaded comments sit on. */
+export async function fetchCommentPosts(
+  pairs: { channel: string; external: string }[],
+): Promise<Record<string, CommunityCommentPost>> {
+  const workspace = await ws();
+  if (!workspace || pairs.length === 0) return {};
+  const { data, error } = await supabase()
+    .from('comment_posts')
+    .select('channel_id,external_id,platform,url,body,thumbnail,posted_at')
+    .eq('workspace_id', workspace)
+    .in('channel_id', [...new Set(pairs.map((x) => x.channel))])
+    .in('external_id', [...new Set(pairs.map((x) => x.external))]);
+  if (error) return {};
+  const out: Record<string, CommunityCommentPost> = {};
+  for (const r of (data ?? []) as any[]) {
+    out[`${r.channel_id}:${r.external_id}`] = {
+      channel_id: String(r.channel_id),
+      external_id: String(r.external_id),
+      platform: String(r.platform ?? ''),
+      url: r.url ?? null,
+      body: r.body ?? null,
+      thumbnail: r.thumbnail ?? null,
+      posted_at: r.posted_at ?? null,
+    };
+  }
+  return out;
+}
+
 export interface CommunityConversation {
   id: string;
   channel_id: string;

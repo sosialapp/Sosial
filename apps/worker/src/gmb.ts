@@ -94,7 +94,7 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
   // Google only returns a refresh token on first consent, keep the old one.
   await updateSecret(b.secrets.refresh_secret_id, newRefresh);
-  const { required } = await import('./env');
+  const { required } = await import('./env.js');
   const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
   const k = required('WORKER_SERVICE_ROLE_KEY');
   await fetch(`${base}/rest/v1/channel_tokens?channel_id=eq.${encodeURIComponent(b.channel.id)}`, {

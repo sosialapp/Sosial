@@ -94,7 +94,7 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   const newRefresh = String(j.refresh_token || refresh);
   if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
   await updateSecret(b.secrets.refresh_secret_id, newRefresh);
-  const { required } = await import('./env');
+  const { required } = await import('./env.js');
   const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
   const k = required('WORKER_SERVICE_ROLE_KEY');
   const pr = await fetch(

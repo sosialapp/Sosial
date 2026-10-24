@@ -138,7 +138,7 @@ export async function ensureSession(b: Bundle, force = false): Promise<Session> 
 
 async function restPatchByChannel(channelId: string, body: Record<string, any>): Promise<void> {
   // channel_tokens is keyed by channel_id (not id), small dedicated PATCH.
-  const { required } = await import('./env');
+  const { required } = await import('./env.js');
   const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
   const k = required('WORKER_SERVICE_ROLE_KEY');
   const r = await fetch(`${base}/rest/v1/channel_tokens?channel_id=eq.${encodeURIComponent(channelId)}`, {

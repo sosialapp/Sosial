@@ -53,7 +53,7 @@ function clientCreds(): { id: string; secret: string } {
 }
 
 async function patchExpiry(channelId: string, expiresAt: Date): Promise<void> {
-  const { required } = await import('./env');
+  const { required } = await import('./env.js');
   const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
   const k = required('WORKER_SERVICE_ROLE_KEY');
   const r = await fetch(`${base}/rest/v1/channel_tokens?channel_id=eq.${encodeURIComponent(channelId)}`, {
