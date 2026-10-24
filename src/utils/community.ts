@@ -1,4 +1,30 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, currentSession, callEdgeFunction } from './supabase';
+
+/**
+ * "Last opened" stamps per post / conversation, on this device (web parity:
+ * apps/web community/parts useSeen). Something is new when it arrived after
+ * you last opened its post or chat; the comment `status` column only means
+ * "not replied yet".
+ */
+export async function loadSeen(section: 'comments' | 'messages'): Promise<Record<string, string>> {
+  try {
+    const ws0 = await ws();
+    const raw = await AsyncStorage.getItem(`sosial:seen:${section}:${ws0 ?? 'local'}`);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function saveSeen(section: 'comments' | 'messages', seen: Record<string, string>): Promise<void> {
+  try {
+    const ws0 = await ws();
+    await AsyncStorage.setItem(`sosial:seen:${section}:${ws0 ?? 'local'}`, JSON.stringify(seen));
+  } catch {
+    /* best effort */
+  }
+}
 
 /**
  * Unified community inbox on mobile: the same `comments`, `conversations`

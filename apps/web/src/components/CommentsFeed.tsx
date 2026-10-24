@@ -24,8 +24,9 @@ import {
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import {
-  ChannelStrip, Face, InboxShell, PaneEmpty, Segmented, composerText, dayLabel, errorBox, grow, isWide, paneFoot, paneHead, when,
+  ChannelStrip, Face, InboxShell, PaneEmpty, Segmented, composerText, dayLabel, errorBox, grow, isWide, paneFoot, paneHead, useSeen, when,
 } from '@/components/community/parts';
+import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
@@ -138,6 +139,9 @@ export default function CommentsFeed({
   const convoScroll = useRef<HTMLDivElement | null>(null);
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
+  const { seen, markSeen, ready: seenReady } = useSeen(workspaceId, 'comments');
+  /** The stamp from before this visit, so this visit's new bubbles keep their tag. */
+  const [visitSeen, setVisitSeen] = useState<string | null>(null);
 
   /** Keep optimistic rows until the worker's copy of them shows up. */
   const reconcile = useCallback((prev: CommentRow[] | null, next: CommentRow[]): CommentRow[] => {
@@ -337,22 +341,23 @@ export default function CommentsFeed({
       g.open = REPLY_PROVIDERS.has(g.platform)
         ? g.comments.filter((c) => !c.is_own && c.status !== 'replied' && !answered.has(c.external_id))
         : [];
-      g.unread = g.comments.filter((c) => !c.is_own && c.status === 'new').length;
-      const seen = new Set<string>();
+      const stamp = seen[g.key];
+      g.unread = g.comments.filter((c) => !c.is_own && (stamp ? c.created_at > stamp : c.status === 'new')).length;
+      const people = new Set<string>();
       g.people = [...g.comments]
         .reverse()
         .filter((c) => !c.is_own)
         .filter((c) => {
           const who = c.author_name ?? c.id;
-          if (seen.has(who)) return false;
-          seen.add(who);
+          if (people.has(who)) return false;
+          people.add(who);
           return true;
         });
     }
     const all = [...byKey.values()];
     all.sort((a, b) => (order === 'new' ? b.last.localeCompare(a.last) : a.last.localeCompare(b.last)));
     return all;
-  }, [rows, chan, order]);
+  }, [rows, chan, order, seen]);
 
   const shown = useMemo(() => (show === 'open' ? groups.filter((g) => g.open.length > 0) : groups), [groups, show]);
   const openCount = useMemo(() => groups.reduce((n, g) => n + g.open.length, 0), [groups]);
@@ -366,6 +371,16 @@ export default function CommentsFeed({
   }, [shown, sel]);
 
   const current = sel ? groups.find((g) => g.key === sel) : undefined;
+
+  // Both wait for the saved stamps: capture the previous visit first, then mark read.
+  useEffect(() => {
+    if (!sel || !seenReady) return;
+    setVisitSeen(seen[sel] ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, seenReady]);
+  useEffect(() => {
+    if (current && seenReady) markSeen(current.key, current.last);
+  }, [current?.key, current?.last, markSeen, seenReady]);
 
   // Opening a post lands on its newest comments, like any chat.
   useEffect(() => {
@@ -401,13 +416,15 @@ export default function CommentsFeed({
           type="button"
           onClick={() => setSel(g.key)}
           aria-current={on ? 'true' : undefined}
-          className={`relative flex w-full items-start gap-3 px-4 py-3.5 text-left transition ${on ? 'bg-accent-soft' : 'hover:bg-surface'}`}
+          className={`relative flex w-full items-start gap-3 px-4 py-3.5 text-left transition ${
+            on ? 'bg-accent-soft [--face-ring:var(--color-accent-soft)]' : 'hover:bg-surface hover:[--face-ring:var(--color-surface)]'
+          }`}
         >
           {on ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-accent" aria-hidden="true" /> : null}
           <span className="relative shrink-0">
             <PostThumb post={post} size={52} />
-            <span className="absolute -right-1.5 -bottom-1.5 rounded-full ring-2 ring-card">
-              <ChannelAvatar provider={g.platform} avatar={ch ? channelAvatar(ch.metadata) : undefined} size={20} badge={false} />
+            <span className="absolute -right-1.5 -bottom-1.5 rounded-full ring-2 ring-[var(--face-ring,var(--color-card))]" title={providerMeta(g.platform).label}>
+              <ChannelAvatar provider={g.platform} size={20} />
             </span>
           </span>
           <span className="min-w-0 flex-1">
@@ -426,7 +443,7 @@ export default function CommentsFeed({
               {/* Who is talking under this post. */}
               <span className="flex items-center">
                 {g.people.slice(0, 4).map((p, i) => (
-                  <span key={p.id} className="rounded-full ring-2 ring-card" style={{ marginLeft: i ? -7 : 0, zIndex: 4 - i }}>
+                  <span key={p.id} className="rounded-full ring-2 ring-[var(--face-ring,var(--color-card))]" style={{ marginLeft: i ? -7 : 0, zIndex: 4 - i }}>
                     <Face name={p.author_name} avatar={p.author_avatar} size={20} />
                   </span>
                 ))}
@@ -533,7 +550,8 @@ export default function CommentsFeed({
               </button>
               <PostThumb post={post} size={40} />
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-faint">
+                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-faint">
+                  <BrandIcon provider={g.platform as BrandProvider} className="h-3.5 w-3.5 shrink-0" />
                   {meta} post{ch?.display_name ? ` · ${ch.display_name}` : ''}
                   {post?.posted_at ? ` · ${when(post.posted_at)}` : ''}
                 </p>
@@ -622,7 +640,7 @@ export default function CommentsFeed({
                           >
                             <p className="flex items-center gap-1.5 text-[12px] font-bold text-ink">
                               <span className="truncate">{c.author_name || 'Unknown'}</span>
-                              {c.status === 'new' ? (
+                              {(visitSeen ? c.created_at > visitSeen : c.status === 'new') ? (
                                 <span className="rounded-full bg-accent px-1.5 text-[9px] font-extrabold uppercase leading-4 text-[#0b1220]">
                                   New
                                 </span>

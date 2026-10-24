@@ -7,7 +7,7 @@
  * the left and the open item on the right at lg+, one or the other below.
  */
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { MessageCircle } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import SegmentedPills from '@/components/ui/segmented-pills';
@@ -78,7 +78,11 @@ export function Face({
   );
   return (
     <span className="relative inline-flex shrink-0" style={{ width: size, height: size }} aria-hidden="true">
-      <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-line bg-surface text-soft">
+      <span
+        className={`flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-surface text-soft ${
+          avatar ? '' : 'border border-line'
+        }`}
+      >
         {avatar ? (
           <SafeImg
             src={avatar}
@@ -94,7 +98,7 @@ export function Face({
       </span>
       {platform ? (
         <span
-          className="absolute -right-0.5 -bottom-0.5 flex items-center justify-center rounded-full ring-2 ring-card"
+          className="absolute -right-0.5 -bottom-0.5 flex items-center justify-center rounded-full ring-2 ring-[var(--face-ring,var(--color-card))]"
           style={{ width: badge, height: badge, background: providerMeta(platform).color }}
         >
           <BrandIcon
@@ -136,7 +140,7 @@ export function ChannelStrip({
             title: `${name} · ${providerMeta(c.provider).label}`,
             label: (
               <>
-                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={20} badge={false} />
+                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={22} />
                 <span className="max-w-32 truncate">{name}</span>
               </>
             ),
@@ -145,6 +149,41 @@ export function ChannelStrip({
       ]}
     />
   );
+}
+
+/**
+ * "Last opened" stamps per post / conversation, kept on this device. An item
+ * is new when something arrived after you last opened it; opening it clears
+ * that. (The comment `status` column means "not replied yet", not unread.)
+ */
+export function useSeen(workspaceId: string, section: 'comments' | 'messages') {
+  const key = `sosial:seen:${section}:${workspaceId}`;
+  const [seen, setSeen] = useState<Record<string, string>>({});
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    try {
+      setSeen(JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, string>);
+    } catch {
+      setSeen({});
+    }
+    setReady(true);
+  }, [key]);
+  const markSeen = useCallback(
+    (item: string, at: string = new Date().toISOString()) => {
+      setSeen((prev) => {
+        if (prev[item] && prev[item] >= at) return prev;
+        const next = { ...prev, [item]: at };
+        try {
+          localStorage.setItem(key, JSON.stringify(next));
+        } catch {
+          /* private mode / blocked storage: stays in memory for this visit */
+        }
+        return next;
+      });
+    },
+    [key],
+  );
+  return { seen, markSeen, ready };
 }
 
 /** Small single-choice switch used for sort and status filters. */

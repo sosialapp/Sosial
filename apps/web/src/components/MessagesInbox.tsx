@@ -19,7 +19,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import { ArrowLeft, Link2, LoaderCircle, Lock, Mail, Send } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import {
-  ChannelStrip, Face, InboxShell, PaneEmpty, Segmented, clock, dayLabel, composerText, errorBox, grow, isWide, paneFoot, paneHead, when,
+  ChannelStrip, Face, InboxShell, PaneEmpty, Segmented, clock, dayLabel, composerText, errorBox, grow, isWide, paneFoot, paneHead, useSeen, when,
 } from '@/components/community/parts';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
@@ -81,6 +81,7 @@ export default function MessagesInbox({
   const input = useRef<HTMLTextAreaElement | null>(null);
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
+  const { seen, markSeen } = useSeen(workspaceId, 'messages');
   const dmChannels = useMemo(() => channels.filter((c) => DM_PROVIDERS.has(c.provider)), [channels]);
   const visibleConvs = useMemo(() => {
     const list = (convs ?? []).filter((c) => chan === 'all' || c.channel_id === chan);
@@ -148,12 +149,13 @@ export default function MessagesInbox({
   const openConv = useCallback(
     async (c: ConversationRow) => {
       setOpen(c);
+      markSeen(c.id, c.last_message_at ?? undefined);
       setMsgs(null);
       setErr(null);
       setDraft('');
       await loadThread(c.id);
     },
-    [loadThread],
+    [loadThread, markSeen],
   );
 
   // Desktop shows both panes: open the newest chat instead of an empty side.
@@ -316,7 +318,12 @@ export default function MessagesInbox({
         <ul className="min-h-0 flex-1 divide-y divide-line-soft overflow-y-auto">
           {visibleConvs.map((c) => {
             const ch = channelById.get(c.channel_id);
-            const unread = Math.max(0, Number(c.unread_count ?? 0));
+            const stamp = seen[c.id];
+            const unread = stamp
+              ? c.last_message_at && c.last_message_at > stamp && previews[c.id]?.direction !== 'out'
+                ? 1
+                : 0
+              : Math.max(0, Number(c.unread_count ?? 0));
             const on = open?.id === c.id;
             const p = previews[c.id];
             const line = p
@@ -329,7 +336,7 @@ export default function MessagesInbox({
                   onClick={() => void openConv(c)}
                   aria-current={on ? 'true' : undefined}
                   className={`relative flex w-full items-center gap-3 px-4 py-3 text-left transition ${
-                    on ? 'bg-accent-soft' : 'hover:bg-surface'
+                    on ? 'bg-accent-soft [--face-ring:var(--color-accent-soft)]' : 'hover:bg-surface hover:[--face-ring:var(--color-surface)]'
                   }`}
                 >
                   {on ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-accent" aria-hidden="true" /> : null}

@@ -29,6 +29,8 @@ import {
   CommunityMessage,
   fetchCommunityComments,
   fetchCommentPosts,
+  loadSeen,
+  saveSeen,
   CommunityCommentPost,
   fetchCommunityConversations,
   fetchCommunityThread,
@@ -139,6 +141,22 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   const [openPost, setOpenPost] = useState<string | null>(null);
   const [postCtx, setPostCtx] = useState<Record<string, CommunityCommentPost>>({});
   const postScroll = useRef<ScrollView>(null);
+  const [seenC, setSeenC] = useState<Record<string, string>>({});
+  const [seenM, setSeenM] = useState<Record<string, string>>({});
+  useEffect(() => {
+    void loadSeen('comments').then(setSeenC);
+    void loadSeen('messages').then(setSeenM);
+  }, []);
+  /** Opening a post or chat marks it read up to its newest item. */
+  const markSeen = (section: 'comments' | 'messages', key: string, at: string) => {
+    const setter = section === 'comments' ? setSeenC : setSeenM;
+    setter((prev) => {
+      if (prev[key] && prev[key] >= at) return prev;
+      const next = { ...prev, [key]: at };
+      void saveSeen(section, next);
+      return next;
+    });
+  };
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [openConv, setOpenConv] = useState<CommunityConversation | null>(null);
@@ -264,6 +282,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   };
 
   const openThread = async (c: CommunityConversation) => {
+    markSeen('messages', c.id, c.last_message_at ?? new Date().toISOString());
     setOpenConv(c);
     setThread(null);
     setErr(null);
@@ -336,7 +355,9 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
           open,
           answered,
           people,
-          unread: list.filter((c) => !c.is_own && c.status === 'new').length,
+          unread: list.filter((c) =>
+            !c.is_own && (seenC[g.key] ? c.created_at > seenC[g.key] : c.status === 'new'),
+          ).length,
           last: list[list.length - 1]?.created_at ?? '',
           post: g.postId ? postCtx[`${g.channelId}:${g.postId}`] : undefined,
         };
@@ -356,6 +377,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         key={g.key}
         onPress={() => {
           setOpenPost(g.key);
+          if (g.last) markSeen('comments', g.key, g.last);
           setReplyFor(null);
           setDraft('');
         }}
@@ -531,7 +553,9 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                       </Text>
                     </View>
                   </View>
-                  {c.unread_count > 0 ? <View style={s.unreadDot} /> : null}
+                  {(seenM[c.id] ? !!c.last_message_at && c.last_message_at > seenM[c.id] : c.unread_count > 0) ? (
+                    <View style={s.unreadDot} />
+                  ) : null}
                   <Ionicons name="chevron-forward" size={16} color={C.faint} />
                 </TouchableOpacity>
               );
