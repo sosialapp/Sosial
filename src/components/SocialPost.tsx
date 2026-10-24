@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { Svg, Circle } from 'react-native-svg';
@@ -92,6 +92,20 @@ export function MediaGrid({ media }: { media: SocialMediaItem[] }) {
   const { C } = useTheme();
   const [w, setW] = useState(0);
   const shown = media.slice(0, 4);
+  /** A lone item's own width / height, so vertical, square and wide read as such. */
+  const [ratio, setRatio] = useState<number | null>(null);
+  const lone = shown.length === 1 ? shown[0] : null;
+  useEffect(() => {
+    setRatio(null);
+    if (lone?.kind !== 'image') return;
+    let live = true;
+    Image.getSize(lone.uri, (iw, ih) => {
+      if (live && iw && ih) setRatio(iw / ih);
+    }, () => {});
+    return () => {
+      live = false;
+    };
+  }, [lone?.uri, lone?.kind]);
   const extra = media.length - shown.length;
   if (!shown.length) return null;
   const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width);
@@ -100,7 +114,7 @@ export function MediaGrid({ media }: { media: SocialMediaItem[] }) {
   const tile = (m: SocialMediaItem, width: number, height: number, last: boolean) => (
     <View key={m.uri} style={{ width, height, backgroundColor: C.lineSoft, overflow: 'hidden' }}>
       {m.kind === 'video' ? (
-        width > 0 ? <FeedVideo uri={m.uri} width={width} radius={0} aspect={width / height} /> : null
+        width > 0 ? <FeedVideo uri={m.uri} width={width} radius={0} aspect={width / height} onAspect={lone ? setRatio : undefined} /> : null
       ) : (
         <Image source={{ uri: m.uri }} style={{ width, height }} resizeMode="cover" />
       )}
@@ -116,7 +130,18 @@ export function MediaGrid({ media }: { media: SocialMediaItem[] }) {
   const h = w * 0.56;
   let body: React.ReactNode = null;
   if (w > 0) {
-    if (shown.length === 1) body = tile(shown[0], w, w * 0.62, true);
+    if (shown.length === 1) {
+      // Own shape, clamped between 9:16 and 1.91:1; tall ones narrow instead
+      // of running past ~1.1x the width.
+      const r = Math.min(1.91, Math.max(0.5625, ratio ?? 1.6));
+      let tw = w;
+      let th = w / r;
+      if (th > w * 1.1) {
+        th = w * 1.1;
+        tw = th * r;
+      }
+      body = tile(shown[0], tw, th, true);
+    }
     else if (shown.length === 2) {
       const cw = (w - gap) / 2;
       body = <View style={{ flexDirection: 'row', gap }}>{shown.map((m, i) => tile(m, cw, h, i === 1))}</View>;

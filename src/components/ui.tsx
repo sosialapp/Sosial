@@ -461,13 +461,28 @@ export function FeedPhoto({ uri, width = 88, min = 0.45, max = 2, radius = 11, a
   );
 }
 
-export function FeedVideo({ uri, width = 88, radius = 11, aspect = 4 / 5 }: { uri: string; width?: number; radius?: number; aspect?: number }) {
+export function FeedVideo({ uri, width = 88, radius = 11, aspect = 4 / 5, onAspect }: {
+  uri: string;
+  width?: number;
+  radius?: number;
+  aspect?: number;
+  /** Reports the clip's own width / height once it loads. */
+  onAspect?: (ratio: number) => void;
+}) {
   const { C } = useTheme();
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = true;
     p.play();
   });
+  useEffect(() => {
+    if (!onAspect) return;
+    const sub = player.addListener('sourceLoad', (e) => {
+      const size = e.availableVideoTracks?.[0]?.size;
+      if (size?.width && size?.height) onAspect(size.width / size.height);
+    });
+    return () => sub.remove();
+  }, [player, onAspect]);
   return (
     <View style={{ width, aspectRatio: aspect, borderRadius: radius, backgroundColor: C.ink, overflow: 'hidden' }}>
       <VideoView style={{ width: '100%', height: '100%' }} player={player} contentFit="cover" nativeControls={false} />

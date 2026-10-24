@@ -22,6 +22,9 @@ export interface SocialMedia {
   kind: 'image' | 'video';
   src: string;
   poster?: string | null;
+  /** Pixel size when known, so a lone item keeps its shape before it loads. */
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface SocialMetrics {
@@ -60,7 +63,7 @@ function RichText({ text }: { text: string }) {
   );
 }
 
-function Tile({ m, className }: { m: SocialMedia; className: string }) {
+function Tile({ m, className, natural }: { m: SocialMedia; className: string; natural?: boolean }) {
   return m.kind === 'video' ? (
     <span className={`relative block overflow-hidden bg-black ${className}`}>
       <video
@@ -70,7 +73,7 @@ function Tile({ m, className }: { m: SocialMedia; className: string }) {
         playsInline
         controls
         preload="metadata"
-        className="block h-full max-h-[inherit] w-full object-cover"
+        className={natural ? 'block max-h-[400px] w-auto max-w-full' : 'block h-full max-h-[inherit] w-full object-cover'}
       />
       <span className="pointer-events-none absolute top-2 left-2 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white">
         <Play className="h-3 w-3 fill-current" aria-hidden="true" />
@@ -87,9 +90,24 @@ export function MediaGrid({ media }: { media: SocialMedia[] }) {
   const extra = media.length - shown.length;
   if (!shown.length) return null;
   if (shown.length === 1) {
+    // A lone item keeps its own shape (vertical, square, wide), as feeds show
+    // it: at most 400px tall and 448px wide, never cropped to one frame.
+    const m = shown[0];
+    const ratio = m.width && m.height ? m.width / m.height : null;
+    if (ratio) {
+      return (
+        <div
+          className="mt-3 max-w-md overflow-hidden rounded-2xl border border-line"
+          style={{ aspectRatio: ratio, width: `min(100%, ${Math.round(400 * ratio)}px)` }}
+        >
+          <Tile m={m} className="h-full w-full" />
+        </div>
+      );
+    }
+    // Unknown size: let the media lay itself out at its natural ratio.
     return (
-      <div className="mt-3 max-w-md overflow-hidden rounded-2xl border border-line">
-        <Tile m={shown[0]} className="max-h-80 w-full" />
+      <div className="mt-3 w-fit max-w-full overflow-hidden rounded-2xl border border-line sm:max-w-md">
+        <Tile m={m} className="max-h-[400px] w-auto max-w-full" natural />
       </div>
     );
   }

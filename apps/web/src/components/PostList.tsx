@@ -14,7 +14,9 @@ import {
   Pencil,
   Repeat2,
   Eye,
+  ExternalLink,
   Send,
+  X,
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
@@ -211,12 +213,30 @@ interface StatRow {
   fetched_at: string;
 }
 
-function StatCell({ icon: Icon, value }: { icon: LucideIcon; value: number | null }) {
+function compactNum(v: number): string {
+  return v >= 10000 ? `${(v / 1000).toFixed(1)}k` : String(v);
+}
+
+/** One total in the performance grid: big number, small label. */
+function StatTile({ icon: Icon, value, label }: { icon: LucideIcon; value: number | null; label: string }) {
+  return (
+    <div className="rounded-2xl bg-surface px-3 py-2.5">
+      <Icon className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+      <p className="mt-1.5 font-display text-lg leading-none font-extrabold tabular-nums">
+        {value === null ? '—' : compactNum(value)}
+      </p>
+      <p className="mt-1 truncate text-[11px] text-muted">{label}</p>
+    </div>
+  );
+}
+
+/** A per-channel figure, inline in a channel row. */
+function StatInline({ icon: Icon, value, label }: { icon: LucideIcon; value: number | null; label: string }) {
   if (value === null) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-paper-dim px-2.5 py-1 text-[11px] font-bold text-soft">
-      <Icon className="h-3 w-3 text-muted" aria-hidden="true" />
-      {value >= 10000 ? `${(value / 1000).toFixed(1)}k` : value}
+    <span className="inline-flex items-center gap-1 text-xs font-bold tabular-nums text-soft" title={label}>
+      <Icon className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+      {compactNum(value)}
     </span>
   );
 }
@@ -320,41 +340,39 @@ function PreviewDialog({
     }),
     { comments: 0, reposts: 0, likes: 0, views: null as number | null },
   );
+  const sentTargets = parts.flatMap((p) => p.post_targets.filter((tt) => tt.status === 'sent'));
+  const fetched = Object.values(stats)
+    .map((r) => r.fetched_at)
+    .sort()
+    .pop();
+  /** One live link: the footer carries it. Several: each channel row has its own. */
+  const soleUrl = sentTargets.length === 1 ? sentTargets[0].remote_url : null;
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Post preview">
       <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
       <div className="relative flex min-h-full items-center justify-center p-4">
-        <div className="relative my-auto w-full max-w-lg rounded-3xl border border-line bg-card p-6 shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close preview"
-            className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full text-muted transition hover:bg-bone hover:text-ink"
-          >
-            ✕
-          </button>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="relative my-auto w-full max-w-lg overflow-hidden rounded-3xl border border-line bg-card shadow-[0_32px_80px_-24px_rgba(28,25,23,0.5)]">
+          <header className="flex items-center gap-2 border-b border-line-soft px-5 py-3">
             <span className={`pill ${meta.className}`}>{meta.label}</span>
             {isChain ? (
               <span className="pill bg-paper-dim text-ink">{fill(t('chainParts'), { n: parts.length })}</span>
             ) : null}
-            <span className="text-xs text-faint">
-              {head.sent_at ? fill(t('sentWhen'), { x: formatDateTime(head.sent_at) }) : formatDateTime(head.scheduled_at)}
+            <span className="min-w-0 truncate text-xs text-faint">
+              {head.sent_at ? formatDateTime(head.sent_at) : formatDateTime(head.scheduled_at)}
             </span>
-          </div>
-          {targets.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2">
-              {targets.map((tg) => (
-                <span key={tg.channel_id ?? tg.provider} className="flex items-center gap-1.5">
-                  <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={24} />
-                  <span className="text-xs font-bold">{providerMeta(tg.provider).label}</span>
-                </span>
-              ))}
-            </div>
-          ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close preview"
+              className="-mr-1.5 ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-surface hover:text-ink"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </header>
+
           {/* The post as a feed shows it: one entry per thread part, joined by
-              the thread line. Live numbers sit on the head's action bar. */}
-          <div className="mt-4 max-h-[60vh] overflow-y-auto pr-1">
+              the thread line. Numbers live in the panel below, once. */}
+          <div className="max-h-[56vh] overflow-y-auto px-5 py-4">
             {parts.map((p, i) => {
               const tg = targets[0];
               const pm = mediaOf(p);
@@ -379,68 +397,78 @@ function PreviewDialog({
                       kind: m.kind,
                       src: m.kind === 'video' ? (m.signed_url ?? '') : (mediaThumbUrl(m) ?? ''),
                       poster: m.thumb_url,
+                      width: m.width,
+                      height: m.height,
                     }))
                     .filter((m) => m.src)}
-                  metrics={i === 0 && sent ? totals : null}
+                  metrics={null}
                   threaded={i < parts.length - 1}
                 />
               );
             })}
           </div>
+
           {sent ? (
-            <div className="mt-4 space-y-2 rounded-2xl border border-line-soft bg-bone/60 p-3">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">{t('performance')}</p>
-              {parts.flatMap((p) =>
-                p.post_targets
-                  .filter((tt) => tt.status === 'sent')
-                  .map((tg) => {
-                    const s = stats[tg.id];
+            <section className="border-t border-line-soft px-5 py-4" aria-label={t('performance')}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[11px] font-extrabold uppercase tracking-wide text-faint">{t('performance')}</p>
+                <span className="truncate text-[11px] text-faint" title={fetched ? formatDateTime(fetched) : undefined}>
+                  {fetched ? fill(t('pvUpdated'), { x: agoShort(fetched) }) : t('firstSnapshot')}
+                </span>
+              </div>
+              <div className="mt-2.5 grid grid-cols-4 gap-2">
+                <StatTile icon={Heart} value={totals.likes} label={t('pvLikes')} />
+                <StatTile icon={MessageCircle} value={totals.comments} label={t('pvComments')} />
+                <StatTile icon={Repeat2} value={totals.reposts} label={t('pvReposts')} />
+                <StatTile icon={Eye} value={totals.views} label={t('pvViews')} />
+              </div>
+              {sentTargets.length > 1 ? (
+                <ul className="mt-3 divide-y divide-line-soft">
+                  {sentTargets.map((tg) => {
+                    const st = stats[tg.id];
                     return (
-                      <div
-                        key={tg.id}
-                        className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-card px-3 py-2"
-                      >
-                        <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={22} />
-                        <span className="text-xs font-bold">{providerMeta(tg.provider).label}</span>
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <StatCell icon={Heart} value={s?.likes ?? 0} />
-                          <StatCell icon={MessageCircle} value={s?.comments ?? 0} />
-                          <StatCell icon={Repeat2} value={s?.shares ?? 0} />
-                          {s?.views != null ? <StatCell icon={Eye} value={s.views} /> : null}
+                      <li key={tg.id} className="flex items-center gap-2.5 py-2">
+                        <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={24} />
+                        <span className="min-w-0 flex-1 truncate text-xs font-bold">{providerMeta(tg.provider).label}</span>
+                        <span className="flex items-center gap-3">
+                          <StatInline icon={Heart} value={st?.likes ?? 0} label={t('pvLikes')} />
+                          <StatInline icon={MessageCircle} value={st?.comments ?? 0} label={t('pvComments')} />
+                          <StatInline icon={Eye} value={st?.views ?? null} label={t('pvViews')} />
                         </span>
-                        {s ? (
-                          <span className="text-[10px] text-faint" title={`Fetched ${formatDateTime(s.fetched_at)}`}>
-                            {agoShort(s.fetched_at)}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-faint">{t('firstSnapshot')}</span>
-                        )}
                         {tg.remote_url ? (
                           <a
                             href={tg.remote_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-auto inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-bone"
+                            aria-label={`${t('goToPost')} (${providerMeta(tg.provider).label})`}
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-surface hover:text-ink"
                           >
-                            {t('goToPost')}
+                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                           </a>
                         ) : null}
-                      </div>
+                      </li>
                     );
-                  }),
-              )}
-            </div>
+                  })}
+                </ul>
+              ) : null}
+            </section>
           ) : null}
-          <div className="mt-5 flex gap-2">
+
+          <footer className="flex items-center justify-end gap-2 border-t border-line-soft px-5 py-3">
+            <button type="button" onClick={onClose} className="btn btn-sm btn-ghost">
+              {t('close')}
+            </button>
             {draftish && onEdit ? (
               <button type="button" onClick={onEdit} className="btn btn-sm btn-bolt">
                 {t('edit')}
               </button>
             ) : null}
-            <button type="button" onClick={onClose} className="btn btn-sm btn-ghost">
-              {t('close')}
-            </button>
-          </div>
+            {soleUrl ? (
+              <a href={soleUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-bolt">
+                {t('goToPost')}
+              </a>
+            ) : null}
+          </footer>
         </div>
       </div>
     </div>
@@ -887,6 +915,8 @@ export default function PostList({
                           ? imageThumb(m.signed_url, THUMB_WIDTHS.md) ?? ''
                           : (m.thumb_url ?? ''),
                     poster: m.thumb_url,
+                    width: m.width,
+                    height: m.height,
                   })).filter((m) => m.src)}
                   onOpen={openPreview}
                   notes={
