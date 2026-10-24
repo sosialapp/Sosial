@@ -169,7 +169,7 @@ export default function McpSection({ canManage }: { canManage: boolean }) {
                 key={c.id}
                 title={c.label}
                 aria-label={c.label}
-                className="grid h-8 w-8 place-items-center rounded-full border border-line bg-card"
+                className="grid h-8 w-8 place-items-center rounded-full border border-line bg-card text-ink"
               >
                 <AiMark id={c.id} className="h-4 w-4 [&_svg]:h-full [&_svg]:w-full" />
               </span>
