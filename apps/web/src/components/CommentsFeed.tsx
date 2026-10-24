@@ -634,9 +634,7 @@ export default function CommentsFeed({
                         <Face name={c.author_name} avatar={c.author_avatar} size={30} />
                         <div className="min-w-0 max-w-[80%] sm:max-w-[68%]">
                           <div
-                            className={`rounded-2xl rounded-bl-md border bg-card px-3.5 py-2 transition ${
-                              isTarget ? 'border-accent ring-2 ring-accent/40' : 'border-line-soft'
-                            }`}
+                            className="rounded-2xl rounded-bl-md border border-line-soft bg-card px-3.5 py-2"
                           >
                             <p className="flex items-center gap-1.5 text-[12px] font-bold text-ink">
                               <span className="truncate">{c.author_name || 'Unknown'}</span>

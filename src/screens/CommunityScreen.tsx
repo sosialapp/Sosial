@@ -647,8 +647,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                         <View
                           style={[
                             s.bubble,
-                            { maxWidth: '100%', backgroundColor: C.card, borderWidth: 1, borderColor: isTarget ? C.accent : C.lineSoft, borderBottomLeftRadius: 6 },
-                            isTarget && { borderWidth: 2 },
+                            { maxWidth: '100%', backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderBottomLeftRadius: 6 },
                           ]}
                         >
                           <Text style={s.author} numberOfLines={1}>{c.author_name || 'Unknown'}</Text>
