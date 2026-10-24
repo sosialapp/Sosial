@@ -14,6 +14,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # apps/web and apps/worker are separate packages with their own
+      # lockfiles, so they need their own installs before their tests run.
+      - run: npm ci
+        working-directory: apps/web
+      - run: npm ci
+        working-directory: apps/worker
       - run: npm run typecheck
       - run: npm run scan
       # App test suites (vitest): web units + worker rules + mobile logic.
