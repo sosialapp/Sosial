@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import NotificationBell from '../components/NotificationBell';
-import { SocialGlyph } from '../components/ui';
+import { SocialGlyph, Seg } from '../components/ui';
 import CommunityScreen from './CommunityScreen';
 import { BarsChart, HBarList } from '../components/charts';
-import { Card, CardTitle, CardDescription, Tabs } from '../components/ui-kit';
+import { Tabs } from '../components/ui-kit';
 import { SOCIAL_META, requiresTitle } from '../constants';
 import { currentSession } from '../utils/supabase';
 import { fetchCommunityUnseen } from '../utils/community';
@@ -79,6 +79,8 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const [chanSel, setChanSel] = useState<string[]>([]);
   const [view, setView] = useState<'analytics' | 'community'>('analytics');
   const [unseen, setUnseen] = useState({ comments: 0, messages: 0 });
+  const [metric, setMetric] = useState<'posts' | 'followers' | 'engagement' | 'interactions'>('posts');
+  const [rhythm, setRhythm] = useState<'weeks' | 'weekdays'>('weeks');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -266,6 +268,46 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
       .filter((r) => r.sent > 0 || r.followers !== null);
   }, [data, chanStatsScoped, totalsBy, sent, chanSel]);
 
+  /** Per-day series for the hero chart (weekly buckets past ~2 months). */
+  const series = (() => {
+    const first = startOfDay(range.from);
+    const last = startOfDay(range.to);
+    const span = Math.max(1, Math.round((last - first) / DAY) + 1);
+    const step = span > 62 ? 7 : 1;
+    const out: { label: string; value: number }[] = [];
+    for (let t = first; t <= last; t += step * DAY) {
+      out.push({ label: `${new Date(t).getMonth() + 1}/${new Date(t).getDate()}`, value: 0 });
+    }
+    for (const p of sent) {
+      if (!p.sent_at) continue;
+      const t = new Date(p.sent_at).getTime();
+      if (Number.isNaN(t) || t < first || t > last + DAY) continue;
+      const i = Math.floor((startOfDay(t) - first) / DAY / step);
+      if (i < 0 || i >= out.length) continue;
+      if (metric === 'interactions') {
+        const agg = statsByPost.get(p.id);
+        out[i].value += (agg?.likes ?? 0) + (agg?.comments ?? 0) + (agg?.shares ?? 0);
+      } else {
+        out[i].value += 1;
+      }
+    }
+    return out;
+  })();
+
+  const metricCells: { id: typeof metric; label: string; value: string; desc: string }[] = [
+    { id: 'posts', label: 'Posts', value: full(sent.length), desc: 'Posts published each day' },
+    { id: 'followers', label: 'Followers', value: hasFollowers ? compact(followers) : '-', desc: 'Followers per channel, latest snapshot' },
+    { id: 'engagement', label: 'Eng. rate', value: eng ?? '-', desc: 'Interactions ÷ followers, per channel' },
+    { id: 'interactions', label: 'Interactions', value: compact(likes + comments + shares), desc: 'Interactions from posts published each day' },
+  ];
+
+  const pipe = [
+    { label: 'Drafts', value: drafts, color: C.faint },
+    { label: 'Queued', value: queued, color: '#F2A400' },
+    { label: 'Sent', value: sent.length, color: C.ink },
+    { label: 'Failed', value: failed, color: '#E5484D' },
+  ];
+
   const statusChip = (status: string): { label: string; color: string } => {
     switch (status) {
       case 'sent': return { label: 'Sent', color: C.greenText };
@@ -415,157 +457,205 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               </View>
             ) : (
               <>
-                {/* Stat grid, same six cards as web */}
-                <View style={[s.kpiWrap, { paddingHorizontal: 24 }]}>
-                  {[
-                    { label: 'Posts', value: full(sent.length), sub: `Sent in ${range.label.toLowerCase()}` },
-                    { label: 'Followers', value: hasFollowers ? full(followers) : '-', sub: 'Latest daily snapshots' },
-                    { label: 'Reactions', value: full(likes), sub: 'Across sent posts' },
-                    { label: 'Comments', value: full(comments), sub: 'Across sent posts' },
-                    { label: 'Eng. rate', value: eng ?? '-', sub: 'Interactions ÷ followers' },
-                    { label: 'Views', value: hasViews ? full(views) : '-', sub: 'Where the platform exposes it' },
-                  ].map((k) => (
-                    <Card key={k.label} style={s.kpi}>
-                      <Text style={s.kpiLabel}>{k.label}</Text>
-                      <Text style={s.kpiVal}>{k.value}</Text>
-                      <Text style={s.kpiSub} numberOfLines={2}>{k.sub}</Text>
-                    </Card>
-                  ))}
+                {/* Hero: four numbers as tabs over one chart (web parity). */}
+                <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+                  <View style={[s.card, { padding: 0, overflow: 'hidden' }]}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                      {metricCells.map((m, i) => {
+                        const on = metric === m.id;
+                        return (
+                          <TouchableOpacity
+                            key={m.id}
+                            onPress={() => setMetric(m.id)}
+                            activeOpacity={0.8}
+                            accessibilityRole="tab"
+                            accessibilityState={{ selected: on }}
+                            style={[
+                              s.metricCell,
+                              { backgroundColor: on ? C.card : C.surface },
+                              i % 2 === 1 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: C.line },
+                              i > 1 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
+                            ]}
+                          >
+                            {on ? <View style={s.metricBar} /> : null}
+                            <Text style={[s.kpiLabel, on && { color: C.ink }]} numberOfLines={1}>{m.label}</Text>
+                            <Text style={s.kpiVal}>{m.value}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    <View style={{ padding: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+                      <Text style={s.secS}>{metricCells.find((m) => m.id === metric)?.desc} · {range.label.toLowerCase()}</Text>
+                      <View style={{ marginTop: 12 }}>
+                        {metric === 'posts' || metric === 'interactions' ? (
+                          <BarsChart
+                            data={series.map((b) => b.value)}
+                            color={C.accent}
+                            height={120}
+                            gridLines={3}
+                            labels={series.map((b, i) => (i % Math.max(1, Math.ceil(series.length / 6)) === 0 ? b.label : ''))}
+                            formatValue={(v) => compact(v)}
+                          />
+                        ) : (
+                          <HBarList
+                            rows={perfRows
+                              .map((r) => ({
+                                label: r.label,
+                                value: metric === 'followers' ? r.followers ?? 0 : r.followers ? ((r.likes + r.comments + r.shares) / r.followers) * 100 : 0,
+                                color: SOCIAL_META[r.channel.provider]?.bg ?? C.accent,
+                              }))
+                              .sort((a, b) => b.value - a.value)}
+                            max={Math.max(
+                              1,
+                              ...perfRows.map((r) =>
+                                metric === 'followers' ? r.followers ?? 0 : r.followers ? ((r.likes + r.comments + r.shares) / r.followers) * 100 : 0,
+                              ),
+                            )}
+                            formatValue={(v) => (metric === 'engagement' ? `${v.toFixed(1)}%` : full(v))}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </View>
                 </View>
 
-                {/* Pipeline */}
-                <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                  <Card>
-                    <CardTitle>Pipeline</CardTitle>
-                    <View style={{ marginTop: 12 }}>
-                      <HBarList
-                        rows={[
-                          { label: 'Drafts', value: drafts, color: C.surface },
-                          { label: 'Queued', value: queued, color: '#B45309' },
-                          { label: 'Sent', value: sent.length, color: C.ink },
-                          { label: 'Failed', value: failed, color: '#E60023' },
-                        ]}
-                        max={funnelMax}
-                        formatValue={(v) => String(v)}
-                      />
-                    </View>
-                  </Card>
-                </View>
-
-                {/* Sends per week */}
-                <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                  <Card>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <CardTitle>Sends per week · last 8 weeks</CardTitle>
-                      <Text style={s.bestT}>best: {weekMax}/wk</Text>
-                    </View>
-                    <View style={{ marginTop: 14 }}>
-                      <BarsChart
-                        data={weeks.map((w) => w.count)}
-                        color={C.accent}
-                        height={96}
-                        gridLines={3}
-                        labels={weeks.map((w) => w.label)}
-                        formatValue={(v) => String(Math.round(v))}
-                      />
-                    </View>
-                  </Card>
-                </View>
-
-                {/* Sends by weekday */}
-                <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                  <Card>
-                    <CardTitle>Sends by weekday</CardTitle>
-                    <View style={{ marginTop: 14 }}>
-                      <BarsChart
-                        data={weekdayCounts}
-                        color={C.accent}
-                        height={84}
-                        gridLines={3}
-                        labels={WEEKDAYS}
-                        formatValue={(v) => String(Math.round(v))}
-                      />
-                    </View>
-                    <CardDescription>When your posts actually go out.</CardDescription>
-                  </Card>
-                </View>
-
-                {/* Top posts */}
-                <View style={{ paddingHorizontal: 24, marginTop: 30 }}>
+                {/* Top posts: ranked rows with their numbers */}
+                <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
                   <Text style={s.secT}>Top posts</Text>
-                  <Text style={s.secS}>Ranked by interactions in {range.label.toLowerCase()}</Text>
+                  <Text style={s.secS}>Ranked by interactions · {range.label.toLowerCase()}</Text>
                   {topPosts.length === 0 ? (
                     <Text style={s.hint}>No sent posts in this range yet.</Text>
                   ) : (
-                    <View style={{ marginTop: 10, gap: 8 }}>
-                      {topPosts.map((p) => (
-                        <Card key={p.id} style={{ padding: 13 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            {glyphStack(p.providers, 26)}
-                            <View style={{ flex: 1, gap: 2 }}>
-                              <Text style={s.postT} numberOfLines={1}>{p.title}</Text>
+                    <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
+                      {topPosts.map((p, i) => (
+                        <View key={p.id} style={[s.rankRow, i > 0 && s.divider]}>
+                          <Text style={s.rank}>{i + 1}</Text>
+                          {glyphStack(p.providers, 28)}
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={s.postT} numberOfLines={1}>{p.title || 'Untitled post'}</Text>
+                            <View style={s.metaRow}>
                               <Text style={s.postS}>{fmtDate(p.sentAt)}</Text>
+                              <Stat icon="heart-outline" v={p.likes} C={C} />
+                              <Stat icon="chatbubble-outline" v={p.comments} C={C} />
+                              <Stat icon="repeat" v={p.shares} C={C} />
                             </View>
-                            <Text style={s.postInter}>{full(p.interactions)}</Text>
                           </View>
-                          <Text style={s.postMeta}>
-                            {full(p.likes)} likes · {full(p.comments)} comments · {full(p.shares)} shares{p.views !== null ? ` · ${full(p.views)} views` : ''}
-                          </Text>
-                        </Card>
+                          <Text style={s.postInter}>{compact(p.interactions)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Pipeline: one stacked bar + legend */}
+                <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
+                  <View style={s.card}>
+                    <Text style={s.cardT}>Pipeline</Text>
+                    <View style={s.stackBar}>
+                      {pipe.map((f) =>
+                        f.value > 0 ? <View key={f.label} style={{ flex: f.value, backgroundColor: f.color }} /> : null,
+                      )}
+                    </View>
+                    <View style={{ marginTop: 12, gap: 8 }}>
+                      {pipe.map((f) => (
+                        <View key={f.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: f.color }} />
+                          <Text style={[s.postT, { flex: 1 }]}>{f.label}</Text>
+                          <Text style={s.postInter}>{f.value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Rhythm: weeks or weekdays */}
+                <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+                  <View style={s.card}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <Text style={s.cardT}>Rhythm</Text>
+                      <Seg
+                        accessibilityLabel="Rhythm"
+                        grow={false}
+                        value={rhythm}
+                        onChange={setRhythm}
+                        options={[
+                          { value: 'weeks', label: 'Weeks' },
+                          { value: 'weekdays', label: 'Weekdays' },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[s.secS, { marginTop: 6 }]}>
+                      {rhythm === 'weeks' ? `Sends per week · best ${weekMax}/wk` : 'When your posts actually go out'}
+                    </Text>
+                    <View style={{ marginTop: 12 }}>
+                      <BarsChart
+                        data={rhythm === 'weeks' ? weeks.map((w) => w.count) : weekdayCounts}
+                        color={C.accent}
+                        height={110}
+                        gridLines={3}
+                        labels={rhythm === 'weeks' ? weeks.map((w) => w.label) : WEEKDAYS}
+                        formatValue={(v) => String(Math.round(v))}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Channels */}
+                <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
+                  <Text style={s.secT}>Channels</Text>
+                  <Text style={s.secS}>Followers refresh daily · engagement is interactions ÷ followers</Text>
+                  {perfRows.length === 0 ? (
+                    <Text style={s.hint}>Connect a channel and publish, audience and engagement land here within a day.</Text>
+                  ) : (
+                    <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
+                      {perfRows.map((r, i) => (
+                        <View key={r.channel.id} style={[s.rankRow, i > 0 && s.divider]}>
+                          <View style={[s.brandTile, { backgroundColor: SOCIAL_META[r.channel.provider]?.bg ?? C.ink }]}>
+                            <SocialGlyph platform={r.channel.provider} size={16} color="#fff" />
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={s.postT} numberOfLines={1}>{r.label}</Text>
+                            <View style={s.metaRow}>
+                              <Text style={s.postS}>{r.eng ?? '-'} eng · {r.sent} sent</Text>
+                              <Stat icon="heart-outline" v={r.likes} C={C} />
+                              <Stat icon="chatbubble-outline" v={r.comments} C={C} />
+                            </View>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={s.postInter}>{compact(r.followers)}</Text>
+                            <Text style={s.postS}>followers</Text>
+                          </View>
+                        </View>
                       ))}
                     </View>
                   )}
                 </View>
 
                 {/* Recently sent */}
-                <View style={{ paddingHorizontal: 24, marginTop: 30 }}>
+                <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
                   <Text style={s.secT}>Recently sent</Text>
                   {recent.length === 0 ? (
                     <Text style={s.hint}>No sends yet.</Text>
                   ) : (
-                    <View style={{ marginTop: 10, gap: 8 }}>
-                      {recent.map((p) => {
+                    <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
+                      {recent.map((p, i) => {
                         const st = statusChip(p.status);
                         return (
-                          <View key={p.id} style={[s.rowCard, { backgroundColor: C.card, borderColor: C.lineSoft }]}>
-                            {glyphStack([...new Set(p.targets.map((t) => t.provider))], 24)}
-                            <View style={{ flex: 1, gap: 2 }}>
-                              {p.title || requiresTitle(p.targets.map((t) => t.provider)) ? (
-                                <Text style={s.postT} numberOfLines={1}>{p.title || 'Untitled post'}</Text>
-                              ) : null}
+                          <View key={p.id} style={[s.rankRow, i > 0 && s.divider]}>
+                            {glyphStack([...new Set(p.targets.map((t) => t.provider))], 26)}
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text style={s.postT} numberOfLines={1}>
+                                {p.title || p.body || (requiresTitle(p.targets.map((t) => t.provider)) ? 'Untitled post' : '')}
+                              </Text>
                               <Text style={s.postS}>{fmtDate(p.sent_at)}</Text>
                             </View>
-                            <View style={[s.statusDot, { backgroundColor: st.color }]} />
-                            <Text style={[s.statusT, { color: st.color }]}>{st.label}</Text>
+                            <View style={[s.statusPill, { backgroundColor: `${st.color}1A` }]}>
+                              <View style={[s.statusDot, { backgroundColor: st.color }]} />
+                              <Text style={[s.statusT, { color: st.color }]}>{st.label}</Text>
+                            </View>
                           </View>
                         );
                       })}
-                    </View>
-                  )}
-                </View>
-
-                {/* Channel performance */}
-                <View style={{ paddingHorizontal: 24, marginTop: 30 }}>
-                  <Text style={s.secT}>Channel performance</Text>
-                  <Text style={s.secS}>Followers refresh daily · engagement is interactions over followers</Text>
-                  {perfRows.length === 0 ? (
-                    <Text style={s.hint}>Connect a channel and publish, audience and engagement land here within a day.</Text>
-                  ) : (
-                    <View style={{ marginTop: 10, gap: 8 }}>
-                      {perfRows.map((r) => (
-                        <Card key={r.channel.id} style={{ padding: 13 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: SOCIAL_META[r.channel.provider]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
-                              <SocialGlyph platform={r.channel.provider} size={15} color="#fff" />
-                            </View>
-                            <Text style={[s.postT, { flex: 1 }]} numberOfLines={1}>{r.label}</Text>
-                            <Text style={s.postInter}>{full(r.followers)}</Text>
-                          </View>
-                          <Text style={s.postMeta}>
-                            {full(r.followers)} followers · {full(r.likes)} likes · {full(r.comments)} comments · {full(r.shares)} shares{r.views !== null ? ` · ${full(r.views)} views` : ''} · {r.eng ?? '-'} eng · {r.sent} sent
-                          </Text>
-                        </Card>
-                      ))}
                     </View>
                   )}
                 </View>
@@ -582,7 +672,27 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   );
 }
 
+function Stat({ icon, v, C }: { icon: keyof typeof Ionicons.glyphMap; v: number; C: Palette }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+      <Ionicons name={icon} size={11} color={C.faint} />
+      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted }}>{compact(v)}</Text>
+    </View>
+  );
+}
+
 const makeS = (C: Palette) => StyleSheet.create({
+  card: { backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.lineSoft, padding: 16 },
+  cardT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 16, color: C.ink },
+  metricCell: { width: '50%', paddingHorizontal: 16, paddingVertical: 14 },
+  metricBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: C.accent },
+  rankRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 14, paddingVertical: 12 },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.lineSoft },
+  rank: { width: 16, textAlign: 'center', fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.faint },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 3 },
+  brandTile: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  stackBar: { flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden', backgroundColor: C.surface, marginTop: 14 },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   chanChip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingLeft: 6, paddingRight: 13, paddingVertical: 6, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },

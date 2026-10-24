@@ -2,7 +2,9 @@
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowUpDown, BarChart3, CalendarDays, Download, FileDown, FileText, Heart, Info, LineChart, Percent, Send, Users } from 'lucide-react';
+import {
+  BarChart3, CalendarDays, Download, Eye, FileDown, FileText, Heart, Info, LineChart, MessageCircle, Percent, Repeat2, Send, Users,
+} from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { BrandIcon } from '@/components/BrandIcon';
 import ChannelAvatar from '@/components/ChannelAvatar';
@@ -23,14 +25,6 @@ import { primaryTarget } from '@/lib/postTargets';
 import { fetchMediaForPosts } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
 import PostPreviewDialog, { type PreviewPostData } from '@/components/PostPreviewDialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { requiresTitle } from '@/lib/compat';
 import type { ConnectedChannel, MediaAssetRow, PostStatus, PostWithTargets, ProviderKey } from '@/lib/types';
@@ -351,7 +345,7 @@ export default function AnalyticsDashboard({
     },
     {
       metric: 'interactions',
-      label: t('anTotalInteractions') ?? t('anTotalInt'),
+      label: t('anTotalInt'),
       value: full(interactions),
       icon: Heart,
       hint: t('anIntHint'),
@@ -673,24 +667,28 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
   const toggleChan = (p: string): void =>
     setChanSel((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
 
-  const flipSort = (key: TopSortKey): void =>
-    setTopSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' },
-    );
+  const pipeTotal = Math.max(1, drafts + queued + sent.length + failed);
 
   return (
-    <div className="w-full px-4 pt-6 sm:px-6">
+    <div className="w-full pt-3 sm:px-2 sm:pt-4">
+      {/* Header: title + the range in words, export on the right. */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow">{t('anEyebrow')}</p>
-          <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-            {t('anH1')}
-          </h1>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{t('anH1')}</h1>
+          <p className="mt-0.5 text-sm text-muted">
+            {range.label}
+            {chanSel.length ? ` · ${chanSelLabels().join(', ')}` : ''}
+          </p>
         </div>
         <Popover open={exportOpen} onOpenChange={setExportOpen}>
           <PopoverTrigger asChild>
-            <button type="button" className="btn btn-sm btn-bolt">
-              <Download className="h-3.5 w-3.5" aria-hidden="true" />{t('anExport')}</button>
+            <button
+              type="button"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-4 text-xs font-bold text-soft transition hover:bg-surface"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('anExport')}
+            </button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2" align="end">
             <p className="px-2 pt-1 pb-2 text-[11px] font-extrabold uppercase tracking-wide text-faint">{t('anExportReport')}</p>
@@ -727,13 +725,11 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         </Popover>
       </div>
 
-      {/* Range + channel controls */}
-      <div className="mt-4 flex flex-wrap items-center gap-1.5">
-        {/* One sliding switch for the range; "Custom" also opens the date
-            picker, anchored to the switch. */}
+      {/* Controls: range switch, then the channel filter as one swipeable row. */}
+      <div className="mt-4 flex flex-col gap-2.5 lg:flex-row lg:items-center">
         <Popover open={calOpen} onOpenChange={setCalOpen}>
           <PopoverAnchor asChild>
-            <div className="max-w-full">
+            <div className="max-w-full shrink-0">
               <SegmentedPills
                 ariaLabel={t('anCustom')}
                 value={preset}
@@ -762,19 +758,15 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             </div>
           </PopoverAnchor>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-              defaultMonth={custom?.from}
-              selected={custom}
-              onSelect={setCustom}
-              numberOfMonths={1}
-            />
+            <Calendar mode="range" defaultMonth={custom?.from} selected={custom} onSelect={setCustom} numberOfMonths={1} />
             <div className="flex items-center justify-between gap-2 border-t border-line-soft p-3">
               <button
                 type="button"
                 onClick={() => setCustom(undefined)}
                 className="rounded-full px-3 py-1.5 text-xs font-bold text-muted transition hover:text-ink"
-              >{t('cpClear')}</button>
+              >
+                {t('cpClear')}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -782,173 +774,250 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                   setCalOpen(false);
                 }}
                 className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-on-accent transition hover:bg-accent-bright"
-              >{t('hubSave')}</button>
+              >
+                {t('hubSave')}
+              </button>
             </div>
           </PopoverContent>
         </Popover>
-        {preset !== 'custom' ? <span className="ml-1 text-xs text-faint">{range.label}</span> : null}
+        <span className="hidden h-6 w-px bg-line lg:block" aria-hidden="true" />
+        <div className="no-scrollbar -mx-1 flex min-w-0 gap-1.5 overflow-x-auto px-1" role="group" aria-label={t('anFilterChan')}>
+          <button
+            type="button"
+            aria-pressed={chanSel.length === 0}
+            onClick={() => setChanSel([])}
+            className={`h-9 shrink-0 rounded-full border px-3.5 text-xs font-bold transition ${
+              chanSel.length === 0 ? 'border-ink bg-ink text-bone' : 'border-line bg-card text-muted hover:text-ink'
+            }`}
+          >
+            All channels
+          </button>
+          {connectedChannels.map((c) => {
+            const on = chanSel.includes(c.id);
+            const name = c.display_name || providerMeta(c.provider).label;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggleChan(c.id)}
+                title={`${name} · ${providerMeta(c.provider).label}`}
+                className={`flex h-9 shrink-0 items-center gap-2 rounded-full border pr-3.5 pl-1 text-xs font-bold transition ${
+                  on ? 'border-ink bg-ink text-bone' : 'border-line bg-card text-soft hover:border-faint'
+                }`}
+              >
+                <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={26} />
+                <span className="max-w-32 truncate">{name}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={t('anFilterChan')}>
-        <button
-          type="button"
-          aria-pressed={chanSel.length === 0}
-          onClick={() => setChanSel([])}
-          className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-            chanSel.length === 0 ? 'border-accent bg-accent text-on-accent' : 'border-line bg-card text-muted hover:bg-paper'
-          }`}
-        >
-          All channels
-        </button>
-        {connectedChannels.map((c) => {
-          const on = chanSel.includes(c.id);
-          const name = c.display_name || providerMeta(c.provider).label;
-          const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : null;
-          return (
-            <button
-              key={c.id}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggleChan(c.id)}
-              title={`${name}${handle ? ` ${handle}` : ''} · ${providerMeta(c.provider).label}`}
-              className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${
-                on ? 'border-accent bg-accent' : 'border-line bg-card hover:bg-paper'
-              }`}
-            >
-              <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={28} />
-              <span className="flex min-w-0 max-w-40 flex-col leading-tight">
-                <span className={`truncate text-xs font-bold ${on ? 'text-on-accent' : 'text-soft'}`}>{name}</span>
-                {handle ? (
-                  <span className={`truncate text-[10px] ${on ? 'text-on-accent/70' : 'text-faint'}`}>{handle}</span>
-                ) : null}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Stat cards: pick one to drive the Performance-over-time chart */}
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map((s) => {
-          const on = s.metric === perfMetric;
-          return (
-            <Card
-              key={s.label}
-              role="button"
-              tabIndex={0}
-              aria-pressed={on}
-              aria-label={fill(t('anShowChart'), { label: s.label })}
-              onClick={() => setPerfMetric(s.metric)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setPerfMetric(s.metric);
-                }
-              }}
-              className={`cursor-pointer p-4 text-left transition sm:p-5 ${
-                on ? 'border-accent ring-1 ring-accent' : 'hover:border-faint'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <s.icon className={`h-5 w-5 ${on ? 'text-accent' : 'text-muted'}`} aria-hidden="true" />
-                <Tooltip content={s.hint} align="end">
-                  <button
-                    type="button"
-                    aria-label={s.hint}
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    className="flex h-5 w-5 items-center justify-center rounded-full text-faint transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    <Info className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </Tooltip>
+      {/* Hero: the four numbers as tabs over one chart, like a real analytics
+          home. Picking a number redraws the chart below it. */}
+      <Card className="mt-4 overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4" role="tablist" aria-label={t('anPerfChart')}>
+          {stats.map((s, i) => {
+            const on = s.metric === perfMetric;
+            return (
+              <div
+                key={s.label}
+                role="tab"
+                tabIndex={0}
+                aria-selected={on}
+                aria-label={fill(t('anShowChart'), { label: s.label })}
+                onClick={() => setPerfMetric(s.metric)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setPerfMetric(s.metric);
+                  }
+                }}
+                className={`relative cursor-pointer border-line p-4 text-left transition sm:p-5 ${
+                  i % 2 === 1 ? 'border-l' : ''
+                } ${i > 1 ? 'border-t lg:border-t-0' : ''} ${i > 0 ? 'lg:border-l' : ''} ${
+                  on ? 'bg-card' : 'bg-surface/50 hover:bg-surface'
+                }`}
+              >
+                {on ? <span className="absolute inset-x-0 top-0 h-[3px] bg-accent" aria-hidden="true" /> : null}
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`flex items-center gap-1.5 text-xs font-bold ${on ? 'text-ink' : 'text-muted'}`}>
+                    <s.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {s.label}
+                  </span>
+                  <Tooltip content={s.hint} align="end">
+                    <button
+                      type="button"
+                      aria-label={s.hint}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="grid h-5 w-5 place-items-center rounded-full text-faint transition hover:text-ink"
+                    >
+                      <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </Tooltip>
+                </div>
+                <p className="mt-2 font-display text-[1.75rem] font-extrabold leading-none tracking-tight tabular-nums sm:text-[2rem]">
+                  {s.value}
+                </p>
+                {s.note ? <p className="mt-1.5 text-[10px] leading-tight text-faint">{s.note}</p> : null}
               </div>
-              <p className="mt-2 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{s.value}</p>
-              <p className="mt-1 text-xs text-muted">{s.label}</p>
-              {s.note ? <p className="mt-0.5 text-[10px] leading-tight text-faint">{s.note}</p> : null}
-            </Card>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+        <div className="border-t border-line px-4 pt-4 pb-3 sm:px-5">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted">
+              {perfDesc[perfMetric]} · {range.label.toLowerCase()}
+            </p>
+            <SegmentedPills
+              ariaLabel={t('anChartType')}
+              size="sm"
+              value={perfMode}
+              onChange={setPerfMode}
+              options={[
+                {
+                  value: 'line',
+                  label: (
+                    <>
+                      <LineChart className="h-3.5 w-3.5" aria-hidden="true" />
+                      Line
+                    </>
+                  ),
+                },
+                {
+                  value: 'bar',
+                  label: (
+                    <>
+                      <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
+                      Bar
+                    </>
+                  ),
+                },
+              ]}
+            />
+          </div>
+          {perfMode === 'line' ? (
+            <ChartLine
+              data={perfSeries}
+              dataKey="value"
+              labelKey="label"
+              color="var(--color-accent)"
+              height={260}
+              xInterval={perfXInterval}
+              formatter={perfFmt}
+            />
+          ) : (
+            <ChartBar
+              data={perfSeries}
+              dataKey="value"
+              labelKey="label"
+              color="var(--color-bolt)"
+              height={260}
+              xInterval={perfXInterval}
+              formatter={perfFmt}
+            />
+          )}
+        </div>
+      </Card>
 
-      {/* Performance over time (line/bar) + channel breakdown */}
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Top posts: ranked rows with each post's numbers, not a wide table. */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <CardTitle>{t('anPerfChart')}</CardTitle>
-                <CardDescription>
-                  {perfDesc[perfMetric]} · {range.label.toLowerCase()}
-                </CardDescription>
+                <CardTitle>{t('anTopPosts')}</CardTitle>
+                <CardDescription>{fill(t('anTopDesc'), { range: range.label })}</CardDescription>
               </div>
-              <div
-                className="flex items-center gap-0.5 rounded-full border border-line bg-card p-0.5"
-                role="tablist"
-                aria-label={t('anChartType')}
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={perfMode === 'line'}
-                  onClick={() => setPerfMode('line')}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    perfMode === 'line' ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  <LineChart className="h-3.5 w-3.5" aria-hidden="true" />
-                  Line
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={perfMode === 'bar'}
-                  onClick={() => setPerfMode('bar')}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    perfMode === 'bar' ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Bar
-                </button>
-              </div>
+              <SegmentedPills
+                ariaLabel="Sort top posts"
+                size="sm"
+                value={topSort.key}
+                onChange={(k) => setTopSort({ key: k, dir: 'desc' })}
+                options={[
+                  { value: 'interactions', label: 'Most engaged' },
+                  { value: 'sent_at', label: 'Newest' },
+                ]}
+              />
             </div>
           </CardHeader>
-          <CardContent className="pt-1">
-            {perfMode === 'line' ? (
-              <ChartLine
-                data={perfSeries}
-                dataKey="value"
-                labelKey="label"
-                color="var(--color-accent)"
-                height={224}
-                xInterval={perfXInterval}
-                formatter={perfFmt}
-              />
+          <CardContent className="pt-0">
+            {topPosts.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted">{t('anNoSent')}</p>
             ) : (
-              <ChartBar
-                data={perfSeries}
-                dataKey="value"
-                labelKey="label"
-                color="var(--color-bolt)"
-                height={224}
-                xInterval={perfXInterval}
-                formatter={perfFmt}
-              />
+              <ol className="divide-y divide-line-soft">
+                {topPosts.map((p, i) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const fullPost = sent.find((s) => s.id === p.id);
+                        if (fullPost) {
+                          openPreview(fullPost, { likes: p.likes, comments: p.comments, shares: p.shares, views: p.views });
+                        }
+                      }}
+                      className="group flex w-full items-center gap-3 py-3 text-left"
+                    >
+                      <span className="w-5 shrink-0 text-center font-display text-sm font-extrabold tabular-nums text-faint">
+                        {i + 1}
+                      </span>
+                      <span className="flex shrink-0 items-center">
+                        {p.providers.slice(0, 3).map((pv, j) => (
+                          <span
+                            key={pv}
+                            className="rounded-full ring-2 ring-card"
+                            style={{ marginLeft: j ? -8 : 0, zIndex: p.providers.length - j }}
+                            title={providerMeta(pv).label}
+                          >
+                            <BrandIcon provider={pv} className="h-7 w-7" />
+                          </span>
+                        ))}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold group-hover:underline">{p.title || t('untitled')}</span>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                          <span>{fmtDate(p.sentAt)}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <Heart className="h-3 w-3" aria-hidden="true" />
+                            {full(p.likes)}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <MessageCircle className="h-3 w-3" aria-hidden="true" />
+                            {full(p.comments)}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Repeat2 className="h-3 w-3" aria-hidden="true" />
+                            {full(p.shares)}
+                          </span>
+                          {p.views !== null ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Eye className="h-3 w-3" aria-hidden="true" />
+                              {full(p.views)}
+                            </span>
+                          ) : null}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block font-display text-lg font-extrabold leading-none tabular-nums">{full(p.interactions)}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-faint">{t('anTotalInt')}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
             )}
           </CardContent>
         </Card>
 
+        {/* Channel breakdown */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <CardTitle>{t('anChanBreakdown')}</CardTitle>
               {breakdown.length > 4 ? (
-                <button
-                  type="button"
-                  onClick={() => setBreakdownOpen(true)}
-                  className="text-xs font-bold text-ink hover:underline"
-                >
+                <button type="button" onClick={() => setBreakdownOpen(true)} className="text-xs font-bold text-ink hover:underline">
                   See all
                 </button>
               ) : (
@@ -961,17 +1030,15 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           </CardHeader>
           <CardContent className="pt-1">
             {breakdown.length === 0 ? (
-              <p className="text-sm text-muted">
-                Connect a channel and publish, its numbers land here within a day.
-              </p>
+              <p className="text-sm text-muted">Connect a channel and publish, its numbers land here within a day.</p>
             ) : (
               <>
-                <HBarList rows={breakdownRows.slice(0, 4)} />
-                {breakdown.length > 4 ? (
+                <HBarList rows={breakdownRows.slice(0, 5)} />
+                {breakdown.length > 5 ? (
                   <button
                     type="button"
                     onClick={() => setBreakdownOpen(true)}
-                    className="mt-3 w-full rounded-full border border-line px-3 py-2 text-xs font-bold text-ink transition hover:bg-paper-dim"
+                    className="mt-3 w-full rounded-full bg-surface px-3 py-2 text-xs font-bold text-ink transition hover:bg-line-soft"
                   >
                     See all {breakdown.length} channels
                   </button>
@@ -982,114 +1049,43 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         </Card>
       </div>
 
-      {/* Top posts */}
-      <Card className="mt-3">
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle>{t('anTopPosts')}</CardTitle>
-              <CardDescription>{fill(t('anTopDesc'), { range: range.label })}</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-1">
-          {topPosts.length === 0 ? (
-            <p className="text-sm text-muted">{t('anNoSent')}</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('thPost')}</TableHead>
-                  <TableHead>{t('thChannels')}</TableHead>
-                  <TableHead className="text-right">
-                    <button type="button" onClick={() => flipSort('sent_at')} className="inline-flex items-center gap-1 font-bold hover:text-ink" aria-label="Sort by date">
-                      Sent
-                      <ArrowUpDown className="h-3 w-3" aria-hidden="true" />
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right">{t('thLikes')}</TableHead>
-                  <TableHead className="text-right">{t('thComments')}</TableHead>
-                  <TableHead className="text-right">{t('thShares')}</TableHead>
-                  <TableHead className="text-right">{t('thViews')}</TableHead>
-                  <TableHead className="text-right">
-                    <button type="button" onClick={() => flipSort('interactions')} className="inline-flex items-center gap-1 font-bold hover:text-ink" aria-label="Sort by interactions">
-                      Interactions
-                      <ArrowUpDown className="h-3 w-3" aria-hidden="true" />
-                    </button>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topPosts.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="max-w-56">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const full = sent.find((s) => s.id === p.id);
-                          if (full) {
-                            openPreview(full, {
-                              likes: p.likes,
-                              comments: p.comments,
-                              shares: p.shares,
-                              views: p.views,
-                            });
-                          }
-                        }}
-                        title={p.title}
-                        className="block w-full truncate text-left font-bold hover:underline"
-                      >
-                        {p.title}
-                      </button>
-                    </TableCell>
-                    <TableCell>
-                      <span className="flex items-center">
-                        {p.providers.slice(0, 4).map((pv, i) => (
-                          <span key={pv} className="rounded-full ring-2 ring-card" style={{ marginLeft: i === 0 ? 0 : -7, zIndex: p.providers.length - i }} title={providerMeta(pv).label}>
-                            <BrandIcon provider={pv} className="h-6 w-6" />
-                          </span>
-                        ))}
-                        {p.providers.length > 4 ? <span className="ml-1 text-[11px] text-muted">+{p.providers.length - 4}</span> : null}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right text-muted">{fmtDate(p.sentAt)}</TableCell>
-                    <TableCell className="text-right text-muted">{full(p.likes)}</TableCell>
-                    <TableCell className="text-right text-muted">{full(p.comments)}</TableCell>
-                    <TableCell className="text-right text-muted">{full(p.shares)}</TableCell>
-                    <TableCell className="text-right text-muted">{p.views === null ? '-' : full(p.views)}</TableCell>
-                    <TableCell className="text-right font-display font-extrabold">{full(p.interactions)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        {/* Pipeline */}
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Pipeline as one stacked bar with a legend: where everything stands. */}
         <Card>
           <CardHeader>
             <CardTitle>{t('anPipeline')}</CardTitle>
+            <CardDescription>{range.label}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <HBarList
-              rows={funnel.map((f) => ({
-                key: f.label,
-                value: f.value,
-                max: funnelMax,
-                color: f.color,
-                label: (
-                  <Link href={f.href} className="font-bold hover:text-ink">
-                    {f.label}
+          <CardContent className="pt-1">
+            <div className="flex h-3 overflow-hidden rounded-full bg-surface" aria-hidden="true">
+              {funnel.map((f) =>
+                f.value > 0 ? (
+                  <span
+                    key={f.label}
+                    style={{ width: `${(f.value / pipeTotal) * 100}%`, background: f.color === 'var(--color-surface)' ? '#9A958B' : f.color }}
+                  />
+                ) : null,
+              )}
+            </div>
+            <ul className="mt-4 space-y-1">
+              {funnel.map((f) => (
+                <li key={f.label}>
+                  <Link href={f.href} className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-surface">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ background: f.color === 'var(--color-surface)' ? '#9A958B' : f.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="flex-1 text-sm font-bold text-soft">{f.label}</span>
+                    <span className="font-display text-base font-extrabold tabular-nums">{f.value}</span>
                   </Link>
-                ),
-              }))}
-            />
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
 
-        {/* Weekly rhythm */}
+        {/* Rhythm: weekly volume and best weekday side by side. */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -1097,99 +1093,83 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <CardDescription>best: {weekMax}/wk</CardDescription>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="grid grid-cols-1 gap-6 pt-1 md:grid-cols-2">
             <BarChartPanel data={weeks} dataKey="count" labelKey="label" domainMax={weekMax} height={176} suffix="sent" />
-          </CardContent>
-        </Card>
-
-        {/* Weekday rhythm */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>{t('anPerWeekday')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BarChartPanel
-              data={weekdayData}
-              dataKey="count"
-              labelKey="label"
-              domainMax={weekdayMax}
-              height={176}
-              suffix="sent"
-            />
-          </CardContent>
-        </Card>
-
-        {/* Recently sent */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{t('anRecent')}</CardTitle>
-              <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
-                Queue
-              </Link>
+            <div>
+              <p className="mb-2 text-xs font-bold text-muted">{t('anPerWeekday')}</p>
+              <BarChartPanel data={weekdayData} dataKey="count" labelKey="label" domainMax={weekdayMax} height={156} suffix="sent" />
             </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            {recent.length === 0 ? (
-              <p className="text-sm text-muted">{t('anNoSends')}</p>
-            ) : (
-              <ul className="space-y-3">
-                {recent.slice(0, 5).map((p) => {
-                  const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
-                  const st = POST_STATUS_META[p.status];
-                  return (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const agg = statsByPost.get(p.id);
-                          openPreview(
-                            p,
-                            agg
-                              ? { likes: agg.likes, comments: agg.comments, shares: agg.shares, views: agg.views }
-                              : null,
-                          );
-                        }}
-                        title="Open preview"
-                        className="flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition hover:bg-paper-dim"
-                      >
-                      <div className="flex shrink-0 items-center" aria-hidden="true">
-                        {providers.slice(0, 3).map((pv, i) => (
-                          <span
-                            key={pv}
-                            className="rounded-full ring-2 ring-card"
-                            style={{ marginLeft: i === 0 ? 0 : -7, zIndex: providers.length - i }}
-                            title={providerMeta(pv).label}
-                          >
-                            <BrandIcon provider={pv} className="h-6 w-6" />
-                          </span>
-                        ))}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        {p.title ? (
-                          <p className="truncate text-sm font-bold">{p.title}</p>
-                        ) : requiresTitle(providers) ? (
-                          <p className="truncate text-sm font-bold">{t('untitled')}</p>
-                        ) : null}
-                        <p className="text-xs text-muted">{fmtDate(p.sent_at)}</p>
-                      </div>
-                      <Badge className={st.className}>{st.label}</Badge>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
           </CardContent>
         </Card>
       </div>
 
-      <Card className="mt-3 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted">{t('anStatsNote')}</p>
-        <Link href="/post" className="btn btn-bolt shrink-0">
-          Create a post
-        </Link>
+      {/* Recently sent, as a compact feed strip. */}
+      <Card className="mt-4">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>{t('anRecent')}</CardTitle>
+            <Link href="/queue" className="text-xs font-bold text-ink hover:underline">
+              Queue
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {recent.length === 0 ? (
+            <p className="text-sm text-muted">{t('anNoSends')}</p>
+          ) : (
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {recent.slice(0, 8).map((p) => {
+                const providers = [...new Set((p.post_targets ?? []).map((tg) => tg.provider))];
+                const st = POST_STATUS_META[p.status];
+                const agg = statsByPost.get(p.id);
+                return (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openPreview(
+                          p,
+                          agg ? { likes: agg.likes, comments: agg.comments, shares: agg.shares, views: agg.views } : null,
+                        )
+                      }
+                      className="flex h-full w-full flex-col rounded-2xl border border-line-soft bg-paper p-3 text-left transition hover:border-line"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="flex items-center">
+                          {providers.slice(0, 3).map((pv, i) => (
+                            <span key={pv} className="rounded-full ring-2 ring-paper" style={{ marginLeft: i ? -6 : 0 }}>
+                              <BrandIcon provider={pv} className="h-5 w-5" />
+                            </span>
+                          ))}
+                        </span>
+                        <span className="flex-1 text-[11px] text-muted">{fmtDate(p.sent_at)}</span>
+                        <Badge className={st.className}>{st.label}</Badge>
+                      </span>
+                      <span className="mt-2 line-clamp-2 text-[13px] leading-snug text-soft">
+                        {p.title || p.body || (requiresTitle(providers) ? t('untitled') : '')}
+                      </span>
+                      {agg ? (
+                        <span className="mt-2 flex items-center gap-3 text-[11px] text-muted">
+                          <span className="inline-flex items-center gap-1">
+                            <Heart className="h-3 w-3" aria-hidden="true" />
+                            {full(agg.likes)}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <MessageCircle className="h-3 w-3" aria-hidden="true" />
+                            {full(agg.comments)}
+                          </span>
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
       </Card>
+
+      <p className="mt-4 mb-2 px-1 text-xs leading-relaxed text-faint">{t('anStatsNote')}</p>
 
       <PostPreviewDialog post={preview} onClose={() => setPreview(null)} />
       <ChannelBreakdownDialog

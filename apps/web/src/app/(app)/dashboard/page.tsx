@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChartColumn, Clock, Link2 } from 'lucide-react';
+import { CalendarDays, ChartColumn, Clock, Link2, Plus } from 'lucide-react';
+import ChannelAvatar from '@/components/ChannelAvatar';
 import SendIcon from '@/components/SendIcon';
 import { channelAvatar } from '@/lib/channelAvatar';
 import AnalyticsCard from '@/components/AnalyticsCard';
@@ -64,38 +65,8 @@ const fmtDay = (iso: string | null, t: (k: string) => string): string => {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-function StatTile({
-  label,
-  value,
-  sub,
-  tint,
-  icon,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  tint: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <Card className="p-4 sm:p-5">
-      <div className="flex items-center gap-2.5">
-        <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-          style={{ background: `${tint}1A`, color: tint }}
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
-        <p className="text-xs font-bold text-muted">{label}</p>
-      </div>
-      <p className="mt-3 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{value}</p>
-      <p className="mt-1 text-[11px] text-faint">{sub}</p>
-    </Card>
-  );
-}
-
-/** Home: greeting, stats, compose, calendar week, activity, right rail. */
+/** Home: date + greeting, a KPI strip, compose and this week on the left;
+ *  recent activity, the analytics snapshot and channel health on the right. */
 export default async function DashboardPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
@@ -192,62 +163,121 @@ export default async function DashboardPage() {
       ? Math.round(((sentWeek.length - sentPrevWeek.length) / sentPrevWeek.length) * 100)
       : null;
 
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const nextUp = [...queuedHeads]
+    .filter((p) => p.scheduled_at)
+    .sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''))[0];
+
+  const kpis: { label: string; value: string; sub: string; tone?: 'up' | 'down' | null; icon: React.ReactNode }[] = [
+    {
+      label: t('stWeek'),
+      value: String(sentWeek.length),
+      sub: delta !== null ? `${delta >= 0 ? '+' : ''}${delta}% ${t('vsLast7')}` : t('vsLast7'),
+      tone: delta === null ? null : delta >= 0 ? 'up' : 'down',
+      icon: <SendIcon className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      label: t('stScheduled'),
+      value: String(queuedHeads.length),
+      sub: nextUp?.scheduled_at ? `Next ${fmtDay(nextUp.scheduled_at, t)}, ${fmtTime(nextUp.scheduled_at)}` : t('inQueue'),
+      icon: <Clock className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      label: t('stTotal'),
+      value: String(posts.length),
+      sub: t('dashSub'),
+      icon: <ChartColumn className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      label: t('stLive'),
+      value: `${live.length}/${channels.length}`,
+      sub: t('connectedAccts'),
+      icon: <Link2 className="h-4 w-4" aria-hidden="true" />,
+    },
+  ];
+
   return (
-    <div className="w-full pt-6">
-      <div>
-        <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-          {greeting(locale)}, {ctx.workspace.name} <span aria-hidden="true">👋</span>
-        </h1>
-        <p className="mt-1 text-sm text-muted">{t('dashSub')}</p>
+    <div className="w-full pt-3 sm:px-2 sm:pt-4">
+      {/* Greeting with today's date; the two most-used doors on the right. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-muted">{today}</p>
+          <h1 className="mt-0.5 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+            {greeting(locale)}, {ctx.workspace.name}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/calendar"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-4 text-xs font-bold text-soft transition hover:bg-surface"
+          >
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('openCalendar')}
+          </Link>
+          <Link href="/post" className="btn btn-bolt btn-sm !h-9">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t('cNewPost')}
+          </Link>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatTile
-          label={t('stTotal')}
-          value={String(posts.length)}
-          sub={delta !== null ? `${delta >= 0 ? '+' : ''}${delta}% ${t('vsLast7')}` : t('vsLast7')}
-          tint="#1d7fe0"
-          icon={<ChartColumn className="h-4.5 w-4.5" aria-hidden="true" />}
-        />
-        <StatTile
-          label={t('stWeek')}
-          value={String(sentWeek.length)}
-          sub={t('vsLast7')}
-          tint="#12914a"
-          icon={<SendIcon className="h-4.5 w-4.5" aria-hidden="true" />}
-        />
-        <StatTile
-          label={t('stScheduled')}
-          value={String(queuedHeads.length)}
-          sub={t('inQueue')}
-          tint="#7c5cf0"
-          icon={<Clock className="h-4.5 w-4.5" aria-hidden="true" />}
-        />
-        <StatTile
-          label={t('stLive')}
-          value={`${live.length}/${channels.length}`}
-          sub={t('connectedAccts')}
-          tint="#E1306C"
-          icon={<Link2 className="h-4.5 w-4.5" aria-hidden="true" />}
-        />
-      </div>
+      {/* KPIs: one strip with hairline dividers instead of four loose tiles. */}
+      <Card className="mt-5 grid grid-cols-2 overflow-hidden lg:grid-cols-4">
+        {kpis.map((k, i) => (
+          <div
+            key={k.label}
+            className={`p-4 sm:p-5 ${i % 2 === 1 ? 'border-l border-line' : ''} ${i > 1 ? 'border-t border-line lg:border-t-0' : ''} ${
+              i > 0 ? 'lg:border-l lg:border-line' : ''
+            }`}
+          >
+            <p className="flex items-center gap-1.5 text-xs font-bold text-muted">
+              {k.icon}
+              {k.label}
+            </p>
+            <p className="mt-2 font-display text-[1.75rem] font-extrabold leading-none tracking-tight tabular-nums sm:text-[2rem]">
+              {k.value}
+            </p>
+            <p
+              className={`mt-1.5 truncate text-[11px] font-bold ${
+                k.tone === 'up' ? 'text-[#12914A]' : k.tone === 'down' ? 'text-[#E5484D]' : 'text-faint'
+              }`}
+            >
+              {k.sub}
+            </p>
+          </div>
+        ))}
+      </Card>
 
-      {/* Main + right rail */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="flex flex-col gap-4 lg:col-span-2">
-          {/* Quick post */}
-          <QuickPost
-            channels={channels}
-            workspaceId={ctx.workspace.id}
-            userId={ctx.user.id}
-            role={ctx.workspace.role}
-          />
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+          <QuickPost channels={channels} workspaceId={ctx.workspace.id} userId={ctx.user.id} role={ctx.workspace.role} />
+
+          {/* This week: seven day columns (swipeable on a phone), drag posts between days. */}
+          <Card className="overflow-hidden" aria-label={t('contentCalendar')}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-5 py-4">
+              <p className="font-display text-base font-extrabold tracking-tight">{t('contentCalendar')}</p>
+              <span className="flex-1" />
+              <span className="hidden items-center gap-3 text-[11px] font-bold text-muted sm:flex">
+                {[
+                  [t('stDraft'), 'bg-[#9A958B]'],
+                  [t('stQueued'), 'bg-[#B45309]'],
+                  [t('stSent'), 'bg-[#12914A]'],
+                  [t('stFailed'), 'bg-[#E5484D]'],
+                ].map(([label, dot]) => (
+                  <span key={label} className="flex items-center gap-1">
+                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
+                    {label}
+                  </span>
+                ))}
+              </span>
+            </div>
+            <div className="px-5 py-4">
+              <ScheduleXBoard variant="mini" posts={posts} channels={channels} media={mediaMap} />
+            </div>
+          </Card>
         </div>
 
-        {/* Right rail */}
-        <div className="flex flex-col gap-4">
-          {/* Recent activity */}
+        <div className="flex min-w-0 flex-col gap-4">
           <Card className="p-5" aria-label={t('recentActivity')}>
             <div className="flex items-center justify-between">
               <p className="font-display text-base font-extrabold tracking-tight">{t('recentActivity')}</p>
@@ -262,49 +292,53 @@ export default async function DashboardPage() {
             )}
           </Card>
 
-          {/* Analytics snapshot */}
           <AnalyticsCard
-            sentAt={posts
-              .filter(
-                (p) =>
-                  (p.status === 'sent' || p.status === 'partial') && p.sent_at,
-              )
-              .map((p) => p.sent_at as string)}
+            sentAt={posts.filter((p) => (p.status === 'sent' || p.status === 'partial') && p.sent_at).map((p) => p.sent_at as string)}
           />
 
+          {/* Channels at a glance: who is live and who needs a reconnect. */}
+          <Card className="p-5" aria-label={t('connectedAccts')}>
+            <div className="flex items-center justify-between">
+              <p className="font-display text-base font-extrabold tracking-tight">{t('connectedAccts')}</p>
+              <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
+                {t('viewAll')}
+              </Link>
+            </div>
+            {channels.length === 0 ? (
+              <Link href="/channels" className="btn btn-bolt btn-sm mt-3 w-full justify-center">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Connect a channel
+              </Link>
+            ) : (
+              <ul className="mt-3 space-y-1">
+                {channels.slice(0, 6).map((c) => {
+                  const ok = c.status === 'connected';
+                  return (
+                    <li key={c.id} className="flex items-center gap-2.5 rounded-xl px-1 py-1.5">
+                      <ChannelAvatar provider={c.provider} avatar={channelAvatar(c.metadata)} size={30} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold">{c.display_name || providerMeta(c.provider).label}</span>
+                        <span className="block truncate text-[11px] text-muted">{providerMeta(c.provider).label}</span>
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          ok ? 'bg-[#EDF3EC] text-[#346538] dark:bg-[#1c2b21] dark:text-[#8fd0a0]' : 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]'
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${ok ? 'bg-[#12914A]' : 'bg-[#E5484D]'}`} aria-hidden="true" />
+                        {ok ? 'Live' : 'Reconnect'}
+                      </span>
+                    </li>
+                  );
+                })}
+                {channels.length > 6 ? (
+                  <li className="px-1 pt-1 text-xs font-bold text-muted">+{channels.length - 6} more</li>
+                ) : null}
+              </ul>
+            )}
+          </Card>
         </div>
       </div>
-
-      {/* Content calendar: the week as seven day columns (swipeable on a
-          phone), posts as cards you can drag between days. */}
-      <Card className="mt-4 overflow-hidden" aria-label={t('contentCalendar')}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-5 py-4">
-          <p className="font-display text-base font-extrabold tracking-tight">{t('contentCalendar')}</p>
-          <span className="flex-1" />
-          <span className="hidden items-center gap-3 text-[11px] font-bold text-muted sm:flex">
-            {[
-              [t('stDraft'), 'bg-[#9A958B]'],
-              [t('stQueued'), 'bg-[#B45309]'],
-              [t('stSent'), 'bg-[#12914A]'],
-              [t('stFailed'), 'bg-[#E5484D]'],
-            ].map(([label, dot]) => (
-              <span key={label} className="flex items-center gap-1">
-                <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
-                {label}
-              </span>
-            ))}
-          </span>
-          <Link
-            href="/calendar"
-            className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:bg-paper-dim"
-          >
-            {t('openCalendar')}
-          </Link>
-        </div>
-        <div className="px-5 py-4">
-          <ScheduleXBoard variant="mini" posts={posts} channels={channels} media={mediaMap} />
-        </div>
-      </Card>
     </div>
   );
 }

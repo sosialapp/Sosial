@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
-import { useTheme, Palette, T, R } from '../theme';
+import { useTheme, Palette, T } from '../theme';
 import NotificationBell from '../components/NotificationBell';
-import { Card, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui-kit';
+import { SocialGlyph } from '../components/ui';
 import ConnectButton from '../components/ConnectButton';
 import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/managed';
 import { loadMetaState, connectedChannelIds, loadAccounts } from '../utils/metaStore';
 import { PROVIDER_KEYS, schedulableProviders } from '../utils/socialAccounts';
 import { fetchAnalytics } from '../utils/analytics';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
-import { requiresTitle } from '../constants';
+import { requiresTitle, SOCIAL_META } from '../constants';
 import { supabase, currentSession, isSupabaseConfigured } from '../utils/supabase';
 
 function greeting(): string {
@@ -213,12 +213,42 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
     .sort((a, b) => (b.sentAt ?? 0) - (a.sentAt ?? 0))
     .slice(0, 3);
 
-  const tiles = [
-    { label: 'Total Posts', value: String(cloud ? cloud.total : posts.length), tint: '#1d7fe0', icon: 'bar-chart' },
-    { label: 'Sent this week', value: String(cloud ? cloud.sentWeek : sentWeekLocal.length), tint: '#12914a', icon: 'send' },
-    { label: 'Scheduled', value: String(cloud ? cloud.scheduled : queued.length), tint: '#7c5cf0', icon: 'time' },
-    { label: 'Channels live', value: `${cloud ? cloud.channelsLive : channels}/${cloud ? cloud.channelsTotal : PROVIDER_KEYS.length}`, tint: '#E1306C', icon: 'link' },
+  const kpis = [
+    { label: 'Sent this week', value: String(cloud ? cloud.sentWeek : sentWeekLocal.length), icon: 'paper-plane-outline' },
+    { label: 'Scheduled', value: String(cloud ? cloud.scheduled : queued.length), icon: 'time-outline' },
+    { label: 'Total posts', value: String(cloud ? cloud.total : posts.length), icon: 'bar-chart-outline' },
+    { label: 'Channels live', value: `${cloud ? cloud.channelsLive : channels}/${cloud ? cloud.channelsTotal : PROVIDER_KEYS.length}`, icon: 'link-outline' },
   ];
+  const upcomingRows = cloud
+    ? cloud.upcoming.map((u) => ({ key: u.id, title: u.title, providers: u.providers, at: u.at }))
+    : upcomingLocal.map((u) => ({ key: u.id, title: u.title || u.body, providers: u.platforms ?? [], at: u.scheduledAt ?? 0 }));
+  const recentRows = cloud
+    ? cloud.recent.map((p) => ({ key: p.id, title: p.title, providers: p.providers, at: p.at }))
+    : recentLocal.map((p) => ({ key: p.id, title: p.title || p.body, providers: p.platforms ?? [], at: p.sentAt ?? 0 }));
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  /** One post line: channel logos, the text, and when. */
+  const postLine = (r: { key: string; title: string; providers: string[]; at: number }, i: number, when: string) => (
+    <TouchableOpacity key={r.key} onPress={onPost} activeOpacity={0.75} style={[s.line, i > 0 && s.lineDivider]}>
+      <View style={{ flexDirection: 'row' }}>
+        {(r.providers.length ? r.providers : ['any']).slice(0, 3).map((pv, j) => (
+          <View
+            key={pv + j}
+            style={[s.logo, { backgroundColor: SOCIAL_META[pv]?.bg ?? C.surface, marginLeft: j ? -10 : 0, zIndex: 3 - j }]}
+          >
+            {SOCIAL_META[pv] ? <SocialGlyph platform={pv} size={13} color="#fff" /> : <Ionicons name="globe-outline" size={13} color={C.muted} />}
+          </View>
+        ))}
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={s.lineT} numberOfLines={1}>
+          {r.title || (requiresTitle(r.providers) ? 'Untitled' : platformsLabel(r.providers.length ? r.providers : ['any']))}
+        </Text>
+        <Text style={s.lineS} numberOfLines={1}>{platformsLabel(r.providers.length ? r.providers : ['any'])}</Text>
+      </View>
+      <Text style={s.lineWhen} numberOfLines={1}>{when}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
@@ -239,124 +269,90 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
           </View>
         </View>
 
-        {/* greeting */}
-        <View style={{ paddingHorizontal: 24, marginTop: 22 }}>
-          <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>
+        {/* date + greeting, new post right under */}
+        <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+          <Text style={s.date}>{today}</Text>
+          <Text style={[T.h1, { color: C.ink, fontSize: 28, lineHeight: 34, marginTop: 2 }]}>
             {greeting()}, {team || 'creator'}
           </Text>
-          <Text style={s.sub}>Here&apos;s what&apos;s happening with your content today.</Text>
           <TouchableOpacity onPress={onPost} style={s.cta} activeOpacity={0.88}>
-            <Text style={s.ctaT}>+ New post</Text>
-            <Ionicons name="arrow-forward" size={19} color={C.onInk} />
+            <Ionicons name="add" size={20} color="#0b1220" />
+            <Text style={s.ctaT}>New post</Text>
           </TouchableOpacity>
         </View>
 
-        {/* stat tiles */}
-        <View style={s.tiles}>
-          {tiles.map((t) => (
-            <Card key={t.label} style={s.tile}>
-              <View style={[s.tileIcon, { backgroundColor: `${t.tint}1A` }]}>
-                <Ionicons name={t.icon as any} size={16} color={t.tint} />
+        {/* KPIs: one card, four cells split by hairlines */}
+        <View style={[s.card, s.kpiCard]}>
+          {kpis.map((k, i) => (
+            <View
+              key={k.label}
+              style={[
+                s.kpi,
+                i % 2 === 1 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: C.line },
+                i > 1 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Ionicons name={k.icon as any} size={13} color={C.muted} />
+                <Text style={s.kpiL} numberOfLines={1}>{k.label}</Text>
               </View>
-              <Text style={s.tileV}>{t.value}</Text>
-              <Text style={s.tileL}>{t.label}</Text>
-            </Card>
+              <Text style={s.kpiV}>{k.value}</Text>
+            </View>
           ))}
         </View>
 
-        {/* analytics pill */}
-        <View style={{ paddingHorizontal: 24, marginTop: 14 }}>
-          <TouchableOpacity onPress={connected ? onAnalytics : onConnect} style={s.pill} activeOpacity={0.8}>
-            <View style={[s.pillIcon, { backgroundColor: `${C.accent}22` }]}>
-              <Ionicons name="analytics" size={18} color={C.accentInk} />
+        {/* analytics snapshot */}
+        <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+          <TouchableOpacity onPress={connected ? onAnalytics : onConnect} style={s.card} activeOpacity={0.85}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={s.anIcon}><Ionicons name="analytics" size={16} color="#0b1220" /></View>
+                <Text style={s.cardT}>Analytics</Text>
+                <Text style={s.cardMeta}>Last 7 days</Text>
+              </View>
+              {statsLoading ? <ActivityIndicator size="small" color={C.accent} /> : <Ionicons name="chevron-forward" size={18} color={C.faint} />}
             </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.pillT}>Analytics</Text>
-              {statsLoading ? (
-                <Text style={s.pillS}>Loading last 7 days…</Text>
-              ) : !connected ? (
-                <Text style={s.pillS}>Connect channels to see stats</Text>
-              ) : summary ? (
-                <Text style={s.pillS} numberOfLines={1}>
-                  {summary.hasFollowers ? `${compact(summary.followers)} followers · ` : ''}
-                  {compact(summary.engagement)} engagement · 7d
-                </Text>
-              ) : (
-                <Text style={s.pillS}>Followers, engagement, best time to post</Text>
-              )}
-            </View>
-            {statsLoading ? (
-              <ActivityIndicator size="small" color={C.accent} />
-            ) : (
-              <Ionicons name="chevron-forward" size={18} color={C.faint} />
-            )}
+            {!statsLoading && !connected ? (
+              <Text style={[s.lineS, { marginTop: 10 }]}>Connect channels to see followers and engagement.</Text>
+            ) : summary ? (
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <View style={s.anStat}>
+                  <Text style={s.anV}>{summary.hasFollowers ? compact(summary.followers) : '-'}</Text>
+                  <Text style={s.anL}>Followers</Text>
+                </View>
+                <View style={s.anStat}>
+                  <Text style={s.anV}>{compact(summary.engagement)}</Text>
+                  <Text style={s.anL}>Interactions</Text>
+                </View>
+              </View>
+            ) : !statsLoading ? (
+              <Text style={[s.lineS, { marginTop: 10 }]}>Followers, engagement and best time to post.</Text>
+            ) : null}
           </TouchableOpacity>
         </View>
 
         {/* up next */}
-        {(cloud ? cloud.upcoming.length : upcomingLocal.length) > 0 ? (
-          <View style={{ paddingHorizontal: 24, marginTop: 28 }}>
+        {upcomingRows.length > 0 ? (
+          <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
             <View style={s.secHead}>
               <Text style={s.secT}>Up next</Text>
-              <Text style={s.secCount}>{String(cloud ? cloud.scheduled : queued.length).padStart(2, '0')}</Text>
+              <Text style={s.secCount}>{cloud ? cloud.scheduled : queued.length} queued</Text>
             </View>
-            <Card style={{ marginTop: 12, padding: 0 }} padded={false}>
-              <Table>
-                <TableHeader>
-                  <TableHead flex={3}>Post</TableHead>
-                  <TableHead flex={2} align="right">When</TableHead>
-                </TableHeader>
-                <TableBody>
-                  {(cloud
-                    ? cloud.upcoming.map((u) => ({ key: u.id, title: u.title || (requiresTitle(u.providers) ? 'Untitled' : ''), sub: platformsLabel(u.providers.length ? u.providers : ['any']), when: u.at }))
-                    : upcomingLocal.map((u) => ({ key: u.id, title: u.title || (requiresTitle(u.platforms) ? 'Untitled' : ''), sub: platformsLabel(u.platforms ?? ['any']), when: u.scheduledAt ?? 0 }))
-                  ).map((u, i, all) => (
-                    <TableRow key={u.key} last={i === all.length - 1} onPress={onPost}>
-                      <TableCell flex={3}>
-                        <Text style={s.rowT} numberOfLines={1}>{u.title}</Text>
-                        <Text style={s.rowS} numberOfLines={1}>{u.sub}</Text>
-                      </TableCell>
-                      <TableCell flex={2} align="right">
-                        <Text style={s.rowS} numberOfLines={1}>{u.when ? fmtDateTime(u.when) : '-'}</Text>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+            <View style={[s.card, { paddingVertical: 4 }]}>
+              {upcomingRows.map((r, i) => postLine(r, i, r.at ? fmtDateTime(r.at) : '-'))}
+            </View>
           </View>
         ) : null}
 
         {/* recent activity */}
-        {(cloud ? cloud.recent.length : recentLocal.length) > 0 ? (
-          <View style={{ paddingHorizontal: 24, marginTop: 28 }}>
+        {recentRows.length > 0 ? (
+          <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
             <View style={s.secHead}>
-              <Text style={s.secT}>Recent activity</Text>
+              <Text style={s.secT}>Recently sent</Text>
             </View>
-            <Card style={{ marginTop: 12, padding: 0 }} padded={false}>
-              <Table>
-                <TableHeader>
-                  <TableHead flex={3}>Post</TableHead>
-                  <TableHead flex={2} align="right">Sent</TableHead>
-                </TableHeader>
-                <TableBody>
-                  {(cloud
-                    ? cloud.recent.map((p) => ({ key: p.id, title: p.title || (requiresTitle(p.providers) ? 'Untitled' : ''), sub: platformsLabel(p.providers.length ? p.providers : ['any']), at: p.at }))
-                    : recentLocal.map((p) => ({ key: p.id, title: p.title || (requiresTitle(p.platforms) ? 'Untitled' : ''), sub: platformsLabel(p.platforms ?? ['any']), at: p.sentAt ?? 0 }))
-                  ).map((p, i, all) => (
-                    <TableRow key={p.key} last={i === all.length - 1} onPress={onPost}>
-                      <TableCell flex={3}>
-                        <Text style={s.rowT} numberOfLines={1}>{p.title}</Text>
-                        <Text style={s.rowS} numberOfLines={1}>{p.sub}</Text>
-                      </TableCell>
-                      <TableCell flex={2} align="right">
-                        <Text style={s.rowS} numberOfLines={1}>{p.at ? timeAgo(p.at) : '-'}</Text>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+            <View style={[s.card, { paddingVertical: 4 }]}>
+              {recentRows.map((r, i) => postLine(r, i, r.at ? timeAgo(r.at) : '-'))}
+            </View>
           </View>
         ) : null}
       </ScrollView>
@@ -365,23 +361,29 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
 }
 
 const makeS = (C: Palette) => StyleSheet.create({
-  masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
+  masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20 },
   wordmark: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, letterSpacing: -0.4, color: C.ink, maxWidth: 150 },
-  sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, lineHeight: 20, color: C.muted, marginTop: 6 },
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.accent, borderRadius: R.md + 2, paddingVertical: 15, paddingHorizontal: 20, marginTop: 16 },
-  ctaT: { fontFamily: 'PlusJakartaSans_700Bold', color: C.onInk, fontSize: 15 },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 24, marginTop: 18 },
-  tile: { flexBasis: '48%', flexGrow: 1, backgroundColor: C.card, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, padding: 14 },
-  tileIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  tileV: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 24, letterSpacing: -0.5, color: C.ink, marginTop: 10 },
-  tileL: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, marginTop: 2 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: R.md + 2, borderWidth: 1, borderColor: C.lineSoft, paddingVertical: 14, paddingHorizontal: 16 },
-  pillIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  pillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, letterSpacing: -0.2, color: C.ink },
-  pillS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
-  secHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', borderBottomWidth: 1.5, borderBottomColor: C.ink, paddingBottom: 10 },
-  secT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, letterSpacing: -0.4, color: C.ink },
-  secCount: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accent },
-  rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, letterSpacing: -0.2, color: C.ink },
-  rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
+  date: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.muted },
+  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.accent, borderRadius: 999, paddingVertical: 14, marginTop: 16 },
+  ctaT: { fontFamily: 'PlusJakartaSans_700Bold', color: '#0b1220', fontSize: 15 },
+  card: { backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.lineSoft, padding: 16 },
+  kpiCard: { marginHorizontal: 20, marginTop: 18, padding: 0, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
+  kpi: { width: '50%', paddingHorizontal: 16, paddingVertical: 14 },
+  kpiL: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, flexShrink: 1 },
+  kpiV: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 26, letterSpacing: -0.6, color: C.ink, marginTop: 6 },
+  anIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  cardT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 16, color: C.ink },
+  cardMeta: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.faint },
+  anStat: { flex: 1, backgroundColor: C.surface, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14 },
+  anV: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 22, letterSpacing: -0.5, color: C.ink },
+  anL: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: C.muted, marginTop: 2 },
+  secHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 2 },
+  secT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.4, color: C.ink },
+  secCount: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  lineDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.lineSoft },
+  logo: { width: 30, height: 30, borderRadius: 10, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  lineT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, letterSpacing: -0.2, color: C.ink },
+  lineS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
+  lineWhen: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, maxWidth: 110, textAlign: 'right' },
 });

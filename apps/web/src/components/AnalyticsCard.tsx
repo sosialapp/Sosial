@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartBar } from '@/components/ui/chart';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import SegmentedPills from '@/components/ui/segmented-pills';
 
 type Range = '7D' | '30D' | '90D';
 
@@ -75,15 +75,21 @@ export default function AnalyticsCard({ sentAt }: { sentAt: string[] }) {
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
-          <TabsList aria-label="Range">
-            {RANGES.map((t) => (
-              <TabsTrigger key={t} value={t}>
-                {t}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="font-display text-[1.75rem] font-extrabold leading-none tabular-nums">
+              {buckets.bars.reduce((n, b) => n + b.count, 0)}
+            </p>
+            <p className="mt-1 text-[11px] font-bold text-muted">posts sent</p>
+          </div>
+          <SegmentedPills
+            ariaLabel="Range"
+            size="sm"
+            value={range}
+            onChange={setRange}
+            options={RANGES.map((r) => ({ value: r, label: r }))}
+          />
+        </div>
         <div className="mt-4">
           <ChartBar
             data={buckets.bars}
