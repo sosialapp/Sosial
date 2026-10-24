@@ -75,7 +75,7 @@ async function putPart(
   let bytes: Uint8Array;
   try {
     handle.offset = start;
-    bytes = handle.readBytes(end - start);
+    bytes = await handle.readBytes(end - start);
   } finally {
     try {
       handle.close();

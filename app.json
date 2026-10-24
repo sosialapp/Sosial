@@ -64,7 +64,11 @@
       "@react-native-community/datetimepicker",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      "expo-asset",
+      "expo-font",
+      "expo-sharing",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

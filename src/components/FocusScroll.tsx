@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
-import { Dimensions, Keyboard, ScrollView, TextInput } from 'react-native';
+import { Dimensions, Keyboard, type ScrollViewInstance, type TextInputInstance } from 'react-native';
 
 /**
  * Scroll-a-textbox-into-view, without native deps. Screens that own a
@@ -12,12 +12,12 @@ import { Dimensions, Keyboard, ScrollView, TextInput } from 'react-native';
  * This measures the real input + panel rects and scrolls the exact delta.
  */
 
-const Ctx = createContext<{ ensureVisible: (input: TextInput | null) => void }>({
+const Ctx = createContext<{ ensureVisible: (input: TextInputInstance | null) => void }>({
   ensureVisible: () => {},
 });
 
 export function FocusScrollBridge({ ensureVisible, children }: {
-  ensureVisible: (input: TextInput | null) => void;
+  ensureVisible: (input: TextInputInstance | null) => void;
   children: React.ReactNode;
 }) {
   return <Ctx.Provider value={{ ensureVisible }}>{children}</Ctx.Provider>;
@@ -31,10 +31,10 @@ export function useFocusScrollPanel(extra = 16) {
   type Measurable = {
     measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => void;
   };
-  const scrollRef = useRef<ScrollView & Measurable>(null);
+  const scrollRef = useRef<ScrollViewInstance & Measurable>(null);
   const kbH = useRef(0);
   const scrollY = useRef(0);
-  const lastInput = useRef<TextInput | null>(null);
+  const lastInput = useRef<TextInputInstance | null>(null);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
@@ -56,7 +56,7 @@ export function useFocusScrollPanel(extra = 16) {
   }, []);
 
   const ensureVisible = useCallback(
-    (input: TextInput | null) => {
+    (input: TextInputInstance | null) => {
       if (!input || !scrollRef.current) return;
       lastInput.current = input;
       // onFocus fires before the keyboard reports, retry until it does.

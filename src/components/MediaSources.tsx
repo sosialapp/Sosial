@@ -698,7 +698,7 @@ export default function MediaSources({
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={
-                    !busy ? <Text style={s.empty}>{query ? 'No matches in this folder.' : 'No images or videos here yet.'}</Text> : null
+                    !busy ? <Text style={s.empty}>{query ? 'No matches in this folder.' : 'No images or videos here yet.'}</Text> : undefined
                   }
                 />
               ) : source === 'gphotos' ? (
@@ -750,7 +750,7 @@ export default function MediaSources({
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={
-                    !busy ? <Text style={s.empty}>{query ? 'No matches in your Dropbox.' : 'No images or videos in this folder.'}</Text> : null
+                    !busy ? <Text style={s.empty}>{query ? 'No matches in your Dropbox.' : 'No images or videos in this folder.'}</Text> : undefined
                   }
                 />
               ) : source === 'onedrive' ? (
@@ -784,7 +784,7 @@ export default function MediaSources({
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={
-                    !busy ? <Text style={s.empty}>{query ? 'No matches in your OneDrive.' : 'No images or videos in this folder.'}</Text> : null
+                    !busy ? <Text style={s.empty}>{query ? 'No matches in your OneDrive.' : 'No images or videos in this folder.'}</Text> : undefined
                   }
                 />
               ) : source === 'canva' ? (
@@ -818,7 +818,7 @@ export default function MediaSources({
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={
-                    !busy ? <Text style={s.empty}>{query ? 'No matching designs.' : 'Your newest designs will appear here.'}</Text> : null
+                    !busy ? <Text style={s.empty}>{query ? 'No matching designs.' : 'Your newest designs will appear here.'}</Text> : undefined
                   }
                 />
               ) : (
@@ -861,7 +861,7 @@ export default function MediaSources({
                       </TouchableOpacity>
                     )}
                     ListEmptyComponent={
-                      !busy ? <Text style={s.empty}>Search above to browse stock.</Text> : null
+                      !busy ? <Text style={s.empty}>Search above to browse stock.</Text> : undefined
                     }
                   />
                 </>

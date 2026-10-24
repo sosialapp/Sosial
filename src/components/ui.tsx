@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, TextInputProps, Platform, ActivityIndicator, DimensionValue } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, TextInputProps, Platform, ActivityIndicator, DimensionValue, type TextInputInstance } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import FontAwesome6 from '@expo/vector-icons/build/FontAwesome6';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -502,7 +502,7 @@ export function Txt(props: TextInputProps) {
   const { C } = useTheme();
   const s = makeS(C);
   const { ensureVisible } = useFocusScrollContext();
-  const ref = useRef<TextInput>(null);
+  const ref = useRef<TextInputInstance>(null);
   const { onFocus, ...rest } = props;
   return (
     <TextInput

@@ -3,6 +3,7 @@ import {
   Animated,
   Easing,
   ScrollView,
+  type ScrollViewInstance,
   StyleProp,
   Text,
   TextStyle,
@@ -72,7 +73,7 @@ export function Segmented<T extends string>({
   const x = useRef(new Animated.Value(0)).current;
   const w = useRef(new Animated.Value(0)).current;
   const shown = useRef(false);
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   // Identity-stable option key, inline option literals get a fresh identity
   // every render, so never depend on the array itself.
   const optionKey = options.map((o) => o.value).join('|');

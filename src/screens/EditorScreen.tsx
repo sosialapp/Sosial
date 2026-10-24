@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, KeyboardAvoidingView, NativeScrollEvent, NativeSyntheticEvent, Animated, PanResponder, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, KeyboardAvoidingView, NativeScrollEvent, NativeSyntheticEvent, Animated, PanResponder, StatusBar, type ScrollViewInstance } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { usePost } from '../store/PostContext';
 import PostCanvas, { CANVAS_W, CANVAS_SCALE } from '../components/PostCanvas';
@@ -42,7 +42,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const insets = useSafeAreaInsets();
   const focus = useFocusScrollPanel();
-  const pagerRef = useRef<ScrollView>(null);
+  const pagerRef = useRef<ScrollViewInstance>(null);
   const dragX = useRef(new Animated.Value(0)).current;
   const dragIdR = useRef<string | null>(null);
   const startIdxR = useRef(0);
@@ -173,7 +173,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
 
   return (
     <View style={s.screen}>
-      <StatusBar backgroundColor={C.bone} barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" />
       {/* top bar */}
       <View style={s.top}>
         <TouchableOpacity onPress={onHome} activeOpacity={0.7} style={s.topBtn}>

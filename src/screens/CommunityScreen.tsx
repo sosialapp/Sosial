@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
@@ -140,7 +141,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   /** Open post (group key) and the posts' captions/thumbnails. */
   const [openPost, setOpenPost] = useState<string | null>(null);
   const [postCtx, setPostCtx] = useState<Record<string, CommunityCommentPost>>({});
-  const postScroll = useRef<ScrollView>(null);
+  const postScroll = useRef<ScrollViewInstance>(null);
   const [seenC, setSeenC] = useState<Record<string, string>>({});
   const [seenM, setSeenM] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -164,7 +165,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   const [msgDraft, setMsgDraft] = useState('');
   const [kbOpen, setKbOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const threadScroll = useRef<ScrollView>(null);
+  const threadScroll = useRef<ScrollViewInstance>(null);
 
   // With the keyboard up the home indicator is covered, so the composer drops
   // its bottom inset and sits flush on the keys.
