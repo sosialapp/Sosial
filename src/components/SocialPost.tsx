@@ -213,13 +213,16 @@ export default function SocialPost({
       ) : null}
       {notes ? <View style={{ gap: 6, marginTop: 8 }}>{notes}</View> : null}
       <MediaGrid media={media} />
-      <View style={s.bar} accessibilityLabel="Engagement">
-        <Stat icon="chatbubble-outline" value={metrics?.comments} C={C} />
-        <Stat icon="repeat" value={metrics?.reposts} C={C} />
-        <Stat icon="heart-outline" value={metrics?.likes} C={C} />
-        <Stat icon="stats-chart-outline" value={metrics?.views} C={C} />
-        <Ionicons name="share-outline" size={17} color={C.muted} />
-      </View>
+      {/* Real numbers only: without stats the icons said nothing, so the bar hides. */}
+      {metrics ? (
+        <View style={s.bar} accessibilityLabel="Engagement">
+          <Stat icon="chatbubble-outline" value={metrics.comments} C={C} />
+          <Stat icon="repeat" value={metrics.reposts} C={C} />
+          <Stat icon="heart-outline" value={metrics.likes} C={C} />
+          <Stat icon="stats-chart-outline" value={metrics.views} C={C} />
+          <Ionicons name="share-outline" size={17} color={C.muted} />
+        </View>
+      ) : null}
       {footer ? <View style={s.footer}>{footer}</View> : null}
     </View>
   );

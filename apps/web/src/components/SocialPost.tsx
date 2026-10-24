@@ -240,13 +240,16 @@ export default function SocialPost({
           <MediaGrid media={media} />
         </div>
 
-        <div className="mt-2.5 flex max-w-md items-center justify-between pr-2 text-muted" aria-label="Engagement">
-          <Action icon={MessageCircle} value={metrics?.comments} label="Replies" />
-          <Action icon={Repeat2} value={metrics?.reposts} label="Reposts" />
-          <Action icon={Heart} value={metrics?.likes} label="Likes" />
-          <Action icon={BarChart3} value={metrics?.views} label="Views" />
-          <Share className="h-[18px] w-[18px]" aria-label="Share" />
-        </div>
+        {/* Real numbers only: without stats the icons said nothing, so the bar hides. */}
+        {metrics ? (
+          <div className="mt-2.5 flex max-w-md items-center justify-between pr-2 text-muted" aria-label="Engagement">
+            <Action icon={MessageCircle} value={metrics.comments} label="Replies" />
+            <Action icon={Repeat2} value={metrics.reposts} label="Reposts" />
+            <Action icon={Heart} value={metrics.likes} label="Likes" />
+            <Action icon={BarChart3} value={metrics.views} label="Views" />
+            <Share className="h-[18px] w-[18px]" aria-label="Share" />
+          </div>
+        ) : null}
 
         {footer ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line-soft pt-3">{footer}</div> : null}
       </div>
