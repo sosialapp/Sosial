@@ -23,7 +23,7 @@ export interface LegalDoc {
 export const TERMS: LegalDoc = {
   slug: 'terms',
   title: 'Terms of Use',
-  updated: '2026-10-12',
+  updated: '2026-10-24',
   summary:
     'The agreement between you and Sosial for using the service: accounts, content, publishing and liability.',
   sections: [
@@ -177,7 +177,7 @@ export const TERMS: LegalDoc = {
 export const PRIVACY: LegalDoc = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: '2026-10-12',
+  updated: '2026-10-24',
   summary:
     'What we store, why we store it, how it is protected, who we share it with, and how to get it out, written in plain language.',
   sections: [
