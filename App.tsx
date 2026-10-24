@@ -414,7 +414,6 @@ function Shell() {
               <View style={{ flex: 1, display: route === 'create' ? 'flex' : 'none' }}>
                 <CreateScreen
                   onConnect={() => goConnect('create')}
-                  onAnalytics={() => openInsights('create')}
                   onTemplate={newTemplate}
                   onOpenProject={(p) => { loadPost(p); setRoute('editor'); }}
                   postSignal={postSignal}

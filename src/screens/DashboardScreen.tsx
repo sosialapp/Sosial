@@ -261,7 +261,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
         <View style={s.masthead}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Image source={require('../../assets/bolt.png')} style={{ width: 22, height: 28 }} resizeMode="contain" />
-            <Text style={s.wordmark} numberOfLines={1}>Sosial</Text>
+            <Text style={s.wordmark}>Sosial</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ConnectButton onPress={onConnect} />
@@ -269,16 +269,12 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
           </View>
         </View>
 
-        {/* date + greeting, new post right under */}
+        {/* date + greeting */}
         <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
           <Text style={s.date}>{today}</Text>
           <Text style={[T.h1, { color: C.ink, fontSize: 28, lineHeight: 34, marginTop: 2 }]}>
             {greeting()}, {team || 'creator'}
           </Text>
-          <TouchableOpacity onPress={onPost} style={s.cta} activeOpacity={0.88}>
-            <Ionicons name="add" size={20} color="#0b1220" />
-            <Text style={s.ctaT}>New post</Text>
-          </TouchableOpacity>
         </View>
 
         {/* KPIs: one card, four cells split by hairlines */}
@@ -361,11 +357,9 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
 }
 
 const makeS = (C: Palette) => StyleSheet.create({
-  masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20 },
-  wordmark: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, letterSpacing: -0.4, color: C.ink, maxWidth: 150 },
+  masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
+  wordmark: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, letterSpacing: -0.4, color: C.ink },
   date: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.muted },
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.accent, borderRadius: 999, paddingVertical: 14, marginTop: 16 },
-  ctaT: { fontFamily: 'PlusJakartaSans_700Bold', color: '#0b1220', fontSize: 15 },
   card: { backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.lineSoft, padding: 16 },
   kpiCard: { marginHorizontal: 20, marginTop: 18, padding: 0, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
   kpi: { width: '50%', paddingHorizontal: 16, paddingVertical: 14 },

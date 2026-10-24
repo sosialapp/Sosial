@@ -229,9 +229,8 @@ function SheetRow({ label, onPress, danger }: { label: string; onPress: () => vo
 }
 
 /** Create tab: ideas + AI writing + templates, with a new-post card up top. */
-export default function CreateScreen({ onConnect, onAnalytics, onTemplate, onOpenProject, postSignal, onConsumePostSignal }: {
+export default function CreateScreen({ onConnect, onTemplate, onOpenProject, postSignal, onConsumePostSignal }: {
   onConnect: () => void;
-  onAnalytics: () => void;
   onTemplate: () => void;
   onOpenProject: (p: QuickPost) => void;
   postSignal: number;
@@ -585,9 +584,6 @@ export default function CreateScreen({ onConnect, onAnalytics, onTemplate, onOpe
             <Text style={s.wordmark}>Sosial</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity onPress={onAnalytics} accessibilityLabel="Insights" style={s.insightsBtn} activeOpacity={0.7}>
-              <Ionicons name="stats-chart-outline" size={16} color={C.ink} />
-            </TouchableOpacity>
             <ConnectButton onPress={onConnect} />
             <NotificationBell />
           </View>
@@ -972,7 +968,6 @@ export default function CreateScreen({ onConnect, onAnalytics, onTemplate, onOpe
 
 const makeS = (C: Palette) => StyleSheet.create({
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
-  insightsBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: C.lineSoft, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card },
   wordmark: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, letterSpacing: -0.4, color: C.ink },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, marginTop: 6 },
   composer: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.lineSoft, padding: 13, gap: 10 },

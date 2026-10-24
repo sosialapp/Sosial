@@ -165,8 +165,11 @@ export default function NotificationBell() {
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity activeOpacity={1} onPress={() => setOpen(false)} style={s.bg}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={s.sheet}>
+        {/* Backdrop is a sibling, not a wrapper: a touchable around the list
+            swallows the drag and the ScrollView never scrolls. */}
+        <View style={s.bg}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setOpen(false)} style={StyleSheet.absoluteFill} accessibilityLabel="Close notifications" />
+          <View style={s.sheet}>
             <View style={s.head}>
               <Text style={s.title}>Notifications</Text>
               <TouchableOpacity onPress={() => setOpen(false)} hitSlop={12} accessibilityLabel="Close notifications">
@@ -210,8 +213,8 @@ export default function NotificationBell() {
                 ))
               )}
             </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

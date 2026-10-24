@@ -796,10 +796,11 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     .filter((c) => c !== 'any')
     .flatMap((c) => {
       const ids = selectedAccountIds(c);
-      if (ids.length === 0) return [{ key: c, platform: c, avatar: undefined as string | undefined }];
+      // The account's own picture, else the channel's first one, so the stack shows faces, not just logos.
+      if (ids.length === 0) return [{ key: c, platform: c, avatar: avatarFor(c) }];
       return ids.map((id) => {
         const a = accounts.find((x) => x.id === id);
-        return { key: `${c}:${id}`, platform: c, avatar: a ? accountAvatar(a) : undefined };
+        return { key: `${c}:${id}`, platform: c, avatar: (a ? accountAvatar(a) : undefined) ?? avatarFor(c) };
       });
     });
   const composeNets = plats.filter((c) => c !== 'any').map((c) => SOCIAL_META[c]?.label ?? c);
@@ -812,7 +813,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             key={a.key}
             style={{ marginLeft: i ? -9 : 0, zIndex: STACK_MAX - i, borderWidth: 2, borderColor: C.card, borderRadius: 16, backgroundColor: C.card }}
           >
-            <ChannelAvatar platform={a.platform} avatar={a.avatar} size={28} />
+            <ChannelAvatar platform={a.platform} avatar={a.avatar} size={28} ring={C.card} />
           </View>
         ))}
         {composeAuthors.length > STACK_MAX ? (
@@ -1214,7 +1215,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   {c === 'any' ? (
                     <Ionicons name="globe-outline" size={14} color={on && !blocked ? C.onInk : C.muted} />
                   ) : (
-                    <ChannelAvatar platform={c} avatar={avatarFor(c)} size={22} />
+                    <ChannelAvatar platform={c} avatar={avatarFor(c)} size={22} ring={on && !blocked ? C.ink : C.card} />
                   )}
                   <View style={{ gap: 0 }}>
                     <Text style={[st.chipT, on && !blocked && { color: C.onInk }]}>{label}</Text>

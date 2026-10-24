@@ -176,7 +176,14 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
 /** Channel avatar: profile picture of a connected account as a circular tile
  *  with the social logo stacked in a larger circular disc in the corner;
  *  falls back to the brand disc when no avatar. */
-export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { platform: string; avatar?: string; size?: number; badge?: boolean }) {
+export function ChannelAvatar({ platform, avatar, size = 38, badge = true, ring }: {
+  platform: string;
+  avatar?: string;
+  size?: number;
+  badge?: boolean;
+  /** Colour behind the avatar: the badge's ring blends into it instead of drawing an outline. */
+  ring?: string;
+}) {
   const { C } = useTheme();
   const bg = SOCIAL_META[platform]?.bg ?? C.ink;
   const badgeSize = Math.max(12, Math.round(size * 0.48));
@@ -200,7 +207,7 @@ export function ChannelAvatar({ platform, avatar, size = 38, badge = true }: { p
         </View>
       )}
       {live && badge ? (
-        <View style={{ position: 'absolute', right: -2, bottom: -2, width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bone }}>
+        <View style={{ position: 'absolute', right: -2, bottom: -2, width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: size < 30 ? 1 : 2, borderColor: ring ?? C.bone }}>
           <SocialGlyph platform={platform} size={Math.round(badgeSize * 0.62)} color="#fff" />
         </View>
       ) : null}
