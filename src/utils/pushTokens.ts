@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { isRunningInExpoGo } from 'expo';
 import Constants from 'expo-constants';
 import { supabase, currentSession } from './supabase';
 
@@ -21,7 +22,9 @@ async function N(): Promise<any | null> {
   _tried = true;
   // Android Expo Go removed the module (SDK 53+), don't even attempt the
   // import: even a caught attempt surfaces a LogBox. Everything else loads it.
-  if (Constants.appOwnership === 'expo' && Platform.OS === 'android') return null;
+  // isRunningInExpoGo() replaces the deprecated Constants.appOwnership, which
+  // SDK 58 no longer emits (it is null everywhere).
+  if (isRunningInExpoGo() && Platform.OS === 'android') return null;
   try {
     _mod = await import('expo-notifications');
     try {
@@ -38,10 +41,6 @@ async function N(): Promise<any | null> {
   } catch {
     return null;
   }
-}
-
-function isExpoGo(): boolean {
-  return Constants.appOwnership === 'expo';
 }
 
 async function ensureAndroidChannel(NN: any): Promise<void> {
@@ -105,7 +104,7 @@ export async function registerPushTokenFull(): Promise<PushRegResult> {
       return {
         token: null,
         stage: 'no-token',
-        detail: isExpoGo()
+        detail: isRunningInExpoGo()
           ? 'Expo Go has no remote push, use a development build.'
           : 'Notifications module unavailable on this device.',
       };

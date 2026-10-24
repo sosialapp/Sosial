@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import { Txt, Field, Seg, GhostBtn } from '../components/ui';
 import * as WebBrowser from 'expo-web-browser';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { wipeAllData } from '../utils/account';
 import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, callEdgeFunction, WorkspaceInfo, getMyAvatar, avatarSignedUrl, setAvatarFromUri, clearMyAvatar } from '../utils/supabase';
@@ -332,7 +332,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     // Google Web clients only accept https redirects and Expo Go can only
     // receive exp://, the combination can never complete. Dev builds use the
     // sosial:// scheme and work with the same code path.
-    if (Constants.appOwnership === 'expo') {
+    if (isRunningInExpoGo()) {
       Alert.alert(
         'Needs a development build',
         'Google sign-in can’t return to Expo Go. Use email + password here, Google lights up automatically in dev builds.',

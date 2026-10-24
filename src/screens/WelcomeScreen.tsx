@@ -12,7 +12,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, T, R, Palette } from '../theme';
 import { tr } from '../i18n';
@@ -151,7 +151,7 @@ export default function WelcomeScreen({
   const doGoogle = async () => {
     // Same platform limit as AccountScreen: Expo Go cannot receive the
     // https OAuth return; dev builds use the sosial:// scheme and work.
-    if (Constants.appOwnership === 'expo') {
+    if (isRunningInExpoGo()) {
       Alert.alert(
         tr('wGoogleAlertT'),
         tr('wGoogleAlertB'),

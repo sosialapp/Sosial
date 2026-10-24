@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StatusBar, ActivityIndicator, View, Text, BackHandler, Platform, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PostProvider, usePost } from './src/store/PostContext';
 import { ComposerProvider, useComposer } from './src/store/ComposerContext';
@@ -307,7 +307,8 @@ function Shell() {
     (async () => {
       try {
         // Android Expo Go has no notification module at all — skip silently
-        if (Constants.appOwnership === 'expo' && Platform.OS === 'android') return;
+        // (appOwnership is gone in SDK 58; isRunningInExpoGo is the live check)
+        if (isRunningInExpoGo() && Platform.OS === 'android') return;
         const NN = await import('expo-notifications');
         sub = NN.addNotificationResponseReceivedListener((resp: any) => {
           openData(resp.notification.request.content.data ?? {});

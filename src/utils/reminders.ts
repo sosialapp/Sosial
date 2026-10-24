@@ -1,5 +1,5 @@
 import { SOCIAL_META } from '../constants';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 
 // expo-notifications is NEVER statically imported: since SDK 53 the module
@@ -16,7 +16,7 @@ async function N(): Promise<any | null> {
   _tried = true;
   // Android Expo Go removed the module (SDK 53+), don't even attempt the
   // import: even a caught attempt surfaces a LogBox. Everything else loads it.
-  if (Constants.appOwnership === 'expo' && Platform.OS === 'android') return null;
+  if (isRunningInExpoGo() && Platform.OS === 'android') return null;
   try {
     _mod = await import('expo-notifications');
     try {
