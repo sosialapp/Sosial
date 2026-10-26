@@ -5,6 +5,7 @@ import { SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
 import { loadMetaState, loadAccounts, connectedChannelIds, onAccountsChanged } from '../utils/metaStore';
 import { schedulableProviders } from '../utils/socialAccounts';
+import { tr } from '../i18n';
 
 /** Masthead Connect pill, shows stacked brand tiles for every schedulable
  *  channel (local credentials plus cloud-only placeholders the worker
@@ -67,7 +68,7 @@ export default function ConnectButton({ onPress }: { onPress: () => void }) {
             ) : null}
           </View>
         ) : null}
-        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk }}>Connect</Text>
+        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk }}>{tr('nConnect')}</Text>
       </View>
     </TouchableOpacity>
   );

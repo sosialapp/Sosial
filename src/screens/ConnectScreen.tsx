@@ -43,6 +43,7 @@ import { subscribeAuthResult, flushAuthResults, clearPendingAuth, getPendingAuth
 import { backfillMissingAvatars } from '../utils/avatarBackfill';
 import { TT_CLIENT_KEY } from '../utils/tiktokConfig';
 import IntegrationsPanel from '../components/IntegrationsPanel';
+import { tr } from '../i18n';
 
 const PROVIDERS: ProviderKey[] = ['facebook', 'instagram', 'threads', 'tiktok', 'x', 'bluesky', 'mastodon', 'linkedin', 'youtube', 'pinterest', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb'];
 
@@ -201,7 +202,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     if (r.error) {
       await clearPendingAuth();
       setBusy(null);
-      Alert.alert('Login cancelled', r.error);
+      Alert.alert(tr('uLoginCancelled'), r.error);
       return;
     }
     if (!r.code) {
@@ -209,7 +210,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setBusy(null);
       return;
     }
-    setBusy('Exchanging token…');
+    setBusy(tr('uExchangingToken'));
     try {
       if (r.channel === 'facebook') {
         const token = await exchangeFacebookCode(r.code);
@@ -223,7 +224,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         setOpenProvider('facebook');
         setSelId((s) => ({ ...s, facebook: r.accountId ?? 'acct_facebook' }));
         if (pgs.length === 0) {
-          Alert.alert('No Pages found', 'Create a Facebook Page you manage first, posts publish as the Page.');
+          Alert.alert(tr('uNoPagesFound'), tr('uCreateAFacebookPage'));
         }
       } else if (r.channel === 'instagram') {
         const { token, userId } = await exchangeInstagramCode(r.code);
@@ -253,17 +254,17 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         const { name } = await completeTikTokLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('tiktok');
-        if (!name) Alert.alert('Connected', 'TikTok connected, we couldn’t read the display name yet.');
+        if (!name) Alert.alert(tr('uConnected'), tr('uTiktokConnectedWeCouldn'));
       } else if (r.channel === 'x') {
         const { name } = await completeXLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('x');
-        if (!name) Alert.alert('Connected', 'X connected, we couldn’t read the handle yet.');
+        if (!name) Alert.alert(tr('uConnected'), tr('uXConnectedWeCouldn'));
       } else if (r.channel === 'mastodon') {
         const { name } = await completeMastodonLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('mastodon');
-        if (!name) Alert.alert('Connected', 'Mastodon connected, we couldn’t read the handle yet.');
+        if (!name) Alert.alert(tr('uConnected'), tr('uMastodonConnectedWeCouldn'));
       } else if (r.channel === 'linkedin') {
         const { name } = await completeLiLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
@@ -273,18 +274,18 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
           const orgs = await listMyLiOrgs(r.accountId ?? 'acct_linkedin');
           setLiOrgs(orgs);
           if (orgs.length === 0) {
-            Alert.alert('No Company Pages found', 'Posting as yourself, admin a LinkedIn Page to post as the business.');
+            Alert.alert(tr('uNoCompanyPagesFound'), tr('uPostingAsYourselfAdmin'));
           }
         } catch {
           // org list needs the Marketing Developer Platform product; member
           // posting + stats still work, the picker just stays empty.
         }
-        if (!name) Alert.alert('Connected', 'LinkedIn connected, we couldn’t read the name yet.');
+        if (!name) Alert.alert(tr('uConnected'), tr('uLinkedinConnectedWeCouldn'));
       } else if (r.channel === 'youtube') {
         const { name } = await completeYtLogin(r.code, r.accountId);
         setAccounts(await loadAccounts());
         setOpenProvider('youtube');
-        if (!name) Alert.alert('Connected', 'YouTube connected, we couldn’t read the channel yet.');
+        if (!name) Alert.alert(tr('uConnected'), tr('uYoutubeConnectedWeCouldn'));
       } else if (r.channel === 'pinterest') {
         const { name } = await completePinLogin(r.code, r.accountId);
         const accts = await loadAccounts();
@@ -295,7 +296,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         setPinBoards(null);
         const acct = accts.find((a) => a.id === pid);
         if (acct) void loadPinBoardsFor(acct);
-        if (!name) Alert.alert('Connected', 'Pinterest connected, we couldn’t read the handle yet. Pick a board below.');
+        if (!name) Alert.alert(tr('uConnected'), tr('uPinterestConnectedWeCouldn'));
       } else if (r.channel === 'gmb') {
         // Exchange first, then stage the location pick.
         const pid = r.accountId ?? 'acct_gmb';
@@ -311,10 +312,10 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             setGgOpen(true);
             setOpenProvider('gmb');
           } else {
-            Alert.alert('Connected', 'Google connected, reconnect to pick a location.');
+            Alert.alert(tr('uConnected'), tr('uGoogleConnectedReconnectTo'));
           }
         } catch (e: any) {
-          Alert.alert('Connected', e?.message ?? 'Google connected, pick your location below.');
+          Alert.alert(tr('uConnected'), e?.message ?? tr('uGoogleConnectedPickYour'));
           setGgOpen(true);
           setOpenProvider('gmb');
         }
@@ -322,7 +323,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       if (r.code) await markCodeDone(r.code);
     } catch (e: any) {
       const label = r.channel[0].toUpperCase() + r.channel.slice(1);
-      Alert.alert(`${label} login failed`, e?.message ?? 'Try again.');
+      Alert.alert(`${label} login failed`, e?.message ?? tr('uTryAgain'));
     } finally {
       await clearPendingAuth();
       setBusy(null);
@@ -333,7 +334,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   useEffect(() => {
     const unsub = subscribeAuthResult((r) => { void completeRef.current(r); });
     flushAuthResults((r) => { void completeRef.current(r); });
-    getPendingAuth().then((ch) => { if (ch) setBusy('Waiting for login…'); });
+    getPendingAuth().then((ch) => { if (ch) setBusy(tr('uWaitingForLogin')); });
     return unsub;
   }, []);
 
@@ -341,7 +342,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     setBusy(null);
     Alert.alert(
       `${label} login closed`,
-      'If the browser showed a login page instead of a permission screen, sign in there, after that one sign-in, Connect goes straight through every time.'
+      tr('uIfTheBrowserShowed')
     );
   };
 
@@ -366,45 +367,45 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const capAlert = () => {
     if (pool) {
       Alert.alert(
-        'Channel limit reached',
+        tr('uChannelLimitReached'),
         pool.cap === null
-          ? "You're at the cap across your teams. Disconnect one or upgrade to add more."
+          ? tr('uYouReAtThe')
           : `Your plan connects up to ${pool.cap} channels across your teams, you're at ${pool.used}/${pool.cap}. Disconnect one or upgrade to add more.`,
       );
       return;
     }
     const cap = channelLimit();
     Alert.alert(
-      'Channel limit reached',
+      tr('uChannelLimitReached'),
       `Your plan connects up to ${cap} accounts, you're at the cap. Disconnect one or upgrade to add more.`,
     );
   };
   const doFacebook = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
-    setBusy('Opening Facebook…');
+    setBusy(tr('uOpeningFacebook'));
     if (!(await loginFacebook(accountId))) backedOut('Facebook');
   };
 
   const doInstagram = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
-    setBusy('Opening Instagram…');
+    setBusy(tr('uOpeningInstagram'));
     if (!(await loginInstagram(accountId))) backedOut('Instagram');
   };
 
   const doThreads = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
-    setBusy('Opening Threads…');
+    setBusy(tr('uOpeningThreads'));
     if (!(await loginThreads(accountId))) backedOut('Threads');
   };
 
   const loadPagesFor = async (acct: ConnectedAccount) => {
     const tok = acct.fields.fbUserToken as string | undefined;
     if (!tok) { setPages([]); return; }
-    setBusy('Loading Pages…');
+    setBusy(tr('uLoadingPages'));
     try {
       setPages(await fetchPages(tok));
     } catch (e: any) {
-      Alert.alert('Failed', e?.message ?? 'Could not load Pages.');
+      Alert.alert(tr('iFailed'), e?.message ?? tr('uCouldNotLoadPages'));
     } finally {
       setBusy(null);
     }
@@ -437,11 +438,11 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     const name = accountName(account) ?? account.provider;
     Alert.alert(
       `Disconnect ${name}?`,
-      'Disconnect stops publishing and keeps everything Sosial already saved for this account. Delete data also erases its posts, scheduled items, stats, comments and messages. Posts already live on the platform are never touched.',
+      tr('uDisconnectStopsPublishingAn'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete data', style: 'destructive', onPress: () => confirmDeleteData(account) },
-        { text: 'Disconnect', onPress: () => void revokeAccount(account) },
+        { text: tr('uCancel'), style: 'cancel' },
+        { text: tr('uDeleteData'), style: 'destructive', onPress: () => confirmDeleteData(account) },
+        { text: tr('uDisconnect'), onPress: () => void revokeAccount(account) },
       ],
     );
   };
@@ -458,10 +459,10 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     const name = accountName(account) ?? account.provider;
     Alert.alert(
       `Delete ${name}'s data?`,
-      'This permanently erases the posts, scheduled items, stats, comments and messages Sosial stored for this account, then disconnects it. Your media library stays. This cannot be undone.',
+      tr('uThisPermanentlyErasesThe'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete data', style: 'destructive', onPress: () => void deleteAccountData(account) },
+        { text: tr('uCancel'), style: 'cancel' },
+        { text: tr('uDeleteData'), style: 'destructive', onPress: () => void deleteAccountData(account) },
       ],
     );
   };
@@ -473,17 +474,17 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     // which would erase a sibling account's history too. Refuse instead.
     if (!externalId && remaining.length > 0) {
       Alert.alert(
-        'Remove the others first',
+        tr('uRemoveTheOthersFirst'),
         `Sosial can't tell your ${account.provider} accounts apart in the cloud, so deleting this one would also erase the history of the others. Disconnect them first, then delete the data here.`,
       );
       return;
     }
-    setBusy('Deleting data…');
+    setBusy(tr('uDeletingData'));
     try {
       await purgeCloudChannelAccount(account);
     } catch (e: any) {
       setBusy(null);
-      Alert.alert('Failed', e?.message ?? 'Could not delete the account data.');
+      Alert.alert(tr('iFailed'), e?.message ?? tr('uCouldNotDeleteThe'));
       return;
     }
     try {
@@ -505,18 +506,18 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
    */
   const removeCloudAccount = async (account: ConnectedAccount) => {
     Alert.alert(
-      'Remove everywhere?',
-      'This deletes the cloud channel and its stored tokens for the whole workspace. Scheduled posts for it pause until you reconnect.',
+      tr('uRemoveEverywhere'),
+      tr('uThisDeletesTheCloud'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr('uCancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: tr('uRemove'),
           style: 'destructive',
           onPress: async () => {
             try {
               await removeCloudChannelAccount(account);
             } catch (e: any) {
-              Alert.alert('Failed', e?.message ?? 'Could not remove the account.');
+              Alert.alert(tr('iFailed'), e?.message ?? tr('uCouldNotRemoveThe'));
               return;
             }
             setAccounts(await removeAccount(account.id));
@@ -532,7 +533,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       Alert.alert('Keys missing', 'TikTok client key is empty, check .env, then restart Expo (env loads at startup).');
       return;
     }
-    setBusy('Opening TikTok…');
+    setBusy(tr('uOpeningTiktok'));
     if (!(await loginTikTok(accountId))) backedOut('TikTok');
   };
 
@@ -544,24 +545,24 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     // Paywalled provider: free plans can't start NEW X connects (reconnects
     // of existing accounts always work). Server enforces the same rule.
     if (!accountId && !canConnectProvider(plan ?? 'free', 'x')) {
-      Alert.alert('X needs a paid plan', 'Its posting API is paywalled. Upgrade to connect X.');
+      Alert.alert(tr('uXNeedsAPaid'), tr('uItsPostingApiIs'));
       return;
     }
-    setBusy('Opening X…');
+    setBusy(tr('uOpeningX'));
     if (!(await loginX(accountId))) backedOut('X');
   };
 
   const doBsky = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
-    setBusy('Connecting Bluesky…');
+    setBusy(tr('uConnectingBluesky'));
     try {
       const { name } = await completeBskyLogin(bskyHandle, bskyPass, accountId);
       setBskyPass('');
       setAccounts(await loadAccounts());
       setOpenProvider('bluesky');
-      if (!name) Alert.alert('Connected', 'Bluesky connected.');
+      if (!name) Alert.alert(tr('uConnected'), tr('uBlueskyConnected'));
     } catch (e: any) {
-      Alert.alert('Bluesky login failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uBlueskyLoginFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -569,26 +570,26 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
 
   const doMastodon = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
-    setBusy('Opening Mastodon…');
+    setBusy(tr('uOpeningMastodon'));
     try {
       if (!(await loginMastodon(mastodonInstance, accountId))) backedOut('Mastodon');
     } catch (e: any) {
       setBusy(null);
-      Alert.alert('Mastodon login failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uMastodonLoginFailed'), e?.message ?? tr('uTryAgain'));
     }
   };
 
   const doTelegram = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
     if (!tgToken.trim()) {
-      Alert.alert('Bot token missing', 'Paste the token from @BotFather first.');
+      Alert.alert(tr('uBotTokenMissing'), tr('uPasteTheTokenFrom'));
       return;
     }
     if (!tgChat.trim()) {
-      Alert.alert('Destination missing', 'Enter the channel or group (id or @username).');
+      Alert.alert(tr('uDestinationMissing'), tr('uEnterTheChannelOr'));
       return;
     }
-    setBusy('Checking Telegram…');
+    setBusy(tr('uCheckingTelegram'));
     try {
       await validateTelegramBot(tgToken.trim());
       const chat = await resolveTelegramChat(tgToken.trim(), tgChat.trim());
@@ -606,9 +607,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setTgChat('');
       setAccounts(await loadAccounts());
       setOpenProvider('telegram');
-      Alert.alert('Connected', `Telegram → ${chat.title}.`);
+      Alert.alert(tr('uConnected'), `Telegram → ${chat.title}.`);
     } catch (e: any) {
-      Alert.alert('Telegram connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uTelegramConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -616,10 +617,10 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
 
   const loadDcGuilds = async () => {
     if (!dcToken.trim()) {
-      Alert.alert('Bot token missing', 'Paste the token from the Developer Portal first.');
+      Alert.alert(tr('uBotTokenMissing'), tr('uPasteTheTokenFrom2'));
       return;
     }
-    setBusy('Asking Discord…');
+    setBusy(tr('uAskingDiscord'));
     try {
       const guilds = await listDiscordGuilds(dcToken.trim());
       setDcGuilds(guilds);
@@ -627,9 +628,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setDcChannels([]);
       setDcThreads([]);
       setDcChannel('');
-      if (!guilds.length) Alert.alert('No servers', 'That bot is in no servers, invite it first.');
+      if (!guilds.length) Alert.alert(tr('uNoServers'), tr('uThatBotIsIn'));
     } catch (e: any) {
-      Alert.alert('Discord failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uDiscordFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -641,7 +642,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     setDcThreads([]);
     setDcChannel('');
     if (!guildId) return;
-    setBusy('Loading channels…');
+    setBusy(tr('uLoadingChannels'));
     try {
       const [channels, threads] = await Promise.all([
         listDiscordChannels(dcToken.trim(), guildId),
@@ -649,9 +650,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       ]);
       setDcChannels(channels);
       setDcThreads(threads);
-      if (!channels.length && !threads.length) Alert.alert('No text channels', 'Check the bot can see one.');
+      if (!channels.length && !threads.length) Alert.alert(tr('uNoTextChannels'), tr('uCheckTheBotCan'));
     } catch (e: any) {
-      Alert.alert('Discord failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uDiscordFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -660,10 +661,10 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const doDiscord = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
     if (!dcChannel) {
-      Alert.alert('Channel missing', 'Pick a server and channel first.');
+      Alert.alert(tr('uChannelMissing'), tr('uPickAServerAnd'));
       return;
     }
-    setBusy('Connecting Discord…');
+    setBusy(tr('uConnectingDiscord'));
     try {
       const guild = dcGuilds.find((g) => g.id === dcGuild);
       const channel = dcChannels.find((c) => c.id === dcChannel);
@@ -690,9 +691,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setDcChannel('');
       setAccounts(await loadAccounts());
       setOpenProvider('discord');
-      Alert.alert('Connected', `Discord → ${destName || `#${dcChannel}`}.`);
+      Alert.alert(tr('uConnected'), `Discord → ${destName || `#${dcChannel}`}.`);
     } catch (e: any) {
-      Alert.alert('Discord connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uDiscordConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -701,18 +702,18 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const doWordPress = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
     if (!wpSite.trim()) {
-      Alert.alert('Site URL missing', 'Enter your site URL first (https://…).');
+      Alert.alert(tr('uSiteUrlMissing'), tr('uEnterYourSiteUrl'));
       return;
     }
     if (!wpUser.trim()) {
-      Alert.alert('Username missing', 'Enter the WordPress username.');
+      Alert.alert(tr('uUsernameMissing'), tr('uEnterTheWordpressUsername'));
       return;
     }
     if (!wpPass) {
-      Alert.alert('Password missing', 'Paste the application password.');
+      Alert.alert(tr('uPasswordMissing'), tr('uPasteTheApplicationPassword'));
       return;
     }
-    setBusy('Checking the site…');
+    setBusy(tr('uCheckingTheSite'));
     try {
       const site = await validateWordPress(wpSite, wpUser, wpPass);
       await saveProviderFields(
@@ -731,9 +732,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setWpPass('');
       setAccounts(await loadAccounts());
       setOpenProvider('wordpress');
-      Alert.alert('Connected', `WordPress → ${site.siteName}.`);
+      Alert.alert(tr('uConnected'), `WordPress → ${site.siteName}.`);
     } catch (e: any) {
-      Alert.alert('WordPress connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uWordpressConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -742,10 +743,10 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const doDevto = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
     if (!devKey.trim()) {
-      Alert.alert('API key missing', 'Paste the key from dev.to → Settings → Extensions.');
+      Alert.alert(tr('uApiKeyMissing'), tr('uPasteTheKeyFrom'));
       return;
     }
-    setBusy('Checking Dev.to…');
+    setBusy(tr('uCheckingDevTo'));
     try {
       const id = await validateDevto(devKey.trim());
       await saveProviderFields(
@@ -762,9 +763,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setDevKey('');
       setAccounts(await loadAccounts());
       setOpenProvider('devto');
-      Alert.alert('Connected', `Dev.to → ${id.name || id.username}.`);
+      Alert.alert(tr('uConnected'), `Dev.to → ${id.name || id.username}.`);
     } catch (e: any) {
-      Alert.alert('Dev.to connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uDevToConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -772,19 +773,19 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
 
   const loadHnPubs = async () => {
     if (!hnToken.trim()) {
-      Alert.alert('Token missing', 'Paste the token from hashnode.com → Settings → Developer.');
+      Alert.alert(tr('uTokenMissing'), tr('uPasteTheTokenFrom3'));
       return;
     }
-    setBusy('Asking Hashnode…');
+    setBusy(tr('uAskingHashnode'));
     try {
       const id = await validateHashnode(hnToken.trim());
       setHnPubs(id.publications);
       setHnPub('');
       if (!id.publications.length) {
-        Alert.alert('No publications', 'That token sees no publications, publish from an account with a blog.');
+        Alert.alert(tr('uNoPublications'), tr('uThatTokenSeesNo'));
       }
     } catch (e: any) {
-      Alert.alert('Hashnode failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uHashnodeFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -794,10 +795,10 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     if (atChannelCap(accountId)) { capAlert(); return; }
     const pub = hnPubs.find((g) => g.id === hnPub);
     if (!pub) {
-      Alert.alert('Publication missing', 'Pick a publication first.');
+      Alert.alert(tr('uPublicationMissing'), tr('uPickAPublicationFirst'));
       return;
     }
-    setBusy('Connecting Hashnode…');
+    setBusy(tr('uConnectingHashnode'));
     try {
       await saveProviderFields(
         'hashnode',
@@ -813,9 +814,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setHnPub('');
       setAccounts(await loadAccounts());
       setOpenProvider('hashnode');
-      Alert.alert('Connected', `Hashnode → ${pub.title}.`);
+      Alert.alert(tr('uConnected'), `Hashnode → ${pub.title}.`);
     } catch (e: any) {
-      Alert.alert('Hashnode connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uHashnodeConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -824,14 +825,14 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const doGhost = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
     if (!ghSite.trim()) {
-      Alert.alert('Site URL missing', 'Enter your Ghost site URL first (https://…).');
+      Alert.alert(tr('uSiteUrlMissing'), tr('uEnterYourGhostSite'));
       return;
     }
     if (!ghKey) {
-      Alert.alert('Key missing', 'Paste the Admin API key (id:secret).');
+      Alert.alert(tr('uKeyMissing'), tr('uPasteTheAdminApi'));
       return;
     }
-    setBusy('Checking the site…');
+    setBusy(tr('uCheckingTheSite'));
     try {
       const site = await validateGhost(ghKey, ghSite);
       await saveProviderFields(
@@ -847,9 +848,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setGhKey('');
       setAccounts(await loadAccounts());
       setOpenProvider('ghost');
-      Alert.alert('Connected', `Ghost → ${site.siteName}.`);
+      Alert.alert(tr('uConnected'), `Ghost → ${site.siteName}.`);
     } catch (e: any) {
-      Alert.alert('Ghost connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uGhostConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -857,7 +858,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
 
   const doGmb = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
-    setBusy('Opening Google…');
+    setBusy(tr('uOpeningGoogle'));
     if (!(await loginGmb(accountId))) backedOut('Google Business');
   };
 
@@ -874,7 +875,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         accounts.find((a) => a.provider === 'gmb' && a.fields.gmRefreshToken);
       const f = src?.fields ?? {};
       if (!f.gmRefreshToken) {
-        throw new Error('Google login is missing, connect Google Business first.');
+        throw new Error(tr('uGoogleLoginIsMissing'));
       }
       await saveProviderFields(
         'gmb',
@@ -888,9 +889,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         accountId,
       );
       setAccounts(await loadAccounts());
-      Alert.alert('Connected', `Google Business → ${loc.title}.`);
+      Alert.alert(tr('uConnected'), `Google Business → ${loc.title}.`);
     } catch (e: any) {
-      Alert.alert('Google Business connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uGoogleBusinessConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -899,14 +900,14 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const doVk = async (accountId?: string) => {
     if (atChannelCap(accountId)) { capAlert(); return; }
     if (!vkCommunity.trim()) {
-      Alert.alert('Community missing', 'Enter the community link, short name or numeric id first.');
+      Alert.alert(tr('uCommunityMissing'), tr('uEnterTheCommunityLink'));
       return;
     }
     if (!vkKey) {
-      Alert.alert('Key missing', 'Paste the community access key.');
+      Alert.alert(tr('uKeyMissing'), tr('uPasteTheCommunityAccess'));
       return;
     }
-    setBusy('Asking VK…');
+    setBusy(tr('uAskingVk'));
     try {
       const community = await validateVk(vkKey, vkCommunity);
       await saveProviderFields(
@@ -923,9 +924,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       setVkKey('');
       setAccounts(await loadAccounts());
       setOpenProvider('vk');
-      Alert.alert('Connected', `VK → ${community.groupName}.`);
+      Alert.alert(tr('uConnected'), `VK → ${community.groupName}.`);
     } catch (e: any) {
-      Alert.alert('VK connect failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uVkConnectFailed'), e?.message ?? tr('uTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -937,21 +938,21 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
       return;
     }
-    setBusy('Opening LinkedIn…');
+    setBusy(tr('uOpeningLinkedin'));
     try {
       if (!(await loginLinkedIn(accountId))) backedOut('LinkedIn');
     } catch (e: any) {
       setBusy(null);
-      Alert.alert('LinkedIn login failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uLinkedinLoginFailed'), e?.message ?? tr('uTryAgain'));
     }
   };
 
   const loadLiOrgsFor = async (acct: ConnectedAccount) => {
-    setBusy('Loading Pages…');
+    setBusy(tr('uLoadingPages'));
     try {
       setLiOrgs(await listMyLiOrgs(acct.id));
     } catch (e: any) {
-      Alert.alert('Failed', e?.message ?? 'Could not load Company Pages.');
+      Alert.alert(tr('iFailed'), e?.message ?? tr('uCouldNotLoadCompany'));
     } finally {
       setBusy(null);
     }
@@ -963,12 +964,12 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       Alert.alert('Keys missing', 'Paste the Client ID + secret into .env first, then reload.');
       return;
     }
-    setBusy('Opening Google…');
+    setBusy(tr('uOpeningGoogle'));
     try {
       if (!(await loginYouTube(accountId))) backedOut('YouTube');
     } catch (e: any) {
       setBusy(null);
-      Alert.alert('YouTube login failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uYoutubeLoginFailed'), e?.message ?? tr('uTryAgain'));
     }
   };
 
@@ -978,12 +979,12 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       Alert.alert('Keys missing', 'Paste the App ID + secret into .env first, then reload.');
       return;
     }
-    setBusy('Opening Pinterest…');
+    setBusy(tr('uOpeningPinterest'));
     try {
       if (!(await loginPinterest(accountId))) backedOut('Pinterest');
     } catch (e: any) {
       setBusy(null);
-      Alert.alert('Pinterest login failed', e?.message ?? 'Try again.');
+      Alert.alert(tr('uPinterestLoginFailed'), e?.message ?? tr('uTryAgain'));
     }
   };
 
@@ -992,9 +993,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     try {
       const boards = await listPinBoards(acct.id);
       setPinBoards(boards);
-      if (boards.length === 0) Alert.alert('No boards yet', 'Create a board in Pinterest first, then pick it here.');
+      if (boards.length === 0) Alert.alert(tr('uNoBoardsYet'), tr('uCreateABoardIn'));
     } catch (e: any) {
-      Alert.alert('Couldn’t load boards', e?.message ?? 'Try again.');
+      Alert.alert(tr('uCouldnTLoadBoards'), e?.message ?? tr('uTryAgain'));
     } finally {
       setPinBoardsLoading(false);
     }
@@ -1037,9 +1038,9 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
   const accountLabel = (a: ConnectedAccount): string => {
     const n = accountName(a);
     if (n) return n;
-    if (a.provider === 'facebook') return 'Choose a Page';
-    if (a.provider === 'pinterest') return 'Connected, pick a board';
-    return 'Connected';
+    if (a.provider === 'facebook') return tr('uChooseAPage');
+    if (a.provider === 'pinterest') return tr('uConnectedPickABoard');
+    return tr('uConnected');
   };
 
   const selectedAccountFor = (p: ProviderKey): ConnectedAccount | undefined => {
@@ -1061,7 +1062,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
    *  Signed-out users only touch device-local channels: always allowed. */
   const needManager = (): boolean => {
     if (!cloudUser || isManager) return true;
-    Alert.alert('Owners and admins only', 'Only owners and admins can connect or remove channels.');
+    Alert.alert(tr('uOwnersAndAdminsOnly'), tr('uOnlyOwnersAndAdmins'));
     return false;
   };
   /** "Connect on this device" for a cloud-only placeholder (upgrades in place). */
@@ -1081,14 +1082,14 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
 
   const statusLabel = (p: ProviderKey, list: ConnectedAccount[]): string => {
     if (list.length === 0) {
-      if (p === 'bluesky') return 'Handle + app password';
-      if (p === 'mastodon') return 'Username + login';
-      if (p === 'telegram') return 'Bot token + chat';
-      if (p === 'discord') return 'Bot token + server';
-      if (p === 'wordpress') return 'Site + app password';
-      if (p === 'devto') return 'API key';
-      if (p === 'hashnode') return 'Token + publication';
-      return 'Tap to connect';
+      if (p === 'bluesky') return tr('uHandleAppPassword');
+      if (p === 'mastodon') return tr('uUsernameLogin');
+      if (p === 'telegram') return tr('uBotTokenChat');
+      if (p === 'discord') return tr('uBotTokenServer');
+      if (p === 'wordpress') return tr('uSiteAppPassword');
+      if (p === 'devto') return tr('uApiKey');
+      if (p === 'hashnode') return tr('uTokenPublication');
+      return tr('uTapToConnect');
     }
     if (list.length === 1) return accountLabel(list[0]);
     return `${list.length} accounts`;
@@ -1118,13 +1119,13 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
           </View>
           <Txt value={bskyPass} onChangeText={setBskyPass} placeholder="xxxx-xxxx-xxxx-xxxx" autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to get your app password</Text>
+            <Text style={s.helpTitle}>{tr('uHowToGetYour')}</Text>
             {[
-              'Bluesky → Settings → Privacy and security → App passwords',
-              'Press “+ Add App Password”',
-              'Name it “Sosial”',
-              'Tick “Allow access to your direct messages”',
-              'Copy the one-time password and paste it above',
+              tr('uBlueskySettingsPrivacyAnd'),
+              tr('uPressAddAppPassword'),
+              tr('uNameItSosial'),
+              tr('uTickAllowAccessTo'),
+              tr('uCopyTheOneTime'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1133,7 +1134,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doBsky(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add this account' : 'Connect Bluesky'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddThisAccount') : tr('uConnectBluesky')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1154,11 +1155,11 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             {!mastodonInstance.includes('.') ? <Text style={s.bskySuffix}>@mastodon.social</Text> : null}
           </View>
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Mastodon</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectMastodon')}</Text>
             {[
-              'Type your username, or a full server like fosstodon.org',
-              'Sign in and approve the app on that server',
-              'Posts and analytics then go to your account there',
+              tr('uTypeYourUsernameOr'),
+              tr('uSignInAndApprove'),
+              tr('uPostsAndAnalyticsThen'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1167,7 +1168,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doMastodon(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add this account' : 'Connect Mastodon'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddThisAccount') : tr('uConnectMastodon')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1178,11 +1179,11 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
           <Txt value={tgToken} onChangeText={setTgToken} placeholder="Bot token (123456:ABC…)" autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <Txt value={tgChat} onChangeText={setTgChat} placeholder="Destination: @channel or -100…" autoCapitalize="none" autoCorrect={false} />
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Telegram</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectTelegram')}</Text>
             {[
-              'Message @BotFather for a bot token',
-              'Add the bot to your channel/group as an admin',
-              'Paste the destination id or @username above',
+              tr('uMessageBotfatherForA'),
+              tr('uAddTheBotTo'),
+              tr('uPasteTheDestinationId'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1191,7 +1192,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doTelegram(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add another bot' : 'Connect Telegram'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddAnotherBot') : tr('uConnectTelegram')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1199,13 +1200,13 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     if (p === 'discord') {
       return (
         <>
-          <Txt value={dcToken} onChangeText={(v) => { setDcToken(v); setDcGuilds([]); setDcGuild(''); setDcChannels([]); setDcThreads([]); setDcChannel(''); }} placeholder="Bot token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <Txt value={dcToken} onChangeText={(v) => { setDcToken(v); setDcGuilds([]); setDcGuild(''); setDcChannels([]); setDcThreads([]); setDcChannel(''); }} placeholder={tr('uBotToken')} autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Discord</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectDiscord')}</Text>
             {[
-              'Developer Portal → new app → Bot → copy token',
-              'Invite it: Guild Install + Send Messages + Read Message History',
-              'Paste token below → list servers → pick a channel or thread',
+              tr('uDeveloperPortalNewApp'),
+              tr('uInviteItGuildInstall'),
+              tr('uPasteTokenBelowList'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1213,12 +1214,12 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
               </View>
             ))}
             <TouchableOpacity onPress={() => Linking.openURL('https://discord.com/developers/home')} activeOpacity={0.7}>
-              <Text style={[s.helpText, { color: C.accentInk, fontWeight: '700' }]}>Open Discord Developer Portal ›</Text>
+              <Text style={[s.helpText, { color: C.accentInk, fontWeight: '700' }]}>{tr('uOpenDiscordDeveloperPortal')}</Text>
             </TouchableOpacity>
           </View>
           {dcGuilds.length === 0 ? (
             <TouchableOpacity onPress={() => { if (needManager()) void loadDcGuilds(); }} activeOpacity={0.7} style={s.pageRow}>
-              <Text style={s.pageT}>List my servers</Text>
+              <Text style={s.pageT}>{tr('uListMyServers')}</Text>
             </TouchableOpacity>
           ) : (
             <>
@@ -1250,7 +1251,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                 </TouchableOpacity>
               ))}
               <TouchableOpacity onPress={() => { if (needManager()) void doDiscord(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-                <Text style={s.pageT}>{list.length > 0 ? 'Add this channel' : 'Connect Discord'}</Text>
+                <Text style={s.pageT}>{list.length > 0 ? tr('uAddThisChannel') : tr('uConnectDiscord')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -1261,14 +1262,14 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       return (
         <>
           <Txt value={wpSite} onChangeText={setWpSite} placeholder="https://example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" />
-          <Txt value={wpUser} onChangeText={setWpUser} placeholder="Username" autoCapitalize="none" autoCorrect={false} />
+          <Txt value={wpUser} onChangeText={setWpUser} placeholder={tr('uUsername')} autoCapitalize="none" autoCorrect={false} />
           <Txt value={wpPass} onChangeText={setWpPass} placeholder="xxxx xxxx xxxx xxxx" autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect WordPress</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectWordpress')}</Text>
             {[
-              'On your site: Users → Profile → Application Passwords',
-              'Name it “Sosial”, copy the generated password',
-              'Each site connects separately, no central approval',
+              tr('uOnYourSiteUsers'),
+              tr('uNameItSosialCopy'),
+              tr('uEachSiteConnectsSeparately'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1277,7 +1278,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doWordPress(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add another site' : 'Connect WordPress'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddAnotherSite') : tr('uConnectWordpress')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1285,13 +1286,13 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     if (p === 'devto') {
       return (
         <>
-          <Txt value={devKey} onChangeText={setDevKey} placeholder="API key" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <Txt value={devKey} onChangeText={setDevKey} placeholder={tr('uApiKey')} autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Dev.to</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectDev')}</Text>
             {[
-              'dev.to → Settings → Extensions → generate a key',
-              'Paste it above, articles publish under your account',
-              'Tags cap at 4, covers come later',
+              tr('uDevToSettingsExtensions'),
+              tr('uPasteItAboveArticles'),
+              tr('uTagsCapAt4'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1300,7 +1301,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doDevto(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add another account' : 'Connect Dev.to'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddAnotherAccount') : tr('uConnectDevTo')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1308,17 +1309,17 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     if (p === 'hashnode') {
       return (
         <>
-          <Txt value={hnToken} onChangeText={(v) => { setHnToken(v); setHnPubs([]); setHnPub(''); }} placeholder="Personal access token" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <Txt value={hnToken} onChangeText={(v) => { setHnToken(v); setHnPubs([]); setHnPub(''); }} placeholder={tr('uPersonalAccessToken')} autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={[s.helpCard, { borderColor: C.accent, borderWidth: 1 }]}>
-            <Text style={[s.helpTitle, { color: C.accentInk }]}>Hashnode Pro required</Text>
-            <Text style={s.helpText}>Only Pro publications can connect, upgrade at your blog dashboard → Billing first.</Text>
+            <Text style={[s.helpTitle, { color: C.accentInk }]}>{tr('uHashnodeProRequired')}</Text>
+            <Text style={s.helpText}>{tr('uOnlyProPublicationsCan')}</Text>
           </View>
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Hashnode</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectHashnode')}</Text>
             {[
-              'hashnode.com → Settings → Developer → new token',
-              'List publications, pick the blog below',
-              'Articles publish there as you',
+              tr('uHashnodeComSettingsDevelope'),
+              tr('uListPublicationsPickThe'),
+              tr('uArticlesPublishThereAs'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1328,7 +1329,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
           </View>
           {hnPubs.length === 0 ? (
             <TouchableOpacity onPress={() => { if (needManager()) void loadHnPubs(); }} activeOpacity={0.7} style={s.pageRow}>
-              <Text style={s.pageT}>List my publications</Text>
+              <Text style={s.pageT}>{tr('uListMyPublications')}</Text>
             </TouchableOpacity>
           ) : (
             <>
@@ -1341,7 +1342,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                 </TouchableOpacity>
               ))}
               <TouchableOpacity onPress={() => { if (needManager()) void doHashnode(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-                <Text style={s.pageT}>{list.length > 0 ? 'Add this publication' : 'Connect Hashnode'}</Text>
+                <Text style={s.pageT}>{list.length > 0 ? tr('uAddThisPublication') : tr('uConnectHashnode')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -1352,13 +1353,13 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       return (
         <>
           <Txt value={ghSite} onChangeText={setGhSite} placeholder="https://example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" />
-          <Txt value={ghKey} onChangeText={setGhKey} placeholder="Admin API key (id:secret)" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <Txt value={ghKey} onChangeText={setGhKey} placeholder={tr('uAdminApiKeyId')} autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Ghost</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectGhost')}</Text>
             {[
-              'Ghost Admin → Settings → Integrations → Add custom',
-              'Copy the Admin API Key (not the content key)',
-              'Each site connects separately, no central approval',
+              tr('uGhostAdminSettingsIntegrati'),
+              tr('uCopyTheAdminApi'),
+              tr('uEachSiteConnectsSeparately'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1367,7 +1368,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doGhost(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add another site' : 'Connect Ghost'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddAnotherSite') : tr('uConnectGhost')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1375,14 +1376,14 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     if (p === 'vk') {
       return (
         <>
-          <Txt value={vkCommunity} onChangeText={setVkCommunity} placeholder="vk.com/club123, short name or id" autoCapitalize="none" autoCorrect={false} />
-          <Txt value={vkKey} onChangeText={setVkKey} placeholder="Community access key" autoCapitalize="none" autoCorrect={false} secureTextEntry />
+          <Txt value={vkCommunity} onChangeText={setVkCommunity} placeholder={tr('uVkComClub123Short')} autoCapitalize="none" autoCorrect={false} />
+          <Txt value={vkKey} onChangeText={setVkKey} placeholder={tr('uCommunityAccessKey')} autoCapitalize="none" autoCorrect={false} secureTextEntry />
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect VK</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectVk')}</Text>
             {[
-              'Community → Manage → Working with API → Access Tokens',
-              'Create a key with wall + photos rights (never expires)',
-              'Communities only, personal-profile posting is VK-gated',
+              tr('uCommunityManageWorkingWith'),
+              tr('uCreateAKeyWith'),
+              tr('uCommunitiesOnlyPersonalProf'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1391,7 +1392,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doVk(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add another community' : 'Connect VK'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddAnotherCommunity') : tr('uConnectVk')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1400,11 +1401,11 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       return (
         <>
           <View style={s.helpCard}>
-            <Text style={s.helpTitle}>How to connect Google Business</Text>
+            <Text style={s.helpTitle}>{tr('uHowToConnectGoogle')}</Text>
             {[
-              'Sign in with the Google account that manages the profile',
-              'Pick your location below (each connects separately)',
-              'Posts publish as local posts on the profile',
+              tr('uSignInWithThe'),
+              tr('uPickYourLocationBelow'),
+              tr('uPostsPublishAsLocal'),
             ].map((step, i) => (
               <View key={i} style={s.helpStep}>
                 <Text style={s.helpNum}>{i + 1}</Text>
@@ -1413,7 +1414,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             ))}
           </View>
           <TouchableOpacity onPress={() => { if (needManager()) void doGmb(addId()); }} activeOpacity={0.7} style={s.pageRow}>
-            <Text style={s.pageT}>{list.length > 0 ? 'Add another location' : 'Connect Google Business'}</Text>
+            <Text style={s.pageT}>{list.length > 0 ? tr('uAddAnotherLocation') : tr('uConnectGoogleBusiness')}</Text>
           </TouchableOpacity>
         </>
       );
@@ -1448,7 +1449,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             })
           ) : (
             <TouchableOpacity onPress={() => acct && void loadPagesFor(acct)} activeOpacity={0.7} style={s.pageRow}>
-              <Text style={s.pageT}>Load my Pages</Text>
+              <Text style={s.pageT}>{tr('uLoadMyPages')}</Text>
             </TouchableOpacity>
           )}
         </>
@@ -1477,15 +1478,15 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                 const acct = sel ?? selectedAccountFor('gmb');
                 const tok = (acct?.fields.gmAccessToken as string | undefined) ?? '';
                 if (!tok) {
-                  Alert.alert('Connect first', 'Sign in with Google above, then pick your location here.');
+                  Alert.alert(tr('uConnectFirst'), tr('uSignInWithGoogle'));
                   return;
                 }
-                setBusy('Loading locations…');
+                setBusy(tr('uLoadingLocations'));
                 try {
                   setGgLocs(await fetchGmbLocations(tok));
                   setGgOpen(true);
                 } catch (e: any) {
-                  Alert.alert('Could not list locations', e?.message ?? 'Try again.');
+                  Alert.alert(tr('uCouldNotListLocations'), e?.message ?? tr('uTryAgain'));
                 } finally {
                   setBusy(null);
                 }
@@ -1493,7 +1494,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
               activeOpacity={0.7}
               style={s.pageRow}
             >
-              <Text style={s.pageT}>List my locations</Text>
+              <Text style={s.pageT}>{tr('uListMyLocations')}</Text>
             </TouchableOpacity>
           )}
         </>
@@ -1532,7 +1533,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             </>
           ) : (
             <TouchableOpacity onPress={() => acct && void loadLiOrgsFor(acct)} activeOpacity={0.7} style={s.pageRow}>
-              <Text style={s.pageT}>Load my Company Pages</Text>
+              <Text style={s.pageT}>{tr('uLoadMyCompanyPages')}</Text>
             </TouchableOpacity>
           )}
         </>
@@ -1544,7 +1545,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
       return (
         <>
           {pinBoardsLoading ? (
-            <View style={s.pageRow}><Text style={s.pageT}>Loading boards…</Text></View>
+            <View style={s.pageRow}><Text style={s.pageT}>{tr('uLoadingBoards')}</Text></View>
           ) : pinBoards && pinBoards.length > 0 ? (
             pinBoards.map((b) => {
               const on = boardId === b.id;
@@ -1562,7 +1563,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             })
           ) : (
             <TouchableOpacity onPress={() => acct && void loadPinBoardsFor(acct)} activeOpacity={0.7} style={s.pageRow}>
-              <Text style={s.pageT}>Load my boards</Text>
+              <Text style={s.pageT}>{tr('uLoadMyBoards')}</Text>
             </TouchableOpacity>
           )}
         </>
@@ -1579,18 +1580,18 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
     try {
       const sn = await currentSession().catch(() => null);
       if (!sn) {
-        Alert.alert('Sign in', 'Sign in to Sosial Cloud first (Account tab).');
+        Alert.alert(tr('wSegIn'), tr('uSignInToSosial2'));
         return;
       }
       const j: any = await callEdgeFunction('recheck-channels', { workspace_id: sn.workspace.id });
       await syncCloudChannels().catch(() => null);
       setAccounts(await loadAccounts().catch(() => []));
       Alert.alert(
-        'Health check started',
+        tr('uHealthCheckStarted'),
         `Re-checking ${j?.queued_refresh ?? 'your'} channel(s), expired tokens will show up here shortly.`,
       );
     } catch (e: any) {
-      Alert.alert('Sync failed', e?.message ?? 'Could not start the health check.');
+      Alert.alert(tr('uSyncFailed'), e?.message ?? tr('uCouldNotStartThe'));
     } finally {
       setSyncing(false);
     }
@@ -1608,24 +1609,24 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
         <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn}>
           <Ionicons name="chevron-back" size={20} color={C.ink} />
         </TouchableOpacity>
-        <Text style={s.kicker}>{tab === 'channels' ? 'Channels' : 'Integrations'}</Text>
-        <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Connect</Text>
+        <Text style={s.kicker}>{tab === 'channels' ? tr('iChannels') : tr('uIntegrations')}</Text>
+        <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>{tr('nConnect')}</Text>
 
         <View style={{ marginTop: 16 }}>
           <Seg
-            accessibilityLabel="Channels or integrations"
+            accessibilityLabel={tr('uChannelsOrIntegrations')}
             value={tab}
             onChange={setTab}
             options={[
-              { value: 'channels', label: 'Channels' },
-              { value: 'integrations', label: 'Integrations' },
+              { value: 'channels', label: tr('iChannels') },
+              { value: 'integrations', label: tr('uIntegrations') },
             ]}
           />
         </View>
 
         {!isManager && cloudUser ? (
           <View style={[s.warn, { marginTop: 12 }]}>
-            <Text style={s.warnT}>You can see the workspace channels here, but only owners and admins can connect or remove them.</Text>
+            <Text style={s.warnT}>{tr('uYouCanSeeThe')}</Text>
           </View>
         ) : null}
 
@@ -1646,12 +1647,12 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             )}
           </View>
           <View style={{ flex: 1, gap: 1 }}>
-            <Text style={s.teamT}>Team</Text>
+            <Text style={s.teamT}>{tr('aTeam')}</Text>
             <Text style={s.teamS}>
               {teamCount === null
-                ? 'Roles, channels & invites'
+                ? tr('uRolesChannelsInvites')
                 : teamCount === 0
-                  ? 'Invite teammates & manage roles'
+                  ? tr('uInviteTeammatesManageRoles')
                   : `${teamCount} teammate${teamCount === 1 ? '' : 's'} · roles & invites`}
             </Text>
           </View>
@@ -1686,18 +1687,18 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
           </View>
         ) : null}
 
-        <View style={s.list}>
-          {cloudUser ? (
-            <TouchableOpacity
-              onPress={() => void syncHealth()}
-              disabled={syncing}
-              activeOpacity={0.7}
-              style={[s.syncBtn, syncing && { opacity: 0.6 }]}
-            >
-              <Ionicons name="sync" size={15} color={C.accentInk} />
-              <Text style={s.syncBtnT}>{syncing ? 'Checking…' : 'Check channel health'}</Text>
-            </TouchableOpacity>
-          ) : null}
+        {cloudUser ? (
+          <TouchableOpacity
+            onPress={() => void syncHealth()}
+            disabled={syncing}
+            activeOpacity={0.7}
+            style={[s.syncBtn, syncing && { opacity: 0.6 }]}
+          >
+            <Ionicons name="sync" size={15} color={C.accentInk} />
+            <Text style={s.syncBtnT}>{syncing ? tr('uChecking') : tr('uCheckChannelHealth')}</Text>
+          </TouchableOpacity>
+        ) : null}
+        <View style={[s.list, cloudUser ? { marginTop: 10 } : null]}>
           {acctsLoading ? (
             [...Array(6)].map((_, i) => (
               <View key={i} style={[s.row, i !== 0 && s.rowDiv]}>
@@ -1718,7 +1719,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
             const soonTap = () => {
               Alert.alert(
                 `${cfg.label} is coming soon`,
-                'Google still has to approve the API access. It will light up here the moment it does.',
+                tr('uGoogleStillHasTo'),
               );
             };
             return (
@@ -1737,12 +1738,12 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={s.rowT}>{cfg.label}</Text>
                       {cfg.soon ? (
-                        <View style={s.soonBadge}><Text style={s.soonBadgeT}>Soon</Text></View>
+                        <View style={s.soonBadge}><Text style={s.soonBadgeT}>{tr('uSoon')}</Text></View>
                       ) : null}
                       {expiredHere.length > 0 ? (
                         <View style={s.reconnectBadge}>
                           <Ionicons name="warning" size={10} color="#8a6100" />
-                          <Text style={s.reconnectBadgeT}>Reconnect</Text>
+                          <Text style={s.reconnectBadgeT}>{tr('uReconnect')}</Text>
                         </View>
                       ) : null}
                     </View>
@@ -1763,7 +1764,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                   ) : p === 'x' && !canConnectProvider(plan ?? 'free', 'x') ? (
                     <View style={s.soonBadge}><Text style={s.soonBadgeT}>Pro</Text></View>
                   ) : cfg.soon ? null : (
-                    <Text style={s.go}>Connect</Text>
+                    <Text style={s.go}>{tr('nConnect')}</Text>
                   )}
                 </TouchableOpacity>
 
@@ -1792,18 +1793,18 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                           {cloud ? (
                             <View style={s.cloudActions}>
                               <TouchableOpacity onPress={() => { if (needManager()) void connectCloudOnly(p, a); }} activeOpacity={0.7}>
-                                <Text style={s.go}>Connect</Text>
+                                <Text style={s.go}>{tr('nConnect')}</Text>
                               </TouchableOpacity>
                               {!cloudUser || isManager ? (
                                 <TouchableOpacity onPress={() => void removeCloudAccount(a)} activeOpacity={0.7} style={s.discBtn}>
-                                  <Text style={s.discT}>Remove</Text>
+                                  <Text style={s.discT}>{tr('uRemove')}</Text>
                                 </TouchableOpacity>
                               ) : null}
                             </View>
                           ) : (
                             !cloudUser || isManager ? (
                             <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7} style={s.discBtn}>
-                              <Text style={s.discT}>Disconnect</Text>
+                              <Text style={s.discT}>{tr('uDisconnect')}</Text>
                             </TouchableOpacity>
                             ) : null
                           )}
@@ -1814,17 +1815,17 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                     {!cfg.manual && !cfg.soon ? renderSubPanel(p) : null}
                     {cfg.soon ? (
                       <View style={s.pageRow}>
-                        <Text style={s.pageT} numberOfLines={3}>Coming soon, Google still has to approve the API access. It will light up here the moment it does.</Text>
+                        <Text style={s.pageT} numberOfLines={3}>{tr('uComingSoonGoogleStill')}</Text>
                       </View>
                     ) : null}
                     {p === 'tiktok' && list.length > 0 ? (
                       <View style={s.switchBox}>
                         <Text style={s.switchT}>
-                          TikTok signs in with whoever is logged in, to add a different account, switch it on tiktok.com first, then add below.
+                          {tr('uTiktokSignsInWith')}
                         </Text>
                         <TouchableOpacity onPress={() => void openTikTokSite()} activeOpacity={0.7} style={s.switchBtn}>
                           <Ionicons name="open-outline" size={14} color={C.accentInk} />
-                          <Text style={s.switchBtnT}>Open tiktok.com to switch accounts</Text>
+                          <Text style={s.switchBtnT}>{tr('uOpenTiktokComTo')}</Text>
                         </TouchableOpacity>
                       </View>
                     ) : null}
@@ -1896,7 +1897,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   discT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText },
   devLine: { fontSize: 10, color: C.muted, textAlign: 'center', marginTop: 20, paddingHorizontal: 24 },
   discBtn: { borderWidth: 1, borderColor: C.lineSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
-  syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 12, paddingVertical: 10, marginBottom: 10, backgroundColor: C.paper },
+  syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: C.lineSoft, borderRadius: 999, paddingVertical: 11, marginTop: 22, backgroundColor: C.card },
   syncBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.accentInk },
   cloudActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

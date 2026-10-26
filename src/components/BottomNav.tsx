@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 import PostIcon from './PostIcon';
+import { tr } from '../i18n';
 
 export type MainTab = 'home' | 'post' | 'community' | 'profile';
 
@@ -30,15 +31,15 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 
   const inner = (
     <>
-      {item('home', (on) => <Ionicons name="home" size={24} color={on ? C.accent : C.faint} />, 'Home')}
-      {item('post', (on) => <PostIcon size={24} color={on ? C.accent : C.faint} />, 'Post')}
+      {item('home', (on) => <Ionicons name="home" size={24} color={on ? C.accent : C.faint} />, tr('nHome'))}
+      {item('post', (on) => <PostIcon size={24} color={on ? C.accent : C.faint} />, tr('nPost'))}
       <TouchableOpacity onPress={() => setPlus(true)} style={s.plusWrap} activeOpacity={0.8}>
         <View style={s.plus}>
           <Ionicons name="add" size={28} color={C.onInk} />
         </View>
       </TouchableOpacity>
-      {item('community', (on) => <Ionicons name="chatbubbles" size={24} color={on ? C.accent : C.faint} />, 'Community')}
-      {item('profile', (on) => <Ionicons name="person" size={24} color={on ? C.accent : C.faint} />, 'Profile')}
+      {item('community', (on) => <Ionicons name="chatbubbles" size={24} color={on ? C.accent : C.faint} />, tr('nCommunity'))}
+      {item('profile', (on) => <Ionicons name="person" size={24} color={on ? C.accent : C.faint} />, tr('nProfile'))}
     </>
   );
 
@@ -59,8 +60,8 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
                 <Ionicons name="color-palette" size={22} color={C.accentInk} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.optT}>Template</Text>
-                <Text style={s.optS}>Design studio, images for posts</Text>
+                <Text style={s.optT}>{tr('nTemplate')}</Text>
+                <Text style={s.optS}>{tr('nTemplateS')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.faint} />
             </TouchableOpacity>
@@ -72,8 +73,8 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
                 <PostIcon size={22} color={C.onInk} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.optT}>Post</Text>
-                <Text style={s.optS}>New post, channels + schedule</Text>
+                <Text style={s.optT}>{tr('nPost')}</Text>
+                <Text style={s.optS}>{tr('nPostS')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.faint} />
             </TouchableOpacity>

@@ -493,3 +493,17 @@ enabled = true
 # Meta calls this directly; auth is X-Hub-Signature-256 (META_APP_SECRET).
 verify_jwt = false
 entrypoint = "./functions/meta-webhook/index.ts"
+
+[functions.meta-deauthorize]
+enabled = true
+# Meta calls this directly when a user removes the app; auth is the
+# signed_request HMAC (THREADS_APP_SECRET / META_APP_SECRET / IG_APP_SECRET).
+verify_jwt = false
+entrypoint = "./functions/meta-deauthorize/index.ts"
+
+[functions.meta-data-deletion]
+enabled = true
+# Meta calls this directly on a data-deletion request; same signed_request HMAC
+# as meta-deauthorize. Erases the Threads channel data, never the Sosial account.
+verify_jwt = false
+entrypoint = "./functions/meta-data-deletion/index.ts"

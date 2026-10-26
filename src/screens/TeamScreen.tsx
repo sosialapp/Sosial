@@ -15,6 +15,7 @@ import {
   canRemoveMember, canAssignChannels, channelsSummary,
   type CloudTeam, type CloudMember, type CloudChannelOption, type TeamRole,
 } from '../utils/teamCloud';
+import { tr } from '../i18n';
 
 /**
  * Workspace roster, real cloud membership (same source as the web Team page).
@@ -86,7 +87,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
     if (!team || teamPicBusy) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to set a team picture.');
+      Alert.alert(tr('uPermissionNeeded'), tr('uAllowPhotoAccessTo3'));
       return;
     }
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
@@ -95,9 +96,9 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
     try {
       await setTeamAvatarFromUri(team.workspaceId, r.assets[0].uri);
       setTeamPicUri(await teamAvatarSignedUrl(await getTeamAvatar(team.workspaceId)));
-      Alert.alert('Updated', 'Team picture saved.');
+      Alert.alert(tr('uUpdated'), tr('uTeamPictureSaved'));
     } catch (e: any) {
-      Alert.alert('Couldn’t update', e?.message ?? 'Try again.');
+      Alert.alert(tr('uCouldnTUpdate'), e?.message ?? tr('uTryAgain'));
     } finally {
       setTeamPicBusy(false);
     }
@@ -110,7 +111,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
       await clearTeamAvatar(team.workspaceId);
       setTeamPicUri(null);
     } catch (e: any) {
-      Alert.alert('Couldn’t remove', e?.message ?? 'Try again.');
+      Alert.alert(tr('uCouldnTRemove'), e?.message ?? tr('uTryAgain'));
     } finally {
       setTeamPicBusy(false);
     }
@@ -151,7 +152,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
       setAssigningId(null);
       await reload();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Try again.');
+      Alert.alert(tr('uCouldNotSave'), e instanceof Error ? e.message : tr('uTryAgain'));
     } finally {
       setBusy(false);
     }
@@ -160,7 +161,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
   const invite = async () => {
     if (!team) return;
     if (!mEmail.trim()) {
-      Alert.alert('Email needed', 'Add the teammate’s email so the invite reaches them.');
+      Alert.alert(tr('uEmailNeeded'), tr('uAddTheTeammateS'));
       return;
     }
     setBusy(true);
@@ -174,33 +175,33 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
       if (res.alreadyRegistered && res.inviteUrl) {
         // On Sosial already, no email can reach them, hand over the link.
         Alert.alert(
-          "They're already on Sosial",
+          tr('uTheyReAlreadyOn'),
           `No email needed, send them this invite link:\n${res.inviteUrl}`,
           [
-            { text: 'Done', style: 'cancel' },
-            { text: 'Copy link', onPress: () => { void Clipboard.setStringAsync(res.inviteUrl!); } },
+            { text: tr('uDone'), style: 'cancel' },
+            { text: tr('uCopyLink'), onPress: () => { void Clipboard.setStringAsync(res.inviteUrl!); } },
           ],
         );
       }
     } catch (e) {
-      Alert.alert('Could not send invite', e instanceof Error ? e.message : 'Try again.');
+      Alert.alert(tr('uCouldNotSendInvite'), e instanceof Error ? e.message : tr('uTryAgain'));
     } finally {
       setBusy(false);
     }
   };
 
   const dropMember = (m: CloudMember) => {
-    Alert.alert('Remove teammate', `Remove ${m.email} from the team?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr('uRemoveTeammate'), `Remove ${m.email} from the team?`, [
+      { text: tr('uCancel'), style: 'cancel' },
       {
-        text: 'Remove', style: 'destructive', onPress: async () => {
+        text: tr('uRemove'), style: 'destructive', onPress: async () => {
           if (!team) return;
           setBusy(true);
           try {
             await removeMember(team.workspaceId, m.user_id);
             await reload();
           } catch (e) {
-            Alert.alert('Could not remove', e instanceof Error ? e.message : 'Try again.');
+            Alert.alert(tr('uCouldNotRemove'), e instanceof Error ? e.message : tr('uTryAgain'));
           } finally {
             setBusy(false);
           }
@@ -210,10 +211,10 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
   };
 
   const cancelPendingInvite = (inviteId: string, email: string) => {
-    Alert.alert('Cancel invite', `Withdraw the invite to ${email}? They won't be able to join with it.`, [
-      { text: 'Keep', style: 'cancel' },
+    Alert.alert(tr('uCancelInvite'), `Withdraw the invite to ${email}? They won't be able to join with it.`, [
+      { text: tr('uKeep'), style: 'cancel' },
       {
-        text: 'Cancel invite',
+        text: tr('uCancelInvite'),
         style: 'destructive',
         onPress: async () => {
           if (!team) return;
@@ -222,7 +223,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
             await cancelInvite(inviteId);
             await reload();
           } catch (e) {
-            Alert.alert('Could not cancel', e instanceof Error ? e.message : 'Try again.');
+            Alert.alert(tr('uCouldNotCancel'), e instanceof Error ? e.message : tr('uTryAgain'));
           } finally {
             setBusy(false);
           }
@@ -233,7 +234,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
 
   const saveTeamName = async () => {
     if (!team) return;
-    const name = teamNameDraft.trim() || 'My team';
+    const name = teamNameDraft.trim() || tr('uMyTeam');
     setBusy(true);
     try {
       const { error } = await supabase().from('workspaces').update({ name }).eq('id', team.workspaceId);
@@ -241,7 +242,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
       setRenamingTeam(false);
       await reload();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Try again.');
+      Alert.alert(tr('uCouldNotSave'), e instanceof Error ? e.message : tr('uTryAgain'));
     } finally {
       setBusy(false);
     }
@@ -254,17 +255,17 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
       await setMemberRole(m.id, role);
       await reload();
     } catch (e) {
-      Alert.alert('Could not change role', e instanceof Error ? e.message : 'Try again.');
+      Alert.alert(tr('uCouldNotChangeRole'), e instanceof Error ? e.message : tr('uTryAgain'));
     } finally {
       setBusy(false);
     }
   };
 
   const leave = () => {
-    Alert.alert('Leave team', 'Walk away from this workspace? You lose its channels, posts and team.', [
-      { text: 'Stay', style: 'cancel' },
+    Alert.alert(tr('uLeaveTeam'), tr('uWalkAwayFromThis'), [
+      { text: tr('uStay'), style: 'cancel' },
       {
-        text: 'Leave',
+        text: tr('uLeave'),
         style: 'destructive',
         onPress: async () => {
           if (!team) return;
@@ -273,7 +274,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
             await leaveTeam(team.workspaceId);
             onBack();
           } catch (e) {
-            Alert.alert('Could not leave', e instanceof Error ? e.message : 'Try again.');
+            Alert.alert(tr('uCouldNotLeave'), e instanceof Error ? e.message : tr('uTryAgain'));
           } finally {
             setBusy(false);
           }
@@ -291,14 +292,14 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
   const leads = members.filter((m) => m.role === 'owner' || m.role === 'admin').length;
   const roleIcon = (r: string): keyof typeof Ionicons.glyphMap =>
     r === 'owner' ? 'ribbon' : r === 'admin' ? 'shield-checkmark' : 'person';
-  const roleName = (r: string) => (r === 'owner' ? 'Owner' : r === 'admin' ? 'Admin' : 'Member');
+  const roleName = (r: string) => (r === 'owner' ? tr('uOwner') : r === 'admin' ? tr('uAdmin') : tr('uMember'));
 
   const teamPicMenu = () => {
     if (!isManager) return;
-    Alert.alert('Team picture', teamPicUri ? 'Change or remove the team picture.' : 'Add a picture for this team.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: teamPicUri ? 'Change photo' : 'Add photo', onPress: () => void changeTeamPic() },
-      ...(teamPicUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => void removeTeamPic() }] : []),
+    Alert.alert(tr('uTeamPicture'), teamPicUri ? tr('uChangeOrRemoveThe') : tr('uAddAPictureFor'), [
+      { text: tr('uCancel'), style: 'cancel' },
+      { text: teamPicUri ? tr('uChangePhoto') : tr('uAddPhoto'), onPress: () => void changeTeamPic() },
+      ...(teamPicUri ? [{ text: tr('uRemove'), style: 'destructive' as const, onPress: () => void removeTeamPic() }] : []),
     ]);
   };
 
@@ -306,12 +307,12 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
     <View style={{ flex: 1, backgroundColor: C.bone }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={s.topRow}>
-          <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn} accessibilityLabel="Back">
+          <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn} accessibilityLabel={tr('uBack')}>
             <Ionicons name="chevron-back" size={20} color={C.ink} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={[T.h1, { color: C.ink, fontSize: 28, lineHeight: 34 }]}>Team</Text>
-            <Text style={s.sub}>Who can post where, and who can invite.</Text>
+            <Text style={[T.h1, { color: C.ink, fontSize: 28, lineHeight: 34 }]}>{tr('aTeam')}</Text>
+            <Text style={s.sub}>{tr('uWhoCanPostWhere')}</Text>
           </View>
         </View>
 
@@ -323,7 +324,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
               <TouchableOpacity
                 onPress={teamPicMenu}
                 disabled={!isManager}
-                accessibilityLabel={isManager ? 'Change team picture' : 'Team picture'}
+                accessibilityLabel={isManager ? tr('uChangeTeamPicture') : tr('uTeamPicture')}
                 activeOpacity={isManager ? 0.8 : 1}
                 style={{ alignSelf: 'flex-start' }}
               >
@@ -348,13 +349,13 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
 
               {isManager && renamingTeam ? (
                 <View style={{ marginTop: 12, gap: 8 }}>
-                  <Txt value={teamNameDraft} onChangeText={setTeamNameDraft} placeholder="Team name" />
+                  <Txt value={teamNameDraft} onChangeText={setTeamNameDraft} placeholder={tr('uTeamName')} />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity onPress={() => void saveTeamName()} disabled={busy} style={[s.save, { flex: 1 }]} activeOpacity={0.85}>
-                      <Text style={s.saveT}>{busy ? 'Saving…' : 'Save'}</Text>
+                      <Text style={s.saveT}>{busy ? tr('uSaving') : tr('uSave')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setRenamingTeam(false)} style={[s.ghost, { flex: 1 }]} activeOpacity={0.85}>
-                      <Text style={s.ghostT}>Cancel</Text>
+                      <Text style={s.ghostT}>{tr('uCancel')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -368,7 +369,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                   disabled={!isManager}
                   activeOpacity={0.7}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}
-                  accessibilityLabel={isManager ? 'Rename team' : undefined}
+                  accessibilityLabel={isManager ? tr('uRenameTeam') : undefined}
                 >
                   <Text style={s.teamName} numberOfLines={1}>{team.workspaceName}</Text>
                   {isManager ? <Ionicons name="pencil" size={15} color={C.faint} /> : null}
@@ -377,9 +378,9 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
 
               <View style={s.stats}>
                 {([
-                  [members.length, 'Members'],
-                  [leads, 'Leads'],
-                  [team.invites.length, 'Pending'],
+                  [members.length, tr('uMembers')],
+                  [leads, tr('uLeads')],
+                  [team.invites.length, tr('uPending')],
                 ] as const).map(([n, label]) => (
                   <View key={label} style={s.stat}>
                     <Text style={s.statN}>{n}</Text>
@@ -391,7 +392,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
           </View>
         ) : null}
 
-        <Text style={[s.sectionLabel, { marginTop: 22 }]}>SWITCH TEAM</Text>
+        <Text style={[s.sectionLabel, { marginTop: 22 }]}>{tr('uSwitchTeam')}</Text>
         <View style={{ marginTop: 8 }}>
           <TeamSwitcher team={team?.workspaceName ?? teamName} onSwitched={onSwitched} full />
         </View>
@@ -399,18 +400,18 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
         {plan !== 'team' ? (
           <View style={[s.empty, { marginTop: 16 }]}>
             <View style={s.emptyIcon}><Ionicons name="people" size={22} color={C.ink} /></View>
-            <Text style={s.emptyT}>Team tools need Sosial Team</Text>
-            <Text style={s.emptyS}>The roster, roles and per-channel assignment unlock on the Team plan.</Text>
+            <Text style={s.emptyT}>{tr('uTeamToolsNeedSosial')}</Text>
+            <Text style={s.emptyS}>{tr('uTheRosterRolesAnd')}</Text>
             <TouchableOpacity onPress={onSeePlans} style={[s.save, { marginTop: 14, alignSelf: 'stretch' }]} activeOpacity={0.85}>
-              <Text style={s.saveT}>See plans</Text>
+              <Text style={s.saveT}>{tr('uSeePlans')}</Text>
             </TouchableOpacity>
           </View>
         ) : loading ? (
           <ActivityIndicator style={{ marginTop: 32 }} color={C.muted} />
         ) : !team ? (
           <View style={[s.empty, { marginTop: 16 }]}>
-            <Text style={s.emptyT}>Not signed in</Text>
-            <Text style={s.emptyS}>Sign in to Sosial Cloud (Account tab) to manage your team across devices.</Text>
+            <Text style={s.emptyT}>{tr('uNotSignedIn')}</Text>
+            <Text style={s.emptyS}>{tr('uSignInToSosial')}</Text>
           </View>
         ) : (
           <View style={{ marginTop: 16, gap: 14 }}>
@@ -462,8 +463,8 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                               value={m.role as 'member' | 'admin'}
                               onChange={(r) => { if (!busy) void saveRole(m, r); }}
                               options={[
-                                { value: 'member', label: 'Member' },
-                                { value: 'admin', label: 'Admin' },
+                                { value: 'member', label: tr('uMember') },
+                                { value: 'admin', label: tr('uAdmin') },
                               ]}
                             />
                           ) : null}
@@ -475,7 +476,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                               style={[s.pillBtn, open && { backgroundColor: C.ink, borderColor: C.ink }]}
                             >
                               <Ionicons name="at" size={13} color={open ? C.onInk : C.soft} />
-                              <Text style={[s.pillBtnT, open && { color: C.onInk }]}>{open ? 'Done' : 'Channels'}</Text>
+                              <Text style={[s.pillBtnT, open && { color: C.onInk }]}>{open ? tr('uDone') : tr('iChannels')}</Text>
                             </TouchableOpacity>
                           ) : null}
                           {showTrash ? (
@@ -505,10 +506,10 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                             onToggle={toggleGProvider}
                           />
                           {team.channels.length === 0 ? (
-                            <Text style={s.hint}>Connect an account first, there are no channels to appoint yet.</Text>
+                            <Text style={s.hint}>{tr('uConnectAnAccountFirst')}</Text>
                           ) : null}
                           <TouchableOpacity onPress={() => saveGrants(m)} disabled={busy} style={s.save} activeOpacity={0.85}>
-                            <Text style={s.saveT}>{busy ? 'Saving…' : 'Save channels'}</Text>
+                            <Text style={s.saveT}>{busy ? tr('uSaving') : tr('uSaveChannels')}</Text>
                           </TouchableOpacity>
                         </View>
                       ) : null}
@@ -521,26 +522,26 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
               <View style={[s.card, { gap: 14 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={s.inviteIcon}><Ionicons name="person-add" size={16} color="#0b1220" /></View>
-                  <Text style={s.cardT}>Invite teammate</Text>
+                  <Text style={s.cardT}>{tr('uInviteTeammate')}</Text>
                 </View>
                 <View style={{ gap: 6 }}>
-                  <Text style={s.fieldL}>Email</Text>
+                  <Text style={s.fieldL}>{tr('wEmailPh')}</Text>
                   <Txt value={mEmail} onChangeText={setMEmail} placeholder="teammate@studio.com" keyboardType="email-address" autoCapitalize="none" />
                 </View>
                 <View style={{ gap: 6 }}>
-                  <Text style={s.fieldL}>Role</Text>
+                  <Text style={s.fieldL}>{tr('uRole')}</Text>
                   <Seg
-                    accessibilityLabel="Role"
+                    accessibilityLabel={tr('uRole')}
                     value={mRole}
                     onChange={setMRole}
                     options={[
-                      { value: 'member', label: 'Member' },
-                      { value: 'admin', label: 'Admin' },
+                      { value: 'member', label: tr('uMember') },
+                      { value: 'admin', label: tr('uAdmin') },
                     ]}
                   />
                 </View>
                 <View style={{ gap: 8 }}>
-                  <Text style={s.fieldL}>Accounts they can post to</Text>
+                  <Text style={s.fieldL}>{tr('uAccountsTheyCanPost')}</Text>
                   <ScopePills
                     C={C}
                     s={s}
@@ -552,12 +553,12 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                   />
                 </View>
                 <TouchableOpacity onPress={invite} disabled={busy} style={s.save} activeOpacity={0.85}>
-                  <Text style={s.saveT}>{busy ? 'Sending…' : 'Send invite'}</Text>
+                  <Text style={s.saveT}>{busy ? tr('uSending') : tr('uSendInvite')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={s.card}>
-                <Text style={s.hint}>Only the owner and admins can invite or appoint accounts. Ask one to add your teammates.</Text>
+                <Text style={s.hint}>{tr('uOnlyTheOwnerAnd')}</Text>
               </View>
             )}
 
@@ -572,9 +573,9 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                     onPress={() => {
                       if (inv.emailed_at) return;
                       const url = `https://sosial.app/invite/${inv.token}`;
-                      Alert.alert('Email never sent', `Share this invite link directly:\n${url}`, [
-                        { text: 'Close', style: 'cancel' },
-                        { text: 'Copy link', onPress: () => { void Clipboard.setStringAsync(url); } },
+                      Alert.alert(tr('uEmailNeverSent'), `Share this invite link directly:\n${url}`, [
+                        { text: tr('wClose'), style: 'cancel' },
+                        { text: tr('uCopyLink'), onPress: () => { void Clipboard.setStringAsync(url); } },
                       ]);
                     }}
                     disabled={!!inv.emailed_at}
@@ -588,7 +589,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
                         <Ionicons name={roleIcon(inv.role)} size={11} color={C.muted} />
                         <Text style={s.rowS}>{roleName(inv.role)}</Text>
                         <Text style={[s.rowS, { color: inv.emailed_at ? C.faint : C.accentInk }]} numberOfLines={1}>
-                          · {inv.emailed_at ? 'Invite sent' : 'Email pending, tap for the link'}
+                          · {inv.emailed_at ? tr('uInviteSent') : tr('uEmailPendingTapFor')}
                         </Text>
                       </View>
                     </View>
@@ -610,7 +611,7 @@ export default function TeamScreen({ plan, email, teamName, onBack, onSeePlans, 
             {actor.role !== 'owner' ? (
               <TouchableOpacity onPress={leave} activeOpacity={0.7} style={s.leaveBtn}>
                 <Ionicons name="log-out-outline" size={16} color={C.redText} />
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText }}>Leave team</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText }}>{tr('uLeaveTeam')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -639,7 +640,7 @@ function ScopePills({ C, s, channels, all, selected, onAll, onToggle }: {
         activeOpacity={0.75}
       >
         <Ionicons name="globe-outline" size={14} color={all ? C.onInk : C.muted} />
-        <Text style={[s.chanT, all && { color: C.onInk }]}>All channels</Text>
+        <Text style={[s.chanT, all && { color: C.onInk }]}>{tr('iAll')}</Text>
       </TouchableOpacity>
       {channels.map((c) => {
         const on = !all && selected.includes(c.provider);

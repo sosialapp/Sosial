@@ -65,14 +65,52 @@ export async function GET(req: Request) {
   if (incomingState?.startsWith('cloud:')) {
     return cloudPickerResult(url, origin);
   }
-  const done = (qs: string) => {
-    const res = NextResponse.redirect(`${origin}/channels${qs}`);
+  const jar = await cookies();
+  const flow = b64d<FlowState>(jar.get(FLOW_COOKIE)?.value);
+  /**
+   * Consent opened in its own tab (FlowState.popup): there is no page to land
+   * on, so post the result to the opener and close. BroadcastChannel goes
+   * first, the provider's COOP headers can null window.opener on the way back;
+   * the opener postMessage stays as the older-browser fallback. Same-tab links
+   * keep the plain redirect. `pick` rides on this same response so the opener's
+   * next render (the Page / location picker) still finds it in the cookie jar.
+   */
+  const popup = flow?.popup === true;
+  const done = (qs: string, pick?: string) => {
+    // Absolute path, not a bare query: the opener navigates on this and the
+    // fallback link below is resolved against the callback URL itself.
+    const dest = `/channels${qs}`;
+    if (popup) {
+      const safe = JSON.stringify({
+        type: 'sosial-oauth',
+        workspace_id: flow?.workspace_id ?? '',
+        url: dest,
+      }).replace(/</g, '\\u003c');
+      const res = new NextResponse(
+        `<!doctype html><html><body style="font-family:system-ui,sans-serif;padding:28px">` +
+          `<script>` +
+          `try{var bc=new BroadcastChannel("sosial-oauth");bc.postMessage(${safe});bc.close();}catch(e){}` +
+          `try{window.opener&&window.opener.postMessage(${safe},"${origin}");}catch(e){}` +
+          `setTimeout(function(){window.close();},300);` +
+          `</script>` +
+          `<p>Done, you can close this tab.</p>` +
+          `<p><a href="${dest}">Continue in Sosial</a></p>` +
+          `</body></html>`,
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+        },
+      );
+      res.cookies.delete(FLOW_COOKIE);
+      if (pick) res.cookies.set(PICK_COOKIE, pick, cookieOpts(origin));
+      return res;
+    }
+    const res = NextResponse.redirect(`${origin}${dest}`);
     res.cookies.delete(FLOW_COOKIE);
+    if (pick) res.cookies.set(PICK_COOKIE, pick, cookieOpts(origin));
     return res;
   };
 
-  const jar = await cookies();
-  const flow = b64d<FlowState>(jar.get(FLOW_COOKIE)?.value);
   const state = url.searchParams.get('state');
   if (!flow || !isOAuthProvider(flow.provider) || !flow.workspace_id || !flow.nonce || flow.nonce !== state) {
     return done(`?error=${encodeURIComponent('That login expired, try connecting again.')}`);
@@ -113,10 +151,7 @@ export async function GET(req: Request) {
       return done(`?error=${encodeURIComponent('No Facebook Pages found on that account.')}`);
     }
     const pick: PickState = { workspace_id: flow.workspace_id, nonce: flow.nonce, pages: payload.pages };
-    const res = NextResponse.redirect(`${origin}/channels?connect=facebook`);
-    res.cookies.delete(FLOW_COOKIE);
-    res.cookies.set(PICK_COOKIE, fitPick(pick), cookieOpts(origin));
-    return res;
+    return done('?connect=facebook', fitPick(pick));
   }
 
   // GBP posts per-location, stash tokens + locations, the panel picks one.
@@ -136,10 +171,7 @@ export async function GET(req: Request) {
         locations: gg.locations,
       },
     };
-    const res = NextResponse.redirect(`${origin}/channels?connect=gmb`);
-    res.cookies.delete(FLOW_COOKIE);
-    res.cookies.set(PICK_COOKIE, b64e(pick), cookieOpts(origin));
-    return res;
+    return done('?connect=gmb', b64e(pick));
   }
 
   if (!payload.access_token || !payload.external_id) {

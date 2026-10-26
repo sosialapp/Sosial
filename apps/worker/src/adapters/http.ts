@@ -7,6 +7,7 @@ const QPS: Record<string, number> = {
   x: 1.5,
   mastodon: 4,
   bluesky: 2,
+  youtube: 2,
 };
 
 const lastCall = new Map<string, number>();

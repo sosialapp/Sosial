@@ -27,6 +27,7 @@ saveProjectPreset, purgeStarterTemplates, loadProjectPresets, loadForeignTemplat
 deleteForeignTemplate, syncTemplates, ProjectPreset, ForeignTemplate } from '../utils/presets';
 import PostCanvas, { CANVAS_W } from '../components/PostCanvas';
 import { POST_SIZES } from '../constants';
+import { tr } from '../i18n';
 
 const THREAD_LIMIT = 280;
 
@@ -590,18 +591,18 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
         </View>
 
         <View style={{ paddingHorizontal: 24, marginTop: 22 }}>
-          <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>Create</Text>
-          <Text style={s.sub}>Catch the idea, let AI shape it, then post it.</Text>
+          <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>{tr('cTitle')}</Text>
+          <Text style={s.sub}>{tr('cSub')}</Text>
         </View>
 
         {/* section tabs, sliding thumb glides on every switch */}
         <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
           <Tabs
             options={[
-              { value: 'post', label: 'Post' },
-              { value: 'templates', label: 'Templates' },
-              { value: 'publish', label: 'Publish' },
-              { value: 'ideas', label: 'Ideas' },
+              { value: 'post', label: tr('nPost') },
+              { value: 'templates', label: tr('cTemplates') },
+              { value: 'publish', label: tr('cPublish') },
+              { value: 'ideas', label: tr('cIdeas') },
             ]}
             value={tab}
             onChange={setTab}

@@ -63,13 +63,31 @@ export async function POST(req: Request) {
     return res;
   }
 
+  // The pick cookie sheds Page pictures once a login has a lot of Pages, so
+  // fall back to a fresh Graph read here: the connected row should not land
+  // without a photo just because the cookie had to shrink.
+  let avatar = page.picture ?? '';
+  if (!avatar) {
+    try {
+      const r = await fetch(
+        `https://graph.facebook.com/v21.0/${encodeURIComponent(page.id)}/picture?redirect=false&type=normal&width=320` +
+          `&access_token=${encodeURIComponent(page.access_token)}`,
+        { cache: 'no-store' },
+      );
+      const j = (await r.json().catch(() => null)) as { data?: { url?: unknown } } | null;
+      if (r.ok && typeof j?.data?.url === 'string') avatar = j.data.url;
+    } catch {
+      // No picture is a cosmetic miss; never block the connect on it.
+    }
+  }
+
   const { error: impErr } = await sb.functions.invoke('import-channel-token', {
     body: {
       workspace_id: pick.workspace_id,
       provider: 'facebook',
       external_id: page.id,
       display_name: page.name,
-      metadata: page.picture ? { avatar: page.picture } : {},
+      metadata: avatar ? { avatar } : {},
       access_token: page.access_token,
     },
   });

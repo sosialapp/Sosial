@@ -13,6 +13,10 @@ export interface FlowState {
   provider: OAuthProvider;
   workspace_id: string;
   nonce: string;
+  /** Consent runs in its own tab: the callback hands the result back to the
+   *  opener over BroadcastChannel and closes that tab instead of landing on
+   *  /channels. Absent for plain same-tab links. */
+  popup?: boolean;
   verifier?: string;
   /** Mastodon only: instance + per-instance app credentials. */
   instance?: string;

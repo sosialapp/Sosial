@@ -796,6 +796,14 @@ export default function CreatePost({
           postIds={monitorIds}
           mode={monitorMode}
           scheduleIso={monitorMode === 'schedule' ? whenIso : null}
+          channels={ready
+            .filter((x) => picked.includes(x.id))
+            .map((c) => ({
+              id: c.id,
+              provider: c.provider,
+              avatar: channelAvatar(c.metadata),
+              name: c.display_name || providerMeta(c.provider).label,
+            }))}
           onDone={() => {
             setMonitorOpen(false);
             setMonitorIds([]);

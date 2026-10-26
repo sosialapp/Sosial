@@ -16,6 +16,8 @@ import { restPatch } from './rest';
 import { adapterFor } from './adapters';
 import type { Account, NormalizedComment, OwnPost } from './adapters/types';
 import { ensureToken as ensureXToken } from './x';
+import { ensureToken as ensureYtToken } from './youtube';
+import { ensureToken as ensureThreadsToken } from './threads';
 import { debug, info, warn } from './logger';
 import { reconnectMessage } from './channelAuth';
 
@@ -32,27 +34,55 @@ interface DbChannel {
   status?: string;
   metadata: Record<string, any> | null;
   channel_tokens:
-    | { access_token_secret_id: string | null; expires_at: string | null }
-    | { access_token_secret_id: string | null; expires_at: string | null }[]
+    | { access_token_secret_id: string | null; refresh_token_secret_id: string | null; expires_at: string | null }
+    | { access_token_secret_id: string | null; refresh_token_secret_id: string | null; expires_at: string | null }[]
     | null;
 }
 
-const UNIFIED_PROVIDERS = ['facebook', 'instagram', 'mastodon', 'x', 'bluesky', 'threads'];
+const UNIFIED_PROVIDERS = ['facebook', 'instagram', 'mastodon', 'x', 'bluesky', 'threads', 'youtube'];
 
 async function loadChannel(channelId: string): Promise<DbChannel | null> {
   const rows = await rest<DbChannel[]>(
     `/rest/v1/connected_channels?id=eq.${encodeURIComponent(channelId)}` +
-      `&select=id,workspace_id,provider,external_id,instance_url,handle,display_name,metadata,channel_tokens(access_token_secret_id,expires_at)`,
+      `&select=id,workspace_id,provider,external_id,instance_url,handle,display_name,metadata,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)`,
   );
   return rows?.[0] ?? null;
 }
 
-/** Vault-resolved access token, X refreshed on the fly (2h TTL). */
+/** Vault-resolved access token. X and YouTube rotate hourly tokens on the fly;
+ *  Threads is here because its 60-day token has no other thing keeping it
+ *  alive, so a comment sweep must extend it rather than 401 on it. */
 async function channelToken(c: DbChannel): Promise<string> {
   const t = Array.isArray(c.channel_tokens) ? c.channel_tokens[0] : c.channel_tokens;
   if (!t?.access_token_secret_id) {
     throw new Error(`${c.provider} token missing, reconnect the channel.`);
   }
+  // Threads long-lived tokens die 60 days after connect unless they are
+  // extended; reading comments must not be the thing that 401s.
+  if (c.provider === 'threads') return ensureThreadsToken({
+    target: { id: '', provider: 'threads', caption: null, options: {}, status: 'inbox' },
+    post: { id: '', title: '', body: '' },
+    media: [],
+    channel: { id: c.id, external_id: c.external_id, instance_url: c.instance_url, metadata: c.metadata ?? {} },
+    secrets: {
+      access_secret_id: t.access_token_secret_id,
+      refresh_secret_id: t.refresh_token_secret_id,
+      expires_at: t.expires_at,
+    },
+  } as any);
+  // Google access tokens last an hour, so comments/replies need the same
+  // refresh treatment X gets; the old token is useless by the next sweep.
+  if (c.provider === 'youtube') return ensureYtToken({
+    target: { id: '', provider: 'youtube', caption: null, options: {}, status: 'inbox' },
+    post: { id: '', title: '', body: '' },
+    media: [],
+    channel: { id: c.id, external_id: c.external_id, instance_url: c.instance_url, metadata: c.metadata ?? {} },
+    secrets: {
+      access_secret_id: t.access_token_secret_id,
+      refresh_secret_id: t.refresh_token_secret_id,
+      expires_at: t.expires_at,
+    },
+  } as any);
   const secret = await readSecret(t.access_token_secret_id);
   if (!secret) throw new Error(`${c.provider} token unavailable, reconnect the channel.`);
   if (c.provider === 'x') return ensureXToken({

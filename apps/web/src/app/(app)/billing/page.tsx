@@ -34,7 +34,7 @@ export default async function BillingPage() {
   const watermarkRequired = PLANS[entitlement.plan].limits.watermarkRequired;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 pt-6 sm:px-6">
+    <div className="mx-auto w-full max-w-5xl px-4 pt-6 sm:px-6">
       <p className="eyebrow">Workspace</p>
       <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Billing</h1>
       <p className="mt-1 text-sm text-muted">

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase, currentSession, callEdgeFunction } from './supabase';
 
 /**
@@ -46,6 +47,8 @@ export interface CommunityComment {
   created_at: string;
   status: string;
   is_own: boolean;
+  /** Local echo shown while the reply is still being queued/published. */
+  pending?: boolean;
 }
 
 /** The post a comment was left on (cached by the comment sweep, p101). */
@@ -215,4 +218,37 @@ export async function markCommunitySeen(section: 'comments' | 'messages'): Promi
   const workspace = await ws();
   if (!workspace) return;
   await supabase().rpc('community_mark_seen', { p_workspace: workspace, p_section: section });
+}
+
+/**
+ * Live comments/DMs for the signed-in workspace. Realtime only ever delivers
+ * rows a member may read (the RLS policies on comments/conversations/messages
+ * are the access rule), so a plain per-table subscription is enough: comments
+ * and conversations are filtered to this workspace, `messages` has no
+ * workspace column and rides on RLS alone. Resolves to the unsubscribe.
+ */
+export async function subscribeCommunityChanges(
+  onChange: (table: 'comments' | 'conversations' | 'messages') => void,
+): Promise<() => void> {
+  const workspace = await ws();
+  if (!workspace) return () => {};
+  const sb = supabase();
+  const channels: RealtimeChannel[] = [];
+  const watch = (table: 'comments' | 'conversations' | 'messages', filter?: string) => {
+    const channel = sb
+      .channel(`community-${table}-${Math.random().toString(36).slice(2, 8)}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) },
+        () => onChange(table),
+      )
+      .subscribe();
+    channels.push(channel);
+  };
+  watch('comments', `workspace_id=eq.${workspace}`);
+  watch('conversations', `workspace_id=eq.${workspace}`);
+  watch('messages');
+  return () => {
+    for (const channel of channels) void sb.removeChannel(channel);
+  };
 }

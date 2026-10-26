@@ -27,7 +27,7 @@
 
 ## Compose
 - Supabase stack: Envoy :8000, GoTrue, PostgREST, Storage, edge-runtime, Supavisor (`pooler`), Postgres :5432, postgres-meta
-- Edge functions: repo `supabase/functions/*` (34 fn + `_shared`) copied into `docker/volumes/functions/`; the `functions` service uses `env_file: .env`; **`FUNCTIONS_VERIFY_JWT=false`** — the runtime gate is global in this rev, and every function self-authorizes (Bearer → `/auth/v1/user`, or `DORMANCY_TOKEN` for the crons), so the gate must stay off (also required by `media`'s public blog-image action).
+- Edge functions: repo `supabase/functions/*` (43 fn + `_shared`) copied into `docker/volumes/functions/`; the `functions` service uses `env_file: .env`; **`FUNCTIONS_VERIFY_JWT=false`** — the runtime gate is global in this rev, and every function self-authorizes (Bearer → `/auth/v1/user`, or `DORMANCY_TOKEN` for the crons), so the gate must stay off (also required by `media`'s public blog-image action).
 - `infra/docker-compose.services.yml`: worker, photo-host (:3000 loopback), uptime-kuma (:3001 loopback), plus monitoring — beszel (:8090 loopback, hub) + beszel-agent (`network_mode: host`, local unix socket) + dozzle (:8080 loopback, logs). Monitoring UIs are loopback-only and meant to sit behind Cloudflare Access (`metrics.` / `logs.` subdomains).
 - `sosial-worker` + `sosial-photo-host` images built on the box (repo shipped as a tar, not cloned); photo-host + uptime-kuma run now, **worker held until cutover** (avoids double-publishing while the Railway worker is live).
 - Sosial services join the Supabase Docker network **`supabase_default`** and reach the gateway as `api-gw:8000` (no host-published port needed).

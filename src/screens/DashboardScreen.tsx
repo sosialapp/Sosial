@@ -12,13 +12,14 @@ import { fetchAnalytics } from '../utils/analytics';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
 import { requiresTitle, SOCIAL_META } from '../constants';
 import { supabase, currentSession, isSupabaseConfigured } from '../utils/supabase';
+import { tr, activeLocale } from '../i18n';
 
 function greeting(): string {
   const h = new Date().getHours();
-  if (h < 5) return 'Up late';
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 5) return tr('dLate');
+  if (h < 12) return tr('dMorning');
+  if (h < 18) return tr('dAfternoon');
+  return tr('dEvening');
 }
 
 function compact(n: number): string {
@@ -214,10 +215,10 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
     .slice(0, 3);
 
   const kpis = [
-    { label: 'Sent this week', value: String(cloud ? cloud.sentWeek : sentWeekLocal.length), icon: 'paper-plane-outline' },
-    { label: 'Scheduled', value: String(cloud ? cloud.scheduled : queued.length), icon: 'time-outline' },
-    { label: 'Total posts', value: String(cloud ? cloud.total : posts.length), icon: 'bar-chart-outline' },
-    { label: 'Channels live', value: `${cloud ? cloud.channelsLive : channels}/${cloud ? cloud.channelsTotal : PROVIDER_KEYS.length}`, icon: 'link-outline' },
+    { label: tr('dSentWeek'), value: String(cloud ? cloud.sentWeek : sentWeekLocal.length), icon: 'paper-plane-outline' },
+    { label: tr('dScheduled'), value: String(cloud ? cloud.scheduled : queued.length), icon: 'time-outline' },
+    { label: tr('dTotal'), value: String(cloud ? cloud.total : posts.length), icon: 'bar-chart-outline' },
+    { label: tr('dLive'), value: `${cloud ? cloud.channelsLive : channels}/${cloud ? cloud.channelsTotal : PROVIDER_KEYS.length}`, icon: 'link-outline' },
   ];
   const upcomingRows = cloud
     ? cloud.upcoming.map((u) => ({ key: u.id, title: u.title, providers: u.providers, at: u.at }))
@@ -225,7 +226,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
   const recentRows = cloud
     ? cloud.recent.map((p) => ({ key: p.id, title: p.title, providers: p.providers, at: p.at }))
     : recentLocal.map((p) => ({ key: p.id, title: p.title || p.body, providers: p.platforms ?? [], at: p.sentAt ?? 0 }));
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const today = new Date().toLocaleDateString(activeLocale(), { weekday: 'long', month: 'long', day: 'numeric' });
 
   /** One post line: channel logos, the text, and when. */
   const postLine = (r: { key: string; title: string; providers: string[]; at: number }, i: number, when: string) => (
@@ -273,7 +274,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
         <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
           <Text style={s.date}>{today}</Text>
           <Text style={[T.h1, { color: C.ink, fontSize: 28, lineHeight: 34, marginTop: 2 }]}>
-            {greeting()}, {team || 'creator'}
+            {greeting()}, {team || tr('dCreator')}
           </Text>
         </View>
 
@@ -303,26 +304,26 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={s.anIcon}><Ionicons name="analytics" size={16} color="#0b1220" /></View>
-                <Text style={s.cardT}>Analytics</Text>
-                <Text style={s.cardMeta}>Last 7 days</Text>
+                <Text style={s.cardT}>{tr('dAnalytics')}</Text>
+                <Text style={s.cardMeta}>{tr('dLast7')}</Text>
               </View>
               {statsLoading ? <ActivityIndicator size="small" color={C.accent} /> : <Ionicons name="chevron-forward" size={18} color={C.faint} />}
             </View>
             {!statsLoading && !connected ? (
-              <Text style={[s.lineS, { marginTop: 10 }]}>Connect channels to see followers and engagement.</Text>
+              <Text style={[s.lineS, { marginTop: 10 }]}>{tr('dConnectHint')}</Text>
             ) : summary ? (
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                 <View style={s.anStat}>
                   <Text style={s.anV}>{summary.hasFollowers ? compact(summary.followers) : '-'}</Text>
-                  <Text style={s.anL}>Followers</Text>
+                  <Text style={s.anL}>{tr('dFollowers')}</Text>
                 </View>
                 <View style={s.anStat}>
                   <Text style={s.anV}>{compact(summary.engagement)}</Text>
-                  <Text style={s.anL}>Interactions</Text>
+                  <Text style={s.anL}>{tr('dInteractions')}</Text>
                 </View>
               </View>
             ) : !statsLoading ? (
-              <Text style={[s.lineS, { marginTop: 10 }]}>Followers, engagement and best time to post.</Text>
+              <Text style={[s.lineS, { marginTop: 10 }]}>{tr('dAnHint')}</Text>
             ) : null}
           </TouchableOpacity>
         </View>
@@ -331,8 +332,8 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
         {upcomingRows.length > 0 ? (
           <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
             <View style={s.secHead}>
-              <Text style={s.secT}>Up next</Text>
-              <Text style={s.secCount}>{cloud ? cloud.scheduled : queued.length} queued</Text>
+              <Text style={s.secT}>{tr('dUpNext')}</Text>
+              <Text style={s.secCount}>{tr('dQueued').replace('{n}', String(cloud ? cloud.scheduled : queued.length))}</Text>
             </View>
             <View style={[s.card, { paddingVertical: 4 }]}>
               {upcomingRows.map((r, i) => postLine(r, i, r.at ? fmtDateTime(r.at) : '-'))}
@@ -344,7 +345,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
         {recentRows.length > 0 ? (
           <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
             <View style={s.secHead}>
-              <Text style={s.secT}>Recently sent</Text>
+              <Text style={s.secT}>{tr('dRecent')}</Text>
             </View>
             <View style={[s.card, { paddingVertical: 4 }]}>
               {recentRows.map((r, i) => postLine(r, i, r.at ? timeAgo(r.at) : '-'))}

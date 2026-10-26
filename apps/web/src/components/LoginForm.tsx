@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import { callbackUrl, safeNextPath } from '@/lib/auth';
 import { useT } from '@/lib/i18n/client';
 import { authMessages } from '@/lib/i18n/auth';
+import PasswordInput from '@/components/PasswordInput';
 
 /** How long a spinner may keep spinning if navigation never lands. */
 const BUSY_WATCHDOG_MS = 20000;
@@ -185,9 +186,8 @@ export default function LoginForm({
             onChange={(e) => setEmail(e.target.value)}
           />
           {!forgotMode && (
-            <input
+            <PasswordInput
               className="field"
-              type="password"
               required
               minLength={6}
               autoComplete={signingUp ? 'new-password' : 'current-password'}
@@ -197,9 +197,8 @@ export default function LoginForm({
             />
           )}
           {signingUp && (
-            <input
+            <PasswordInput
               className="field"
-              type="password"
               required
               minLength={6}
               autoComplete="new-password"

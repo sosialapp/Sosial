@@ -40,6 +40,7 @@ import AICopySheet from '../components/AICopySheet';
 import { SocialResult } from '../utils/ai/social';
 import { pullCloudStatus, requestCloudPostSync, pushPendingPosts, markCloudLegSent, markCloudPostSent } from '../utils/cloudPosts';
 import { validateUpload, targetWarnings, statSize } from '../utils/mediaLimits';
+import { tr } from '../i18n';
 
 /** Minimum gap between automatic retries of a failed/overdue queued post. */
 const RETRY_MS = 5 * 60 * 1000;
@@ -202,7 +203,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const have = tThreadMedia[index]?.length ?? 0;
     const remaining = THREAD_MEDIA_MAX - have;
     if (remaining <= 0) {
-      showInfo(`${THREAD_MEDIA_MAX} items max`, 'Remove one to add another.');
+      showInfo(`${THREAD_MEDIA_MAX} items max`, tr('uRemoveOneToAdd'));
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: remaining, orderedSelection: true, quality: 0.9 });
@@ -220,7 +221,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
       picked.push({ uri: a.uri, kind });
     }
-    if (rejected.length) showInfo('Some files were skipped', rejected.join('\n'));
+    if (rejected.length) showInfo(tr('uSomeFilesWereSkipped'), rejected.join('\n'));
     if (!picked.length) return;
     setTThreadMedia((prev) => {
       const next = [...prev];
@@ -284,7 +285,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const pickMedia = async () => {
     const remaining = MAX_ATTACHMENTS - tMedia.length;
     if (remaining <= 0) {
-      showInfo(`${MAX_ATTACHMENTS} items max`, 'Remove one to add another.');
+      showInfo(`${MAX_ATTACHMENTS} items max`, tr('uRemoveOneToAdd'));
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: remaining, orderedSelection: true, quality: 0.9 });
@@ -302,7 +303,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
       picked.push({ uri: a.uri, kind, size: a.fileSize ?? undefined, durationMs: kind === 'video' && a.duration ? a.duration : undefined });
     }
-    if (rejected.length) showInfo('Some files were skipped', rejected.join('\n'));
+    if (rejected.length) showInfo(tr('uSomeFilesWereSkipped'), rejected.join('\n'));
     if (!picked.length) return;
     const next = [...tMedia, ...picked].slice(0, MAX_ATTACHMENTS);
     sizeWarnRef.current = false;
@@ -317,7 +318,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const addMedia = (items: { uri: string; kind: 'image' | 'video' }[]) => {
     const remaining = MAX_ATTACHMENTS - tMedia.length;
     if (remaining <= 0) {
-      showInfo(`${MAX_ATTACHMENTS} items max`, 'Remove one to add another.');
+      showInfo(`${MAX_ATTACHMENTS} items max`, tr('uRemoveOneToAdd'));
       return;
     }
     const picked: MediaAttachment[] = items.map((a) => ({
@@ -493,8 +494,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return {
       channels: missing,
       message: onlyYt
-        ? 'YouTube needs a video, photos or text alone can’t go there.'
-        : 'Attach a photo or video, text-only posts can’t go to those channels.',
+        ? tr('uYoutubeNeedsAVideo')
+        : tr('uAttachAPhotoOr'),
     };
   };
 
@@ -516,24 +517,24 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
-      showInfo('Too soon', `Earliest is ${minQueueLabel()}, scheduled posts need at least 1 minute lead time.`);
+      showInfo(tr('uTooSoon'), `Earliest is ${minQueueLabel()}, scheduled posts need at least 1 minute lead time.`);
       return false;
     }
     if (isEmptyPost({ body: tBody, attachments: tMedia })) {
-      showInfo('Nothing to post', 'Write something or attach a photo/video first.');
+      showInfo(tr('uNothingToPost'), tr('uWriteSomethingOrAttach'));
       return false;
     }
     const resolved = resolvePlats(plats, await loadMetaState(), await loadAccounts().catch(() => []));
     const blocked = mediaBlock(resolved);
     if (blocked) {
-      showInfo('That channel needs media', blocked.message, blocked.channels);
+      showInfo(tr('uThatChannelNeedsMedia'), blocked.message, blocked.channels);
       return false;
     }
     if (!sizeWarnRef.current) {
       const warnings = await mediaWarnings(resolved);
       if (warnings.length) {
         sizeWarnRef.current = true;
-        showInfo('Size warning, tap save again to queue', warnings.join('\n'));
+        showInfo(tr('uSizeWarningTapSave'), warnings.join('\n'));
         return false;
       }
     }
@@ -553,9 +554,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setSheet(null);
     bump();
     if (status === 'approval') {
-      showInfo('Sent for approval', 'An owner or admin will review it before it goes out.');
+      showInfo(tr('uSentForApproval'), tr('uAnOwnerOrAdmin'));
     } else if (!reminded) {
-      showInfo('Queued without reminder', NO_NOTIF_MSG);
+      showInfo(tr('uQueuedWithoutReminder'), NO_NOTIF_MSG);
     }
     clearDraft();
     return true;
@@ -614,7 +615,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const p = sheetRef.current?.post;
     if (!p) return;
     if (publishing || publishingRef.current) {
-      showInfo('Already publishing', 'Wait for the current publish to finish before posting again.');
+      showInfo(tr('uAlreadyPublishing'), tr('uWaitForTheCurrent'));
       return;
     }
     try {
@@ -623,7 +624,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       await finishPublish(p, r);
     } catch (e: any) {
       // runPublish rethrows only for pre-blast failures, never reset silently
-      setNotice({ mode: 'result', title: 'Publish failed', rows: [{ id: 'post', label: 'Post', state: 'fail' as const, note: e?.message ?? 'Try again.' }] });
+      setNotice({ mode: 'result', title: tr('uPublishFailed'), rows: [{ id: 'post', label: 'Post', state: 'fail' as const, note: e?.message ?? tr('uTryAgain') }] });
     }
   };
 
@@ -633,25 +634,25 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     // A stuck or background publish used to swallow taps silently here -
     // say so, so a held lock is diagnosable instead of invisible.
     if (publishing || publishingRef.current) {
-      showInfo('Already publishing', 'Wait for the current publish to finish before posting again.');
+      showInfo(tr('uAlreadyPublishing'), tr('uWaitForTheCurrent'));
       return false;
     }
     if (isEmptyPost({ body: tBody, attachments: tMedia })) {
-      showInfo('Nothing to post', 'Write something or attach a photo/video first.');
+      showInfo(tr('uNothingToPost'), tr('uWriteSomethingOrAttach'));
       return false;
     }
     try {
       const resolved = resolvePlats(plats, await loadMetaState(), await loadAccounts().catch(() => []));
       const blocked = mediaBlock(resolved);
       if (blocked) {
-        showInfo('That channel needs media', blocked.message, blocked.channels);
+        showInfo(tr('uThatChannelNeedsMedia'), blocked.message, blocked.channels);
         return false;
       }
       if (!sizeWarnRef.current) {
         const warnings = await mediaWarnings(resolved);
         if (warnings.length) {
           sizeWarnRef.current = true;
-          showInfo('Size warning, tap post again to continue', warnings.join('\n'));
+          showInfo(tr('uSizeWarningTapPost'), warnings.join('\n'));
           return false;
         }
       }
@@ -663,7 +664,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         await cancelPostReminder(rec.id);
         setSheet(null);
         bump();
-        showInfo('Sent for approval', 'An owner or admin will review it before it goes out.');
+        showInfo(tr('uSentForApproval'), tr('uAnOwnerOrAdmin'));
         clearDraft();
         return true;
       }
@@ -679,8 +680,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         await saveManagedPost({ ...rec, status: 'queued' as PostStatus });
         bump();
         showInfo(
-          'Sending…',
-          'Your post is on its way and will appear on your channels shortly.',
+          tr('uSending'),
+          tr('uYourPostIsOn'),
         );
         clearDraft();
         return true;
@@ -705,12 +706,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       clearDraft();
       return true;
     } catch (e: any) {
-      setNotice({ mode: 'result', title: 'Publish failed', rows: [{ id: 'post', label: 'Post', state: 'fail' as const, note: e?.message ?? 'Try again.' }] });
+      setNotice({ mode: 'result', title: tr('uPublishFailed'), rows: [{ id: 'post', label: 'Post', state: 'fail' as const, note: e?.message ?? tr('uTryAgain') }] });
       return false;
     }
   };
 
-  const labelFor = (id: string) => (id === 'any' ? 'Manual post' : id === 'tiktok' ? 'TikTok' : id[0].toUpperCase() + id.slice(1));
+  const labelFor = (id: string) => (id === 'any' ? tr('uManualPost') : id === 'tiktok' ? 'TikTok' : id[0].toUpperCase() + id.slice(1));
 
   // cancel hook for a pending privacy ask (ref survives re-renders, unlike a fn property)
   const privacyCancelRef = React.useRef<(() => void) | null>(null);
@@ -728,7 +729,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       // hoist reject so cancel can bail the whole publish
       privacyCancelRef.current = () => {
         setPrivacyAsk(null);
-        reject(new Error('Login was cancelled.'));
+        reject(new Error(tr('uLoginWasCancelled')));
       };
     });
 
@@ -912,7 +913,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     if (!silent) {
       setNotice({
         mode: 'loading',
-        title: 'Publishing…',
+        title: tr('uPublishing'),
         rows: plats.map((id) => ({ id, label: labelFor(id), state: (prevIds[id] ? 'done' : 'pending') as 'done' | 'pending' })),
       });
     }
@@ -924,7 +925,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         // Background runs must never prompt, without a saved audience the
         // post needs the user, so skip TikTok quietly this pass instead of
         // hanging on a modal no one asked for.
-        errs.push('TikTok: audience not chosen, TikTok skipped');
+        errs.push(tr('uTiktokAudienceNotChosen'));
         void noteLegErr('tiktok', 'audience not chosen, TikTok skipped');
         plats = plats.filter((p) => p !== 'tiktok');
       }
@@ -951,7 +952,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           // never kill the whole publish silently, fail TikTok alone with a
           // visible row and keep blasting the rest.
           const note =
-            String(e?.message ?? '') === 'Login was cancelled.'
+            String(e?.message ?? '') === tr('uLoginWasCancelled')
               ? 'audience not chosen, TikTok skipped'
               : (e?.message ?? 'failed');
           errs.push(`TikTok: ${note}`);
@@ -985,11 +986,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           const type = (p.platformTypes?.[ch as ChannelKey] as string | undefined) ?? defaultPlatformType(ch as ChannelKey, atts);
           if (ch === 'facebook') {
             const fbAccts = accountsFor('facebook');
-            if (fbAccts.length === 0) throw new Error('Facebook not connected');
+            if (fbAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Facebook'));
             const fbRes = await Promise.allSettled(fbAccts.map(async (fbAcct) => {
               const fbPageId = fbAcct.fields.pageId as string | undefined;
               const fbPageToken = fbAcct.fields.pageToken as string | undefined;
-              if (!fbPageId || !fbPageToken) throw new Error('Facebook not connected');
+              if (!fbPageId || !fbPageToken) throw new Error(tr('uNNotConnected').replace('{n}', 'Facebook'));
               if (type === 'story') {
                 keepAcct(ch, fbAcct.id, await publishFacebookStory({ pageId: fbPageId, pageToken: fbPageToken, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts }));
               } else if (type === 'reel') {
@@ -1002,15 +1003,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Facebook');
           } else if (ch === 'instagram') {
             const igAccts = accountsFor('instagram');
-            if (igAccts.length === 0) throw new Error('Instagram not connected');
+            if (igAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Instagram'));
             const igRes = await Promise.allSettled(igAccts.map(async (igAcct) => {
               const igId = igAcct.fields.igId as string | undefined;
               const igToken = igAcct.fields.igToken as string | undefined;
-              if (!igId || !igToken) throw new Error('Instagram not connected');
+              if (!igId || !igToken) throw new Error(tr('uNNotConnected').replace('{n}', 'Instagram'));
               if (type === 'story') {
                 keepAcct(ch, igAcct.id, await publishInstagramStory({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
               } else if (type === 'reel' && !atts.some((a) => a.kind === 'video')) {
-                throw new Error('Instagram Reels need a video.');
+                throw new Error(tr('uInstagramReelsNeedA'));
               } else {
                 keepAcct(ch, igAcct.id, await publishInstagram({ igId, igToken, caption, imageUri: p.imageUri, videoUri: p.videoUri, attachments: atts, mirrorClientId: p.id }));
               }
@@ -1020,11 +1021,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           } else if (ch === 'threads') {
             // Narrow into consts, TS drops property narrowing inside callbacks.
             const thAccts = accountsFor('threads');
-            if (thAccts.length === 0) throw new Error('Threads not connected');
+            if (thAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Threads'));
             const thRes = await Promise.allSettled(thAccts.map(async (thAcct) => {
               const thId = thAcct.fields.threadsId as string | undefined;
               const thToken = thAcct.fields.threadsToken as string | undefined;
-              if (!thId || !thToken) throw new Error('Threads not connected');
+              if (!thId || !thToken) throw new Error(tr('uNNotConnected').replace('{n}', 'Threads'));
               if (type === 'ghost') {
                 // real ghost post: text-only container flagged to auto-archive in 24h
                 keepAcct(ch, thAcct.id, await publishThreads({ threadsId: thId, token: thToken, text: caption, ghost: true, topicTag: p.threadsTopic }));
@@ -1051,18 +1052,18 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Threads');
           } else if (ch === 'tiktok') {
             const ttAccts = accountsFor('tiktok');
-            if (ttAccts.length === 0) throw new Error('TikTok not connected');
+            if (ttAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'TikTok'));
             const ttSaved: string[] = [];
             const ttRes = await Promise.allSettled(ttAccts.map(async (ttAcct) => {
               const tt = ttAcct.fields;
-              if (!tt.ttRefreshToken && !tt.ttAccessToken) throw new Error('TikTok not connected');
+              if (!tt.ttRefreshToken && !tt.ttAccessToken) throw new Error(tr('uNNotConnected').replace('{n}', 'TikTok'));
               if (firstVideo && atts.some((a) => a.kind === 'image')) {
-                throw new Error('TikTok can’t mix photos and video, send one or the other (a Live Photo counts as a photo).');
+                throw new Error(tr('uTiktokCanTMix'));
               }
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.tiktok.images);
               if (type === 'photo' || !firstVideo) {
                 // photo carousel, TikTok pulls from public URLs
-                if (!imgs.length) throw new Error(type === 'photo' ? 'Attach at least one photo for a TikTok photo post.' : 'TikTok needs a photo or video');
+                if (!imgs.length) throw new Error(type === 'photo' ? tr('uAttachAtLeastOne') : tr('uTiktokNeedsAPhoto'));
                 const urls: string[] = [];
                 for (const img of imgs) {
                   urls.push(img.uri.startsWith('http') ? img.uri : await uploadTikTokPhoto(img.uri));
@@ -1092,12 +1093,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('TikTok');
           } else if (ch === 'x') {
             const xAccts = accountsFor('x');
-            if (xAccts.length === 0) throw new Error('X not connected');
+            if (xAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'X'));
             const xRes = await Promise.allSettled(xAccts.map(async (xAcct) => {
               const xf = xAcct.fields;
-              if (!xf.xUserId || (!xf.xAccessToken && !xf.xRefreshToken)) throw new Error('X not connected');
+              if (!xf.xUserId || (!xf.xAccessToken && !xf.xRefreshToken)) throw new Error(tr('uNNotConnected').replace('{n}', 'X'));
               if (firstVideo && atts.some((a) => a.kind === 'image')) {
-                throw new Error('X can’t mix photos and video, send one or the other.');
+                throw new Error(tr('uXCanTMix'));
               }
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.x.images);
               const imgUris = imgs.map((a) => a.uri);
@@ -1119,12 +1120,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('X');
           } else if (ch === 'bluesky') {
             const bsAccts = accountsFor('bluesky');
-            if (bsAccts.length === 0) throw new Error('Bluesky not connected');
+            if (bsAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Bluesky'));
             const bsRes = await Promise.allSettled(bsAccts.map(async (bsAcct) => {
               const bs = bsAcct.fields;
-              if (!bs.bskyDid || (!bs.bskyAccessJwt && !bs.bskyRefreshJwt)) throw new Error('Bluesky not connected');
+              if (!bs.bskyDid || (!bs.bskyAccessJwt && !bs.bskyRefreshJwt)) throw new Error(tr('uNNotConnected').replace('{n}', 'Bluesky'));
               if (firstVideo && atts.some((a) => a.kind === 'image')) {
-                throw new Error('Bluesky can’t mix photos and video, send one or the other.');
+                throw new Error(tr('uBlueskyCanTMix'));
               }
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.bluesky.images);
               const bsImgUris = imgs.map((a) => a.uri);
@@ -1150,10 +1151,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Bluesky');
           } else if (ch === 'mastodon') {
             const maAccts = accountsFor('mastodon');
-            if (maAccts.length === 0) throw new Error('Mastodon not connected');
+            if (maAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Mastodon'));
             const maRes = await Promise.allSettled(maAccts.map(async (maAcct) => {
               const ma = maAcct.fields;
-              if (!ma.mastodonAccessToken || !ma.mastodonInstance) throw new Error('Mastodon not connected');
+              if (!ma.mastodonAccessToken || !ma.mastodonInstance) throw new Error(tr('uNNotConnected').replace('{n}', 'Mastodon'));
               // Mastodon takes either a single video or up to 4 images, never both
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.mastodon.images);
               const mImgUris = imgs.map((a) => a.uri);
@@ -1175,10 +1176,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Mastodon');
           } else if (ch === 'pinterest') {
             const piAccts = accountsFor('pinterest');
-            if (piAccts.length === 0) throw new Error('Pinterest not connected');
+            if (piAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Pinterest'));
             const piRes = await Promise.allSettled(piAccts.map(async (piAcct) => {
               const pi = piAcct.fields;
-              if (!pi.pinAccessToken) throw new Error('Pinterest not connected');
+              if (!pi.pinAccessToken) throw new Error(tr('uNNotConnected').replace('{n}', 'Pinterest'));
               // One Pin per image on the default board, plus a video Pin when attached
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.pinterest.images);
               keepAcct(ch, piAcct.id, await publishPinterest({ text: caption, imageUris: imgs.map((a) => a.uri), videoUri: firstVideo?.uri, accountId: piAcct.id }));
@@ -1187,10 +1188,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Pinterest');
           } else if (ch === 'linkedin') {
             const liAccts = accountsFor('linkedin');
-            if (liAccts.length === 0) throw new Error('LinkedIn not connected');
+            if (liAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'LinkedIn'));
             const liRes = await Promise.allSettled(liAccts.map(async (liAcct) => {
               const li = liAcct.fields;
-              if (!li.liPersonUrn) throw new Error('LinkedIn not connected');
+              if (!li.liPersonUrn) throw new Error(tr('uNNotConnected').replace('{n}', 'LinkedIn'));
               // Text and/or up to 9 photos as a member post
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.linkedin.images);
               keepAcct(ch, liAcct.id, await publishLinkedIn({ text: caption, imageUris: imgs.map((a) => a.uri), accountId: liAcct.id }));
@@ -1199,10 +1200,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('LinkedIn');
           } else if (ch === 'youtube') {
             const ytAccts = accountsFor('youtube');
-            if (ytAccts.length === 0) throw new Error('YouTube not connected');
+            if (ytAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'YouTube'));
             const ytRes = await Promise.allSettled(ytAccts.map(async (ytAcct) => {
               const yt = ytAcct.fields;
-              if (!yt.ytRefreshToken && !yt.ytAccessToken) throw new Error('YouTube not connected');
+              if (!yt.ytRefreshToken && !yt.ytAccessToken) throw new Error(tr('uNNotConnected').replace('{n}', 'YouTube'));
               // Video-only, photos/text alone throw a clear error
               keepAcct(ch, ytAcct.id, await publishYouTube({ text: caption, videoUri: firstVideo?.uri, kind: (type as 'video' | 'short' | undefined) ?? 'video', privacy: (p.ytPrivacy as 'public' | 'unlisted' | 'private' | undefined) ?? 'public', accountId: ytAcct.id }));
             }));
@@ -1210,10 +1211,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('YouTube');
           } else if (ch === 'telegram') {
             const tgAccts = accountsFor('telegram');
-            if (tgAccts.length === 0) throw new Error('Telegram not connected');
+            if (tgAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Telegram'));
             const tgRes = await Promise.allSettled(tgAccts.map(async (tgAcct) => {
               const tg = tgAcct.fields;
-              if (!tg.tgBotToken || !tg.tgChatId) throw new Error('Telegram not connected');
+              if (!tg.tgBotToken || !tg.tgChatId) throw new Error(tr('uNNotConnected').replace('{n}', 'Telegram'));
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.telegram.images);
               keepAcct(ch, tgAcct.id, await publishTelegram({
                 botToken: String(tg.tgBotToken),
@@ -1227,10 +1228,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Telegram');
           } else if (ch === 'discord') {
             const dcAccts = accountsFor('discord');
-            if (dcAccts.length === 0) throw new Error('Discord not connected');
+            if (dcAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Discord'));
             const dcRes = await Promise.allSettled(dcAccts.map(async (dcAcct) => {
               const dc = dcAcct.fields;
-              if (!dc.dcBotToken || !dc.dcChannelId) throw new Error('Discord not connected');
+              if (!dc.dcBotToken || !dc.dcChannelId) throw new Error(tr('uNNotConnected').replace('{n}', 'Discord'));
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.discord.images);
               keepAcct(ch, dcAcct.id, await publishDiscord({
                 botToken: String(dc.dcBotToken),
@@ -1244,10 +1245,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Discord');
           } else if (ch === 'wordpress') {
             const wpAccts = accountsFor('wordpress');
-            if (wpAccts.length === 0) throw new Error('WordPress not connected');
+            if (wpAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'WordPress'));
             const wpRes = await Promise.allSettled(wpAccts.map(async (wpAcct) => {
               const wp = wpAcct.fields;
-              if (!wp.wpSiteUrl || !wp.wpUsername || !wp.wpAppPassword) throw new Error('WordPress not connected');
+              if (!wp.wpSiteUrl || !wp.wpUsername || !wp.wpAppPassword) throw new Error(tr('uNNotConnected').replace('{n}', 'WordPress'));
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.wordpress.images);
               // Title falls back to the first line inside the publisher.
               keepAcct(ch, wpAcct.id, await publishWordPress({
@@ -1263,10 +1264,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('WordPress');
           } else if (ch === 'devto') {
             const devAccts = accountsFor('devto');
-            if (devAccts.length === 0) throw new Error('Dev.to not connected');
+            if (devAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Dev.to'));
             const devRes = await Promise.allSettled(devAccts.map(async (devAcct) => {
               const dv = devAcct.fields;
-              if (!dv.devApiKey) throw new Error('Dev.to not connected');
+              if (!dv.devApiKey) throw new Error(tr('uNNotConnected').replace('{n}', 'Dev.to'));
               keepAcct(ch, devAcct.id, await publishDevto({
                 apiKey: String(dv.devApiKey),
                 title: p.title ?? '',
@@ -1277,10 +1278,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Dev.to');
           } else if (ch === 'hashnode') {
             const hnAccts = accountsFor('hashnode');
-            if (hnAccts.length === 0) throw new Error('Hashnode not connected');
+            if (hnAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Hashnode'));
             const hnRes = await Promise.allSettled(hnAccts.map(async (hnAcct) => {
               const hn = hnAcct.fields;
-              if (!hn.hnToken || !hn.hnPublicationId) throw new Error('Hashnode not connected');
+              if (!hn.hnToken || !hn.hnPublicationId) throw new Error(tr('uNNotConnected').replace('{n}', 'Hashnode'));
               keepAcct(ch, hnAcct.id, await publishHashnode({
                 pat: String(hn.hnToken),
                 publicationId: String(hn.hnPublicationId),
@@ -1292,10 +1293,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Hashnode');
           } else if (ch === 'ghost') {
             const ghAccts = accountsFor('ghost');
-            if (ghAccts.length === 0) throw new Error('Ghost not connected');
+            if (ghAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Ghost'));
             const ghRes = await Promise.allSettled(ghAccts.map(async (ghAcct) => {
               const gh = ghAcct.fields;
-              if (!gh.ghSiteUrl || !gh.ghAdminKey) throw new Error('Ghost not connected');
+              if (!gh.ghSiteUrl || !gh.ghAdminKey) throw new Error(tr('uNNotConnected').replace('{n}', 'Ghost'));
               keepAcct(ch, ghAcct.id, await publishGhost({
                 siteUrl: String(gh.ghSiteUrl),
                 adminKey: String(gh.ghAdminKey),
@@ -1307,10 +1308,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Ghost');
           } else if (ch === 'vk') {
             const vkAccts = accountsFor('vk');
-            if (vkAccts.length === 0) throw new Error('VK not connected');
+            if (vkAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'VK'));
             const vkRes = await Promise.allSettled(vkAccts.map(async (vkAcct) => {
               const vkF = vkAcct.fields;
-              if (!vkF.vkToken || !vkF.vkGroupId) throw new Error('VK not connected');
+              if (!vkF.vkToken || !vkF.vkGroupId) throw new Error(tr('uNNotConnected').replace('{n}', 'VK'));
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.vk.images);
               keepAcct(ch, vkAcct.id, await publishVk({
                 token: String(vkF.vkToken),
@@ -1323,10 +1324,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('VK');
           } else if (ch === 'gmb') {
             const ggAccts = accountsFor('gmb');
-            if (ggAccts.length === 0) throw new Error('Google Business not connected');
+            if (ggAccts.length === 0) throw new Error(tr('uNNotConnected').replace('{n}', 'Google Business'));
             const ggRes = await Promise.allSettled(ggAccts.map(async (ggAcct) => {
               const ggF = ggAcct.fields;
-              if (!ggF.gmRefreshToken || !ggF.gmLocation) throw new Error('Google Business not connected');
+              if (!ggF.gmRefreshToken || !ggF.gmLocation) throw new Error(tr('uNNotConnected').replace('{n}', 'Google Business'));
               keepAcct(ch, ggAcct.id, await publishGmb({
                 accountId: ggAcct.id,
                 locationExternalId: String(ggF.gmLocation),
@@ -1337,7 +1338,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             done.push('Google Business');
           } else {
             manual.push(ch === 'any' ? 'manual post' : ch);
-            setRow(ch, { state: 'manual', note: 'Open the app and post it yourself' });
+            setRow(ch, { state: 'manual', note: tr('uOpenTheAppAnd') });
             return;
           }
           await recordLegDone(ch);
@@ -1446,7 +1447,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         id: n === 'manual post' ? 'any' : n,
         label: labelFor(n === 'manual post' ? 'any' : n),
         state: 'manual' as const,
-        note: 'Open the app and post it yourself',
+        note: tr('uOpenTheAppAnd'),
       })),
       ...errs.map((e) => {
         const i = e.indexOf(': ');
@@ -1458,11 +1459,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         id: n.toLowerCase(),
         label: labelFor(n),
         state: 'pending' as const,
-        note: 'Sending…',
+        note: tr('uSending'),
       })),
     ];
     const allGood = done.length > 0 && errs.length === 0 && manual.length === 0;
-    if (!opts?.silent) setNotice({ mode: 'result', title: allGood ? 'Published' : 'Publish result', rows });
+    if (!opts?.silent) setNotice({ mode: 'result', title: allGood ? tr('uPublished') : tr('uPublishResult'), rows });
     // The sent verdict comes from the STORED record (late legs included), not
     // just this run's arrays, a timed-out-then-landed video still flips sent.
     const { rec, sent } = await settlePost(p, run.resolved, run, opts);
@@ -1531,7 +1532,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const r = await runPublish(p);
         if (r) await finishPublish(p, r);
       } catch (e: any) {
-        setNotice({ mode: 'result', title: 'Publish failed', rows: [{ id: 'post', label: 'Post', state: 'fail' as const, note: e?.message ?? 'Try again.' }] });
+        setNotice({ mode: 'result', title: tr('uPublishFailed'), rows: [{ id: 'post', label: 'Post', state: 'fail' as const, note: e?.message ?? tr('uTryAgain') }] });
       }
     },
     [runPublish, finishPublish],
@@ -1576,7 +1577,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       {children}
       <ScheduleSheet
         visible={sheet !== null}
-        title={sheet?.post?.status === 'sent' ? 'Sent post' : sheet?.post ? 'Edit post' : 'New post'}
+        title={sheet?.post?.status === 'sent' ? tr('uSentPost') : sheet?.post ? tr('uEditPost') : tr('uNewPost')}
         readOnly={sheet?.post?.status === 'sent'}
         readOnlyNote={sheet?.post?.status === 'sent' && sheet.post.sentAt ? `Sent ${fmtDateTime(sheet.post.sentAt)}` : undefined}
         remoteIds={sheet?.post?.remoteIds}
@@ -1592,7 +1593,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         composer={{ title: '', caption: tBody, onCaption: setTBody, thread: tThread, onThread, threadMedia: tThreadMedia, onThreadMedia, onPickThreadMedia: pickThreadMedia, onRemoveThreadMedia: removeThreadMedia, onMoveThreadMedia: moveThreadMedia }}
         media={{ items: tMedia, onPick: pickMedia, onAdd: addMedia, onRemove: removeMedia, onMove: moveMedia }}
         onSave={save}
-        draftLabel="Save as draft"
+        draftLabel={tr('uSaveAsDraft')}
         onDraft={saveDraft}
         onPostNow={postNow}
         onDelete={sheet?.post ? remove : undefined}
@@ -1622,8 +1623,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       <PublishNotice
         visible={privacyAsk !== null}
         mode="privacy"
-        title="TikTok audience"
-        message="Who can see this post?"
+        title={tr('uTiktokAudience')}
+        message={tr('uWhoCanSeeThis')}
         rows={(privacyAsk?.options ?? []).map((o) => ({ id: o.value, label: o.label, state: 'pending' as const }))}
         onPick={(v) => privacyAsk?.resolve(v)}
         onCancel={() => privacyCancelRef.current?.()}

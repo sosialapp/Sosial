@@ -92,6 +92,9 @@ export async function GET(req: Request) {
     workspace_id: workspaceId,
     nonce: randomBytes(16).toString('base64url'),
   };
+  // Consent in its own tab: the callback hands the result to the opener and
+  // closes that tab. Plain same-tab links omit it and keep the redirect.
+  if (url.searchParams.get('popup') === '1') flow.popup = true;
   let challenge: string | undefined;
   if (provider === 'x') {
     flow.verifier = newVerifier();

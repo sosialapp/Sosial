@@ -59,7 +59,8 @@ function Shell() {
   const [postSignal, setPostSignal] = useState(0);
   const [account, setAccount] = useState<Account>({ email: '', team: 'My team', plan: 'free', notifPosts: true, notifComments: true, notifWeekly: false, notifMarketing: false, locale: 'en' });
   /** Keep the on-device translator in step with the saved language. */
-  React.useEffect(() => { setLocale(account.locale); }, [account.locale]);
+  // Set during render so this render's screens already read the new language.
+  setLocale(account.locale);
   /** Server-authoritative plan + limits for the active workspace (null until
    *  the first fetch; the UI falls back to the local plan while offline). */
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);

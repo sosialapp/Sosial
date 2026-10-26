@@ -31,6 +31,7 @@ import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
 import { providerMeta } from '@/lib/providers';
+import { usePostgresChanges } from '@/lib/realtime';
 import type { ConnectedChannel } from '@/lib/types';
 
 interface CommentRow {
@@ -51,9 +52,8 @@ interface CommentRow {
 }
 
 /** Providers the sync engine can reply on. */
-const REPLY_PROVIDERS = new Set(['facebook', 'instagram', 'threads', 'x', 'mastodon', 'bluesky']);
+const REPLY_PROVIDERS = new Set(['facebook', 'instagram', 'threads', 'x', 'mastodon', 'bluesky', 'youtube']);
 const NO_REPLY_TEXT: Record<string, string> = {
-  youtube: 'Replies for YouTube are planned.',
   linkedin: 'Replies for LinkedIn are planned.',
   tiktok: 'Replies for TikTok are planned.',
   pinterest: 'Replies are not exposed by the Pinterest API.',
@@ -140,8 +140,6 @@ export default function CommentsFeed({
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
   const { seen, markSeen, ready: seenReady } = useSeen(workspaceId, 'comments');
-  /** The stamp from before this visit, so this visit's new bubbles keep their tag. */
-  const [visitSeen, setVisitSeen] = useState<string | null>(null);
 
   /** Keep optimistic rows until the worker's copy of them shows up. */
   const reconcile = useCallback((prev: CommentRow[] | null, next: CommentRow[]): CommentRow[] => {
@@ -178,13 +176,22 @@ export default function CommentsFeed({
     void load();
   }, [load, reloadKey]);
 
-  // Keep the feed live: new comments land without pressing Refresh, and the
-  // page stops polling while it is in a background tab.
+  // Keep the feed live: a comment the worker just stored arrives over
+  // Realtime and shows up at once, instead of on a 20s timer.
+  usePostgresChanges({
+    table: 'comments',
+    filter: `workspace_id=eq.${workspaceId}`,
+    onChange: () => void load(),
+  });
+
+  // Realtime only carries changes made after the socket joined, so a slow
+  // pass covers anything missed while it was reconnecting. It also replaces
+  // the poll that used to run every 20s.
   useEffect(() => {
     const tick = () => {
       if (document.visibilityState === 'visible') void load();
     };
-    const id = window.setInterval(tick, 20_000);
+    const id = window.setInterval(tick, 60_000);
     return () => window.clearInterval(id);
   }, [load]);
 
@@ -372,12 +379,7 @@ export default function CommentsFeed({
 
   const current = sel ? groups.find((g) => g.key === sel) : undefined;
 
-  // Both wait for the saved stamps: capture the previous visit first, then mark read.
-  useEffect(() => {
-    if (!sel || !seenReady) return;
-    setVisitSeen(seen[sel] ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, seenReady]);
+  // Waits for the saved stamps, then marks the open post read.
   useEffect(() => {
     if (current && seenReady) markSeen(current.key, current.last);
   }, [current?.key, current?.last, markSeen, seenReady]);
@@ -638,11 +640,6 @@ export default function CommentsFeed({
                           >
                             <p className="flex items-center gap-1.5 text-[12px] font-bold text-ink">
                               <span className="truncate">{c.author_name || 'Unknown'}</span>
-                              {(visitSeen ? c.created_at > visitSeen : c.status === 'new') ? (
-                                <span className="rounded-full bg-accent px-1.5 text-[9px] font-extrabold uppercase leading-4 text-[#0b1220]">
-                                  New
-                                </span>
-                              ) : null}
                             </p>
                             {parent ? (
                               <p className="mt-0.5 truncate text-[11px] text-muted">
@@ -677,7 +674,7 @@ export default function CommentsFeed({
                                 }}
                                 className={`font-bold transition ${isTarget ? 'text-ink' : 'text-muted hover:text-ink'}`}
                               >
-                                {isTarget ? 'Replying…' : 'Reply'}
+                                Reply
                               </button>
                             ) : null}
                             {done ? (

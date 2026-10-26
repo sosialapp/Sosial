@@ -14,6 +14,7 @@ import {
   type CloudChannel,
   type CloudPost,
 } from '../utils/cloudAnalytics';
+import { tr } from '../i18n';
 
 /**
  * Mirrors the web analytics dashboard (apps/web AnalyticsDashboard): reads
@@ -27,10 +28,11 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 type RangePreset = 'last7' | 'last30' | 'mtd';
 
-const PRESETS: { id: RangePreset; label: string }[] = [
-  { id: 'last7', label: '7 days' },
-  { id: 'last30', label: '30 days' },
-  { id: 'mtd', label: 'Month to date' },
+/** Range pills; labels are dictionary keys, translated at render. */
+const PRESETS: { id: RangePreset; key: string }[] = [
+  { id: 'last7', key: 'dLast7' },
+  { id: 'last30', key: 'iLast30' },
+  { id: 'mtd', key: 'iMtd' },
 ];
 
 function compact(n: number | null): string {
@@ -106,10 +108,10 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const now = Date.now();
   const range = useMemo((): { from: number; to: number; label: string } => {
     const sod = startOfDay(now);
-    if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: 'Last 7 days' };
-    if (preset === 'last30') return { from: sod - 29 * DAY, to: sod + DAY - 1, label: 'Last 30 days' };
+    if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: tr('dLast7') };
+    if (preset === 'last30') return { from: sod - 29 * DAY, to: sod + DAY - 1, label: tr('iLast30') };
     const d = new Date(now);
-    return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: sod + DAY - 1, label: 'Month to date' };
+    return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: sod + DAY - 1, label: tr('iMtd') };
   }, [preset, now]);
 
   const connected = useMemo(
@@ -282,14 +284,14 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   })();
 
   const metricCells: { id: typeof metric; label: string; value: string; desc: string }[] = [
-    { id: 'posts', label: 'Posts', value: full(sent.length), desc: 'Posts published each day' },
-    { id: 'followers', label: 'Followers', value: hasFollowers ? compact(followers) : '-', desc: 'Followers per channel, latest snapshot' },
-    { id: 'engagement', label: 'Eng. rate', value: eng ?? '-', desc: 'Interactions ÷ followers, per channel' },
-    { id: 'interactions', label: 'Interactions', value: compact(likes + comments + shares), desc: 'Interactions from posts published each day' },
+    { id: 'posts', label: tr('iPosts'), value: full(sent.length), desc: 'Posts published each day' },
+    { id: 'followers', label: tr('dFollowers'), value: hasFollowers ? compact(followers) : '-', desc: 'Followers per channel, latest snapshot' },
+    { id: 'engagement', label: tr('iEng'), value: eng ?? '-', desc: 'Interactions ÷ followers, per channel' },
+    { id: 'interactions', label: tr('dInteractions'), value: compact(likes + comments + shares), desc: 'Interactions from posts published each day' },
   ];
 
   const pipe = [
-    { label: 'Drafts', value: drafts, color: C.faint },
+    { label: tr('iDrafts'), value: drafts, color: C.faint },
     { label: 'Queued', value: queued, color: '#F2A400' },
     { label: 'Sent', value: sent.length, color: C.ink },
     { label: 'Failed', value: failed, color: '#E5484D' },
@@ -342,7 +344,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               </TouchableOpacity>
             ) : null}
             <View>
-              <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>Insights</Text>
+              <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>{tr('iTitle')}</Text>
             </View>
           </View>
           <NotificationBell />
@@ -352,7 +354,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
             {/* Range presets */}
             <View style={{ paddingHorizontal: 24, marginTop: 12 }}>
               <Tabs
-                options={PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+                options={PRESETS.map((p) => ({ value: p.id, label: tr(p.key) }))}
                 value={preset}
                 onChange={setPreset}
                 accessibilityLabel="Date range"
@@ -366,7 +368,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 style={[s.chanChip, chanSel.length === 0 && { backgroundColor: C.ink, borderColor: C.ink }]}
                 activeOpacity={0.75}
               >
-                <Text style={[s.chanChipT, chanSel.length === 0 && { color: C.onInk }]}>All channels</Text>
+                <Text style={[s.chanChipT, chanSel.length === 0 && { color: C.onInk }]}>{tr('iAll')}</Text>
               </TouchableOpacity>
               {connected.map((c) => {
                 const on = chanSel.includes(c.id);
@@ -391,15 +393,15 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
             {loading && !data ? (
               <View style={{ padding: 40, alignItems: 'center' }}>
                 <ActivityIndicator color={C.accent} />
-                <Text style={s.loadingT}>Crunching numbers…</Text>
+                <Text style={s.loadingT}>{tr('iCrunch')}</Text>
               </View>
             ) : connected.length === 0 ? (
               <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
                 <View style={s.empty}>
-                  <Text style={s.emptyT}>No channels connected</Text>
+                  <Text style={s.emptyT}>{tr('iNoCh')}</Text>
                   <Text style={s.emptyS}>Connect a channel and publish, audience and engagement land here within a day.</Text>
                   <TouchableOpacity onPress={onConnect} style={s.connectBtn} activeOpacity={0.8}>
-                    <Text style={s.connectBtnT}>Connect a channel</Text>
+                    <Text style={s.connectBtnT}>{tr('iConnect')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -469,10 +471,10 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
 
                 {/* Top posts: ranked rows with their numbers */}
                 <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-                  <Text style={s.secT}>Top posts</Text>
+                  <Text style={s.secT}>{tr('iTop')}</Text>
                   <Text style={s.secS}>Ranked by interactions · {range.label.toLowerCase()}</Text>
                   {topPosts.length === 0 ? (
-                    <Text style={s.hint}>No sent posts in this range yet.</Text>
+                    <Text style={s.hint}>{tr('iNoTop')}</Text>
                   ) : (
                     <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
                       {topPosts.map((p, i) => (
@@ -498,7 +500,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 {/* Pipeline: one stacked bar + legend */}
                 <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
                   <View style={s.card}>
-                    <Text style={s.cardT}>Pipeline</Text>
+                    <Text style={s.cardT}>{tr('iPipeline')}</Text>
                     <View style={s.stackBar}>
                       {pipe.map((f) =>
                         f.value > 0 ? <View key={f.label} style={{ flex: f.value, backgroundColor: f.color }} /> : null,
@@ -520,7 +522,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
                   <View style={s.card}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <Text style={s.cardT}>Rhythm</Text>
+                      <Text style={s.cardT}>{tr('iRhythm')}</Text>
                       <Seg
                         accessibilityLabel="Rhythm"
                         grow={false}
@@ -550,7 +552,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
 
                 {/* Channels */}
                 <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-                  <Text style={s.secT}>Channels</Text>
+                  <Text style={s.secT}>{tr('iChannels')}</Text>
                   <Text style={s.secS}>Followers refresh daily · engagement is interactions ÷ followers</Text>
                   {perfRows.length === 0 ? (
                     <Text style={s.hint}>Connect a channel and publish, audience and engagement land here within a day.</Text>
@@ -581,9 +583,9 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
 
                 {/* Recently sent */}
                 <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-                  <Text style={s.secT}>Recently sent</Text>
+                  <Text style={s.secT}>{tr('dRecent')}</Text>
                   {recent.length === 0 ? (
-                    <Text style={s.hint}>No sends yet.</Text>
+                    <Text style={s.hint}>{tr('iNoSends')}</Text>
                   ) : (
                     <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
                       {recent.map((p, i) => {

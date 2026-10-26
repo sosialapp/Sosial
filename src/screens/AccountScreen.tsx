@@ -76,7 +76,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     if (pfpBusy) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
+      Alert.alert(tr('uPermissionNeeded'), tr('uAllowPhotoAccessTo'));
       return;
     }
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
@@ -87,9 +87,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       const path = await getMyAvatar();
       const uri = await avatarSignedUrl(path);
       setPfpUri(uri);
-      Alert.alert('Updated', 'Profile picture saved.');
+      Alert.alert(tr('uUpdated'), tr('uProfilePictureSaved'));
     } catch (e: any) {
-      Alert.alert('Couldn’t update', e?.message ?? 'Try again.');
+      Alert.alert(tr('uCouldnTUpdate'), e?.message ?? tr('uTryAgain'));
     } finally {
       setPfpBusy(false);
     }
@@ -104,9 +104,9 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       const path = await getMyAvatar();
       const uri = await avatarSignedUrl(path);
       setPfpUri(uri);
-      Alert.alert('Updated', 'Using your Google profile picture.');
+      Alert.alert(tr('uUpdated'), tr('uUsingYourGoogleProfile'));
     } catch (e: any) {
-      Alert.alert('Not available', e?.message ?? 'No Google picture on this account.');
+      Alert.alert(tr('uNotAvailable'), e?.message ?? tr('uNoGooglePictureOn'));
     } finally {
       setPfpBusy(false);
     }
@@ -265,7 +265,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
   const doCloudSignIn = async () => {
     if (!sbEmail.trim() || !sbPw) {
-      setSbErr('Enter your email and password.');
+      setSbErr(tr('uEnterYourEmailAnd'));
       return;
     }
     setSbBusy(true);
@@ -278,7 +278,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       setSbPw('');
       void syncDownProfile();
     } catch (e: any) {
-      setSbErr(e?.message ?? 'Sign-in failed.');
+      setSbErr(e?.message ?? tr('wErrIn'));
     } finally {
       setSbBusy(false);
     }
@@ -304,7 +304,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
   const doCloudSignUp = async () => {
     if (!sbEmail.trim() || sbPw.length < 6) {
-      setSbErr('Enter an email and a password (min 6 characters).');
+      setSbErr(tr('wErrNeed'));
       return;
     }
     setSbBusy(true);
@@ -313,7 +313,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     try {
       const r = await signUpEmail(sbEmail, sbPw);
       if (r.needsConfirm) {
-        setSbNotice('Account created, check your inbox for the confirmation link, then sign in.');
+        setSbNotice(tr('wNoticeConfirm'));
       } else {
         const s = await currentSession();
         setSbAccount(s ? { email: s.user.email ?? '', workspace: s.workspace } : null);
@@ -322,7 +322,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       }
       setSbPw('');
     } catch (e: any) {
-      setSbErr(e?.message ?? 'Sign-up failed.');
+      setSbErr(e?.message ?? tr('wErrUp'));
     } finally {
       setSbBusy(false);
     }
@@ -334,8 +334,8 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     // sosial:// scheme and work with the same code path.
     if (isRunningInExpoGo()) {
       Alert.alert(
-        'Needs a development build',
-        'Google sign-in can’t return to Expo Go. Use email + password here, Google lights up automatically in dev builds.',
+        tr('wGoogleAlertT'),
+        tr('wGoogleAlertB'),
       );
       return;
     }
@@ -350,17 +350,17 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
         setSbPw('');
         void syncDownProfile();
     } catch (e: any) {
-      setSbErr(e?.message ?? 'Google sign-in failed.');
+      setSbErr(e?.message ?? tr('wErrGoogle'));
     } finally {
       setSbBusy(false);
     }
   };
 
   const doCloudSignOut = () => {
-    Alert.alert('Sign out of Sosial Cloud?', 'Your designs stay on this device; the cloud workspace stays intact.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr('uSignOutOfSosial'), tr('uYourDesignsStayOn'), [
+      { text: tr('uCancel'), style: 'cancel' },
       {
-        text: 'Sign out',
+        text: tr('aSignOut'),
         onPress: async () => {
           await signOutCloud();
           setSbAccount(null);
@@ -375,15 +375,15 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
     ]);
   };
 
-  const planName = plan === 'pro' ? 'Sosial Solo' : plan === 'team' ? 'Sosial Team' : 'Free plan';
+  const planName = plan === 'pro' ? 'Sosial Solo' : plan === 'team' ? 'Sosial Team' : tr('aFree');
 
   const initial = (email || team || 'Z')[0].toUpperCase();
-  const title = view === 'main' ? 'Account' : (
-    view === 'notif' ? 'Notifications' : view === 'email' ? 'Email settings' :
+  const title = view === 'main' ? tr('aTitle') : (
+    view === 'notif' ? tr('aNotifTitle') : view === 'email' ? tr('aEmail') :
     view === 'lang' ? tr('aLang') :
-    view === 'password' ? 'Change password' : view === 'plan' ? 'Subscription' :
-    view === 'changelog' ? "What's new" : view === 'terms' ? 'Terms of use' :
-    view === 'report' ? 'Support' : 'Legal'
+    view === 'password' ? tr('aPw') : view === 'plan' ? tr('aPlanTitle') :
+    view === 'changelog' ? tr('aNew') : view === 'terms' ? tr('aTerms') :
+    view === 'report' ? tr('aSupport') : tr('aLegal')
   );
 
   const row = (icon: string, label: string, sub: string | undefined, onPress: () => void, danger?: boolean) => (
@@ -410,7 +410,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   /** Self-serve erasure: typed “confirm” → server wipe → local wipe → signed out. */
   const deleteAccount = async () => {
     if (delWord.trim().toLowerCase() !== 'confirm') {
-      Alert.alert('Type “confirm”', 'Type the word “confirm” to delete your data.');
+      Alert.alert(tr('uTypeConfirm'), tr('uTypeTheWordConfirm'));
       return;
     }
     setDelBusy(true);
@@ -421,7 +421,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       await signOutCloud().catch(() => {});
       onLoggedOut();
     } catch (e: any) {
-      Alert.alert('Couldn’t delete', e?.message ?? 'Try again.');
+      Alert.alert(tr('uCouldnTDelete'), e?.message ?? tr('uTryAgain'));
     } finally {
       setDelBusy(false);
     }
@@ -429,7 +429,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
   const rateApp = () => {
     Linking.openURL('https://play.google.com/store/apps/details?id=com.sosial.app').catch(() => {
-      Alert.alert('Rate Sosial', 'Sosial isn’t on the Play Store yet, this link will work after release.');
+      Alert.alert(tr('aRate'), tr('uSosialIsnTOn'));
     });
   };
 
@@ -455,12 +455,12 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   /** Pick up to 3 screenshots from the library. */
   const pickShots = async () => {
     if (repShots.length >= 3) {
-      Alert.alert('Limit reached', 'Up to 3 screenshots per ticket.');
+      Alert.alert(tr('uLimitReached'), tr('uUpTo3Screenshots'));
       return;
     }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to attach screenshots.');
+      Alert.alert(tr('uPermissionNeeded'), tr('uAllowPhotoAccessTo2'));
       return;
     }
     const r = await ImagePicker.launchImageLibraryAsync({
@@ -498,18 +498,18 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const sendReport = async () => {
     const body = repBody.trim();
     if (!body) {
-      Alert.alert('Nothing to send', 'Describe the problem first.');
+      Alert.alert(tr('uNothingToSend'), tr('uDescribeTheProblemFirst'));
       return;
     }
     if (myTicket) {
-      Alert.alert('Ticket already open', 'You have an open ticket, we reply there. Once it is resolved you can raise a new one.');
+      Alert.alert(tr('uTicketAlreadyOpen'), tr('uYouHaveAnOpen'));
       return;
     }
     setRepBusy(true);
     try {
       const session = await currentSession();
       if (!session) {
-        Alert.alert('Sign in first', 'Reports send from your cloud account, sign in to Sosial Cloud at the top of this screen, then retry.');
+        Alert.alert(tr('uSignInFirst'), tr('uReportsSendFromYour'));
         return;
       }
       const { data: created, error } = await supabase()
@@ -535,28 +535,28 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
       setRepBody('');
       setRepShots([]);
       setView('main');
-      Alert.alert('Ticket submitted', 'We reply by email and update the ticket, find it under Support.');
+      Alert.alert(tr('uTicketSubmitted'), tr('uWeReplyByEmail'));
       void loadTicket();
     } catch (e: any) {
-      Alert.alert('Couldn’t send', e?.message ?? 'Try again.');
+      Alert.alert(tr('uCouldnTSend'), e?.message ?? tr('uTryAgain'));
     } finally {
       setRepBusy(false);
     }
   };
 
   /** Canonical price book (src/utils/plans.ts mirrors the web config). */
-  const soloTotal = yearly ? '$120/yr' : '$12/mo';
-  const teamTotal = yearly ? '$290/yr' : '$29/mo';
-  const businessTotal = yearly ? '$790/yr' : '$79/mo';
+  const soloMo = yearly ? '$10' : '$12';
+  const teamMo = yearly ? '$25' : '$29';
+  const businessMo = yearly ? '$66' : '$79';
 
   /** Plan switching works today as a local flag; real Play Billing replaces the confirm. */
   const choosePlan = (target: 'free' | 'pro' | 'team', label: string) => {
     if (plan === target) return;
-    Alert.alert(`Switch to ${label}?`, target === 'free'
-      ? 'You’ll lose paid features on this device.'
+    Alert.alert(tr('pbSwitchQ').replace('{plan}', label), target === 'free'
+      ? tr('uYouLlLosePaid')
       : 'Billing is stubbed in this build, this flips the local plan flag only. Real Play Billing activates at launch.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Confirm', onPress: () => onUpdate({ plan: target }) },
+      { text: tr('uCancel'), style: 'cancel' },
+      { text: tr('uConfirm'), onPress: () => onUpdate({ plan: target }) },
     ]);
   };
 
@@ -574,7 +574,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               <View style={s.row}>
                 <Ionicons name="moon-outline" size={20} color={C.ink} />
                 <View style={{ flex: 1, gap: 1 }}>
-                  <Text style={s.rowT}>Dark mode</Text>
+                  <Text style={s.rowT}>{tr('aDark')}</Text>
                 </View>
                 <Switch value={mode === 'dark'} onValueChange={toggle} trackColor={{ true: C.accent, false: '#D8D1BF' }} thumbColor="#ffffff" />
               </View>
@@ -590,14 +590,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             <View style={s.head}>
               <TouchableOpacity
                 onPress={() => {
-                  Alert.alert('Profile picture', pfpUri ? 'Change or remove your picture.' : 'Add a picture, or use your Google account photo.', [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: pfpUri ? 'Change photo' : 'Add photo', onPress: () => void changePfp() },
-                    { text: 'Use Google picture', onPress: () => void useGooglePfp() },
-                    ...(pfpUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => void removePfp() }] : []),
+                  Alert.alert(tr('uProfilePicture'), pfpUri ? tr('uChangeOrRemoveYour') : tr('uAddAPictureOr'), [
+                    { text: tr('uCancel'), style: 'cancel' },
+                    { text: pfpUri ? tr('uChangePhoto') : tr('uAddPhoto'), onPress: () => void changePfp() },
+                    { text: tr('uUseGooglePicture'), onPress: () => void useGooglePfp() },
+                    ...(pfpUri ? [{ text: tr('uRemove'), style: 'destructive' as const, onPress: () => void removePfp() }] : []),
                   ]);
                 }}
-                accessibilityLabel="Change profile picture"
+                accessibilityLabel={tr('uChangeProfilePicture')}
                 activeOpacity={0.75}
               >
                 {pfpUri && !pfpFailed ? (
@@ -607,14 +607,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 )}
               </TouchableOpacity>
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={s.email} numberOfLines={1}>{email || 'No email set'}</Text>
+                <Text style={s.email} numberOfLines={1}>{email || tr('uNoEmailSet')}</Text>
                 <Text style={s.team} numberOfLines={1}>{team}</Text>
               </View>
             </View>
             <View style={s.list}>
               <View style={{ padding: 14, gap: 8 }}>
-                <Text style={s.rowT}>Account</Text>
-                {sbState === 'checking' ? <Text style={s.rowS}>Checking cloud account…</Text> : null}
+                <Text style={s.rowT}>{tr('aTitle')}</Text>
+                {sbState === 'checking' ? <Text style={s.rowS}>{tr('uCheckingCloudAccount')}</Text> : null}
                 {sbState === 'unconfigured' ? (
                   <Text style={s.rowS}>Backend not configured, add the Supabase keys to .env and restart Expo.</Text>
                 ) : null}
@@ -623,7 +623,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                     <Txt
                       value={sbEmail}
                       onChangeText={(v) => { setSbEmail(v); setSbErr(null); }}
-                      placeholder="Email"
+                      placeholder={tr('wEmailPh')}
                       autoCapitalize="none"
                       autoCorrect={false}
                       keyboardType="email-address"
@@ -631,7 +631,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                     <Txt
                       value={sbPw}
                       onChangeText={(v) => { setSbPw(v); setSbErr(null); }}
-                      placeholder="Password (min 6 chars)"
+                      placeholder={tr('wPwPh')}
                       secureTextEntry
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -640,14 +640,14 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                     {sbNotice ? <Text style={s.rowS}>{sbNotice}</Text> : null}
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <View style={{ flex: 1 }}>
-                        <GhostBtn label={sbBusy ? '…' : 'Sign in'} onPress={() => { if (!sbBusy) void doCloudSignIn(); }} />
+                        <GhostBtn label={sbBusy ? '…' : tr('aSignIn')} onPress={() => { if (!sbBusy) void doCloudSignIn(); }} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <GhostBtn label={sbBusy ? '…' : 'Create account'} onPress={() => { if (!sbBusy) void doCloudSignUp(); }} />
+                        <GhostBtn label={sbBusy ? '…' : tr('aSignUp')} onPress={() => { if (!sbBusy) void doCloudSignUp(); }} />
                       </View>
                     </View>
-                    <GhostBtn label={sbBusy ? '…' : 'Continue with Google'} onPress={() => { if (!sbBusy) void doCloudGoogle(); }} />
-                    <Text style={s.rowS}>One account per email. Your workspace syncs across devices.</Text>
+                    <GhostBtn label={sbBusy ? '…' : tr('aGoogle')} onPress={() => { if (!sbBusy) void doCloudGoogle(); }} />
+                    <Text style={s.rowS}>{tr('uOneAccountPerEmail')}</Text>
                   </>
                 ) : null}
                 {sbState === 'in' && sbAccount ? (
@@ -655,36 +655,36 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                     <Text style={s.rowS} numberOfLines={1}>
                       {sbAccount.email} · {sbAccount.workspace.name} ({sbAccount.workspace.role})
                     </Text>
-                    <GhostBtn label="Sign out" danger onPress={doCloudSignOut} />
+                    <GhostBtn label={tr('aSignOut')} danger onPress={doCloudSignOut} />
                   </>
                 ) : null}
               </View>
             </View>
             <View style={s.list}>
-              {row('notifications-outline', 'Notification settings', 'Post reminders, comments, digest', () => setView('notif'))}
-              {row('mail-outline', 'Email settings', email || 'Set your email', () => { setDraftEmail(email); setDraftTeam(team); setView('email'); })}
-              {row('key-outline', 'Change password', undefined, () => { setPw1(''); setPw2(''); setView('password'); })}
+              {row('notifications-outline', tr('aNotifs'), tr('aNotifsS'), () => setView('notif'))}
+              {row('mail-outline', tr('aEmail'), email || tr('aEmailSet'), () => { setDraftEmail(email); setDraftTeam(team); setView('email'); })}
+              {row('key-outline', tr('aPw'), undefined, () => { setPw1(''); setPw2(''); setView('password'); })}
             </View>
             <View style={s.list}>
-              {row('add-circle-outline', 'Connect new channel', 'Facebook, Instagram, Threads', onConnect)}
+              {row('add-circle-outline', tr('aConnect'), 'Facebook, Instagram, Threads', onConnect)}
               {row(
                 'cloud-upload-outline',
-                'Cloud publishing',
+                tr('aCloud'),
                 sbState !== 'in'
-                  ? 'Always on, sign in to Sosial Cloud to activate'
+                  ? tr('uAlwaysOnSignIn')
                   : cloudConn === 0
-                    ? 'Always on, connect a channel and it uploads automatically'
+                    ? tr('uAlwaysOnConnectA')
                     : `Always on · ${cloudImp} of ${cloudConn} channel${cloudConn === 1 ? '' : 's'} in cloud`,
                 () => Alert.alert(
-                  'Cloud publishing',
-                  'Always on: connecting a channel stores an encrypted copy of its tokens so scheduled posts publish while the app is closed. Disconnecting a channel in Connect revokes those tokens and pauses its queue; Delete data there also erases the history Sosial kept for it.',
+                  tr('aCloud'),
+                  tr('uAlwaysOnConnectingA'),
                 ),
               )}
-              {row('card-outline', 'Subscription plan', planName, () => setView('plan'))}
-              {row('people-outline', 'Team', 'Members, invites & switching', onTeam)}
-              {row('refresh-outline', 'Restore purchase', undefined, () => Alert.alert('Restore purchase', 'No purchases found on this device.'))}
-              {row('star-outline', 'Rate Sosial', 'Review on the Play Store', rateApp)}
-              {row('chatbubble-ellipses-outline', 'Support', myTicket ? 'Open ticket, we are on it' : 'Bugs, questions, billing help', () => {
+              {row('card-outline', tr('aPlan'), planName, () => setView('plan'))}
+              {row('people-outline', tr('aTeam'), tr('aTeamS'), onTeam)}
+              {row('refresh-outline', tr('aRestore'), undefined, () => Alert.alert(tr('aRestore'), tr('uNoPurchasesFoundOn')))}
+              {row('star-outline', tr('aRate'), tr('aRateS'), rateApp)}
+              {row('chatbubble-ellipses-outline', tr('aSupport'), myTicket ? tr('aSupportOpen') : tr('aSupportS'), () => {
                 setRepKind('bug');
                 setRepSubject('');
                 setRepBody('');
@@ -692,24 +692,24 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 setView('report');
                 void loadTicket();
               })}
-              {row('sparkles-outline', "What's new", 'Changelog', () => setView('changelog'))}
+              {row('sparkles-outline', tr('aNew'), tr('aChangelog'), () => setView('changelog'))}
             </View>
             <View style={s.list}>
-              {row('shield-checkmark-outline', 'Privacy policy', undefined, onPrivacy)}
-              {row('document-text-outline', 'Terms of use', undefined, () => setView('terms'))}
-              {row('scale-outline', 'Legal', undefined, () => setView('legal'))}
-              {row('trash-outline', 'Delete my data', 'Erase your account everywhere', () => { setDelArmed(false); setDelWord(''); setView('delete'); }, true)}
+              {row('shield-checkmark-outline', tr('aPrivacy'), undefined, onPrivacy)}
+              {row('document-text-outline', tr('aTerms'), undefined, () => setView('terms'))}
+              {row('scale-outline', tr('aLegal'), undefined, () => setView('legal'))}
+              {row('trash-outline', tr('aDelete'), tr('aDeleteS'), () => { setDelArmed(false); setDelWord(''); setView('delete'); }, true)}
             </View>
           </>
         ) : null}
 
         {view === 'notif' ? (
           <View style={s.list}>
-            {toggleRow('Post reminders', 'Alert when a queued post is due', notifPosts, () => onUpdate({ notifPosts: !notifPosts }))}
-            {toggleRow('Comments & mentions', 'Alert on new comments (installed app)', notifComments, () => onUpdate({ notifComments: !notifComments }))}
-            {toggleRow('Weekly digest', 'A Monday summary of your channels', notifWeekly, () => onUpdate({ notifWeekly: !notifWeekly }))}
-            {toggleRow('Product updates', 'New features and tips by email', notifMarketing, () => onUpdate({ notifMarketing: !notifMarketing }))}
-            <Text style={s.note}>Reminder alerts need the installed app (not Expo Go) with notifications allowed.</Text>
+            {toggleRow(tr('aRemind'), tr('aRemindS'), notifPosts, () => onUpdate({ notifPosts: !notifPosts }))}
+            {toggleRow(tr('aComm'), tr('aCommS'), notifComments, () => onUpdate({ notifComments: !notifComments }))}
+            {toggleRow(tr('aWeekly'), tr('aWeeklyS'), notifWeekly, () => onUpdate({ notifWeekly: !notifWeekly }))}
+            {toggleRow(tr('aProduct'), tr('aProductS'), notifMarketing, () => onUpdate({ notifMarketing: !notifMarketing }))}
+            <Text style={s.note}>{tr('uReminderAlertsNeedThe')}</Text>
             <View style={{ padding: 14, paddingTop: 6, gap: 8 }}>
               <Text style={s.rowS}>
                 Owner pushes:{' '}
@@ -751,42 +751,38 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
         {view === 'email' ? (
           <View style={{ gap: 12, marginTop: 16 }}>
             <View>
-              <Text style={s.label}>Email</Text>
+              <Text style={s.label}>{tr('wEmailPh')}</Text>
               <Txt value={draftEmail} onChangeText={setDraftEmail} placeholder="you@studio.com" keyboardType="email-address" autoCapitalize="none" />
             </View>
             <View>
-              <Text style={s.label}>Team / organization</Text>
+              <Text style={s.label}>{tr('uTeamOrganization')}</Text>
               <Txt value={draftTeam} onChangeText={setDraftTeam} placeholder="My team" />
             </View>
             <TouchableOpacity
-              onPress={() => { onUpdate({ email: draftEmail.trim(), team: draftTeam.trim() || 'My team' }); setView('main'); }}
+              onPress={() => { onUpdate({ email: draftEmail.trim(), team: draftTeam.trim() || tr('uMyTeam') }); setView('main'); }}
               style={s.save} activeOpacity={0.85}
             >
-              <Text style={s.saveT}>Save</Text>
+              <Text style={s.saveT}>{tr('uSave')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
         {view === 'delete' ? (
           <View style={{ gap: 12, marginTop: 16 }}>
-            <Text style={[s.rowT, { color: C.redText }]}>This permanently erases your account.</Text>
+            <Text style={[s.rowT, { color: C.redText }]}>{tr('uThisPermanentlyErasesYour')}</Text>
             <Text style={s.note}>
-              {'\u2022'} Workspaces you own are deleted whole, posts, drafts, media, channels and tokens.{'\n'}
-              {'\u2022'} Teammates in those workspaces lose access too.{'\n'}
-              {'\u2022'} Memberships in other people's workspaces are removed.{'\n'}
-              {'\u2022'} Media-source tokens (Drive, Photos, Dropbox, Canva) are revoked.{'\n'}
-              {'\u2022'} Cancel any paid subscription first.
+              {tr('uDelNote')}
             </Text>
             {!delArmed ? (
-              <GhostBtn label="I understand, continue" danger onPress={() => setDelArmed(true)} />
+              <GhostBtn label={tr('uIUnderstandContinue')} danger onPress={() => setDelArmed(true)} />
             ) : (
               <>
                 <View>
-                  <Text style={s.label}>Type “confirm” to delete everything</Text>
+                  <Text style={s.label}>{tr('uTypeConfirmToDelete')}</Text>
                   <Txt value={delWord} onChangeText={setDelWord} placeholder="confirm" autoCapitalize="none" autoCorrect={false} />
                 </View>
                 <GhostBtn
-                  label={delBusy ? 'Deleting…' : 'Delete my data forever'}
+                  label={delBusy ? tr('uDeleting') : tr('uDeleteMyDataForever')}
                   danger
                   onPress={() => { if (!delBusy) void deleteAccount(); }}
                 />
@@ -797,24 +793,24 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
         {view === 'password' ? (
           <View style={{ gap: 12, marginTop: 16 }}>
-            <Text style={s.note}>Sosial accounts live on this device only, there’s no cloud password. Your social accounts keep their own passwords with Meta. Setting one here just confirms it’s you on this phone.</Text>
+            <Text style={s.note}>{tr('uPwNote')}</Text>
             <View>
-              <Text style={s.label}>New password</Text>
+              <Text style={s.label}>{tr('uNewPassword')}</Text>
               <Txt value={pw1} onChangeText={setPw1} placeholder="••••••••" secureTextEntry />
             </View>
             <View>
-              <Text style={s.label}>Confirm</Text>
+              <Text style={s.label}>{tr('uConfirm')}</Text>
               <Txt value={pw2} onChangeText={setPw2} placeholder="••••••••" secureTextEntry />
             </View>
             <TouchableOpacity
               onPress={() => {
-                if (pw1.length < 4) Alert.alert('Too short', 'Use at least 4 characters.');
-                else if (pw1 !== pw2) Alert.alert('No match', 'The two passwords differ.');
-                else { setPw1(''); setPw2(''); setView('main'); Alert.alert('Saved', 'Password updated on this device.'); }
+                if (pw1.length < 4) Alert.alert(tr('uTooShort'), tr('uUseAtLeast4'));
+                else if (pw1 !== pw2) Alert.alert(tr('uNoMatch'), tr('uTheTwoPasswordsDiffer'));
+                else { setPw1(''); setPw2(''); setView('main'); Alert.alert(tr('uSaved'), tr('uPasswordUpdatedOnThis')); }
               }}
               style={s.save} activeOpacity={0.85}
             >
-              <Text style={s.saveT}>Update password</Text>
+              <Text style={s.saveT}>{tr('uUpdatePassword')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -826,7 +822,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 <View style={[s.plan, { gap: 6 }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={[s.pill, { backgroundColor: C.accentSoft }]}><Text style={[s.pillT, { color: C.accentInk }]}>
-                      {myTicket.status === 'open' ? 'Open' : 'In review'}
+                      {myTicket.status === 'open' ? tr('uOpen') : tr('uInReview')}
                     </Text></View>
                     <Text style={s.note}>{new Date(myTicket.created_at).toLocaleDateString()}</Text>
                   </View>
@@ -835,11 +831,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 </View>
                 {myTicket.admin_note ? (
                   <View style={[s.plan, { backgroundColor: C.card, gap: 4 }]}>
-                    <Text style={s.label}>Reply from Sosial support</Text>
+                    <Text style={s.label}>{tr('uReplyFromSosialSupport')}</Text>
                     <Text style={s.note}>{myTicket.admin_note}</Text>
                   </View>
                 ) : (
-                  <Text style={s.note}>We reply by email and update this ticket, you will hear from us shortly.</Text>
+                  <Text style={s.note}>{tr('uWeReplyByEmail2')}</Text>
                 )}
                 {myTicket.attachments?.length ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -849,30 +845,30 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                   </View>
                 ) : null}
                 <Text style={s.note}>
-                  One ticket at a time keeps the conversation in one place. It is erased with its screenshots 30 days after being resolved.
+                  {tr('uOneTicketAtA')}
                 </Text>
-                <GhostBtn label="Refresh" onPress={() => void loadTicket()} />
+                <GhostBtn label={tr('uRefresh')} onPress={() => void loadTicket()} />
               </>
             ) : (
               <>
-                <Text style={s.note}>Describe what happened, screenshots help. We reply by email and you can follow the ticket here. Resolved tickets are erased with attachments after 30 days.</Text>
+                <Text style={s.note}>{tr('uDescribeWhatHappenedScreens')}</Text>
                 <Seg<ReportKind>
                   options={[
-                    { value: 'bug', label: 'Bug' },
-                    { value: 'idea', label: 'Idea' },
-                    { value: 'billing', label: 'Billing' },
-                    { value: 'other', label: 'Other' },
+                    { value: 'bug', label: tr('uBug') },
+                    { value: 'idea', label: tr('uIdea') },
+                    { value: 'billing', label: tr('uBilling') },
+                    { value: 'other', label: tr('uOther') },
                   ]}
                   value={repKind}
                   onChange={setRepKind}
                 />
                 <View>
-                  <Text style={s.label}>Subject (optional)</Text>
-                  <Txt value={repSubject} onChangeText={setRepSubject} placeholder="Short summary" />
+                  <Text style={s.label}>{tr('uSubjectOptional')}</Text>
+                  <Txt value={repSubject} onChangeText={setRepSubject} placeholder={tr('uShortSummary')} />
                 </View>
                 <View>
-                  <Text style={s.label}>Details</Text>
-                  <Txt value={repBody} onChangeText={setRepBody} placeholder="What happened? What did you expect?" multiline style={{ minHeight: 120 }} />
+                  <Text style={s.label}>{tr('uDetails')}</Text>
+                  <Txt value={repBody} onChangeText={setRepBody} placeholder={tr('uWhatHappenedWhatDid')} multiline style={{ minHeight: 120 }} />
                 </View>
                 {repShots.length > 0 ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -895,7 +891,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                   onPress={() => { if (!repBusy) void sendReport(); }}
                   style={s.save} activeOpacity={0.85}
                 >
-                  <Text style={s.saveT}>{repBusy ? 'Sending…' : 'Submit ticket'}</Text>
+                  <Text style={s.saveT}>{repBusy ? tr('uSending') : tr('uSubmitTicket')}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -904,99 +900,102 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
 
         {view === 'plan' ? (
           <View style={{ marginTop: 16, gap: 14 }}>
-            {/* current plan at a glance */}
-            <View style={[s.plan, { borderColor: C.accent, borderWidth: 1.5, gap: 4 }]}>
-              <Text style={s.planEyebrow}>Your plan</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={s.planName}>{planName}</Text>
-                <View style={s.pill}><Text style={s.pillT}>Current</Text></View>
+            {/* current plan, in its card's pastel */}
+            <View style={[s.pcCard, { borderWidth: 1, borderColor: C.lineSoft }]}>
+              <View style={[s.pcHead, { backgroundColor: TONES[plan].bg, minHeight: 0 }]}>
+                <Text style={[s.pcEyebrow, { color: TONES[plan].sub }]}>{tr('uYourPlan')}</Text>
+                <Text style={[s.pcBigName, { color: TONES[plan].ink }]}>{planName}</Text>
               </View>
-              <Text style={s.planPrice}>{plan === 'free' ? 'Free forever' : plan === 'pro' ? soloTotal : teamTotal}</Text>
-              {plan !== 'free' ? (
-                <View style={{ marginTop: 8 }}>
-                  <GhostBtn label="Manage subscription" onPress={() => Alert.alert('Manage subscription', 'Subscriptions are managed in the Play Store app under Payments & subscriptions.')} />
+              <View style={{ padding: 16, gap: 10 }}>
+                <View>
+                  <Text style={s.pcPrice}>
+                    {plan === 'free' ? tr('uFree') : tr('pbPerMo').replace('{price}', plan === 'pro' ? soloMo : teamMo)}
+                  </Text>
+                  <Text style={s.pcSub}>{plan === 'free' ? tr('uFreeForever') : yearly ? tr('pbBilledYearly').replace('{price}', plan === 'pro' ? '$120' : '$290') : tr('uBilledMonthly')}</Text>
                 </View>
-              ) : null}
+                {plan !== 'free' ? (
+                  <GhostBtn label={tr('uManageSubscription')} onPress={() => Alert.alert(tr('uManageSubscription'), tr('uSubscriptionsAreManagedIn'))} />
+                ) : null}
+              </View>
             </View>
 
-            {/* billing rhythm, interval changes price + renewal only, never limits */}
-            <View style={[s.plan, { gap: 12 }]}>
-              <Field label="Billing">
-                <Seg
-                  options={[{ value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly · 2 months free' }]}
-                  value={yearly ? 'yearly' : 'monthly'}
-                  onChange={(v) => setYearly(v === 'yearly')}
-                />
-              </Field>
-            </View>
+            {/* billing rhythm: changes price and renewal only, never limits */}
+            <Seg
+              options={[{ value: 'monthly', label: tr('uMonthly') }, { value: 'yearly', label: tr('uYearly2MonthsFree') }]}
+              value={yearly ? 'yearly' : 'monthly'}
+              onChange={(v) => setYearly(v === 'yearly')}
+            />
 
             <PlanCard
-              name="Free"
+              name={tr('uFree')}
+              blurb={tr('pbFree')}
+              tone={TONES.free}
               current={plan === 'free'}
-              price="Free"
+              price={tr('uFree')}
+              sub={tr('uFreeForever')}
+              quota={[tr('u3ConnectedChannels'), tr('u20AiCreditsA')]}
               features={[
-                { text: '3 connected channels' },
-                { text: '10 scheduled posts per channel' },
-                { text: '20 AI credits a month' },
-                { text: 'Calendar, queue and auto-publishing' },
-                { text: 'Sosial watermark (required)', off: true },
+                { text: tr('u10ScheduledPostsPer') },
+                { text: tr('uCalendarQueueAndAuto') },
+                { text: tr('uSosialWatermarkRequired'), off: true },
               ]}
-              action={plan !== 'free' ? { label: 'Switch to Free', ghost: true, onPress: () => choosePlan('free', 'Free') } : undefined}
+              action={plan !== 'free' ? { label: tr('pbSwitchTo').replace('{plan}', tr('uFree')), ghost: true, onPress: () => choosePlan('free', tr('uFree')) } : undefined}
             />
 
             <PlanCard
               name="Solo"
+              blurb={tr('pbSolo')}
+              tone={TONES.pro}
               current={plan === 'pro'}
-              price={soloTotal}
-              sub={yearly ? '≈ $10/mo equivalent, billed yearly' : 'Billed monthly'}
-              also="Everything in Free, plus:"
+              price={tr('pbPerMo').replace('{price}', soloMo)}
+              sub={yearly ? tr('pbBilledYearly').replace('{price}', '$120') : tr('uBilledMonthly')}
+              quota={[tr('u6ConnectedChannels'), tr('u500AiCreditsA')]}
+              also={tr('uEverythingInFreePlus')}
               features={[
-                { text: '6 connected channels' },
-                { text: 'Unlimited scheduled posts' },
-                { text: '500 AI credits a month' },
-                { text: 'Media library and content organization' },
-                { text: 'Watermark you control, turn it off' },
+                { text: tr('uUnlimitedScheduledPosts') },
+                { text: tr('uMediaLibraryAndContent') },
+                { text: tr('uWatermarkYouControlTurn') },
               ]}
-              action={plan === 'free'
-                ? { label: `Upgrade to Solo · ${soloTotal}`, onPress: () => choosePlan('pro', 'Solo') }
-                : plan === 'team'
-                  ? { label: 'Switch to Solo', ghost: true, onPress: () => choosePlan('pro', 'Solo') }
-                  : undefined}
+              action={plan === 'pro' ? undefined : {
+                label: (plan === 'free' ? tr('pbChoose') : tr('pbSwitchTo')).replace('{plan}', 'Solo'),
+                ghost: plan === 'team',
+                onPress: () => choosePlan('pro', 'Solo'),
+              }}
             />
 
             <PlanCard
               name="Team"
+              blurb={tr('pbTeam')}
+              tone={TONES.team}
+              featured
               current={plan === 'team'}
-              price={teamTotal}
-              sub={yearly ? '≈ $25/mo equivalent, billed yearly' : 'Billed monthly'}
-              also="Everything in Solo, plus:"
+              price={tr('pbPerMo').replace('{price}', teamMo)}
+              sub={yearly ? tr('pbBilledYearly').replace('{price}', '$290') : tr('uBilledMonthly')}
+              quota={[tr('u25ConnectedChannels'), tr('u1500AiCredits')]}
+              also={tr('uEverythingInSoloPlus')}
               features={[
-                { text: '25 connected channels' },
-                { text: 'Unlimited scheduled posts' },
-                { text: '1,500 AI credits a month' },
-                { text: '5 team members and 3 workspaces' },
-                { text: 'Approval workflows and roles' },
+                { text: tr('u5TeamMembersAnd') },
+                { text: tr('uApprovalWorkflowsAndRoles') },
               ]}
-              action={plan === 'free'
-                ? { label: `Upgrade to Team · ${teamTotal}`, ghost: true, onPress: () => choosePlan('team', 'Team') }
-                : plan === 'pro'
-                  ? { label: `Switch to Team · ${teamTotal}`, onPress: () => choosePlan('team', 'Team') }
-                  : undefined}
+              action={plan === 'team' ? undefined : {
+                label: tr('pbChoose').replace('{plan}', 'Team'),
+                onPress: () => choosePlan('team', 'Team'),
+              }}
             />
 
             <PlanCard
               name="Business"
+              blurb={tr('pbBusiness')}
+              tone={TONES.business}
               current={false}
-              price={businessTotal}
-              sub={yearly ? '≈ $66/mo equivalent, billed yearly' : 'Billed monthly'}
-              also="Everything in Team, plus:"
+              price={tr('pbPerMo').replace('{price}', businessMo)}
+              sub={yearly ? tr('pbBilledYearly').replace('{price}', '$790') : tr('uBilledMonthly')}
+              quota={[tr('u100ConnectedChannels'), tr('u5000AiCredits')]}
+              also={tr('uEverythingInTeamPlus')}
               features={[
-                { text: '100 connected channels' },
-                { text: 'Unlimited scheduled posts' },
-                { text: '5,000 AI credits a month' },
-                { text: 'Unlimited team members, 6 workspaces' },
+                { text: tr('uUnlimitedTeamMembers6') },
               ]}
-              action={{ label: 'Business activates with Play Billing', ghost: true, onPress: () => Alert.alert('Business', 'Business purchases activate with Play Billing at launch, the web app supports it today.') }}
+              action={{ label: tr('uBusinessActivatesWithPlay'), ghost: true, onPress: () => Alert.alert('Business', tr('uBusinessPurchasesActivateWi')) }}
             />
           </View>
         ) : null}
@@ -1027,7 +1026,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
             <Text style={s.body}>
               © 2026 Sosial. All rights reserved.{'\n\n'}
               Facebook, Instagram and Threads are trademarks of Meta Platforms, Inc. This app is not affiliated with or endorsed by Meta.{'\n\n'}
-              Open-source licenses for bundled libraries are available in the project repository.
+              {tr('uOpenSourceLicensesFor')}
             </Text>
           </View>
         ) : null}
@@ -1058,11 +1057,26 @@ function TicketShot({ path }: { path: string }) {
 }
 
 /** One plan, scannable: name + price anchor, short checkmark list, one action. */
-function PlanCard({ name, current, price, sub, also, features, action }: {
+/** Pastel header tints from the web pricing cards; dark ink reads on all four. */
+const TONES = {
+  free: { bg: '#DCE6FF', ink: '#1E2B5C', sub: '#42507E' },
+  pro: { bg: '#D6EFE0', ink: '#16452C', sub: '#2F5C42' },
+  team: { bg: '#F9DCEF', ink: '#5E1147', sub: '#7E3B68' },
+  business: { bg: '#E6DEFB', ink: '#3A2A66', sub: '#5A4B86' },
+};
+type Tone = (typeof TONES)['free'];
+
+/** One plan, laid out like the web pricing card: pastel header, big price,
+ *  two quota fields, dot bullets and a full-width button. */
+function PlanCard({ name, blurb, tone, current, featured, price, sub, quota, also, features, action }: {
   name: string;
+  blurb: string;
+  tone: Tone;
   current: boolean;
+  featured?: boolean;
   price: string;
   sub?: string;
+  quota: [string, string];
   also?: string;
   features: { text: string; off?: boolean }[];
   action?: { label: string; ghost?: boolean; onPress: () => void };
@@ -1070,33 +1084,55 @@ function PlanCard({ name, current, price, sub, also, features, action }: {
   const { C } = useTheme();
   const s = makeS(C);
   return (
-    <View style={[s.plan, current && { borderColor: C.accent, borderWidth: 1.5 }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Text style={s.planT}>{name}</Text>
-        {current ? <View style={s.pill}><Text style={s.pillT}>Current</Text></View> : null}
-      </View>
-      <Text style={s.planPrice}>{price}</Text>
-      {sub ? <Text style={s.planSub}>{sub}</Text> : null}
-      {also ? <Text style={s.planAlso}>{also}</Text> : null}
-      <View style={{ gap: 7, marginTop: 6 }}>
-        {features.map((f, i) => (
-          <View key={i} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-            <Ionicons name={f.off ? 'close-circle-outline' : 'checkmark-circle'} size={15} color={f.off ? C.faint : C.greenText} style={{ marginTop: 2 }} />
-            <Text style={[s.planFeat, f.off && { color: C.faint }]}>{f.text}</Text>
+    <View style={[s.pcCard, current && { borderWidth: 2, borderColor: C.ink }]}>
+      <View style={[s.pcHead, { backgroundColor: tone.bg }]}>
+        {current || featured ? (
+          <View style={s.pcBadge}>
+            <Text style={[s.pcBadgeT, { color: tone.ink }]}>{current ? tr('pbCurrentPlan') : tr('pbPopular')}</Text>
           </View>
-        ))}
+        ) : null}
+        <Text style={[s.pcName, { color: tone.ink }]}>{name}</Text>
+        <Text style={[s.pcBlurb, { color: tone.sub }]}>{blurb}</Text>
       </View>
-      {action ? (
-        <View style={{ marginTop: 10 }}>
-          {action.ghost ? (
-            <GhostBtn label={action.label} onPress={action.onPress} />
-          ) : (
-            <TouchableOpacity onPress={action.onPress} style={s.save} activeOpacity={0.85}>
-              <Text style={s.saveT}>{action.label}</Text>
-            </TouchableOpacity>
-          )}
+      <View style={{ paddingHorizontal: 16, paddingTop: 18, paddingBottom: 16 }}>
+        <Text style={s.pcPrice}>{price}</Text>
+        {sub ? <Text style={s.pcSub}>{sub}</Text> : null}
+        <View style={{ gap: 8, marginTop: 14 }}>
+          <View style={s.pcField}>
+            <Ionicons name="sparkles" size={14} color="#3b82f6" />
+            <Text style={s.pcFieldT} numberOfLines={1}>{quota[0]}</Text>
+          </View>
+          <View style={s.pcField}>
+            <Ionicons name="layers-outline" size={15} color="#3f9e6b" />
+            <Text style={s.pcFieldT} numberOfLines={1}>{quota[1]}</Text>
+          </View>
         </View>
-      ) : null}
+        {also ? <Text style={s.pcAlso}>{also}</Text> : null}
+        <View style={{ gap: 6, marginTop: also ? 6 : 14 }}>
+          {features.map((f, i) => (
+            <View key={i} style={{ flexDirection: 'row', gap: 9, alignItems: 'flex-start' }}>
+              <View style={[s.pcDot, f.off && { backgroundColor: C.line }]} />
+              <Text style={[s.pcFeat, f.off && { color: C.faint }]}>{f.text}</Text>
+            </View>
+          ))}
+        </View>
+        {action ? (
+          <View style={{ marginTop: 16 }}>
+            {action.ghost ? (
+              <GhostBtn label={action.label} onPress={action.onPress} />
+            ) : (
+              <TouchableOpacity onPress={action.onPress} style={s.save} activeOpacity={0.85}>
+                <Text style={s.saveT}>{action.label}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : current ? (
+          <View style={[s.pcActive, { marginTop: 16 }]}>
+            <Ionicons name="checkmark-circle" size={16} color={C.greenText} />
+            <Text style={s.pcActiveT}>{tr('pbActive')}</Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -1128,6 +1164,23 @@ const makeS = (C: Palette) => StyleSheet.create({
   planSub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted },
   planAlso: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 4 },
   planFeat: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 20, color: C.soft, flex: 1 },
+  pcCard: { backgroundColor: C.card, borderRadius: 28, overflow: 'hidden' },
+  pcHead: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 18, minHeight: 104 },
+  pcEyebrow: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 10.5, letterSpacing: 1.4, textTransform: 'uppercase' },
+  pcBigName: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 26, letterSpacing: -0.6, marginTop: 4 },
+  pcBadge: { position: 'absolute', top: 14, right: 14, backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4 },
+  pcBadgeT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5 },
+  pcName: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, letterSpacing: -0.2, paddingRight: 110 },
+  pcBlurb: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 18, marginTop: 3 },
+  pcPrice: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 28, letterSpacing: -0.8, color: C.ink },
+  pcSub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 3 },
+  pcField: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 42, borderRadius: 10, borderWidth: 1, borderColor: C.line, backgroundColor: C.paper, paddingHorizontal: 12 },
+  pcFieldT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13.5, color: C.ink, flex: 1 },
+  pcAlso: { fontFamily: 'PlusJakartaSans_400Regular', fontStyle: 'italic', fontSize: 12, color: C.muted, marginTop: 14 },
+  pcDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.faint, marginTop: 8 },
+  pcFeat: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 19, color: C.soft, flex: 1 },
+  pcActive: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: R.md + 2, borderWidth: 1, borderColor: C.lineSoft, paddingVertical: 11 },
+  pcActiveT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink },
   pill: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   pillT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.accentInk },
   body: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, lineHeight: 22, color: C.soft },

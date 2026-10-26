@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Modal, ActivityIndicator, ScrollView, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 import { PrimaryBtn, GhostBtn, SocialGlyph } from './ui';
 import { SOCIAL_META } from '../constants';
+import { tr } from '../i18n';
 
 export interface PubRow {
   id: string;
@@ -34,7 +35,7 @@ function BrandTile({ id, size = 36, C }: { id: string; size?: number; C: Palette
   );
 }
 
-/** Indeterminate sweep in the channel's colour while that leg posts. */
+/** Indeterminate sweep along the card's top edge while anything still posts. */
 function Sweep({ color, C }: { color: string; C: Palette }) {
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -45,14 +46,14 @@ function Sweep({ color, C }: { color: string; C: Palette }) {
     return () => loop.stop();
   }, [x]);
   return (
-    <View style={{ height: 4, borderRadius: 2, backgroundColor: C.surface, overflow: 'hidden', marginTop: 10 }}>
+    <View style={{ height: 4, backgroundColor: C.surface, overflow: 'hidden' }}>
       <Animated.View
         style={{
           width: '35%',
           height: 4,
           borderRadius: 2,
           backgroundColor: color,
-          transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-120, 320] }) }],
+          transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-160, 460] }) }],
         }}
       />
     </View>
@@ -60,8 +61,7 @@ function Sweep({ color, C }: { color: string; C: Palette }) {
 }
 
 function StateMark({ state, C }: { state: PubRow['state']; C: Palette }) {
-  if (state === 'working') return <ActivityIndicator size="small" color={C.faint} />;
-  if (state === 'pending') return <Ionicons name="ellipsis-horizontal" size={18} color={C.faint} />;
+  if (state === 'working' || state === 'pending') return null;
   const cfg =
     state === 'done'
       ? { icon: 'checkmark' as const, bg: C.paleGreen, fg: C.greenText }
@@ -75,18 +75,18 @@ function StateMark({ state, C }: { state: PubRow['state']; C: Palette }) {
   );
 }
 
-const STATE_TEXT: Record<PubRow['state'], string> = {
-  pending: 'Waiting…',
-  working: 'Posting…',
-  done: 'Posted',
-  fail: 'Failed',
-  manual: 'Finish in the app',
-};
+const stateText = (st: PubRow['state']): string => ({
+  pending: tr('uWaiting'),
+  working: tr('uPosting'),
+  done: tr('uPosted'),
+  fail: tr('iFailed'),
+  manual: tr('uFinishInTheApp'),
+})[st];
 
 /** In-app publishing notice, replaces EVERY native Alert during/after publish.
- *  loading/result: the channels' logos stacked in the header with a status
- *  badge, overall progress along the top edge, then one brand tile per
- *  channel with its live state. info: simple card. privacy: tappable TikTok
+ *  loading/result: one card throughout, a single sweep along the top edge
+ *  while working (solid green / red once settled), a status tile, then one
+ *  row per channel whose status words change in place. info: simple card. privacy: tappable TikTok
  *  audience options. Rises from the bottom like a sheet. */
 export default function PublishNotice({
   visible,
@@ -121,9 +121,6 @@ export default function PublishNotice({
   const allGood = list.length > 0 && list.every((r) => r.state === 'done');
   const anyFail = list.some((r) => r.state === 'fail');
   const doneCount = list.filter((r) => r.state === 'done' || r.state === 'fail' || r.state === 'manual').length;
-  const overall = list.length ? (doneCount / list.length) * 100 : mode === 'loading' ? 8 : 100;
-  const barColor = mode === 'loading' ? C.accent : anyFail ? '#E5484D' : '#12914A';
-  const stack = list.slice(0, 5);
 
   const close = () => {
     if (mode === 'result' || mode === 'info') onDone?.();
@@ -136,42 +133,33 @@ export default function PublishNotice({
       <View style={s.bg}>
         <View style={s.card}>
           {progressMode ? (
-            <View style={s.topBar}>
-              <View style={{ width: `${overall}%`, height: 4, backgroundColor: barColor }} />
-            </View>
+            mode === 'loading' ? (
+              <Sweep color={C.accent} C={C} />
+            ) : (
+              <View style={[s.topBar, { backgroundColor: anyFail ? '#E5484D' : '#12914A' }]} />
+            )
           ) : null}
 
           <View style={s.body}>
             {progressMode ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {stack.length ? (
-                    stack.map((r, i) => (
-                      <View key={r.id} style={[s.stackItem, { marginLeft: i ? -14 : 0, zIndex: stack.length - i }]}>
-                        <BrandTile id={r.id} size={44} C={C} />
-                      </View>
-                    ))
-                  ) : (
-                    <View style={s.stackItem}><BrandTile id="" size={44} C={C} /></View>
-                  )}
-                  <View
-                    style={[
-                      s.badge,
-                      { backgroundColor: mode === 'loading' ? C.paper : anyFail ? '#E5484D' : '#12914A' },
-                    ]}
-                  >
-                    {mode === 'loading' ? (
-                      <ActivityIndicator size="small" color={C.ink} style={{ transform: [{ scale: 0.7 }] }} />
-                    ) : (
-                      <Ionicons name={anyFail ? 'close' : 'checkmark'} size={14} color="#fff" />
-                    )}
-                  </View>
+                <View
+                  style={[
+                    s.statusTile,
+                    mode === 'result' && { backgroundColor: anyFail ? '#E5484D' : '#12914A' },
+                  ]}
+                >
+                  <Ionicons
+                    name={mode === 'loading' ? 'paper-plane-outline' : anyFail ? 'close' : 'checkmark'}
+                    size={22}
+                    color={mode === 'loading' ? C.ink : '#fff'}
+                  />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={s.titleL} numberOfLines={2}>{title}</Text>
                   <Text style={s.subL} numberOfLines={1}>
                     {mode === 'loading'
-                      ? 'Uploading and posting, keep the app open.'
+                      ? tr('uUploadingAndPostingKeep')
                       : allGood
                         ? `${doneCount} of ${list.length} posted`
                         : `${list.filter((r) => r.state === 'done').length} posted · ${list.filter((r) => r.state === 'fail').length} failed`}
@@ -198,7 +186,7 @@ export default function PublishNotice({
 
             {list.length > 0 ? (
               <ScrollView style={mode === 'privacy' ? s.privWrap : s.rowsWrap} showsVerticalScrollIndicator={false}>
-                <View style={s.rows}>
+                <View style={mode === 'privacy' ? s.rows : s.rowsBox}>
                   {list.map((r) =>
                     mode === 'privacy' ? (
                       <TouchableOpacity key={r.id} onPress={() => onPick?.(r.id)} style={s.privOpt} activeOpacity={0.75}>
@@ -206,9 +194,9 @@ export default function PublishNotice({
                         <Ionicons name="chevron-forward" size={16} color={C.faint} />
                       </TouchableOpacity>
                     ) : (
-                      <View key={r.id} style={s.row}>
+                      <View key={r.id} style={[s.row, r !== list[0] && s.rowDivider]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                          <BrandTile id={r.id} C={C} />
+                          <BrandTile id={r.id} size={32} C={C} />
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={s.rowT} numberOfLines={1}>{r.label}</Text>
                             <Text
@@ -220,14 +208,11 @@ export default function PublishNotice({
                               numberOfLines={r.state === 'fail' ? 3 : 1}
                               selectable={r.state === 'fail'}
                             >
-                              {r.note ?? STATE_TEXT[r.state]}
+                              {r.note ?? stateText(r.state)}
                             </Text>
                           </View>
                           <StateMark state={r.state} C={C} />
                         </View>
-                        {mode === 'loading' && (r.state === 'working' || r.state === 'pending') ? (
-                          <Sweep color={brandOf(r.id) ? SOCIAL_META[r.id].bg : C.accent} C={C} />
-                        ) : null}
                       </View>
                     ),
                   )}
@@ -235,9 +220,9 @@ export default function PublishNotice({
               </ScrollView>
             ) : null}
 
-            {mode === 'result' || mode === 'info' ? <PrimaryBtn label="Done" onPress={() => onDone?.()} /> : null}
-            {mode === 'loading' ? <GhostBtn label="Continue in background" onPress={() => onHide?.()} /> : null}
-            {mode === 'privacy' ? <GhostBtn label="Cancel" onPress={() => onCancel?.()} /> : null}
+            {mode === 'result' || mode === 'info' ? <PrimaryBtn label={tr('uDone')} onPress={() => onDone?.()} /> : null}
+            {mode === 'loading' ? <GhostBtn label={tr('uContinueInBackground')} onPress={() => onHide?.()} /> : null}
+            {mode === 'privacy' ? <GhostBtn label={tr('uCancel')} onPress={() => onCancel?.()} /> : null}
           </View>
         </View>
       </View>
@@ -251,8 +236,7 @@ const makeS = (C: Palette) =>
     card: { backgroundColor: C.paper, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden', width: '100%' } as const,
     topBar: { height: 4, backgroundColor: C.surface } as const,
     body: { padding: 22, paddingBottom: 34, gap: 14 } as const,
-    stackItem: { borderRadius: 16, borderWidth: 3, borderColor: C.paper } as const,
-    badge: { position: 'absolute', right: -6, bottom: -6, zIndex: 10, width: 24, height: 24, borderRadius: 12, borderWidth: 3, borderColor: C.paper, alignItems: 'center', justifyContent: 'center' } as const,
+    statusTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' } as const,
     titleL: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.3, color: C.ink } as const,
     subL: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted, marginTop: 2 } as const,
     head: { width: 56, height: 56, borderRadius: 28, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' } as const,
@@ -264,7 +248,9 @@ const makeS = (C: Palette) =>
     privOpt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.md, borderWidth: 1, borderColor: C.lineSoft, paddingHorizontal: 14, paddingVertical: 13 } as const,
     privOptT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.ink } as const,
     rows: { gap: 8 } as const,
-    row: { backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.lineSoft, padding: 12 } as const,
+    rowsBox: { backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.lineSoft, overflow: 'hidden' } as const,
+    row: { paddingHorizontal: 12, paddingVertical: 10 } as const,
+    rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line } as const,
     rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, color: C.ink } as const,
     rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 17, color: C.muted, marginTop: 1 } as const,
   });

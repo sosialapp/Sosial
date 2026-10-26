@@ -25,6 +25,7 @@ import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
 import { fetchPostStats, SentPostStats } from '../utils/postStats';
 import { fbComments, igComments, thComments, mastodonComments, bskyComments, ytComments, PerPost, FeedComment } from '../utils/analytics';
+import { tr } from '../i18n';
 
 const CHANNELS = ['any', 'facebook', 'instagram', 'tiktok', 'threads', 'linkedin', 'bluesky', 'youtube', 'mastodon', 'pinterest', 'x', 'telegram', 'discord', 'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb'];
 const COMING_SOON: string[] = ['gmb'];
@@ -42,9 +43,9 @@ const TYPE_CHANNELS: TypeChannel[] = ['facebook', 'instagram', 'threads', 'x', '
 
 /** YouTube listing options, static, no fetch needed. */
 const YT_LISTING = [
-  { id: 'public', label: 'Public' },
-  { id: 'unlisted', label: 'Unlisted' },
-  { id: 'private', label: 'Private' },
+  { id: 'public', key: 'uYtPublic' },
+  { id: 'unlisted', key: 'uYtUnlisted' },
+  { id: 'private', key: 'uYtPrivate' },
 ];
 
 function slotToday(hour: number, min = 0): number {
@@ -242,7 +243,7 @@ function MediaStrip({ items, onPick, onRemove, onMove, onOpen }: {
         ) : null}
       </ScrollView>
       {items.length > 1 ? (
-        <Text style={st.arrangeHint}>Hold & drag to arrange, first item posts first</Text>
+        <Text style={st.arrangeHint}>{tr('uHoldDragToArrange')}</Text>
       ) : null}
     </View>
   );
@@ -312,7 +313,7 @@ function SentStats({ remoteIds }: { remoteIds?: Record<string, string> }) {
   if (entries.length === 0) return null;
   return (
     <View style={{ gap: 8 }}>
-      <Text style={st.label}>Performance</Text>
+      <Text style={st.label}>{tr('uPerformance')}</Text>
       {loading ? (
         <ActivityIndicator color={C.accent} />
       ) : (
@@ -337,7 +338,7 @@ function SentStats({ remoteIds }: { remoteIds?: Record<string, string> }) {
       )}
       {!loading && comments.length > 0 ? (
         <View style={{ gap: 6, marginTop: 2 }}>
-          <Text style={st.label}>Latest comments</Text>
+          <Text style={st.label}>{tr('uLatestComments')}</Text>
           {comments.map((c, i) => (
             <View key={`${c.channel}-${i}`} style={st.feedRow}>
               <Text style={st.feedA} numberOfLines={1}>{c.author} · {SOCIAL_META[c.channel]?.label ?? c.channel}</Text>
@@ -404,7 +405,7 @@ interface Props {
   draftLabel?: string;
   onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
   onClose?: () => void;
-  /** Live publish progress (shown inline while the "Post now" button spins). */
+  /** Live publish progress (shown inline while the tr('uPostNow') button spins). */
   /** Open the AI caption/thread writer onto this draft. */
   onAi?: () => void;
   publishing?: boolean;
@@ -523,7 +524,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   }, []);
 
   // Threading is offered when at least one selected channel supports native
-  // replies. "Anywhere" resolves to the connected set, mirroring publish time,
+  // replies. tr('uAnywhere') resolves to the connected set, mirroring publish time,
   // so the segment cap is the strictest channel the post can actually reach.
   // With nothing picked yet the editor stays available under the strictest
   // cap of all chain channels (280), segments written now fit everywhere.
@@ -650,7 +651,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   /** One popup covering every channel the current media won't fit. */
   const warnAttachments = (targets: string[]) => {
     const msgs = [...new Set(targets.filter((c) => c !== 'any').map(attachWarning).filter((m): m is string => !!m))];
-    if (msgs.length) Alert.alert('Media won\u2019t fit', msgs.join('\n\n'));
+    if (msgs.length) Alert.alert(tr('uMediaWonTFit'), msgs.join('\n\n'));
   };
 
   /** Channels this draft can't reach: needs-media rules from the compat
@@ -692,7 +693,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     }
     if ((COMING_SOON as string[]).includes(c)) {
       const label = c[0].toUpperCase() + c.slice(1);
-      Alert.alert(`${label} is coming soon`, 'We’re working on it, pick Facebook, Instagram, Threads, TikTok, X, Bluesky, LinkedIn, Mastodon or YouTube for now.');
+      Alert.alert(`${label} is coming soon`, tr('uWeReWorkingOn'));
       return;
     }
     if (c !== 'any' && !connected.includes(c)) {
@@ -918,13 +919,13 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     Alert.alert(
       `Post now to ${targets.length} channel${targets.length === 1 ? '' : 's'}?`,
       `${lines.join('\n')}${snippet ? `\n\n${snippet.slice(0, 140)}${snippet.length > 140 ? '…' : ''}` : ''}`,
-      [{ text: 'Cancel', style: 'cancel' }, { text: 'Post now', onPress: go }],
+      [{ text: tr('uCancel'), style: 'cancel' }, { text: tr('uPostNow'), onPress: go }],
     );
   };
 
   const needChannels = (): boolean => {
     if (plats.length === 0) {
-      Alert.alert('No channels picked', 'Pick at least one channel first, nothing is selected by default.');
+      Alert.alert(tr('uNoChannelsPicked'), tr('uPickAtLeastOne'));
       return true;
     }
     return false;
@@ -935,11 +936,11 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     // Loud stop for custom times under the 5-minute floor (scoped to custom -
     // the Now/bulk path queues at +60s by design and has its own guards).
     if (preset === 'custom' && queueTooSoon(at)) {
-      Alert.alert('Too soon to queue', `Earliest is ${minQueueLabel()}, scheduled posts need at least 1 minute lead time. Pick a later time.`);
+      Alert.alert(tr('uTooSoonToQueue'), tr('uEarliest').replace('{t}', minQueueLabel()));
       return;
     }
     if (at <= Date.now() + 30000) {
-      Alert.alert('Pick a future time', 'Reminders can only fire in the future.');
+      Alert.alert(tr('uPickAFutureTime'), tr('uRemindersCanOnlyFire'));
       return;
     }
     onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds(), tz);
@@ -948,13 +949,13 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   /** Delete asks twice, queue removals can't be undone. */
   const confirmDelete = () => {
     if (!onDelete) return;
-    Alert.alert('Delete this post?', 'It will be removed from the queue.', [
-      { text: 'Keep it', style: 'cancel' },
+    Alert.alert(tr('uDeleteThisPost'), tr('uItWillBeRemoved'), [
+      { text: tr('uKeepIt'), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive',
-        onPress: () => Alert.alert('Are you sure?', 'This cannot be undone.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Yes, delete', style: 'destructive', onPress: () => onDelete() },
+        text: tr('uDelete'), style: 'destructive',
+        onPress: () => Alert.alert(tr('uAreYouSure'), tr('uThisCannotBeUndone'), [
+          { text: tr('uCancel'), style: 'cancel' },
+          { text: tr('uYesDelete'), style: 'destructive', onPress: () => onDelete() },
         ]),
       },
     ]);
@@ -962,7 +963,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
   const content = (
     <>
-      <Text style={st.title}>{title ?? 'Add to queue'}</Text>
+      <Text style={st.title}>{title ?? tr('uAddToQueue')}</Text>
           {readOnly && readOnlyNote ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="checkmark-circle" size={15} color={C.accent} />
@@ -982,16 +983,16 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     platform: composeLead ?? 'x',
                     avatar: composeAcc ? accountAvatar(composeAcc) : undefined,
                   }}
-                  title={composer.title || (requiresTitle(initialPlatforms) ? 'Untitled' : null)}
+                  title={composer.title || (requiresTitle(initialPlatforms) ? tr('uUntitled') : null)}
                   body={composer.caption}
                   numberOfLines={0}
                 />
               ) : threadOn && composer.onThread && chainCap ? (
                 <>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={st.label}>Thread · {composer.thread!.length} posts</Text>
+                    <Text style={st.label}>{tr('uThreadPosts').replace('{n}', String(composer.thread!.length))}</Text>
                     <TouchableOpacity onPress={() => composer.onThread!(null)} hitSlop={8}>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Turn off</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>{tr('uTurnOff')}</Text>
                     </TouchableOpacity>
                   </View>
                   {composeStack}
@@ -1012,7 +1013,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             {composer.thread!.length > 1 ? (
-                              <TouchableOpacity onLongPress={() => segDrag.begin(i)} delayLongPress={180} hitSlop={8} accessibilityLabel="Hold and drag to reorder segment">
+                              <TouchableOpacity onLongPress={() => segDrag.begin(i)} delayLongPress={180} hitSlop={8} accessibilityLabel={tr('uHoldAndDragTo')}>
                                 <Ionicons name="reorder-three" size={19} color={C.muted} />
                               </TouchableOpacity>
                             ) : null}
@@ -1056,7 +1057,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                             <TextInput
                               value={seg}
                               onChangeText={(v) => composer.onThread!(composer.thread!.map((s, j) => (j === i ? v : s)))}
-                              placeholder={i === 0 ? "What's happening?" : 'Add another post'}
+                              placeholder={i === 0 ? tr('uWhatSHappening') : tr('uAddAnotherPost')}
                               placeholderTextColor={C.faint}
                               multiline
                               style={[st.composeInput, { minHeight: 64 }]}
@@ -1078,7 +1079,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   <TextInput
                     value={composer.caption}
                     onChangeText={composer.onCaption}
-                    placeholder="What's happening?"
+                    placeholder={tr('uWhatSHappening')}
                     placeholderTextColor={C.faint}
                     multiline
                     style={st.composeInput}
@@ -1088,7 +1089,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                       <TouchableOpacity
                         onPress={() => openSources(null)}
                         hitSlop={6}
-                        accessibilityLabel="Attach media"
+                        accessibilityLabel={tr('uAttachMedia')}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
                       >
                         <Ionicons name="image-outline" size={15} color={C.accentInk} />
@@ -1098,7 +1099,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     {onAi ? (
                       <TouchableOpacity onPress={onAi} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <Ionicons name="sparkles" size={15} color={C.accentInk} />
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>AI writer</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>{tr('uAiWriter')}</Text>
                       </TouchableOpacity>
                     ) : null}
                     {chainCap && composer.onThread ? (
@@ -1121,7 +1122,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                       >
                         <Ionicons name="git-branch" size={15} color={C.accentInk} />
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>Chain post</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.accentInk }}>{tr('uChainPost')}</Text>
                       </TouchableOpacity>
                     ) : null}
                     <View style={{ flex: 1 }} />
@@ -1136,7 +1137,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             readOnly ? (
               media.items.length > 0 ? (
                 <View>
-                  <Text style={st.label}>Photo or video</Text>
+                  <Text style={st.label}>{tr('uPhotoOrVideo')}</Text>
                   <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 8, paddingRight: 4 }}>
                     {media.items.map((it, i) => (
                       <TouchableOpacity key={`${it.uri}-${i}`} onPress={() => setViewer(i)} activeOpacity={0.8}>
@@ -1150,7 +1151,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             media.items.length > 0 ? (
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-                <Text style={st.label}>Photo or video</Text>
+                <Text style={st.label}>{tr('uPhotoOrVideo')}</Text>
                 <Text style={st.countT}>{media.items.length}/{MAX_ATTACHMENTS}</Text>
               </View>
                 <>
@@ -1168,10 +1169,10 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
           ) : null}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={st.label}>Channels{readOnly ? '' : ', pick any'}</Text>
+            <Text style={st.label}>{readOnly ? tr('iChannels') : tr('uChannelsPick')}</Text>
             {!readOnly && plats.length > 0 && !(plats.length === 1 && plats[0] === 'any') ? (
               <TouchableOpacity onPress={() => setPlats([])} activeOpacity={0.7}>
-                <Text style={st.clearAllT}>Clear all</Text>
+                <Text style={st.clearAllT}>{tr('uClearAll')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -1191,7 +1192,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                 ))}
               </View>
               <Text style={st.stackNames} numberOfLines={2}>
-                {plats.map((c) => (c === 'any' ? 'Anywhere' : c[0].toUpperCase() + c.slice(1))).join('  ·  ')}
+                {plats.map((c) => (c === 'any' ? tr('uAnywhere') : c[0].toUpperCase() + c.slice(1))).join('  ·  ')}
               </Text>
             </View>
           ) : (
@@ -1200,7 +1201,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               const on = c === 'any' ? anyOn : plats.includes(c);
               const soon = (COMING_SOON as string[]).includes(c);
               const blocked = !!chipBlocked[c];
-              const label = c === 'any' ? 'Anywhere' : c[0].toUpperCase() + c.slice(1);
+              const label = c === 'any' ? tr('uAnywhere') : c[0].toUpperCase() + c.slice(1);
               return (
                 <TouchableOpacity
                   key={c}
@@ -1225,7 +1226,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                       </Text>
                     ) : null}
                   </View>
-                  {soon ? <Text style={st.soonT}>Soon</Text> : null}
+                  {soon ? <Text style={st.soonT}>{tr('uSoon')}</Text> : null}
                 </TouchableOpacity>
               );
             })}
@@ -1246,9 +1247,8 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             >
               <Ionicons name="alert-circle-outline" size={15} color={C.yellowText} />
               <Text style={st.staleT} numberOfLines={2}>
-                {stale.map((c) => SOCIAL_META[c]?.label ?? c).join(', ')} connected
-                before but {stale.length === 1 ? 'its login needs' : 'their logins need'} a refresh
-                {onConnect ? ', tap to reconnect' : ''}
+                {tr(stale.length === 1 ? 'uStaleOne' : 'uStaleMany').replace('{c}', stale.map((c) => SOCIAL_META[c]?.label ?? c).join(', '))}
+                {onConnect ? tr('uTapReconnect') : ''}
               </Text>
               {onConnect ? <Ionicons name="chevron-forward" size={16} color={C.muted} /> : null}
             </TouchableOpacity>
@@ -1258,7 +1258,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
           {!readOnly && plats.some((c) => (TYPE_CHANNELS as string[]).includes(c)) ? (
             <View style={{ gap: 10 }}>
-              <Text style={st.label}>Post type</Text>
+              <Text style={st.label}>{tr('uPostType')}</Text>
               {TYPE_CHANNELS.filter((c) => plats.includes(c)).map((c) => (
                 <View key={c} style={{ gap: 6 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1268,19 +1268,19 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     <Text style={st.typeLabel}>{c[0].toUpperCase() + c.slice(1)}</Text>
                     {c === 'threads' ? (
                       <TouchableOpacity onPress={() => setTopicOpen((v) => !v)} style={st.topicLink} activeOpacity={0.7}>
-                        <Text style={st.topicLinkT} numberOfLines={1}>{threadsTopic || 'Community or topic'}</Text>
+                        <Text style={st.topicLinkT} numberOfLines={1}>{threadsTopic || tr('uCommunityOrTopic')}</Text>
                         <Text style={st.topicChev}>›</Text>
                       </TouchableOpacity>
                     ) : null}
                     {c === 'tiktok' ? (
                       <TouchableOpacity onPress={() => setPrivacyOpen((v) => !v)} style={st.topicLink} activeOpacity={0.7}>
-                        <Text style={st.topicLinkT} numberOfLines={1}>{ttPrivacy ? (TT_PRIVACY_LABELS[ttPrivacy] ?? ttPrivacy) : 'Audience'}</Text>
+                        <Text style={st.topicLinkT} numberOfLines={1}>{ttPrivacy ? (TT_PRIVACY_LABELS[ttPrivacy] ?? ttPrivacy) : tr('uAudience')}</Text>
                         <Text style={st.topicChev}>›</Text>
                       </TouchableOpacity>
                     ) : null}
                     {c === 'youtube' ? (
                       <TouchableOpacity onPress={() => setListingOpen((v) => !v)} style={st.topicLink} activeOpacity={0.7}>
-                        <Text style={st.topicLinkT} numberOfLines={1}>{YT_LISTING.find((o) => o.id === ytPrivacy)?.label ?? 'Listing'}</Text>
+                        <Text style={st.topicLinkT} numberOfLines={1}>{(() => { const o = YT_LISTING.find((x) => x.id === ytPrivacy); return o ? tr(o.key) : tr('uListing'); })()}</Text>
                         <Text style={st.topicChev}>›</Text>
                       </TouchableOpacity>
                     ) : null}
@@ -1292,7 +1292,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                             const ids = selectedAccountIds(c);
                             if (ids.length > 1) return `${ids.length} accounts`;
                             const a = accounts.find((x) => x.id === ids[0]);
-                            return a ? accountName(a) ?? 'Account' : 'Account';
+                            return a ? accountName(a) ?? tr('aTitle') : tr('aTitle');
                           })()}</Text>
                         </View>
                         <Text style={st.topicChev}>›</Text>
@@ -1312,7 +1312,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     <View style={{ gap: 6 }}>
                       {YT_LISTING.map((o) => (
                         <TouchableOpacity key={o.id} onPress={() => { setYtPrivacy(o.id); setListingOpen(false); }} style={[st.typeChip, ytPrivacy === o.id && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                          <Text style={[st.typeChipT, ytPrivacy === o.id && { color: C.onInk }]}>{o.label}</Text>
+                          <Text style={[st.typeChipT, ytPrivacy === o.id && { color: C.onInk }]}>{tr(o.key)}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -1346,11 +1346,11 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   {c === 'threads' && topicOpen ? (
                     <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                       <View style={{ flex: 1 }}>
-                        <Txt value={threadsTopic} onChangeText={(v) => setThreadsTopic(v.slice(0, 50))} placeholder="e.g. Photography" autoCapitalize="none" autoCorrect={false} maxLength={50} returnKeyType="done" onSubmitEditing={() => setTopicOpen(false)} />
+                        <Txt value={threadsTopic} onChangeText={(v) => setThreadsTopic(v.slice(0, 50))} placeholder={tr('uEGPhotography')} autoCapitalize="none" autoCorrect={false} maxLength={50} returnKeyType="done" onSubmitEditing={() => setTopicOpen(false)} />
                       </View>
                       {threadsTopic ? (
                         <TouchableOpacity onPress={() => setThreadsTopic('')} style={st.topicClear} activeOpacity={0.7}>
-                          <Text style={st.topicClearT}>Clear</Text>
+                          <Text style={st.topicClearT}>{tr('uClear')}</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -1372,11 +1372,11 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
           {!readOnly && (
           <>
-          <Text style={[st.label, { marginTop: 6 }]}>Time</Text>
+          <Text style={[st.label, { marginTop: 6 }]}>{tr('uTime')}</Text>
           {(
             [
-              { id: 'now', label: 'Now', sub: 'Publishes right away' },
-              { id: 'custom', label: 'Custom', sub: `${wallLabel}${zoneSuffix}` },
+              { id: 'now', label: tr('uNow'), sub: tr('uPublishesRightAway') },
+              { id: 'custom', label: tr('uCustom'), sub: `${wallLabel}${zoneSuffix}` },
             ] as const
           ).map((o) => {
             const on = preset === o.id;
@@ -1409,8 +1409,8 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             <View style={st.warnBox}>
               <Ionicons name="warning" size={20} color={C.redText} />
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={st.warnT}>Too soon to queue</Text>
-                <Text style={st.warnS}>Earliest is {minQueueLabel()}, scheduled posts need at least 1 minute lead time. Pick a later time.</Text>
+                <Text style={st.warnT}>{tr('uTooSoonToQueue')}</Text>
+                <Text style={st.warnS}>{tr('uEarliest').replace('{t}', minQueueLabel())}</Text>
               </View>
             </View>
           ) : null}
@@ -1430,7 +1430,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
                   {mode === 'time' ? (
                     <TouchableOpacity onPress={() => { setMode('date'); setPickingTime(false); }} style={st.pickerBack} activeOpacity={0.7}>
-                      <Text style={st.pickerBackT}>‹ Back to date</Text>
+                      <Text style={st.pickerBackT}>{tr('uBackToDate')}</Text>
                     </TouchableOpacity>
                   ) : null}
                   <TouchableOpacity
@@ -1447,7 +1447,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                     style={st.pickerDone}
                     activeOpacity={0.7}
                   >
-                    <Text style={st.pickerDoneT}>{mode === 'date' ? 'Next: Time' : 'Done'}</Text>
+                    <Text style={st.pickerDoneT}>{mode === 'date' ? tr('uNextTime') : tr('uDone')}</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -1456,7 +1456,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
 
           {preset === 'custom' && !readOnly ? (
             <>
-              <Text style={[st.label, { marginTop: 6 }]}>Timezone</Text>
+              <Text style={[st.label, { marginTop: 6 }]}>{tr('uTimezone')}</Text>
               <TouchableOpacity
                 onPress={() => { setTzQuery(''); setTzOpen((v) => !v); }}
                 style={st.tzBtn}
@@ -1471,7 +1471,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   <TextInput
                     value={tzQuery}
                     onChangeText={setTzQuery}
-                    placeholder="Search your city or timezone…"
+                    placeholder={tr('uSearchYourCityOr')}
                     placeholderTextColor={C.faint}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -1522,9 +1522,9 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
           <View style={{ marginTop: 10 }}>
             <PrimaryBtn
               icon={preset === 'now' && onPostNow && !bulkCount ? 'send' : undefined}
-              label={bulkCount ? `Queue ${bulkCount} page${bulkCount > 1 ? 's' : ''}` : preset === 'now' ? 'Post now' : `Queue for ${wallLabel}${zoneSuffix}`}
+              label={bulkCount ? `Queue ${bulkCount} page${bulkCount > 1 ? 's' : ''}` : preset === 'now' ? tr('uPostNow') : `Queue for ${wallLabel}${zoneSuffix}`}
               loading={preset === 'now' && onPostNow && !bulkCount && !!publishing}
-              loadingLabel="Posting…"
+              loadingLabel={tr('uPosting')}
               onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels()) confirmPostNow(() => onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds())); } : save}
             />
           </View>
@@ -1533,7 +1533,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
           {/* Publish status mirrored INSIDE the sheet: a stacked modal can fail
               to present over this one, which used to make a failed post look
               like nothing happened at all. Rendered in read-only too, so a
-              sent post's "Published" result shows without a second modal. */}
+              sent post's tr('uPublished') result shows without a second modal. */}
           {statusTitle || (progress && progress.length > 0) ? (
             <View style={st.progress}>
               {statusTitle ? <Text style={st.progressTitle}>{statusTitle}</Text> : null}
@@ -1565,12 +1565,12 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               {!readOnly && onDraft ? (
                 <View style={{ flex: 1 }}>
-                  <GhostBtn label={draftLabel ?? 'Save as draft'} onPress={() => onDraft?.(finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds())} />
+                  <GhostBtn label={draftLabel ?? tr('uSaveAsDraft')} onPress={() => onDraft?.(finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds())} />
                 </View>
               ) : null}
               {onDelete ? (
                 <View style={{ flex: 1 }}>
-                  <GhostBtn label="Delete" danger onPress={confirmDelete} />
+                  <GhostBtn label={tr('uDelete')} danger onPress={confirmDelete} />
                 </View>
               ) : null}
             </View>
@@ -1585,7 +1585,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             <Text style={st.viewerCount}>{(vIdx ?? 0) + 1} / {vCount}</Text>
             <TouchableOpacity onPress={() => setViewer(null)} style={st.viewerMin} activeOpacity={0.7}>
               <Ionicons name="chevron-down" size={18} color="#fff" />
-              <Text style={st.viewerMinT}>Minimize</Text>
+              <Text style={st.viewerMinT}>{tr('uMinimize')}</Text>
             </TouchableOpacity>
           </View>
           <View style={st.viewerBody}>
@@ -1604,7 +1604,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               style={[st.viewerNavBtn, (vIdx ?? 0) <= 0 && st.viewerNavOff]}
               activeOpacity={0.7}
             >
-              <Text style={st.viewerNavBtnT}>‹ Prev</Text>
+              <Text style={st.viewerNavBtnT}>{tr('uPrev')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               disabled={(vIdx ?? vCount) >= vCount - 1}
@@ -1612,7 +1612,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               style={[st.viewerNavBtn, (vIdx ?? vCount) >= vCount - 1 && st.viewerNavOff]}
               activeOpacity={0.7}
             >
-              <Text style={st.viewerNavBtnT}>Next ›</Text>
+              <Text style={st.viewerNavBtnT}>{tr('uNext')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -7,7 +7,7 @@
  * GIF, AVIF) is transcoded to JPEG first, otherwise Meta rejects the
  * container with "unsupported image format".
  */
-import { readSecret, markTargetProgress } from './db';
+import { readSecret, updateSecret, markTargetProgress, rest } from './db';
 import { storageSign, storageDownload } from './rest';
 import { r2PutObject, r2Remove } from './storage';
 import { info, debug } from './logger';
@@ -15,6 +15,17 @@ import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
 
 const THREADS_API = 'https://graph.threads.net';
+
+/** Long-lived Threads tokens are good for 60 days; Meta's own fallback when a
+ *  refresh answer omits expires_in. */
+const THREADS_TOKEN_LIFE_S = 60 * 24 * 60 * 60;
+/** Rotate with runway to spare. The SQL watchdog (p108) picks a channel up at
+ *  15 days; this window is deliberately a day wider, so a job the cron calls
+ *  due is always due here too. */
+const THREADS_REFRESH_GRACE_MS = 16 * 24 * 60 * 60 * 1000;
+/** Meta refuses to rotate a token younger than 24 hours, so a refusal means at
+ *  least ~59 of the 60 days remain — the conservative expiry to stamp. */
+const THREADS_TOKEN_FLOOR_MS = 59 * 24 * 60 * 60 * 1000;
 
 interface Bundle {
   target: {
@@ -217,13 +228,79 @@ export async function publishOne(a: OnePost): Promise<string> {
   throw new Error((pub.err ?? 'Threads publish failed') + codeHint({ error: { code: pub.code } }));
 }
 
+/** Stamp channel_tokens.expires_at for this channel (PostgREST has no id to
+ *  filter on here — channel_tokens is keyed by channel_id). */
+async function patchExpiry(channelId: string, expiresAt: Date): Promise<void> {
+  await rest(
+    `/rest/v1/channel_tokens?channel_id=eq.${encodeURIComponent(channelId)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ expires_at: expiresAt.toISOString(), updated_at: new Date().toISOString() }),
+    },
+  );
+}
+
+/**
+ * Valid long-lived Threads token, rotated in place when it is near death.
+ *
+ * Threads tokens last 60 days and Meta extends them in place:
+ *   GET /refresh_access_token?grant_type=th_refresh_token&access_token=…
+ * It wants no app secret — the only provider here that doesn't — and answers
+ * with the same token and a fresh expiry, so there is no new pair to store.
+ *
+ * Meta refuses to rotate a token younger than 24 hours. That is not a failure:
+ * it proves the token is live, and it bounds the remaining life at ~59 days,
+ * which is stamped so the watchdog stops probing every 15 minutes. Only a
+ * missing secret or 401 / code 190 is auth-dead.
+ */
+export async function ensureToken(b: Bundle, force = false): Promise<string> {
+  if (!b.secrets.access_secret_id) {
+    throw new Error('Threads token missing, re-enable cloud publishing.');
+  }
+  const nearExpiry =
+    !b.secrets.expires_at || Date.parse(b.secrets.expires_at) <= Date.now() + THREADS_REFRESH_GRACE_MS;
+  const current = await readSecret(b.secrets.access_secret_id);
+  if (!current) {
+    throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
+  }
+  if (!force && !nearExpiry) return current;
+
+  const url =
+    `${THREADS_API}/refresh_access_token?grant_type=th_refresh_token` +
+    `&access_token=${encodeURIComponent(current)}`;
+  const r = await fetch(url, { signal: signal() });
+  const j: any = await r.json().catch(() => ({}));
+  if (r.status === 401 || j?.error?.code === 190) {
+    throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
+  }
+  if (j?.access_token) {
+    const token = String(j.access_token);
+    if (token !== current) await updateSecret(b.secrets.access_secret_id, token);
+    const expiresIn = Number(j.expires_in) > 0 ? Number(j.expires_in) : THREADS_TOKEN_LIFE_S;
+    await patchExpiry(b.channel.id, new Date(Date.now() + expiresIn * 1000));
+    info(
+      `threads: extended long-lived token for ${b.channel.external_id}, ${Math.round(expiresIn / 86400)} days left`,
+    );
+    return token;
+  }
+  const msg = String(j?.error?.message ?? '');
+  if (/24 hours|too (young|early)|not.*(due|refreshable|need)/i.test(msg)) {
+    await patchExpiry(b.channel.id, new Date(Date.now() + THREADS_TOKEN_FLOOR_MS));
+    info(`threads: token for ${b.channel.external_id} is not due for an extension yet, keeping it`);
+    return current;
+  }
+  throw new Error(gerr(j, 'Threads token refresh failed', 'refresh'));
+}
+
 export async function publishThreadsTarget(bundle: Bundle): Promise<{ remoteId: string; remoteUrl: string }> {
   const b = bundle as Bundle;
   const threadsId = b.channel.external_id;
   if (!threadsId) throw new Error('Threads channel missing user ID, re-enable cloud publishing.');
   if (!b.secrets.access_secret_id) throw new Error('Threads token missing, re-enable cloud publishing.');
-  const token = await readSecret(b.secrets.access_secret_id);
-  if (!token) throw new Error('Threads session expired, toggle cloud publishing off and on in Connect to refresh.');
+  // Extends the long-lived token in place when it is near death; publishes on
+  // day 59 are the ones that used to fail with a bare 401.
+  const token = await ensureToken(b);
 
   const text = (b.target.caption ?? b.post.body ?? '').trim();
   const first = (b.media ?? [])

@@ -7,6 +7,7 @@ import { LoaderCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useT } from '@/lib/i18n/client';
 import { authMessages } from '@/lib/i18n/auth';
+import PasswordInput from '@/components/PasswordInput';
 
 /**
  * Password-reset landing: the inbox link routes through /auth/callback,
@@ -89,9 +90,8 @@ export default function ResetPasswordPage() {
             <>
               <p className="eyebrow mb-4">{t('resetEyebrow')}</p>
               <form onSubmit={submit} className="space-y-3">
-                <input
+                <PasswordInput
                   className="field"
-                  type="password"
                   required
                   minLength={6}
                   autoComplete="new-password"
@@ -99,9 +99,8 @@ export default function ResetPasswordPage() {
                   value={pw1}
                   onChange={(e) => setPw1(e.target.value)}
                 />
-                <input
+                <PasswordInput
                   className="field"
-                  type="password"
                   required
                   minLength={6}
                   autoComplete="new-password"

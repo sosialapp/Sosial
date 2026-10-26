@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  AppState,
   type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,7 +41,9 @@ import {
   refreshCommunityInbox,
   replyToCommunityComment,
   sendCommunityMessage,
+  subscribeCommunityChanges,
 } from '../utils/community';
+import { tr } from '../i18n';
 
 function timeAgo(iso: string): string {
   const ts = new Date(iso).getTime();
@@ -71,8 +74,8 @@ function dayLabel(iso: string): string {
   if (Number.isNaN(d.getTime())) return '';
   const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((start(new Date()) - start(d)) / 86_400_000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
+  if (days === 0) return tr('mToday');
+  if (days === 1) return tr('mYesterday');
   try {
     return d.toLocaleDateString('en-US', days < 7 ? { weekday: 'long' } : { month: 'short', day: 'numeric' });
   } catch {
@@ -208,6 +211,93 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     }
   }, []);
 
+  /** Optimistic rows the server list has not caught up with yet must survive a
+   *  refetch, so a live update can never make a just-sent reply/message vanish. */
+  const mergeComments = useCallback((next: CommunityComment[]) => {
+    setComments((prev) => {
+      const pending = prev.filter((r) => r.pending);
+      if (pending.length === 0) return next;
+      const keys = new Set(next.map((r) => `${r.parent_external_id}:${r.body.trim()}`));
+      const keep = pending.filter((r) => !keys.has(`${r.parent_external_id}:${r.body.trim()}`));
+      return keep.length ? [...next, ...keep] : next;
+    });
+  }, []);
+
+  const mergeThread = useCallback((next: CommunityMessage[]) => {
+    setThread((prev) => {
+      const pending = (prev ?? []).filter((m) => m.status === 'pending' && m.id.startsWith('local:'));
+      if (pending.length === 0) return next;
+      const keys = new Set(next.map((m) => `${m.direction}:${m.body.trim()}`));
+      const keep = pending.filter((m) => !keys.has(`${m.direction}:${m.body.trim()}`));
+      return keep.length ? [...next, ...keep].sort((a, b) => a.sent_at.localeCompare(b.sent_at)) : next;
+    });
+  }, []);
+
+  /** Which chat is open, readable from the realtime callback without
+   *  resubscribing every time it changes. */
+  const openConvRef = useRef<CommunityConversation | null>(null);
+  useEffect(() => {
+    openConvRef.current = openConv;
+  }, [openConv]);
+
+  /** A live change refetches rather than splicing rows, so the server stays the
+   *  source of truth; debounced so a burst of inserts is a single reload. */
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleReload = useCallback(() => {
+    if (reloadTimer.current) clearTimeout(reloadTimer.current);
+    reloadTimer.current = setTimeout(() => {
+      reloadTimer.current = null;
+      void (async () => {
+        try {
+          const [cs, cv, un] = await Promise.all([
+            fetchCommunityComments(),
+            fetchCommunityConversations(),
+            fetchCommunityUnseen(),
+          ]);
+          mergeComments(cs);
+          setConvs(cv);
+          setUnseen(un);
+          const open = openConvRef.current;
+          if (open) mergeThread(await fetchCommunityThread(open.id));
+        } catch {
+          /* a transient read failure just leaves the previous view */
+        }
+      })();
+    }, 400);
+  }, [mergeComments, mergeThread]);
+
+  useEffect(() => {
+    let off: (() => void) | null = null;
+    let cancelled = false;
+    void subscribeCommunityChanges(() => scheduleReload()).then((fn) => {
+      if (cancelled) fn();
+      else off = fn;
+    });
+    return () => {
+      cancelled = true;
+      off?.();
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+    };
+  }, [scheduleReload]);
+
+  /** Ask the server to sweep the platforms right now when the screen opens and
+   *  whenever the app returns to the foreground. Safe to spam: the edge function
+   *  is idempotent per workspace per minute, and this throttles to match. */
+  const lastScan = useRef(0);
+  const scanNow = useCallback(() => {
+    const now = Date.now();
+    if (now - lastScan.current < 60_000) return;
+    lastScan.current = now;
+    void refreshCommunityInbox().catch(() => {});
+  }, []);
+  useEffect(() => {
+    scanNow();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') scanNow();
+    });
+    return () => sub.remove();
+  }, [scanNow]);
+
   useEffect(() => {
     void (async () => {
       await loadChannels();
@@ -231,7 +321,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       await refreshCommunityInbox();
       await new Promise((r) => setTimeout(r, 8000));
       await loadAll();
-      if (openConv) setThread(await fetchCommunityThread(openConv.id));
+      if (openConv) mergeThread(await fetchCommunityThread(openConv.id));
       setUnseen(await fetchCommunityUnseen());
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not start the refresh.');
@@ -257,28 +347,50 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     if (!text || busy) return;
     setBusy(true);
     setErr(null);
+    setDraft('');
+    setReplyFor(null);
+    // Show the reply immediately; the worker posts it to the platform, then
+    // stores the real row, and the watch below (or realtime) swaps it in.
+    const pending: CommunityComment = {
+      id: `local:${Date.now()}`,
+      channel_id: c.channel_id,
+      platform: c.platform,
+      external_post_id: c.external_post_id,
+      parent_external_id: c.external_id,
+      external_id: `local:${Date.now()}`,
+      author_name: null,
+      author_avatar: null,
+      body: text,
+      created_at: new Date().toISOString(),
+      status: 'pending',
+      is_own: true,
+      pending: true,
+    };
+    setComments((prev) => [...prev, pending]);
     try {
       await replyToCommunityComment(c.id, text);
-      setDraft('');
-      setReplyFor(null);
-      // The worker posts on the platform first, then stores our reply as an
-      // is_own row; keep watching the thread until that row lands.
-      const seen = new Set(
-        comments.filter((r) => r.is_own && r.parent_external_id === c.external_id).map((r) => r.id),
-      );
-      let landed = false;
-      for (let i = 0; i < 24 && !landed; i++) {
-        await new Promise((r) => setTimeout(r, 2500));
-        const next = await fetchCommunityComments();
-        setComments(next);
-        landed =
-          next.some((r) => r.is_own && r.parent_external_id === c.external_id && !seen.has(r.id)) ||
-          next.some((r) => r.id === c.id && r.status === 'replied');
-      }
     } catch (e) {
+      setComments((prev) => prev.filter((r) => r.id !== pending.id));
+      setDraft(text);
+      setReplyFor(c.id);
       setErr(e instanceof Error ? e.message : 'Could not send the reply.');
-    } finally {
       setBusy(false);
+      return;
+    }
+    setBusy(false);
+    const seen = new Set(
+      comments.filter((r) => r.is_own && r.parent_external_id === c.external_id).map((r) => r.id),
+    );
+    for (let i = 0; i < 24; i++) {
+      await new Promise((r) => setTimeout(r, 2500));
+      const next = await fetchCommunityComments();
+      const landed =
+        next.some((r) => r.is_own && r.parent_external_id === c.external_id && !seen.has(r.id)) ||
+        next.some((r) => r.id === c.id && r.status === 'replied');
+      if (landed) {
+        mergeComments(next);
+        return;
+      }
     }
   };
 
@@ -288,7 +400,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     setThread(null);
     setErr(null);
     try {
-      setThread(await fetchCommunityThread(c.id));
+      mergeThread(await fetchCommunityThread(c.id));
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not load the conversation.');
     }
@@ -314,10 +426,12 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       if (refusal) throw new Error(refusal);
       for (let i = 0; i < 5; i++) {
         await new Promise((r) => setTimeout(r, 2500));
-        setThread(await fetchCommunityThread(openConv.id));
+        mergeThread(await fetchCommunityThread(openConv.id));
       }
       setConvs(await fetchCommunityConversations());
     } catch (e) {
+      setThread((t) => (t ?? []).filter((m) => m.id !== pending.id));
+      setMsgDraft(text);
       setErr(e instanceof Error ? e.message : 'Could not send the message.');
     } finally {
       setBusy(false);
@@ -442,8 +556,8 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       {bare ? null : (
         <View style={s.masthead}>
           <View>
-            <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>Community</Text>
-            <Text style={s.sub}>Comments and messages, in one place.</Text>
+            <Text style={[T.h1, { color: C.ink, fontSize: 30, lineHeight: 36 }]}>{tr('nCommunity')}</Text>
+            <Text style={s.sub}>{tr('mSub')}</Text>
           </View>
           <NotificationBell />
         </View>
@@ -452,8 +566,8 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       <View style={{ paddingHorizontal: 24, marginTop: bare ? 0 : 14 }}>
         <Tabs
           options={[
-            { value: 'comments', label: 'Comments' },
-            { value: 'messages', label: 'Messages' },
+            { value: 'comments', label: tr('mComments') },
+            { value: 'messages', label: tr('mMessages') },
           ]}
           value={segment}
           onChange={setSegment}
@@ -513,7 +627,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         {loading ? (
           <View style={s.empty}>
             <ActivityIndicator size="small" color={C.accent} />
-            <Text style={s.emptyS}>Loading inbox…</Text>
+            <Text style={s.emptyS}>{tr('mLoading')}</Text>
           </View>
         ) : segment === 'comments' ? (
           shownComments.length === 0 ? (
@@ -521,7 +635,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
               <View style={s.emptyIcon}>
                 <Ionicons name="chatbubbles" size={20} color={C.faint} />
               </View>
-              <Text style={s.emptyT}>No comments yet</Text>
+              <Text style={s.emptyT}>{tr('mNoComments')}</Text>
               <Text style={s.emptyS}>Comments on your posts land here when the engine sweeps, every 5 minutes or on Refresh.</Text>
             </View>
           ) : (
@@ -532,7 +646,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
             <View style={s.emptyIcon}>
               <Ionicons name="mail-unread-outline" size={20} color={C.faint} />
             </View>
-            <Text style={s.emptyT}>No messages yet</Text>
+            <Text style={s.emptyT}>{tr('mNoMessages')}</Text>
             <Text style={s.emptyS}>Direct messages from connected channels arrive here when the engine sweeps.</Text>
           </View>
         ) : (
@@ -635,10 +749,10 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                           ↳ to {parent.author_name || 'comment'}: {parent.body}
                         </Text>
                       ) : null}
-                      <View style={[s.bubble, { backgroundColor: C.accent, borderBottomRightRadius: 6 }]}>
+                      <View style={[s.bubble, { backgroundColor: C.accent, borderBottomRightRadius: 6, opacity: c.pending ? 0.7 : 1 }]}>
                         <Text style={[s.bubbleT, { color: '#0b1220' }]}>{c.body}</Text>
                       </View>
-                      <Text style={[s.bubbleTime, { color: C.faint }]}>You · {timeAgo(c.created_at)}</Text>
+                      <Text style={[s.bubbleTime, { color: C.faint }]}>You · {c.pending ? 'sending' : timeAgo(c.created_at)}</Text>
                     </View>
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 10 }}>
@@ -659,7 +773,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4, marginLeft: 4 }}>
                           <Text style={s.commentT}>{timeAgo(c.created_at)}</Text>
                           <TouchableOpacity onPress={() => setReplyFor(c.id)} hitSlop={8}>
-                            <Text style={[s.replyLink, isTarget && { color: C.ink }]}>{isTarget ? 'Replying…' : 'Reply'}</Text>
+                            <Text style={[s.replyLink, isTarget && { color: C.ink }]}>{tr('mReply')}</Text>
                           </TouchableOpacity>
                           {done ? <Text style={[s.commentT, { color: C.greenText }]}>✓ Answered</Text> : null}
                         </View>
@@ -850,7 +964,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
               <TextInput
                 value={msgDraft}
                 onChangeText={setMsgDraft}
-                placeholder={openChannel ? `Message as ${openChannel}` : 'Write a message…'}
+                placeholder={openChannel ? `Message as ${openChannel}` : tr('mWrite')}
                 placeholderTextColor={C.faint}
                 style={s.composerInput}
                 multiline

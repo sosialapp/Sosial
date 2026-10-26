@@ -223,6 +223,55 @@ export default function ConnectPanel({
     };
   }, [router]);
 
+  // The consent tab posts its result here and closes itself. Replay what the
+  // callback's redirect would have done: banner + list refresh, and for
+  // Facebook/GBP the pick cookie it just set opens the picker on this page.
+  // BroadcastChannel carries it because the provider's COOP headers can null
+  // window.opener; the origin-checked message listener is the older fallback.
+  useEffect(() => {
+    const apply = (data: unknown) => {
+      const msg = data as { type?: string; workspace_id?: string; url?: string } | null;
+      if (!msg || msg.type !== 'sosial-oauth') return;
+      if (msg.workspace_id && msg.workspace_id !== workspaceId) return;
+      setLeaving(null);
+      window.focus();
+      // `/channels?connected=facebook` normally; a bare `?query` is accepted
+      // too so an older callback response can never be swallowed silently.
+      const url = typeof msg.url === 'string' ? msg.url : '';
+      if (url.startsWith('/')) router.push(url);
+      else if (url.startsWith('?')) router.push(`/channels${url}`);
+      router.refresh();
+    };
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('sosial-oauth');
+      bc.onmessage = (e) => apply(e.data);
+    } catch {
+      bc = null;
+    }
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin === window.location.origin) apply(e.data);
+    };
+    window.addEventListener('message', onMsg);
+    return () => {
+      try {
+        bc?.close();
+      } catch {
+        /* already closed */
+      }
+      window.removeEventListener('message', onMsg);
+    };
+  }, [router, workspaceId]);
+
+  // A pick can arrive after mount (the consent tab hands it to this live
+  // page), so the initial state above is not enough on its own.
+  useEffect(() => {
+    if (fbPick?.length) setOpen('facebook');
+  }, [fbPick]);
+  useEffect(() => {
+    if (gmbPick?.length) setOpen('gmb');
+  }, [gmbPick]);
+
   const byProvider = (p: string): ConnectedChannel[] => channels.filter((c) => c.provider === p);
   const matchesQuery = (p: ProviderId): boolean => {
     const q = query.trim().toLowerCase();
@@ -243,8 +292,8 @@ export default function ConnectPanel({
   });
   const visible = ordered.filter(matchesQuery);
 
-  const startHref = (p: OAuthProvider): string =>
-    `/api/oauth/start?provider=${p}&workspace_id=${encodeURIComponent(workspaceId)}`;
+  const startHref = (p: OAuthProvider, popup = true): string =>
+    `/api/oauth/start?provider=${p}&workspace_id=${encodeURIComponent(workspaceId)}${popup ? '&popup=1' : ''}`;
 
   async function connectBsky() {
     setErr(null);
@@ -299,12 +348,20 @@ export default function ConnectPanel({
       const r = await fetch('/api/oauth/mastodon-start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspace_id: workspaceId, instance: mastodonInstance.trim() }),
+        body: JSON.stringify({ workspace_id: workspaceId, instance: mastodonInstance.trim(), popup: !!tab }),
       });
       const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
       if (!j.url) throw new Error(j.error ?? t('cnMastoRegister'));
-      if (tab) tab.location.href = j.url;
-      else window.location.href = j.url;
+      if (tab) {
+        try {
+          tab.opener = null;
+        } catch {
+          /* ours to null until we navigate it away */
+        }
+        tab.location.href = j.url;
+      } else {
+        window.location.href = j.url;
+      }
     } catch (e) {
       try {
         tab?.close();
@@ -841,12 +898,28 @@ export default function ConnectPanel({
             // tab so this page keeps its place. Members can't start connects.
             if (!manual && !hasAny) {
               if (!canManage) {
-      setErr(t('cnErrManage'));
+                setErr(t('cnErrManage'));
                 return;
               }
               if (leaving) return;
               setLeaving(p);
-              window.open(startHref(p as OAuthProvider), '_blank', 'noopener');
+              // Consent in its own tab, this list keeps its place. Claim the
+              // blank tab synchronously (awaiting work first would trip the
+              // popup blocker) and sever the opener before the provider page
+              // can reach back. The callback posts the result to the opener
+              // over BroadcastChannel, so nothing here needs window.opener.
+              const tab = window.open('about:blank', '_blank');
+              if (!tab) {
+                // Blocked: run the same flow in this tab with the plain redirect.
+                window.location.href = startHref(p as OAuthProvider, false);
+                return;
+              }
+              try {
+                tab.opener = null;
+              } catch {
+                /* ours to null until we navigate it away */
+              }
+              tab.location.href = startHref(p as OAuthProvider);
               return;
             }
             setOpen(expanded ? null : p);
@@ -1290,12 +1363,12 @@ export default function ConnectPanel({
                           key={pg.id}
                           className={`flex items-center gap-2.5 rounded-xl border border-line bg-card px-3 py-2 ${pg.missing ? 'opacity-60' : ''}`}
                         >
-                          {pg.picture ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={pg.picture} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-                          ) : (
-                            <BrandIcon provider="facebook" className="h-8 w-8" />
-                          )}
+                          <ChannelAvatar
+                            provider="facebook"
+                            avatar={pg.picture ?? `/api/oauth/fb-page-avatar?page_id=${encodeURIComponent(pg.id)}`}
+                            size={32}
+                            badge={false}
+                          />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold">{pg.name}</span>
                             {pg.missing ? (

@@ -11,6 +11,7 @@ import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
 import SegmentedPills from '@/components/ui/segmented-pills';
+import { CARD_COLORS, channelsLine, creditsLine, perMonth } from '@/components/PricingPlans';
 
 interface EntitlementView {
   plan: PlanKey;
@@ -144,84 +145,95 @@ export default function BillingPanel({
   const plan = PLANS[entitlement.plan];
   const intervalText = entitlement.billingInterval === 'annual' ? t('blAnnual') : entitlement.billingInterval === 'monthly' ? t('blMonthly') : '-';
   const paid = entitlement.active;
+  /** The plan's pastel from the pricing cards (Ultimate borrows Business's). */
+  const tone =
+    CARD_COLORS[(paid ? (entitlement.plan === 'ultimate' ? 'business' : entitlement.plan) : 'free') as Exclude<PlanKey, 'ultimate'>];
 
   return (
-    <div className="space-y-3">
-      {/* ---- current plan ---- */}
-      <section className="card p-5" aria-label={t('blCurrentPlan')}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="eyebrow">{t('blCurrentPlan')}</p>
+    <div className="grid items-start gap-3 lg:grid-cols-2">
+      {/* ---- current plan: the pricing card's pastel header, then the details ---- */}
+      <section className="overflow-hidden rounded-[28px] border border-line bg-card" aria-label={t('blCurrentPlan')}>
+        <header className="relative px-5 pt-5 pb-5" style={{ backgroundColor: tone.bg, color: tone.ink }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em]" style={{ color: tone.sub }}>
+              {t('blCurrentPlan')}
+            </p>
+            {entitlement.cancelAtPeriodEnd ? (
+              <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-[#9F2F2D]">{t('blCancelsEnd')}</span>
+            ) : paid ? (
+              <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold capitalize" style={{ color: tone.ink }}>
+                {entitlement.status}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-2 font-display text-3xl leading-none font-extrabold tracking-tight">{plan.label}</p>
+          <p className="mt-1.5 max-w-[42ch] text-sm" style={{ color: tone.sub }}>{plan.blurb}</p>
+        </header>
+        <div className="p-5">
+          <p className="font-display text-[28px] leading-none font-medium tracking-tight text-ink">
+            {entitlement.plan === 'ultimate'
+              ? t('blOnce')
+              : paid && entitlement.billingInterval
+                ? priceLabel(entitlement.plan, entitlement.billingInterval)
+                : t('prFree')}
+          </p>
+          <p className="mt-1.5 text-xs text-muted">
+            {entitlement.plan === 'ultimate'
+              ? t('blLifetime').replace(/^ · /, '')
+              : paid && entitlement.billingInterval === 'annual'
+                ? fill(t('blPerMonth'), { price: formatUsd(monthlyEquivalent(entitlement.plan)) })
+                : paid
+                  ? t('blBilledMonthly').replace(/^ · /, '')
+                  : t('blFreePlan')}
+          </p>
+          {paid && entitlement.plan !== 'ultimate' ? (
+            <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+              <div className="rounded-[10px] border border-line bg-surface/60 px-3 py-2">
+                <dt className="text-[11px] font-bold text-muted">{t('blBilling')}</dt>
+                <dd className="font-bold">{intervalText}</dd>
+              </div>
+              <div className="rounded-[10px] border border-line bg-surface/60 px-3 py-2">
+                <dt className="text-[11px] font-bold text-muted">{t('blNextDate')}</dt>
+                <dd className="font-bold">{entitlement.cancelAtPeriodEnd ? '-' : fmtDate(entitlement.currentPeriodEnd)}</dd>
+              </div>
+              <div className="rounded-[10px] border border-line bg-surface/60 px-3 py-2">
+                <dt className="text-[11px] font-bold text-muted">{t('blCurrentPeriod')}</dt>
+                <dd className="font-bold">
+                  {fmtDate(entitlement.currentPeriodStart)} → {fmtDate(entitlement.currentPeriodEnd)}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
           {entitlement.cancelAtPeriodEnd ? (
-            <span className="pill bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{t('blCancelsEnd')}</span>
-          ) : paid ? (
-            <span className="pill bg-[#e8f3ec] text-[#2f8f5b] dark:bg-[#1b2a20] dark:text-[#7fd0a0]">{entitlement.status}</span>
+            <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
+              {fill(t('blCancelNote'), { date: fmtDate(entitlement.currentPeriodEnd) })}
+            </p>
+          ) : null}
+          {paid && entitlement.plan !== 'ultimate' ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={openPortal} disabled={busy !== null} className="btn btn-ghost">
+                {busy === 'portal' ? t('blOpening') : t('blManageStripe')}
+              </button>
+              {entitlement.cancelAtPeriodEnd ? (
+                <button type="button" onClick={() => setCancel(false)} disabled={busy !== null} className="btn btn-bolt">
+                  {busy === 'resume' ? t('blResuming') : t('blResume')}
+                </button>
+              ) : (
+                <button type="button" onClick={() => setCancel(true)} disabled={busy !== null} className="btn btn-ghost">
+                  {busy === 'cancel' ? t('blCancelling') : t('blCancelEnd')}
+                </button>
+              )}
+            </div>
+          ) : !paid ? (
+            <a href="#change-plan" className="btn btn-primary mt-4 w-full sm:w-auto">
+              {t('blUpgradeBtn')}
+            </a>
           ) : null}
         </div>
-        <p className="mt-2 font-display text-2xl font-extrabold tracking-tight">{plan.label}</p>
-        <p className="mt-1 text-sm text-muted">
-          {entitlement.plan === 'ultimate' ? (
-            <>
-              <span className="font-bold text-ink">{t('blOnce')}</span>{t('blLifetime')}
-            </>
-          ) : paid && entitlement.billingInterval ? (
-            <>
-              <span className="font-bold text-ink">
-                {priceLabel(entitlement.plan, entitlement.billingInterval)}
-              </span>
-              {entitlement.billingInterval === 'annual' ? (
-                <> · ≈ {formatUsd(monthlyEquivalent(entitlement.plan))}/month, billed annually</>
-              ) : (
-                <>{t('blBilledMonthly')}</>
-              )}
-            </>
-          ) : (
-            t('blFreePlan')
-          )}
-        </p>
-        {paid && entitlement.plan !== 'ultimate' ? (
-          <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-bold text-muted">{t('blBilling')}</dt>
-              <dd>{intervalText}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-bold text-muted">{t('blNextDate')}</dt>
-              <dd>
-                {entitlement.cancelAtPeriodEnd
-                  ? `None, access ends ${fmtDate(entitlement.currentPeriodEnd)}`
-                  : fmtDate(entitlement.currentPeriodEnd)}
-              </dd>
-            </div>
-            <div className="sm:col-span-2">
-              <dt className="text-xs font-bold text-muted">{t('blCurrentPeriod')}</dt>
-              <dd>
-                {fmtDate(entitlement.currentPeriodStart)} → {fmtDate(entitlement.currentPeriodEnd)}
-              </dd>
-            </div>
-          </dl>
-        ) : null}
-        {entitlement.cancelAtPeriodEnd ? (
-          <p className="mt-3 rounded-xl border border-line bg-surface/60 p-3 text-sm">
-            {fill(t('blCancelNote'), { date: fmtDate(entitlement.currentPeriodEnd) })}          </p>        ) : null}
-        {paid && entitlement.plan !== 'ultimate' ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={openPortal} disabled={busy !== null} className="btn btn-ghost">              {busy === 'portal' ? t('blOpening') : t('blManageStripe')}
-            </button>
-            {entitlement.cancelAtPeriodEnd ? (
-              <button type="button" onClick={() => setCancel(false)} disabled={busy !== null} className="btn btn-bolt">
-                {busy === 'resume' ? t('blResuming') : t('blResume')}
-              </button>
-            ) : (
-              <button type="button" onClick={() => setCancel(true)} disabled={busy !== null} className="btn btn-ghost">
-                {busy === 'cancel' ? t('blCancelling') : t('blCancelEnd')}
-              </button>
-            )}
-          </div>
-        ) : null}
       </section>
 
       {/* ---- usage (monthly window, even on annual) ---- */}
-      <section className="card p-5" aria-label={t('blUsage')}>
+      <section className="card h-full p-5" aria-label={t('blUsage')}>
         <p className="eyebrow">{fill(t('blUsage'), { month: usage.month })}</p>
         <p className="mt-1 text-xs text-muted">
           {t('blUsageNote')}
@@ -294,7 +306,7 @@ export default function BillingPanel({
       </section>
 
       {/* ---- watermark (brand) ---- */}
-      <section className="card p-5" aria-label={t('blWatermark')}>
+      <section className="card p-5 lg:col-span-2" aria-label={t('blWatermark')}>
         <p className="eyebrow">{t('blBrand')}</p>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -327,73 +339,132 @@ export default function BillingPanel({
         </p>
       </section>
 
-      {/* ---- change plan ---- */}
-      <section id="change-plan" className="card scroll-mt-24 p-5" aria-label={t('blChangePlan')}>
-        <p className="eyebrow">{t('blChangePlan')}</p>
-        <SegmentedPills
-          ariaLabel={t('blIntervalAria')}
-          className="mt-3 w-fit"
-          value={interval}
-          onChange={setInterval}
-          options={(['monthly', 'annual'] as const).map((i) => ({
-            value: i,
-            label: i === 'monthly' ? t('blMonthly') : fill(t('blAnnualSave'), { n: annualSavingsPct('team') }),
-          }))}
-        />
+      {/* ---- change plan: the same cards as the public pricing page ---- */}
+      <section id="change-plan" className="scroll-mt-24 pt-3 lg:col-span-2" aria-label={t('blChangePlan')}>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow">{t('blChangePlan')}</p>
+            <p className="mt-1 text-xs text-muted">{stripeReady ? t('blChangeNote') : t('blStripeNote')}</p>
+          </div>
+          <SegmentedPills
+            ariaLabel={t('blIntervalAria')}
+            value={interval}
+            onChange={setInterval}
+            options={(['monthly', 'annual'] as const).map((i) => ({
+              value: i,
+              label: i === 'monthly' ? t('blMonthly') : fill(t('blAnnualSave'), { n: annualSavingsPct('team') }),
+            }))}
+          />
+        </div>
 
-        <div className="mt-3 space-y-2">
-          {PLAN_ORDER.filter((k) => k !== 'free').map((k) => {
+        <div className="mt-4 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PLAN_ORDER.map((k, idx) => {
             const p = PLANS[k];
-            const current = entitlement.plan === k && entitlement.active;
+            const c = CARD_COLORS[k as Exclude<PlanKey, 'ultimate'>];
+            const current = k === 'free' ? !paid : paid && entitlement.plan === k;
+            const prevLabel = idx > 0 ? PLANS[PLAN_ORDER[idx - 1]].label : null;
+            const higher = !paid || PLAN_ORDER.indexOf(k) > PLAN_ORDER.indexOf(entitlement.plan);
             return (
-              <div key={k} className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface/60 p-4">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">
-                    {p.label}
-                    {current ? <span className="ml-2 text-xs font-medium text-muted">{t('blCurrent')}</span> : null}
-                  </p>
-                  <p className="text-xs text-muted">{p.blurb}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-extrabold">{priceLabel(k, interval)}</p>
-                  {interval === 'annual' ? (
-                    <p className="text-xs text-muted">{fill(t('blPerMonth'), { price: formatUsd(monthlyEquivalent(k)) })}</p>
-                  ) : (
-                    <p className="text-xs text-muted">{t('blBilledMonthly')}</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  disabled={busy !== null || current || !stripeReady}
-                  onClick={() => select(k)}
-                  className={`btn shrink-0 ${current ? 'btn-ghost' : 'btn-bolt'}`}
+              <article
+                key={k}
+                className={`relative flex flex-col rounded-[28px] bg-surface pb-6 ${current ? 'ring-2 ring-ink' : ''}`}
+              >
+                <header
+                  className="relative min-h-[112px] rounded-[28px_28px_20px_20px] px-4 pt-5 pb-5"
+                  style={{ backgroundColor: c.bg, color: c.ink }}
                 >
-                  {current
-                    ? t('blActive')
-                    : busy === k
-                      ? t('blWorking')
-                      : priceFor(k, interval) < priceFor(entitlement.plan as Exclude<PlanKey, 'free'>, interval) || !paid
-                        ? t('blUpgradeBtn')
-                        : t('blSwitch')}
-                </button>
-              </div>
+                  {current || p.featured ? (
+                    <span
+                      className="absolute top-3.5 right-3.5 rounded-full bg-white/80 px-3 py-1 text-xs font-medium"
+                      style={{ color: c.ink }}
+                    >
+                      {current ? t('blCurrentPlan') : t('prMostPopular')}
+                    </span>
+                  ) : null}
+                  <p className="m-0 text-lg leading-tight font-semibold">{p.label}</p>
+                  <p className="m-0 mt-1 max-w-[30ch] text-sm leading-snug" style={{ color: c.sub }}>{p.blurb}</p>
+                </header>
+
+                <div className="flex flex-1 flex-col px-4 pt-5">
+                  <p className="m-0 font-display text-[28px] leading-none font-medium tracking-tight text-ink">
+                    {k === 'free' ? t('prFree') : fill(t('prPerMo'), { price: formatUsd(perMonth(k, interval)) })}
+                  </p>
+                  <p className="mt-1.5 mb-4 text-xs text-muted">
+                    {k === 'free'
+                      ? t('prFreeForever')
+                      : interval === 'annual'
+                        ? fill(t('prBilledYearly'), { price: formatUsd(priceFor(k, 'annual')) })
+                        : t('blBilledMonthly').replace(/^ · /, '')}
+                  </p>
+
+                  <div className="mb-4 grid gap-2">
+                    <div className="flex h-10 items-center gap-2.5 rounded-[10px] border border-line bg-card px-3 text-sm text-ink">
+                      <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-[#3b82f6]" fill="currentColor" aria-hidden="true">
+                        <path d="M8 1c.4 3.6 1.9 5.6 6 7-4.1 1.4-5.6 3.4-6 7-.4-3.6-1.9-5.6-6-7 4.1-1.4 5.6-3.4 6-7Z" />
+                      </svg>
+                      {channelsLine(k, t)}
+                    </div>
+                    <div className="flex h-10 items-center gap-2.5 rounded-[10px] border border-line bg-card px-3 text-sm text-ink">
+                      <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-[#3f9e6b]" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+                        <ellipse cx="6" cy="5" rx="4" ry="2" />
+                        <path d="M2 5v3c0 1.1 1.8 2 4 2s4-.9 4-2V5" />
+                        <path d="M6 10v1c0 1.1 1.8 2 4 2s4-.9 4-2V8c0-1.1-1.8-2-4-2" />
+                      </svg>
+                      {creditsLine(k, t)}
+                    </div>
+                  </div>
+
+                  {prevLabel ? (
+                    <p className="mb-2 text-xs text-muted italic">{fill(t('prEverythingIn'), { plan: prevLabel })}</p>
+                  ) : null}
+                  <ul className="m-0 mb-6 grid list-none gap-1.5 p-0">
+                    {p.points.map((pt) => (
+                      <li key={pt} className="relative pl-3 text-xs leading-relaxed text-ink">
+                        <span aria-hidden="true" className="absolute top-[0.55em] left-0.5 h-[3px] w-[3px] rounded-full bg-faint" />
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-auto">
+                    {current ? (
+                      <button type="button" disabled className="btn btn-ghost w-full">
+                        {t('blActive')}
+                      </button>
+                    ) : k === 'free' ? (
+                      // Moving to Free is a cancellation: the paid plan runs to the period's end.
+                      <button
+                        type="button"
+                        onClick={() => setCancel(true)}
+                        disabled={busy !== null || entitlement.cancelAtPeriodEnd || entitlement.plan === 'ultimate'}
+                        className="btn btn-ghost w-full"
+                      >
+                        {entitlement.cancelAtPeriodEnd
+                          ? t('blCancelsEnd')
+                          : busy === 'cancel'
+                            ? t('blCancelling')
+                            : t('blCancelEnd')}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busy !== null || !stripeReady}
+                        onClick={() => select(k as Exclude<PlanKey, 'free'>)}
+                        className={`btn w-full ${higher && p.featured ? 'btn-primary' : higher ? 'btn-bolt' : 'btn-ghost'}`}
+                      >
+                        {busy === k ? t('blWorking') : higher ? fill(t('prChoose'), { plan: p.label }) : t('blSwitch')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
-
-        {!stripeReady ? (
-          <p className="mt-3 text-xs text-muted">
-            {t('blStripeNote')}
-          </p>
-        ) : (
-          <p className="mt-3 text-xs text-muted">
-            {t('blChangeNote')}
-          </p>
-        )}
       </section>
 
-      {notice ? <p className="card p-4 text-sm font-bold text-[#2f8f5b]">{notice}</p> : null}
-      {err ? <p className="card p-4 text-sm font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p> : null}
+      {notice ? <p className="card p-4 lg:col-span-2 text-sm font-bold text-[#2f8f5b]">{notice}</p> : null}
+      {err ? <p className="card p-4 lg:col-span-2 text-sm font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{err}</p> : null}
     </div>
   );
 }

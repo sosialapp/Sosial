@@ -16,6 +16,8 @@ import CommentsFeed from '@/components/CommentsFeed';
 import MessagesInbox from '@/components/MessagesInbox';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { createClient } from '@/lib/supabase/client';
+import { usePostgresChanges } from '@/lib/realtime';
+import { requestScan } from '@/lib/scan';
 import type { ConnectedChannel } from '@/lib/types';
 
 type InboxTab = 'comments' | 'messages';
@@ -63,6 +65,30 @@ export default function CommunityInbox({
       window.removeEventListener('focus', onFocus);
     };
   }, [fetchUnseen]);
+
+  // Coming back to the tab, or opening it, asks the server for a sweep now
+  // instead of waiting for the 5-minute cron; the rows it stores then arrive
+  // over Realtime. The function's key is per-workspace-per-minute, so a burst
+  // of focus events costs nothing.
+  useEffect(() => {
+    void requestScan(workspaceId);
+    const onFocus = () => void requestScan(workspaceId);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [workspaceId]);
+
+  // Badges move the moment a comment or a DM lands, rather than on the timer
+  // below (which stays as the safety net).
+  usePostgresChanges({
+    table: 'comments',
+    filter: `workspace_id=eq.${workspaceId}`,
+    onChange: () => void fetchUnseen(),
+  });
+
+  usePostgresChanges({
+    table: 'messages',
+    onChange: () => void fetchUnseen(),
+  });
 
   // Opening a section clears its badge.
   useEffect(() => {

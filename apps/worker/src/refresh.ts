@@ -31,10 +31,13 @@ import { ensureToken as ensureLinkedInToken } from './linkedin';
 import { ensureToken as ensurePinterestToken } from './pinterest';
 import { ensureToken as ensureYouTubeToken } from './youtube';
 import { ensureSession as ensureBlueskySession } from './bsky';
+import { ensureToken as ensureThreadsToken } from './threads';
 
-/** Providers with a worker-side rotation helper. Anything else (Meta
- *  family long-lived tokens, Mastodon non-expiring) refreshes at connect
- *  time or publish time and is skipped here. */
+/** Providers with a worker-side rotation helper. Anything else (Facebook and
+ *  Instagram long-lived tokens, which the connect flow already extends;
+ *  Mastodon, non-expiring) refreshes at connect time or publish time and is
+ *  skipped here. Threads is refreshable because nothing else extends its
+ *  token: it dies 60 days after connect unless this job keeps it alive. */
 export const REFRESHABLE_PROVIDERS = [
   'tiktok',
   'x',
@@ -43,6 +46,7 @@ export const REFRESHABLE_PROVIDERS = [
   'youtube',
   'bluesky',
   'mastodon',
+  'threads',
 ] as const;
 
 async function getChannel(channelId: string): Promise<ChannelRow | null> {
@@ -159,6 +163,9 @@ export async function refreshChannelToken(
         break;
       case 'bluesky':
         await ensureBlueskySession(b);
+        break;
+      case 'threads':
+        await ensureThreadsToken(b);
         break;
       default:
         return 'skipped';

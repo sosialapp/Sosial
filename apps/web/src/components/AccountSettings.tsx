@@ -43,6 +43,7 @@ import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META } from '@/lib/i18n/loca
 import { useSignedUrl } from '@/lib/useSignedUrl';
 import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 import SegmentedPills from '@/components/ui/segmented-pills';
+import PasswordInput from '@/components/PasswordInput';
 
 type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal' | 'delete' | 'ticket';
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
@@ -767,8 +768,7 @@ export default function AccountSettings({
         <Card className="mt-4 space-y-3 p-5">
           <div>
             <p className="text-xs font-bold text-muted">{t('asNewPw')}</p>
-            <input
-              type="password"
+            <PasswordInput
               value={pw1}
               onChange={(e) => setPw1(e.target.value)}
               placeholder="••••••••"
@@ -779,8 +779,7 @@ export default function AccountSettings({
           </div>
           <div>
             <p className="text-xs font-bold text-muted">{t('asConfirm')}</p>
-            <input
-              type="password"
+            <PasswordInput
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
               placeholder="••••••••"

@@ -28,7 +28,7 @@ function normalizeInstance(input: string): string {
  * instance consent URL to open.
  */
 export async function POST(req: Request) {
-  let body: { workspace_id?: unknown; instance?: unknown };
+  let body: { workspace_id?: unknown; instance?: unknown; popup?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -83,6 +83,9 @@ export async function POST(req: Request) {
     clientId,
     clientSecret,
   };
+  // Consent in its own tab: the callback hands the result to the opener and
+  // closes that tab. Absent for plain same-tab links.
+  if (body.popup === true) flow.popup = true;
   const url =
     `${base}/oauth/authorize?response_type=code` +
     `&client_id=${encodeURIComponent(clientId)}` +

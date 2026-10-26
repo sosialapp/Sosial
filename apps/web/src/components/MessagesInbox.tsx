@@ -24,6 +24,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
 import { providerMeta } from '@/lib/providers';
+import { usePostgresChanges } from '@/lib/realtime';
 import type { ConnectedChannel } from '@/lib/types';
 
 /** Phase-1 unified DM providers (capabilities.inbox). */
@@ -79,6 +80,12 @@ export default function MessagesInbox({
   const [err, setErr] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
   const input = useRef<HTMLTextAreaElement | null>(null);
+  /** Id of the open conversation, read by the change handlers so that opening
+   *  another chat does not tear the subscription down. */
+  const openId = useRef<string | null>(null);
+  useEffect(() => {
+    openId.current = open?.id ?? null;
+  }, [open]);
 
   const channelById = useMemo(() => new Map(channels.map((c) => [c.id, c])), [channels]);
   const { seen, markSeen } = useSeen(workspaceId, 'messages');
@@ -130,6 +137,24 @@ export default function MessagesInbox({
     setPreviews(next);
   }, [workspaceId]);
 
+  /** Keep a line we just sent on screen until the worker's stored copy of it
+   *  arrives. Without this a thread reload (a change arriving, a refresh)
+   *  would drop the "pending" row and the message would seem to vanish. */
+  const reconcileThread = useCallback((prev: MessageRow[] | null, next: MessageRow[]): MessageRow[] => {
+    const pending = (prev ?? []).filter((m) => m.status === 'pending' && m.id.startsWith('local:'));
+    if (!pending.length) return next;
+    const kept = pending.filter(
+      (p) =>
+        !next.some(
+          (n) =>
+            n.direction === 'out' &&
+            n.body === p.body &&
+            Math.abs(new Date(n.sent_at).getTime() - new Date(p.sent_at).getTime()) < 5 * 60_000,
+        ),
+    );
+    return kept.length ? [...next, ...kept] : next;
+  }, []);
+
   const loadThread = useCallback(async (cid: string) => {
     const sb = createClient();
     const { data } = await sb
@@ -138,13 +163,35 @@ export default function MessagesInbox({
       .eq('conversation_id', cid)
       .order('sent_at', { ascending: true })
       .limit(500);
-    setMsgs((data ?? []) as MessageRow[]);
-  }, []);
+    const next = (data ?? []) as MessageRow[];
+    setMsgs((prev) => reconcileThread(prev, next));
+  }, [reconcileThread]);
 
   useEffect(() => {
     if (!paid || dmChannels.length === 0) return;
     void loadConvs();
   }, [paid, dmChannels.length, loadConvs, reloadKey]);
+
+  // Live inbox: a DM the worker just fetched, or a reply a provider stored,
+  // arrives as a change instead of waiting for a manual refresh. `messages`
+  // carries no workspace_id (it hangs off a conversation), so that one is
+  // scoped by RLS alone.
+  usePostgresChanges({
+    table: 'conversations',
+    filter: `workspace_id=eq.${workspaceId}`,
+    enabled: paid && dmChannels.length > 0,
+    onChange: () => void loadConvs(),
+  });
+
+  usePostgresChanges({
+    table: 'messages',
+    enabled: paid && dmChannels.length > 0,
+    onChange: () => {
+      void loadConvs();
+      const id = openId.current;
+      if (id) void loadThread(id);
+    },
+  });
 
   const openConv = useCallback(
     async (c: ConversationRow) => {

@@ -22,7 +22,7 @@ import { fill } from '@/lib/i18n/locales';
  */
 
 /** Soft pastel header tints, dark ink reads on all four. */
-const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, { bg: string; ink: string; sub: string }> = {
+export const CARD_COLORS: Record<Exclude<PlanKey, 'ultimate'>, { bg: string; ink: string; sub: string }> = {
   free: { bg: '#DCE6FF', ink: '#1E2B5C', sub: '#42507E' },
   solo: { bg: '#D6EFE0', ink: '#16452C', sub: '#2F5C42' },
   team: { bg: '#F9DCEF', ink: '#5E1147', sub: '#7E3B68' },
@@ -50,7 +50,7 @@ const COMING_SOON: BrandProvider[] = ['gmb', 'linkedin'];
 /** Per-month display price at the given interval (annual is billed yearly).
  *  Annual equivalent rounds UP to the next whole dollar so the headline is
  *  never lower than the true charge (e.g. $290/yr shows $25/mo). */
-function perMonth(plan: PlanKey, interval: BillingInterval): number {
+export function perMonth(plan: PlanKey, interval: BillingInterval): number {
   const billed = priceFor(plan, interval);
   return interval === 'annual' ? Math.ceil(billed / 12) : billed;
 }
@@ -59,12 +59,12 @@ function fmt(n: number): string {
   return n.toLocaleString('en-US');
 }
 
-function channelsLine(key: PlanKey, t: (k: string) => string): string {
+export function channelsLine(key: PlanKey, t: (k: string) => string): string {
   const c = PLANS[key].limits.channels;
   return c === null ? t('prUnlimitedChannels') : fill(t('prUpToChannels'), { n: fmt(c) });
 }
 
-function creditsLine(key: PlanKey, t: (k: string) => string): string {
+export function creditsLine(key: PlanKey, t: (k: string) => string): string {
   const c = PLANS[key].limits.aiCredits;
   return c === null ? t('prUnlimitedCredits') : fill(t('prCreditsMo'), { n: fmt(c) });
 }
