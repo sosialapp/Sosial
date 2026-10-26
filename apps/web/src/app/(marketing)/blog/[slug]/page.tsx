@@ -27,17 +27,17 @@ export async function generateMetadata({
     title: post.title,
     description: post.description,
     alternates: { canonical: `/blog/${post.slug}` },
+    // No explicit images: every post uses the branded opengraph-image card
+    // next to this page, which already carries the cover when there is one.
     openGraph: {
       type: 'article',
       title: post.title,
       description: post.description,
-      ...(post.coverUrl ? { images: [{ url: post.coverUrl, alt: post.coverAlt ?? post.title }] } : {}),
     },
     twitter: {
-      card: post.coverUrl ? 'summary_large_image' : 'summary',
+      card: 'summary_large_image',
       title: post.title,
       description: post.description,
-      ...(post.coverUrl ? { images: [post.coverUrl] } : {}),
     },
   };
 }

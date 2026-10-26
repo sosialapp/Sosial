@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     siteName: 'Sosial',
     title: 'Sosial: Schedule and manage social media',
     description:
-      'Plan, write and publish across ten social networks from one composer, calendar and queue, with an AI writer and approvals built in.',
+      'Plan, write and publish to Instagram, TikTok, X, Facebook, Threads, YouTube and more from one composer, calendar and queue, with an AI writer and approvals built in.',
   },
   twitter: { card: 'summary_large_image' },
 };
