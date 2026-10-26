@@ -40,6 +40,33 @@ async function selfIds(account: Account): Promise<string[]> {
   return ids;
 }
 
+// Instagram never puts a picture on comments or conversation participants, so
+// look each person up once (User Profile API, `profile_pic`) and reuse it for
+// a few hours. Meta only answers for people who interacted with the account;
+// anything else stays null and the inbox shows their initial.
+const picCache = new Map<string, { url: string | null; at: number }>();
+const PIC_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function profilePic(account: Account, igsid: string | null | undefined): Promise<string | null> {
+  if (!igsid) return null;
+  const key = `${account.externalId}:${igsid}`;
+  const hit = picCache.get(key);
+  if (hit && Date.now() - hit.at < PIC_TTL_MS) return hit.url;
+  let url: string | null = null;
+  try {
+    const r = await httpJson({
+      provider: 'instagram',
+      url: withParams(`${GRAPH}/${igsid}`, { fields: 'profile_pic' }),
+      headers: { Authorization: `Bearer ${account.token}` },
+    });
+    if ((r.status === 200 || r.status === 201) && typeof r.data?.profile_pic === 'string') url = r.data.profile_pic;
+  } catch {
+    url = null;
+  }
+  picCache.set(key, { url, at: Date.now() });
+  return url;
+}
+
 export const instagram: InboxAdapter = {
   capabilities(): Capabilities {
     return { inbox: true, comments: true, hideComment: true, deleteComment: true };
@@ -57,7 +84,7 @@ export const instagram: InboxAdapter = {
     const r = await httpJson({ url, provider: 'instagram', headers: { Authorization: `Bearer ${account.token}` } });
     if (r.status !== 200 && r.status !== 201) throw metaError('Instagram messages', r.data, r.status);
     const self = await selfIds(account);
-    const items: NormalizedConversation[] = (r.data?.data ?? []).map((c: any): NormalizedConversation => {
+    const items: NormalizedConversation[] = await Promise.all((r.data?.data ?? []).map(async (c: any): Promise<NormalizedConversation> => {
       const other = (c?.participants?.data ?? []).find(
         (p: any) => !self.includes(String(p?.id ?? '')),
       );
@@ -66,12 +93,12 @@ export const instagram: InboxAdapter = {
         externalId: String(c.id),
         participantExternalId: other?.id ? String(other.id) : null,
         participantName: handle ?? 'Instagram user',
-        participantAvatar: null,
+        participantAvatar: await profilePic(account, other?.id ? String(other.id) : null),
         lastMessageAt: isoTime(c?.updated_time ?? new Date().toISOString()),
         // Derived from inbound/outbound rows by the sync engine.
         unreadCount: 0,
       };
-    });
+    }));
     return { items, cursor: r.data?.paging?.cursors?.after ?? null };
   },
 
@@ -126,7 +153,7 @@ export const instagram: InboxAdapter = {
     const url = withParams(`${GRAPH}/${postId}/comments`, {
       // Graph paging for this edge uses `after` like the rest; keep one
       // canonical cursor path to avoid double-counting params.
-      fields: 'id,text,timestamp,username,hidden,replies{id,text,timestamp,username,hidden}',
+      fields: 'id,text,timestamp,username,from{id,username},hidden,replies{id,text,timestamp,username,from{id,username},hidden}',
       limit: 50,
       after: cursor ?? undefined,
     });
@@ -139,7 +166,7 @@ export const instagram: InboxAdapter = {
         externalId: String(c.id),
         parentExternalId: null,
         authorName: c?.username ? `@${c.username}` : 'Instagram user',
-        authorAvatar: null,
+        authorAvatar: await profilePic(account, c?.from?.id ? String(c.from.id) : null),
         body: typeof c.text === 'string' ? c.text : '',
         createdAt: isoTime(c?.timestamp ?? new Date().toISOString()),
         isOwn: !!mine && String(c?.username ?? '') === mine,
@@ -149,7 +176,7 @@ export const instagram: InboxAdapter = {
           externalId: String(rep.id),
           parentExternalId: String(c.id),
           authorName: rep?.username ? `@${rep.username}` : 'Instagram user',
-          authorAvatar: null,
+          authorAvatar: await profilePic(account, rep?.from?.id ? String(rep.from.id) : null),
           body: typeof rep.text === 'string' ? rep.text : '',
           createdAt: isoTime(rep?.timestamp ?? new Date().toISOString()),
           isOwn: !!mine && String(rep?.username ?? '') === mine,

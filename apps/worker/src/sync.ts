@@ -123,6 +123,43 @@ async function restInsert<T>(table: string, body: any[], opts?: { onConflict?: s
   return Array.isArray(rows) ? rows : [];
 }
 
+/**
+ * Inserts skip rows that already exist, so a picture the platform starts
+ * returning later (or a signed CDN url that rotated) would never land. Patch
+ * the picture onto existing rows whenever it is missing or changed, one
+ * request per distinct url (one person's comments share it).
+ */
+async function refreshAvatars(
+  table: 'comments' | 'conversations',
+  column: 'author_avatar' | 'participant_avatar',
+  platform: string,
+  rows: { externalId: string; avatar: string | null }[],
+): Promise<void> {
+  const byUrl = new Map<string, string[]>();
+  for (const r of rows) {
+    if (!r.avatar) continue;
+    const list = byUrl.get(r.avatar) ?? [];
+    list.push(r.externalId);
+    byUrl.set(r.avatar, list);
+  }
+  for (const [url, ids] of byUrl) {
+    const quoted = `"${url.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    const qs =
+      `platform=eq.${encodeURIComponent(platform)}` +
+      `&external_id=in.(${ids.map((id) => `"${encodeURIComponent(id)}"`).join(',')})` +
+      `&or=(${column}.is.null,${column}.neq.${encodeURIComponent(quoted)})`;
+    try {
+      await rest(`/rest/v1/${table}?${qs}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ [column]: url }),
+      });
+    } catch (e: any) {
+      warn(`avatar refresh ${table}: ${String(e?.message ?? e).slice(0, 120)}`);
+    }
+  }
+}
+
 /* -------------------------------- inbox ----------------------------------- */
 
 const INBOX_CONVOS_PER_SWEEP = 50;
@@ -206,6 +243,8 @@ export async function handleSyncInbox(job: Job): Promise<void> {
       last_message_at: conv.lastMessageAt,
       unread_count: conv.unreadCount,
     })), { onConflict: 'platform,external_id' });
+  await refreshAvatars('conversations', 'participant_avatar', c.provider,
+    incoming.map((conv) => ({ externalId: conv.externalId, avatar: conv.participantAvatar })));
 
   const known = await rest<any[]>(
     `/rest/v1/conversations?channel_id=eq.${encodeURIComponent(c.id)}&platform=eq.${encodeURIComponent(c.provider)}` +
@@ -493,6 +532,9 @@ export async function handleSyncComments(job: Job): Promise<void> {
         is_own: !!cm.isOwn,
         status: cm.isOwn ? 'replied' : 'new',
       })), { onConflict: 'platform,external_id' });
+
+    await refreshAvatars('comments', 'author_avatar', c.provider,
+      rows.map((cm) => ({ externalId: cm.externalId, avatar: cm.authorAvatar })));
 
     // Badges replace the old per-comment bell, so nothing is inserted into
     // notifications here; community_unseen() counts these rows directly.

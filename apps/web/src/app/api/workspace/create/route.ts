@@ -99,6 +99,12 @@ export async function POST(req: Request) {
   if (ins.error) {
     return NextResponse.json({ error: ins.error.message }, { status: 500 });
   }
+  // p109: the new team becomes the account's active one, so the phone lands
+  // here too instead of on whatever it was pinned to.
+  await sb
+    .from('profiles')
+    .update({ active_workspace_id: ws.id })
+    .eq('id', ctx.user.id);
   (await cookies()).set(WORKSPACE_COOKIE, ws.id, {
     httpOnly: true,
     sameSite: 'lax',

@@ -71,6 +71,9 @@ function Shell() {
   const fontsLoaded = useFontsLoaded();
   const routeRef = React.useRef(route);
   routeRef.current = route;
+  /** p109: the workspace this session was resolved against, so a team switch
+   *  made on the web is noticed on foreground instead of at the next launch. */
+  const wsIdRef = React.useRef<string | null>(null);
   /** Tabs mount once and stay mounted (hidden when inactive): switching tabs
    *  no longer refetches the whole screen, and scroll/form state survives. */
   const [insightsFrom, setInsightsFrom] = useState<Route>('home');
@@ -126,6 +129,19 @@ function Shell() {
     const subState = AppState.addEventListener('change', (s) => {
       if (s === 'active') {
         void pullCloudChannels().catch(() => {});
+        // p109: the team can be switched from the web, and myWorkspace() now
+        // follows the account column. When that moved, remount the screens
+        // against the new team instead of showing the old one until relaunch.
+        void (async () => {
+          const sn = await currentSession().catch(() => null);
+          if (!sn || wsIdRef.current === sn.workspace.id) return;
+          wsIdRef.current = sn.workspace.id;
+          setAccount(await saveAccount({ team: sn.workspace.name }));
+          setWsEpoch((n) => n + 1);
+          void refreshEntitlement().then((e) => { if (e) setEntitlement(e); });
+          void pullCloudChannels(true).catch(() => {});
+          void pullCloudPosts().catch(() => {});
+        })();
         void (async () => {
           const [{ syncIdeas }, { syncTemplates }] = await Promise.all([
             import('./src/utils/ideas'),
@@ -147,7 +163,10 @@ function Shell() {
           return;
         }
         const s = await currentSession().catch(() => null);
-        if (s) return;
+        if (s) {
+          wsIdRef.current = s.workspace.id;
+          return;
+        }
         // No session: fresh installs land, and the signed-out land back here too.
         setShowLanding(true);
       } catch {
@@ -188,6 +207,7 @@ function Shell() {
    *  SecureStore, so reload entitlement and channels and remount every screen
    *  against it (keyed on wsEpoch below). */
   const onTeamSwitched = async (ws: { id: string; name: string }) => {
+    wsIdRef.current = ws.id;
     setAccount(await saveAccount({ team: ws.name }));
     setWsEpoch((n) => n + 1);
     setRoute('home');

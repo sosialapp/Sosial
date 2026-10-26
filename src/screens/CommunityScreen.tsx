@@ -24,7 +24,7 @@ import NotificationBell from '../components/NotificationBell';
 import ChannelDrawer, { DrawerChannel } from '../components/ChannelDrawer';
 import { Tabs } from '../components/ui-kit';
 import { SOCIAL_META } from '../constants';
-import { supabase } from '../utils/supabase';
+import { supabase, currentSession } from '../utils/supabase';
 import {
   CommunityComment,
   CommunityConversation,
@@ -182,10 +182,16 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   }, []);
 
   const loadChannels = useCallback(async () => {
-    const { data } = await supabase()
+    // The table has connected_at, not created_at: ordering on a missing
+    // column failed the whole read and left only "All channels".
+    const session = await currentSession().catch(() => null);
+    let q = supabase()
       .from('connected_channels')
       .select('id,provider,display_name,handle,status')
-      .order('created_at', { ascending: true });
+      .order('connected_at', { ascending: true });
+    if (session) q = q.eq('workspace_id', session.workspace.id);
+    const { data, error } = await q;
+    if (error) console.warn('community channels', error.message);
     const rows = (data ?? []) as any[];
     setChannels(
       rows
@@ -440,7 +446,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
 
   const shownComments = comments.filter((c) => channel === 'all' || c.channel_id === channel);
   const providerOf = (id: string) => channels.find((c) => c.id === id)?.provider ?? 'x';
-  const channelLabel = channel === 'all' ? 'All channels' : channels.find((c) => c.id === channel)?.label ?? 'Channel';
+  const channelLabel = channel === 'all' ? tr('iAll') : channels.find((c) => c.id === channel)?.label ?? 'Channel';
 
   /** Comments bucketed by the post they were left on: one topic per post. */
   const groups = (() => {

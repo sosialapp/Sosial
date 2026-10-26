@@ -17,6 +17,31 @@ import type {
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
+// Messenger conversations carry no picture; the Page can read a PSID's
+// `profile_pic` (Messenger User Profile API). Cached a few hours per person.
+const picCache = new Map<string, { url: string | null; at: number }>();
+const PIC_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function profilePic(account: Account, psid: string | null | undefined): Promise<string | null> {
+  if (!psid) return null;
+  const key = `${account.externalId}:${psid}`;
+  const hit = picCache.get(key);
+  if (hit && Date.now() - hit.at < PIC_TTL_MS) return hit.url;
+  let url: string | null = null;
+  try {
+    const r = await httpJson({
+      provider: 'facebook',
+      url: withParams(`${GRAPH}/${psid}`, { fields: 'profile_pic' }),
+      headers: { Authorization: `Bearer ${account.token}` },
+    });
+    if ((r.status === 200 || r.status === 201) && typeof r.data?.profile_pic === 'string') url = r.data.profile_pic;
+  } catch {
+    url = null;
+  }
+  picCache.set(key, { url, at: Date.now() });
+  return url;
+}
+
 export const facebook: InboxAdapter = {
   capabilities(): Capabilities {
     return { inbox: true, comments: true, hideComment: true, deleteComment: true };
@@ -31,18 +56,18 @@ export const facebook: InboxAdapter = {
     });
     const r = await httpJson({ url, provider: 'facebook', headers: { Authorization: `Bearer ${account.token}` } });
     if (r.status !== 200 && r.status !== 201) throw metaError('Facebook messages', r.data, r.status);
-    const items: NormalizedConversation[] = (r.data?.data ?? []).map((c: any): NormalizedConversation => {
+    const items: NormalizedConversation[] = await Promise.all((r.data?.data ?? []).map(async (c: any): Promise<NormalizedConversation> => {
       const me = account.externalId;
       const other = (c?.participants?.data ?? []).find((p: any) => String(p?.id ?? '') !== me);
       return {
         externalId: String(c.id),
         participantExternalId: other?.id ? String(other.id) : null,
         participantName: other?.name ?? other?.email ?? 'Messenger user',
-        participantAvatar: null,
+        participantAvatar: await profilePic(account, other?.id ? String(other.id) : null),
         lastMessageAt: isoTime(c?.updated_time ?? new Date().toISOString()),
         unreadCount: Number(c?.unread_count ?? 0),
       };
-    });
+    }));
     return { items, cursor: r.data?.paging?.cursors?.after ?? null };
   },
 

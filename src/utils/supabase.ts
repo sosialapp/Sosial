@@ -134,6 +134,14 @@ export async function switchWorkspace(workspaceId: string): Promise<WorkspaceInf
   const hit = all.find((w) => w.id === workspaceId);
   if (!hit) throw new Error('That workspace is no longer available.');
   await SecureStore.setItemAsync(WS_KEY, hit.id).catch(() => {});
+  // p109: move the ACCOUNT too, so the web follows this switch. Best-effort --
+  // the device pin above already switched this phone, so a failed write must
+  // not turn a valid switch into an error.
+  try {
+    await sb.from('profiles').update({ active_workspace_id: hit.id }).eq('id', user.id);
+  } catch {
+    /* offline: the pin above still switched this device */
+  }
   return { id: hit.id, name: hit.name, role: hit.role };
 }
 
@@ -151,11 +159,28 @@ export async function myWorkspace(userId: string, email: string): Promise<Worksp
   }
   if (all.length > 0) {
     const stored = await SecureStore.getItemAsync(WS_KEY).catch(() => null);
+    // p109: the account's last switch outranks this device's pin, so a team
+    // change on the web lands here on the next launch. Read best-effort: a cold
+    // start with no network falls back to the pin instead of failing.
+    let account: string | null = null;
+    try {
+      const { data: prof } = await sb
+        .from('profiles')
+        .select('active_workspace_id')
+        .eq('id', userId)
+        .maybeSingle();
+      const v = (prof as { active_workspace_id?: unknown } | null)?.active_workspace_id;
+      account = typeof v === 'string' && v ? v : null;
+    } catch {
+      /* offline: fall through to the pin */
+    }
     const pinned = stored ? all.find((w) => w.id === stored) : undefined;
     // Default to the workspace that actually has channels, a fresh empty
     // twin must never shadow the live one.
     const pick =
-      pinned ?? [...all].sort((a, b) => b.liveChannels - a.liveChannels)[0]!;
+      all.find((w) => w.id === account) ??
+      pinned ??
+      [...all].sort((a, b) => b.liveChannels - a.liveChannels)[0]!;
     await SecureStore.setItemAsync(WS_KEY, pick.id).catch(() => {});
     return { id: pick.id, name: pick.name, role: pick.role };
   }

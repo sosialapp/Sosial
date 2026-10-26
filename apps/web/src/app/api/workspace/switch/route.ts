@@ -37,6 +37,13 @@ export async function POST(req: Request) {
   if (!mem) {
     return NextResponse.json({ error: 'Not a member of that workspace.' }, { status: 403 });
   }
+  // p109: persist the choice on the account so the phone follows. Best-effort
+  // by design -- the cookie below still switches this browser, so a failed
+  // write must not turn a valid switch into an error.
+  await sb
+    .from('profiles')
+    .update({ active_workspace_id: workspaceId })
+    .eq('id', user.id);
   const res = NextResponse.json({ ok: true });
   res.cookies.set(WORKSPACE_COOKIE, workspaceId, {
     path: '/',

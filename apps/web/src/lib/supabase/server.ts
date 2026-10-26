@@ -60,8 +60,23 @@ export const getWorkspaceContext = cache(async (): Promise<{
   // Honor the last actively-joined workspace first: without this, an
   // invitee who already owns a personal workspace lands there after
   // redeeming and never sees the team that invited them.
+  //
+  // p109: the ACCOUNT column outranks this browser's cookie. The phone writes
+  // the same column, so a switch on either client lands on both -- the cookie
+  // alone could only ever speak for this browser, which is how the phone and
+  // the web ended up reading different teams. The cookie stays as the fallback
+  // for the request that performs a switch (it is set before the profile write
+  // round-trips) and for rows that predate the column.
   try {
-    const preferred = (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null;
+    const { data: prof } = await sb
+      .from('profiles')
+      .select('active_workspace_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    const accountWs =
+      (prof as { active_workspace_id?: string | null } | null)?.active_workspace_id ?? null;
+    const cookieWs = (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null;
+    const preferred = accountWs ?? cookieWs;
     if (preferred) {
       const { data: pref } = await sb
         .from('workspace_members')

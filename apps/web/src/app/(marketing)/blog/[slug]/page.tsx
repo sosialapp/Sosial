@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
 import SafeImg from '@/components/SafeImg';
 import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
-import { blogTagClass, formatPostDate } from '@/content/types';
+import { formatPostDate } from '@/content/types';
+import { ArticleCard, BackLink, CtaBand, RailCard, ReadingLayout, TagChip } from '@/components/site/ResourceKit';
+import { ShareLinks } from '@/components/site/ArticleAside';
 
 /** ISR so publishes go live without a rebuild (new slugs render on demand). */
 export const revalidate = 300;
@@ -64,75 +65,70 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           { name: post.title, path: `/blog/${post.slug}` },
         ]}
       />
-      <article className="mx-auto max-w-3xl px-4 py-16 md:py-24">
-        <Link href="/blog" className="text-xs font-bold text-muted hover:text-ink">
-          ← All articles
-        </Link>
-        <div className="mt-6 flex items-center gap-2">
-          <span className={`pill ${blogTagClass(post.tag)}`}>{post.tag}</span>
-          <span className="text-xs font-bold text-faint">
-            {formatPostDate(post.date)} · {post.minutes} min read
-          </span>
-        </div>
-        <h1 className="mt-4 font-display text-3xl font-extrabold leading-[1.1] tracking-tight md:text-4xl">
-          {post.title}
-        </h1>
-        <p className="mt-4 text-lg leading-relaxed text-muted">{post.description}</p>
+      <article>
+        <header className="mx-auto max-w-[1200px] px-4 pt-10 sm:pt-14">
+          <BackLink href="/blog" label="Blog" />
+          <div className="mt-8 max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <TagChip tag={post.tag} />
+              <span className="text-xs font-bold text-faint">
+                {formatPostDate(post.date)} · {post.minutes} min read
+              </span>
+            </div>
+            <h1 className="mt-4 font-display text-[2.25rem] leading-[1.05] font-extrabold tracking-tight text-balance sm:text-5xl md:text-[3.4rem]">
+              {post.title}
+            </h1>
+            <p className="mt-5 text-lg leading-relaxed text-muted md:text-xl">{post.description}</p>
+            <p className="mt-6 flex items-center gap-2.5 text-sm text-muted">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-xs font-extrabold text-bone" aria-hidden="true">
+                S
+              </span>
+              <span>
+                By <b className="font-bold text-ink">the Sosial team</b>
+              </span>
+            </p>
+          </div>
+          {post.coverUrl ? (
+            <div className="mt-10 overflow-hidden rounded-[28px] border border-line">
+              <SafeImg src={post.coverUrl} alt={post.coverAlt ?? post.title} className="h-auto w-full" />
+            </div>
+          ) : null}
+        </header>
 
-        {post.coverUrl ? (
-          <SafeImg
-            src={post.coverUrl}
-            alt={post.coverAlt ?? post.title}
-            className="mt-8 h-auto w-full rounded-2xl border border-line"
+        <ReadingLayout
+          rail={
+            <>
+              <ShareLinks title={post.title} path={`/blog/${post.slug}`} />
+              <RailCard title="Schedule this in Sosial" body="Write once, adapt for every channel and let the queue post on time." />
+            </>
+          }
+        >
+          <PostBody bodyHtml={post.bodyHtml} blocks={post.body} />
+          {/* Below lg the rail is hidden, so share sits at the end of the article. */}
+          <div className="mt-10 border-t border-line pt-6 lg:hidden">
+            <ShareLinks title={post.title} path={`/blog/${post.slug}`} />
+          </div>
+        </ReadingLayout>
+
+        <div className="mx-auto max-w-[1200px] px-4 pt-10 pb-16 md:pb-20">
+          <CtaBand
+            eyebrow="Put it to work"
+            title="Schedule this week in one sitting."
+            body="Draft with the AI writer, adapt to all ten channels and let the queue publish on time."
           />
-        ) : null}
-
-        <hr className="my-8 border-line" />
-
-        <PostBody bodyHtml={post.bodyHtml} blocks={post.body} />
-
-        <div className="reveal mt-12 rounded-3xl border border-line bg-card p-6 md:p-8">
-          <p className="eyebrow">Put it to work</p>
-          <h2 className="mt-2 font-display text-xl font-extrabold tracking-tight">
-            Schedule this week in one sitting.
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            Draft with the AI writer, adapt to all ten channels and let the queue publish on time.
-          </p>
-          <Link href="/login" className="btn btn-primary mt-5">
-            Start scheduling free
-          </Link>
         </div>
       </article>
 
       {related.length > 0 && (
         <section className="border-t border-line bg-card/60">
-          <div className="mx-auto max-w-5xl px-4 py-16 md:py-20">
-            <h2 className="font-display text-2xl font-extrabold tracking-tight">Keep reading</h2>
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mx-auto max-w-[1200px] px-4 py-14 md:py-20">
+            <div className="flex items-end justify-between gap-4">
+              <h2 className="font-display text-2xl font-extrabold tracking-tight md:text-3xl">Keep reading</h2>
+              <BackLink href="/blog" label="All articles" />
+            </div>
+            <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
               {related.map((a) => (
-                <Link
-                  key={a.slug}
-                  href={`/blog/${a.slug}`}
-                  className="card flex h-full flex-col overflow-hidden border border-line transition hover:border-accent"
-                >
-                  {a.coverUrl ? (
-                    <SafeImg
-                      src={a.coverUrl}
-                      alt={a.coverAlt ?? a.title}
-                      loading="lazy"
-                      className="h-auto w-full"
-                    />
-                  ) : null}
-                  <div className="flex flex-1 flex-col p-5">
-                    <span className={`pill w-fit ${blogTagClass(a.tag)}`}>{a.tag}</span>
-                    <h3 className="mt-3 font-display text-base font-extrabold leading-snug tracking-tight">
-                      {a.title}
-                    </h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{a.description}</p>
-                    <p className="mt-4 text-xs font-bold text-faint">{a.minutes} min read</p>
-                  </div>
-                </Link>
+                <ArticleCard key={a.slug} a={a} short />
               ))}
             </div>
           </div>

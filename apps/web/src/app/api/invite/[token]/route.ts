@@ -45,6 +45,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
 
   const res = NextResponse.redirect(`${origin}/calendar`);
   if (ws) {
+    // p109: redeeming an invite moves the ACCOUNT, not just this browser, so
+    // the phone shows the team that invited the user instead of its old pin.
+    await sb
+      .from('profiles')
+      .update({ active_workspace_id: ws })
+      .eq('id', user.id);
     res.cookies.set(WORKSPACE_COOKIE, ws, {
       path: '/',
       maxAge: 365 * 24 * 3600,
