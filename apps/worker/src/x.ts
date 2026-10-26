@@ -47,13 +47,35 @@ function xerr(j: any, fallback: string): string {
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+/** X puts the real reason for a 403 in the body (duplicate text, locked
+ *  account, ...) — surface it, capped, after our own hint. */
+function said(j: any): string {
+  const d =
+    (typeof j?.detail === 'string' && j.detail) ||
+    (typeof j?.error_description === 'string' && j.error_description) ||
+    (typeof j?.error === 'string' && j.error) ||
+    j?.error?.message ||
+    j?.errors?.[0]?.message;
+  return typeof d === 'string' && d.trim() ? ` X said: "${d.trim().slice(0, 160)}"` : '';
+}
+
+/** 403s all look alike at the HTTP level, but the endpoint says which knob to
+ *  turn: media.write for uploads, Read+write + quota for POST /2/tweets. */
+function refused(url: string, j: any): string {
+  if (/\/media\/upload/.test(url)) {
+    return `X refused the media upload (403) — the token is missing the media.write scope, or the app is not "Read and write". Reconnect the X channel.${said(j)}`;
+  }
+  if (/\/tweets\b/.test(url)) {
+    return `X refused the post (403) — the app needs "Read and write" permission and posting quota left on its tier. Reconnect the X channel.${said(j)}`;
+  }
+  return `X refused the request (403) — check the app permissions and tier, then reconnect the X channel.${said(j)}`;
+}
+
 async function xjson(url: string, init: RequestInit, fallback: string): Promise<any> {
   const r = await fetch(url, init);
   const j: any = await r.json().catch(() => ({}));
   if (r.status === 401) throw new Error('__EXPIRED__');
-  if (r.status === 403) {
-    throw new Error('X refused (403), the X app needs Read+Write permission and posting quota, then reconnect.');
-  }
+  if (r.status === 403) throw new Error(refused(url, j));
   if (r.status === 429) throw new Error('X rate limit hit (429).');
   if (!r.ok) throw new Error(xerr(j, `${fallback} (${r.status})`));
   if (j?.errors?.length) throw new Error(xerr(j, fallback));
