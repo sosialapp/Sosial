@@ -124,14 +124,29 @@ export async function buildImportPayload(
         metadata: withAvatar({ xClientId: process.env.EXPO_PUBLIC_X_CLIENT_ID ?? '' }),
       };
     case 'bluesky': {
-      // Session tokens only, the app password itself is never stored on
-      // device. When the refresh JWT dies, the user re-enables to refresh.
-      if (!f.bskyDid || (!f.bskyAccessJwt && !f.bskyRefreshJwt)) return null;
-      return {
+      if (!f.bskyDid) return null;
+      const md: Record<string, string> = {};
+      if (f.bskyHandle) md.bluesky_handle = f.bskyHandle;
+      const metadata = withAvatar(md);
+      const base = {
         provider: 'bluesky', external_id: f.bskyDid, handle: f.bskyHandle, display_name: f.bskyName,
         instance_url: f.bskyPdsHost,
+        ...(Object.keys(metadata).length ? { metadata } : {}),
+      };
+      // The app password is the durable credential: every client mints its own
+      // session from it. Handing the worker a session JWT instead made it share
+      // this device's rotating refresh token, which the PDS revokes 2h after
+      // the other side rotates it (that's what expired the channel daily).
+      if (f.bskyAppPassword) {
+        return { ...base, access_token: f.bskyAppPassword, token_type: 'AppPassword' };
+      }
+      // JWT-only channels (connected before app passwords were kept) still
+      // import, they just need one reconnect to move onto the durable path.
+      if (!f.bskyAccessJwt && !f.bskyRefreshJwt) return null;
+      return {
+        ...base,
         access_token: f.bskyAccessJwt ?? f.bskyRefreshJwt ?? '',
-        refresh_token: f.bskyRefreshJwt, expires_at: iso(f.bskyExpiresAt), ...avatarMeta,
+        refresh_token: f.bskyRefreshJwt, expires_at: iso(f.bskyExpiresAt),
       };
     }
     case 'linkedin': {

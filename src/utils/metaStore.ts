@@ -52,6 +52,10 @@ export interface MetaState {
   bskyHandle?: string;
   bskyName?: string;
   bskyPdsHost?: string;
+  // Durable credential for cloud publishing. Two clients can't share one
+  // rotating refresh JWT (the PDS revokes it 2h after the other side rotates),
+  // so the worker mints its own session from this instead. SecureStore only.
+  bskyAppPassword?: string;
   // LinkedIn (OAuth 2.0 code flow), ~60-day access token + rotating refresh.
   // Silent refresh via getValidLi() in liAuth.ts. Posts as the member by
   // default; liOrgId/liOrgName pick a Company Page you admin (org picker in

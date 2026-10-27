@@ -39,7 +39,7 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   threads: ['threadsToken', 'threadsId', 'threadsName'],
   tiktok: ['ttAccessToken', 'ttRefreshToken', 'ttExpiresAt', 'ttOpenId', 'ttName', 'ttLastPrivacy', 'ttPhotoHost'],
   x: ['xAccessToken', 'xRefreshToken', 'xExpiresAt', 'xUserId', 'xName'],
-  bluesky: ['bskyAccessJwt', 'bskyRefreshJwt', 'bskyExpiresAt', 'bskyDid', 'bskyHandle', 'bskyName', 'bskyPdsHost'],
+  bluesky: ['bskyAccessJwt', 'bskyRefreshJwt', 'bskyExpiresAt', 'bskyDid', 'bskyHandle', 'bskyName', 'bskyPdsHost', 'bskyAppPassword'],
   mastodon: ['mastodonAccessToken', 'mastodonInstance', 'mastodonAccountId', 'mastodonName'],
   linkedin: ['liAccessToken', 'liRefreshToken', 'liExpiresAt', 'liPersonUrn', 'liName', 'liOrgId', 'liOrgName'],
   pinterest: ['pinAccessToken', 'pinRefreshToken', 'pinExpiresAt', 'pinUsername', 'pinBoardId', 'pinBoardName'],

@@ -139,6 +139,7 @@ export async function getValidBsky(accountId?: string, force = false): Promise<B
   const expiresAt = f.bskyExpiresAt as number | undefined;
   const refresh = f.bskyRefreshJwt as string | undefined;
   const handle = f.bskyHandle as string | undefined;
+  const appPassword = f.bskyAppPassword as string | undefined;
   if (!did || !pdsHost) throw new Error('Bluesky not connected');
   if (!force && access && expiresAt && expiresAt > Date.now() + 600000) {
     return { token: access, did, pdsHost };
@@ -156,6 +157,23 @@ export async function getValidBsky(accountId?: string, force = false): Promise<B
     }, accountId);
     return { token: s.accessJwt, did: s.did || did, pdsHost };
   } catch (e: any) {
+    // The refresh chain can be revoked under us when another client (the
+    // worker) rotated the same token. The app password is the durable
+    // credential, so mint a fresh session instead of forcing a reconnect.
+    if (appPassword) {
+      try {
+        const s = await createBskySession(handle ?? did, appPassword);
+        await saveProviderFields('bluesky', {
+          bskyAccessJwt: s.accessJwt,
+          bskyRefreshJwt: s.refreshJwt || undefined,
+          bskyExpiresAt: s.expiresAt,
+          bskyDid: s.did || did,
+          bskyHandle: s.handle || handle,
+          bskyPdsHost: s.pdsHost,
+        }, accountId);
+        return { token: s.accessJwt, did: s.did || did, pdsHost: s.pdsHost };
+      } catch {}
+    }
     const msg = String(e?.message ?? '');
     if (/expired|invalid|unauthorized|bad request/i.test(msg)) {
       await saveProviderFields('bluesky', {
@@ -167,7 +185,9 @@ export async function getValidBsky(accountId?: string, force = false): Promise<B
   }
 }
 
-/** Full login: handle + app password -> session, all saved to the vault. */
+/** Full login: handle + app password -> session. The session JWTs are the
+ *  normal local cache; the app password is kept too so cloud publishing can
+ *  mint its own session instead of sharing this rotating one. */
 export async function completeBskyLogin(identifier: string, password: string, accountId?: string): Promise<{ name?: string }> {
   const s = await createBskySession(identifier, password);
   const name = s.handle ? `@${s.handle}` : undefined;
@@ -187,6 +207,7 @@ export async function completeBskyLogin(identifier: string, password: string, ac
     bskyHandle: s.handle,
     bskyName: name,
     bskyPdsHost: s.pdsHost,
+    bskyAppPassword: password,
     avatar,
   }, accountId);
   return { name };
