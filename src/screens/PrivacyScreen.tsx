@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
-import { PRIVACY_SECTIONS as SECTIONS } from '../utils/legal';
+import { LEGAL_UPDATED, PRIVACY_SECTIONS as SECTIONS } from '../utils/legal';
 
 export default function PrivacyScreen({ onBack }: { onBack: () => void }) {
   const { C } = useTheme();
@@ -15,7 +15,7 @@ export default function PrivacyScreen({ onBack }: { onBack: () => void }) {
         </TouchableOpacity>
         <Text style={s.kicker}>Legal</Text>
         <Text style={[T.h1, { color: C.ink, marginTop: 8, fontSize: 30, lineHeight: 36 }]}>Privacy Policy</Text>
-        <Text style={s.sub}>Last updated September 2026. Short version: everything stays on your phone.</Text>
+        <Text style={s.sub}>Last updated {LEGAL_UPDATED}</Text>
         <View style={{ gap: 18, marginTop: 22 }}>
           {SECTIONS.map((sec) => (
             <View key={sec.title}>

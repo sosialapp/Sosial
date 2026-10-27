@@ -25,18 +25,18 @@ export const TERMS: LegalDoc = {
   title: 'Terms of Use',
   updated: '2026-10-27',
   summary:
-    'The agreement between you and Sosial for using the service: accounts, content, publishing and liability.',
+    'The rules for using Sosial: your account, your content, the platforms you connect, and what we are and are not responsible for.',
   sections: [
     {
-      title: '1. The service',
+      title: '1. Who we are',
       blocks: [
         {
           t: 'p',
-          c: 'Sosial is a social media scheduling and publishing service operated by EGATE WORLDWIDE. You connect social accounts, compose content, schedule it, and Sosial publishes it to those accounts on your behalf using each platform\'s official API.',
+          c: 'Sosial is a tool for planning, writing and publishing social media posts. It is run by EGATE WORLDWIDE. You connect your social accounts, write and schedule posts, and Sosial publishes them for you through each platform\'s official API.',
         },
         {
           t: 'p',
-          c: 'By creating a workspace you agree to these terms. If you are using Sosial on behalf of a company, you confirm you are authorised to accept these terms for that company.',
+          c: 'By creating an account or a workspace, you agree to these terms. If you sign up for a company, you are telling us you are allowed to accept them on its behalf.',
         },
       ],
     },
@@ -46,35 +46,31 @@ export const TERMS: LegalDoc = {
         {
           t: 'ul',
           c: [
-            'You must be old enough to hold an account on each platform you connect.',
-            'You are responsible for keeping your login credentials secure.',
+            'You need to be old enough to have an account on every platform you connect.',
+            'Keep your login safe. You are responsible for what happens under it.',
             'You are responsible for everything published from a social account while it is connected to your workspace.',
           ],
         },
       ],
     },
     {
-      title: '3. Connected platforms',
+      title: '3. Platforms you connect',
       blocks: [
         {
           t: 'p',
-          c: 'Sosial publishes to 18 channels: X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile. Sixteen are live today; LinkedIn and Google Business Profile are in preview. Your use of each connected platform remains governed by that platform\'s own terms and policies. Sosial accesses a connected account only to publish the content you schedule, to read the messages and comments you open in the inbox, and to read the profile and statistics fields needed to show your results.',
+          c: 'Sosial works with 18 channels: X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile. Sixteen are live. LinkedIn and Google Business Profile are marked "Soon" while we wait for those companies to approve our access, and nothing is connected for them until they go live.',
         },
         {
           t: 'p',
-          c: 'Sometimes the platform itself has to grant access before a feature can light up: Meta reviews advanced Page and Instagram permissions, Google approves Business Profile API access, and LinkedIn approves production use of its posting API. Until that approval lands the channel stays in preview, shown as "Soon". No account is accessed for a preview channel until you connect it after it goes live.',
+          c: 'Each platform still has its own rules, and you have to follow them. We only use a connected account to publish what you schedule, to load the messages and comments you open in the inbox, and to read the profile and statistics we need to show your results. Each platform shows you exactly what it is giving us on its own approval screen before you say yes.',
         },
         {
           t: 'p',
-          c: 'Concretely, "publishing on your behalf" means posting your scheduled text, photos and video; uploading media where a platform requires it before posting; and reading the minimum profile, delivery-status and statistics fields needed to confirm a post went out and to show you results. The exact permissions for each platform, for example posting and media upload on X, content publishing on Instagram and Threads, video and photo publishing on TikTok, Page posting on Facebook, member and Company Page posting on LinkedIn once live, video uploads and comment access on YouTube, board and Pin writes on Pinterest, application-password publishing on WordPress, API publishing on Dev.to and Hashnode, Admin API publishing on Ghost, bot-based posting on Telegram and Discord, and location posts on Google Business Profile once approved, are shown by that platform on its own connect screen before you approve them. Bluesky uses a handle plus an app password instead of OAuth: the password is stored encrypted in our vault and in your device\'s secure storage, and is used only to mint short-lived sessions for publishing. X requires a paid plan because its posting API is metered.',
+          c: 'Bluesky works differently from the rest: it uses your handle and an app password instead of a login screen. We keep that app password encrypted and only use it to start short sessions for publishing. X needs a paid Sosial plan because X charges for its posting API.',
         },
         {
           t: 'p',
-          c: 'You can also connect content sources that feed the composer rather than publish to it: media from Dropbox, Canva, Unsplash and OneDrive, imports from Notion and Google Sheets, and automation tools and AI agents via Zapier and MCP using an API key you generate. These are read-only or one-way into Sosial except where you explicitly ask an agent to create a post. Google Drive and Google Photos are shown as "Soon" and are not yet connectable, pending Google\'s own verification.',
-        },
-        {
-          t: 'p',
-          c: 'If a platform changes its API, withdraws access, or suspends your account, publishing to that channel may stop. Sosial is not responsible for changes a third-party platform makes.',
+          c: 'If a platform changes its API, cuts off access or suspends your account there, publishing to that channel can stop. That is outside our control.',
         },
       ],
     },
@@ -83,15 +79,15 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'You keep ownership of everything you create in Sosial. You grant us the limited licence needed to store, process and publish your content to the accounts you choose.',
+          c: 'What you create in Sosial belongs to you. You give us only the permission we need to store it, process it and publish it to the accounts you pick.',
         },
         {
           t: 'p',
-          c: 'You confirm you own or have the necessary rights to everything you publish, including images, video and text. Do not publish content that is unlawful, infringing, deceptive, or that violates a connected platform\'s rules.',
+          c: 'Only publish things you own or have the right to use, including photos, video and text. Do not use Sosial for anything illegal, infringing or deceptive, or anything that breaks a platform\'s rules.',
         },
         {
           t: 'p',
-          c: 'What you publish is your responsibility alone. Sosial does not review content before it goes out, and we are not liable for posts that are racist, hateful, sexually explicit, defamatory, misleading or unlawful, including political content, misinformation, or anything else that breaks the law or a platform\'s rules. If your content causes legal trouble, that trouble is yours, not ours. We may remove content or suspend accounts that violate these terms or the law.',
+          c: 'We do not check posts before they go out, and you are fully responsible for what you publish. That includes content that is hateful, racist, sexually explicit, defamatory, misleading or illegal, political content and misinformation. If a post gets you into legal trouble, that is on you, not on Sosial. We can remove content or close accounts that break these terms or the law.',
         },
       ],
     },
@@ -100,28 +96,28 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Some connected channels also let you read and answer direct messages and comments inside Sosial. Today that covers direct messages on Facebook Pages (Messenger), Instagram, X, Mastodon and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. Replies are sent from your own account through the platform\'s official API, exactly as if you had sent them there yourself.',
+          c: 'On some channels you can read and answer direct messages and comments inside Sosial. Today that means direct messages on Facebook Pages, Instagram, X, Mastodon and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. Your replies go out from your own account, the same as if you typed them on the platform.',
         },
         {
           t: 'p',
-          c: 'Messages and comments are written by other people, not by us. You are responsible for what you send from a connected account, and for complying with that platform\'s rules and applicable law, including any consent or anti-spam requirement that applies to messaging. Do not use the inbox to harass, spam or deceive anyone.',
+          c: 'Those messages are written by other people. You are responsible for what you send back, and for following each platform\'s rules and any anti-spam or consent laws that apply to you. Do not use the inbox to spam, harass or mislead anyone.',
         },
         {
           t: 'p',
-          c: 'To fill the inbox we read recent conversations and comments for the channels you connect. Nothing is sent to anyone unless you write the reply and press send. Disconnecting a channel stops further reads; deleting your workspace removes the messages and comments we stored.',
+          c: 'Nothing is sent unless you write it and press send. Disconnecting a channel stops new messages from loading. Deleting your workspace deletes the messages and comments we saved.',
         },
       ],
     },
     {
-      title: '6. Content sources, automation and AI',
+      title: '6. Imports, automations and AI',
       blocks: [
         {
           t: 'p',
-          c: 'You can also pull content in from other tools. Media from Dropbox, Canva, Unsplash and OneDrive is read-only: Sosial never uploads, edits, moves or deletes anything in your storage, and only downloads the file you pick. Imports from Notion and Google Sheets are one-way, into drafts. Your own automations can create posts through Zapier or MCP using an API key you generate and can revoke at any time.',
+          c: 'You can bring content in from Dropbox, Canva, Unsplash and OneDrive. We only download the file you pick, and we never change, move or delete anything in those accounts. Notion and Google Sheets imports only go one way, into your drafts. Zapier and AI agents (through MCP) can create posts using an API key you make and can delete whenever you like. Google Drive and Google Photos are marked "Soon" until Google finishes reviewing our access.',
         },
         {
           t: 'p',
-          c: 'When you use an AI feature — the writer, per-channel captions, or the blog and studio drafts — your brief and the material you point it at go to OpenAI, our AI provider, and the result comes back to your workspace. We do not use your briefs, inputs or drafts to train models. If you switch on web research, the writer runs a live search to ground the copy and shows the sources it used. AI output can be wrong or incomplete: check it before you publish, and you remain responsible for what goes out.',
+          c: 'Our AI features (the writer, channel-by-channel captions, and blog and studio drafts) send your brief and the material you choose to OpenAI, and the result comes back to your workspace. We do not use what you send to train AI. If you turn on web research, the writer searches the web and shows you the sources it used. AI can get things wrong, so read the result before you post it. You are still responsible for what goes out.',
         },
       ],
     },
@@ -130,34 +126,34 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'A workspace has an owner, and optionally admins and members. The owner is responsible for who is invited and what role they hold, for the workspace\'s payment, and for any content published from the workspace. Members can be required to submit posts for approval: a member\'s post goes to the Approvals queue, and an owner or admin must approve it before it can publish. Whoever approves a post takes responsibility for that decision, in addition to the member who wrote it.',
+          c: 'Every workspace has one owner and can have admins and members. The owner decides who joins and what role they get, pays for the workspace, and is responsible for what it publishes. A workspace can require members to send posts for approval, and an owner or admin then has to approve them before they publish. Whoever approves a post shares responsibility for it with the person who wrote it.',
         },
       ],
     },
     {
-      title: '8. Availability and changes',
+      title: '8. Uptime and changes',
       blocks: [
         {
           t: 'p',
-          c: 'Sosial is provided as-is and without warranties. We aim for high availability but do not guarantee uninterrupted publishing. We may modify, suspend or discontinue any part of the service, and will give reasonable notice of changes that materially affect paying customers.',
+          c: 'We work hard to keep Sosial running, but we cannot promise it will never go down or that every post will go out on time. The service is provided "as is", without warranties. We may change, pause or remove features. If a change makes a real difference for paying customers, we will tell you in advance.',
         },
       ],
     },
     {
-      title: '9. Liability',
+      title: '9. Our liability',
       blocks: [
         {
           t: 'p',
-          c: 'To the extent permitted by law, Sosial is not liable for indirect or consequential losses, including lost reach, lost revenue, or content that failed to publish. Our total liability is limited to the amount you paid for the service in the twelve months before the claim.',
+          c: 'As far as the law allows, we are not liable for indirect losses, such as lost reach, lost sales or a post that failed to publish. If we are found liable for something, the most we will pay is what you paid us in the 12 months before the claim.',
         },
       ],
     },
     {
-      title: '10. Marketing emails',
+      title: '10. Emails we send',
       blocks: [
         {
           t: 'p',
-          c: 'Product news and tips are sent only to users who explicitly opt in with the checkbox at signup or a preference in your account settings. Opting in is optional and never affects how the product works. Every marketing email carries a one-click unsubscribe link, and unsubscribing takes effect immediately. We never send marketing email to addresses that have not consented, and operational emails (security notices, billing receipts, publishing confirmations) are not marketing and continue regardless of this choice.',
+          c: 'We only send product news and tips if you tick the box at signup or turn it on in your settings. It is optional and changes nothing about how Sosial works for you. Every one of those emails has an unsubscribe link that works right away. Account emails, like security alerts, receipts and publishing notices, are not marketing, so they keep coming either way.',
         },
       ],
     },
@@ -166,7 +162,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Accounts with no sign-in and no activity for six consecutive months may be deleted along with all their data: posts, media, templates, connected channels and workspace records. Before any deletion we email the account holder a reminder one month in advance. Signing in at any point during that month cancels the deletion. A shared workspace is only deleted once every member has been inactive: activity by any teammate, signing in or posting, keeps the workspace and its data. Paid accounts with an active subscription are never treated as inactive. This policy exists so we do not hold personal data indefinitely for people who have left.',
+          c: 'If nobody signs in or uses an account for six months in a row, we may delete it along with its posts, media, templates, connected channels and workspace. We email you a month before that happens, and signing in during that month stops it. A shared workspace stays as long as any one member is still active. Accounts with an active paid plan are never deleted for inactivity. We do this so we are not holding on to people\'s data after they have moved on.',
         },
       ],
     },
@@ -175,7 +171,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'You can delete your workspace at any time, which removes your content, connected tokens and personal details. Some records may linger briefly in backups or where the law requires us to keep them. Inactive accounts may also be deleted as described above. Cancel any paid subscription first: deletion does not cancel billing.',
+          c: 'You can delete your workspace whenever you want. That removes your content, connected accounts and personal details. A few records can stay in backups for a short time, or longer if the law says we must keep them. Deleting your data does not cancel billing, so cancel any paid plan first.',
         },
       ],
     },
@@ -184,7 +180,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Something unclear? Write to support@sosial.app. A real person reads it. Sosial is operated by EGATE WORLDWIDE.',
+          c: 'Questions about these terms? Email support@sosial.app and a person on our team will reply. Sosial is run by EGATE WORLDWIDE.',
         },
       ],
     },
@@ -196,123 +192,118 @@ export const PRIVACY: LegalDoc = {
   title: 'Privacy Policy',
   updated: '2026-10-27',
   summary:
-    'What we store, why we store it, how it is protected, who we share it with, and how to get it out, written in plain language.',
+    'What we collect, why, who else sees it, how we keep it safe and how to delete it. In plain words.',
   sections: [
     {
-      title: 'What we store',
+      title: 'What we collect',
       blocks: [
         {
           t: 'ul',
           c: [
-            'Account details: your email address and an encrypted password, or your OAuth identity if you signed in with a provider.',
-            'Workspace data: your posts, captions, schedules, media, templates, the approval status and review history of each post, and the roles of the people in the workspace.',
-            'Connected channel data: the account handle, display name and the credential needed to publish — an OAuth access and refresh token, a bot or API key for the channels that use one, or your Bluesky app password. All of it is encrypted before storage.',
-            'Inbox data: the messages, comments and their metadata we read for the channels where you use the inbox, as described below.',
-            'Notifications: a push token for each device where you enabled notifications, so we can tell you when a post publishes, fails, or needs approval.',
-            'Connected source data: for imports from Notion and Google Sheets, the page or sheet reference and the content you import; for automation tools and AI agents, an API key you generate.',
-            'Billing: handled by Stripe on the web and, where offered, by the app store you purchased from. We store a customer and subscription reference, not your card number.',
+            'Your account: your email address and a password (stored encrypted), or the account you signed in with, such as Google.',
+            'Your workspace: posts, captions, schedules, media, templates, who approved what, and the roles of the people on your team.',
+            'Connected channels: each account\'s name and handle, plus the key that lets us publish for you. Depending on the platform that is a login token, a bot or API key, or your Bluesky app password. All of these are encrypted before we save them.',
+            'Inbox: the messages and comments we load for the channels where you use the inbox (more on this below).',
+            'Notifications: a push token for each device where you turned notifications on.',
+            'Imports and automations: the Notion page or Google Sheet you import from and the content you bring in, and any API keys you create for Zapier or AI agents.',
+            'Billing: Stripe handles payments on the web, and the app store handles them on mobile. We only keep a customer and subscription reference. We never see your card number.',
           ],
         },
       ],
     },
     {
-      title: 'Connected social accounts',
+      title: 'Your connected social accounts',
       blocks: [
         {
           t: 'p',
-          c: 'Sosial publishes to 18 channels. When you connect one, we receive a credential from that platform and store it encrypted so the worker can publish your scheduled posts. For platforms with OAuth that is an access token plus a refresh token; for WordPress, Telegram, Discord and Ghost it is an application password, bot token or API key; for Bluesky it is a handle plus an app password. We do not store your social media passwords anywhere else. Bluesky has no OAuth, so its app password is the one password-shaped credential we keep: it is encrypted in our vault and in your device\'s secure storage, never shown back to you or written to logs, and used only to mint short-lived sessions for publishing. We read messages and comments only on the channels where you use the inbox or comments features, and only as described in "Messages and comments" below.',
+          c: 'When you connect a channel, the platform gives us a key so we can publish your scheduled posts. For most platforms that is a login token. For WordPress, Telegram, Discord and Ghost it is an app password, bot token or API key. For Bluesky it is your handle and an app password, which we keep encrypted and only use to start short publishing sessions. We never see or store the password you use to log in to a social network.',
+        },
+        {
+          t: 'p',
+          c: 'Here is what we do with each one:',
         },
         {
           t: 'ul',
           c: [
-            'X: read your profile, publish and upload media for the posts you schedule, and read and answer direct messages. A refresh token keeps scheduled posts publishing on time. X requires a paid plan because its posting API is metered.',
-            'Instagram: read your Business or Creator profile, publish the photos, videos and reels you schedule, read the comments on them and answer direct messages. We deliberately do not request insights access.',
-            'TikTok: read your basic profile and video statistics, upload and publish the videos and photos you schedule, and list posted videos to confirm delivery.',
-            'Facebook: list the Pages you manage, read the posts published on them and the comment count of each, publish the posts, photos and videos you schedule, read the comments on those posts, and read and answer Messenger conversations for those Pages. Personal timelines are never touched.',
-            'Threads: read your profile, publish the posts you schedule, read and reply to replies, and read post statistics for content published through Sosial.',
-            'Bluesky: publish the posts you schedule and upload the images and video they contain, read and answer direct messages, and read comments, using a short-lived session we mint from your app password.',
-            'Mastodon: read and write access on the instance you choose, verify the account, publish scheduled posts, upload media, and read and answer direct messages and comments. Your instance address is stored so publishing reaches the right server.',
-            'LinkedIn: once production access is approved, identify you via OpenID, publish posts as you, and read your own posts and their statistics. If you connect a Company Page you administer, the same applies to that Page.',
-            'YouTube: upload videos to your channel, read the channel and video list to confirm delivery and show status, and manage comments on uploads published through Sosial.',
-            'Pinterest: read your account, and read and write boards and Pins, publishing scheduled Pins to the boards you choose.',
-            'WordPress: connect a self-hosted or WordPress.com site with an application password, and publish the posts you schedule to it as drafts or live.',
-            'Dev.to: publish your scheduled articles and upload their cover images through the Dev.to API.',
-            'Hashnode: publish your scheduled articles to a publication you own through Hashnode.',
-            'Ghost: publish your scheduled posts to a Ghost site through its Admin API.',
-            'Telegram: send your scheduled messages and media to a channel or group you administer through a bot you authorise.',
-            'Discord: post your scheduled messages and media to a server channel through a bot you authorise.',
-            'VK: publish your scheduled posts and media to your VK profile or community.',
-            'Google Business Profile: publish your scheduled posts to a location you manage. This channel is listed as "Soon" and is not yet connectable.',
+            'X: read your profile, post and upload media for your scheduled posts, and read and answer direct messages. X needs a paid Sosial plan because X charges for its API.',
+            'Instagram: read your Business or Creator profile, publish your photos, videos and reels, and read comments and direct messages so you can answer them. We do not ask for access to your Instagram insights.',
+            'TikTok: read your basic profile and video stats, publish your videos and photos, and check your posted videos to confirm they went out.',
+            'Facebook: list the Pages you manage, publish to them, and read their posts, comments and Messenger conversations so you can reply. We never touch your personal profile.',
+            'Threads: read your profile, publish your posts, read and answer replies, and read stats for posts made through Sosial.',
+            'Bluesky: publish your posts with their images and video, and read and answer direct messages and comments.',
+            'Mastodon: on the server you choose, publish your posts and media, and read and answer direct messages and comments. We save your server address so posts reach the right place.',
+            'LinkedIn: once LinkedIn approves us, confirm who you are, publish as you or as a Company Page you run, and read those posts and their stats.',
+            'YouTube: upload videos, check your channel and video list to confirm uploads, and manage comments on videos you posted through Sosial.',
+            'Pinterest: read your account and boards, and publish your scheduled Pins to the boards you pick.',
+            'WordPress, Dev.to, Hashnode and Ghost: publish your scheduled articles (and their cover images, where the platform supports it) to the site or publication you connect.',
+            'Telegram and Discord: send your scheduled posts to a channel, group or server through a bot you add.',
+            'VK: publish your scheduled posts to your VK profile or community.',
+            'Google Business Profile: once Google approves us, publish posts to a business location you manage.',
           ],
         },
         {
           t: 'p',
-          c: 'Two channels are in preview and cannot be connected yet: Google Business Profile, waiting on Google\'s API approval, and LinkedIn, waiting on production access. They appear in the product so you can see what is coming, but no data is collected for them until they go live.',
+          c: 'LinkedIn and Google Business Profile are marked "Soon". You can see them in the app, but they cannot be connected yet, and we collect nothing for them until they can.',
         },
         {
           t: 'p',
-          c: 'You can disconnect a channel at any time from the Channels screen, which deletes the stored token and pauses publishing to that channel. A separate Delete data action erases the posts, stats, comments and messages we stored for that channel if you want it forgotten completely. You can also revoke Sosial\'s access directly from the connected platform\'s settings. Doing so immediately stops publishing to that channel.',
+          c: 'You can disconnect a channel at any time on the Channels screen. That deletes its key and stops publishing. If you also want everything we saved for that channel gone, use Delete data, which removes its posts, stats, comments and messages. You can also remove Sosial\'s access from the platform\'s own settings, which stops publishing straight away.',
         },
       ],
     },
     {
-      title: 'Connected media sources',
+      title: 'Media and import sources',
       blocks: [
         {
           t: 'p',
-          c: 'When you attach photos or videos from a connected source, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it to your post. Nothing outside the folder or search you are browsing is read. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos automatically carry the photographer\u2019s name and profile link in your caption, as their license requires.',
-        },
-        {
-          t: 'p',
-          c: 'These media and content sources are live today:',
+          c: 'When you add a photo or video from one of these sources, we show you your files so you can pick one, then download only that file. We never change, move, share or delete anything in your storage or design library. Unsplash photos automatically get the photographer\'s name and link in your caption, because Unsplash\'s license asks for it.',
         },
         {
           t: 'ul',
           c: [
-            'Dropbox: list your folders and files and download only the file you choose.',
-            'Canva: list your designs and download the export you choose.',
-            'Unsplash: search the photo library and attach the photo you choose, with its required credit.',
-            'OneDrive: list your folders and files and download only the file you choose.',
-            'Notion: import pages you have shared with the Sosial integration and turn them into drafts. Import is one-way, from Notion into Sosial.',
-            'Google Sheets: import rows from a sheet you share with Sosial and turn them into scheduled posts. Import is one-way, from Sheets into Sosial.',
-            'Zapier and MCP: connect automation tools and AI agents that create posts in your workspace through the Sosial API and Model Context Protocol, using an API key you generate and can revoke at any time.',
+            'Dropbox and OneDrive: browse your folders and download the file you pick.',
+            'Canva: browse your designs and download the one you pick.',
+            'Unsplash: search for photos and add the one you pick, with its credit.',
+            'Notion: turn pages you have shared with Sosial into drafts. Nothing is written back to Notion.',
+            'Google Sheets: turn rows from a sheet you share into scheduled posts. Nothing is written back to the sheet.',
+            'Zapier and MCP: let your own automations and AI agents create posts, using an API key you make and can delete at any time.',
           ],
         },
         {
           t: 'p',
-          c: 'Google Drive and Google Photos are listed as "Soon" and are not yet connectable, because the restricted Google scopes they need are pending Google\'s verification and CASA assessment. No Google Drive or Google Photos data is accessed until they go live.',
+          c: 'Google Drive and Google Photos are marked "Soon" while Google reviews our access. We do not touch any Drive or Photos data until then.',
         },
         {
           t: 'p',
-          c: 'Access tokens for cloud drive sources are kept on your own device (your phone\u2019s secure storage, or your browser\u2019s local storage on the web) and are never stored on our servers. Sosial-side secrets and service credentials used for imports live server-side and are never shipped to the app. Disconnecting a source in the app deletes its tokens from your device immediately.',
+          c: 'Login tokens for Dropbox, OneDrive and Canva stay on your device (in your phone\'s secure storage, or your browser on the web). They never reach our servers, and disconnecting a source deletes them from your device right away.',
         },
       ],
     },
     {
-      title: 'How we use it',
+      title: 'How we use your data',
       blocks: [
         {
           t: 'ul',
           c: [
-            'To publish the posts you schedule, at the times you choose.',
-            'To show your calendar, queue, inbox, comments and per-channel results.',
-            'To route posts through the approvals workflow and tell the right teammates when something needs review.',
-            'To deliver push notifications to the devices where you enabled them, and essential service email: sign-in links, invites and account notices.',
-            'To operate your subscription and provide support.',
+            'To publish your posts at the times you set.',
+            'To show your calendar, queue, inbox, comments and results.',
+            'To run approvals and let the right teammates know when something needs a look.',
+            'To send the notifications you turned on, and account emails like sign-in links, invites and notices.',
+            'To handle your subscription and answer your support requests.',
           ],
         },
         {
           t: 'p',
-          c: 'We do not sell your data, we do not use your content to train AI models, and we do not use Google user data to serve advertisements. Sosial\'s use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.',
+          c: 'We do not sell your data. We do not use your content to train AI. We do not use Google user data for ads. Our use of data we get from Google APIs follows the Google API Services User Data Policy, including its Limited Use rules.',
         },
       ],
     },
     {
-      title: 'The AI features',
+      title: 'AI features',
       blocks: [
         {
           t: 'p',
-          c: 'When you use an AI feature — the writer, per-channel captions, or the blog and studio drafts — the brief and any material you point it at are sent to OpenAI, our AI provider, to generate a result, which is returned to your workspace. We do not use your briefs, inputs or drafts to train models, and OpenAI does not train on data submitted through its API. If you enable web research for a post, the writer performs a live search to ground the copy and returns the sources it used. AI output can be wrong or incomplete, so review it before publishing.',
+          c: 'When you use the writer, channel captions, or blog and studio drafts, we send your brief and the material you chose to OpenAI, and the result comes back to your workspace. We do not train AI on it, and OpenAI does not train on data sent through its API. If you turn on web research, the writer searches the web and shows you the sources it used. AI can make mistakes, so check the result before you publish.',
         },
       ],
     },
@@ -321,22 +312,18 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'If you use the inbox or comments features, we read the direct messages and comments that arrive on the channels you connect, so they can be shown in one place and answered from Sosial. This covers direct messages on Facebook Pages (Messenger), Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. No other connected channel exposes messages or comments to us.',
+          c: 'If you use the inbox, we load the direct messages and comments that arrive on your connected channels so you can see and answer them in one place. That covers direct messages on Facebook Pages, Instagram, X, Mastodon and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. The other channels do not give us messages or comments.',
         },
         {
           t: 'ul',
           c: [
-            'Conversations and messages: the participant\'s display name and avatar, the text you and they write, attachments, whether each message is incoming or outgoing, its timestamp, and its delivery status.',
-            'Comments: the author\'s display name and avatar, the comment text, the post it belongs to, its timestamp, and whether you have replied to it.',
+            'For messages we save: the other person\'s name and profile picture, what each of you wrote, attachments, the time, and whether it was sent or received.',
+            'For comments we save: the author\'s name and profile picture, the comment, which post it is on, the time, and whether you replied.',
           ],
         },
         {
           t: 'p',
-          c: 'We read this through each platform\'s API on a sync schedule and through the platforms\' webhooks, only for channels in your workspace, and we store it in our database so the inbox loads without calling the platform on every visit. Replies you send go to the platform through its API and are stored the same way as received messages. We do not sell this data, do not use it for advertising, and do not use it to train models.',
-        },
-        {
-          t: 'p',
-          c: 'Anyone in your workspace who can see the channel can read its inbox and comments feed. Messages and comments are kept while the workspace exists: disconnecting a channel stops new reads but leaves what was already synced, unless you choose Delete data for that channel, which removes the messages and comments we stored for it. Deleting the workspace removes everything. Deleting a message or comment on the platform itself does not delete it from Sosial, so you can still see the thread you were working on.',
+          c: 'We check each platform for new messages on a schedule and when the platform tells us something new arrived, and we save them so your inbox loads quickly. Anyone in your workspace who can see a channel can read its inbox. Messages stay until you use Delete data for that channel or delete your workspace. Deleting a message on the platform does not remove it from Sosial, so you do not lose the thread you were working on. We never sell this data, use it for ads, or train AI on it.',
         },
       ],
     },
@@ -345,76 +332,56 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'If you enable push notifications, your device registers an Expo push token. We store it against your user and workspace, together with the device platform, so the worker can tell you when a post publishes, fails or needs approval, and when your team changes. Delivery runs through Expo\'s push service. The alert text can contain a post title or a teammate\'s name, so lockscreen previews may reveal that much. You can turn notifications off in the app or in your device settings; the token is deleted when you delete your account.',
+          c: 'If you turn on push notifications, your device gets a push token from Expo, which delivers them for us. We save it with your account and device type so we can tell you when a post goes out, fails or needs approval, or when your team changes. A notification can show a post title or a teammate\'s name, so that much may appear on your lock screen. You can turn notifications off in the app or in your phone\'s settings, and we delete the token when you delete your account.',
         },
       ],
     },
     {
-      title: 'Content responsibility',
+      title: 'Who else sees your data',
       blocks: [
         {
           t: 'p',
-          c: 'What you publish through Sosial is yours: we store and deliver it on your behalf, but we do not review it and we are not responsible for it. If your content is racist, hateful, sexually explicit, defamatory, misleading or unlawful (including political content or misinformation), any legal consequences fall on you, not on Sosial.',
-        },
-      ],
-    },
-    {
-      title: 'Where it lives',
-      blocks: [
-        {
-          t: 'p',
-          c: 'Your data is stored in our database and object storage providers, encrypted in transit and at rest. Access is restricted to the systems that need it to run the service.',
-        },
-      ],
-    },
-    {
-      title: 'How we protect it',
-      blocks: [
-        {
-          t: 'p',
-          c: 'We apply these technical and organisational safeguards to all personal data we handle, including Google user data:',
+          c: 'Only the companies we need to run Sosial, and only for that:',
         },
         {
           t: 'ul',
           c: [
-            'Encryption in transit: every connection between your device, our servers and Google uses TLS/HTTPS. Google API traffic uses Google\'s required TLS (minimum 1.2).',
-            'Encryption at rest: data is encrypted at rest in our database, object storage and backups, using AES-256 or the provider\'s equivalent.',
-            'Channel credentials: OAuth access and refresh tokens, WordPress application passwords, bot tokens, API keys and the Bluesky app password are encrypted before storage (AES-256-GCM with a server-held key in our secrets manager). They are decrypted only by the publishing worker or inbox sync, only when a request needs them, and are never shown back in the app or written to logs.',
-            'Least privilege: we request only the Google scopes a feature needs, we employ the narrowest practical scope, and we do not request access you do not use.',
-            'Access control: internal access to production systems is limited to the personnel who operate the service, is protected by multi-factor authentication, and is logged. There is no public or unauthenticated access to user data.',
-            'Token minimization: we request only the scopes a feature needs and store no provider data beyond the fields needed to publish and display your account. When Google Drive and Google Photos go live they will be read-only, and Photos will use Google\'s own picker; until then no Drive or Photos data is accessed.',
-            'Key management: encryption keys are stored in a managed secrets service, are not committed to source control, and are rotated on a schedule and on staff departure.',
-            'Retention and secure deletion: tokens are deleted when you disconnect a channel, and choosing Delete data for a channel removes the posts, stats, comments, messages and queue entries we stored for it; your data is deleted when you delete your workspace, and residual copies in backups expire on a rolling schedule.',
-            'Incident response: we monitor for anomalies, restrict and revoke compromised credentials, and will notify affected users and Google without undue delay if a breach affects their data.',
+            'The social platforms you connect, to publish your posts and load your inbox.',
+            'Supabase, which runs our database, sign-in and part of our file storage.',
+            'Cloudflare, which stores your uploaded media (R2) and protects our domains.',
+            'Vercel, which hosts the Sosial website and web app.',
+            'The hosting providers that run our background worker, which publishes your scheduled posts and syncs your inbox.',
+            'Expo, which delivers push notifications to your phone.',
+            'Resend, which sends our emails.',
+            'OpenAI, for the AI features you choose to use.',
+            'Stripe and the app stores, for payments.',
+            'The import sources you connect (Dropbox, Canva, Unsplash, OneDrive, Notion, Google Sheets), only to fetch what you pick, and Zapier or an AI agent, only through an API key you created.',
           ],
+        },
+        {
+          t: 'p',
+          c: 'These companies can only use your data to provide their service to us, and they are bound by contract to protect it. We may also share data if the law requires it or to protect people\'s safety, and where we are allowed to, we will tell you first.',
+        },
+        {
+          t: 'p',
+          c: 'We do not sell Google user data, use it for ads, or use it to train general AI models. No one on our team reads your Google data unless you ask us to for support, it is needed for security or the law, or it has been made anonymous.',
         },
       ],
     },
     {
-      title: 'Who we share it with',
+      title: 'How we keep it safe',
       blocks: [
-        {
-          t: 'p',
-          c: 'We do not sell Google user data, and we do not use or transfer Google user data for advertising, for serving ads, or for training or improving generalised AI or machine-learning models. We do not allow humans to read your Google data unless you ask us to for support, it is necessary for security or to comply with law, or the data has been aggregated and anonymised.',
-        },
-        {
-          t: 'p',
-          c: 'We share data only with the parties needed to run the service you asked for, under contract and only as described here:',
-        },
         {
           t: 'ul',
           c: [
-            'The social platforms you connect: we send your post content and media to each platform\'s official API so it can publish on your behalf, and we read the messages and comments you ask to see in the inbox. This happens only for the posts, channels and inboxes you choose.',
-            'Cloud infrastructure and storage subprocessors: Supabase (database, authentication and object storage), Vercel (web app hosting), Railway (the publishing worker) and Expo (push notification delivery). They host and process data under our instructions, are contractually bound to protect it, and may not use it for their own purposes.',
-            'AI provider: OpenAI receives the brief and material you submit to an AI feature and returns the generated result. Google user data is never included unless you put it in the brief yourself.',
-            'Payment provider: Stripe processes web subscriptions, and the app store processes mobile purchases where offered. We share a customer and subscription reference; we never receive or store your full card number.',
-            'The source tools you connect: Dropbox, Canva, Unsplash, OneDrive, Notion and Google Sheets are called only to list or fetch the item you pick, and Zapier or an MCP agent acts on your workspace only through an API key you generate and can revoke.',
-            'Legal and safety: we may disclose data if required by law, to enforce our terms, or to protect the rights, safety and security of our users and the public. Where lawful, we will tell you first.',
+            'Everything travels over HTTPS (TLS 1.2 or newer).',
+            'Our database, file storage and backups are encrypted.',
+            'Channel keys, app passwords and API keys are encrypted with AES-256-GCM before they are saved. They are only unlocked when we need to publish or load your inbox, and never shown in the app or written to logs.',
+            'We ask platforms for the smallest set of permissions each feature needs.',
+            'Only the people who run Sosial can reach our production systems, they need two-factor sign-in to do it, and that access is logged.',
+            'Encryption keys live in a secrets manager, not in our code, and we change them regularly.',
+            'If there is ever a breach that affects your data, we will tell you, and Google where it involves Google data, as soon as we can.',
           ],
-        },
-        {
-          t: 'p',
-          c: 'We do not transfer Google user data to third parties for purposes other than those listed above.',
         },
       ],
     },
@@ -423,11 +390,11 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'We keep your workspace data while your account is active. If you delete your workspace, we remove your content, connected tokens and personal details. Some records may be retained briefly for legal, tax or security reasons.',
+          c: 'We keep your data while your account is active. When you delete your workspace, we delete your content, connected accounts and personal details. A few records may stay a little longer for legal, tax or security reasons, and old copies in backups expire on their own.',
         },
         {
           t: 'p',
-          c: 'If an account is inactive, no sign-in and no activity, for six consecutive months, it and all of its data are deleted. We email a reminder one month before any such deletion, and signing in at any point cancels it. Accounts with an active paid subscription are never deleted for inactivity. A shared workspace is only deleted once every member has been inactive: activity by any teammate keeps it and its data. Support tickets and their screenshots are erased 30 days after the ticket is resolved. You can also delete everything yourself at any time from your profile or via [Request deletion](/delete-data).',
+          c: 'Accounts with no sign-ins or activity for six months are deleted with all their data. We email you a month before, and signing in stops it. Accounts on an active paid plan are never deleted for inactivity, and a shared workspace stays as long as one member is active. Support tickets and their screenshots are deleted 30 days after the ticket is closed. You can also delete everything yourself at any time from your profile or on the [deletion page](/delete-data).',
         },
       ],
     },
@@ -436,7 +403,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'We send product news and tips only to people who asked for them, via the optional checkbox at signup or a preference in account settings. Consent is stored as a flag on your account, the emails come from our own domain, and every one carries a one-click unsubscribe link that takes effect immediately. We do not share your email address with advertising networks, and unsubscribing from marketing never affects operational emails such as security notices, receipts or publishing confirmations.',
+          c: 'We only send product news and tips if you ask for them, at signup or in your settings. Every email has an unsubscribe link that works right away. We never give your email address to advertisers, and unsubscribing does not stop account emails like security alerts, receipts or publishing notices.',
         },
       ],
     },
@@ -446,9 +413,9 @@ export const PRIVACY: LegalDoc = {
         {
           t: 'ul',
           c: [
-            'Access and export: you can review everything in your workspace and export your content at any time.',
-            'Correction: you can edit or delete any post, draft or connected channel.',
-            'Deletion: you can delete your workspace, which removes your data as described above. [Request deletion](/delete-data).',
+            'See and export: everything in your workspace is visible to you, and you can export your content at any time.',
+            'Fix: you can edit or delete any post, draft or connected channel.',
+            'Delete: you can delete your workspace and everything in it. [Request deletion](/delete-data).',
           ],
         },
       ],
@@ -458,7 +425,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'We use a single essential cookie to keep you signed in. Sosial does not embed advertising trackers or third-party analytics that follow you across the web.',
+          c: 'We use one cookie, to keep you signed in. There are no ad trackers and no third-party analytics following you around the web.',
         },
       ],
     },
@@ -467,7 +434,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Sosial is a business tool and is not directed at children. We do not knowingly collect data from anyone below the minimum age required to hold a social media account in their jurisdiction.',
+          c: 'Sosial is a work tool and is not meant for children. We do not knowingly collect data from anyone too young to have a social media account where they live.',
         },
       ],
     },
@@ -476,7 +443,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'If anything important changes here, we will tell you in the product first. Questions about your data? Email support@sosial.app. The data controller is EGATE WORLDWIDE.',
+          c: 'If we make an important change to this policy, we will tell you in the app first. Questions about your data? Email support@sosial.app. EGATE WORLDWIDE is responsible for your data under this policy.',
         },
       ],
     },
