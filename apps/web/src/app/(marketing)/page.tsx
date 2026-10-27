@@ -1,16 +1,16 @@
 import Hero from '@/components/landing/Hero';
+import ProductBento from '@/components/landing/ProductBento';
 import LogoDock from '@/components/landing/LogoDock';
-import FeaturesBento from '@/components/landing/FeaturesBento';
-import TeamSection from '@/components/landing/TeamSection';
+import Faq from '@/components/landing/Faq';
 
-/** Landing: Tenner architecture, fold, dock, bento, team. */
+/** Landing: fold, interactive Create / Publish / Team bento, logo dock, FAQ. */
 export default function LandingPage() {
   return (
     <>
       <Hero />
+      <ProductBento />
       <LogoDock />
-      <FeaturesBento />
-      <TeamSection />
+      <Faq />
     </>
   );
 }
