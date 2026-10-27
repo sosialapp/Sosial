@@ -100,7 +100,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Some connected channels also let you read and answer direct messages and comments inside Sosial. Today that covers direct messages on Facebook Pages (Messenger), Instagram, X, Mastodon and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. On Facebook and Instagram you can also hide or delete a comment. Replies are sent from your own account through the platform\'s official API, exactly as if you had sent them there yourself.',
+          c: 'Some connected channels also let you read and answer direct messages and comments inside Sosial. Today that covers direct messages on Facebook Pages (Messenger), Instagram, X, Mastodon and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. Replies are sent from your own account through the platform\'s official API, exactly as if you had sent them there yourself.',
         },
         {
           t: 'p',
@@ -226,10 +226,10 @@ export const PRIVACY: LegalDoc = {
           t: 'ul',
           c: [
             'X: read your profile, publish and upload media for the posts you schedule, and read and answer direct messages. A refresh token keeps scheduled posts publishing on time. X requires a paid plan because its posting API is metered.',
-            'Instagram: read your Business or Creator profile, publish the photos, videos and reels you schedule, read comments (which you can hide or delete) and answer direct messages. We deliberately do not request insights access.',
+            'Instagram: read your Business or Creator profile, publish the photos, videos and reels you schedule, read the comments on them and answer direct messages. We deliberately do not request insights access.',
             'TikTok: read your basic profile and video statistics, upload and publish the videos and photos you schedule, and list posted videos to confirm delivery.',
-            'Facebook: list the Pages you manage, read their engagement and content, publish the posts, photos and videos you schedule to them, read comments (which you can hide or delete), and read and answer Messenger conversations for those Pages. Personal timelines are never touched.',
-            'Threads: read your profile, publish the posts you schedule, read and reply to replies, and read insights for content published through Sosial.',
+            'Facebook: list the Pages you manage, read the posts published on them and the comment count of each, publish the posts, photos and videos you schedule, read the comments on those posts, and read and answer Messenger conversations for those Pages. Personal timelines are never touched.',
+            'Threads: read your profile, publish the posts you schedule, read and reply to replies, and read post statistics for content published through Sosial.',
             'Bluesky: publish the posts you schedule and upload the images and video they contain, read and answer direct messages, and read comments, using a short-lived session we mint from your app password.',
             'Mastodon: read and write access on the instance you choose, verify the account, publish scheduled posts, upload media, and read and answer direct messages and comments. Your instance address is stored so publishing reaches the right server.',
             'LinkedIn: once production access is approved, identify you via OpenID, publish posts as you, and read your own posts and their statistics. If you connect a Company Page you administer, the same applies to that Page.',
@@ -321,13 +321,13 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'If you use the inbox or comments features, we read the direct messages and comments that arrive on the channels you connect, so they can be shown in one place and answered from Sosial. This covers direct messages on Facebook Pages (Messenger), Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. On Facebook and Instagram you can also hide or delete a comment from Sosial, which calls the platform\'s own moderation endpoint. No other connected channel exposes messages or comments to us.',
+          c: 'If you use the inbox or comments features, we read the direct messages and comments that arrive on the channels you connect, so they can be shown in one place and answered from Sosial. This covers direct messages on Facebook Pages (Messenger), Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. No other connected channel exposes messages or comments to us.',
         },
         {
           t: 'ul',
           c: [
             'Conversations and messages: the participant\'s display name and avatar, the text you and they write, attachments, whether each message is incoming or outgoing, its timestamp, and its delivery status.',
-            'Comments: the author\'s display name and avatar, the comment text, the post it belongs to, its timestamp, and whether you have replied to, hidden or deleted it.',
+            'Comments: the author\'s display name and avatar, the comment text, the post it belongs to, its timestamp, and whether you have replied to it.',
           ],
         },
         {
