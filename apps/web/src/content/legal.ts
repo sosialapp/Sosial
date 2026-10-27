@@ -23,7 +23,7 @@ export interface LegalDoc {
 export const TERMS: LegalDoc = {
   slug: 'terms',
   title: 'Terms of Use',
-  updated: '2026-10-24',
+  updated: '2026-10-27',
   summary:
     'The agreement between you and Sosial for using the service: accounts, content, publishing and liability.',
   sections: [
@@ -58,15 +58,15 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Sosial publishes to 18 channels: X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile. Your use of each connected platform remains governed by that platform\'s own terms and policies. Sosial accesses these accounts only to publish the content you schedule and to read the limited profile information needed to display them.',
+          c: 'Sosial publishes to 18 channels: X, Instagram, TikTok, Facebook, Threads, YouTube, LinkedIn, Bluesky, Mastodon, Pinterest, Telegram, Discord, WordPress, Dev.to, Hashnode, Ghost, VK and Google Business Profile. Sixteen are live today; LinkedIn and Google Business Profile are in preview. Your use of each connected platform remains governed by that platform\'s own terms and policies. Sosial accesses a connected account only to publish the content you schedule, to read the messages and comments you open in the inbox, and to read the profile and statistics fields needed to show your results.',
         },
         {
           t: 'p',
-          c: 'Some channels are shown as "Soon" and cannot yet be connected: Google Business Profile and LinkedIn. They are displayed for information only, and no account is accessed for them until they go live.',
+          c: 'Sometimes the platform itself has to grant access before a feature can light up: Meta reviews advanced Page and Instagram permissions, Google approves Business Profile API access, and LinkedIn approves production use of its posting API. Until that approval lands the channel stays in preview, shown as "Soon". No account is accessed for a preview channel until you connect it after it goes live.',
         },
         {
           t: 'p',
-          c: 'Concretely, "publishing on your behalf" means posting your scheduled text, photos and video; uploading media where a platform requires it before posting; and reading the minimum profile, delivery-status and statistics fields needed to confirm a post went out and to show you results. The exact permissions for each platform, for example posting and media upload on X, content publishing on Instagram and Threads, video upload and publishing on TikTok, Page posting on Facebook, member and Company Page posting on LinkedIn, video uploads on YouTube, board and Pin writes on Pinterest, application-password publishing on WordPress, API publishing on Dev.to and Hashnode, Admin API publishing on Ghost, and bot-based posting on Telegram and Discord, are shown by that platform on its own connect screen before you approve them. Bluesky uses a handle plus an app password instead of OAuth; the password is never stored. X requires a paid plan because its posting API is metered.',
+          c: 'Concretely, "publishing on your behalf" means posting your scheduled text, photos and video; uploading media where a platform requires it before posting; and reading the minimum profile, delivery-status and statistics fields needed to confirm a post went out and to show you results. The exact permissions for each platform, for example posting and media upload on X, content publishing on Instagram and Threads, video and photo publishing on TikTok, Page posting on Facebook, member and Company Page posting on LinkedIn once live, video uploads and comment access on YouTube, board and Pin writes on Pinterest, application-password publishing on WordPress, API publishing on Dev.to and Hashnode, Admin API publishing on Ghost, bot-based posting on Telegram and Discord, and location posts on Google Business Profile once approved, are shown by that platform on its own connect screen before you approve them. Bluesky uses a handle plus an app password instead of OAuth: the password is stored encrypted in our vault and in your device\'s secure storage, and is used only to mint short-lived sessions for publishing. X requires a paid plan because its posting API is metered.',
         },
         {
           t: 'p',
@@ -100,7 +100,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Some connected channels also let you read and answer direct messages and comments inside Sosial. Today that covers direct messages on Facebook Pages, Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon and Bluesky. Replies are sent from your own account through the platform\'s official API, exactly as if you had sent them there yourself.',
+          c: 'Some connected channels also let you read and answer direct messages and comments inside Sosial. Today that covers direct messages on Facebook Pages (Messenger), Instagram, X, Mastodon and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. On Facebook and Instagram you can also hide or delete a comment. Replies are sent from your own account through the platform\'s official API, exactly as if you had sent them there yourself.',
         },
         {
           t: 'p',
@@ -121,7 +121,7 @@ export const TERMS: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'When you use the AI writer, your brief goes to our AI provider to draft the copy, and the result comes back to your workspace. We do not use your briefs or drafts to train models. If you switch on web research, the writer runs a live search to ground the copy and shows the sources it used.',
+          c: 'When you use an AI feature — the writer, per-channel captions, or the blog and studio drafts — your brief and the material you point it at go to OpenAI, our AI provider, and the result comes back to your workspace. We do not use your briefs, inputs or drafts to train models. If you switch on web research, the writer runs a live search to ground the copy and shows the sources it used. AI output can be wrong or incomplete: check it before you publish, and you remain responsible for what goes out.',
         },
       ],
     },
@@ -130,7 +130,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'A workspace has an owner, and optionally admins and members. The owner is responsible for who is invited and what role they hold, for the workspace\'s payment, and for any content published from the workspace.',
+          c: 'A workspace has an owner, and optionally admins and members. The owner is responsible for who is invited and what role they hold, for the workspace\'s payment, and for any content published from the workspace. Members can be required to submit posts for approval: a member\'s post goes to the Approvals queue, and an owner or admin must approve it before it can publish. Whoever approves a post takes responsibility for that decision, in addition to the member who wrote it.',
         },
       ],
     },
@@ -194,7 +194,7 @@ export const TERMS: LegalDoc = {
 export const PRIVACY: LegalDoc = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: '2026-10-24',
+  updated: '2026-10-27',
   summary:
     'What we store, why we store it, how it is protected, who we share it with, and how to get it out, written in plain language.',
   sections: [
@@ -205,10 +205,12 @@ export const PRIVACY: LegalDoc = {
           t: 'ul',
           c: [
             'Account details: your email address and an encrypted password, or your OAuth identity if you signed in with a provider.',
-            'Workspace data: your posts, captions, schedules, media and templates.',
-            'Connected channel data: the account handle, display name and the access token needed to publish.',
+            'Workspace data: your posts, captions, schedules, media, templates, the approval status and review history of each post, and the roles of the people in the workspace.',
+            'Connected channel data: the account handle, display name and the credential needed to publish — an OAuth access and refresh token, a bot or API key for the channels that use one, or your Bluesky app password. All of it is encrypted before storage.',
+            'Inbox data: the messages, comments and their metadata we read for the channels where you use the inbox, as described below.',
+            'Notifications: a push token for each device where you enabled notifications, so we can tell you when a post publishes, fails, or needs approval.',
             'Connected source data: for imports from Notion and Google Sheets, the page or sheet reference and the content you import; for automation tools and AI agents, an API key you generate.',
-            'Billing: handled by our payment provider. We store only a customer reference, not your card number.',
+            'Billing: handled by Stripe on the web and, where offered, by the app store you purchased from. We store a customer and subscription reference, not your card number.',
           ],
         },
       ],
@@ -218,19 +220,19 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'Sosial publishes to 18 channels. When you connect one, we receive an access token from that platform and store it encrypted so the worker can publish your scheduled posts. We do not store your social media passwords. The one exception is Bluesky, which has no OAuth: you sign in with a handle and an app password that is used once and never stored. Only short-lived session tokens are kept. We read messages and comments only on the channels where you use the inbox or comments features, and only as described in "Messages and comments" below.',
+          c: 'Sosial publishes to 18 channels. When you connect one, we receive a credential from that platform and store it encrypted so the worker can publish your scheduled posts. For platforms with OAuth that is an access token plus a refresh token; for WordPress, Telegram, Discord and Ghost it is an application password, bot token or API key; for Bluesky it is a handle plus an app password. We do not store your social media passwords anywhere else. Bluesky has no OAuth, so its app password is the one password-shaped credential we keep: it is encrypted in our vault and in your device\'s secure storage, never shown back to you or written to logs, and used only to mint short-lived sessions for publishing. We read messages and comments only on the channels where you use the inbox or comments features, and only as described in "Messages and comments" below.',
         },
         {
           t: 'ul',
           c: [
-            'X: read your profile, publish and read posts, and upload media, only for the posts you schedule. A refresh token keeps you signed in so scheduled posts can publish on time. X requires a paid plan because its posting API is metered.',
-            'Instagram: read your Business or Creator profile, and publish the photos, videos and reels you schedule. We deliberately do not request insights access.',
+            'X: read your profile, publish and upload media for the posts you schedule, and read and answer direct messages. A refresh token keeps scheduled posts publishing on time. X requires a paid plan because its posting API is metered.',
+            'Instagram: read your Business or Creator profile, publish the photos, videos and reels you schedule, read comments (which you can hide or delete) and answer direct messages. We deliberately do not request insights access.',
             'TikTok: read your basic profile and video statistics, upload and publish the videos and photos you schedule, and list posted videos to confirm delivery.',
-            'Facebook: list the Pages you manage, read their engagement and content, and publish the posts, photos and videos you schedule to them. Personal timelines are never touched.',
-            'Threads: read your profile, publish the posts you schedule, read replies, and read insights for content published through Sosial.',
-            'Bluesky: publish the posts you schedule and upload the images and video they contain, using session tokens from your sign-in.',
-            'Mastodon: read and write access on the instance you choose, verify the account, publish scheduled posts and upload media. Your instance address is stored so publishing reaches the right server.',
-            'LinkedIn: identify you via OpenID, publish posts as you, and read your own posts and their statistics. If you connect a Company Page you administer, the same applies to that Page.',
+            'Facebook: list the Pages you manage, read their engagement and content, publish the posts, photos and videos you schedule to them, read comments (which you can hide or delete), and read and answer Messenger conversations for those Pages. Personal timelines are never touched.',
+            'Threads: read your profile, publish the posts you schedule, read and reply to replies, and read insights for content published through Sosial.',
+            'Bluesky: publish the posts you schedule and upload the images and video they contain, read and answer direct messages, and read comments, using a short-lived session we mint from your app password.',
+            'Mastodon: read and write access on the instance you choose, verify the account, publish scheduled posts, upload media, and read and answer direct messages and comments. Your instance address is stored so publishing reaches the right server.',
+            'LinkedIn: once production access is approved, identify you via OpenID, publish posts as you, and read your own posts and their statistics. If you connect a Company Page you administer, the same applies to that Page.',
             'YouTube: upload videos to your channel, read the channel and video list to confirm delivery and show status, and manage comments on uploads published through Sosial.',
             'Pinterest: read your account, and read and write boards and Pins, publishing scheduled Pins to the boards you choose.',
             'WordPress: connect a self-hosted or WordPress.com site with an application password, and publish the posts you schedule to it as drafts or live.',
@@ -245,7 +247,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           t: 'p',
-          c: 'A small number of the channels we list are shown as "Soon" and cannot be connected yet: Google Business Profile and LinkedIn. They appear in the product so you can see what is coming, but no data is collected for them until they go live.',
+          c: 'Two channels are in preview and cannot be connected yet: Google Business Profile, waiting on Google\'s API approval, and LinkedIn, waiting on production access. They appear in the product so you can see what is coming, but no data is collected for them until they go live.',
         },
         {
           t: 'p',
@@ -258,7 +260,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'When you attach photos or videos from a connected source, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it to your post. For Google Photos, picking happens inside Google\u2019s own picker interface, and only the photos you select are ever shared with the app. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos automatically carry the photographer\u2019s name and profile link in your caption, as their license requires.',
+          c: 'When you attach photos or videos from a connected source, the app lists your files or designs so you can pick one, downloads only the file you choose, and attaches it to your post. Nothing outside the folder or search you are browsing is read. Access is read-only: Sosial never uploads, edits, moves, shares or deletes anything in your cloud storage or design library. Unsplash photos automatically carry the photographer\u2019s name and profile link in your caption, as their license requires.',
         },
         {
           t: 'p',
@@ -293,9 +295,10 @@ export const PRIVACY: LegalDoc = {
           t: 'ul',
           c: [
             'To publish the posts you schedule, at the times you choose.',
-            'To show your calendar, queue and per-channel results.',
+            'To show your calendar, queue, inbox, comments and per-channel results.',
+            'To route posts through the approvals workflow and tell the right teammates when something needs review.',
+            'To deliver push notifications to the devices where you enabled them, and essential service email: sign-in links, invites and account notices.',
             'To operate your subscription and provide support.',
-            'To send essential service email: sign-in links, invites and account notices.',
           ],
         },
         {
@@ -305,11 +308,11 @@ export const PRIVACY: LegalDoc = {
       ],
     },
     {
-      title: 'The AI writer',
+      title: 'The AI features',
       blocks: [
         {
           t: 'p',
-          c: 'When you use the AI writer, the brief you submit is sent to the configured AI provider to generate a draft, and the result is returned to your workspace. We do not use your briefs or drafts to train models. If you enable web research for a post, the writer performs a live search to ground the copy and returns the sources it used.',
+          c: 'When you use an AI feature — the writer, per-channel captions, or the blog and studio drafts — the brief and any material you point it at are sent to OpenAI, our AI provider, to generate a result, which is returned to your workspace. We do not use your briefs, inputs or drafts to train models, and OpenAI does not train on data submitted through its API. If you enable web research for a post, the writer performs a live search to ground the copy and returns the sources it used. AI output can be wrong or incomplete, so review it before publishing.',
         },
       ],
     },
@@ -318,7 +321,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'If you use the inbox or comments features, we read the direct messages and comments that arrive on the channels you connect, so they can be shown in one place and answered from Sosial. This covers direct messages on Facebook Pages (Messenger), Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon and Bluesky. No other connected channel exposes messages or comments to us.',
+          c: 'If you use the inbox or comments features, we read the direct messages and comments that arrive on the channels you connect, so they can be shown in one place and answered from Sosial. This covers direct messages on Facebook Pages (Messenger), Instagram, Mastodon, X and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube. On Facebook and Instagram you can also hide or delete a comment from Sosial, which calls the platform\'s own moderation endpoint. No other connected channel exposes messages or comments to us.',
         },
         {
           t: 'ul',
@@ -334,6 +337,15 @@ export const PRIVACY: LegalDoc = {
         {
           t: 'p',
           c: 'Anyone in your workspace who can see the channel can read its inbox and comments feed. Messages and comments are kept while the workspace exists: disconnecting a channel stops new reads but leaves what was already synced, unless you choose Delete data for that channel, which removes the messages and comments we stored for it. Deleting the workspace removes everything. Deleting a message or comment on the platform itself does not delete it from Sosial, so you can still see the thread you were working on.',
+        },
+      ],
+    },
+    {
+      title: 'Notifications',
+      blocks: [
+        {
+          t: 'p',
+          c: 'If you enable push notifications, your device registers an Expo push token. We store it against your user and workspace, together with the device platform, so the worker can tell you when a post publishes, fails or needs approval, and when your team changes. Delivery runs through Expo\'s push service. The alert text can contain a post title or a teammate\'s name, so lockscreen previews may reveal that much. You can turn notifications off in the app or in your device settings; the token is deleted when you delete your account.',
         },
       ],
     },
@@ -360,17 +372,17 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'We apply technical and organisational safeguards to Google user data and to all other personal data we handle:',
+          c: 'We apply these technical and organisational safeguards to all personal data we handle, including Google user data:',
         },
         {
           t: 'ul',
           c: [
             'Encryption in transit: every connection between your device, our servers and Google uses TLS/HTTPS. Google API traffic uses Google\'s required TLS (minimum 1.2).',
             'Encryption at rest: data is encrypted at rest in our database, object storage and backups, using AES-256 or the provider\'s equivalent.',
-            'Access tokens: OAuth access and refresh tokens for connected accounts are encrypted before storage (AES-256-GCM with a server-held key held in our secrets manager). They are decrypted only by the publishing worker, only at publish time, and are never shown in the app or written to logs.',
+            'Channel credentials: OAuth access and refresh tokens, WordPress application passwords, bot tokens, API keys and the Bluesky app password are encrypted before storage (AES-256-GCM with a server-held key in our secrets manager). They are decrypted only by the publishing worker or inbox sync, only when a request needs them, and are never shown back in the app or written to logs.',
             'Least privilege: we request only the Google scopes a feature needs, we employ the narrowest practical scope, and we do not request access you do not use.',
             'Access control: internal access to production systems is limited to the personnel who operate the service, is protected by multi-factor authentication, and is logged. There is no public or unauthenticated access to user data.',
-            'Token minimization: Google Photos are accessed through Google\'s own picker and only the photos you select are read; Google Drive is read-only. We never store your Google password, and we store no Google data beyond the fields needed to publish and display your account.',
+            'Token minimization: we request only the scopes a feature needs and store no provider data beyond the fields needed to publish and display your account. When Google Drive and Google Photos go live they will be read-only, and Photos will use Google\'s own picker; until then no Drive or Photos data is accessed.',
             'Key management: encryption keys are stored in a managed secrets service, are not committed to source control, and are rotated on a schedule and on staff departure.',
             'Retention and secure deletion: tokens are deleted when you disconnect a channel, and choosing Delete data for a channel removes the posts, stats, comments, messages and queue entries we stored for it; your data is deleted when you delete your workspace, and residual copies in backups expire on a rolling schedule.',
             'Incident response: we monitor for anomalies, restrict and revoke compromised credentials, and will notify affected users and Google without undue delay if a breach affects their data.',
@@ -392,10 +404,11 @@ export const PRIVACY: LegalDoc = {
         {
           t: 'ul',
           c: [
-            'The social platforms you connect: we send your post content and media to each platform\'s official API so it can publish on your behalf. This is the whole point of the feature and happens only for the posts you schedule and the channels you choose.',
-            'Cloud infrastructure and storage subprocessors: our database, object storage, hosting and email providers, which host the service and hold data under our instructions. They are contractually bound to protect it and may not use it for their own purposes.',
-            'AI writer provider: when you use the AI writer, the brief you submit is sent to the configured AI provider to generate a draft. Google user data is never included unless you put it in the brief yourself.',
-            'Payment provider: our billing provider processes your subscription. We share a customer and subscription reference; we never receive or store your full card number.',
+            'The social platforms you connect: we send your post content and media to each platform\'s official API so it can publish on your behalf, and we read the messages and comments you ask to see in the inbox. This happens only for the posts, channels and inboxes you choose.',
+            'Cloud infrastructure and storage subprocessors: Supabase (database, authentication and object storage), Vercel (web app hosting), Railway (the publishing worker) and Expo (push notification delivery). They host and process data under our instructions, are contractually bound to protect it, and may not use it for their own purposes.',
+            'AI provider: OpenAI receives the brief and material you submit to an AI feature and returns the generated result. Google user data is never included unless you put it in the brief yourself.',
+            'Payment provider: Stripe processes web subscriptions, and the app store processes mobile purchases where offered. We share a customer and subscription reference; we never receive or store your full card number.',
+            'The source tools you connect: Dropbox, Canva, Unsplash, OneDrive, Notion and Google Sheets are called only to list or fetch the item you pick, and Zapier or an MCP agent acts on your workspace only through an API key you generate and can revoke.',
             'Legal and safety: we may disclose data if required by law, to enforce our terms, or to protect the rights, safety and security of our users and the public. Where lawful, we will tell you first.',
           ],
         },

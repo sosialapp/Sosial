@@ -20,70 +20,179 @@
 <main>
   <img src="bolt.png" alt="Sosial" width="56">
   <h1>Privacy Policy</h1>
-  <p class="meta">Effective: September 19, 2026 · Sosial (“we”, “the app”)</p>
+  <p class="meta">Effective: October 27, 2026 · Sosial (“we”, “the app”), operated by EGATE WORLDWIDE</p>
 
   <h2>What Sosial does</h2>
-  <p>Sosial lets you compose posts and publish or schedule them to social
-  accounts you connect (Facebook, Instagram, Threads, TikTok, X, Bluesky,
-  Mastodon, LinkedIn, Pinterest, YouTube). This policy explains what data that
-  requires and how we handle it.</p>
+  <p>Sosial lets you compose, schedule and publish posts to social accounts you
+  connect, share a calendar and approval flow with your team, read and answer
+  messages and comments in one inbox, and draft copy with AI. This policy
+  explains what data that requires and how we handle it.</p>
 
   <h2>Data we collect</h2>
   <ul>
     <li><strong>Account info:</strong> your email address, used for sign-in and
     team identity.</li>
-    <li><strong>Social authorizations:</strong> OAuth access and refresh tokens
-    for each platform you connect. Tokens live in your device's secure storage
-    and, when you enable cloud publishing, in our backend vault so scheduled
-    posts can publish while the app is closed.</li>
-    <li><strong>Your content:</strong> drafts, captions, schedules, and the
-    photos/videos you attach. Media for scheduled posts is mirrored to our
-    backend storage so it can publish on time.</li>
-    <li><strong>Team roster:</strong> names, emails, and roles you add, used
-    only for the approvals workflow.</li>
+    <li><strong>Workspace data:</strong> posts, captions, schedules, media,
+    templates, the approval status and review history of each post, and the
+    roles of the people in the workspace.</li>
+    <li><strong>Social authorizations:</strong> the credential for each platform
+    you connect — OAuth access and refresh tokens, an application password or
+    bot token for WordPress, Telegram, Discord and Ghost, or a Bluesky handle
+    plus app password. Credentials are encrypted before storage and, when you
+    enable cloud publishing, kept in our backend vault so scheduled posts can
+    publish while the app is closed.</li>
+    <li><strong>Inbox data:</strong> messages and comments read for channels
+    where you use the inbox, described below.</li>
+    <li><strong>Notifications:</strong> an Expo push token per device where you
+    enabled notifications, with the device platform.</li>
+    <li><strong>Billing:</strong> Stripe on the web and, where offered, the app
+    store you purchased from. We store a customer and subscription reference,
+    never your card number.</li>
   </ul>
   <p>We run <strong>no advertising SDKs, no analytics SDKs, and no
   cross-app trackers</strong>. We do not sell your data.</p>
 
-  <h2>Your content</h2>
-  <p>What you publish through Sosial is yours: we store and deliver it on
-  your behalf, but we do not review it and we are not responsible for it.
-  Racist, hateful, explicit, defamatory, misleading or unlawful content —
-  including political posts or fake news — is yours alone, and any legal
-  trouble from it is yours, not ours.</p>
+  <h2>Connected social accounts</h2>
+  <p>Sosial publishes to 18 channels. We access a connected account only to
+  publish what you schedule, to read the messages and comments you open in the
+  inbox, and to read the profile and statistics fields needed to show results.
+  LinkedIn and Google Business Profile are in preview and not connectable yet,
+  so no data is collected for them.</p>
+  <ul>
+    <li><strong>X:</strong> read your profile, publish and read posts, upload
+    media, and read and answer direct messages. A refresh token keeps scheduled
+    posts publishing. X requires a paid plan because its posting API is metered.</li>
+    <li><strong>Instagram:</strong> read your Business or Creator profile,
+    publish the photos, videos and reels you schedule, read comments, and answer
+    direct messages. We deliberately do not request insights access.</li>
+    <li><strong>TikTok:</strong> read your basic profile and video statistics,
+    upload and publish the videos and photos you schedule, and list posted
+    videos to confirm delivery.</li>
+    <li><strong>Facebook:</strong> list the Pages you manage, read their
+    engagement and content, publish scheduled posts, photos and videos, read
+    comments (which you can hide or delete), and read and answer Messenger
+    conversations for those Pages. Personal timelines are never touched.</li>
+    <li><strong>Threads:</strong> read your profile, publish scheduled posts,
+    read replies, and read insights for content published through Sosial.</li>
+    <li><strong>Bluesky:</strong> publish scheduled posts and upload their
+    images and video, read and answer direct messages, and read comments, using
+    a short-lived session minted from your app password.</li>
+    <li><strong>Mastodon:</strong> read and write access on the instance you
+    choose, verify the account, publish scheduled posts, upload media, and read
+    and answer direct messages and comments. Your instance address is stored so
+    publishing reaches the right server.</li>
+    <li><strong>LinkedIn (preview):</strong> once production access is approved,
+    identify you via OpenID, publish posts as you, read your own posts and their
+    statistics, and do the same for a Company Page you administer.</li>
+    <li><strong>YouTube:</strong> upload videos to your channel, read the channel
+    and video list to confirm delivery and show status, and read and manage
+    comments on uploads published through Sosial.</li>
+    <li><strong>Pinterest:</strong> read your account, and read and write boards
+    and Pins, publishing scheduled Pins to the boards you choose.</li>
+    <li><strong>WordPress:</strong> connect a self-hosted or WordPress.com site
+    with an application password, and publish scheduled posts as drafts or live.</li>
+    <li><strong>Dev.to:</strong> publish scheduled articles and upload their
+    cover images through the Dev.to API.</li>
+    <li><strong>Hashnode:</strong> publish scheduled articles to a publication
+    you own through Hashnode.</li>
+    <li><strong>Ghost:</strong> publish scheduled posts to a Ghost site through
+    its Admin API.</li>
+    <li><strong>Telegram:</strong> send scheduled messages and media to a channel
+    or group you administer, through a bot you authorise.</li>
+    <li><strong>Discord:</strong> post scheduled messages and media to a server
+    channel through a bot you authorise.</li>
+    <li><strong>VK:</strong> publish scheduled posts and media to your VK profile
+    or community.</li>
+    <li><strong>Google Business Profile (preview):</strong> once Google approves
+    API access, publish scheduled posts to a location you manage.</li>
+  </ul>
+  <p>Some platforms gate features behind their own review — Meta for advanced
+  Page and Instagram permissions, Google for Business Profile, LinkedIn for
+  production API access. Until that approval lands the channel stays in preview
+  and no account is accessed.</p>
+  <p>Disconnecting a channel deletes the stored credential and pauses
+  publishing. A separate Delete data action erases the posts, stats, comments
+  and messages stored for that channel.</p>
+
+  <h2>Messages and comments</h2>
+  <p>If you use the inbox or comments features, we read the messages and
+  comments that arrive on the channels you connect so they can be shown in one
+  place and answered from Sosial. That covers direct messages on Facebook Pages
+  (Messenger), Instagram, X, Mastodon and Bluesky, and comments on Facebook,
+  Instagram, Threads, X, Mastodon, Bluesky and YouTube. On Facebook and
+  Instagram you can hide or delete a comment through the platform's own
+  moderation endpoint.</p>
+  <ul>
+    <li><strong>Conversations and messages:</strong> the participant's display
+    name and avatar, the text you and they write, attachments, direction,
+    timestamp and delivery status.</li>
+    <li><strong>Comments:</strong> the author's display name and avatar, the
+    text, the post it belongs to, the timestamp, and whether you replied, hid or
+    deleted it.</li>
+  </ul>
+  <p>We read this through each platform's API on a sync schedule and through the
+  platforms' webhooks, only for channels in your workspace, and we store it so
+  the inbox loads without calling the platform on every visit. We do not sell
+  this data, do not use it for advertising, and do not use it to train models.
+  Disconnecting a channel stops new reads but leaves what was already synced
+  until you choose Delete data for that channel.</p>
+
+  <h2>Notifications</h2>
+  <p>If you enable push notifications, your device registers an Expo push
+  token, stored against your user and workspace with the device platform. We use
+  it to tell you when a post publishes, fails or needs approval, and when your
+  team changes. Delivery runs through Expo's push service; alert text can
+  contain a post title or a teammate's name. You can turn notifications off in
+  the app or in device settings; the token is deleted with your account.</p>
 
   <h2>Content sources and AI</h2>
-  <p>Media sources (Dropbox, Canva, Unsplash, OneDrive) are read-only and
-  only the file you pick is ever downloaded. Notion and Google Sheets
-  imports are one-way, into drafts. Automation tools and AI agents act
-  through an API key you control. The AI writer sends your brief to our AI
-  provider to draft copy; briefs and drafts are never used to train
-  models.</p>
+  <p>Media sources (Dropbox, Canva, Unsplash, OneDrive) are read-only and only
+  the file you pick is ever downloaded. Notion and Google Sheets imports are
+  one-way, into drafts. Automation tools and AI agents act through an API key
+  you control and can revoke. AI features — the writer, per-channel captions,
+  and blog and studio drafts — send your brief and the material you point at to
+  OpenAI, our AI provider; briefs, inputs and drafts are never used to train
+  models. AI output can be wrong, so review it before publishing. Google Drive
+  and Google Photos are not connectable yet, pending Google's verification, and
+  no data is read from them.</p>
 
   <h2>How we use it</h2>
   <ul>
     <li>Publish and schedule the posts you create, to the accounts you chose.</li>
-    <li>Show per-channel stats and comments you ask to see.</li>
-    <li>Keep you signed in and your scheduled queue running.</li>
+    <li>Show your calendar, queue, inbox, comments and per-channel results.</li>
+    <li>Route posts through approvals and notify the right teammates.</li>
+    <li>Deliver push notifications you enabled and essential service email.</li>
+    <li>Operate your subscription and provide support.</li>
   </ul>
+  <p>We do not sell your data, we do not use your content to train AI models,
+  and we do not use Google user data to serve advertisements.</p>
 
   <h2>Sharing</h2>
   <ul>
     <li><strong>Platforms you connect:</strong> publishing inherently sends your
-    post content and media to that platform's API, under your account.</li>
-    <li><strong>Hosting providers:</strong> Supabase (database, auth, storage)
-    processes data on our behalf.</li>
-    <li><strong>Your TikTok photo host:</strong> if you configure one for TikTok
-    photo posts, images pass through a server you control; our reference setup
-    deletes them automatically after 24 hours.</li>
-    <li>We disclose data if required by law. Nothing else is shared.</li>
+    post content and media to that platform's API, under your account; inbox
+    reads go to the platforms whose messages and comments you open.</li>
+    <li><strong>Infrastructure providers:</strong> Supabase (database,
+    authentication, storage), Vercel (web hosting), Railway (publishing worker)
+    and Expo (push delivery) process data on our behalf.</li>
+    <li><strong>OpenAI:</strong> receives the brief and material you submit to
+    an AI feature and returns the result.</li>
+    <li><strong>Billing:</strong> Stripe for web subscriptions, and the app store
+    for mobile purchases where offered.</li>
+    <li><strong>Source tools</strong> you connect: Dropbox, Canva, Unsplash,
+    OneDrive, Notion, Google Sheets, Zapier and MCP, called only for the item you
+    pick or the action you trigger.</li>
+    <li>We disclose data if required by law or to protect rights and safety;
+    where lawful we tell you first. Nothing else is shared.</li>
   </ul>
 
   <h2>Retention</h2>
   <ul>
-    <li>Tokens are kept until you disconnect the channel or delete your account.</li>
-    <li>Scheduled media is kept until the post publishes (plus short retry
-    windows), then cleaned up.</li>
+    <li>Credentials are kept until you disconnect the channel or delete your
+    account.</li>
+    <li>Media attached to scheduled posts is kept until the post publishes (plus
+    short retry windows), then cleaned up; your media library stays until you
+    delete it.</li>
     <li>Sent-post records are kept so your history and analytics work, until you
     delete them or your account.</li>
     <li>Accounts inactive for six consecutive months (no sign-in and no
@@ -106,26 +215,32 @@
 
   <h2>Your choices</h2>
   <ul>
-    <li>Disconnect any channel in Connect to revoke its tokens.</li>
-    <li>Delete your account in the app — this wipes local data and tokens.</li>
-    <li>Contact us (below) for a copy or deletion of backend data.</li>
+    <li>Disconnect any channel in Connect to revoke its credentials.</li>
+    <li>Delete data for a single channel without disconnecting it.</li>
+    <li>Delete your account in the app, or request deletion at
+    <a href="https://sosial.app/delete-data">sosial.app/delete-data</a>.</li>
+    <li>Turn push notifications off in the app or in device settings.</li>
+    <li>Contact us for a copy of your data.</li>
   </ul>
 
   <h2>Security</h2>
-  <p>Tokens are held in device secure storage and a server-side vault, never in
-  plain app code or logs. No method is perfect, but we limit access to what
-  publishing needs.</p>
+  <p>Credentials are held in device secure storage and a server-side vault,
+  encrypted with AES-256-GCM, never in plain app code or logs. Traffic is
+  encrypted in transit, data is encrypted at rest, and production access is
+  limited and logged. No method is perfect, but we limit access to what
+  publishing and the inbox need.</p>
 
   <h2>Children</h2>
-  <p>Sosial is not directed at children under 13, and we do not knowingly
-  collect their data.</p>
+  <p>Sosial is a business tool and is not directed at children. We do not
+  knowingly collect data from anyone below the minimum age required to hold a
+  social media account in their jurisdiction.</p>
 
   <h2>Changes</h2>
   <p>We will update this page when the policy changes and revise the effective
-  date above.</p>
+  date above. Important changes are announced in the product first.</p>
 
   <h2>Contact</h2>
-  <p>Questions or requests: <a href="mailto:support@sosial.app">support@sosial.app</a>.</p>
+  <p>Questions or requests: <a href="mailto:support@sosial.app">support@sosial.app</a>. The data controller is EGATE WORLDWIDE.</p>
 </main>
 </body>
 </html>
