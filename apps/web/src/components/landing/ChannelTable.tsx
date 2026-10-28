@@ -109,7 +109,9 @@ export async function ChannelMatrix({
   const pinHover = docs ? '[tr:hover_&]:bg-card' : '[tr:hover_&]:bg-[#FAFAF8]';
   return (
     <>
-      <div className="-mx-4 mt-12 overflow-x-auto px-4 [scrollbar-width:thin]">
+      {/* relative: the cells' sr-only labels are absolutely positioned; without a
+          positioned scroller they escape it and widen the page on phones. */}
+      <div className="relative -mx-4 mt-12 overflow-x-auto px-4 [scrollbar-width:thin]">
         <table className="w-full min-w-[980px] border-collapse text-left">
           <thead>
             <tr className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink/40">

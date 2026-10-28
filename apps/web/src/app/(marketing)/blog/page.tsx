@@ -98,7 +98,7 @@ export default async function BlogIndex({
       <div className="sticky top-16 z-30 border-b border-line bg-paper/90 backdrop-blur">
         <nav
           aria-label="Filter by topic"
-          className="mx-auto flex max-w-[1200px] gap-7 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="relative mx-auto flex max-w-[1200px] gap-7 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {tab('/blog', 'All', !active, <LayoutGrid className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />)}
           {BLOG_TAGS.map((t) => tab(`/blog?tag=${t}`, t, active === t, <TagIcon tag={t} className="h-4 w-4" />))}

@@ -64,7 +64,7 @@ export default function Prose({ blocks, className = '' }: { blocks: Block[]; cla
           const head = hasHead ? grid[0] : null;
           const bodyRows = hasHead ? grid.slice(1) : grid;
           return (
-            <div key={i} className="mt-6 overflow-x-auto rounded-2xl border border-line">
+            <div key={i} className="relative mt-6 overflow-x-auto rounded-2xl border border-line">
               <table className="w-full border-collapse text-sm">
                 {head ? (
                   <thead>

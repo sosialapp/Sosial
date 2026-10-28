@@ -18,7 +18,7 @@ export default function ChannelDock({ active, label = 'All integrations' }: { ac
   return (
     <nav aria-label={label} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
       <span className="shrink-0 text-xs font-bold text-muted">{label}</span>
-      <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+      <div className="no-scrollbar relative -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
         {CHANNEL_GUIDES.map((g) => {
           const isActive = g.key === active;
           const soon = SOON.has(g.key as BrandProvider);

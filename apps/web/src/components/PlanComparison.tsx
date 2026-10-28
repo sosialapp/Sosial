@@ -104,7 +104,7 @@ export default function PlanComparison() {
 
         {open ? (
         <>
-        <div className="mt-12 overflow-x-auto pb-4 [scrollbar-width:thin]">
+        <div className="relative mt-12 overflow-x-auto pb-4 [scrollbar-width:thin]">
           <table className="w-full min-w-[920px] border-separate border-spacing-0">
             <thead>
               <tr>

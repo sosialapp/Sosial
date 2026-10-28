@@ -83,7 +83,7 @@ export default async function ComparePage() {
 
       <Section flush>
         <Reveal y={24}>
-          <div className="overflow-x-auto rounded-[24px] border border-line">
+          <div className="relative overflow-x-auto rounded-[24px] border border-line">
             <table className="w-full min-w-[680px] border-collapse text-[15px]">
               <thead>
                 <tr className="border-b border-line">
