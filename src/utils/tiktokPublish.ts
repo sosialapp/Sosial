@@ -154,8 +154,10 @@ export async function publishTikTokVideo(opts: {
   const blob: any = fileXhr.response;
   const size: number = blob?.size ?? 0;
   if (!size) throw new Error('Could not read the video file, re-attach it and try again.');
-  const totalChunks = Math.max(1, Math.ceil(size / CHUNK));
+  // TikTok rounds the chunk count DOWN and the last chunk carries the
+  // remainder; rounding up is refused at init with invalid_params.
   const chunkSize = Math.min(CHUNK, size);
+  const totalChunks = Math.max(1, Math.floor(size / chunkSize));
 
   const initJ: any = await fetchJson(`${TT_API}/v2/post/publish/video/init/`, {
     method: 'POST',
@@ -187,7 +189,7 @@ export async function publishTikTokVideo(opts: {
   const ctype = contentTypeFor(opts.videoUri);
   for (let i = 0; i < totalChunks; i++) {
     const start = i * chunkSize;
-    const end = Math.min(size, start + chunkSize);
+    const end = i === totalChunks - 1 ? size : start + chunkSize;
     const part = blob.slice(start, end);
     const putXhr = await xhrRequest('PUT', uploadUrl, {
       headers: {

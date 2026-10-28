@@ -258,8 +258,11 @@ async function publishVideo(
   tt: TtOptions,
 ): Promise<string> {
   if (!totalBytes) throw new Error('Video is empty, re-attach it and re-queue.');
-  const totalChunks = Math.max(1, Math.ceil(totalBytes / CHUNK));
+  // TikTok's media transfer rules: total_chunk_count = video_size / chunk_size
+  // rounded DOWN, and the remainder rides on the last chunk (up to 128 MB).
+  // Rounding up is refused at init with invalid_params.
   const chunkSize = Math.min(CHUNK, totalBytes);
+  const totalChunks = Math.max(1, Math.floor(totalBytes / chunkSize));
   const init = await fetch(`${TT_API}/v2/post/publish/video/init/`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
@@ -275,20 +278,29 @@ async function publishVideo(
     throw new Error(friendly(String(initJ?.error?.code ?? ''), 'TikTok upload init failed.'));
   }
   let sent = 0;
-  for await (const chunk of chunks) {
+  let part = 0;
+  const putPart = async (buf: Buffer): Promise<void> => {
     const start = sent;
-    const end = start + chunk.length;
+    const end = start + buf.length;
     const put = await fetch(uploadUrl, {
       method: 'PUT',
       headers: { 'Content-Type': mime, 'Content-Range': `bytes ${start}-${end - 1}/${totalBytes}` },
-      body: Uint8Array.from(chunk),
+      body: Uint8Array.from(buf),
     });
     await put.arrayBuffer().catch(() => null);
     if (put.status !== 200 && put.status !== 201 && put.status !== 206) {
-      throw new Error(`TikTok upload stalled on part ${start / chunkSize + 1}/${totalChunks}, the job will retry shortly.`);
+      throw new Error(`TikTok upload stalled on part ${part + 1}/${totalChunks}, the job will retry shortly.`);
     }
     sent = end;
+    part += 1;
+  };
+  // Every part but the last goes out as read; the last absorbs the remainder.
+  const tail: Buffer[] = [];
+  for await (const chunk of chunks) {
+    if (part < totalChunks - 1) await putPart(chunk);
+    else tail.push(chunk);
   }
+  if (tail.length) await putPart(Buffer.concat(tail));
   if (sent !== totalBytes) {
     throw new Error(`TikTok upload delivered ${sent}/${totalBytes} bytes, the job will retry shortly.`);
   }
