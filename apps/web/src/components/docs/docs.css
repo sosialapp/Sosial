@@ -208,40 +208,6 @@
   margin: 2rem 0;
 }
 
-/* ------------------------------ docs home ----------------------------- */
-
-@keyframes docs-hero-fill {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-.docs-hero-bar {
-  animation: docs-hero-fill 6s linear forwards;
-}
-
-@keyframes docs-hero-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.docs-hero-q {
-  animation: docs-hero-in 0.45s ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .docs-hero-q {
-    animation: none;
-  }
-}
-
 /* ------------------------------ true black ----------------------------- */
 /* The docs' dark theme is pure black rather than the app's warm night. */
 .docs-site.theme-dark {

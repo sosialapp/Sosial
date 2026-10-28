@@ -4,37 +4,8 @@ import { ArrowRight, ArrowUpRight, BarChart3, CalendarDays, CheckCheck, FileInpu
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import type { DocsPage, DocsSection } from '@/lib/docs';
-import DocsHeroQuestions, { type HeroQuestion } from './DocsHeroQuestions';
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app').replace(/\/+$/, '');
-
-/** Hero headlines. A question shows only while its page is published. */
-const QUESTIONS: { parts: HeroQuestion['parts']; slug: string }[] = [
-  {
-    parts: [{ t: 'How do I post ' }, { t: 'one video', hl: true }, { t: ' to ' }, { t: 'TikTok, Instagram and YouTube', hl: true }, { t: ' at once?' }],
-    slug: 'scheduling-posts',
-  },
-  {
-    parts: [{ t: 'How do I connect an ' }, { t: 'Instagram', hl: true }, { t: ' business or ' }, { t: 'creator account', hl: true }, { t: '?' }],
-    slug: 'instagram',
-  },
-  {
-    parts: [{ t: 'How long can a post be on ' }, { t: 'X, Threads and Bluesky', hl: true }, { t: '?' }],
-    slug: 'channels',
-  },
-  {
-    parts: [{ t: 'How do I schedule posts from ' }, { t: 'Zapier', hl: true }, { t: ' or ' }, { t: 'Make', hl: true }, { t: '?' }],
-    slug: 'api',
-  },
-  {
-    parts: [{ t: 'How do I let ' }, { t: 'Claude', hl: true }, { t: ' draft and ' }, { t: 'schedule my posts', hl: true }, { t: '?' }],
-    slug: 'mcp',
-  },
-  {
-    parts: [{ t: 'Where do I start with ' }, { t: 'Sosial', hl: true }, { t: '?' }],
-    slug: 'introduction',
-  },
-];
 
 /** Connect → write → schedule, the path the starter guides walk through. */
 const STEPS = [
@@ -107,10 +78,6 @@ export default function DocsHome({ sections, pages }: { sections: DocsSection[];
   const appPages = pages.filter((p) => p.sectionId !== dev?.id);
   const first = bySlug.get('introduction') ?? appPages[0] ?? pages[0];
 
-  const questions: HeroQuestion[] = QUESTIONS.flatMap((q) => {
-    const p = bySlug.get(q.slug);
-    return p ? [{ parts: q.parts, slug: p.slug, title: p.title }] : [];
-  });
   const steps = STEPS.filter((s) => has(s.slug));
   const apiPage = bySlug.get('api');
   const mcpPage = bySlug.get('mcp');
@@ -128,18 +95,14 @@ export default function DocsHome({ sections, pages }: { sections: DocsSection[];
           style={{ background: 'radial-gradient(circle, var(--color-bolt), transparent 65%)' }}
         />
         <div className="relative mx-auto w-full max-w-[1200px] px-4 pb-16 pt-14 sm:px-6 sm:pb-28 sm:pt-20 lg:px-10">
-          <p className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-xs text-ink/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-bolt" aria-hidden="true" />
-            Sosial Docs
-          </p>
-          {questions.length ? (
-            <DocsHeroQuestions questions={questions} />
-          ) : (
-            <h1 className="mt-5 max-w-3xl font-display text-4xl font-medium tracking-tight sm:text-5xl">
-              Plan, write and publish everywhere with Sosial.
-            </h1>
-          )}
-          <p className="mt-10 max-w-lg text-lg leading-relaxed text-ink/65">
+          <h1 className="max-w-4xl font-display text-[2.1rem] font-medium leading-[1.15] tracking-tight sm:text-5xl sm:leading-[1.12] lg:text-[3.6rem]">
+            Everything you need to{' '}
+            <span className="rounded-xl bg-bolt px-2 text-on-accent [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
+              post everywhere
+            </span>{' '}
+            with Sosial.
+          </h1>
+          <p className="mt-8 max-w-lg text-lg leading-relaxed text-ink/65">
             Guides for connecting channels, writing once and scheduling everywhere, plus the REST API and MCP server for
             automating it.
           </p>
