@@ -31,6 +31,16 @@ function friendly(code: string, fallback: string): string {
   }
 }
 
+/**
+ * friendly() plus TikTok's own error.message and log id: invalid_params only
+ * names the offending field in the message, so it must reach the user.
+ */
+function ttFail(j: any, fallback: string): string {
+  const msg = String(j?.error?.message ?? '').trim();
+  const log = String(j?.error?.log_id ?? j?.error?.logid ?? '').trim();
+  return friendly(String(j?.error?.code ?? ''), fallback) + (msg ? ` ${msg}` : '') + (log ? ` (log ${log})` : '');
+}
+
 function ok(j: any): boolean {
   return j?.error?.code === 'ok';
 }
@@ -164,7 +174,7 @@ export async function publishTikTokVideo(opts: {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
       post_info: {
-        title: opts.title.slice(0, 2200),
+        ...(opts.title ? { title: opts.title.slice(0, 2200) } : {}),
         privacy_level: opts.privacyLevel,
         disable_duet: opts.extras?.disableDuet !== false,
         disable_comment: opts.extras?.disableComment !== false,
@@ -183,7 +193,7 @@ export async function publishTikTokVideo(opts: {
   const publishId: string | undefined = initJ?.data?.publish_id;
   const uploadUrl: string | undefined = initJ?.data?.upload_url;
   if (!ok(initJ) || !publishId || !uploadUrl) {
-    throw new Error(friendly(initJ?.error?.code, 'TikTok upload init failed.'));
+    throw new Error(ttFail(initJ, 'TikTok upload init failed.'));
   }
 
   const ctype = contentTypeFor(opts.videoUri);
@@ -231,8 +241,9 @@ export async function publishTikTokPhotos(opts: {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
       post_info: {
-        title: (opts.title.split('\n')[0] ?? '').slice(0, 90),
-        description: opts.title.slice(0, 4000),
+        ...(opts.title
+          ? { title: (opts.title.split('\n')[0] ?? '').slice(0, 90), description: opts.title.slice(0, 4000) }
+          : {}),
         privacy_level: opts.privacyLevel,
         disable_comment: opts.extras?.disableComment !== false,
         // Never add music on the user's behalf.
@@ -251,7 +262,7 @@ export async function publishTikTokPhotos(opts: {
   }, 30000);
   const publishId: string | undefined = initJ?.data?.publish_id;
   if (!ok(initJ) || !publishId) {
-    throw new Error(friendly(initJ?.error?.code, 'TikTok photo post failed.'));
+    throw new Error(ttFail(initJ, 'TikTok photo post failed.'));
   }
 
   return pollTikTokStatus(publishId, token, 'photos');

@@ -65,6 +65,16 @@ function friendly(code: string, fallback: string): string {
   }
 }
 
+/**
+ * friendly() plus TikTok's own error.message and log id: invalid_params only
+ * names the offending field in the message, so it must reach the user.
+ */
+function ttFail(j: any, fallback: string): string {
+  const msg = String(j?.error?.message ?? '').trim();
+  const log = String(j?.error?.log_id ?? j?.error?.logid ?? '').trim();
+  return friendly(String(j?.error?.code ?? ''), fallback) + (msg ? ` ${msg}` : '') + (log ? ` (log ${log})` : '');
+}
+
 const ok = (j: any): boolean => j?.error?.code === 'ok';
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -89,7 +99,7 @@ interface TtOptions {
 /** Video "title" is TikTok's caption field (up to 2200 chars, hashtags included). */
 function videoPostInfo(o: TtOptions, caption: string): Record<string, unknown> {
   return {
-    title: caption.slice(0, 2200),
+    ...(caption ? { title: caption.slice(0, 2200) } : {}),
     privacy_level: o.privacy,
     disable_duet: o.disableDuet,
     disable_comment: o.disableComment,
@@ -103,8 +113,7 @@ function videoPostInfo(o: TtOptions, caption: string): Record<string, unknown> {
  *  Music is never added on the user's behalf (they add it in TikTok). */
 function photoPostInfo(o: TtOptions, caption: string): Record<string, unknown> {
   return {
-    title: (caption.split('\n')[0] ?? '').slice(0, 90),
-    description: caption.slice(0, 4000),
+    ...(caption ? { title: (caption.split('\n')[0] ?? '').slice(0, 90), description: caption.slice(0, 4000) } : {}),
     privacy_level: o.privacy,
     disable_comment: o.disableComment,
     auto_add_music: false,
@@ -263,6 +272,10 @@ async function publishVideo(
   // Rounding up is refused at init with invalid_params.
   const chunkSize = Math.min(CHUNK, totalBytes);
   const totalChunks = Math.max(1, Math.floor(totalBytes / chunkSize));
+  info(
+    `tiktok init FILE_UPLOAD size=${totalBytes} chunk=${chunkSize} count=${totalChunks} ` +
+      `privacy=${tt.privacy} titleLen=${title.length} brandOrganic=${tt.brandOrganic} brandContent=${tt.brandContent}`,
+  );
   const init = await fetch(`${TT_API}/v2/post/publish/video/init/`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
@@ -275,7 +288,7 @@ async function publishVideo(
   const publishId = String(initJ?.data?.publish_id ?? '');
   const uploadUrl = String(initJ?.data?.upload_url ?? '');
   if (!ok(initJ) || !publishId || !uploadUrl) {
-    throw new Error(friendly(String(initJ?.error?.code ?? ''), 'TikTok upload init failed.'));
+    throw new Error(ttFail(initJ, 'TikTok upload init failed.'));
   }
   let sent = 0;
   let part = 0;
@@ -346,7 +359,7 @@ async function publishVideoFromUrl(token: string, url: string, title: string, tt
   const j: any = await init.json().catch(() => ({}));
   const publishId = String(j?.data?.publish_id ?? '');
   if (!ok(j) || !publishId) {
-    throw new Error(friendly(String(j?.error?.code ?? ''), 'TikTok video post failed.'));
+    throw new Error(ttFail(j, 'TikTok video post failed.'));
   }
   await pollStatus(publishId, token, 'video');
   return publishId;
@@ -383,7 +396,7 @@ async function publishPhotos(token: string, urls: string[], title: string, tt: T
   const j: any = await init.json().catch(() => ({}));
   const publishId = String(j?.data?.publish_id ?? '');
   if (!ok(j) || !publishId) {
-    throw new Error(friendly(String(j?.error?.code ?? ''), 'TikTok photo post failed.'));
+    throw new Error(ttFail(j, 'TikTok photo post failed.'));
   }
   await pollStatus(publishId, token, 'photos');
   return publishId;
