@@ -205,6 +205,19 @@ export async function replyToCommunityComment(commentId: string, text: string): 
   await callEdgeFunction('reply-comment', { comment_id: commentId, text });
 }
 
+/**
+ * Inbox state for comments (p110). Resolving or ignoring is our own
+ * bookkeeping: nothing is sent to the platform, so no extra permission.
+ */
+export async function setCommunityCommentStatus(
+  ids: string[],
+  status: 'new' | 'resolved' | 'ignored',
+): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await supabase().rpc('comment_set_status', { p_comments: ids, p_status: status });
+  if (error) throw new Error(error.message);
+}
+
 export async function fetchCommunityUnseen(workspaceOverride?: string): Promise<CommunityUnseen> {
   const workspace = workspaceOverride ?? (await ws());
   if (!workspace) return { comments: 0, messages: 0 };

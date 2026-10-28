@@ -64,7 +64,7 @@ const ScheduleShape = z.object({
 
 const ListCommentsShape = z.object({
   channel_id: z.string().uuid().optional().describe('Only comments on this channel.'),
-  status: z.enum(['new', 'replied', 'hidden', 'deleted']).optional().describe('Only comments in this state.'),
+  status: z.enum(['new', 'replied', 'resolved', 'ignored', 'hidden', 'deleted']).optional().describe('Only comments in this state.'),
   unanswered_only: z.boolean().optional().describe('Only comments nobody on this side has answered yet.'),
   limit: z.number().int().min(1).max(50).optional().describe('Default 20.'),
   cursor: z.string().optional().describe('Opaque cursor from a previous page.'),

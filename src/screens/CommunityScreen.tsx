@@ -41,6 +41,7 @@ import {
   refreshCommunityInbox,
   replyToCommunityComment,
   sendCommunityMessage,
+  setCommunityCommentStatus,
   subscribeCommunityChanges,
 } from '../utils/community';
 import { tr } from '../i18n';
@@ -163,6 +164,8 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   };
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  /** An inbox-state write (resolve / ignore / reopen) is in flight. */
+  const [stateBusy, setStateBusy] = useState(false);
   const [openConv, setOpenConv] = useState<CommunityConversation | null>(null);
   const [thread, setThread] = useState<CommunityMessage[] | null>(null);
   const [msgDraft, setMsgDraft] = useState('');
@@ -400,6 +403,32 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     }
   };
 
+  /**
+   * Inbox state, applied optimistically. Resolving or ignoring is our own
+   * bookkeeping: the platform comment is untouched and nothing is sent, so
+   * this needs no extra permission (p110 narrow RPC, status column only).
+   */
+  const setStatus = async (ids: string[], status: 'new' | 'resolved' | 'ignored') => {
+    if (!ids.length || stateBusy) return;
+    const marked = new Set(ids);
+    setStateBusy(true);
+    setErr(null);
+    setComments((prev) => prev.map((c) => (marked.has(c.id) ? { ...c, status } : c)));
+    try {
+      await setCommunityCommentStatus(ids, status);
+    } catch (e) {
+      // Put the list back the way the server has it, rather than guessing.
+      setErr(e instanceof Error ? e.message : 'Could not update the comment.');
+      try {
+        mergeComments(await fetchCommunityComments());
+      } catch {
+        /* keep the optimistic list rather than blanking it */
+      }
+    } finally {
+      setStateBusy(false);
+    }
+  };
+
   const openThread = async (c: CommunityConversation) => {
     markSeen('messages', c.id, c.last_message_at ?? new Date().toISOString());
     setOpenConv(c);
@@ -461,7 +490,13 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       .map((g) => {
         const list = [...g.list].sort((x, y) => x.created_at.localeCompare(y.created_at));
         const answered = new Set(list.filter((c) => c.is_own && c.parent_external_id).map((c) => c.parent_external_id));
-        const open = list.filter((c) => !c.is_own && c.status !== 'replied' && !answered.has(c.external_id));
+        // Resolved and ignored are ours: they leave the "to answer" pile even
+        // though nobody replied.
+        const handled = (c: CommunityComment) =>
+          c.status === 'replied' || c.status === 'resolved' || c.status === 'ignored' || answered.has(c.external_id);
+        const open = list.filter((c) => !c.is_own && !handled(c));
+        const resolved = list.filter((c) => !c.is_own && c.status === 'resolved').length;
+        const ignored = list.filter((c) => !c.is_own && c.status === 'ignored').length;
         const seen = new Set<string>();
         const people = [...list].reverse().filter((c) => {
           if (c.is_own) return false;
@@ -474,6 +509,8 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
           ...g,
           list,
           open,
+          resolved,
+          ignored,
           answered,
           people,
           unread: list.filter((c) =>
@@ -549,7 +586,9 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                 <Text style={[s.sentPillT, { color: C.muted }]}>{g.open.length} to answer</Text>
               </View>
             ) : others > 0 ? (
-              <Text style={[s.commentT, { color: C.greenText }]}>✓ All answered</Text>
+              <Text style={[s.commentT, { color: C.greenText }]}>
+                ✓ {g.resolved + g.ignored > 0 ? 'All handled' : 'All answered'}
+              </Text>
             ) : null}
           </View>
         </View>
@@ -776,12 +815,55 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                           ) : null}
                           <Text style={[s.bubbleT, { color: C.ink, marginTop: 2 }]}>{c.body || '(empty comment)'}</Text>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4, marginLeft: 4 }}>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 4, marginLeft: 4 }}>
                           <Text style={s.commentT}>{timeAgo(c.created_at)}</Text>
-                          <TouchableOpacity onPress={() => setReplyFor(c.id)} hitSlop={8}>
-                            <Text style={[s.replyLink, isTarget && { color: C.ink }]}>{tr('mReply')}</Text>
-                          </TouchableOpacity>
-                          {done ? <Text style={[s.commentT, { color: C.greenText }]}>✓ Answered</Text> : null}
+                          {c.status === 'resolved' ? (
+                            <TouchableOpacity
+                              onPress={() => void setStatus([c.id], 'new')}
+                              hitSlop={8}
+                              disabled={stateBusy}
+                              accessibilityLabel="Resolved. Tap to reopen"
+                            >
+                              <Text style={[s.replyLink, { color: C.greenText }]}>✓ Resolved</Text>
+                            </TouchableOpacity>
+                          ) : c.status === 'ignored' ? (
+                            <TouchableOpacity
+                              onPress={() => void setStatus([c.id], 'new')}
+                              hitSlop={8}
+                              disabled={stateBusy}
+                              accessibilityLabel="Ignored. Tap to reopen"
+                            >
+                              <Text style={[s.replyLink, { color: C.muted }]}>Ignored</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <>
+                              <TouchableOpacity onPress={() => setReplyFor(c.id)} hitSlop={8}>
+                                <Text style={[s.replyLink, isTarget && { color: C.ink }]}>{tr('mReply')}</Text>
+                              </TouchableOpacity>
+                              {done ? (
+                                <Text style={[s.commentT, { color: C.greenText }]}>✓ Answered</Text>
+                              ) : (
+                                <>
+                                  <TouchableOpacity
+                                    onPress={() => void setStatus([c.id], 'resolved')}
+                                    hitSlop={8}
+                                    disabled={stateBusy}
+                                    accessibilityLabel="Mark resolved without replying"
+                                  >
+                                    <Text style={s.commentT}>✓ Resolve</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => void setStatus([c.id], 'ignored')}
+                                    hitSlop={8}
+                                    disabled={stateBusy}
+                                    accessibilityLabel="Ignore a comment"
+                                  >
+                                    <Text style={s.commentT}>Ignore</Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
+                            </>
+                          )}
                         </View>
                       </View>
                     </View>

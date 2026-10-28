@@ -31,6 +31,7 @@ interface ChannelGroup {
   provider: string;
   total: number;
   replied: number;
+  handled: number;
   waiting: number;
 }
 
@@ -68,6 +69,7 @@ export default function CommentReportCard({
   const t = useT(appMessages);
 
   const replied = rows.filter((r) => r.status === 'replied').length;
+  const handled = rows.filter((r) => r.status === 'resolved' || r.status === 'ignored').length;
   const waiting = rows.filter((r) => r.status === 'new').length;
   const moderated = rows.filter((r) => r.status === 'hidden' || r.status === 'deleted').length;
 
@@ -78,10 +80,12 @@ export default function CommentReportCard({
       provider: r.platform,
       total: 0,
       replied: 0,
+      handled: 0,
       waiting: 0,
     };
     g.total += 1;
     if (r.status === 'replied') g.replied += 1;
+    if (r.status === 'resolved' || r.status === 'ignored') g.handled += 1;
     if (r.status === 'new') g.waiting += 1;
     groups.set(r.channel_id, g);
   }
@@ -108,6 +112,7 @@ export default function CommentReportCard({
   const tiles = [
     { key: 'crTotal', value: String(rows.length) },
     { key: 'crReplied', value: String(replied) },
+    { key: 'crHandled', value: String(handled) },
     { key: 'crWaiting', value: String(waiting) },
     { key: 'crModerated', value: String(moderated) },
     { key: 'crRate', value: pct(replied, rows.length) },
@@ -133,7 +138,7 @@ export default function CommentReportCard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {tiles.map((tile) => (
             <div key={tile.key} className="rounded-2xl border border-line-soft bg-paper-dim/60 px-3.5 py-3">
               <p className="text-[11px] font-bold uppercase tracking-wide text-faint">{t(tile.key)}</p>
@@ -146,7 +151,7 @@ export default function CommentReportCard({
           <p className="mt-4 rounded-2xl bg-paper-dim px-4 py-6 text-center text-sm text-muted">{t('crEmpty')}</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
+            <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="border-b border-line-soft text-left text-[11px] font-bold uppercase tracking-wide text-faint">
                   <th scope="col" className="pb-2 pr-3 font-bold">
@@ -157,6 +162,9 @@ export default function CommentReportCard({
                   </th>
                   <th scope="col" className="pb-2 pr-3 text-right font-bold">
                     {t('crReplied')}
+                  </th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
+                    {t('crHandled')}
                   </th>
                   <th scope="col" className="pb-2 pr-3 text-right font-bold">
                     {t('crWaiting')}
@@ -184,6 +192,7 @@ export default function CommentReportCard({
                     </td>
                     <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.total}</td>
                     <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.replied}</td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.handled}</td>
                     <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.waiting}</td>
                     <td className="py-2.5 text-right tabular-nums text-ink">{pct(g.replied, g.total)}</td>
                   </tr>

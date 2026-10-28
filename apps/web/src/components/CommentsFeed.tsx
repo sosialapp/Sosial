@@ -19,7 +19,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Check, CornerDownRight, ExternalLink, FileText, Inbox, LoaderCircle, MessageCircle, Play, Send,
+  ArrowLeft, Check, CheckCheck, CornerDownRight, ExternalLink, EyeOff, FileText, Inbox, LoaderCircle, MessageCircle, Play, Send,
 } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
@@ -87,10 +87,16 @@ interface PostGroup {
   last: string;
   /** Other people's comments nobody on our side has answered yet. */
   open: CommentRow[];
+  /** Inbox states we picked ourselves, without replying. */
+  resolved: number;
+  ignored: number;
   unread: number;
   /** Distinct commenters (not us), newest first, for the face stack. */
   people: CommentRow[];
 }
+
+/** Inbox states a member can set by hand (p110). */
+type CommentState = 'new' | 'resolved' | 'ignored';
 
 /** Poster frame of the post; a page glyph when there is none. */
 function PostThumb({ post, size }: { post: PostContext | undefined; size: number }) {
@@ -124,7 +130,7 @@ export default function CommentsFeed({
   const [posts, setPosts] = useState<Record<string, PostContext>>({});
   const [chan, setChan] = useState<string>('all');
   const [order, setOrder] = useState<'new' | 'old'>('new');
-  const [show, setShow] = useState<'all' | 'open'>('all');
+  const [show, setShow] = useState<'all' | 'open' | 'resolved' | 'ignored'>('all');
   /** Open post (group key). */
   const [sel, setSel] = useState<string | null>(null);
   /** group key -> draft text */
@@ -134,6 +140,8 @@ export default function CommentsFeed({
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /** An inbox-state write (resolve / ignore / reopen) is in flight. */
+  const [stateBusy, setStateBusy] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const convoScroll = useRef<HTMLDivElement | null>(null);
@@ -312,6 +320,34 @@ export default function CommentsFeed({
     }
   };
 
+  /**
+   * Inbox state, applied optimistically. Resolving or ignoring is our own
+   * bookkeeping: the platform comment is untouched, and nothing is sent, so
+   * this needs no extra permission (p110 narrow RPC, status column only).
+   */
+  const setStatus = useCallback(
+    async (ids: string[], status: CommentState) => {
+      if (!ids.length || stateBusy) return;
+      const marked = new Set(ids);
+      setStateBusy(true);
+      setErr(null);
+      setNote(null);
+      setRows((prev) => (prev ?? []).map((r) => (marked.has(r.id) ? { ...r, status } : r)));
+      try {
+        const sb = createClient();
+        const { error } = await sb.rpc('comment_set_status', { p_comments: ids, p_status: status });
+        if (error) throw new Error(error.message);
+      } catch (e) {
+        // Put the list back the way the server has it, rather than guessing.
+        setErr(e instanceof Error ? e.message : 'Could not update the comment.');
+        void load();
+      } finally {
+        setStateBusy(false);
+      }
+    },
+    [load, stateBusy],
+  );
+
   const channelsWithRows = useMemo(() => {
     const ids = new Set((rows ?? []).map((r) => r.channel_id));
     return channels.filter((c) => ids.has(c.id));
@@ -333,6 +369,8 @@ export default function CommentsFeed({
           comments: [],
           last: r.created_at,
           open: [],
+          resolved: 0,
+          ignored: 0,
           unread: 0,
           people: [],
         } as PostGroup);
@@ -343,11 +381,14 @@ export default function CommentsFeed({
     for (const g of byKey.values()) {
       g.comments.sort((a, b) => a.created_at.localeCompare(b.created_at));
       // A comment is answered once one of our replies points at it (or the
-      // platform already marked it replied).
+      // platform already marked it replied). Resolved and ignored are ours:
+      // they leave the "to answer" pile even though nobody replied.
       const answered = new Set(g.comments.filter((c) => c.is_own && c.parent_external_id).map((c) => c.parent_external_id));
-      g.open = REPLY_PROVIDERS.has(g.platform)
-        ? g.comments.filter((c) => !c.is_own && c.status !== 'replied' && !answered.has(c.external_id))
-        : [];
+      const handled = (c: CommentRow) =>
+        c.status === 'replied' || c.status === 'resolved' || c.status === 'ignored' || answered.has(c.external_id);
+      g.open = REPLY_PROVIDERS.has(g.platform) ? g.comments.filter((c) => !c.is_own && !handled(c)) : [];
+      g.resolved = g.comments.filter((c) => !c.is_own && c.status === 'resolved').length;
+      g.ignored = g.comments.filter((c) => !c.is_own && c.status === 'ignored').length;
       const stamp = seen[g.key];
       g.unread = g.comments.filter((c) => !c.is_own && (stamp ? c.created_at > stamp : c.status === 'new')).length;
       const people = new Set<string>();
@@ -366,8 +407,15 @@ export default function CommentsFeed({
     return all;
   }, [rows, chan, order, seen]);
 
-  const shown = useMemo(() => (show === 'open' ? groups.filter((g) => g.open.length > 0) : groups), [groups, show]);
+  const shown = useMemo(() => {
+    if (show === 'open') return groups.filter((g) => g.open.length > 0);
+    if (show === 'resolved') return groups.filter((g) => g.resolved > 0);
+    if (show === 'ignored') return groups.filter((g) => g.ignored > 0);
+    return groups;
+  }, [groups, show]);
   const openCount = useMemo(() => groups.reduce((n, g) => n + g.open.length, 0), [groups]);
+  const resolvedCount = useMemo(() => groups.reduce((n, g) => n + g.resolved, 0), [groups]);
+  const ignoredCount = useMemo(() => groups.reduce((n, g) => n + g.ignored, 0), [groups]);
 
   // Desktop shows both panes, so open the first post instead of an empty
   // right side; a phone stays on the list until a post is tapped.
@@ -477,7 +525,7 @@ export default function CommentsFeed({
     <>
       <div className="space-y-2.5 border-b border-line px-4 pt-3.5 pb-3">
         <ChannelStrip channels={channelsWithRows} value={chan} onChange={setChan} />
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Segmented
             label="Show"
             value={show}
@@ -485,6 +533,12 @@ export default function CommentsFeed({
             options={[
               { value: 'all', label: 'All posts' },
               { value: 'open', label: openCount ? `To answer · ${openCount}` : 'To answer' },
+              ...(resolvedCount
+                ? [{ value: 'resolved' as const, label: `Resolved · ${resolvedCount}` }]
+                : [{ value: 'resolved' as const, label: 'Resolved' }]),
+              ...(ignoredCount
+                ? [{ value: 'ignored' as const, label: `Ignored · ${ignoredCount}` }]
+                : [{ value: 'ignored' as const, label: 'Ignored' }]),
             ]}
           />
           <Segmented
@@ -505,11 +559,23 @@ export default function CommentsFeed({
       ) : shown.length === 0 ? (
         <PaneEmpty
           icon={show === 'open' ? <Inbox className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
-          title={show === 'open' && groups.length ? 'All caught up' : chan === 'all' ? 'No comments yet' : 'No comments on this channel yet'}
+          title={
+            show === 'open' && groups.length
+              ? 'All caught up'
+              : show === 'resolved'
+                ? 'Nothing resolved yet'
+                : show === 'ignored'
+                  ? 'Nothing ignored'
+                  : chan === 'all'
+                    ? 'No comments yet'
+                    : 'No comments on this channel yet'
+          }
         >
           {show === 'open' && groups.length
-            ? 'Every comment has an answer from you.'
-            : 'Publish to your channels, get a comment, and it lands here when the engine sweeps - every 5 minutes or on Refresh.'}
+            ? 'Every comment has an answer from you, or has been marked resolved.'
+            : show === 'resolved' || show === 'ignored'
+              ? 'Use Resolve or Ignore under a comment to file it without replying.'
+              : 'Publish to your channels, get a comment, and it lands here when the engine sweeps - every 5 minutes or on Refresh.'}
         </PaneEmpty>
       ) : (
         <ul className="min-h-0 flex-1 divide-y divide-line-soft overflow-y-auto">{shown.map(listRow)}</ul>
@@ -562,6 +628,18 @@ export default function CommentsFeed({
               <span className="hidden shrink-0 text-[11px] font-bold text-muted sm:block">
                 {g.comments.filter((c) => !c.is_own).length} comments
               </span>
+              {g.open.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => void setStatus(g.open.map((c) => c.id), 'resolved')}
+                  disabled={stateBusy}
+                  title={`Mark ${g.open.length} open comments as resolved`}
+                  aria-label={`Mark ${g.open.length} open comments as resolved`}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface hover:text-ink disabled:opacity-40"
+                >
+                  <CheckCheck className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : null}
               {post?.url ? (
                 <a
                   href={post.url}
@@ -663,20 +741,70 @@ export default function CommentsFeed({
                               </button>
                             ) : null}
                           </div>
-                          <p className="mt-1 flex items-center gap-3 pl-1 text-[11px] text-faint">
+                          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 pl-1 text-[11px] text-faint">
                             <span>{when(c.created_at)}</span>
-                            {canReply ? (
+                            {c.status === 'resolved' ? (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setTargets((t) => ({ ...t, [g.key]: c.id }));
-                                  composerRef.current?.focus();
-                                }}
-                                className={`font-bold transition ${isTarget ? 'text-ink' : 'text-muted hover:text-ink'}`}
+                                onClick={() => void setStatus([c.id], 'new')}
+                                disabled={stateBusy}
+                                title="Reopen: put it back in the waiting pile"
+                                className="inline-flex items-center gap-0.5 font-bold text-[#346538] transition hover:underline disabled:opacity-50 dark:text-[#8fd0a0]"
                               >
-                                Reply
+                                <CheckCheck className="h-3 w-3" aria-hidden="true" />
+                                Resolved
                               </button>
-                            ) : null}
+                            ) : c.status === 'ignored' ? (
+                              <button
+                                type="button"
+                                onClick={() => void setStatus([c.id], 'new')}
+                                disabled={stateBusy}
+                                title="Reopen: put it back in the waiting pile"
+                                className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink hover:underline disabled:opacity-50"
+                              >
+                                <EyeOff className="h-3 w-3" aria-hidden="true" />
+                                Ignored
+                              </button>
+                            ) : (
+                              <>
+                                {canReply ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTargets((t) => ({ ...t, [g.key]: c.id }));
+                                      composerRef.current?.focus();
+                                    }}
+                                    className={`font-bold transition ${isTarget ? 'text-ink' : 'text-muted hover:text-ink'}`}
+                                  >
+                                    Reply
+                                  </button>
+                                ) : null}
+                                {done ? null : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => void setStatus([c.id], 'resolved')}
+                                      disabled={stateBusy}
+                                      title="Handled, no public reply needed"
+                                      className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink disabled:opacity-50"
+                                    >
+                                      <CheckCheck className="h-3 w-3" aria-hidden="true" />
+                                      Resolve
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void setStatus([c.id], 'ignored')}
+                                      disabled={stateBusy}
+                                      title="No action wanted"
+                                      className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink disabled:opacity-50"
+                                    >
+                                      <EyeOff className="h-3 w-3" aria-hidden="true" />
+                                      Ignore
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            )}
                             {done ? (
                               <span className="inline-flex items-center gap-0.5 font-bold text-[#346538] dark:text-[#8fd0a0]">
                                 <Check className="h-3 w-3" aria-hidden="true" />

@@ -37,6 +37,7 @@ interface GroupRow {
   provider: string;
   total: number;
   replied: number;
+  handled: number;
   waiting: number;
 }
 
@@ -113,6 +114,7 @@ export default function CommentReport({
   );
 
   const replied = rows.filter((r) => r.status === 'replied').length;
+  const handled = rows.filter((r) => r.status === 'resolved' || r.status === 'ignored').length;
   const waiting = rows.filter((r) => r.status === 'new').length;
   const moderated = rows.filter((r) => r.status === 'hidden' || r.status === 'deleted').length;
 
@@ -124,10 +126,12 @@ export default function CommentReport({
         provider: r.platform,
         total: 0,
         replied: 0,
+        handled: 0,
         waiting: 0,
       };
       g.total += 1;
       if (r.status === 'replied') g.replied += 1;
+      if (r.status === 'resolved' || r.status === 'ignored') g.handled += 1;
       if (r.status === 'new') g.waiting += 1;
       map.set(r.channel_id, g);
     }
@@ -172,6 +176,7 @@ export default function CommentReport({
   const tiles = [
     { key: 'crTotal', value: String(rows.length) },
     { key: 'crReplied', value: String(replied) },
+    { key: 'crHandled', value: String(handled) },
     { key: 'crWaiting', value: String(waiting) },
     { key: 'crModerated', value: String(moderated) },
     { key: 'crRate', value: pct(replied, rows.length) },
@@ -224,10 +229,11 @@ export default function CommentReport({
             <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
               <View style={s.rowHead}>
                 <Text style={[s.rowHeadT, { flex: 1 }]}>{tr('crAccount')}</Text>
-                <Text style={[s.rowHeadT, { width: 40, textAlign: 'right' }]}>{tr('crTotal')}</Text>
-                <Text style={[s.rowHeadT, { width: 40, textAlign: 'right' }]}>{tr('crReplied')}</Text>
-                <Text style={[s.rowHeadT, { width: 40, textAlign: 'right' }]}>{tr('crWaiting')}</Text>
-                <Text style={[s.rowHeadT, { width: 44, textAlign: 'right' }]}>{tr('crRate')}</Text>
+                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crTotal')}</Text>
+                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crReplied')}</Text>
+                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crHandled')}</Text>
+                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crWaiting')}</Text>
+                <Text style={[s.rowHeadT, { width: 40, textAlign: 'right' }]}>{tr('crRate')}</Text>
               </View>
               {groups.map((g, i) => (
                 <View key={g.id} style={[s.row, i > 0 && s.divider]}>
@@ -244,10 +250,11 @@ export default function CommentReport({
                       </Text>
                     </View>
                   </View>
-                  <Text style={[s.num, { width: 40 }]}>{g.total}</Text>
-                  <Text style={[s.num, { width: 40 }]}>{g.replied}</Text>
-                  <Text style={[s.num, { width: 40 }]}>{g.waiting}</Text>
-                  <Text style={[s.num, { width: 44 }]}>{pct(g.replied, g.total)}</Text>
+                  <Text style={[s.num, { width: 34 }]}>{g.total}</Text>
+                  <Text style={[s.num, { width: 34 }]}>{g.replied}</Text>
+                  <Text style={[s.num, { width: 34 }]}>{g.handled}</Text>
+                  <Text style={[s.num, { width: 34 }]}>{g.waiting}</Text>
+                  <Text style={[s.num, { width: 40 }]}>{pct(g.replied, g.total)}</Text>
                 </View>
               ))}
             </View>
