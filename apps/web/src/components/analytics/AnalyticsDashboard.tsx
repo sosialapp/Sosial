@@ -20,6 +20,7 @@ import { fill } from '@/lib/i18n/locales';
 import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/chart';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import ChannelBreakdownDialog from '@/components/analytics/ChannelBreakdownDialog';
+import CommentReportCard, { type CommentReportRow } from '@/components/analytics/CommentReportCard';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { primaryTarget } from '@/lib/postTargets';
 import { fetchMediaForPosts } from '@/lib/posts';
@@ -116,12 +117,14 @@ export default function AnalyticsDashboard({
   postStats,
   channelStats,
   followerHistory,
+  commentRows,
 }: {
   posts: PostWithTargets[];
   channels: ConnectedChannel[];
   postStats: StatSnapshotRow[];
   channelStats: FollowerSnapshotRow[];
   followerHistory: FollowerHistoryRow[];
+  commentRows: CommentReportRow[];
 }) {
   const t = useT(appMessages);
   const now = Date.now();
@@ -273,6 +276,13 @@ export default function AnalyticsDashboard({
   );
   const chanOk = (channelId: string): boolean =>
     chanSel.length === 0 ? connectedIds.has(channelId) : chanSel.includes(channelId);
+  // Comment report: same range as the cards above, own replies excluded so
+  // the rate reflects incoming comments only. With no channel picked we keep
+  // history from disconnected accounts too; comments are a record, not a
+  // live stat.
+  const reportRows = commentRows.filter(
+    (c) => !c.is_own && inRange(c.created_at) && (chanSel.length === 0 || chanSel.includes(c.channel_id)),
+  );
   const statsScoped = useMemo(
     () => postStats.filter((r) => chanOk(r.channel_id)),
     [postStats, chanSel],
@@ -1170,6 +1180,12 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
       </Card>
 
       <p className="mt-4 mb-2 px-1 text-xs leading-relaxed text-faint">{t('anStatsNote')}</p>
+
+      <CommentReportCard
+        rows={reportRows}
+        rangeLabel={range.label}
+        channelLabel={(channelId, provider) => authorOf(channelId, provider).name}
+      />
 
       <PostPreviewDialog post={preview} onClose={() => setPreview(null)} />
       <ChannelBreakdownDialog

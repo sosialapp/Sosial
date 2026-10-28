@@ -20,7 +20,10 @@ export default async function AnalyticsPage() {
   // ~6 months of follower history is plenty for the on-screen ranges; older
   // custom ranges simply carry the earliest available total forward.
   const historyFloor = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
-  const [posts, channels, postStats, channelStats, followerHistory] = await Promise.all([
+  // The comment report filters by the same client-side range, so load a year
+  // once. Capped to keep the payload predictable on large workspaces.
+  const commentFloor = new Date(Date.now() - 365 * 86400000).toISOString();
+  const [posts, channels, postStats, channelStats, followerHistory, comments] = await Promise.all([
     fetchPostsLite(sb, ctx.workspace.id),
     fetchChannels(sb, ctx.workspace.id),
     sb
@@ -39,6 +42,14 @@ export default async function AnalyticsPage() {
       .eq('workspace_id', ctx.workspace.id)
       .gte('captured_on', historyFloor)
       .then((r) => (r.error ? [] : (r.data ?? []))),
+    sb
+      .from('comments')
+      .select('id, channel_id, platform, author_name, body, created_at, status, is_own')
+      .eq('workspace_id', ctx.workspace.id)
+      .gte('created_at', commentFloor)
+      .order('created_at', { ascending: false })
+      .limit(5000)
+      .then((r) => (r.error ? [] : (r.data ?? []))),
   ]);
   return (
     <AnalyticsDashboard
@@ -47,6 +58,7 @@ export default async function AnalyticsPage() {
       postStats={postStats as never}
       channelStats={channelStats as never}
       followerHistory={followerHistory as never}
+      commentRows={comments as never}
     />
   );
 }

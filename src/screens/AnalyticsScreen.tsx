@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import NotificationBell from '../components/NotificationBell';
+import CommentReport from '../components/CommentReport';
 import { SocialGlyph, Seg } from '../components/ui';
 import { BarsChart, HBarList } from '../components/charts';
 import { Tabs } from '../components/ui-kit';
@@ -612,6 +613,18 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               </>
             )}
         </>
+
+        <CommentReport
+          from={range.from}
+          to={range.to}
+          channelIds={chanSel}
+          channels={(data?.channels ?? []).map((c) => ({
+            id: c.id,
+            provider: c.provider,
+            display_name: c.display_name,
+          }))}
+          rangeLabel={range.label}
+        />
       </ScrollView>
     </View>
   );

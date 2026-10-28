@@ -1013,6 +1013,20 @@ const en: Record<string, string> = {
   wcPurgeLMessages: '{n} messages',
   wcPurgeLConversations: '{n} conversation threads',
   wcPurgeLStats: '{n} stats snapshots',
+  // Comment report (Analytics)
+  crTitle: 'Comment report',
+  crSub: 'Comments received {range}, by account.',
+  crTotal: 'Comments',
+  crReplied: 'Replied',
+  crWaiting: 'Waiting',
+  crModerated: 'Hidden or deleted',
+  crRate: 'Reply rate',
+  crByAccount: 'By account',
+  crAccount: 'Account',
+  crEmpty: 'No comments in this range yet.',
+  crExport: 'Export CSV',
+  crNote: 'Counts come from the comment sync (up to 12 months), so a reply shows up here after the next sync.',
+  crLoading: 'Loading comments...',
 };
 
 const es: Record<string, string> = {
