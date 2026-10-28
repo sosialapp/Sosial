@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import Image from 'next/image';
 import { Building2, Check, Compass, Hand, Minus, Scale, Smartphone } from 'lucide-react';
 import Reveal from '@/components/anim/Reveal';
@@ -12,13 +14,13 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('compare');
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? 'Compare',
-    description:
-      meta?.metaDescription ??
-      'How Sosial compares with all-in-one social suites, single-network scheduling apps, and posting by hand. A fair look at where each approach wins.',
-    alternates: { canonical: '/compare' },
-  };
+  return seo({
+    path: '/compare',
+    title: meta?.metaTitle ?? 'Compare social media schedulers',
+    description: meta?.metaDescription ?? 'How Sosial compares with all-in-one social suites, single-network schedulers and posting by hand: what each costs you and where each approach wins.',
+    kicker: 'Compare',
+    cardTitle: meta?.title ?? 'Where Sosial fits.',
+  });
 }
 
 type Cell = string | boolean;
@@ -67,6 +69,7 @@ export default async function ComparePage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Compare', path: '/compare' }]} />
       <Hero
         icon={Scale}
         kicker="Compare"

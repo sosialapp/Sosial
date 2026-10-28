@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import { FaqList } from '@/components/site/PageBlocks';
 import PageCms from '@/components/site/PageCms';
 import PricingPlans from '@/components/PricingPlans';
@@ -14,11 +15,13 @@ export const revalidate = 300;
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('pricing');
   const t = translator(appMessages, await getLocale());
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? t('prTitle'),
+  return seo({
+    path: '/pricing',
+    title: meta?.metaTitle ?? 'Pricing: free plan and paid plans',
     description: meta?.metaDescription ?? t('prMetaDesc'),
-    alternates: { canonical: '/pricing' },
-  };
+    kicker: 'Pricing',
+    cardTitle: meta?.title ?? t('prTitle'),
+  });
 }
 
 export default async function PricingPage() {

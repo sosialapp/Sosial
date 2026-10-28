@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import Link from 'next/link';
 import AppPreview from '@/components/site/app-preview/AppPreview';
 import { FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
 
-export const metadata: Metadata = {
-  title: 'Features',
-  description:
-    'Everything in Sosial: one calendar that publishes to every channel, a composer with per-channel limits, and an AI writer that drafts in your voice.',
-  alternates: { canonical: '/features' },
-};
+export const metadata: Metadata = seo({
+  path: '/features',
+  title: 'Social media management features',
+  description: 'Everything in Sosial: a calendar that publishes to every channel, a composer with per-channel limits, approvals, analytics and an AI writer.',
+  kicker: 'Features',
+  cardTitle: 'Plan it, write it, ship it everywhere.',
+});
 
 const MORE = [
   { href: '/integrations', title: 'Integrations', body: 'Every network Sosial publishes to, and what each one rewards.' },

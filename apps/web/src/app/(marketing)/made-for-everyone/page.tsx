@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import {
   Accessibility, Briefcase, Check, Globe2, HeartHandshake, Languages, MonitorSmartphone, User, Users, UsersRound, Wallet,
 } from 'lucide-react';
@@ -13,13 +15,13 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('made-for-everyone');
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? 'Made for everyone',
-    description:
-      meta?.metaDescription ??
-      'Sosial is built for solo creators, small teams and agencies alike: a free plan that stays free, 100+ languages, real accessibility, and apps on iOS, Android and web.',
-    alternates: { canonical: '/made-for-everyone' },
-  };
+  return seo({
+    path: '/made-for-everyone',
+    title: meta?.metaTitle ?? 'Affordable social media scheduler in 100+ languages',
+    description: meta?.metaDescription ?? 'A free plan that stays free, 100+ languages, real accessibility, and apps on iOS, Android and the web. Social media scheduling built for everyone.',
+    kicker: 'Made for everyone',
+    cardTitle: meta?.title ?? 'Publishing should not be a privilege.',
+  });
 }
 
 export default async function MadeForEveryonePage() {
@@ -27,6 +29,7 @@ export default async function MadeForEveryonePage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Made for everyone', path: '/made-for-everyone' }]} />
       <Hero
         icon={Globe2}
         kicker="Made for everyone"

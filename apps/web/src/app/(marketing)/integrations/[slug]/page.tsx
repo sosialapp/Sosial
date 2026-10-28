@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { docsUrl } from '@/lib/site';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react';
@@ -27,14 +29,17 @@ export async function generateMetadata({
   const c = channelGuide(slug);
   if (!c) return { title: 'Integration not found' };
   const meta = await sitePageMeta(`integrations/${slug}`);
-  const title = meta?.metaTitle ?? meta?.title ?? `Sosial × ${c.name}`;
-  const description = meta?.metaDescription ?? c.tagline;
-  return {
-    title,
-    description,
-    alternates: { canonical: channelHref(c.key) },
-    openGraph: { title, description },
-  };
+  // "Instagram scheduler" and "schedule Instagram posts" are what people search.
+  const long = `${c.tagline} Schedule ${c.name} posts from one calendar, with live limits, previews and a cloud queue.`;
+  const short = `${c.tagline} Schedule ${c.name} posts from one calendar with Sosial.`;
+  return seo({
+    path: channelHref(c.key),
+    title: meta?.metaTitle ?? `${c.name} scheduler: schedule ${c.name} posts`,
+    description: meta?.metaDescription ?? (long.length <= 160 ? long : short),
+    kicker: `${c.name} integration`,
+    cardTitle: `Schedule ${c.name} posts with Sosial`,
+    channel: c.key,
+  });
 }
 
 /**
@@ -91,7 +96,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-faint">Integration</p>
                 <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-balance md:text-5xl">
-                  {meta?.title ?? `Sosial × ${c.name}`}
+                  {meta?.title ?? `Schedule ${c.name} posts with Sosial`}
                 </h1>
               </div>
             </div>
@@ -111,6 +116,14 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
                 How to win on {c.name}
               </Link>
             </div>
+            <a
+              href={`${docsUrl()}/${c.key}`}
+              className="group mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-ink/70 hover:text-ink"
+              data-grid-avoid
+            >
+              Step-by-step {c.name} setup in the docs
+              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" />
+            </a>
           </div>
 
           {/* At a glance: the facts that decide whether this channel fits. */}

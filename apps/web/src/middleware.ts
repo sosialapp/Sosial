@@ -34,7 +34,7 @@ function isGated(path: string): boolean {
 /** Paths the docs host serves as-is instead of mapping into /docs: framework
  *  assets, API routes and the root metadata images. Only `/api/…`, so a docs
  *  page can still be called `api` (docs.sosial.app/api). */
-const DOCS_PASSTHROUGH = /^\/(?:_next\/|api\/|(?:opengraph-image|twitter-image|icon|apple-icon)(?:\/|$|-))/;
+const DOCS_PASSTHROUGH = /^\/(?:_next\/|api\/|og$|(?:opengraph-image|twitter-image|icon|apple-icon)(?:\/|$|-))/;
 
 function isDocsHost(request: NextRequest): boolean {
   const host = (request.headers.get('host') ?? '').toLowerCase();
@@ -85,6 +85,13 @@ function routeDocs(request: NextRequest): NextResponse | null {
  *  behind sign-in. No-ops (rather than crashing) when env is missing so the
  *  login page can explain the setup state. */
 export async function middleware(request: NextRequest) {
+  // One host per site: www.sosial.app (and www.docs…) duplicate the apex, so
+  // they redirect permanently instead of serving a second copy to crawlers.
+  const host = request.headers.get('host') ?? '';
+  if (host.startsWith('www.')) {
+    return NextResponse.redirect(`https://${host.slice(4)}${request.nextUrl.pathname}${request.nextUrl.search}`, 308);
+  }
+
   const docs = routeDocs(request);
   if (docs) return docs;
 

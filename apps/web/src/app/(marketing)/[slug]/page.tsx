@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import { notFound, redirect } from 'next/navigation';
 import { PageHero } from '@/components/site/PageBlocks';
 import ChartIslands from '@/components/site/ChartIslands';
@@ -27,11 +28,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (sitePageDef(slug) || RESERVED_SLUGS.has(slug)) return {};
   const page = await siteCustomPage(slug);
   if (!page) return {};
-  return {
-    title: page.metaTitle ?? page.title ?? slug,
-    description: page.metaDescription ?? undefined,
-    alternates: { canonical: `/${slug}` },
-  };
+  const title = page.metaTitle ?? page.title ?? slug;
+  return seo({
+    path: `/${slug}`,
+    title,
+    description: page.metaDescription ?? `${page.title ?? title}, from Sosial: the social media scheduler for every channel.`,
+    cardTitle: page.title ?? title,
+  });
 }
 
 export default async function CustomSitePage({ params }: { params: Promise<{ slug: string }> }) {

@@ -6,26 +6,28 @@ import { allCustomPages } from '@/lib/sitePages';
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app';
 
+/**
+ * sosial.app/sitemap.xml. lastModified is only set where a real edit date
+ * exists (posts, CMS pages); a "now" stamp on every request would tell
+ * crawlers that nothing is ever stable. Terms and Privacy are left out: their
+ * canonical copies are on docs.sosial.app, which has its own sitemap.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${BASE}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
-    { url: `${BASE}/integrations`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE}/features`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE}/publish`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE}/features/create`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE}/ai-assistant`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE}/blog`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE}/resources`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE}/pricing`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
-    { url: `${BASE}/compare`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${BASE}/made-for-everyone`, lastModified: now, changeFrequency: 'yearly', priority: 0.5 },
-    { url: `${BASE}/transparency`, lastModified: now, changeFrequency: 'yearly', priority: 0.4 },
-    { url: `${BASE}/about`, lastModified: now, changeFrequency: 'yearly', priority: 0.5 },
-    { url: `${BASE}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${BASE}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${BASE}/delete-data`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${BASE}/`, changeFrequency: 'weekly', priority: 1 },
+    { url: `${BASE}/pricing`, changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE}/integrations`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE}/blog`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE}/features`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/publish`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/features/create`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/ai-assistant`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/resources`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE}/compare`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${BASE}/made-for-everyone`, changeFrequency: 'yearly', priority: 0.5 },
+    { url: `${BASE}/about`, changeFrequency: 'yearly', priority: 0.5 },
+    { url: `${BASE}/transparency`, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${BASE}/delete-data`, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   const posts: MetadataRoute.Sitemap = (await allArticles()).map((a) => ({
@@ -33,25 +35,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: new Date(`${a.date}T00:00:00Z`),
     changeFrequency: 'monthly',
     priority: 0.6,
+    images: [a.coverUrl, `${BASE}/blog/${a.slug}/opengraph-image`].filter((x): x is string => !!x),
   }));
 
   const resources: MetadataRoute.Sitemap = allResources().map((r) => ({
     url: `${BASE}/resources/${r.slug}`,
-    lastModified: now,
     changeFrequency: 'monthly',
     priority: 0.5,
   }));
 
   const channels: MetadataRoute.Sitemap = CHANNEL_GUIDES.map((c) => ({
     url: `${BASE}/integrations/${c.key}`,
-    lastModified: now,
     changeFrequency: 'monthly',
-    priority: 0.7,
+    priority: 0.8,
   }));
 
   const custom: MetadataRoute.Sitemap = (await allCustomPages()).map((p) => ({
     url: `${BASE}/${p.slug}`,
-    lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
+    ...(p.updatedAt ? { lastModified: new Date(p.updatedAt) } : {}),
     changeFrequency: 'monthly',
     priority: 0.5,
   }));

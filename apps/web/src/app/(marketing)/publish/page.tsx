@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { Activity, CalendarDays, ListChecks, PauseCircle, PencilLine, Ruler, Send, ShieldCheck } from 'lucide-react';
 import { FaqList } from '@/components/site/PageBlocks';
 import { CtaCard, Hero, IconGrid, Section, SectionHead, Split, Stats } from '@/components/site/Marketing';
@@ -11,13 +13,13 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('publish');
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? 'Publish',
-    description:
-      meta?.metaDescription ??
-      'Schedule across X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest from one calendar and queue. Published by a worker, on time.',
-    alternates: { canonical: '/publish' },
-  };
+  return seo({
+    path: '/publish',
+    title: meta?.metaTitle ?? 'Social media scheduling and auto-publishing',
+    description: meta?.metaDescription ?? 'Schedule posts to every network from one calendar and queue. Sosial publishes each channel on time, with live character limits and per-channel results.',
+    kicker: 'Publish',
+    cardTitle: meta?.title ?? 'Every post, on time, everywhere.',
+  });
 }
 
 export default async function PublishPage() {
@@ -25,6 +27,7 @@ export default async function PublishPage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Features', path: '/features' }, { name: 'Publish', path: '/publish' }]} />
       <Hero
         icon={Send}
         kicker="Publish"

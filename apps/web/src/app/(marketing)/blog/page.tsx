@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { BlogJsonLd } from '@/components/site/JsonLd';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { LayoutGrid } from 'lucide-react';
@@ -11,12 +13,13 @@ import {
 /** ISR so publishes go live without a rebuild. */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'Blog',
-  description:
-    'Practical guides on social media strategy, scheduling, writing with AI and running a content team across ten channels.',
-  alternates: { canonical: '/blog' },
-};
+export const metadata: Metadata = seo({
+  path: '/blog',
+  title: 'Social media marketing blog',
+  description: 'Practical guides on social media strategy, scheduling, AI writing and running a content team across every channel, from the Sosial team.',
+  kicker: 'Blog',
+  cardTitle: 'Get better at publishing everywhere.',
+});
 
 function isTag(v: string | undefined): v is Category {
   return !!v && (BLOG_TAGS as readonly string[]).includes(v);
@@ -83,6 +86,7 @@ export default async function BlogIndex({
 
   return (
     <>
+      <BlogJsonLd posts={all} />
       <HubHero
         active="blog"
         title="Get better at publishing everywhere."

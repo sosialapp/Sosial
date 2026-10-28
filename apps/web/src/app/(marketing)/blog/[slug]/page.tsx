@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
 import SafeImg from '@/components/SafeImg';
@@ -23,23 +24,15 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = await article(slug);
   if (!post) return { title: 'Article not found' };
-  return {
+  return seo({
+    path: `/blog/${post.slug}`,
     title: post.title,
     description: post.description,
-    alternates: { canonical: `/blog/${post.slug}` },
-    // No explicit images: every post uses the branded opengraph-image card
-    // next to this page, which already carries the cover when there is one.
-    openGraph: {
-      type: 'article',
-      title: post.title,
-      description: post.description,
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: post.title,
-      description: post.description,
-    },
-  };
+    // The branded opengraph-image next to this page, which carries the cover.
+    image: `/blog/${post.slug}/opengraph-image`,
+    type: 'article',
+    publishedTime: post.date,
+  });
 }
 
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
@@ -53,6 +46,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
     <>
       <ArticleJsonLd
         title={post.title}
+        section={post.tag}
         description={post.description}
         slug={post.slug}
         date={post.date}

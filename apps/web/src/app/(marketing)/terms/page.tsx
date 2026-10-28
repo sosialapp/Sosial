@@ -1,15 +1,19 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { docsUrl } from '@/lib/site';
 import LegalView from '@/components/site/LegalView';
 import { formatPageDate, sitePageHtml, sitePageMeta } from '@/lib/sitePages';
 import { TERMS } from '@/content/legal';
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('terms');
-  return {
+  return seo({
+    // The docs copy is canonical; this URL stays live for the platform app reviews that link it.
+    path: `${docsUrl()}/terms`,
     title: meta?.metaTitle ?? meta?.title ?? 'Terms of Use',
     description: meta?.metaDescription ?? TERMS.summary,
-    alternates: { canonical: '/terms' },
-  };
+    kicker: 'Legal',
+  });
 }
 
 /** CMS edits go live within minutes. */

@@ -1,11 +1,18 @@
 import type { Metadata } from 'next';
+import { SITE_URL, seo } from '@/lib/seo';
+import { JsonLd } from '@/components/site/JsonLd';
 import DocsHome from '@/components/docs/DocsHome';
-import { buildNav, docsContent, flatPages } from '@/lib/docs';
+import { buildNav, docsContent, docsUrl, flatPages } from '@/lib/docs';
 
-export const metadata: Metadata = {
-  title: { absolute: 'Sosial Docs' },
-  alternates: { canonical: '/' },
-};
+export const metadata: Metadata = seo({
+  path: '/',
+  title: 'Sosial Docs: guides, channel setup and API',
+  description:
+    'How to use Sosial: connect Instagram, TikTok, X and 14 more channels, schedule posts, and automate publishing with the REST API and MCP server.',
+  kicker: 'Docs',
+  cardTitle: 'Everything you need to post everywhere with Sosial.',
+  siteName: 'Sosial Docs',
+});
 
 /** docs.sosial.app home: a landing page, not an article (no sidebar). */
 export default async function DocsHomePage() {
@@ -15,5 +22,21 @@ export default async function DocsHomePage() {
   const ordered = pages
     .filter((p) => order.has(p.slug))
     .sort((a, b) => (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0));
-  return <DocsHome sections={sections} pages={ordered} />;
+  return (
+    <>
+      <JsonLd
+        id="ld-docs-site"
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'Sosial Docs',
+          url: `${docsUrl()}/`,
+          inLanguage: 'en',
+          publisher: { '@id': `${SITE_URL}/#organization` },
+          about: { '@id': `${SITE_URL}/#app` },
+        }}
+      />
+      <DocsHome sections={sections} pages={ordered} />
+    </>
+  );
 }

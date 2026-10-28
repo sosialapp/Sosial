@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import Link from 'next/link';
 import { docsUrl } from '@/lib/site';
 
-export const metadata: Metadata = {
-  title: 'Delete your data',
-  description:
-    'How to request export or deletion of your Sosial data: what is removed, how long it takes, and where to ask.',
-  alternates: { canonical: '/delete-data' },
-};
+export const metadata: Metadata = seo({
+  path: '/delete-data',
+  title: 'Delete your Sosial data',
+  description: 'How to request export or deletion of your Sosial data: what is removed, how long it takes, and where to ask.',
+  kicker: 'Your data',
+  cardTitle: 'Delete your data.',
+});
 
 /**
  * Standalone data-deletion instructions. Linked from the privacy policy's

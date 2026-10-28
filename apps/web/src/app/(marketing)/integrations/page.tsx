@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { BRAND_PATHS, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
@@ -7,12 +8,13 @@ import { GridPulse } from '@/components/ui/grid-pulse';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { channelHref } from '@/content/types';
 
-export const metadata: Metadata = {
-  title: 'Integrations',
-  description:
-    'Publish to X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest from one Sosial calendar.',
-  alternates: { canonical: '/integrations' },
-};
+export const metadata: Metadata = seo({
+  path: '/integrations',
+  title: 'Integrations for Instagram, TikTok, X and more',
+  description: 'Connect Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube, Pinterest, Bluesky, Mastodon, blogs and more. Schedule them all from one calendar.',
+  kicker: 'Integrations',
+  cardTitle: 'Every channel you use, in one calendar.',
+});
 
 const PROMISES = [
   ['Official APIs', 'Posts go out through each network’s real publishing API.'],

@@ -1,15 +1,17 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import Link from 'next/link';
 import { allResources } from '@/content/resources';
 import { resourceHref, type ResourceKind } from '@/content/types';
 import { HubHero, KIND_NOTES, ResourceCard, kindTone } from '@/components/site/ResourceKit';
 
-export const metadata: Metadata = {
-  title: 'Resource library',
-  description:
-    'Free templates, playbooks, cheat sheets and glossaries for social media managers: calendars, caption formulas, audits and launch plans.',
-  alternates: { canonical: '/resources' },
-};
+export const metadata: Metadata = seo({
+  path: '/resources',
+  title: 'Free social media templates and playbooks',
+  description: 'Free templates, playbooks, cheat sheets and glossaries for social media managers: calendars, caption formulas, audits and launch plans.',
+  kicker: 'Library',
+  cardTitle: 'Templates, playbooks and cheat sheets.',
+});
 
 /** Every kind the library holds, in display order; empty ones show as "soon". */
 const KINDS: ResourceKind[] = ['Playbook', 'Guide', 'Glossary', 'Template', 'Cheat sheet'];

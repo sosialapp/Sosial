@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import { notFound } from 'next/navigation';
 import PostBody from '@/components/site/PostBody';
 import { formatPageDate, sitePageHtml, sitePageMeta } from '@/lib/sitePages';
@@ -24,14 +25,13 @@ export async function generateMetadata({
   const item = resource(slug);
   if (!item) return { title: 'Resource not found' };
   const meta = await sitePageMeta(`resources/${slug}`);
-  const title = meta?.metaTitle ?? meta?.title ?? item.title;
-  const description = meta?.metaDescription ?? item.description;
-  return {
-    title,
-    description,
-    alternates: { canonical: resourceHref(item.slug) },
-    openGraph: { title, description },
-  };
+  return seo({
+    path: resourceHref(item.slug),
+    title: meta?.metaTitle ?? meta?.title ?? item.title,
+    description: meta?.metaDescription ?? item.description,
+    kicker: item.kind,
+    cardTitle: meta?.title ?? item.title,
+  });
 }
 
 export default async function ResourcePage({ params }: { params: Promise<{ slug: string }> }) {

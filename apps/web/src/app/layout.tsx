@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   description:
     'Plan, write and publish to X, Instagram, TikTok, Facebook, Threads, Bluesky, Mastodon, LinkedIn, YouTube and Pinterest, one composer, calendar and queue.',
   icons: { icon: '/bolt.png' },
+  applicationName: 'Sosial',
+  category: 'business',
   // No image thumbnails in Google results (max-image-preview:none). Social
   // link previews are unaffected, they keep using the opengraph images.
   robots: {

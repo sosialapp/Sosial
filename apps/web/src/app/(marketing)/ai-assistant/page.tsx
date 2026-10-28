@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import {
   CheckCircle2, Languages, Layers, Lightbulb, ListOrdered, Palette, PenLine, RefreshCw, Search, ShieldCheck, Sparkles, Wand2, Workflow,
 } from 'lucide-react';
@@ -13,13 +15,13 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('ai-assistant');
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? 'AI Assistant',
-    description:
-      meta?.metaDescription ??
-      'Research-backed social copy in 100+ languages. Live sources, styles with samples, substantial threads, rewrites and per-channel adaptation. You approve everything.',
-    alternates: { canonical: '/ai-assistant' },
-  };
+  return seo({
+    path: '/ai-assistant',
+    title: meta?.metaTitle ?? 'AI social media post writer with live research',
+    description: meta?.metaDescription ?? 'Draft captions and threads in 100+ languages, grounded by live web research with linked sources. Rewrites in your voice. Nothing publishes without you.',
+    kicker: 'AI Assistant',
+    cardTitle: meta?.title ?? 'A writer that checks its facts.',
+  });
 }
 
 export default async function AiAssistantPage() {
@@ -27,6 +29,7 @@ export default async function AiAssistantPage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Features', path: '/features' }, { name: 'AI Assistant', path: '/ai-assistant' }]} />
       <Hero
         icon={Sparkles}
         kicker="AI Assistant"

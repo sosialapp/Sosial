@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { Camera, Copy, Eye, Image as ImageIcon, Layers, LayoutTemplate, PenLine, Ruler, Sparkles } from 'lucide-react';
 import { FaqList } from '@/components/site/PageBlocks';
 import { CtaCard, Hero, IconGrid, Section, SectionHead, Split } from '@/components/site/Marketing';
@@ -11,13 +13,13 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('features/create');
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? 'Create',
-    description:
-      meta?.metaDescription ??
-      'One composer for ten channels. Per-channel previews, live character counters, templates, and media that fits every network.',
-    alternates: { canonical: '/features/create' },
-  };
+  return seo({
+    path: '/features/create',
+    title: meta?.metaTitle ?? 'Social media post composer with live previews',
+    description: meta?.metaDescription ?? 'Write one post for every network with per-channel previews, real character limits, templates, photos, video and AI cover images.',
+    kicker: 'Create',
+    cardTitle: meta?.title ?? 'Start from a blank page less.',
+  });
 }
 
 export default async function CreatePage() {
@@ -25,6 +27,7 @@ export default async function CreatePage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Features', path: '/features' }, { name: 'Create', path: '/features/create' }]} />
       <Hero
         icon={PenLine}
         kicker="Create"

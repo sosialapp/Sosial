@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
+import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import {
   Activity, Bot, CheckCircle2, Eye, ListChecks, Loader2, Lock, Receipt, XCircle, type LucideIcon,
 } from 'lucide-react';
@@ -15,13 +17,13 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('transparency');
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? 'Transparency',
-    description:
-      meta?.metaDescription ??
-      'Published prices, plain data practices, AI that does not train on your work, real platform limits, and per-channel publish results. How Sosial stays open with the people who use it.',
-    alternates: { canonical: '/transparency' },
-  };
+  return seo({
+    path: '/transparency',
+    title: meta?.metaTitle ?? 'Transparency: pricing, data and AI policies',
+    description: meta?.metaDescription ?? 'Published prices, plain-language data practices, AI that never trains on your drafts, and per-channel publishing results. How Sosial stays open.',
+    kicker: 'Transparency',
+    cardTitle: meta?.title ?? 'Nothing important stays in the fine print.',
+  });
 }
 
 const RESULTS: { provider: BrandProvider; status: string; icon: LucideIcon }[] = [
@@ -36,6 +38,7 @@ export default async function TransparencyPage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Transparency', path: '/transparency' }]} />
       <Hero
         icon={Eye}
         kicker="Transparency"

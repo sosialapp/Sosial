@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { seo } from '@/lib/seo';
 import ChartIslands from '@/components/site/ChartIslands';
 import Prose from '@/components/site/Prose';
 import type { Block } from '@/content/types';
@@ -109,13 +110,13 @@ const SECTIONS: { title: string; blocks: Block[] }[] = [
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('about');
-  return {
-    title: meta?.metaTitle ?? meta?.title ?? 'About',
-    description:
-      meta?.metaDescription ??
-      'Sosial is a small team building one calendar for ten social networks: compose once, approve as a team, and let a cloud queue ship every channel on time.',
-    alternates: { canonical: '/about' },
-  };
+  return seo({
+    path: '/about',
+    title: meta?.metaTitle ?? 'About Sosial: one calendar for every network',
+    description: meta?.metaDescription ?? 'Sosial is a small team building one calendar for every social network: compose once, approve as a team, and let a cloud queue ship each channel on time.',
+    kicker: 'About',
+    cardTitle: meta?.title ?? 'One calendar for every network.',
+  });
 }
 
 /** Terms-style text article: CMS body replaces the sections when set. */

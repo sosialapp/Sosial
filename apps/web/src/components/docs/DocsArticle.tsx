@@ -41,10 +41,16 @@ ${page.description ? `${page.description}
       <article className="min-w-0 max-w-3xl flex-1">
         <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink/55">{section}</p>
         <div className="mt-2 flex items-start justify-between gap-4">
-          <h1 className="flex items-center gap-3 font-display text-3xl font-medium tracking-tight sm:text-4xl">
-            {page.icon.startsWith('brand:') ? <DocsIcon name={page.icon} className="h-8 w-8 shrink-0" /> : null}
-            {page.title}
-          </h1>
+          {/* The logo sits beside the h1, not in it: its SVG <title> would
+              otherwise read as part of the heading ("InstagramInstagram"). */}
+          <div className="flex items-center gap-3">
+            {page.icon.startsWith('brand:') ? (
+              <span aria-hidden="true">
+                <DocsIcon name={page.icon} className="h-8 w-8 shrink-0" />
+              </span>
+            ) : null}
+            <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">{page.title}</h1>
+          </div>
           <DocsCopyPage markdown={markdown} />
         </div>
         {page.description ? <p className="mt-3 text-lg leading-relaxed text-ink/70">{page.description}</p> : null}
