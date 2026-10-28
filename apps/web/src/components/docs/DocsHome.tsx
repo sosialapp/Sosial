@@ -96,11 +96,7 @@ export default function DocsHome({ sections, pages }: { sections: DocsSection[];
         />
         <div className="relative mx-auto w-full max-w-[1200px] px-4 pb-16 pt-14 sm:px-6 sm:pb-28 sm:pt-20 lg:px-10">
           <h1 className="max-w-4xl font-display text-[2.1rem] font-medium leading-[1.15] tracking-tight sm:text-5xl sm:leading-[1.12] lg:text-[3.6rem]">
-            Everything you need to{' '}
-            <span className="rounded-xl bg-bolt px-2 text-on-accent [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
-              post everywhere
-            </span>{' '}
-            with Sosial.
+            Everything you need to post everywhere with Sosial.
           </h1>
           <p className="mt-8 max-w-lg text-lg leading-relaxed text-ink/65">
             Guides for connecting channels, writing once and scheduling everywhere, plus the REST API and MCP server for
