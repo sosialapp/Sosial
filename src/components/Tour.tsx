@@ -8,15 +8,18 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme, R } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme, R, LIGHT } from '../theme';
 import { tr } from '../i18n';
 
 /**
  * First-run coach marks. Screens park a ref on the thing worth pointing at
  * (`useTourTarget('home-kpis')`), and this host draws a cutout ring around
- * whatever the current step names. Runs once per section, stored on device,
- * resettable from Account. Rendered as a plain absolute View (not a Modal)
- * so `measureInWindow` coordinates line up on Android.
+ * whatever the current step names. Runs once per section, stored on device
+ * the moment it opens (so quitting the app mid-tour doesn't bring it back),
+ * resettable from Account. Skip dismisses every section. Rendered as a
+ * plain absolute View (not a Modal) so `measureInWindow` coordinates line
+ * up on Android.
  */
 
 export type TourId = 'home' | 'post' | 'analytics' | 'community';
@@ -44,6 +47,29 @@ const TOURS: Record<TourId, Step[]> = {
 };
 
 const PREFIX = '@sosial/tour/v1/';
+const ALL: TourId[] = ['home', 'post', 'analytics', 'community'];
+
+/** Mirrors storage so a just-written flag never loses a race with a re-read. */
+const seenCache = new Set<TourId>();
+
+async function markSeen(ids: TourId[]): Promise<void> {
+  ids.forEach((id) => seenCache.add(id));
+  try {
+    await AsyncStorage.multiSet(ids.map((id) => [PREFIX + id, '1'] as [string, string]));
+  } catch {}
+}
+
+async function isSeen(id: TourId): Promise<boolean> {
+  if (seenCache.has(id)) return true;
+  try {
+    const v = await AsyncStorage.getItem(PREFIX + id);
+    if (v === '1') seenCache.add(id);
+    return v === '1';
+  } catch {
+    // Storage unreadable: stay quiet rather than nag on every launch.
+    return true;
+  }
+}
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -80,6 +106,7 @@ async function keys(): Promise<string[]> {
 
 /** Forget every tour so the next screen visit walks through it again. */
 export async function replayTours(): Promise<void> {
+  seenCache.clear();
   try {
     const all = await keys();
     if (all.length) await AsyncStorage.multiRemove(all);
@@ -89,7 +116,13 @@ export async function replayTours(): Promise<void> {
 
 export default function Tour({ page }: { page: TourId | null }) {
   const { C } = useTheme();
+  const insets = useSafeAreaInsets();
   const win = Dimensions.get('window');
+  const rootRef = useRef<AnchorNode | null>(null);
+  // Overlay's own window frame: targets are measured in window coordinates,
+  // the overlay may sit below the status bar inset.
+  const [frame, setFrame] = useState<Rect | null>(null);
+  const [cardH, setCardH] = useState(216);
   const [tour, setTour] = useState<TourId | null>(null);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
@@ -98,8 +131,8 @@ export default function Tour({ page }: { page: TourId | null }) {
   const steps = tour ? TOURS[tour] : [];
   const step = steps[index];
 
-  const stop = useCallback((id: TourId | null) => {
-    if (id) void AsyncStorage.setItem(PREFIX + id, '1').catch(() => {});
+  const stop = useCallback((ids: TourId[]) => {
+    if (ids.length) void markSeen(ids);
     setTour(null);
     setRect(null);
     setIndex(0);
@@ -110,11 +143,12 @@ export default function Tour({ page }: { page: TourId | null }) {
     if (!page) return;
     let alive = true;
     const timer = setTimeout(async () => {
-      let seen = '1';
-      try {
-        seen = (await AsyncStorage.getItem(PREFIX + page)) ?? '';
-      } catch {}
-      if (!alive || seen === '1') return;
+      const seen = await isSeen(page);
+      if (!alive || seen) return;
+      // Persist before showing: the flag must survive a restart even if the
+      // user kills the app or leaves the tab halfway through.
+      await markSeen([page]);
+      if (!alive) return;
       setIndex(0);
       setRect(null);
       setTour(page);
@@ -152,7 +186,7 @@ export default function Tour({ page }: { page: TourId | null }) {
     void tick();
     const id = setInterval(tick, 350);
     return () => {
-alive = false;
+      alive = false;
       clearInterval(id);
     };
   }, [tour, step, stop]);
@@ -164,18 +198,32 @@ alive = false;
 
   // A step list that ran out (or never had a target) closes itself.
   useEffect(() => {
-    if (tour && !step) stop(tour);
+    if (tour && !step) stop([tour]);
   }, [tour, step, stop]);
 
+  const ox = frame?.x ?? 0;
+  const oy = frame?.y ?? 0;
+  const oh = frame?.h ?? win.height;
+  // Usable band inside the overlay, clear of status bar and Android nav bar.
+  const safeTop = Math.max(0, insets.top - oy) + 12;
+  const safeBottom = Math.min(oh, win.height - insets.bottom - oy) - 12;
+  const local = rect ? { x: rect.x - ox, y: rect.y - oy, w: rect.w, h: rect.h } : null;
+
   const cardTop = useMemo(() => {
-    const cardH = 216;
     const gap = 14;
-    if (!rect) return Math.max(24, win.height / 2 - cardH / 2);
-    const below = rect.y + rect.h + gap;
-    const above = rect.y - cardH - gap;
-    const top = win.height - (rect.y + rect.h) > cardH + gap ? below : above;
-    return Math.max(16, Math.min(top, win.height - cardH - 20));
-  }, [rect, win.height]);
+    const maxTop = Math.max(safeTop, safeBottom - cardH);
+    if (!local) return Math.max(safeTop, Math.min((safeTop + safeBottom) / 2 - cardH / 2, maxTop));
+    const below = local.y + local.h + gap;
+    const above = local.y - cardH - gap;
+    const top = safeBottom - (local.y + local.h) > cardH + gap ? below : above;
+    return Math.max(safeTop, Math.min(top, maxTop));
+  }, [local?.y, local?.h, cardH, safeTop, safeBottom]);
+
+  const measureRoot = useCallback(() => {
+    rootRef.current?.measureInWindow((x, y, w, h) => {
+      setFrame((f) => (f && f.x === x && f.y === y && f.w === w && f.h === h ? f : { x, y, w, h }));
+    });
+  }, []);
 
   if (!tour || !step) return null;
 
@@ -183,22 +231,24 @@ alive = false;
   const last = index >= steps.length - 1;
   const pad = 6;
 
-  const ring = rect
+  const ring = local
     ? {
-        left: rect.x - pad,
-        top: rect.y - pad,
-        width: rect.w + pad * 2,
-        height: rect.h + pad * 2,
+        left: local.x - pad,
+        top: local.y - pad,
+        width: local.w + pad * 2,
+        height: local.h + pad * 2,
       }
     : null;
 
   return (
     <View
+      ref={rootRef}
+      onLayout={measureRoot}
       style={StyleSheet.absoluteFill}
       accessibilityViewIsModal
       accessibilityLiveRegion="polite"
     >
-      {rect ? (
+      {ring ? (
         <>
           <Pressable style={[styles.scrim, { top: 0, height: Math.max(0, ring!.top), backgroundColor: scrim }]} onPress={() => {}} />
           <Pressable style={[styles.scrim, { top: ring!.top + ring!.height, bottom: 0, backgroundColor: scrim }]} onPress={() => {}} />
@@ -214,6 +264,10 @@ alive = false;
       )}
 
       <View
+        onLayout={(e) => {
+          const h = Math.ceil(e.nativeEvent.layout.height);
+          if (h > 0 && h !== cardH) setCardH(h);
+        }}
         style={{
           position: 'absolute',
           left: 18,
@@ -241,7 +295,7 @@ alive = false;
           {tr(step.body)}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
-          <TouchableOpacity onPress={() => stop(tour)} hitSlop={8} activeOpacity={0.7} accessibilityLabel={tr('tourSkip')}>
+          <TouchableOpacity onPress={() => stop(ALL)} hitSlop={8} activeOpacity={0.7} accessibilityLabel={tr('tourSkip')}>
             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.faint }}>{tr('tourSkip')}</Text>
           </TouchableOpacity>
           <View style={{ flex: 1 }} />
@@ -274,7 +328,7 @@ alive = false;
           <TouchableOpacity
             onPress={() => {
               if (last) {
-                stop(tour);
+                stop([tour]);
                 return;
               }
               setRect(null);
@@ -282,9 +336,11 @@ alive = false;
             }}
             activeOpacity={0.85}
             accessibilityLabel={last ? tr('tourDone') : tr('tourNext')}
-            style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: C.accent, marginLeft: 8 }}
+            hitSlop={6}
+            style={{ paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999, backgroundColor: C.accent, marginLeft: 8 }}
           >
-            <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: C.accentInk }}>
+            {/* Dark ink in both themes: DARK.accentInk is the accent yellow itself. */}
+            <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13, color: LIGHT.accentInk }}>
               {last ? tr('tourDone') : tr('tourNext')}
             </Text>
           </TouchableOpacity>

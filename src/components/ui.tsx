@@ -320,7 +320,9 @@ export function Seg<T extends string>({
       onChange={onChange}
       trackStyle={s.segWrap}
       thumbStyle={s.segOn}
-      tabStyle={s.seg}
+      // Hugging tracks must not let tabs flex: in a wrapping row Android
+      // stretches flex:1 tabs across the whole line.
+      tabStyle={grow ? s.seg : [s.seg, s.segHug]}
       labelStyle={s.segT}
       activeLabelStyle={s.segTOn}
       renderOption={renderOption}
@@ -773,6 +775,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: C.faint },
   segWrap: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 999, padding: 3, gap: 2 },
   seg: { flex: 1, minWidth: 0, paddingVertical: 7.5, paddingHorizontal: 12, alignItems: 'center', borderRadius: 999 },
+  segHug: { flex: 0, flexGrow: 0, flexShrink: 0 },
   segOn: { backgroundColor: C.thumb, borderRadius: 999, shadowColor: '#1C1917', shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   segT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, textAlign: 'center' },
   segTOn: { fontFamily: 'PlusJakartaSans_700Bold', color: C.ink },
