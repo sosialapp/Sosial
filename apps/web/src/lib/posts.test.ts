@@ -1,6 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CHAIN_PROVIDERS, assertTikTokAudience, createPost, fetchPosts, threadSegments } from './posts';
+import {
+  CHAIN_PROVIDERS,
+  assertTikTokAudience,
+  assertTikTokTargetsReady,
+  createPost,
+  fetchPosts,
+  threadSegments,
+} from './posts';
 import { uploadMedia } from './mediaUpload';
 
 vi.mock('./mediaUpload', () => ({ uploadMedia: vi.fn() }));
@@ -140,5 +147,27 @@ describe('assertTikTokAudience', () => {
     expect(() => assertTikTokAudience('draft', tt)).not.toThrow();
     expect(() => assertTikTokAudience('now', tt, { tiktok: { ttPrivacy: 'SELF_ONLY' } })).not.toThrow();
     expect(() => assertTikTokAudience('now', [{ provider: 'x' }])).not.toThrow();
+  });
+});
+
+describe('assertTikTokTargetsReady', () => {
+  const sbWith = (rows: { options: Record<string, unknown> | null }[]) => {
+    const q: Record<string, unknown> = {};
+    q.select = () => q;
+    q.eq = () => q;
+    q.in = () => Promise.resolve({ data: rows, error: null });
+    return { from: () => q } as unknown as SupabaseClient;
+  };
+
+  it('refuses a draft whose TikTok target has no audience', async () => {
+    await expect(assertTikTokTargetsReady(sbWith([{ options: {} }]), 'p1')).rejects.toThrow(/audience/);
+    await expect(assertTikTokTargetsReady(sbWith([{ options: null }]), 'p1')).rejects.toThrow(/audience/);
+  });
+
+  it('passes when every TikTok target has an audience, or there are none', async () => {
+    await expect(
+      assertTikTokTargetsReady(sbWith([{ options: { ttPrivacy: 'SELF_ONLY' } }]), 'p1'),
+    ).resolves.toBeUndefined();
+    await expect(assertTikTokTargetsReady(sbWith([]), 'p1')).resolves.toBeUndefined();
   });
 });

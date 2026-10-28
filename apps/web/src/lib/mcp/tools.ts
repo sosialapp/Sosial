@@ -5,6 +5,7 @@ import {
   createPost,
   publishPostNow,
   reschedulePost,
+  assertTikTokTargetsReady,
   deletePost,
   friendlyLimit,
   type ComposeArgs,
@@ -324,6 +325,8 @@ export function createMcpTools(opts: {
           return fail('scheduled_in_past', 'scheduled_at must be at least 5 minutes in the future.');
         }
         try {
+          // A draft only enters the scheduler once its TikTok audience is set.
+          if (post.status === 'draft') await assertTikTokTargetsReady(admin, args.post_id);
           await reschedulePost(admin, args.post_id, when.utc);
         } catch (e) {
           return fail('validation_failed', friendlyLimit(e instanceof Error ? e.message : 'Could not schedule.'));

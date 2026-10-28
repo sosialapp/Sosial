@@ -576,8 +576,32 @@ export async function rescheduleChannels(
   }
 }
 
+/**
+ * Same rule as assertTikTokAudience, for a post that already exists: a draft's
+ * TikTok targets can only be queued once they carry the audience the user
+ * picked in Create (drafts made by the API or imports have none).
+ */
+export async function assertTikTokTargetsReady(sb: SupabaseClient, postId: string): Promise<void> {
+  const { data, error } = await sb
+    .from('post_targets')
+    .select('options')
+    .eq('post_id', postId)
+    .eq('provider', 'tiktok')
+    .in('status', ['pending', 'queued', 'failed']);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as { options: Record<string, unknown> | null }[];
+  const missing = rows.some((r) => {
+    const privacy = r.options?.ttPrivacy;
+    return typeof privacy !== 'string' || !privacy.trim();
+  });
+  if (missing) {
+    throw new Error('TikTok posts need an audience picked in the TikTok settings, open this post in Create and pick one.');
+  }
+}
+
 /** Publish a draft right away: queue the post and its targets for this minute. */
 export async function publishPostNow(sb: SupabaseClient, postId: string): Promise<void> {
+  await assertTikTokTargetsReady(sb, postId);
   const now = new Date().toISOString();
   const { error } = await sb
     .from('posts')
