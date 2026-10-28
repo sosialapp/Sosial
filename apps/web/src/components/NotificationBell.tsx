@@ -102,7 +102,9 @@ export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sb = useRef<ReturnType<typeof createClient> | null>(null);
 
   const load = useCallback(async () => {
@@ -249,10 +251,18 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
+  useEffect(() => () => {
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+  }, []);
+
   async function toggle() {
     const next = !open;
     setOpen(next);
-    if (!next || unread === 0) return;
+    if (!next) {
+      setConfirmAll(false);
+      return;
+    }
+    if (unread === 0) return;
     // Optimistic: clear the badge and the unread styling immediately.
     setUnread(0);
     setItems((prev) => prev.map((r) => ({ ...r, read: true })));
@@ -309,6 +319,54 @@ export default function NotificationBell() {
     }
   }
 
+  /**
+   * Clear the whole bell. Two taps, because it is irreversible: the first
+   * arms the button for four seconds, the second deletes. Notifications are
+   * this user's own rows (hard delete); announcements are app-wide, so the
+   * visible ones are dismissed per user, same as the single-row path.
+   */
+  async function removeAll() {
+    if (deleting || items.length === 0) return;
+    if (!confirmAll) {
+      setConfirmAll(true);
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmAll(false), 4000);
+      return;
+    }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    setConfirmAll(false);
+
+    const snapshot = items;
+    setDeleting('all');
+    setItems([]);
+    setUnread(0);
+
+    const client = sb.current ?? (sb.current = createClient());
+    try {
+      await client.from('notifications').delete().not('id', 'is', null);
+      const annIds = snapshot.filter((n) => n.source === 'announcement').map((n) => n.id);
+      if (annIds.length) {
+        const {
+          data: { user },
+        } = await client.auth.getUser();
+        if (user) {
+          await client.from('announcement_reads').upsert(
+            annIds.map((id) => ({
+              announcement_id: id,
+              user_id: user.id,
+              dismissed_at: new Date().toISOString(),
+            })),
+            { onConflict: 'announcement_id,user_id' },
+          );
+        }
+      }
+    } catch {
+      void load();
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   return (
     <div ref={box} className="relative">
       <button
@@ -333,11 +391,30 @@ export default function NotificationBell() {
           aria-label="Notifications"
           className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-line bg-card shadow-[0_16px_50px_rgba(28,26,20,0.25)]"
         >
-          <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
+          <div className="flex items-center justify-between gap-2 border-b border-line-soft px-4 py-3">
             <p className="text-sm font-extrabold">Notifications</p>
-            <span className="flex items-center gap-1 text-[11px] text-muted">
-              <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              All read
+            <span className="flex items-center gap-2">
+              <span className="flex items-center gap-1 text-[11px] text-muted">
+                <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                All read
+              </span>
+              {items.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void removeAll()}
+                  disabled={deleting === 'all'}
+                  aria-label={confirmAll ? 'Confirm delete all notifications' : 'Delete all notifications'}
+                  title="Delete all"
+                  className={`flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition disabled:opacity-60 ${
+                    confirmAll
+                      ? 'bg-[#9F2F2D] text-white'
+                      : 'text-muted hover:bg-surface hover:text-[#9F2F2D]'
+                  }`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {deleting === 'all' ? 'Deleting' : confirmAll ? 'Delete all?' : 'Delete all'}
+                </button>
+              ) : null}
             </span>
           </div>
           <div className="max-h-96 overflow-y-auto">

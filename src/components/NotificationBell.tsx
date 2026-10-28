@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
@@ -41,6 +41,8 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -86,10 +88,17 @@ export default function NotificationBell() {
     return () => clearInterval(t);
   }, [load]);
 
+  useEffect(() => () => {
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+  }, []);
+
   const toggle = async () => {
     const next = !open;
     setOpen(next);
-    if (!next) return;
+    if (!next) {
+      setConfirmAll(false);
+      return;
+    }
     void load();
     if (unread === 0) return;
     // Optimistic: clear the badge and the unread styling immediately.
@@ -148,6 +157,54 @@ export default function NotificationBell() {
     }
   };
 
+  /**
+   * Clear the whole bell. Two taps, because it is irreversible: the first
+   * arms the button for four seconds, the second deletes. Notifications are
+   * this user's own rows (hard delete); announcements are app-wide, so the
+   * visible ones are dismissed per user, same as the single-row path.
+   */
+  const removeAll = async () => {
+    if (deleting || items.length === 0) return;
+    if (!confirmAll) {
+      setConfirmAll(true);
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmAll(false), 4000);
+      return;
+    }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    setConfirmAll(false);
+
+    const snapshot = items;
+    setDeleting('all');
+    setItems([]);
+    setUnread(0);
+
+    try {
+      const sb = supabase();
+      await sb.from('notifications').delete().not('id', 'is', null);
+      const annIds = snapshot.filter((n) => n.source === 'announcement').map((n) => n.id);
+      if (annIds.length) {
+        const {
+          data: { user },
+        } = await sb.auth.getUser();
+        if (user) {
+          await sb.from('announcement_reads').upsert(
+            annIds.map((id) => ({
+              announcement_id: id,
+              user_id: user.id,
+              dismissed_at: new Date().toISOString(),
+            })),
+            { onConflict: 'announcement_id,user_id' },
+          );
+        }
+      }
+    } catch {
+      void load();
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   return (
     <View>
       <TouchableOpacity
@@ -172,9 +229,29 @@ export default function NotificationBell() {
           <View style={s.sheet}>
             <View style={s.head}>
               <Text style={s.title}>Notifications</Text>
-              <TouchableOpacity onPress={() => setOpen(false)} hitSlop={12} accessibilityLabel="Close notifications">
-                <Ionicons name="close-circle" size={24} color={C.muted} />
-              </TouchableOpacity>
+              <View style={s.headRight}>
+                {items.length > 0 ? (
+                  <TouchableOpacity
+                    onPress={() => void removeAll()}
+                    disabled={deleting === 'all'}
+                    hitSlop={8}
+                    style={[s.clear, confirmAll && s.clearArmed]}
+                    accessibilityLabel={confirmAll ? 'Confirm delete all notifications' : 'Delete all notifications'}
+                  >
+                    {deleting === 'all' ? (
+                      <ActivityIndicator size="small" color={confirmAll ? '#fff' : C.faint} />
+                    ) : (
+                      <Ionicons name="trash-outline" size={13} color={confirmAll ? '#fff' : '#9F2F2D'} />
+                    )}
+                    <Text style={[s.clearT, confirmAll && { color: '#fff' }]}>
+                      {deleting === 'all' ? 'Deleting' : confirmAll ? 'Delete all?' : 'Delete all'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity onPress={() => setOpen(false)} hitSlop={12} accessibilityLabel="Close notifications">
+                  <Ionicons name="close-circle" size={24} color={C.muted} />
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
               {loading && items.length === 0 ? (
@@ -227,6 +304,10 @@ const makeS = (C: Palette) => StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
   sheet: { backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 34, maxHeight: '80%' },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  clear: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
+  clearArmed: { backgroundColor: '#9F2F2D' },
+  clearT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: '#9F2F2D' },
   title: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.3, color: C.ink },
   empty: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted, textAlign: 'center', paddingVertical: 28, lineHeight: 19 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 12, borderTopWidth: 1, borderTopColor: C.lineSoft },
