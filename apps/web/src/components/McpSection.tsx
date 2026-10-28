@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { AiMark } from '@/components/SourceMarks';
+import { docsUrl } from '@/lib/site';
 
 const SERVER_URL = 'https://sosial.app/api/mcp';
 
@@ -209,7 +210,7 @@ export default function McpSection({ canManage }: { canManage: boolean }) {
               ))}
             </div>
             <a
-              href="https://sosial.app/developers#mcp"
+              href={`${docsUrl()}/mcp`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-ink underline-offset-2 hover:underline"

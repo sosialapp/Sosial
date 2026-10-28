@@ -63,6 +63,15 @@ export default async function AdminOverview() {
           </p>
         </Link>
         <Link
+          href="/admin/docs"
+          className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
+        >
+          <p className="text-sm font-bold">Docs</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Write and order the help pages at docs.sosial.app. Markdown with a live preview.
+          </p>
+        </Link>
+        <Link
           href="/admin/notifications"
           className="block rounded-2xl border border-line bg-card p-5 transition hover:border-faint"
         >

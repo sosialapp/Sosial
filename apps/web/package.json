@@ -43,6 +43,7 @@
     "emoji-picker-react": "^4.22.2",
     "gsap": "^3.15.0",
     "lucide-react": "^1.47.0",
+    "marked": "^15.0.12",
     "next": "^15.5.4",
     "react": "^19.1.0",
     "react-day-picker": "^10.0.2",

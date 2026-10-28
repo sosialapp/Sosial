@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
-import { dashboardUrl } from '@/lib/site';
+import { dashboardUrl, docsUrl } from '@/lib/site';
 import { createClient, hasSupabaseEnv } from '@/lib/supabase/client';
 import { useT, useLocale } from '@/lib/i18n/client';
 import { landingMessages } from '@/lib/i18n/landing';
@@ -93,6 +93,7 @@ export default function SiteNav() {
   const RESOURCES: MenuLink[] = [
     { href: '/blog', title: t('blogTitle'), desc: t('blogDesc') },
     { href: '/resources', title: t('libTitle'), desc: t('libDesc') },
+    { href: docsUrl(), title: t('docsTitle'), desc: t('docsDesc') },
   ];
   const ALL_LINK: MenuLink = { href: '/integrations', title: t('allIntegrations'), desc: t('navChannels') };
   const [open, setOpen] = useState(false);

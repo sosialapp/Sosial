@@ -11,6 +11,8 @@ export type Messages = Record<string, string>;
 const en: Messages = {
   wUnconfigured: 'Backend not configured, add the Supabase keys to .env and restart Expo to enable accounts.',
   wSub: 'Every channel. One calendar.',
+  lHint: 'Hold the bolt to light up your channels',
+  lStart: 'Get started',
   wStrip: 'Compose · Schedule · Published',
   wSegUp: 'Create account',
   wSegIn: 'Sign in',
@@ -710,6 +712,8 @@ const en: Messages = {
 const es: Messages = {
   wUnconfigured: 'Backend sin configurar: añade las claves de Supabase a .env y reinicia Expo para activar las cuentas.',
   wSub: 'Todos los canales. Un calendario.',
+  lHint: 'Mantén pulsado el rayo para encender tus canales',
+  lStart: 'Empezar',
   wStrip: 'Escribe · Programa · Publicado',
   wSegUp: 'Crear cuenta',
   wSegIn: 'Iniciar sesión',
@@ -1345,6 +1349,8 @@ const es: Messages = {
 const fr: Messages = {
   wUnconfigured: 'Backend non configuré : ajoute les clés Supabase à .env et relance Expo pour activer les comptes.',
   wSub: 'Tous les canaux. Un calendrier.',
+  lHint: 'Maintenez l’éclair pour allumer vos canaux',
+  lStart: 'Commencer',
   wStrip: 'Composer · Planifier · Publié',
   wSegUp: 'Créer un compte',
   wSegIn: 'Se connecter',
@@ -1980,6 +1986,8 @@ const fr: Messages = {
 const de: Messages = {
   wUnconfigured: 'Backend nicht konfiguriert: füge die Supabase-Schlüssel in .env hinzu und starte Expo neu, um Konten zu aktivieren.',
   wSub: 'Alle Kanäle. Ein Kalender.',
+  lHint: 'Halte den Blitz gedrückt, um deine Kanäle aufleuchten zu lassen',
+  lStart: 'Los geht’s',
   wStrip: 'Verfassen · Planen · Veröffentlicht',
   wSegUp: 'Konto erstellen',
   wSegIn: 'Anmelden',
@@ -2615,6 +2623,8 @@ const de: Messages = {
 const ja: Messages = {
   wUnconfigured: 'バックエンドが未設定です。.env に Supabase キーを追加し Expo を再起動するとアカウントが使えます。',
   wSub: 'すべてのチャンネル。ひとつのカレンダー。',
+  lHint: '稲妻を長押しするとチャンネルが光ります',
+  lStart: 'はじめる',
   wStrip: '作成 · 予約 · 投稿済み',
   wSegUp: 'アカウント作成',
   wSegIn: 'ログイン',
@@ -3250,6 +3260,8 @@ const ja: Messages = {
 const ko: Messages = {
   wUnconfigured: '백엔드가 설정되지 않았습니다. .env에 Supabase 키를 추가하고 Expo를 다시 시작하세요.',
   wSub: '모든 채널. 하나의 캘린더.',
+  lHint: '번개를 길게 눌러 채널을 밝혀 보세요',
+  lStart: '시작하기',
   wStrip: '작성 · 예약 · 게시됨',
   wSegUp: '계정 만들기',
   wSegIn: '로그인',
@@ -3885,6 +3897,8 @@ const ko: Messages = {
 const zh: Messages = {
   wUnconfigured: '后端尚未配置：将 Supabase 密钥加入 .env 并重启 Expo，即可启用账号。',
   wSub: '所有渠道。一个日历。',
+  lHint: '长按闪电，点亮你的渠道',
+  lStart: '开始使用',
   wStrip: '撰写 · 排期 · 已发布',
   wSegUp: '创建账号',
   wSegIn: '登录',

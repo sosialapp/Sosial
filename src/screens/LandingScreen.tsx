@@ -1,8 +1,11 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, Animated, Pressable, Easing } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Image, StyleSheet, ScrollView, Animated, Pressable, Easing, Modal } from 'react-native';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { useTheme, T, Palette } from '../theme';
 import { PrimaryBtn, SocialGlyph } from '../components/ui';
+import { tr, SUPPORTED_LOCALES } from '../i18n';
+import { LOCALE_NAMES } from '../utils/account';
 
 /** All ten channels, one circle around the bolt. */
 const NODES = ['x', 'instagram', 'tiktok', 'facebook', 'threads', 'youtube', 'bluesky', 'mastodon', 'linkedin', 'pinterest'];
@@ -164,10 +167,20 @@ function OrbitIllustration() {
   );
 }
 
-/** First-run brand moment: one promise, one button. Auth lives behind it. */
-export default function LandingScreen({ onGetStarted }: { onGetStarted: () => void }) {
+/** First-run brand moment: one promise, one button. Auth lives behind it.
+ *  The language picker under the button sets the app language before sign-in. */
+export default function LandingScreen({
+  onGetStarted,
+  locale,
+  onLocale,
+}: {
+  onGetStarted: () => void;
+  locale: string;
+  onLocale: (locale: string) => void;
+}) {
   const { C } = useTheme();
   const s = makeS(C);
+  const [picking, setPicking] = useState(false);
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
       <ScrollView
@@ -176,12 +189,42 @@ export default function LandingScreen({ onGetStarted }: { onGetStarted: () => vo
       >
         <OrbitIllustration />
         <Text style={[T.display, { color: C.ink, textAlign: 'center' }]}>Sosial</Text>
-        <Text style={s.sub}>Every channel. One calendar.</Text>
-        <Text style={s.hint}>Hold the bolt to light up your channels</Text>
+        <Text style={s.sub}>{tr('wSub')}</Text>
+        <Text style={s.hint}>{tr('lHint')}</Text>
       </ScrollView>
       <View style={s.footer}>
-        <PrimaryBtn label="Get started" icon="arrow-forward" onPress={onGetStarted} />
+        <PrimaryBtn label={tr('lStart')} icon="arrow-forward" onPress={onGetStarted} />
+        <Pressable
+          onPress={() => setPicking(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${tr('aLang')}: ${LOCALE_NAMES[locale] ?? locale}`}
+          hitSlop={8}
+          style={s.lang}
+        >
+          <Ionicons name="globe-outline" size={16} color={C.muted} />
+          <Text style={s.langT}>{LOCALE_NAMES[locale] ?? locale}</Text>
+          <Ionicons name="chevron-down" size={14} color={C.muted} />
+        </Pressable>
       </View>
+      <Modal visible={picking} transparent animationType="fade" onRequestClose={() => setPicking(false)}>
+        <Pressable style={s.scrim} onPress={() => setPicking(false)} accessibilityLabel={tr('wClose')}>
+          <Pressable style={s.sheet} onPress={() => {}}>
+            <Text style={s.sheetT}>{tr('aLang')}</Text>
+            {SUPPORTED_LOCALES.map((l) => (
+              <Pressable
+                key={l}
+                onPress={() => { onLocale(l); setPicking(false); }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: l === locale }}
+                style={s.row}
+              >
+                <Text style={[s.rowT, l === locale && { fontFamily: 'PlusJakartaSans_700Bold' }]}>{LOCALE_NAMES[l] ?? l}</Text>
+                {l === locale ? <Ionicons name="checkmark" size={18} color={C.ink} /> : null}
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -199,5 +242,12 @@ const makeS = (C: Palette) =>
     },
     sub: { ...(T.body as object), color: C.muted, textAlign: 'center' } as any,
     hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.faint, textAlign: 'center', marginTop: 10 },
-    footer: { paddingHorizontal: 28, paddingTop: 8, paddingBottom: 34 },
+    footer: { paddingHorizontal: 28, paddingTop: 8, paddingBottom: 22, gap: 14 },
+    lang: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12 },
+    langT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: C.muted },
+    scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    sheet: { backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 36 },
+    sheetT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: C.ink, marginBottom: 8 },
+    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft },
+    rowT: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: C.ink },
   });

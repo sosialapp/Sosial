@@ -15,7 +15,7 @@ import {
 import { isRunningInExpoGo } from 'expo';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, T, R, Palette } from '../theme';
-import { tr } from '../i18n';
+import { tr, activeLocale } from '../i18n';
 import { PrimaryBtn, GhostBtn, Txt, GoogleGlyph } from '../components/ui';
 import { TERMS_TEXT, PRIVACY_SECTIONS } from '../utils/legal';
 import {
@@ -90,7 +90,8 @@ export default function WelcomeScreen({
       notifComments: true,
       notifWeekly: false,
       notifMarketing: false,
-      locale: 'en',
+      // The language picked on the landing screen.
+      locale: activeLocale(),
     };
     try {
       const prof = await pullProfileFromCloud();
@@ -102,7 +103,9 @@ export default function WelcomeScreen({
           notifComments: prof.notifComments,
           notifWeekly: prof.notifWeekly,
           notifMarketing: prof.notifMarketing,
-          locale: prof.locale,
+          // 'en' is the column default, so it never overrides a language
+          // picked on the landing screen; any other saved choice wins.
+          locale: prof.locale !== 'en' ? prof.locale : activeLocale(),
         };
       }
     } catch {}

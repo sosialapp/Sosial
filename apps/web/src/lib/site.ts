@@ -12,3 +12,12 @@ export function dashboardUrl(): string {
   if (env) return env.replace(/\/+$/, '');
   return '/dashboard';
 }
+
+/**
+ * Canonical origin of the docs site, no trailing slash. Production needs no
+ * env; set NEXT_PUBLIC_DOCS_URL=http://docs.localhost:3000 locally to keep
+ * nav and footer links on your machine.
+ */
+export function docsUrl(): string {
+  return (process.env.NEXT_PUBLIC_DOCS_URL?.trim() || 'https://docs.sosial.app').replace(/\/+$/, '');
+}

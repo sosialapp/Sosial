@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { BRAND_NAMES, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { siteFooterPages } from '@/lib/sitePages';
+import { docsUrl } from '@/lib/site';
 import { translator } from '@/lib/i18n/locales';
 import { landingMessages } from '@/lib/i18n/landing';
 import { getLocale } from '@/lib/i18n/server';
@@ -87,9 +88,9 @@ export default async function SiteFooter() {
             <p className="eyebrow text-paper/50">{t('footResources')}</p>
             <ul className="mt-4 space-y-2.5 text-sm font-semibold text-paper/80">
               <li>
-                <Link href="/integrations" className="hover:text-paper">
-                  {t('footChannels')}
-                </Link>
+                <a href={docsUrl()} className="hover:text-paper">
+                  {t('footDocs')}
+                </a>
               </li>
               <li>
                 <Link href="/blog" className="hover:text-paper">
@@ -114,11 +115,6 @@ export default async function SiteFooter() {
               <li>
                 <Link href="/transparency" className="hover:text-paper">
                   {t('footTransparency')}
-                </Link>
-              </li>
-              <li>
-                <Link href="/developers" className="hover:text-paper">
-                  {t('footDevelopers')}
                 </Link>
               </li>
               <li>

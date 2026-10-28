@@ -372,6 +372,9 @@ function Shell() {
           <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
           <LandingScreen
             onGetStarted={() => { setShowLanding(false); setShowWelcome(true); }}
+            locale={account.locale}
+            // Signed out: device only. Sign-up/sign-in carries it into the profile.
+            onLocale={(l) => { void saveAccount({ locale: l }).then(setAccount); }}
           />
         </SafeAreaView>
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
