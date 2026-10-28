@@ -42,7 +42,7 @@ function Card({
     <article className={`flex flex-col overflow-hidden rounded-[28px] bg-[#F5F5F3] p-2 ${className}`}>
       <div className="px-5 pb-5 pt-5 sm:px-6 sm:pt-6">
         <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-medium ${AREA_TINT[area]}`}>{label}</span>
-        <h3 className="mt-3 font-display text-xl font-[400] tracking-[-0.02em] sm:text-2xl">{title}</h3>
+        <h3 className="mt-3 font-display text-xl font-[700] tracking-[-0.02em] sm:text-2xl">{title}</h3>
         <p className="mt-1.5 max-w-md text-[14px] leading-relaxed text-ink/55">{body}</p>
       </div>
       <div className={`relative flex flex-1 items-center justify-center rounded-[22px] p-4 sm:p-8 ${stage}`}>{children}</div>
@@ -381,7 +381,7 @@ export default function ProductBento() {
   return (
     <section id="features" aria-label={t('navFeatures')} className="scroll-mt-16 bg-white">
       <div className="mx-auto max-w-6xl px-4 pb-2 pt-20 md:pt-28">
-        <h2 className="max-w-3xl font-display text-3xl font-[400] leading-[1.1] tracking-[-0.03em] text-balance sm:text-5xl">
+        <h2 className="max-w-3xl font-display text-3xl font-[700] leading-[1.1] tracking-[-0.03em] text-balance sm:text-5xl">
           {t('lpBentoBig')}{' '}
           <span className="bg-[linear-gradient(90deg,#F2A400,#F2683C_55%,#D6249F)] bg-clip-text text-transparent">
             {t('lpBentoHl')}

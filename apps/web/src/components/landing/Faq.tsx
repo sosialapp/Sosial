@@ -12,7 +12,7 @@ export default async function Faq() {
   return (
     <section id="faq" aria-label={t('lpFaqH2')} className="scroll-mt-16 bg-white">
       <div className="mx-auto max-w-3xl px-4 py-20 md:py-28">
-        <h2 className="font-display text-3xl font-[400] tracking-[-0.03em] sm:text-4xl">{t('lpFaqH2')}</h2>
+        <h2 className="font-display text-3xl font-[700] tracking-[-0.03em] sm:text-4xl">{t('lpFaqH2')}</h2>
         <div className="mt-10 flex flex-col gap-2">
           {QA.map((x) => (
             <details key={x.q} className="group rounded-2xl bg-[#F5F5F3] transition-colors hover:bg-[#EFEFEC]">
