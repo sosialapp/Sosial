@@ -135,8 +135,8 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const tourKpis = useTourTarget('tour-home-kpis');
-  const tourInsights = useTourTarget('tour-home-insights');
+  const tourKpis = useTourTarget('tour-home-kpis', { radius: 22 });
+  const tourInsights = useTourTarget('tour-home-insights', { radius: 22 });
   const [posts, setPosts] = useState<ManagedPost[]>([]);
   const [channels, setChannels] = useState(0);
   const [connected, setConnected] = useState(false);

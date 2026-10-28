@@ -240,8 +240,8 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const tourTabs = useTourTarget('tour-post-tabs');
-  const tourCompose = useTourTarget('tour-post-compose');
+  const tourTabs = useTourTarget('tour-post-tabs', { insetX: 20, radius: 999 });
+  const tourCompose = useTourTarget('tour-post-compose', { insetX: 20, radius: 22 });
   const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadMedia, setDraftThreadMedia, pickDraftThreadMedia, removeDraftThreadMedia, moveDraftThreadMedia, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, beginInline, endInline } = useComposer();
   // Fresh inline composer mount (remount resets its channel/schedule picks).
   const [formKey, setFormKey] = useState(0);

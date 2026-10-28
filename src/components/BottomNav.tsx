@@ -18,7 +18,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 }) {
   const [plus, setPlus] = useState(false);
   const { C } = useTheme();
-  const tourDock = useTourTarget('tour-dock');
+  const tourDock = useTourTarget('tour-dock', { radius: 34 });
   const s = makeS(C);
 
   const item = (t: MainTab, icon: (on: boolean) => React.ReactNode, label: string) => {

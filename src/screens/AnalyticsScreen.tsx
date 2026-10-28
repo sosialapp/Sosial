@@ -74,8 +74,8 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const tourRange = useTourTarget('tour-analytics-range');
-  const tourMetrics = useTourTarget('tour-analytics-metrics');
+  const tourRange = useTourTarget('tour-analytics-range', { insetX: 24, radius: 999 });
+  const tourMetrics = useTourTarget('tour-analytics-metrics', { insetX: 20, radius: 22 });
   const [data, setData] = useState<CloudAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

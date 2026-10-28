@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
+  PixelRatio,
   Pressable,
   StyleSheet,
   Text,
@@ -72,30 +73,43 @@ async function isSeen(id: TourId): Promise<boolean> {
 }
 
 type Rect = { x: number; y: number; w: number; h: number };
+/** A measured target plus the corner radius the ring should echo. */
+type Target = Rect & { radius: number };
 
 type AnchorNode = React.ComponentRef<typeof View>;
 type AnchorRef = { current: AnchorNode | null };
+/**
+ * `insetX` trims a wrapper's side padding so the ring hugs the visible
+ * control rather than the screen gutter; `radius` matches its corners.
+ */
+export type TourTargetOptions = { insetX?: number; radius?: number };
 
-const anchors = new Map<string, AnchorRef>();
+const anchors = new Map<string, { ref: AnchorRef; opts: TourTargetOptions }>();
 const replayListeners = new Set<() => void>();
 
-function measure(name: string): Promise<Rect | null> {
-  const node = anchors.get(name)?.current;
-  if (!node) return Promise.resolve(null);
+function measure(name: string): Promise<Target | null> {
+  const anchor = anchors.get(name);
+  const node = anchor?.ref.current;
+  if (!anchor || !node) return Promise.resolve(null);
+  const inset = anchor.opts.insetX ?? 0;
   return new Promise((resolve) => {
-    node.measureInWindow((x, y, w, h) => resolve({ x, y, w, h }));
+    node.measureInWindow((x, y, w, h) =>
+      resolve({ x: x + inset, y, w: w - inset * 2, h, radius: anchor.opts.radius ?? R.md }),
+    );
   });
 }
 
 /** Park a ref on the view a step points at. */
-export function useTourTarget(name: string): AnchorRef {
+export function useTourTarget(name: string, opts: TourTargetOptions = {}): AnchorRef {
   const ref = useRef<AnchorNode | null>(null);
+  const { insetX, radius } = opts;
   useEffect(() => {
-    anchors.set(name, ref);
+    const entry = { ref, opts: { insetX, radius } };
+    anchors.set(name, entry);
     return () => {
-      if (anchors.get(name) === ref) anchors.delete(name);
+      if (anchors.get(name) === entry) anchors.delete(name);
     };
-  }, [name]);
+  }, [name, insetX, radius]);
   return ref;
 }
 
@@ -125,7 +139,7 @@ export default function Tour({ page }: { page: TourId | null }) {
   const [cardH, setCardH] = useState(216);
   const [tour, setTour] = useState<TourId | null>(null);
   const [index, setIndex] = useState(0);
-  const [rect, setRect] = useState<Rect | null>(null);
+  const [rect, setRect] = useState<Target | null>(null);
   const [replayNonce, setReplayNonce] = useState(0);
 
   const steps = tour ? TOURS[tour] : [];
@@ -178,7 +192,11 @@ export default function Tour({ page }: { page: TourId | null }) {
       if (!alive) return;
       const h = Dimensions.get('window').height;
       if (r && r.w > 0 && r.h > 0 && r.y < h && r.y + r.h > 0) {
-        setRect(r);
+        // Polling re-measures every tick; skip identical frames so the ring
+        // doesn't re-render (and flicker) on Android.
+        setRect((prev) =>
+          prev && prev.x === r.x && prev.y === r.y && prev.w === r.w && prev.h === r.h && prev.radius === r.radius ? prev : r,
+        );
         return;
       }
       if (attempts > 8) setIndex((i) => i + 1);
@@ -231,14 +249,20 @@ export default function Tour({ page }: { page: TourId | null }) {
   const last = index >= steps.length - 1;
   const pad = 6;
 
-  const ring = local
-    ? {
-        left: local.x - pad,
-        top: local.y - pad,
-        width: local.w + pad * 2,
-        height: local.h + pad * 2,
-      }
-    : null;
+  // Whole device pixels so the four scrim panes meet without seams, and
+  // clipped to the overlay so a tall target (the composer) or the dock
+  // doesn't push the ring off-screen.
+  const px = PixelRatio.roundToNearestPixel;
+  const ring = (() => {
+    if (!local) return null;
+    const left = px(Math.max(2, local.x - pad));
+    const right = px(Math.min((frame?.w ?? win.width) - 2, local.x + local.w + pad));
+    const top = px(Math.max(2, local.y - pad));
+    const bottom = px(Math.min(oh - 2, local.y + local.h + pad));
+    if (right <= left || bottom <= top) return null;
+    return { left, top, width: right - left, height: bottom - top };
+  })();
+  const ringRadius = ring && rect ? Math.min(rect.radius + pad, ring.height / 2, ring.width / 2) : R.md;
 
   return (
     <View
@@ -257,7 +281,7 @@ export default function Tour({ page }: { page: TourId | null }) {
             style={[styles.scrim, { top: ring!.top, height: ring!.height, left: ring!.left + ring!.width, right: 0, backgroundColor: scrim }]}
             onPress={() => {}}
           />
-          <View pointerEvents="none" style={[styles.ring, ring!, { borderWidth: 2, borderColor: C.accent, borderRadius: R.md, backgroundColor: 'transparent' }]} />
+          <View pointerEvents="none" style={[styles.ring, ring!, { borderWidth: 2, borderColor: C.accent, borderRadius: ringRadius, backgroundColor: 'transparent' }]} />
         </>
       ) : (
         <Pressable style={[styles.scrim, StyleSheet.absoluteFill, { backgroundColor: scrim }]} onPress={() => {}} />
