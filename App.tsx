@@ -22,6 +22,7 @@ import TeamScreen from './src/screens/TeamScreen';
 import PrivacyScreen from './src/screens/PrivacyScreen';
 import BottomNav, { type MainTab } from './src/components/BottomNav';
 import Grain from './src/components/Grain';
+import Tour from './src/components/Tour';
 import { useFontsLoaded } from './src/utils/fonts';
 import { loadAccount, saveAccount, Account } from './src/utils/account';
 import { setLocale } from './src/i18n';
@@ -505,6 +506,7 @@ function Shell() {
             />
           </View>
         ) : null}
+        <Tour page={route === 'home' ? 'home' : route === 'create' ? 'post' : route === 'analytics' ? 'analytics' : route === 'community' ? 'community' : null} />
       </SafeAreaView>
       {/* single film-grain coat over the whole window incl. status/home strips,
           so the strips never read as a different color from the screens */}

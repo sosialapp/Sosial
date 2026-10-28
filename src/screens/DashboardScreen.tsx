@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIn
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T } from '../theme';
 import NotificationBell from '../components/NotificationBell';
+import { useTourTarget } from '../components/Tour';
 import { SocialGlyph } from '../components/ui';
 import ConnectButton from '../components/ConnectButton';
 import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/managed';
@@ -134,6 +135,8 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
 }) {
   const { C } = useTheme();
   const s = makeS(C);
+  const tourKpis = useTourTarget('tour-home-kpis');
+  const tourInsights = useTourTarget('tour-home-insights');
   const [posts, setPosts] = useState<ManagedPost[]>([]);
   const [channels, setChannels] = useState(0);
   const [connected, setConnected] = useState(false);
@@ -279,7 +282,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
         </View>
 
         {/* KPIs: one card, four cells split by hairlines */}
-        <View style={[s.card, s.kpiCard]}>
+        <View style={[s.card, s.kpiCard]} ref={tourKpis} collapsable={false}>
           {kpis.map((k, i) => (
             <View
               key={k.label}
@@ -300,7 +303,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
 
         {/* analytics snapshot */}
         <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
-          <TouchableOpacity onPress={connected ? onAnalytics : onConnect} style={s.card} activeOpacity={0.85}>
+          <TouchableOpacity ref={tourInsights} onPress={connected ? onAnalytics : onConnect} style={s.card} activeOpacity={0.85}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={s.anIcon}><Ionicons name="analytics" size={16} color="#0b1220" /></View>

@@ -736,7 +736,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
       </div>
 
       {/* Controls: range switch, then the channel filter as one swipeable row. */}
-      <div className="mt-4 flex flex-col gap-2.5 lg:flex-row lg:items-center">
+      <div className="mt-4 flex flex-col gap-2.5 lg:flex-row lg:items-center" data-tour="analytics-range">
         <Popover open={calOpen} onOpenChange={setCalOpen}>
           <PopoverAnchor asChild>
             <div className="max-w-full shrink-0">
@@ -1181,11 +1181,13 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
 
       <p className="mt-4 mb-2 px-1 text-xs leading-relaxed text-faint">{t('anStatsNote')}</p>
 
-      <CommentReportCard
-        rows={reportRows}
-        rangeLabel={range.label}
-        channelLabel={(channelId, provider) => authorOf(channelId, provider).name}
-      />
+      <div data-tour="analytics-comments">
+        <CommentReportCard
+          rows={reportRows}
+          rangeLabel={range.label}
+          channelLabel={(channelId, provider) => authorOf(channelId, provider).name}
+        />
+      </div>
 
       <PostPreviewDialog post={preview} onClose={() => setPreview(null)} />
       <ChannelBreakdownDialog

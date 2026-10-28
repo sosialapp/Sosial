@@ -7,6 +7,7 @@ import WorkspaceSwitcher, { type WorkspaceOption } from '@/components/WorkspaceS
 import ContentArea from '@/components/ContentArea';
 import SwitchTransition from '@/components/SwitchTransition';
 import Dock from '@/components/Dock';
+import Tour from '@/components/tour/Tour';
 import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
 import NotificationBell from '@/components/NotificationBell';
@@ -128,6 +129,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <ContentArea>{children}</ContentArea>
       </main>
       <Dock />
+      <Tour />
       </SwitchTransition>
     </ThemeScope>
   );

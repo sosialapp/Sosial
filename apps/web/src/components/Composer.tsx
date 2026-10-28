@@ -557,7 +557,7 @@ export default function Composer({
         </div>
 
         <aside className="w-full shrink-0 space-y-5 lg:w-80">
-          <div className="card space-y-3 p-4">
+          <div className="card space-y-3 p-4" data-tour="composer-ai">
             <p className="eyebrow">{t('cAiCaptions')}</p>
             <EmojiTextarea
               className="field min-h-[72px] resize-y text-sm"
@@ -596,7 +596,7 @@ export default function Composer({
             </p>
           </div>
 
-          <div className="card p-4">
+          <div className="card p-4" data-tour="composer-channels">
             <p className="eyebrow mb-3">{t('cChannels')}</p>
             {ready.length === 0 ? (
               <p className="text-sm text-muted">
@@ -647,7 +647,7 @@ export default function Composer({
             </p>
           ) : null}
 
-          <div className="card p-4">
+          <div className="card p-4" data-tour="composer-when">
             <p className="eyebrow mb-3">{t('cWhen')}</p>
             <div className="flex flex-wrap gap-1.5">
               {MODES.map((m) => (

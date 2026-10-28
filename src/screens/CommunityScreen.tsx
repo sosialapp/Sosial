@@ -23,6 +23,7 @@ import { SocialGlyph } from '../components/ui';
 import NotificationBell from '../components/NotificationBell';
 import ChannelDrawer, { DrawerChannel } from '../components/ChannelDrawer';
 import { Tabs } from '../components/ui-kit';
+import { useTourTarget } from '../components/Tour';
 import { SOCIAL_META } from '../constants';
 import { supabase, currentSession } from '../utils/supabase';
 import {
@@ -131,6 +132,8 @@ function Face({ name, avatar, size = 34 }: { name: string | null; avatar: string
 export default function CommunityScreen({ onConnect, bare }: { onConnect: () => void; bare?: boolean }) {
   const { C } = useTheme();
   const s = makeS(C);
+  const tourTabs = useTourTarget('tour-community-tabs');
+  const tourFilters = useTourTarget('tour-community-filters');
   const [segment, setSegment] = useState<'comments' | 'messages'>('comments');
   const [unseen, setUnseen] = useState({ comments: 0, messages: 0 });
   const [comments, setComments] = useState<CommunityComment[]>([]);
@@ -608,7 +611,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         </View>
       )}
 
-      <View style={{ paddingHorizontal: 24, marginTop: bare ? 0 : 14 }}>
+      <View style={{ paddingHorizontal: 24, marginTop: bare ? 0 : 14 }} ref={tourTabs} collapsable={false}>
         <Tabs
           options={[
             { value: 'comments', label: tr('mComments') },
@@ -645,7 +648,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         />
       </View>
 
-      <View style={{ paddingHorizontal: 24, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ paddingHorizontal: 24, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }} ref={tourFilters} collapsable={false}>
         <TouchableOpacity onPress={() => setDrawer(true)} style={[s.chanBtn, { flex: 1 }]} activeOpacity={0.75}>
           {channel === 'all' ? (
             <Ionicons name="globe" size={18} color={C.accentInk} />

@@ -173,6 +173,7 @@ export default function Dock() {
       ) : null}
       <div
         ref={dockRef}
+        data-tour="dock"
         className="pointer-events-auto flex flex-col items-center gap-1.5 rounded-3xl border border-line bg-card/90 px-2.5 py-3 shadow-[0_18px_50px_-16px_rgba(25,21,18,0.45)] backdrop-blur-xl"
       >
         {ITEMS.map((item) => {

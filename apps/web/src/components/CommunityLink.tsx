@@ -39,6 +39,7 @@ export default function CommunityLink({ workspaceId }: { workspaceId: string }) 
   return (
     <Link
       href="/community"
+      data-tour="community-badge"
       aria-label={label}
       title="Community - comments and messages"
       className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:bg-bone"

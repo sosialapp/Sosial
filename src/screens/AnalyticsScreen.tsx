@@ -7,6 +7,7 @@ import CommentReport from '../components/CommentReport';
 import { SocialGlyph, Seg } from '../components/ui';
 import { BarsChart, HBarList } from '../components/charts';
 import { Tabs } from '../components/ui-kit';
+import { useTourTarget } from '../components/Tour';
 import { SOCIAL_META, requiresTitle } from '../constants';
 import { currentSession } from '../utils/supabase';
 import {
@@ -73,6 +74,8 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
 }) {
   const { C } = useTheme();
   const s = makeS(C);
+  const tourRange = useTourTarget('tour-analytics-range');
+  const tourMetrics = useTourTarget('tour-analytics-metrics');
   const [data, setData] = useState<CloudAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -353,7 +356,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
 
         <>
             {/* Range presets */}
-            <View style={{ paddingHorizontal: 24, marginTop: 12 }}>
+            <View style={{ paddingHorizontal: 24, marginTop: 12 }} ref={tourRange} collapsable={false}>
               <Tabs
                 options={PRESETS.map((p) => ({ value: p.id, label: tr(p.key) }))}
                 value={preset}
@@ -409,7 +412,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
             ) : (
               <>
                 {/* Hero: four numbers as tabs over one chart (web parity). */}
-                <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+                <View style={{ paddingHorizontal: 20, marginTop: 16 }} ref={tourMetrics} collapsable={false}>
                   <View style={[s.card, { padding: 0, overflow: 'hidden' }]}>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                       {metricCells.map((m, i) => {

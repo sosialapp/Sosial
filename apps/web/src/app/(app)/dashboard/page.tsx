@@ -250,10 +250,12 @@ export default async function DashboardPage() {
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
-          <QuickPost channels={channels} workspaceId={ctx.workspace.id} userId={ctx.user.id} role={ctx.workspace.role} />
+          <div className="min-w-0" data-tour="dashboard-create">
+            <QuickPost channels={channels} workspaceId={ctx.workspace.id} userId={ctx.user.id} role={ctx.workspace.role} />
+          </div>
 
           {/* This week: seven day columns (swipeable on a phone), drag posts between days. */}
-          <Card className="overflow-hidden" aria-label={t('contentCalendar')}>
+          <Card className="overflow-hidden" data-tour="dashboard-week" aria-label={t('contentCalendar')}>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-5 py-4">
               <p className="font-display text-base font-extrabold tracking-tight">{t('contentCalendar')}</p>
               <span className="flex-1" />
@@ -292,9 +294,11 @@ export default async function DashboardPage() {
             )}
           </Card>
 
-          <AnalyticsCard
-            sentAt={posts.filter((p) => (p.status === 'sent' || p.status === 'partial') && p.sent_at).map((p) => p.sent_at as string)}
-          />
+          <div data-tour="dashboard-stats">
+            <AnalyticsCard
+              sentAt={posts.filter((p) => (p.status === 'sent' || p.status === 'partial') && p.sent_at).map((p) => p.sent_at as string)}
+            />
+          </div>
 
           {/* Channels at a glance: who is live and who needs a reconnect. */}
           <Card className="p-5" aria-label={t('connectedAccts')}>

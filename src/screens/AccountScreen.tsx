@@ -11,6 +11,7 @@ import { TERMS_TEXT } from '../utils/legal';
 import { supabase, currentSession, signUpEmail, signInEmail, signInWithGoogle, signOutCloud, onCloudAuthChange, isSupabaseConfigured, pullProfileFromCloud, callEdgeFunction, WorkspaceInfo, getMyAvatar, avatarSignedUrl, setAvatarFromUri, clearMyAvatar } from '../utils/supabase';
 import { ADMIN_LOCALES, LOCALE_NAMES } from '../utils/account';
 import { tr } from '../i18n';
+import { replayTours } from '../components/Tour';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
@@ -693,6 +694,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 void loadTicket();
               })}
               {row('sparkles-outline', tr('aNew'), tr('aChangelog'), () => setView('changelog'))}
+              {row('compass-outline', tr('aTour'), tr('aTourS'), () => { void replayTours(); })}
             </View>
             <View style={s.list}>
               {row('shield-checkmark-outline', tr('aPrivacy'), undefined, onPrivacy)}

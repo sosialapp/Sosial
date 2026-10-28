@@ -7,6 +7,7 @@ import NotificationBell from '../components/NotificationBell';
 import ConnectButton from '../components/ConnectButton';
 import { Txt, PrimaryBtn, GhostBtn, FeedPhoto, FeedVideo } from '../components/ui';
 import { Tabs } from '../components/ui-kit';
+import { useTourTarget } from '../components/Tour';
 import AICopySheet from '../components/AICopySheet';
 import MediaSources from '../components/MediaSources';
 import { usePost, defaultPage } from '../store/PostContext';
@@ -239,6 +240,8 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
 }) {
   const { C } = useTheme();
   const s = makeS(C);
+  const tourTabs = useTourTarget('tour-post-tabs');
+  const tourCompose = useTourTarget('tour-post-compose');
   const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadMedia, setDraftThreadMedia, pickDraftThreadMedia, removeDraftThreadMedia, moveDraftThreadMedia, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, beginInline, endInline } = useComposer();
   // Fresh inline composer mount (remount resets its channel/schedule picks).
   const [formKey, setFormKey] = useState(0);
@@ -596,7 +599,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
         </View>
 
         {/* section tabs, sliding thumb glides on every switch */}
-        <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+        <View style={{ paddingHorizontal: 20, marginTop: 16 }} ref={tourTabs} collapsable={false}>
           <Tabs
             options={[
               { value: 'post', label: tr('nPost') },
@@ -789,7 +792,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
             )}
           </View>
         ) : tab === 'post' ? (
-          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+          <View style={{ paddingHorizontal: 20, marginTop: 14 }} ref={tourCompose} collapsable={false}>
             {/* The composer itself, inline, no bottom-sheet window. Same form
                 and submit paths as the sheet, bound to the live draft. */}
             <ScheduleForm

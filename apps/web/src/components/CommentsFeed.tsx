@@ -523,7 +523,7 @@ export default function CommentsFeed({
 
   const list = (
     <>
-      <div className="space-y-2.5 border-b border-line px-4 pt-3.5 pb-3">
+      <div className="space-y-2.5 border-b border-line px-4 pt-3.5 pb-3" data-tour="community-filters">
         <ChannelStrip channels={channelsWithRows} value={chan} onChange={setChan} />
         <div className="flex flex-wrap items-center gap-2">
           <Segmented
@@ -826,6 +826,7 @@ export default function CommentsFeed({
               </p>
             ) : target ? (
               <form
+                data-tour="community-reply"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void send(g.key, target);

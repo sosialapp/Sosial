@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
 import PostIcon from './PostIcon';
+import { useTourTarget } from './Tour';
 import { tr } from '../i18n';
 
 export type MainTab = 'home' | 'post' | 'community' | 'profile';
@@ -17,6 +18,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
 }) {
   const [plus, setPlus] = useState(false);
   const { C } = useTheme();
+  const tourDock = useTourTarget('tour-dock');
   const s = makeS(C);
 
   const item = (t: MainTab, icon: (on: boolean) => React.ReactNode, label: string) => {
@@ -46,7 +48,7 @@ export default function BottomNav({ tab, onTab, onTemplate, onPost }: {
   return (
     <>
       <View pointerEvents="box-none" style={s.float}>
-        <View style={s.pill}>{inner}</View>
+        <View style={s.pill} ref={tourDock} collapsable={false}>{inner}</View>
       </View>
 
       <Modal visible={plus} transparent animationType="fade" onRequestClose={() => setPlus(false)}>

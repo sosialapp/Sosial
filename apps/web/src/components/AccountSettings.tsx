@@ -16,6 +16,7 @@ import {
   ChevronRight,
   CirclePlus,
   CloudUpload,
+  Compass,
   CreditCard,
   FileText,
   Flag,
@@ -32,6 +33,7 @@ import {
   Users,
 } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
+import { clearTourSeen } from '@/components/tour/steps';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { fileToAvatarDataUrl } from '@/lib/avatar';
@@ -654,6 +656,16 @@ export default function AccountSettings({
             <Row icon={<Star className="h-5 w-5" aria-hidden="true" />} label={t('asRowRate')} sub={t('asRowRateSub')} onClick={() => setView('report')} />
             <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label={t('asRowSupport')} sub={openTicket ? t('asSupportOpen') : t('asSupportNew')} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
             <Row icon={<Sparkles className="h-5 w-5" aria-hidden="true" />} label={t('asRowNew')} sub={t('asRowChangelog')} onClick={() => setView('changelog')} />
+            <Row
+              icon={<Compass className="h-5 w-5" aria-hidden="true" />}
+              label={t('tourReplay')}
+              sub={t('tourReplaySub')}
+              onClick={() => {
+                clearTourSeen();
+                window.dispatchEvent(new CustomEvent('sosial:tour-replay'));
+                setNote(t('tourReplayDone'));
+              }}
+            />
           </Card>
 
           <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
