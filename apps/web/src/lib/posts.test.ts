@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CHAIN_PROVIDERS, createPost, fetchPosts, threadSegments } from './posts';
+import { CHAIN_PROVIDERS, assertTikTokAudience, createPost, fetchPosts, threadSegments } from './posts';
 import { uploadMedia } from './mediaUpload';
 
 vi.mock('./mediaUpload', () => ({ uploadMedia: vi.fn() }));
@@ -125,5 +125,20 @@ describe('chain threads (worker parity)', () => {
   it('trims segments and drops empties for options.thread', () => {
     expect(threadSegments(['  hello  ', '', '   ', 'world'])).toEqual(['hello', 'world']);
     expect(threadSegments([])).toEqual([]);
+  });
+});
+
+describe('assertTikTokAudience', () => {
+  const tt = [{ provider: 'tiktok' }];
+
+  it('refuses a queued TikTok post without an audience', () => {
+    expect(() => assertTikTokAudience('now', tt)).toThrow(/audience/);
+    expect(() => assertTikTokAudience('schedule', tt, { tiktok: { ttPrivacy: '' } })).toThrow(/audience/);
+  });
+
+  it('allows drafts, explicit audiences and non-TikTok posts', () => {
+    expect(() => assertTikTokAudience('draft', tt)).not.toThrow();
+    expect(() => assertTikTokAudience('now', tt, { tiktok: { ttPrivacy: 'SELF_ONLY' } })).not.toThrow();
+    expect(() => assertTikTokAudience('now', [{ provider: 'x' }])).not.toThrow();
   });
 });

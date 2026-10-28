@@ -27,7 +27,6 @@ import { publishVk } from '../utils/vkPublish';
 import { publishGmb } from '../utils/gmbPublish';
 import { publishLinkedIn } from '../utils/liPublish';
 import { publishYouTube } from '../utils/ytPublish';
-import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
 import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
 import { loadActor, canSubmit } from '../utils/team';
 import {
@@ -931,17 +930,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
       if (pending.includes('tiktok') && plats.includes('tiktok') && !ttPrivacy) {
         try {
-          const ttAcct = accountFor('tiktok');
-          const token = await getValidToken(ttAcct?.id);
-          const ci = await fetchCreatorInfo(token);
-          const options = ci.privacyOptions;
           // NEVER wait on a modal here (a prompt that can't present over the
           // composer sheet leaves this await pending forever and holds the
           // publish lock). Never invent an audience either: TikTok requires the
-          // user to pick one and the guidelines forbid defaulting it. Only a
-          // legacy queued post survives, and only when the account offers
-          // exactly one level, which is no choice at all.
-          if (options.length === 1) ttPrivacy = options[0];
+          // user to pick one and the guidelines forbid defaulting it, even when
+          // the account offers a single level.
           if (!ttPrivacy) throw new Error(tr('uTiktokAudienceNotChosen'));
         } catch (e: any) {
           // Backing out of the audience pick (or any pre-flight failure) must

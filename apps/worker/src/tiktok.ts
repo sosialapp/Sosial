@@ -1,9 +1,12 @@
 /**
  * TikTok publish adapter (Wave D). Ports src/utils/tiktokPublish.ts +
  * refreshTikTokToken to the worker: Vault-backed token (24h access, rotating
- * 1-year refresh), FILE_UPLOAD video flow (init → 8MB chunked PUTs → poll),
- * and PULL_FROM_URL photo posts via the user's verified photo host (synced
- * into channel metadata, TikTok rejects any host the user hasn't verified).
+ * 1-year refresh), PULL_FROM_URL video posts from our own storage domain
+ * (TikTok's guidelines: videos already on our servers are pulled, not
+ * re-uploaded) with the FILE_UPLOAD flow (init → 8MB chunked PUTs → poll) only
+ * when no verified pull domain is configured, and PULL_FROM_URL photo posts via
+ * the user's verified photo host (synced into channel metadata, TikTok rejects
+ * any host the user hasn't verified).
  */
 import { readSecret, updateSecret } from './db';
 import { storageChunks, storageHeadSize, storageSign, storageDownload } from './rest';
@@ -17,6 +20,8 @@ const CHUNK = 8 * 1024 * 1024;
 /** Worker poll ceiling: a retry after init would double-post, so wait out
  *  processing instead of failing fast like the app (60s) does. */
 const POLL_MS = 5 * 60 * 1000;
+/** Signed video links must outlive TikTok's pull (it may queue for a while). */
+const PULL_LINK_SEC = 6 * 60 * 60;
 
 interface Bundle {
   target: { id: string; provider: string; caption: string | null; options: any; status: string };
@@ -221,7 +226,9 @@ async function pollStatus(publishId: string, token: string, kind: string): Promi
       // Empty/'ok' code with no reason means the crawler never fetched the file.
       if ((!code || code === 'ok') && !reason) {
         throw new Error(
-          `TikTok could not download the ${kind} from your photo host, check (1) the domain is verified in the TikTok developer portal, (2) the photos.sosial.app DNS record is DNS-only (grey cloud, not proxied), (3) the file is still live (host links expire after 24h).`,
+          kind === 'video'
+            ? 'TikTok could not download the video from storage, check the storage domain is verified in the TikTok developer portal (URL properties) and listed in TT_PULL_HOSTS.'
+            : `TikTok could not download the ${kind} from your photo host, check (1) the domain is verified in the TikTok developer portal, (2) the photos.sosial.app DNS record is DNS-only (grey cloud, not proxied), (3) the file is still live (host links expire after 24h).`,
         );
       }
       if (!code || code === 'ok') {
@@ -284,6 +291,50 @@ async function publishVideo(
   }
   if (sent !== totalBytes) {
     throw new Error(`TikTok upload delivered ${sent}/${totalBytes} bytes, the job will retry shortly.`);
+  }
+  await pollStatus(publishId, token, 'video');
+  return publishId;
+}
+
+/**
+ * A signed link to the stored video, when its host is one we verified with
+ * TikTok (TT_PULL_HOSTS, comma-separated domains, subdomains included).
+ * Null means pull isn't configured, so the caller falls back to FILE_UPLOAD.
+ */
+async function videoPullUrl(path: string): Promise<string | null> {
+  const hosts = String(env('TT_PULL_HOSTS') ?? '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  if (!hosts.length) return null;
+  const url = await storageSign('post-media', path, PULL_LINK_SEC);
+  let host = '';
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+  if (!hosts.some((h) => host === h || host.endsWith(`.${h}`))) {
+    info(`tiktok: storage host ${host} is not in TT_PULL_HOSTS, using FILE_UPLOAD`);
+    return null;
+  }
+  return url;
+}
+
+/** PULL_FROM_URL flow: init with our signed link → TikTok fetches it → poll. */
+async function publishVideoFromUrl(token: string, url: string, title: string, tt: TtOptions): Promise<string> {
+  const init = await fetch(`${TT_API}/v2/post/publish/video/init/`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
+    body: JSON.stringify({
+      post_info: videoPostInfo(tt, title),
+      source_info: { source: 'PULL_FROM_URL', video_url: url },
+    }),
+  });
+  const j: any = await init.json().catch(() => ({}));
+  const publishId = String(j?.data?.publish_id ?? '');
+  if (!ok(j) || !publishId) {
+    throw new Error(friendly(String(j?.error?.code ?? ''), 'TikTok video post failed.'));
   }
   await pollStatus(publishId, token, 'video');
   return publishId;
@@ -388,16 +439,10 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   const tt = optionsOf(b.target.options);
   const creator = await creatorInfo(token);
   if (!tt.privacy) {
-    // Background runs never prompt. Targets composed before the audience
-    // picker existed carry no choice; fall back to the account's single allowed
-    // option instead of wedging the post on an error the user must fix. The
-    // composer always sends a choice now, so this only reaches legacy rows.
-    if (creator.privacyOptions.length === 1) {
-      tt.privacy = creator.privacyOptions[0];
-      info(`tiktok target ${b.target.id}: no audience chosen, only one allowed (${tt.privacy})`);
-    } else {
-      throw new Error('TikTok audience not chosen, open the post, pick an audience, and re-queue (background runs never prompt).');
-    }
+    // TikTok's guidelines: the creator picks the audience, it is never
+    // defaulted (not even when the account offers a single level). Posts made
+    // outside the composer (API, imports) must carry one.
+    throw new Error('TikTok audience not chosen, open the post in Create, pick an audience, and re-queue.');
   }
   // Never silently widen or narrow the audience: TikTok refuses levels the
   // creator lost since the post was composed, and guessing would publish to a
@@ -434,13 +479,20 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
         `TikTok allows this account up to ${Math.round(maxSec / 60)} min per video, this one is ${Math.round(durMs / 60000)} min. Trim it and re-queue.`,
       );
     }
-    info(`tiktok target ${b.target.id}: VIDEO (${tt.privacy}), streaming`);
     await assertMediaAllowed('tiktok', [videos[0]], async () => {
       if (videos[0].byte_size) return videos[0].byte_size;
       const head = await storageHeadSize('post-media', videos[0].storage_path);
       if (head === null) throw new Error('Video: could not read its size from storage.');
       return head;
     });
+    // The video already lives in our storage, so TikTok pulls it from our
+    // verified domain instead of us re-uploading it.
+    const pullUrl = await videoPullUrl(videos[0].storage_path);
+    if (pullUrl) {
+      info(`tiktok target ${b.target.id}: VIDEO (${tt.privacy}), PULL_FROM_URL`);
+      return { publishId: await publishVideoFromUrl(token, pullUrl, title, tt) };
+    }
+    info(`tiktok target ${b.target.id}: VIDEO (${tt.privacy}), FILE_UPLOAD`);
     const size = videos[0].byte_size ?? (await storageHeadSize('post-media', videos[0].storage_path));
     if (!size) throw new Error('Video is empty, re-attach it and re-queue.');
     const chunks = storageChunks('post-media', videos[0].storage_path, CHUNK);

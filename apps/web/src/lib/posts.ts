@@ -297,6 +297,26 @@ export function friendlyLimit(message: string): string {
  * BEFORE targets, so the worker can never see a queued target whose media is
  * still missing. Returns the new post id.
  */
+/**
+ * TikTok's Content Sharing Guidelines: the creator picks the audience in the
+ * TikTok settings panel, it is never defaulted. Only the Create composer has
+ * that panel, so any other path (API, MCP, imports) can draft a TikTok post
+ * but not queue one without an explicit audience.
+ */
+export function assertTikTokAudience(
+  mode: ComposeMode,
+  channels: { provider: string }[],
+  targetOptions?: Record<string, Record<string, unknown>>,
+): void {
+  if (mode === 'draft' || !channels.some((c) => c.provider === 'tiktok')) return;
+  const privacy = targetOptions?.tiktok?.ttPrivacy;
+  if (typeof privacy !== 'string' || !privacy.trim()) {
+    throw new Error(
+      'TikTok posts need an audience picked in the TikTok settings, save it as a draft and finish it in Create.',
+    );
+  }
+}
+
 export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise<string> {
   const { workspaceId, userId, title, body, mode, channels } = args;
   const media = args.media ?? args.files ?? [];
@@ -307,6 +327,7 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
   const postStatus = mode === 'draft' ? 'draft' : needsApproval ? 'approval' : 'queued';
   const targetStatus = mode === 'draft' ? 'pending' : needsApproval ? 'needs_approval' : 'queued';
   if (mode === 'schedule' && args.leadCheck !== false) assertQueueLeadTime(scheduledIso);
+  assertTikTokAudience(mode, channels, args.targetOptions);
 
   // Validate reused ids before creating the replacement post, so a bad id
   // cannot leave an empty draft behind.

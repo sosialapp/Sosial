@@ -48,7 +48,7 @@ export function redirectUri(origin: string): string {
   return `${origin.replace(/\/+$/, '')}/auth.html`;
 }
 
-const TT_SCOPES = ['user.info.basic', 'user.info.stats', 'video.upload', 'video.publish', 'video.list'];
+const TT_SCOPES = ['user.info.basic', 'user.info.stats', 'video.publish', 'video.list'];
 // Instagram Login (instagram.com) scopes. insights is deliberately absent:
 // it is unused and Meta rejects the whole login while the app is unreviewed.
 const IG_SCOPES = [
