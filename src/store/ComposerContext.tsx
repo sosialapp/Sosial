@@ -12,7 +12,7 @@ import { type ConnectedAccount, type ProviderKey,
   findAccount, findAccountForProvider, asIdList, accountName,
   isCloudOnly, schedulableProviders } from '../utils/socialAccounts';
 import { publishFacebook, publishFacebookReel, publishFacebookStory, publishInstagram, publishInstagramStory, publishThreads, uploadTikTokPhoto, MAX_ATTACHMENTS, ATTACH_LIMITS } from '../utils/metaPublish';
-import { publishTikTokVideo, publishTikTokPhotos } from '../utils/tiktokPublish';
+import { publishTikTokVideo, publishTikTokPhotos, type TikTokExtras } from '../utils/tiktokPublish';
 import { publishX } from '../utils/xPublish';
 import { publishBsky, BskyRef } from '../utils/bskyPublish';
 import { publishMastodon } from '../utils/mastodonPublish';
@@ -108,9 +108,9 @@ interface ComposerCtx {
   removeDraftMedia: (index: number) => void;
   moveDraftMedia: (from: number, to: number) => void;
   /** queue / draft / post-now against the live draft, true when stored */
-  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string) => Promise<boolean>;
-  stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
-  postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
+  saveDraftPost: (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string) => Promise<boolean>;
+  stashDraftPost: (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
+  postDraftNow: (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>) => Promise<boolean>;
   /** load a post into the live draft WITHOUT opening the sheet */
   importDraft: (p: ManagedPost | null) => void;
   /** wipe the live draft */
@@ -403,7 +403,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, [onThread, tMedia, tThreadMedia]);
 
   /** Title is no longer typed, it's the first line of the post text, kept for lists + reminders. */
-  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): ManagedPost => {
+  const buildRec = (at: number | undefined, plats: string[], status: PostStatus, types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): ManagedPost => {
     const firstImage = tMedia.find((m) => m.kind === 'image')?.uri || undefined;
     const firstVideo = tMedia.find((m) => m.kind === 'video')?.uri || undefined;
     // Pair text+attachment BEFORE dropping empties so indices stay aligned.
@@ -432,6 +432,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       platformTypes: types,
       threadsTopic: threadsTopic?.trim() || undefined,
       ttPrivacy: ttPrivacy || undefined,
+      ttExtras,
       ytPrivacy: ytPrivacy || undefined,
       sourceUrl: sourceUrl || undefined,
       scheduledAt: at,
@@ -514,7 +515,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return targetWarnings(files, resolved);
   };
 
-  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): Promise<boolean> => {
+  const save = async (at: number, plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     if (queueTooSoon(at)) {
       showInfo(tr('uTooSoon'), `Earliest is ${minQueueLabel()}, scheduled posts need at least 1 minute lead time.`);
@@ -542,7 +543,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const keepApproval = sheetRef.current?.post?.status === 'approval';
     const isMember = canSubmit(await loadActor());
     const status: PostStatus = keepApproval || isMember ? 'approval' : 'queued';
-    const rec = buildRec(at, plats, status, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds, timezone);
+    const rec = buildRec(at, plats, status, types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds, timezone);
     await saveManagedPost(rec);
     // Reminders are best-effort: only armed for posts that actually queue.
     let reminded = false;
@@ -562,10 +563,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const saveDraft = async (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
+  const saveDraft = async (types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     const plats = sheetRef.current?.post?.platforms?.length ? sheetRef.current.post.platforms : ['any'];
-    const rec = buildRec(undefined, plats, 'draft', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
+    const rec = buildRec(undefined, plats, 'draft', types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds);
     await saveManagedPost(rec);
     await cancelPostReminder(rec.id);
     setSheet(null);
@@ -629,7 +630,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   };
 
   /** "Post now": publish immediately, no queueing, no scheduledAt. */
-  const postNow = async (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
+  const postNow = async (plats: string[], types?: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>): Promise<boolean> => {
     if (!sheetRef.current && !inlineRef.current) return false;
     // A stuck or background publish used to swallow taps silently here -
     // say so, so a held lock is diagnosable instead of invisible.
@@ -659,7 +660,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       sizeWarnRef.current = false;
       // Members can't publish directly, their "post now" becomes a pending approval.
       if (canSubmit(await loadActor())) {
-        const rec = buildRec(undefined, plats, 'approval', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
+        const rec = buildRec(undefined, plats, 'approval', types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds);
         await saveManagedPost(rec);
         await cancelPostReminder(rec.id);
         setSheet(null);
@@ -669,7 +670,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
       // no scheduledAt → the auto-publish sweep ignores it, so it can't double-post
-      const rec = buildRec(undefined, plats, 'queued', types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds);
+      const rec = buildRec(undefined, plats, 'queued', types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds);
       const r = await runPublish(rec);
       if (!r) return false;
       const cloudOnly =
@@ -793,7 +794,6 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       return all.length > 0 && all.every(isCloudOnly);
     };
     const accountFor = (ch: string): ConnectedAccount | undefined => accountsFor(ch)[0] ?? resolvedAll(ch)[0];
-    const acctFields = (ch: string): Record<string, unknown> => accountFor(ch)?.fields ?? {};
     /** A channel's accounts published concurrently, successes keep their ids
      *  (channel key stays comma-joined for the Sent view); a partial failure
      *  throws naming the missing accounts so the retry posts only those. */
@@ -934,19 +934,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           const ttAcct = accountFor('tiktok');
           const token = await getValidToken(ttAcct?.id);
           const ci = await fetchCreatorInfo(token);
-          const options = ci.privacyOptions.length > 0 ? ci.privacyOptions : ['SELF_ONLY'];
-          // NEVER wait on a modal here. A prompt that can't present over the
-          // composer sheet leaves this await pending forever, which holds the
-          // publish lock: the tap does nothing and every later tap is stuck.
-          // The sheet's Audience picker is the explicit control; this is just
-          // a safe default (remembered audience first, then the widest offered).
-          const ttLast = acctFields('tiktok').ttLastPrivacy as string | undefined;
-          ttPrivacy =
-            options.find((o) => o === ttLast) ??
-            options.find((o) => o === 'SELF_ONLY') ??
-            options.find((o) => o === 'PUBLIC_TO_EVERYONE') ??
-            options[0] ??
-            'SELF_ONLY';
+          const options = ci.privacyOptions;
+          // NEVER wait on a modal here (a prompt that can't present over the
+          // composer sheet leaves this await pending forever and holds the
+          // publish lock). Never invent an audience either: TikTok requires the
+          // user to pick one and the guidelines forbid defaulting it. Only a
+          // legacy queued post survives, and only when the account offers
+          // exactly one level, which is no choice at all.
+          if (options.length === 1) ttPrivacy = options[0];
+          if (!ttPrivacy) throw new Error(tr('uTiktokAudienceNotChosen'));
         } catch (e: any) {
           // Backing out of the audience pick (or any pre-flight failure) must
           // never kill the whole publish silently, fail TikTok alone with a
@@ -1060,6 +1056,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               if (firstVideo && atts.some((a) => a.kind === 'image')) {
                 throw new Error(tr('uTiktokCanTMix'));
               }
+              // Branded content can never be private (TikTok's own rule), and an
+              // audience that wasn't shown on screen must not be invented here.
+              if (p.ttExtras?.brandContent && ttPrivacy === 'SELF_ONLY') {
+                throw new Error(tr('uTtBrandedNotPrivate'));
+              }
               const imgs = atts.filter((a) => a.kind === 'image').slice(0, ATTACH_LIMITS.tiktok.images);
               if (type === 'photo' || !firstVideo) {
                 // photo carousel, TikTok pulls from public URLs
@@ -1069,15 +1070,17 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
                   urls.push(img.uri.startsWith('http') ? img.uri : await uploadTikTokPhoto(img.uri));
                 }
                 keepAcct(ch, ttAcct.id, await publishTikTokPhotos({
-                  title: caption || 'Sosial post',
+                  title: caption,
                   privacyLevel: ttPrivacy as string,
+                  extras: p.ttExtras,
                   imageUrls: urls,
                   accountId: ttAcct.id,
                 }));
               } else {
                 keepAcct(ch, ttAcct.id, await publishTikTokVideo({
-                  title: caption.slice(0, 150) || 'Sosial post',
+                  title: caption,
                   privacyLevel: ttPrivacy as string,
+                  extras: p.ttExtras,
                   videoUri: firstVideo.uri,
                   accountId: ttAcct.id,
                 }));
@@ -1589,6 +1592,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         initialSourceUrl={sheet?.post?.sourceUrl}
         initialThreadsTopic={sheet?.post?.threadsTopic}
         initialTtPrivacy={sheet?.post?.ttPrivacy}
+        initialTtExtras={sheet?.post?.ttExtras}
         initialYtPrivacy={sheet?.post?.ytPrivacy}
         composer={{ title: '', caption: tBody, onCaption: setTBody, thread: tThread, onThread, threadMedia: tThreadMedia, onThreadMedia, onPickThreadMedia: pickThreadMedia, onRemoveThreadMedia: removeThreadMedia, onMoveThreadMedia: moveThreadMedia }}
         media={{ items: tMedia, onPick: pickMedia, onAdd: addMedia, onRemove: removeMedia, onMove: moveMedia }}

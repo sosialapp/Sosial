@@ -122,6 +122,20 @@ async function fetchJson(url: string, init: RequestInit, timeoutMs: number): Pro
 }
 
 /**
+ * TikTok Content Sharing Guidelines: the interaction switches start OFF and the
+ * commercial-content disclosure starts OFF; whatever the composer shows is sent
+ * verbatim. An absent interaction flag means disabled (only an explicit
+ * `disableX: false`, i.e. the user switched it on, allows it).
+ */
+export interface TikTokExtras {
+  disableComment?: boolean;
+  disableDuet?: boolean;
+  disableStitch?: boolean;
+  brandOrganic?: boolean;
+  brandContent?: boolean;
+}
+
+/**
  * Direct Post a video: init -> chunked PUTs -> poll until published.
  * Throws human-readable messages (audit gate, privacy mismatch, daily caps).
  */
@@ -130,6 +144,7 @@ export async function publishTikTokVideo(opts: {
   privacyLevel: string;
   videoUri: string;
   accountId?: string;
+  extras?: TikTokExtras;
 }): Promise<string> {
   const token = await getValidToken(opts.accountId);
 
@@ -147,11 +162,13 @@ export async function publishTikTokVideo(opts: {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
       post_info: {
-        title: opts.title.slice(0, 150),
+        title: opts.title.slice(0, 2200),
         privacy_level: opts.privacyLevel,
-        disable_duet: false,
-        disable_comment: false,
-        disable_stitch: false,
+        disable_duet: opts.extras?.disableDuet !== false,
+        disable_comment: opts.extras?.disableComment !== false,
+        disable_stitch: opts.extras?.disableStitch !== false,
+        brand_organic_toggle: opts.extras?.brandOrganic === true,
+        brand_content_toggle: opts.extras?.brandContent === true,
       },
       source_info: {
         source: 'FILE_UPLOAD',
@@ -202,6 +219,7 @@ export async function publishTikTokPhotos(opts: {
   /** public https URLs, 1–35 */
   imageUrls: string[];
   accountId?: string;
+  extras?: TikTokExtras;
 }): Promise<string> {
   const token = await getValidToken(opts.accountId);
   if (!opts.imageUrls.length) throw new Error('TikTok photo post needs at least one photo.');
@@ -211,11 +229,14 @@ export async function publishTikTokPhotos(opts: {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
       post_info: {
-        title: opts.title.slice(0, 90),
+        title: (opts.title.split('\n')[0] ?? '').slice(0, 90),
         description: opts.title.slice(0, 4000),
         privacy_level: opts.privacyLevel,
-        disable_comment: false,
-        auto_add_music: true,
+        disable_comment: opts.extras?.disableComment !== false,
+        // Never add music on the user's behalf.
+        auto_add_music: false,
+        brand_organic_toggle: opts.extras?.brandOrganic === true,
+        brand_content_toggle: opts.extras?.brandContent === true,
       },
       source_info: {
         source: 'PULL_FROM_URL',

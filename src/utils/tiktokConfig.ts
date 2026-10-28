@@ -34,3 +34,8 @@ export const TT_PRIVACY_LABELS: Record<string, string> = {
   FOLLOWER_OF_CREATOR: 'Followers',
   SELF_ONLY: 'Only me',
 };
+
+/** The two declarations TikTok's Content Sharing Guidelines require the
+ *  composer to link next to the publish button. */
+export const TT_MUSIC_USAGE_URL = 'https://www.tiktok.com/legal/page/global/music-usage-confirmation/en';
+export const TT_BRANDED_POLICY_URL = 'https://www.tiktok.com/legal/page/global/bc-policy/en';

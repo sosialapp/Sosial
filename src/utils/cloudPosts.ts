@@ -240,6 +240,17 @@ export async function pushPostToCloud(post: ManagedPost): Promise<void> {
       const options: Record<string, unknown> = {};
       if (post.threadsTopic) options.threadsTopic = post.threadsTopic;
       if (post.ttPrivacy) options.ttPrivacy = post.ttPrivacy;
+      // TikTok interaction + disclosure choices ride along, the worker reads
+      // these exact keys (apps/worker/src/tiktok.ts optionsOf).
+      // An interaction is only allowed when the user switched it on.
+      if (platform === 'tiktok') {
+        const x = post.ttExtras ?? {};
+        options.ttDisableComment = x.disableComment !== false;
+        options.ttDisableDuet = x.disableDuet !== false;
+        options.ttDisableStitch = x.disableStitch !== false;
+        if (x.brandOrganic) options.ttBrandOrganic = true;
+        if (x.brandContent) options.ttBrandContent = true;
+      }
       if (post.ytPrivacy) options.ytPrivacy = post.ytPrivacy;
       if (post.sourceUrl) options.sourceUrl = post.sourceUrl;
       // Chain segments ride on the target so the worker can replay the exact same

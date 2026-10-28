@@ -147,8 +147,13 @@ export async function fetchTikTokProfile(token: string): Promise<{ openId: strin
 
 export interface CreatorInfo {
   nickname?: string;
+  avatarUrl?: string;
   privacyOptions: string[];
   maxDurationSec?: number;
+  /** The account itself turned these off; the composer must respect it. */
+  commentDisabled?: boolean;
+  duetDisabled?: boolean;
+  stitchDisabled?: boolean;
 }
 
 /** Who you're posting as + which privacy levels TikTok will accept from you. */
@@ -163,8 +168,12 @@ export async function fetchCreatorInfo(token: string): Promise<CreatorInfo> {
   if (!d || j?.error?.code !== 'ok') throw new Error(terr(j, 'Could not read your TikTok creator info.'));
   return {
     nickname: d.creator_nickname ? `@${d.creator_nickname}` : undefined,
+    avatarUrl: d.creator_avatar_url ? String(d.creator_avatar_url) : undefined,
     privacyOptions: Array.isArray(d.privacy_level_options) ? d.privacy_level_options.map(String) : [],
     maxDurationSec: typeof d.max_video_post_duration_sec === 'number' ? d.max_video_post_duration_sec : undefined,
+    commentDisabled: d.comment_disabled === true,
+    duetDisabled: d.duet_disabled === true,
+    stitchDisabled: d.stitch_disabled === true,
   };
 }
 

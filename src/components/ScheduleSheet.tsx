@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, PanResponder, View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, Image, ActivityIndicator, AppState } from 'react-native';
+import { Animated, Easing, PanResponder, View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, Image, ActivityIndicator, AppState, Switch, Linking } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -21,8 +21,9 @@ import { deviceZone, supportedZones, zoneLabel, offsetLabel, zonedToUtcMs } from
 import { type ConnectedAccount, accountConnected,
   accountName, accountAvatar, accountHandle, asIdList, schedulableProviders } from
   '../utils/socialAccounts';
-import { getValidToken, fetchCreatorInfo } from '../utils/tiktokAuth';
-import { TT_PRIVACY_LABELS } from '../utils/tiktokConfig';
+import { getValidToken, fetchCreatorInfo, type CreatorInfo } from '../utils/tiktokAuth';
+import type { TikTokExtras } from '../utils/tiktokPublish';
+import { TT_PRIVACY_LABELS, TT_BRANDED_POLICY_URL, TT_MUSIC_USAGE_URL } from '../utils/tiktokConfig';
 import { fetchPostStats, SentPostStats } from '../utils/postStats';
 import { fbComments, igComments, thComments, mastodonComments, bskyComments, ytComments, PerPost, FeedComment } from '../utils/analytics';
 import { tr } from '../i18n';
@@ -372,7 +373,12 @@ export interface Composer {
 export interface SheetMediaItem {
   uri: string;
   kind: 'image' | 'video';
+  /** Video length when the picker reported it (TikTok max-duration check). */
+  durationMs?: number;
 }
+
+/** TikTok interactions start disabled; the user switches each one on. */
+const TT_OFF: TikTokExtras = { disableComment: true, disableDuet: true, disableStitch: true };
 
 export interface SheetMedia {
   items: SheetMediaItem[];
@@ -394,16 +400,18 @@ interface Props {
   initialSourceUrl?: string;
   initialThreadsTopic?: string;
   initialTtPrivacy?: string;
+  /** Interaction + commercial-disclosure choices (all default off). */
+  initialTtExtras?: TikTokExtras;
   initialYtPrivacy?: string;
   title?: string;
   bulkCount?: number;
   composer?: Composer;
   media?: SheetMedia;
   onDelete?: () => void;
-  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string) => void;
-  onPostNow?: (plats: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
+  onSave: (at: number, platforms: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>, timezone?: string) => void;
+  onPostNow?: (plats: string[], types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
   draftLabel?: string;
-  onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
+  onDraft?: (types: PlatformTypes, sourceUrl?: string, threadsTopic?: string, ttPrivacy?: string, ttExtras?: TikTokExtras, ytPrivacy?: string, accountIds?: Record<string, string[]>) => void;
   onClose?: () => void;
   /** Live publish progress (shown inline while the tr('uPostNow') button spins). */
   /** Open the AI caption/thread writer onto this draft. */
@@ -432,7 +440,7 @@ interface Props {
  * `bare` renders the same form inline (Create → Post pill) instead of in the
  * bottom-sheet Modal, state and submit paths are identical either way.
  */
-export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange, onConnect }: Props & { bare?: boolean }) {
+export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialTtExtras, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange, onConnect }: Props & { bare?: boolean }) {
   const { C, mode: themeMode } = useTheme();
   const st = makeSt(C);
   const [plats, setPlats] = useState<string[]>(['any']);
@@ -446,6 +454,14 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
   const [topicOpen, setTopicOpen] = useState(false);
   const [ttPrivacy, setTtPrivacy] = useState('');
   const [ttPrivacyOptions, setTtPrivacyOptions] = useState<string[]>([]);
+  /** Interaction switches + commercial disclosure, all OFF until the user says otherwise. */
+  const [ttX, setTtX] = useState<TikTokExtras>(TT_OFF);
+  /** Commercial content disclosure toggle, off by default. */
+  const [ttCommercial, setTtCommercial] = useState(false);
+  /** Why TikTok can't take this post right now (can_post false, creator info failed). */
+  const [ttErr, setTtErr] = useState<string | null>(null);
+  /** What TikTok reports for the account right now (greys out what it forbids). */
+  const [ttCap, setTtCap] = useState<CreatorInfo | null>(null);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [ytPrivacy, setYtPrivacy] = useState('public');
   const [listingOpen, setListingOpen] = useState(false);
@@ -593,6 +609,8 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       setThreadsTopic(initialThreadsTopic ?? '');
       setTopicOpen(false);
       setTtPrivacy(initialTtPrivacy ?? '');
+      setTtX(initialTtExtras ?? TT_OFF);
+      setTtCommercial(!!(initialTtExtras?.brandOrganic || initialTtExtras?.brandContent));
       setPrivacyOpen(false);
       setYtPrivacy(initialYtPrivacy ?? 'public');
       setListingOpen(false);
@@ -606,31 +624,58 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       setShowPicker(false);
       setMode('date');
     }
-  }, [visible, initialAt, initialTimezone, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialYtPrivacy, initialAccountIds]);
+  }, [visible, initialAt, initialTimezone, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialTtExtras, initialYtPrivacy, initialAccountIds]);
 
-  // TikTok audience options come from the account itself, load them while the
-  // sheet is open so the choice can be made upfront instead of at publish.
+  // TikTok creator info drives the panel: nickname/avatar, the privacy levels
+  // the account accepts and whether it still allows comments/duets/stitches.
+  // Nothing is preselected, the guidelines require the user to make each call.
+  const ttAcctId = (accountIds['tiktok'] ?? [])[0] ?? '';
   useEffect(() => {
     if (!visible) return;
     if (!plats.includes('tiktok') || !connected.includes('tiktok')) return;
     let live = true;
     (async () => {
       try {
-        const m = await loadMetaState();
-        const token = await getValidToken();
+        // The account actually picked for TikTok, so the nickname is right.
+        const token = await getValidToken(ttAcctId || undefined);
         const ci = await fetchCreatorInfo(token);
-        if (!live || !ci.privacyOptions.length) return;
+        if (!live) return;
+        setTtErr(null);
+        if (!ci.privacyOptions.length) return;
+        setTtCap(ci);
         setTtPrivacyOptions(ci.privacyOptions);
-        setTtPrivacy((prev) => {
-          if (prev && ci.privacyOptions.includes(prev)) return prev;
-          if (m.ttLastPrivacy && ci.privacyOptions.includes(m.ttLastPrivacy)) return m.ttLastPrivacy;
-          if (ci.privacyOptions.includes('PUBLIC_TO_EVERYONE')) return 'PUBLIC_TO_EVERYONE';
-          return ci.privacyOptions.length === 1 ? ci.privacyOptions[0] : '';
-        });
-      } catch {}
+        // Keep a level the user (or a saved draft) already picked when the
+        // account still accepts it; otherwise leave the choice empty.
+        setTtPrivacy((prev) => (prev && ci.privacyOptions.includes(prev) ? prev : ''));
+        // The account's own caps win: a disabled interaction is force-off.
+        setTtX((prev) => ({
+          ...prev,
+          ...(ci.commentDisabled ? { disableComment: true } : {}),
+          ...(ci.duetDisabled ? { disableDuet: true } : {}),
+          ...(ci.stitchDisabled ? { disableStitch: true } : {}),
+        }));
+      } catch (e: any) {
+        // A creator who can't post now (daily cap, posting ban) lands here
+        // too: show TikTok's reason and stop the publish.
+        if (live) {
+          setTtCap(null);
+          setTtErr(e?.message || tr('uTtCannotPost'));
+        }
+      }
     })();
     return () => { live = false; };
-  }, [visible, plats, connected]);
+  }, [visible, plats, connected, ttAcctId]);
+
+  /** Duet and stitch only exist on video, photo posts have neither switch. */
+  const ttIsPhoto = (media?.items ?? []).length > 0 && !(media?.items ?? []).some((a) => a.kind === 'video');
+  /** Longest video the account may post, in whole minutes (0 = unknown). */
+  const ttMaxMin = ttCap?.maxDurationSec ? Math.max(1, Math.floor(ttCap.maxDurationSec / 60)) : 0;
+  /** Attached video longer than this account may post (null = fits / unknown). */
+  const ttVideoMs = (media?.items ?? []).find((a) => a.kind === 'video')?.durationMs ?? 0;
+  const ttTooLong =
+    ttCap?.maxDurationSec && ttVideoMs > ttCap.maxDurationSec * 1000 + 500
+      ? tr('uTtTooLong').replace('{n}', String(Math.ceil(ttVideoMs / 60000))).replace('{m}', String(ttMaxMin))
+      : null;
 
   /** When the attached media can't fit a channel, say so in a popup instead
    *  of standing help text. Mirrors the publish-time rules. */
@@ -931,8 +976,27 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
     return false;
   };
 
+  /** TikTok needs an explicit audience (and a private post can't be branded
+   *  content). Catch it here so a queued post doesn't fail hours later. */
+  const ttGate = (): boolean => {
+    if (!plats.includes('tiktok')) return false;
+    if (ttErr) { Alert.alert('TikTok', ttErr); return true; }
+    if (ttTooLong) { Alert.alert('TikTok', ttTooLong); return true; }
+    if (!ttPrivacy) { Alert.alert(tr('uAudience'), tr('uTtPickAudience')); return true; }
+    if (ttCommercial && !ttX.brandOrganic && !ttX.brandContent) {
+      Alert.alert(tr('uTtCommercial'), tr('uTtCommercialNote'));
+      return true;
+    }
+    if (ttX.brandContent && ttPrivacy === 'SELF_ONLY') {
+      Alert.alert(tr('uTtBrandedContent'), tr('uTtBrandedNotPrivate'));
+      return true;
+    }
+    return false;
+  };
+
   const save = () => {
     if (needChannels()) return;
+    if (ttGate()) return;
     // Loud stop for custom times under the 5-minute floor (scoped to custom -
     // the Now/bulk path queues at +60s by design and has its own guards).
     if (preset === 'custom' && queueTooSoon(at)) {
@@ -943,7 +1007,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       Alert.alert(tr('uPickAFutureTime'), tr('uRemindersCanOnlyFire'));
       return;
     }
-    onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds(), tz);
+    onSave(at, plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ttX, ytPrivacy || undefined, finalAccountIds(), tz);
   };
 
   /** Delete asks twice, queue removals can't be undone. */
@@ -1301,11 +1365,140 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                   </View>
                   {c === 'tiktok' && privacyOpen && ttPrivacyOptions.length > 0 ? (
                     <View style={{ gap: 6 }}>
-                      {ttPrivacyOptions.map((o) => (
-                        <TouchableOpacity key={o} onPress={() => { setTtPrivacy(o); setPrivacyOpen(false); }} style={[st.typeChip, ttPrivacy === o && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
-                          <Text style={[st.typeChipT, ttPrivacy === o && { color: C.onInk }]}>{TT_PRIVACY_LABELS[o] ?? o}</Text>
+                      {ttPrivacyOptions.map((o) => {
+                        // Branded content can never be private, TikTok's rule.
+                        const noGo = o === 'SELF_ONLY' && !!ttX.brandContent;
+                        return (
+                          <TouchableOpacity
+                            key={o}
+                            disabled={noGo}
+                            onPress={() => { setTtPrivacy(o); setPrivacyOpen(false); }}
+                            style={[st.typeChip, ttPrivacy === o && { backgroundColor: C.ink, borderColor: C.ink }, noGo && { opacity: 0.4 }]}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={[st.typeChipT, ttPrivacy === o && { color: C.onInk }]}>{TT_PRIVACY_LABELS[o] ?? o}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  {c === 'tiktok' ? (
+                    <View style={st.ttPanel}>
+                      {/* Who the post goes out as, straight from creator_info. */}
+                      <View style={st.ttWho}>
+                        {ttCap?.avatarUrl ? (
+                          <Image source={{ uri: ttCap.avatarUrl }} style={st.ttAvatar} />
+                        ) : (
+                          <View style={[st.ttAvatar, { backgroundColor: C.lineSoft }]} />
+                        )}
+                        <Text style={st.ttWhoT} numberOfLines={1}>
+                          {tr('uTtPostAs')}{ttCap?.nickname ? ` ${ttCap.nickname}` : ''}
+                        </Text>
+                      </View>
+
+                      {/* TikTok forbids showing these as pre-ticked, so every
+                          switch starts OFF (= interactions disabled). */}
+                      <Text style={st.ttHead}>{tr('uTtAllowInteractions')}</Text>
+                      {([
+                        ['comment', 'uTtComment', !!ttCap?.commentDisabled, false],
+                        ['duet', 'uTtDuet', !!ttCap?.duetDisabled, ttIsPhoto],
+                        ['stitch', 'uTtStitch', !!ttCap?.stitchDisabled, ttIsPhoto],
+                      ] as const).filter(([, , , hidden]) => !hidden).map(([key, label, blocked]) => {
+                        const off = (key === 'comment' ? ttX.disableComment : key === 'duet' ? ttX.disableDuet : ttX.disableStitch) !== false;
+                        return (
+                          <View key={key} style={[st.ttSwitchRow, blocked && { opacity: 0.45 }]}>
+                            <Text style={st.ttSwitchT}>{tr(label)}</Text>
+                            <Switch
+                              value={!off && !blocked}
+                              disabled={blocked}
+                              onValueChange={(on) => setTtX((prev) => ({
+                                ...prev,
+                                [key === 'comment' ? 'disableComment' : key === 'duet' ? 'disableDuet' : 'disableStitch']: !on,
+                              }))}
+                              trackColor={{ false: C.lineSoft, true: C.accent }}
+                              thumbColor={C.paper}
+                            />
+                          </View>
+                        );
+                      })}
+
+                      {/* Commercial content disclosure: a toggle, off by default;
+                          when on, Your brand and/or Branded content (both allowed). */}
+                      <View style={[st.ttSwitchRow, { marginTop: 4 }]}>
+                        <Text style={st.ttSwitchT}>{tr('uTtCommercial')}</Text>
+                        <Switch
+                          value={ttCommercial}
+                          onValueChange={(on) => {
+                            setTtCommercial(on);
+                            if (!on) setTtX((prev) => ({ ...prev, brandOrganic: false, brandContent: false }));
+                          }}
+                          trackColor={{ false: C.lineSoft, true: C.accent }}
+                          thumbColor={C.paper}
+                        />
+                      </View>
+                      {ttCommercial ? (
+                        <>
+                          <Text style={!ttX.brandOrganic && !ttX.brandContent ? st.ttErr : st.ttNote}>
+                            {tr('uTtCommercialNote')}
+                          </Text>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                            {([
+                              ['brandOrganic', 'uTtYourBrand'],
+                              ['brandContent', 'uTtBrandedContent'],
+                            ] as const).map(([key, label]) => {
+                              const on = !!ttX[key];
+                              // Branded content can't be private: blocked while "Only me" is picked.
+                              const noGo = key === 'brandContent' && !on && ttPrivacy === 'SELF_ONLY';
+                              return (
+                                <TouchableOpacity
+                                  key={key}
+                                  disabled={noGo}
+                                  onPress={() => setTtX((prev) => ({ ...prev, [key]: !prev[key] }))}
+                                  style={[st.typeChip, on && { backgroundColor: C.ink, borderColor: C.ink }, noGo && { opacity: 0.4 }]}
+                                  activeOpacity={0.75}
+                                >
+                                  <Text style={[st.typeChipT, on && { color: C.onInk }]}>{tr(label)}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          {ttPrivacy === 'SELF_ONLY' && !ttX.brandContent ? (
+                            <Text style={st.ttNote}>{tr('uTtBrandNeedsPublic')}</Text>
+                          ) : null}
+                          {ttX.brandContent ? (
+                            <Text style={st.ttNote}>{tr('uTtPrivateNoBrand')}</Text>
+                          ) : null}
+                          {ttX.brandContent || ttX.brandOrganic ? (
+                            <Text style={st.ttWhoT}>{tr(ttX.brandContent ? 'uTtLabelPaid' : 'uTtLabelPromo')}</Text>
+                          ) : null}
+                        </>
+                      ) : null}
+
+                      {/* Branded content can never be private, TikTok rejects it. */}
+                      {ttX.brandContent && ttPrivacy === 'SELF_ONLY' ? (
+                        <Text style={st.ttErr}>{tr('uTtBrandedNotPrivate')}</Text>
+                      ) : null}
+
+                      {ttMaxMin > 0 && !ttIsPhoto ? (
+                        <Text style={st.ttNote}>{tr('uTtMaxDuration').replace('{n}', String(ttMaxMin))}</Text>
+                      ) : null}
+                      {ttTooLong ? <Text style={st.ttErr}>{ttTooLong}</Text> : null}
+                      {ttErr ? <Text style={st.ttErr}>{ttErr}</Text> : null}
+
+                      <Text style={st.ttNote}>
+                        {tr(ttX.brandContent ? 'uTtDeclareBC' : 'uTtDeclare')}
+                      </Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                        {ttX.brandContent ? (
+                          <TouchableOpacity onPress={() => void Linking.openURL(TT_BRANDED_POLICY_URL)} activeOpacity={0.7}>
+                            <Text style={st.ttLink}>{tr('uTtBCPolicy')}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity onPress={() => void Linking.openURL(TT_MUSIC_USAGE_URL)} activeOpacity={0.7}>
+                          <Text style={st.ttLink}>{tr('uTtMusicUsage')}</Text>
                         </TouchableOpacity>
-                      ))}
+                      </View>
+                      <Text style={st.ttNote}>{tr('uTtProcessing')}</Text>
                     </View>
                   ) : null}
                   {c === 'youtube' && listingOpen ? (
@@ -1525,7 +1718,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
               label={bulkCount ? `Queue ${bulkCount} page${bulkCount > 1 ? 's' : ''}` : preset === 'now' ? tr('uPostNow') : `Queue for ${wallLabel}${zoneSuffix}`}
               loading={preset === 'now' && onPostNow && !bulkCount && !!publishing}
               loadingLabel={tr('uPosting')}
-              onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels()) confirmPostNow(() => onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds())); } : save}
+              onPress={preset === 'now' && onPostNow && !bulkCount ? () => { if (!needChannels() && !ttGate()) confirmPostNow(() => onPostNow(plats, finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ttX, ytPrivacy || undefined, finalAccountIds())); } : save}
             />
           </View>
           </>
@@ -1565,7 +1758,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               {!readOnly && onDraft ? (
                 <View style={{ flex: 1 }}>
-                  <GhostBtn label={draftLabel ?? tr('uSaveAsDraft')} onPress={() => onDraft?.(finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ytPrivacy || undefined, finalAccountIds())} />
+                  <GhostBtn label={draftLabel ?? tr('uSaveAsDraft')} onPress={() => { onDraft?.(finalTypes(), sourceUrl.trim(), threadsTopic.trim() || undefined, ttPrivacy || undefined, ttX, ytPrivacy || undefined, finalAccountIds()); }} />
                 </View>
               ) : null}
               {onDelete ? (
@@ -1707,6 +1900,16 @@ const makeSt = (C: Palette) => ({
   topicLink: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 1 } as const,
   topicLinkT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.muted, flexShrink: 1 } as const,
   topicChev: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, lineHeight: 18, color: C.faint } as const,
+  ttPanel: { backgroundColor: C.card, borderRadius: R.lg, padding: 12, gap: 8 } as const,
+  ttWho: { flexDirection: 'row', alignItems: 'center', gap: 8 } as const,
+  ttAvatar: { width: 26, height: 26, borderRadius: 13 } as const,
+  ttWhoT: { flexShrink: 1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink } as const,
+  ttHead: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 } as const,
+  ttSwitchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 2 } as const,
+  ttSwitchT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink } as const,
+  ttNote: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, lineHeight: 16, color: C.faint } as const,
+  ttErr: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, lineHeight: 16, color: C.redText } as const,
+  ttLink: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: C.accentInk, textDecorationLine: 'underline' } as const,
   topicClear: { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' } as const,
   topicClearT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.redText } as const,
   segPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' } as const,

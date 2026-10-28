@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uid } from '../constants';
 import { activeWorkspaceId, scopedKey } from './activeWorkspace';
 import { pushPostToCloud, deleteCloudPost } from './cloudPosts';
+import type { TikTokExtras } from './tiktokPublish';
 
 export type PostStatus = 'draft' | 'queued' | 'approval' | 'sent' | 'failed';
 
@@ -135,6 +136,8 @@ export interface ManagedPost {
   threadsTopic?: string;
   /** TikTok audience picked upfront (privacy level); falls back to asking at publish */
   ttPrivacy?: string;
+  /** TikTok interaction + commercial-content disclosure choices (all default off). */
+  ttExtras?: TikTokExtras;
   /** YouTube listing (public/unlisted/private); defaults to public */
   ytPrivacy?: string;
   /** Threads repost/quote source post URL or numeric media ID */

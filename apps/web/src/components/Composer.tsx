@@ -71,7 +71,10 @@ export default function Composer({
   const [mode, setMode] = useState<ComposeMode>('now');
   const [whenIso, setWhenIso] = useState<string | null>(() => new Date(minQueueTime()).toISOString());
   const [tz, setTz] = useState(deviceZone);
-  const [picked, setPicked] = useState<string[]>(() => ready.map((c) => c.id));
+  // TikTok never starts picked here (and can't be picked, see allReady).
+  const [picked, setPicked] = useState<string[]>(() =>
+    ready.filter((c) => c.provider !== 'tiktok').map((c) => c.id),
+  );
   const [files, setFiles] = useState<{ file: File; kind: 'image' | 'video'; url: string }[]>(() =>
     initialFiles.map((file) => ({
       file,
@@ -134,6 +137,9 @@ export default function Composer({
     return ready.map((c) => {
       const cap = CAPABILITIES[c.provider as keyof typeof CAPABILITIES];
       const base = { id: c.id, reason: '' as string };
+      // TikTok needs its own settings panel (audience, interactions,
+      // disclosure), which only the Create composer has.
+      if (c.provider === 'tiktok') return { ...base, blocked: true, reason: t('cTikTokUseCreate') };
       if (!cap) return { ...base, blocked: false };
       if (cap.requiresVideo && !hasVideo) {
         return { ...base, blocked: true, reason: fill(t('capNeedsVideo'), { label: cap.label }) };

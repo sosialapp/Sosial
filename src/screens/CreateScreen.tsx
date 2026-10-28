@@ -802,15 +802,15 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
               title="New post"
               composer={{ title: '', caption: draftBody, onCaption: setDraftBody, thread: draftThread, onThread: setDraftThread, threadMedia: draftThreadMedia, onThreadMedia: setDraftThreadMedia, onPickThreadMedia: pickDraftThreadMedia, onRemoveThreadMedia: removeDraftThreadMedia, onMoveThreadMedia: moveDraftThreadMedia }}
               media={{ items: draftMedia, onPick: pickDraftMedia, onRemove: removeDraftMedia, onMove: moveDraftMedia }}
-              onSave={async (at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds, timezone) => {
-                if (await saveDraftPost(at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds, timezone)) resetInline();
+              onSave={async (at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds, timezone) => {
+                if (await saveDraftPost(at, plats, types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds, timezone)) resetInline();
               }}
               draftLabel="Save as draft"
-              onDraft={async (types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds) => {
-                if (await stashDraftPost(types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds)) resetInline();
+              onDraft={async (types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds) => {
+                if (await stashDraftPost(types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds)) resetInline();
               }}
-              onPostNow={async (plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds) => {
-                if (await postDraftNow(plats, types, sourceUrl, threadsTopic, ttPrivacy, ytPrivacy, accountIds)) resetInline();
+              onPostNow={async (plats, types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds) => {
+                if (await postDraftNow(plats, types, sourceUrl, threadsTopic, ttPrivacy, ttExtras, ytPrivacy, accountIds)) resetInline();
               }}
               onClose={() => {}}
               onAi={openAi}

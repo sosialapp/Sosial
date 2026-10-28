@@ -285,6 +285,13 @@ export default function PublishMonitor({
             <p className="mt-4 text-xs text-muted">{note}</p>
           ) : null}
 
+          {/* TikTok's Content Sharing Guidelines: say that processing takes time. */}
+          {list.some((r) => r.provider === 'tiktok' && r.status !== 'failed') ? (
+            <p className="mt-3 text-xs text-muted">
+              TikTok may take a few minutes to process your post before it appears on your profile.
+            </p>
+          ) : null}
+
           <button
             type="button"
             onClick={onDone}

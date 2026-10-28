@@ -13,13 +13,14 @@ import SendIcon from '@/components/SendIcon';
 import ArticleEditor from '@/components/ArticleEditor';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
 import PinBoardPicker from '@/components/PinBoardPicker';
+import TikTokOptions, { EMPTY_TIKTOK_CHOICE, type TikTokChoice } from '@/components/TikTokOptions';
 import { GitBranch, Plus } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import StudioCanvas from '@/components/studio/StudioCanvas';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
-import { providerMeta, postTypeOptions, TT_PRIVACY_LABELS, ttPrivacyOptionsFor } from '@/lib/providers';
+import { providerMeta, postTypeOptions } from '@/lib/providers';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { checkCompatibility, CAPABILITIES } from '@/lib/compat';
 import { createChain, createPost, deletePost, mediaBlock, type ComposeMode, type MediaInput } from '@/lib/posts';
@@ -432,9 +433,12 @@ export default function CreatePost({
   const [confirmNow, setConfirmNow] = useState(false);
   const nowConfirmed = useRef(false);
 
-  /** TikTok audience (TikTok refuses to publish without one of the account's
-   *  own privacy levels). Persisted per submit in target options. */
-  const [ttPrivacy, setTtPrivacy] = useState('');
+  /** TikTok post settings (audience, interactions, disclosures). TikTok's
+   *  Content Sharing Guidelines forbid defaults, so this starts blank and the
+   *  submit gate refuses a TikTok post without an audience. */
+  const [ttChoice, setTtChoice] = useState<TikTokChoice>(EMPTY_TIKTOK_CHOICE);
+  /** What TikTok itself refuses right now (cannot post, video too long). */
+  const [ttBlock, setTtBlock] = useState<string | null>(null);
 
   const chosenProviders = useMemo(
     () => Array.from(new Set(ready.filter((c) => picked.includes(c.id)).map((c) => c.provider))),
@@ -442,8 +446,19 @@ export default function CreatePost({
   );
   /** Channels currently picked, drives the format pills. */
   const chosenNow = useMemo(() => ready.filter((c) => picked.includes(c.id)), [ready, picked]);
-  /** TikTok audience menu for the picks: account-saved levels or the standard set. */
-  const ttOptions = useMemo(() => ttPrivacyOptionsFor(chosenNow), [chosenNow]);
+  /** TikTok accounts among the picks (their live creator info drives the panel). */
+  const chosenTikTok = useMemo(() => chosenNow.filter((c) => c.provider === 'tiktok'), [chosenNow]);
+  /** Why Post/Schedule is disabled for TikTok, shown on hover and under the
+   *  button (the guidelines want the publish button itself to refuse). */
+  const ttHold =
+    chosenTikTok.length === 0
+      ? null
+      : ttBlock ??
+        (ttChoice.commercial && !ttChoice.brandOrganic && !ttChoice.brandContent
+          ? t('ttCommercialNote')
+          : ttChoice.brandContent && ttChoice.privacy === 'SELF_ONLY'
+            ? t('ttPrivateNoBrand')
+            : null);
   /** Website channels (WordPress/Ghost/Dev.to/Hashnode) among the picks. */
   const articlePicked = useMemo(
     () => chosenNow.some((c) => isArticleProvider(c.provider)),
@@ -646,10 +661,7 @@ export default function CreatePost({
     e?.preventDefault();
     setErr(null);
     const chosen = ready.filter((c) => picked.includes(c.id));
-    // TikTok audience: the picked level if still valid, else the first allowed
-    // option (the picker highlights exactly this default).
-    const ttOptionsNow = ttPrivacyOptionsFor(chosen);
-    const ttEffective = ttOptionsNow.includes(ttPrivacy) ? ttPrivacy : (ttOptionsNow[0] ?? '');
+    const hasTikTok = chosen.some((c) => c.provider === 'tiktok');
     if (!chosen.length) {
       setErr(t('cErrPick'));
       return;
@@ -685,10 +697,24 @@ export default function CreatePost({
         setErr(blockers.map((i) => i.message).join('\n'));
         return;
       }
-      // TikTok publishes with exactly one audience; two accounts with disjoint
-      // menus (or an unknown one, rare) leave nothing valid to send.
-      if (chosen.some((c) => c.provider === 'tiktok') && !ttEffective) {
+      if (hasTikTok && ttHold) {
+        setErr(ttHold);
+        return;
+      }
+      // TikTok publishes with an audience the user picked explicitly: the
+      // guidelines forbid preselecting one, so an empty choice is an error.
+      if (hasTikTok && !ttChoice.privacy) {
         setErr(t('cpTtAudienceErr'));
+        return;
+      }
+      // Commercial content: toggled on but nothing disclosed is not allowed.
+      if (hasTikTok && ttChoice.commercial && !ttChoice.brandOrganic && !ttChoice.brandContent) {
+        setErr(t('ttErrBrand'));
+        return;
+      }
+      // Branded content cannot be private (TikTok's own rule).
+      if (hasTikTok && ttChoice.brandContent && ttChoice.privacy === 'SELF_ONLY') {
+        setErr(t('ttBrandedNoPrivate'));
         return;
       }
     }
@@ -724,8 +750,15 @@ export default function CreatePost({
             if (isArticleProvider(c.provider)) targetOptions[c.provider] = articleOptions(articleDoc);
           }
         }
-        if (ttEffective && chosen.some((c) => c.provider === 'tiktok')) {
-          targetOptions['tiktok'] = { ttPrivacy: ttEffective };
+        if (ttChoice.privacy && chosen.some((c) => c.provider === 'tiktok')) {
+          targetOptions['tiktok'] = {
+            ttPrivacy: ttChoice.privacy,
+            ttDisableComment: !ttChoice.allowComment,
+            ttDisableDuet: !ttChoice.allowDuet,
+            ttDisableStitch: !ttChoice.allowStitch,
+            ttBrandOrganic: ttChoice.brandOrganic,
+            ttBrandContent: ttChoice.brandContent,
+          };
         }
         if (threadsTopic.trim() && chosen.some((c) => c.provider === 'threads')) {
           targetOptions['threads'] = { ...(targetOptions['threads'] ?? {}), threadsTopic: threadsTopic.trim() };
@@ -1011,44 +1044,20 @@ export default function CreatePost({
                 );
               })}
 
-            {/* TikTok audience: TikTok refuses to publish without one of the
-                account's own privacy levels (saved at connect time). Highlight
-                follows the submit default: the picked level or the first
-                allowed option. */}
-            {chosenNow.some((c) => c.provider === 'tiktok') && ttOptions.length > 0 ? (
-              <div className="mt-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-24 shrink-0 truncate text-[11px] font-bold text-muted">
-                    {t('cpTtAudience')}
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1">
-                    {ttOptions.map((o) => {
-                      const active = (ttOptions.includes(ttPrivacy) ? ttPrivacy : ttOptions[0]) === o;
-                      return (
-                        <button
-                          key={o}
-                          type="button"
-                          onClick={() => setTtPrivacy(o)}
-                          className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${
-                            active ? 'bg-ink text-paper' : 'border border-line text-muted hover:text-ink'
-                          }`}
-                        >
-                          {TT_PRIVACY_LABELS[o] ?? o}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {chosenNow.some(
-                  (c) =>
-                    c.provider === 'tiktok' &&
-                    !(Array.isArray(c.metadata?.ttPrivacyOptions) && (c.metadata!.ttPrivacyOptions as unknown[]).length > 0),
-                ) ? (
-                  <p className="mt-1 text-[10px] font-semibold text-faint">
-                    {t('cpTtAudienceNote')}
-                  </p>
-                ) : null}
-              </div>
+            {/* TikTok post settings. TikTok's Content Sharing Guidelines make
+                the publishing surface responsible for audience, interactions,
+                commercial disclosure and the declaration, and forbid any
+                preselected value, so the component starts blank. */}
+            {chosenTikTok.length > 0 ? (
+              <TikTokOptions
+                workspaceId={workspaceId}
+                channels={chosenTikTok}
+                value={ttChoice}
+                onChange={setTtChoice}
+                isPhoto={segs[0]?.media.some((m) => m.kind === 'image') ?? false}
+                videoUrl={segs[0]?.media.find((m) => m.kind === 'video')?.url}
+                onBlock={setTtBlock}
+              />
             ) : null}
 
             {/* Social composer vs. rich article editor, only when a website
@@ -1400,17 +1409,27 @@ export default function CreatePost({
               >
                 {t('cSaveDraft')}
               </button>
-              <button type="submit" disabled={busy} className="btn btn-primary !py-1.5 !text-xs">
-                {busy ? (
-                  t('cpSending')
-                ) : (
-                  <>
-                    <SendIcon className="h-3.5 w-3.5" />
-                    {mode === 'now' ? t('cpPostNow') : t('cpSchedulePost')}
-                  </>
-                )}
-              </button>
+              {/* Disabled buttons swallow hover, so the reason sits on a wrapper. */}
+              <span title={ttHold ?? undefined} className="inline-flex">
+                <button
+                  type="submit"
+                  disabled={busy || !!ttHold}
+                  className="btn btn-primary !py-1.5 !text-xs disabled:pointer-events-none"
+                >
+                  {busy ? (
+                    t('cpSending')
+                  ) : (
+                    <>
+                      <SendIcon className="h-3.5 w-3.5" />
+                      {mode === 'now' ? t('cpPostNow') : t('cpSchedulePost')}
+                    </>
+                  )}
+                </button>
+              </span>
             </div>
+            {ttHold ? (
+              <p className="mt-1.5 text-right text-[11px] font-bold text-amber-700 dark:text-amber-300">{ttHold}</p>
+            ) : null}
           </section>
         </div>
 

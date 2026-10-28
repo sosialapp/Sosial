@@ -9,6 +9,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, Tabs } f
 import { uid, requiresTitle } from '../constants';
 import ScheduleSheet from '../components/ScheduleSheet';
 import { loadManagedPosts, saveManagedPost, deleteManagedPost, ManagedPost, queueTooSoon, minQueueLabel, MAX_AUTO_TRIES } from '../utils/managed';
+import type { TikTokExtras } from '../utils/tiktokPublish';
 import { useComposer } from '../store/ComposerContext';
 import { loadMetaState, MetaState } from '../utils/metaStore';
 import { publishFacebook, publishInstagram, publishThreads } from '../utils/metaPublish';
@@ -123,7 +124,8 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
     _types?: unknown,
     _sourceUrl?: unknown,
     _threadsTopic?: unknown,
-    _ttPrivacy?: unknown,
+    ttPrivacy?: unknown,
+    ttExtras?: TikTokExtras,
     _ytPrivacy?: unknown,
     _accountIds?: unknown,
     timezone?: string,
@@ -160,6 +162,8 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
       platforms: plats,
       scheduledAt: at,
       timezone: timezone || undefined,
+      ttPrivacy: typeof ttPrivacy === 'string' ? ttPrivacy : sheet.post?.ttPrivacy,
+      ttExtras,
       createdAt: sheet.post?.createdAt ?? Date.now(),
     };
     await saveManagedPost(rec);
@@ -367,6 +371,8 @@ export default function ScheduleScreen({ onBack, onConnect }: { onBack: () => vo
         initialAt={sheet?.post?.scheduledAt}
         initialTimezone={sheet?.post?.timezone}
         initialPlatforms={sheet?.post?.platforms}
+        initialTtPrivacy={sheet?.post?.ttPrivacy}
+        initialTtExtras={sheet?.post?.ttExtras}
         composer={{ title: '', caption: tBody, onCaption: setTBody }}
         media={{ items: tUri ? [{ uri: tUri, kind: tKind }] : [], onPick: pickMedia, onRemove: () => setTUri(undefined) }}
         onSave={save}

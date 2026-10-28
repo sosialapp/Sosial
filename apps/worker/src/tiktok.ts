@@ -63,6 +63,64 @@ function friendly(code: string, fallback: string): string {
 const ok = (j: any): boolean => j?.error?.code === 'ok';
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * The creator's own choices for one TikTok target. TikTok's Content Sharing
+ * Guidelines require the surface that publishes to carry them explicitly, so
+ * every field here is stored on the target's options by the composer and
+ * echoed verbatim to the API: nothing is defaulted here.
+ *   disable*      - interaction checkboxes (unchecked in the UI = disabled)
+ *   brandOrganic  - "Your brand" disclosure
+ *   brandContent  - "Branded content" disclosure (mutually independent)
+ */
+interface TtOptions {
+  privacy: string;
+  disableComment: boolean;
+  disableDuet: boolean;
+  disableStitch: boolean;
+  brandOrganic: boolean;
+  brandContent: boolean;
+}
+
+/** Video "title" is TikTok's caption field (up to 2200 chars, hashtags included). */
+function videoPostInfo(o: TtOptions, caption: string): Record<string, unknown> {
+  return {
+    title: caption.slice(0, 2200),
+    privacy_level: o.privacy,
+    disable_duet: o.disableDuet,
+    disable_comment: o.disableComment,
+    disable_stitch: o.disableStitch,
+    brand_organic_toggle: o.brandOrganic,
+    brand_content_toggle: o.brandContent,
+  };
+}
+
+/** Photo posts carry no duet/stitch fields, TikTok rejects them outright.
+ *  Music is never added on the user's behalf (they add it in TikTok). */
+function photoPostInfo(o: TtOptions, caption: string): Record<string, unknown> {
+  return {
+    title: (caption.split('\n')[0] ?? '').slice(0, 90),
+    description: caption.slice(0, 4000),
+    privacy_level: o.privacy,
+    disable_comment: o.disableComment,
+    auto_add_music: false,
+    brand_organic_toggle: o.brandOrganic,
+    brand_content_toggle: o.brandContent,
+  };
+}
+
+/** Read the composer's decisions off a target's options. */
+function optionsOf(options: any): TtOptions {
+  const o = (options ?? {}) as Record<string, unknown>;
+  return {
+    privacy: String(o.ttPrivacy ?? '').trim(),
+    disableComment: o.ttDisableComment === true,
+    disableDuet: o.ttDisableDuet === true,
+    disableStitch: o.ttDisableStitch === true,
+    brandOrganic: o.ttBrandOrganic === true,
+    brandContent: o.ttBrandContent === true,
+  };
+}
+
 async function patchExpiry(channelId: string, expiresAt: Date): Promise<void> {
   const { required } = await import('./env.js');
   const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
@@ -190,7 +248,7 @@ async function publishVideo(
   chunks: AsyncGenerator<Buffer>,
   mime: string,
   title: string,
-  privacy: string,
+  tt: TtOptions,
 ): Promise<string> {
   if (!totalBytes) throw new Error('Video is empty, re-attach it and re-queue.');
   const totalChunks = Math.max(1, Math.ceil(totalBytes / CHUNK));
@@ -199,13 +257,7 @@ async function publishVideo(
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
-      post_info: {
-        title: title.slice(0, 150),
-        privacy_level: privacy,
-        disable_duet: false,
-        disable_comment: false,
-        disable_stitch: false,
-      },
+      post_info: videoPostInfo(tt, title),
       source_info: { source: 'FILE_UPLOAD', video_size: totalBytes, chunk_size: chunkSize, total_chunk_count: totalChunks },
     }),
   });
@@ -254,18 +306,12 @@ async function hostPhoto(host: string, buf: Buffer, mime: string, tag: string): 
   throw new Error(`${tag}: photo host rejected the upload, check the host in Connect → TikTok.`);
 }
 
-async function publishPhotos(token: string, urls: string[], title: string, privacy: string): Promise<string> {
+async function publishPhotos(token: string, urls: string[], title: string, tt: TtOptions): Promise<string> {
   const init = await fetch(`${TT_API}/v2/post/publish/content/init/`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
-      post_info: {
-        title: title.slice(0, 90),
-        description: title.slice(0, 4000),
-        privacy_level: privacy,
-        disable_comment: false,
-        auto_add_music: true,
-      },
+      post_info: photoPostInfo(tt, title),
       source_info: { source: 'PULL_FROM_URL', photo_images: urls, photo_cover_index: 0 },
       post_mode: 'DIRECT_POST',
       media_type: 'PHOTO',
@@ -280,8 +326,36 @@ async function publishPhotos(token: string, urls: string[], title: string, priva
   return publishId;
 }
 
-/** Which privacy levels this TikTok account may post with. */
-async function creatorPrivacyOptions(token: string): Promise<string[]> {
+/** Who posts, what TikTok lets them pick, and what their account disallows. */
+interface TtCreatorInfo {
+  nickname: string;
+  privacyOptions: string[];
+  commentDisabled: boolean;
+  duetDisabled: boolean;
+  stitchDisabled: boolean;
+  maxVideoPostDurationSec: number;
+}
+
+/**
+ * Required by TikTok's Content Sharing Guidelines: the composer must be fed by
+ * live creator info, never a cached guess. The background run uses it to
+ * validate the user's choices; a failure here is not fatal to the publish
+ * itself (TikTok re-checks), so it degrades to empty defaults.
+ */
+/** creator_info codes meaning "this creator cannot post now" (can_post = false). */
+const CANNOT_POST = new Set(['spam_risk_too_many_posts', 'spam_risk_user_banned_from_posting', 'reached_active_user_cap']);
+
+class CannotPost extends Error {}
+
+async function creatorInfo(token: string): Promise<TtCreatorInfo> {
+  const empty: TtCreatorInfo = {
+    nickname: '',
+    privacyOptions: [],
+    commentDisabled: false,
+    duetDisabled: false,
+    stitchDisabled: false,
+    maxVideoPostDurationSec: 0,
+  };
   try {
     const r = await fetch(`${TT_API}/v2/post/publish/creator_info/query/`, {
       method: 'POST',
@@ -289,33 +363,56 @@ async function creatorPrivacyOptions(token: string): Promise<string[]> {
       body: '{}',
     });
     const j: any = await r.json().catch(() => ({}));
-    if (ok(j) && Array.isArray(j?.data?.privacy_level_options)) {
-      return (j.data.privacy_level_options as unknown[]).map(String);
-    }
-  } catch { /* fall through, treated as no options */ }
-  return [];
+    const code = String(j?.error?.code ?? '');
+    if (CANNOT_POST.has(code)) throw new CannotPost(friendly(code, 'TikTok says this account can’t post right now.'));
+    if (!ok(j) || !j?.data) return empty;
+    const d = j.data;
+    return {
+      nickname: String(d.creator_nickname ?? ''),
+      privacyOptions: Array.isArray(d.privacy_level_options) ? (d.privacy_level_options as unknown[]).map(String) : [],
+      commentDisabled: d.comment_disabled === true,
+      duetDisabled: d.duet_disabled === true,
+      stitchDisabled: d.stitch_disabled === true,
+      maxVideoPostDurationSec: Number(d.max_video_post_duration_sec ?? 0) || 0,
+    };
+  } catch (e) {
+    if (e instanceof CannotPost) throw e;
+    return empty;
+  }
 }
 
 /** Full target publish. TikTok returns a publish id (no public URL yet). */
 export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: string }> {
   const b = bundle as Bundle;
   const token = await ensureToken(b);
-  let privacy = String(b.target.options?.ttPrivacy ?? '').trim();
-  if (!privacy) {
+  const tt = optionsOf(b.target.options);
+  const creator = await creatorInfo(token);
+  if (!tt.privacy) {
     // Background runs never prompt. Targets composed before the audience
-    // picker existed carry no choice; fall back to the account's own first
-    // allowed option (TikTok orders the menu public-first, i.e. its native
-    // default) instead of wedging the post on an error the user must fix.
-    const allowed = await creatorPrivacyOptions(token);
-    if (allowed.length) {
-      privacy = allowed[0];
-      info(`tiktok target ${b.target.id}: no audience chosen, using the account's default ${privacy}`);
+    // picker existed carry no choice; fall back to the account's single allowed
+    // option instead of wedging the post on an error the user must fix. The
+    // composer always sends a choice now, so this only reaches legacy rows.
+    if (creator.privacyOptions.length === 1) {
+      tt.privacy = creator.privacyOptions[0];
+      info(`tiktok target ${b.target.id}: no audience chosen, only one allowed (${tt.privacy})`);
     } else {
       throw new Error('TikTok audience not chosen, open the post, pick an audience, and re-queue (background runs never prompt).');
     }
   }
-  const caption = (b.target.caption ?? b.post.body ?? '').trim();
-  const title = caption.split('\n')[0] || b.post.title || 'Sosial post';
+  // Never silently widen or narrow the audience: TikTok refuses levels the
+  // creator lost since the post was composed, and guessing would publish to a
+  // different audience than the user picked.
+  if (creator.privacyOptions.length && !creator.privacyOptions.includes(tt.privacy)) {
+    throw new Error(
+      `TikTok no longer allows the audience this post was queued with (${tt.privacy}). Open the post, pick another audience and re-queue.`,
+    );
+  }
+  // Branded content cannot be private, TikTok rejects SELF_ONLY outright.
+  if (tt.brandContent && tt.privacy === 'SELF_ONLY') {
+    throw new Error('Branded content cannot be posted with "Only me", pick another audience and re-queue.');
+  }
+  // The user's own caption, untouched: no app-branded fallback text.
+  const title = (b.target.caption ?? b.post.body ?? '').trim();
   const videos = (b.media ?? [])
     .filter((m) => m.kind === 'video')
     .sort((a, z) => a.position - z.position);
@@ -330,7 +427,14 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
   }
 
   if (videos.length > 0) {
-    info(`tiktok target ${b.target.id}: VIDEO (${privacy}), streaming`);
+    const maxSec = creator.maxVideoPostDurationSec;
+    const durMs = videos[0].duration_ms ?? 0;
+    if (maxSec > 0 && durMs > maxSec * 1000 + 500) {
+      throw new Error(
+        `TikTok allows this account up to ${Math.round(maxSec / 60)} min per video, this one is ${Math.round(durMs / 60000)} min. Trim it and re-queue.`,
+      );
+    }
+    info(`tiktok target ${b.target.id}: VIDEO (${tt.privacy}), streaming`);
     await assertMediaAllowed('tiktok', [videos[0]], async () => {
       if (videos[0].byte_size) return videos[0].byte_size;
       const head = await storageHeadSize('post-media', videos[0].storage_path);
@@ -346,7 +450,7 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
       chunks,
       videoMimeFor(videos[0].storage_path, videos[0].mime_type),
       title,
-      privacy,
+      tt,
     );
     return { publishId };
   }
@@ -357,7 +461,7 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
     if (!host) {
       throw new Error('TikTok photo posts need a photo host, set TT_PHOTO_HOST on the worker (or a Connect → TikTok override).');
     }
-    info(`tiktok target ${b.target.id}: PHOTOS x${images.length} (${privacy})`);
+    info(`tiktok target ${b.target.id}: PHOTOS x${images.length} (${tt.privacy})`);
     const urls: string[] = [];
     for (let i = 0; i < Math.min(images.length, 35); i++) {
       const m = images[i];
@@ -370,7 +474,7 @@ export async function publishTikTokTarget(bundle: Bundle): Promise<{ publishId: 
       const mime = /^image\//.test(m.mime_type ?? '') ? String(m.mime_type) : 'image/jpeg';
       urls.push(await hostPhoto(host, raw, mime, `Photo ${i + 1}`));
     }
-    const publishId = await publishPhotos(token, urls, title, privacy);
+    const publishId = await publishPhotos(token, urls, title, tt);
     return { publishId };
   }
   throw new Error('TikTok needs a photo or video, text-only is not allowed by their API.');
