@@ -146,14 +146,14 @@ export default async function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-paper">
+                <a href={`${docsUrl()}/terms`} className="hover:text-paper">
                   {t('footTerms')}
-                </Link>
+                </a>
               </li>
               <li>
-                <Link href="/privacy" className="hover:text-paper">
+                <a href={`${docsUrl()}/privacy`} className="hover:text-paper">
                   {t('footPrivacy')}
-                </Link>
+                </a>
               </li>
             </ul>
           </nav>

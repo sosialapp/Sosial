@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Globe } from 'lucide-react';
 import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META, LOCALES, type Locale } from '@/lib/i18n/locales';
 
 /**
- * Language switcher. Two shapes: the borderless chevron pill in the desktop
+ * Language switcher. Two shapes: the borderless globe + chevron pill in the desktop
  * nav, and a full-width "Language" row inside the mobile drawer, where the
  * list renders in flow so it can never hang off the viewport. Lists every
  * locale by its own native name, persists to the `sosial_locale` cookie and
@@ -65,7 +65,14 @@ export default function LanguageSwitcher({
             : 'flex h-9 items-center gap-0.5 rounded-full px-1.5 text-muted transition hover:bg-accent-soft hover:text-ink'
         }
       >
-        {inline ? <span>{label}</span> : null}
+        {inline ? (
+          <span className="flex items-center gap-2">
+            <Globe className="h-4 w-4" aria-hidden="true" />
+            {label}
+          </span>
+        ) : (
+          <Globe className="h-[18px] w-[18px]" aria-hidden="true" />
+        )}
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {open ? (

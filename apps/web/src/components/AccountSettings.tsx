@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { docsUrl } from '@/lib/site';
 import { useRouter } from 'next/navigation';
 import {
   Bell,
@@ -669,8 +670,8 @@ export default function AccountSettings({
           </Card>
 
           <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
-            <Row icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />} label={t('asRowPrivacy')} href="/privacy" />
-            <Row icon={<FileText className="h-5 w-5" aria-hidden="true" />} label={t('asRowTerms')} href="/terms" />
+            <Row icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />} label={t('asRowPrivacy')} href={`${docsUrl()}/privacy`} />
+            <Row icon={<FileText className="h-5 w-5" aria-hidden="true" />} label={t('asRowTerms')} href={`${docsUrl()}/terms`} />
             <Row icon={<Scale className="h-5 w-5" aria-hidden="true" />} label={t('asRowLegal')} onClick={() => setView('legal')} />
             <div className="flex items-center gap-3 px-5 py-4">
               <span className="min-w-0 flex-1">

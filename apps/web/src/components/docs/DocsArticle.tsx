@@ -14,13 +14,18 @@ export default function DocsArticle({
   section,
   prev,
   next,
+  htmlOverride,
 }: {
   page: DocsPage;
   section: string;
   prev: Neighbor;
   next: Neighbor;
+  /** Ready HTML that replaces the markdown body (a CMS override of a legal page). */
+  htmlOverride?: string | null;
 }) {
-  const { html, headings } = renderDocMarkdown(page.bodyMd);
+  const rendered = renderDocMarkdown(page.bodyMd);
+  const html = htmlOverride ?? rendered.html;
+  const headings = htmlOverride ? [] : rendered.headings;
   // Fixed zone so the server-rendered time never differs from the client's.
   const updated = page.updatedAt
     ? `${new Date(page.updatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC`

@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { createClient as createAnonClient } from '@supabase/supabase-js';
 import { markdownToPlain } from './docsMarkdown';
+import { LEGAL_SECTION, legalDocsPages } from './docsLegal';
 
 /**
  * Public read side of the docs site (docs.sosial.app). Cookie-free anon
@@ -131,13 +132,21 @@ export async function readDocs(
   };
 }
 
-/** Sections and published pages in sidebar order. One read per request. */
+/** Sections and published pages in sidebar order, plus the code-built Legal
+ *  section (Terms, Privacy) at the end. One read per request. */
 export const docsContent = cache(async (): Promise<{ sections: DocsSection[]; pages: DocsPage[] }> => {
+  let db: { sections: DocsSection[]; pages: DocsPage[] } = { sections: [], pages: [] };
   try {
-    return await readDocs(publicClient(), true);
+    db = await readDocs(publicClient(), true);
   } catch {
-    return { sections: [], pages: [] };
+    /* the Legal pages still render */
   }
+  // A docs_pages row with the same slug wins over the built-in page.
+  const legal = legalDocsPages().filter((p) => !db.pages.some((d) => d.slug === p.slug));
+  return {
+    sections: legal.length ? [...db.sections, LEGAL_SECTION] : db.sections,
+    pages: [...db.pages, ...legal],
+  };
 });
 
 /** Sidebar tree: sections, their top-level pages, and each page's children.

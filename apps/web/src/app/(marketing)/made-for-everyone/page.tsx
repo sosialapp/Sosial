@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
-import { CardTrio, FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
-import { CheckIcon } from '@/components/StatusIcons';
+import {
+  Accessibility, Briefcase, Check, Globe2, HeartHandshake, Languages, MonitorSmartphone, User, Users, UsersRound, Wallet,
+} from 'lucide-react';
+import Reveal from '@/components/anim/Reveal';
+import { FaqList } from '@/components/site/PageBlocks';
+import { CheckList, CtaCard, Hero, IconGrid, Section, SectionHead, Stats } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -23,8 +27,9 @@ export default async function MadeForEveryonePage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
-      <PageHero
-        eyebrow="Made for everyone"
+      <Hero
+        icon={Globe2}
+        kicker="Made for everyone"
         title={meta?.title ?? 'Publishing should not be a privilege.'}
         lede="The tools behind daily posting got expensive, English-first and desktop-only. Sosial is the opposite: a free plan that stays free, a hundred languages, and the same app in your pocket as on your desk."
         meta={date ? `Updated ${date}` : undefined}
@@ -33,88 +38,102 @@ export default async function MadeForEveryonePage() {
 
       <PageCms slug="made-for-everyone" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
-      <CardTrio
-        eyebrow="Who it is for"
-        title="One workspace, very different jobs."
-        cards={[
-          {
-            title: 'Creators and founders',
-            body: 'One person, ten channels, no team. Write in the morning, let the queue ship through the day, and keep the evening for actual work.',
-            href: '/features/create',
-            linkLabel: 'See the composer',
-          },
-          {
-            title: 'Small teams',
-            body: 'A marketer, a writer and a founder who wants to approve things. Members draft, admins publish, owners hold the accounts and billing.',
-            href: '/ai-assistant',
-            linkLabel: 'Meet the AI writer',
-          },
-          {
-            title: 'Agencies and freelancers',
-            body: 'Many clients, clear edges. Keep each workspace separate, schedule across every network, and show up with analytics instead of excuses.',
-            href: '/publish',
-            linkLabel: 'See publishing',
-          },
-        ]}
-      />
+      <Section flush>
+        <Stats
+          items={[
+            { value: '100+', label: 'Languages the AI writer drafts in natively.' },
+            { value: '3', label: 'Ways in: iOS, Android and the web, on one workspace.' },
+            { value: 'Free', label: 'Plan with no card, no trial clock and no end date.' },
+            { value: '0', label: 'Devices that need to stay on for posts to go out.' },
+          ]}
+        />
+      </Section>
 
-      <FeatureBlocks
-        items={[
-          {
-            eyebrow: 'Languages',
-            title: 'Your language, first, not last.',
-            body: 'The AI writer picks from 100+ languages before it drafts anything, so the output is native rather than translated. English, Melayu, Tamil, beyond: the composer and previews follow you.',
-            points: [
-              '100+ languages chosen up front',
-              'No English-first awkwardness',
-              'Per-channel previews in your script',
-            ],
-          },
-          {
-            eyebrow: 'Devices',
-            title: 'Phone, tablet, desk, equal.',
-            body: 'iOS, Android and the web run the same workspace with the same queue behind them. Approve a post on the train; the worker still ships it on time with the laptop shut.',
-            points: [
-              'Native apps on iOS and Android',
-              'Full workspace in the browser',
-              'Cloud queue publishes without any device open',
-            ],
-          },
-          {
-            eyebrow: 'Access',
-            title: 'Built to be used.',
-            body: 'Real contrast on every surface, keyboard paths through every flow, alt text treated as expected rather than optional, and no feature hidden behind a paywall that used to be free.',
-            points: [
-              'Contrast checked on light and dark',
-              'Alt text prompts where the network expects them',
-              'A free plan with no expiry date',
-            ],
-          },
-          {
-            eyebrow: 'Price',
-            title: 'Free means free.',
-            body: 'Three channels and a month of scheduled posts cost nothing, with no card and no trial clock. When you outgrow it, the paid prices are on a page you can read before signing up.',
-            visual: (
-              <div className="card p-5" aria-hidden="true">
-                <p className="eyebrow">Every plan includes</p>
-                <ul className="mt-3 space-y-2.5 text-sm text-soft">
-                  {[
-                    'Calendar and queue',
-                    'Per-channel previews and limits',
-                    'iOS, Android and web',
-                    'Your data exportable on request',
-                  ].map((t) => (
-                    <li key={t} className="flex items-start gap-2.5">
-                      <span className="mt-0.5 inline-flex text-ink"><CheckIcon size={15} /></span>
-                      {t}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ),
-          },
-        ]}
-      />
+      <Section>
+        <SectionHead
+          icon={Users}
+          kicker="Who it is for"
+          title="One workspace, very different jobs."
+          lede="Solo, small team or agency: the same composer, calendar and queue, with roles where you need them."
+        />
+        <IconGrid
+          items={[
+            {
+              icon: User,
+              title: 'Creators and founders',
+              body: 'One person, many channels, no team. Write in the morning, let the queue ship through the day, keep the evening for actual work.',
+              href: '/features/create',
+              linkLabel: 'See the composer',
+            },
+            {
+              icon: UsersRound,
+              title: 'Small teams',
+              body: 'A marketer, a writer and a founder who wants to approve things. Members draft, admins publish, owners hold accounts and billing.',
+              href: '/ai-assistant',
+              linkLabel: 'Meet the AI writer',
+            },
+            {
+              icon: Briefcase,
+              title: 'Agencies and freelancers',
+              body: 'Many clients, clear edges. Keep each workspace separate, schedule across every network, and report with real analytics.',
+              href: '/publish',
+              linkLabel: 'See publishing',
+            },
+          ]}
+        />
+      </Section>
+
+      <Section tone="surface">
+        <SectionHead
+          icon={HeartHandshake}
+          kicker="Built in, not bolted on"
+          title="Access is part of the product."
+          lede="Language, devices and accessibility are defaults, not a premium tier."
+        />
+        <IconGrid
+          cols={2}
+          items={[
+            {
+              icon: Languages,
+              title: 'Your language, first',
+              body: 'The AI writer picks from 100+ languages before it drafts, so the output is native rather than translated. English, Melayu, Tamil and beyond, with previews in your script.',
+            },
+            {
+              icon: MonitorSmartphone,
+              title: 'Phone, tablet, desk, equal',
+              body: 'iOS, Android and the web run the same workspace and queue. Approve a post on the train; the worker still ships it on time with the laptop shut.',
+            },
+            {
+              icon: Accessibility,
+              title: 'Built to be used',
+              body: 'Contrast checked in light and dark, keyboard paths through every flow, and alt text prompts where networks expect them.',
+            },
+            {
+              icon: Wallet,
+              title: 'Free means free',
+              body: 'Three channels and a month of scheduled posts cost nothing. When you outgrow it, the paid prices are on a page you can read before signing up.',
+            },
+          ]}
+        />
+      </Section>
+
+      <Section>
+        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <SectionHead icon={Check} kicker="Every plan" title="The basics are never behind a paywall." />
+          <Reveal>
+            <div className="rounded-[24px] border border-line bg-surface p-7 sm:p-9">
+              <CheckList
+                items={[
+                  'Calendar and queue',
+                  'Per-channel previews and limits',
+                  'iOS, Android and web',
+                  'Your data, exportable on request',
+                ]}
+              />
+            </div>
+          </Reveal>
+        </div>
+      </Section>
 
       <FaqList
         items={[
@@ -135,6 +154,11 @@ export default async function MadeForEveryonePage() {
             a: 'Flows are keyboard-operable, contrast is checked in both themes, and alt text is part of the compose flow because several networks treat it as required.',
           },
         ]}
+      />
+
+      <CtaCard
+        title="Start free. Stay free as long as it fits."
+        body="No card, no trial clock. Connect three channels and schedule your first month today."
       />
     </>
   );

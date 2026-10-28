@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import DocsArticle from '@/components/docs/DocsArticle';
 import { buildNav, docsContent, docsPage, flatPages } from '@/lib/docs';
-import { markdownToPlain } from '@/lib/docsMarkdown';
+import { markdownToPlain, renderDocMarkdown } from '@/lib/docsMarkdown';
+import { legalChangelogMarkdown } from '@/lib/docsLegal';
+import { sitePageHtml } from '@/lib/sitePages';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -26,8 +28,15 @@ export default async function DocsSlugPage({ params }: { params: Promise<{ slug:
   if (!page) notFound();
   const flat = flatPages(buildNav(sections, pages));
   const i = flat.findIndex((p) => p.slug === slug);
+  // Legal pages follow a CMS override of sosial.app/terms or /privacy, so the
+  // two copies always match.
+  // The changelog still follows the override.
+  const cms = page.sectionId === 'legal' ? await sitePageHtml(slug) : null;
+  const override =
+    cms && (slug === 'terms' || slug === 'privacy') ? cms + renderDocMarkdown(legalChangelogMarkdown(slug)).html : null;
   return (
     <DocsArticle
+      htmlOverride={override}
       page={page}
       section={sections.find((s) => s.id === page.sectionId)?.title ?? ''}
       prev={i > 0 ? flat[i - 1] : null}

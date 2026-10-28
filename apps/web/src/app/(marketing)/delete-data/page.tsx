@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { docsUrl } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Delete your data',
@@ -96,7 +97,7 @@ export default function DeleteDataPage() {
 
       <p className="mt-12 text-sm text-muted">
         Prefer reading the full policy first?{' '}
-        <Link href="/privacy" className="font-bold text-accent-ink underline underline-offset-2">
+        <Link href={`${docsUrl()}/privacy`} className="font-bold text-accent-ink underline underline-offset-2">
           Privacy Policy
         </Link>
       </p>

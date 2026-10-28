@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
-import { FaqList, FeatureBlocks, PageHero } from '@/components/site/PageBlocks';
+import { Camera, Copy, Eye, Image as ImageIcon, Layers, LayoutTemplate, PenLine, Ruler, Sparkles } from 'lucide-react';
+import { FaqList } from '@/components/site/PageBlocks';
+import { CtaCard, Hero, IconGrid, Section, SectionHead, Split } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
 import AppPreview from '@/components/site/app-preview/AppPreview';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
@@ -23,10 +25,11 @@ export default async function CreatePage() {
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
-      <PageHero
-        eyebrow="Create"
+      <Hero
+        icon={PenLine}
+        kicker="Create"
         title={meta?.title ?? 'Start from a blank page less.'}
-        lede="One composer writes for ten networks at once, with live previews, honest character counts, reusable templates and media that fits everywhere."
+        lede="One composer writes for every network at once, with live previews, honest character counts, reusable templates and media that fits everywhere."
         meta={date ? `Updated ${date}` : undefined}
         secondary={{ href: '/ai-assistant', label: 'Meet the AI writer' }}
         visual={<AppPreview screen="composer" caption="Create post: pick channels, write once, post now or schedule." />}
@@ -34,41 +37,63 @@ export default async function CreatePage() {
 
       <PageCms slug="features/create" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
-      <FeatureBlocks
-        items={[
-          {
-            eyebrow: 'Composer',
-            title: 'Write once, preview everywhere.',
-            body: 'Pick your channels and the composer shows each one the way it will actually appear, with a live counter against its real limit. No surprises after you hit schedule.',
-            points: [
-              'Per-channel preview cards before anything ships',
-              'Live counters against true platform limits',
-              'Over-long captions trim before scheduling, not after',
-            ],
-            visual: <AppPreview screen="quick-post" caption="Quick post on the dashboard, for text that ships right now." />,
-          },
-          {
-            eyebrow: 'Templates',
-            title: 'Your greatest hits, reusable.',
-            body: 'Save any post as a template and reuse the structure next time. Your best-performing formats become the starting point for the next one, so you never build the same thing twice.',
-            points: [
-              'Save your own winners as templates',
-              'Reuse captions and full designs',
-              'Pair with the caption-formulas cheat sheet',
-            ],
-          },
-          {
-            eyebrow: 'Media',
-            title: 'Photos and video that fit each feed.',
-            body: 'Attach up to four images or a video to any post, pull a real photo matched to your topic, or generate a cover image from a prompt. Each channel gets media in the shape it expects.',
-            points: [
-              'Up to 4 images or video per post',
-              'Real topical photos when the camera roll is empty',
-              'AI cover images generated from a prompt',
-            ],
-          },
-        ]}
-      />
+      <Section>
+        <Split
+          icon={Eye}
+          kicker="Composer"
+          title="Write once, preview everywhere."
+          body="Pick your channels and the composer shows each one the way it will actually appear, with a live counter against its real limit. No surprises after you hit schedule."
+          points={[
+            'Per-channel preview cards before anything ships',
+            'Live counters against true platform limits',
+            'Over-long captions trim before scheduling, not after',
+          ]}
+          visual={<AppPreview screen="quick-post" caption="Quick post on the dashboard, for text that ships right now." />}
+        />
+      </Section>
+
+      <Section tone="surface">
+        <SectionHead
+          icon={Layers}
+          kicker="Everything in the composer"
+          title="Templates, media and covers, without leaving the post."
+          lede="The pieces you reach for every day sit inside the composer, so a post goes from idea to scheduled in one place."
+        />
+        <IconGrid
+          items={[
+            {
+              icon: LayoutTemplate,
+              title: 'Templates',
+              body: 'Save any post as a template and reuse the structure next time. Your best formats become the starting point.',
+            },
+            {
+              icon: Copy,
+              title: 'Reuse what worked',
+              body: 'Saved captions and full designs are there when you start the next post, so you never build the same one twice.',
+            },
+            {
+              icon: ImageIcon,
+              title: 'Photos and video',
+              body: 'Attach up to four images or a video to any post. Each channel gets media in the shape it expects.',
+            },
+            {
+              icon: Camera,
+              title: 'Topical photos',
+              body: 'Pull a real photo matched to your topic when the camera roll has nothing that fits.',
+            },
+            {
+              icon: Sparkles,
+              title: 'AI cover images',
+              body: 'Describe the cover you want and generate it from a prompt, right beside the caption.',
+            },
+            {
+              icon: Ruler,
+              title: 'Honest counters',
+              body: 'Every channel counts against its own real limit, and over-long captions trim before they ship.',
+            },
+          ]}
+        />
+      </Section>
 
       <FaqList
         items={[
@@ -89,6 +114,12 @@ export default async function CreatePage() {
             a: 'Save any caption or full design as a template and reuse it any time. Your own saved templates from posts that performed are always there.',
           },
         ]}
+      />
+
+      <CtaCard
+        title="One idea in. Every channel covered."
+        body="Write the post once, check every preview, and schedule it to all your networks from the same screen."
+        secondary={{ href: '/ai-assistant', label: 'Meet the AI writer' }}
       />
     </>
   );

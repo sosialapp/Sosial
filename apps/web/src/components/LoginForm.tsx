@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
+import { docsUrl } from '@/lib/site';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoaderCircle } from 'lucide-react';
@@ -236,13 +236,13 @@ export default function LoginForm({
                 />
                 <span>
                   {t('agreePre')}{' '}
-                  <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
+                  <a href={`${docsUrl()}/terms`} target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-ink">
                     {t('termsLink')}
-                  </Link>{' '}
+                  </a>{' '}
                   {t('agreeMid')}{' '}
-                  <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">
+                  <a href={`${docsUrl()}/privacy`} target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-ink">
                     {t('privacyLink')}
-                  </Link>
+                  </a>
                   .
                 </span>
               </label>

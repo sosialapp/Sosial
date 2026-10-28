@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
-import { FaqList, PageHero } from '@/components/site/PageBlocks';
+import Image from 'next/image';
+import { Building2, Check, Compass, Hand, Minus, Scale, Smartphone } from 'lucide-react';
+import Reveal from '@/components/anim/Reveal';
+import { FaqList } from '@/components/site/PageBlocks';
+import { CtaCard, Hero, IconGrid, Section, SectionHead, type IconItem } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
-import { CheckIcon, CrossIcon } from '@/components/StatusIcons';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
 /** CMS edits go live within minutes. */
@@ -34,27 +37,39 @@ const ROWS: { label: string; cells: [Cell, Cell, Cell, Cell] }[] = [
 const HEADERS = ['Sosial', 'Suites', 'Single-network apps', 'By hand'] as const;
 
 function mark(cell: Cell) {
-  if (cell === true) {
-    return (
-      <span className="inline-flex text-ink" aria-label="Yes">
-        <CheckIcon size={15} />
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex text-faint" aria-label="No">
-      <CrossIcon size={14} />
-    </span>
+  return cell === true ? (
+    <Check className="mx-auto h-[18px] w-[18px] text-ink" strokeWidth={2.4} aria-label="Yes" />
+  ) : (
+    <Minus className="mx-auto h-4 w-4 text-ink/25" strokeWidth={2} aria-label="No" />
   );
 }
+
+const FITS: IconItem[] = [
+  {
+    icon: Building2,
+    title: 'All-in-one suites',
+    body: 'Right if you need listening, ad buying and enterprise reporting. You pay for all of it, even the parts you never open.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Single-network apps',
+    body: 'Great for one lane. The cost appears when one idea has to become posts for several networks: retyping, re-checking, remembering.',
+  },
+  {
+    icon: Hand,
+    title: 'Posting by hand',
+    body: 'Free and flexible until the week gets busy. Then the queue is the first thing to slip.',
+  },
+];
 
 export default async function ComparePage() {
   const meta = await sitePageMeta('compare');
   const date = formatPageDate(meta?.publishedAt ?? null);
   return (
     <>
-      <PageHero
-        eyebrow="Compare"
+      <Hero
+        icon={Scale}
+        kicker="Compare"
         title={meta?.title ?? 'Where Sosial fits.'}
         lede="Suites do a lot and charge for the lot. Single-network apps are light and stay in one lane. Posting by hand is free until it is 11pm. Here is the honest shape of each."
         meta={date ? `Updated ${date}` : undefined}
@@ -63,24 +78,31 @@ export default async function ComparePage() {
 
       <PageCms slug="compare" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
-      <section aria-label="Comparison" className="border-b border-line bg-card/60">
-        <div className="mx-auto max-w-[1440px] px-4 py-20 md:py-28">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-sm">
+      <Section flush>
+        <Reveal y={24}>
+          <div className="overflow-x-auto rounded-[24px] border border-line">
+            <table className="w-full min-w-[680px] border-collapse text-[15px]">
               <thead>
-                <tr>
-                  <th scope="col" className="w-2/5 border-b border-line px-4 py-3 text-left">
-                    <span className="eyebrow">Capability</span>
+                <tr className="border-b border-line">
+                  <th scope="col" className="w-[38%] px-6 py-5 text-left text-sm font-medium text-ink/55">
+                    Capability
                   </th>
                   {HEADERS.map((h, i) => (
                     <th
                       key={h}
                       scope="col"
-                      className={`border-b border-line px-4 py-3 text-center font-display text-sm font-extrabold tracking-tight ${
-                        i === 0 ? 'bg-accent-soft text-accent-ink' : ''
+                      className={`px-4 py-5 text-center font-display text-[15px] font-[700] tracking-[-0.01em] ${
+                        i === 0 ? 'bg-surface' : 'text-ink/70'
                       }`}
                     >
-                      {h}
+                      {i === 0 ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Image src="/bolt.png" alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
+                          {h}
+                        </span>
+                      ) : (
+                        h
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -88,16 +110,11 @@ export default async function ComparePage() {
               <tbody>
                 {ROWS.map((r) => (
                   <tr key={r.label} className="border-b border-line last:border-b-0">
-                    <th scope="row" className="px-4 py-3 text-left font-semibold text-soft">
+                    <th scope="row" className="px-6 py-4 text-left font-normal text-ink/80">
                       {r.label}
                     </th>
                     {r.cells.map((c, i) => (
-                      <td
-                        key={i}
-                        className={`px-4 py-3 text-center text-base ${
-                          i === 0 ? 'bg-accent-soft/60' : ''
-                        }`}
-                      >
+                      <td key={i} className={`px-4 py-4 text-center ${i === 0 ? 'bg-surface' : ''}`}>
                         {mark(c)}
                       </td>
                     ))}
@@ -106,14 +123,23 @@ export default async function ComparePage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-5 text-xs leading-relaxed text-faint">
-            Categories, not a takedown: &quot;suites&quot; means the big all-in-one tools, and
-            &quot;single-network apps&quot; means schedulers built around one platform. Features
-            across that group change often, so check current plans before you buy anything,
-            ours included.
+          <p className="mt-5 max-w-3xl text-sm leading-relaxed text-ink/50">
+            Categories, not a takedown: &quot;suites&quot; means the big all-in-one tools, and &quot;single-network apps&quot;
+            means schedulers built around one platform. Features across that group change often, so check current plans
+            before you buy anything, ours included.
           </p>
-        </div>
-      </section>
+        </Reveal>
+      </Section>
+
+      <Section tone="surface">
+        <SectionHead
+          icon={Compass}
+          kicker="Honest fit"
+          title="Each approach wins somewhere."
+          lede="Pick the tool for the job you actually do every day, not the longest feature list."
+        />
+        <IconGrid items={FITS} />
+      </Section>
 
       <FaqList
         items={[
@@ -131,9 +157,14 @@ export default async function ComparePage() {
           },
           {
             q: 'What does Sosial not do?',
-            a: 'Social listening, ad buying and inbox replacement. Those live in the suites. Sosial does compose, preview, schedule, approve and publish across ten networks, with an AI writer and analytics.',
+            a: 'Social listening and ad buying. Those live in the suites. Sosial does compose, preview, schedule, approve and publish across your networks, with an AI writer, analytics and one inbox for comments and messages.',
           },
         ]}
+      />
+
+      <CtaCard
+        title="Writing and shipping posts is the whole job here."
+        body="Compose once, preview every network, schedule the week and let the queue publish it. Start on the free plan, no card needed."
       />
     </>
   );

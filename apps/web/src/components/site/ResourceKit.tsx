@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Box, Compass, Send, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { Box, Compass, Library as LibraryIcon, Newspaper, Send, Sparkles, TrendingUp, Users } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import { ArticleToc } from '@/components/site/ArticleAside';
 import { formatPostDate, type Article, type Category, type Resource, type ResourceKind } from '@/content/types';
@@ -62,11 +62,11 @@ export function TagIcon({ tag, className }: { tag: Category; className?: string 
   return <Icon aria-hidden="true" strokeWidth={1.4} className={className} />;
 }
 
-/** Topic chip in the tag's own tint. */
+/** Topic label: the topic's icon and its name. */
 export function TagChip({ tag }: { tag: Category }) {
-  const t = tagTone(tag);
   return (
-    <span className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: t.bg, color: t.ink }}>
+    <span className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-ink/60">
+      <TagIcon tag={tag} className="h-3.5 w-3.5" />
       {tag}
     </span>
   );
@@ -90,14 +90,15 @@ export function HubHero({
   aside?: ReactNode;
   children?: ReactNode;
 }) {
-  const tab = (key: 'blog' | 'library', href: string, label: string) => (
+  const tab = (key: 'blog' | 'library', href: string, label: string, Icon: typeof Send) => (
     <Link
       href={href}
       aria-current={active === key ? 'page' : undefined}
-      className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${
-        active === key ? 'bg-ink text-bone' : 'text-muted hover:text-ink'
+      className={`-mb-px inline-flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition ${
+        active === key ? 'border-ink text-ink' : 'border-transparent text-ink/50 hover:text-ink'
       }`}
     >
+      <Icon className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
       {label}
     </Link>
   );
@@ -105,14 +106,14 @@ export function HubHero({
     <section className="border-b border-line">
       <div className="mx-auto grid max-w-[1200px] items-center gap-10 px-4 pt-10 pb-10 sm:pt-14 md:pb-12 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div>
-          <nav aria-label="Resources" className="inline-flex rounded-full border border-line bg-card p-1">
-            {tab('blog', '/blog', 'Blog')}
-            {tab('library', '/resources', 'Library')}
+          <nav aria-label="Resources" className="flex gap-7 border-b border-line">
+            {tab('blog', '/blog', 'Blog', Newspaper)}
+            {tab('library', '/resources', 'Library', LibraryIcon)}
           </nav>
-          <h1 className="mt-6 max-w-2xl font-display text-[2.4rem] leading-[1.04] font-extrabold tracking-tight text-balance sm:text-5xl md:text-[3.4rem]">
+          <h1 className="mt-10 max-w-3xl font-display text-[2.6rem] leading-[1.02] font-[700] tracking-[-0.04em] text-balance sm:text-6xl">
             {title}
           </h1>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-muted sm:text-lg">{lede}</p>
+          <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink/60">{lede}</p>
           {children ? <div className="mt-7">{children}</div> : null}
         </div>
         {aside ? <div className="hidden lg:block">{aside}</div> : null}
@@ -137,9 +138,8 @@ function Cover({
   /** Topic word in the corner; off for thumbnails that print it beside them. */
   label?: boolean;
 }) {
-  const t = tagTone(a.tag);
   return (
-    <div className={`relative w-full overflow-hidden ${ratio}`} style={{ backgroundColor: t.bg }}>
+    <div className={`relative w-full overflow-hidden bg-surface ${ratio}`}>
       {a.coverUrl ? (
         <SafeImg
           src={a.coverUrl}
@@ -148,21 +148,14 @@ function Cover({
           className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
         />
       ) : (
-        <div className="absolute inset-0" style={{ color: t.ink }}>
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 opacity-[0.18]"
-            style={{ backgroundImage: `radial-gradient(${t.sub} 1px, transparent 1px)`, backgroundSize: '14px 14px' }}
-          />
+        <div className="absolute inset-0 text-ink/25">
           {label ? (
-            <span className="absolute top-4 left-4 text-[10px] font-extrabold tracking-[0.14em] uppercase" style={{ color: t.sub }}>
-              {a.tag}
-            </span>
+            <span className="absolute top-4 left-4 text-[10px] font-medium tracking-[0.14em] text-ink/45 uppercase">{a.tag}</span>
           ) : null}
           <TagIcon
             tag={a.tag}
-            className={`absolute transition duration-500 group-hover:-rotate-6 ${
-              big ? 'right-5 bottom-5 h-24 w-24' : label ? 'right-5 bottom-5 h-12 w-12' : 'inset-0 m-auto h-9 w-9'
+            className={`absolute transition duration-500 group-hover:scale-105 ${
+              big ? 'right-6 bottom-6 h-20 w-20' : label ? 'right-5 bottom-5 h-11 w-11' : 'inset-0 m-auto h-8 w-8'
             }`}
           />
         </div>
@@ -210,7 +203,7 @@ export function FeaturedArticle({ a }: { a: Article }) {
       </div>
       <div className="px-1 pt-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-ink px-2.5 py-1 text-[11px] font-bold text-bone">Latest</span>
+          <span className="text-xs font-medium text-ink">Latest</span>
           <TagChip tag={a.tag} />
           <ArticleMeta a={a} />
         </div>

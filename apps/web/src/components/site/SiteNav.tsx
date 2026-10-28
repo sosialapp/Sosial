@@ -95,7 +95,6 @@ export default function SiteNav() {
     { href: '/resources', title: t('libTitle'), desc: t('libDesc') },
     { href: docsUrl(), title: t('docsTitle'), desc: t('docsDesc') },
   ];
-  const ALL_LINK: MenuLink = { href: '/integrations', title: t('allIntegrations'), desc: t('navChannels') };
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
@@ -159,7 +158,7 @@ export default function SiteNav() {
       <nav className="relative mx-auto flex h-16 max-w-[1440px] items-center px-4" aria-label="Main">
         <Logo />
 
-        <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-5 lg:flex">
+        <div className="ml-8 hidden items-center gap-5 lg:flex xl:absolute xl:left-1/2 xl:ml-0 xl:-translate-x-1/2">
           <DesktopDropdown label={t('navFeatures')}>
             <div className="card w-80 p-2 shadow-[0_24px_60px_-24px_rgba(28,25,23,0.35)]">
               {FEATURES.map((l) => (
@@ -183,12 +182,6 @@ export default function SiteNav() {
                   </Link>
                 ))}
               </div>
-              <Link
-                href="/integrations"
-                className="mt-2 flex items-center justify-between rounded-xl bg-paper-dim px-3 py-2.5 text-sm font-bold text-ink transition hover:bg-paper"
-              >
-                {t('allIntegrations')}
-              </Link>
             </div>
           </DesktopDropdown>
 
@@ -262,7 +255,6 @@ export default function SiteNav() {
                   title: c.name,
                   desc: c.tagline,
                 })),
-                ALL_LINK,
               ]}
               onGo={close}
             />
