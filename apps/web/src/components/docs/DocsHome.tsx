@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowRight, ArrowUpRight, BarChart3, CalendarDays, CheckCheck, FileInput, LayoutTemplate, MessagesSquare, PenLine, Sparkles } from 'lucide-react';
-import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
-import { CHANNEL_GUIDES } from '@/content/channels';
+import { ChannelMatrix } from '@/components/landing/ChannelTable';
 import type { DocsPage, DocsSection } from '@/lib/docs';
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app').replace(/\/+$/, '');
@@ -44,10 +43,7 @@ function BandHead({ kicker, title, note }: { kicker: string; title: string; note
   return (
     <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr] lg:items-end lg:gap-16">
       <div>
-        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-ink/70 dark:text-bolt">
-          <span className="h-1.5 w-1.5 rounded-full bg-bolt" aria-hidden="true" />
-          {kicker}
-        </p>
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink/70 dark:text-bolt">{kicker}</p>
         <h2 className="mt-4 max-w-xl font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">{title}</h2>
       </div>
       {note ? <p className="max-w-md text-[15px] leading-relaxed text-ink/65">{note}</p> : null}
@@ -81,7 +77,9 @@ export default function DocsHome({ sections, pages }: { sections: DocsSection[];
   const steps = STEPS.filter((s) => has(s.slug));
   const apiPage = bySlug.get('api');
   const mcpPage = bySlug.get('mcp');
+  // The channel pages have their own band above, so they're left out here.
   const groups = sections
+    .filter((s) => s.slug !== 'channels')
     .map((s) => ({ section: s, pages: pages.filter((p) => p.sectionId === s.id) }))
     .filter((g) => g.pages.length);
 
@@ -176,31 +174,14 @@ export default function DocsHome({ sections, pages }: { sections: DocsSection[];
         </div>
       </Band>
 
-      {/* Channels */}
+      {/* Channels: the landing page's capability table */}
       <Band tone="surface">
         <BandHead
           kicker="Channels"
-          title={`${CHANNEL_GUIDES.length} channels, one composer.`}
-          note="Social networks, messaging and blogs. The composer checks each post against every channel's limits before it goes out."
+          title="What Sosial does on every channel."
+          note="Formats you can publish and the conversations you can run, per network. Select a channel for its connect steps and limits."
         />
-        <ul className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {CHANNEL_GUIDES.map((c) => (
-            <li key={c.key}>
-              <Target
-                href={has(c.key) ? `/${c.key}` : `${SITE}/integrations/${c.key}`}
-                external={!has(c.key)}
-                className="flex h-full flex-col gap-3 rounded-2xl border border-line bg-paper p-4 transition hover:border-bolt"
-              >
-                {/* Ring: black-disc brands (X, TikTok, Threads, Dev.to, Ghost) vanish on black. */}
-                <BrandIcon provider={c.key as BrandProvider} className="h-8 w-8 rounded-full dark:ring-1 dark:ring-white/25" />
-                <span>
-                  <span className="block text-sm font-medium">{c.name}</span>
-                  <span className="mt-0.5 block text-xs text-ink/55">{c.facts[0]?.value}</span>
-                </span>
-              </Target>
-            </li>
-          ))}
-        </ul>
+        <ChannelMatrix docs hrefFor={(p) => (has(p) ? `/${p}` : null)} />
         <div className="mt-8 flex flex-wrap gap-6">
           {has('channels') ? (
             <Link href="/channels" className="group inline-flex items-center gap-1.5 text-sm font-medium hover:underline underline-offset-4">
@@ -270,7 +251,7 @@ export default function DocsHome({ sections, pages }: { sections: DocsSection[];
       {groups.length ? (
         <Band tone="surface">
           <BandHead kicker="Browse" title="Every guide, by section." />
-          <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((g) => (
               <div key={g.section.id}>
                 <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink/50">{g.section.title}</p>
