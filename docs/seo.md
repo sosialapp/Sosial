@@ -42,7 +42,7 @@
    - the five biggest integration pages (Instagram, TikTok, X, Facebook, LinkedIn)
 3. **Bing Webmaster Tools**: "Import from Google Search Console". Bing also feeds DuckDuckGo and ChatGPT search.
 4. **Vercel**: make sure `www.sosial.app` is attached to the project. It already serves today, so the new redirect takes effect as soon as this deploys.
-5. **Image previews**: the root layout sets `max-image-preview: none`, which keeps Sosial's images out of Google Images, Discover and result thumbnails. That was a deliberate choice. Switching it to `large` usually lifts click-through; it's one line in `apps/web/src/app/layout.tsx`.
+5. **Image previews** are set to `max-image-preview: large` (root layout), so result thumbnails, Google Images and Discover can show Sosial's images.
 
 ## Content that would move rankings most
 

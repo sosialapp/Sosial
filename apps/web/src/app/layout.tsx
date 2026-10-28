@@ -17,15 +17,14 @@ export const metadata: Metadata = {
   icons: { icon: '/bolt.png' },
   applicationName: 'Sosial',
   category: 'business',
-  // No image thumbnails in Google results (max-image-preview:none). Social
-  // link previews are unaffected, they keep using the opengraph images.
+  // Large image previews: thumbnails in results, Google Images and Discover.
   robots: {
     index: true,
     follow: true,
     googleBot: {
       index: true,
       follow: true,
-      'max-image-preview': 'none',
+      'max-image-preview': 'large',
     },
   },
   // Social images resolve from the generated opengraph-image routes
