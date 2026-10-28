@@ -5,7 +5,7 @@ import { LayoutGrid } from 'lucide-react';
 import { BLOG_TAGS, allArticles } from '@/lib/blog';
 import { type Category } from '@/content/types';
 import {
-  ArticleCard, FeaturedArticle, HubHero, SideArticle, TAG_NOTES, TagIcon,
+  ArticleCard, FeaturedArticle, HubHero, SideArticle, TAG_NOTES, TagIcon, tagTone,
 } from '@/components/site/ResourceKit';
 
 /** ISR so publishes go live without a rebuild. */
@@ -36,6 +36,35 @@ export default async function BlogIndex({
   const side = active ? [] : posts.slice(1, 4);
   const rest = active ? posts : posts.slice(4);
 
+  const count = (t: Category) => all.filter((a) => a.tag === t).length;
+
+  // Hero panel: the six topics as tinted tiles, each a shortcut to its filter.
+  const topics = (
+    <div className="grid grid-cols-2 gap-2.5">
+      {BLOG_TAGS.map((t) => {
+        const tone = tagTone(t);
+        return (
+          <Link
+            key={t}
+            href={`/blog?tag=${t}`}
+            scroll={false}
+            className="group relative overflow-hidden rounded-[20px] p-4 transition hover:-translate-y-0.5"
+            style={{ backgroundColor: tone.bg, color: tone.ink }}
+          >
+            <TagIcon tag={t} className="absolute -right-2 -bottom-2 h-14 w-14 opacity-25 transition group-hover:-rotate-6 group-hover:opacity-40" />
+            <p className="text-sm font-extrabold">{t}</p>
+            <p className="mt-0.5 pr-6 text-xs leading-snug" style={{ color: tone.sub }}>
+              {TAG_NOTES[t]}
+            </p>
+            <p className="mt-3 text-[11px] font-bold" style={{ color: tone.sub }}>
+              {count(t)} {count(t) === 1 ? 'article' : 'articles'}
+            </p>
+          </Link>
+        );
+      })}
+    </div>
+  );
+
   // Topic tabs: icon and name, underlined when active. No counts, no colour.
   const tab = (href: string, label: string, on: boolean, icon: ReactNode) => (
     <Link
@@ -58,6 +87,7 @@ export default async function BlogIndex({
         active="blog"
         title="Get better at publishing everywhere."
         lede="Strategy, scheduling systems, AI writing and team workflow, written for people who run social for a living."
+        aside={topics}
       />
 
       {/* Topic filter: stays under the nav while you scroll the grid. */}
