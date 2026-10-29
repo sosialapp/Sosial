@@ -82,6 +82,29 @@ function jwtLike(tok: string): boolean {
   return /^ey[A-Za-z0-9_-]+\./.test(tok);
 }
 
+interface CachedSession {
+  token: string;
+  did: string;
+  pdsHost: string;
+  at: number;
+  cred: string;
+}
+/** Bluesky rate-limits createSession hard (~5/5min per account): reuse the
+ *  minted session instead of one per job (publish, inbox, stats, avatars,
+ *  refresh all call through here). Access JWTs live ~2h. */
+const appPasswordSessions = new Map<string, CachedSession>();
+
+function mintedError(status: number, body: any): Error {
+  const code = String(body?.error ?? '');
+  if (status === 429 || /RateLimitExceeded/i.test(code)) {
+    return new Error('Bluesky is rate-limiting sign-ins for this account. Wait a few minutes, then retry — the app password is fine.');
+  }
+  if (/AccountTakedown|AccountDeactivated/i.test(code)) {
+    return new Error('Bluesky has taken this account down or deactivated it.');
+  }
+  return new Error('Bluesky rejected the app password (invalid or revoked). Reconnect the channel in Connect.');
+}
+
 /** Live session from whatever credential shape the channel stores:
  *  - app password (unified connect, p94): mint a session per call from Vault
  *  - session JWT (legacy channels): use it, refresh proactively (10-min
@@ -121,8 +144,14 @@ export async function ensureSession(b: Bundle, force = false): Promise<Session> 
     throw new Error('Bluesky session expired, reconnect in Connect to refresh.');
   }
 
-  // App-password credential: mint a short-lived session, nothing stored.
+  // App-password credential: mint a session and cache it (40 min, well inside
+  // the ~2h access-JWT life) so repeat jobs never re-hit createSession.
   const identifier = String(b.channel.metadata?.bluesky_handle ?? did);
+  const cacheKey = `${b.channel.id}:${did}`;
+  const cached = appPasswordSessions.get(cacheKey);
+  if (!force && cached && cached.cred === access && cached.pdsHost === pdsHost && Date.now() - cached.at < 40 * 60_000) {
+    return { token: cached.token, did: cached.did, pdsHost: cached.pdsHost };
+  }
   const r = await xrpc(
     pdsHost,
     'com.atproto.server.createSession',
@@ -130,10 +159,16 @@ export async function ensureSession(b: Bundle, force = false): Promise<Session> 
     JSON.stringify({ identifier, password: access }),
     'application/json',
   );
-  if (!r.ok || !r.json?.accessJwt) {
-    throw new Error('Bluesky rejected the app password (invalid or revoked). Reconnect the channel in Connect.');
-  }
-  return { token: String(r.json.accessJwt), did: String(r.json.did || did), pdsHost };
+  if (!r.ok || !r.json?.accessJwt) throw mintedError(r.status, r.json);
+  const session: CachedSession = {
+    token: String(r.json.accessJwt),
+    did: String(r.json.did || did),
+    pdsHost,
+    at: Date.now(),
+    cred: access,
+  };
+  appPasswordSessions.set(cacheKey, session);
+  return { token: session.token, did: session.did, pdsHost: session.pdsHost };
 }
 
 async function restPatchByChannel(channelId: string, body: Record<string, any>): Promise<void> {
