@@ -87,7 +87,7 @@ export async function POST(req: Request) {
       provider: 'facebook',
       external_id: page.id,
       display_name: page.name,
-      metadata: avatar ? { avatar } : {},
+      metadata: { ...(avatar ? { avatar } : {}), ...(pick.meta_user_id ? { meta_user_id: pick.meta_user_id } : {}) },
       access_token: page.access_token,
     },
   });

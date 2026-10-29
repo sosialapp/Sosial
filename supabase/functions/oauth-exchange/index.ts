@@ -202,7 +202,8 @@ async function instagram(b: ExchangeBody): Promise<Response> {
     access_token: token,
     external_id: externalId,
     display_name: username,
-    metadata: picture ? { avatar: picture } : {},
+    // meta_user_id is what Meta's deauthorize / data-deletion callbacks name.
+    metadata: { ...(picture ? { avatar: picture } : {}), ...(userId ? { meta_user_id: userId } : {}) },
   });
 }
 
@@ -329,7 +330,15 @@ async function facebook(b: ExchangeBody): Promise<Response> {
     /* portfolio pages are best-effort, never break the connect */
   }
 
-  return ok({ pages: [...pages.values()] });
+  // The app-scoped user id of this login: Meta's deauthorize / data-deletion
+  // callbacks name the person, never the Page, so the Page rows carry it.
+  let userId = "";
+  try {
+    const me = await json(await fetch(`${G}/me?${form({ fields: "id", access_token: userToken })}`));
+    userId = str(me.id);
+  } catch { /* best-effort */ }
+
+  return ok({ pages: [...pages.values()], ...(userId ? { meta_user_id: userId } : {}) });
 }
 
 async function xAuth(b: ExchangeBody): Promise<Response> {

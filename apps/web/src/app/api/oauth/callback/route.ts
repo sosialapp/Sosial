@@ -24,6 +24,7 @@ interface ExchangePayload {
   instance_url?: string;
   metadata?: Record<string, string>;
   pages?: PickState['pages'];
+  meta_user_id?: string;
 }
 
 /**
@@ -150,7 +151,12 @@ export async function GET(req: Request) {
     if (!payload.pages?.length) {
       return done(`?error=${encodeURIComponent('No Facebook Pages found on that account.')}`);
     }
-    const pick: PickState = { workspace_id: flow.workspace_id, nonce: flow.nonce, pages: payload.pages };
+    const pick: PickState = {
+      workspace_id: flow.workspace_id,
+      nonce: flow.nonce,
+      pages: payload.pages,
+      ...(payload.meta_user_id ? { meta_user_id: payload.meta_user_id } : {}),
+    };
     return done('?connect=facebook', fitPick(pick));
   }
 

@@ -27,6 +27,9 @@ export interface FlowState {
 export interface PickState {
   workspace_id: string;
   nonce: string;
+  /** App-scoped id of the Facebook login, kept on the Page row for Meta's
+   *  deauthorize / data-deletion callbacks. */
+  meta_user_id?: string;
   pages: {
     id: string;
     name: string;

@@ -488,6 +488,12 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/reply-comment/index.ts"
 
+[functions.moderate-comment]
+enabled = true
+# Browser-invoked with the user's JWT; membership checked inside.
+verify_jwt = true
+entrypoint = "./functions/moderate-comment/index.ts"
+
 [functions.meta-webhook]
 enabled = true
 # Meta calls this directly; auth is X-Hub-Signature-256 (META_APP_SECRET).

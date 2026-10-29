@@ -47,6 +47,7 @@ import {
   handleSyncComments,
   handleSendMessage,
   handleReplyComment,
+  handleModerateComment,
 } from './sync';
 import { info, debug } from './logger';
 
@@ -357,6 +358,7 @@ export async function dispatch(job: Job): Promise<void> {
     case 'sync_comments': return handleSyncComments(job);
     case 'send_message': return handleSendMessage(job);
     case 'reply_comment': return handleReplyComment(job);
+    case 'moderate_comment': return handleModerateComment(job);
     default: throw new Error(`unknown job kind '${String((job as any)?.kind)}' (job ${job.id})`);
   }
 }

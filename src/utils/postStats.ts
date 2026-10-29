@@ -77,16 +77,22 @@ export async function fetchPostStats(channel: string, remoteId: string): Promise
         if (!m.threadsToken) throw new Error('Threads not connected');
         const tok = encodeURIComponent(m.threadsToken);
         const j: any = await (
-          await fetch(`${THREADS_API}/v1.0/${id}?fields=like_count,reply_count,repost_count,view_count&access_token=${tok}`, {
+          await fetch(`${THREADS_API}/v1.0/${id}/insights?metric=views,likes,replies,reposts,quotes&access_token=${tok}`, {
             headers: { Authorization: `Bearer ${m.threadsToken}` },
           })
         ).json().catch(() => ({}));
         if (j?.error) throw new Error(j.error.message ?? 'Could not read post.');
+        // Engagement lives on the media insights edge, not on the media object.
+        const v: Record<string, number> = {};
+        for (const row of Array.isArray(j?.data) ? j.data : []) {
+          const n = row?.values?.[0]?.value ?? row?.total_value?.value;
+          if (typeof row?.name === 'string' && typeof n === 'number') v[row.name] = n;
+        }
         return {
-          likes: num(j.like_count),
-          comments: num(j.reply_count),
-          views: typeof j.view_count === 'number' ? j.view_count : null,
-          shares: num(j.repost_count),
+          likes: num(v.likes),
+          comments: num(v.replies),
+          views: typeof v.views === 'number' ? v.views : null,
+          shares: num(v.reposts) + num(v.quotes),
         };
       }
       case 'x': {

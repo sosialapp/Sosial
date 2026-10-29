@@ -14,6 +14,8 @@ import type { Job } from './db';
 import { rest, readSecret } from './db';
 import { restPatch } from './rest';
 import { adapterFor } from './adapters';
+import { facebookCommentExtras } from './adapters/facebook';
+import { instagramCommentExtras } from './adapters/instagram';
 import type { Account, NormalizedComment, OwnPost } from './adapters/types';
 import { ensureToken as ensureXToken } from './x';
 import { ensureToken as ensureYtToken } from './youtube';
@@ -632,4 +634,37 @@ export async function handleReplyComment(job: Job): Promise<void> {
   }
   await restPatch('comments', cm.id, { status: 'replied', synced_at: new Date().toISOString() });
   info(`reply_comment comment ${cm.id}: replied on ${c.provider}`);
+}
+
+/* ----------------------------- moderate_comment --------------------------- */
+
+/** Hide or unhide someone else's comment on the platform (Facebook Pages and
+ *  Instagram only; the others expose no hide). The row follows the platform:
+ *  hidden while hidden, back to new when shown again. */
+export async function handleModerateComment(job: Job): Promise<void> {
+  const commentId = String(job.payload?.comment_id ?? '');
+  const hide = job.payload?.hide !== false;
+  if (!commentId) throw new Error(`job ${job.id}: moderate_comment needs comment_id`);
+  debug(`moderate_comment comment ${commentId} hide=${hide} (job ${job.id})`);
+
+  const commentRows = await rest<any[]>(
+    `/rest/v1/comments?id=eq.${encodeURIComponent(commentId)}&select=id,external_id,channel_id,is_own`,
+  );
+  const cm = commentRows?.[0];
+  if (!cm) throw new Error('Comment no longer exists.');
+  if (cm.is_own) throw new Error('Your own replies cannot be hidden.');
+  const c = await loadChannel(String(cm.channel_id));
+  if (!c) throw new Error('Channel disconnected.');
+  const account = accountOf(c, await channelToken(c));
+  const externalId = String(cm.external_id);
+
+  if (c.provider === 'facebook') {
+    await (hide ? facebookCommentExtras.hide(account, externalId) : facebookCommentExtras.unhide(account, externalId));
+  } else if (c.provider === 'instagram') {
+    await (hide ? instagramCommentExtras.hide(account, externalId) : instagramCommentExtras.unhide(account, externalId));
+  } else {
+    throw new Error(`Hiding comments is not supported on ${c.provider}.`);
+  }
+  await restPatch('comments', cm.id, { status: hide ? 'hidden' : 'new', synced_at: new Date().toISOString() });
+  info(`moderate_comment comment ${cm.id}: ${hide ? 'hidden' : 'unhidden'} on ${c.provider}`);
 }

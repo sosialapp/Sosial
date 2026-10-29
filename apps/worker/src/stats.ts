@@ -54,6 +54,17 @@ const num = (v: any): number => {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
 };
 
+/** Threads insights rows → { metric: value }. Media metrics answer with
+ *  values[0].value, user metrics with total_value.value; accept both. */
+function threadsMetrics(j: any): Record<string, number | undefined> {
+  const out: Record<string, number | undefined> = {};
+  for (const row of Array.isArray(j?.data) ? j.data : []) {
+    const v = row?.values?.[0]?.value ?? row?.total_value?.value;
+    if (typeof row?.name === 'string' && typeof v === 'number') out[row.name] = v;
+  }
+  return out;
+}
+
 /* ------------------------------ channel ------------------------------ */
 
 async function getChannel(channelId: string): Promise<{ c: ChannelRow; t: TokenRow } | null> {
@@ -289,18 +300,21 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       return { likes: num(j.like_count), comments: num(j.comments_count), views: null, shares: 0 };
     }
     case 'threads': {
+      // Engagement lives on the media insights edge (threads_manage_insights),
+      // not as fields on the media object.
       const tok = await accessToken(c, t);
       const enc = encodeURIComponent(tok);
       const j = await jget(
-        `${THREADS_API}/v1.0/${encodeURIComponent(remoteId)}?fields=like_count,reply_count,repost_count,view_count&access_token=${enc}`,
+        `${THREADS_API}/v1.0/${encodeURIComponent(remoteId)}/insights?metric=views,likes,replies,reposts,quotes&access_token=${enc}`,
         { Authorization: `Bearer ${tok}` },
       );
       if (j?.error) throw new Error(j.error.message ?? 'Could not read post.');
+      const m = threadsMetrics(j);
       return {
-        likes: num(j.like_count),
-        comments: num(j.reply_count),
-        views: typeof j.view_count === 'number' ? j.view_count : null,
-        shares: num(j.repost_count),
+        likes: num(m.likes),
+        comments: num(m.replies),
+        views: m.views === undefined ? null : num(m.views),
+        shares: num(m.reposts) + num(m.quotes),
       };
     }
     case 'x': {

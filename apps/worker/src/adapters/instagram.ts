@@ -232,6 +232,16 @@ export const instagramCommentExtras = {
     });
     if (r.status !== 200 && r.status !== 201) throw metaError('Instagram hide', r.data, r.status);
   },
+  async unhide(account: Account, commentId: string): Promise<void> {
+    const r = await httpJson({
+      provider: 'instagram',
+      method: 'POST',
+      url: `${GRAPH}/${commentId}`,
+      headers: { Authorization: `Bearer ${account.token}` },
+      body: { hide: false },
+    });
+    if (r.status !== 200 && r.status !== 201) throw metaError('Instagram unhide', r.data, r.status);
+  },
   async remove(account: Account, commentId: string): Promise<void> {
     const r = await httpJson({
       provider: 'instagram',

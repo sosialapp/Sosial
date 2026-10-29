@@ -1,7 +1,7 @@
-// meta-data-deletion · Threads/Meta "Data Deletion Request URL".
+// meta-data-deletion · Meta "Data Deletion Request URL" (Threads, Instagram, Facebook).
 //
 // Same unauthenticated signed_request as meta-deauthorize, same identity
-// (app-scoped user_id = connected_channels.external_id for Threads). The
+// (app-scoped user_id, resolved by _shared/metaChannels.ts). The
 // difference is intent: the user asked for their data to be erased, so a
 // revoked row is not enough -- it must be forgotten.
 //
@@ -12,7 +12,7 @@
 // most we can honestly delete from a signature alone.
 //
 // What this deliberately does NOT do: delete the person's Sosial account or
-// workspace. A Threads user id does not identify a Sosial login, and no
+// workspace. A Meta user id does not identify a Sosial login, and no
 // unauthenticated callback should be able to erase an account -- or a
 // teammate's data -- on a signature. Erasing the Sosial account stays a
 // self-serve, signed-in action (delete-account).
@@ -27,6 +27,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { signedRequestField, verifySignedRequest } from "../_shared/signedRequest.ts";
+import { metaChannelsForUser, type MetaChannel } from "../_shared/metaChannels.ts";
 
 // Where Meta tells the user to check on the request; a real page on our site.
 const STATUS_URL = "https://sosial.app/delete-data";
@@ -60,14 +61,12 @@ serve(async (req: Request): Promise<Response> => {
   const code = confirmationCode();
   const admin = createClient(supaUrl, serviceKey, { auth: { persistSession: false } });
 
-  const { data: rows, error: rowsErr } = await admin
-    .from("connected_channels")
-    .select("id, workspace_id")
-    .eq("provider", "threads")
-    .eq("external_id", signed.userId);
-  if (rowsErr) return bad(`Could not read the account: ${rowsErr.message}`, 500);
-
-  const channels = (rows ?? []) as { id: string; workspace_id: string }[];
+  let channels: MetaChannel[];
+  try {
+    channels = await metaChannelsForUser(admin, signed.userId);
+  } catch (e) {
+    return bad(`Could not read the account: ${(e as Error).message}`, 500);
+  }
   let purged = 0;
   for (const c of channels) {
     const { data, error } = await admin.rpc("purge_channel_data", {

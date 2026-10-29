@@ -21,6 +21,7 @@ export interface Job {
     | 'sync_comments'
     | 'send_message'
     | 'reply_comment'
+    | 'moderate_comment'
     | 'meta_subscribe';
   payload: Record<string, any>;
   status: string;

@@ -1,9 +1,8 @@
-// meta-deauthorize · Threads/Meta "Deauthorize Callback URL".
+// meta-deauthorize · Meta "Deauthorize Callback URL" (Threads, Instagram, Facebook).
 //
 // Meta POSTs an unauthenticated, form-encoded signed_request when a user
 // removes the app. The only trustworthy identity in it is user_id (their
-// app-scoped id), which is exactly what we store in
-// connected_channels.external_id for Threads, so that is the lookup key.
+// app-scoped id); _shared/metaChannels.ts maps it to the channels it names.
 //
 // Deauthorize means the user took our access away: the token we hold is
 // already void, so this calls for REVOKE, not purge. Revoking (status
@@ -21,6 +20,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { signedRequestField, verifySignedRequest } from "../_shared/signedRequest.ts";
+import { metaChannelsForUser } from "../_shared/metaChannels.ts";
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -55,17 +55,13 @@ serve(async (req: Request): Promise<Response> => {
 
   const admin = createClient(supaUrl, serviceKey, { auth: { persistSession: false } });
 
-  // Threads external_id IS the app-scoped user id Meta sends here. Page and IG
-  // account ids never match a user id, so those providers cannot be resolved
-  // from this callback and are not queried.
-  const { data: rows, error: rowsErr } = await admin
-    .from("connected_channels")
-    .select("id")
-    .eq("provider", "threads")
-    .eq("external_id", signed.userId);
-  if (rowsErr) return bad(`Could not read the account: ${rowsErr.message}`, 500);
-
-  const ids = ((rows ?? []) as { id: string }[]).map((r) => r.id);
+  // Threads, Instagram and Facebook Page rows for this person (see metaChannels).
+  let ids: string[];
+  try {
+    ids = (await metaChannelsForUser(admin, signed.userId)).map((r) => r.id);
+  } catch (e) {
+    return bad(`Could not read the account: ${(e as Error).message}`, 500);
+  }
   if (!ids.length) return Response.json({ ok: true, revoked: 0 }, { headers: CORS });
 
   // Secret ids before the token rows go -- the secrets live outside them.

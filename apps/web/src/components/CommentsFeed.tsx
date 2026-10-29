@@ -19,7 +19,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Check, CheckCheck, CornerDownRight, ExternalLink, EyeOff, FileText, Inbox, LoaderCircle, MessageCircle, Play, Send,
+  ArrowLeft, Check, CheckCheck, CornerDownRight, ExternalLink, EyeOff, FileText, Inbox, LoaderCircle, MessageCircle, Play, Send, ShieldBan,
 } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
@@ -53,6 +53,8 @@ interface CommentRow {
 
 /** Providers the sync engine can reply on. */
 const REPLY_PROVIDERS = new Set(['facebook', 'instagram', 'threads', 'x', 'mastodon', 'bluesky', 'youtube']);
+/** Providers that let the account hide a comment from the public. */
+const HIDE_PROVIDERS = new Set(['facebook', 'instagram']);
 const NO_REPLY_TEXT: Record<string, string> = {
   linkedin: 'Replies for LinkedIn are planned.',
   tiktok: 'Replies for TikTok are planned.',
@@ -348,6 +350,36 @@ export default function CommentsFeed({
     [load, stateBusy],
   );
 
+  /**
+   * Hide (or show again) a comment on the platform itself. Unlike Resolve
+   * and Ignore this changes what the public sees, so it goes through the
+   * moderate-comment function and the worker; the row flips optimistically.
+   */
+  const moderate = useCallback(
+    async (c: CommentRow, hide: boolean) => {
+      if (stateBusy) return;
+      setStateBusy(true);
+      setErr(null);
+      setNote(null);
+      setRows((prev) => (prev ?? []).map((r) => (r.id === c.id ? { ...r, status: hide ? 'hidden' : 'new' } : r)));
+      try {
+        const sb = createClient();
+        const { error } = await sb.functions.invoke('moderate-comment', { body: { comment_id: c.id, hide } });
+        if (error) {
+          const detail = await edgeErrorMessage(error);
+          throw new Error(detail ?? error.message);
+        }
+        setNote(hide ? `Hiding it on ${providerMeta(c.platform).label}.` : `Showing it again on ${providerMeta(c.platform).label}.`);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Could not update the comment.');
+        void load();
+      } finally {
+        setStateBusy(false);
+      }
+    },
+    [load, stateBusy],
+  );
+
   const channelsWithRows = useMemo(() => {
     const ids = new Set((rows ?? []).map((r) => r.channel_id));
     return channels.filter((c) => ids.has(c.id));
@@ -385,7 +417,7 @@ export default function CommentsFeed({
       // they leave the "to answer" pile even though nobody replied.
       const answered = new Set(g.comments.filter((c) => c.is_own && c.parent_external_id).map((c) => c.parent_external_id));
       const handled = (c: CommentRow) =>
-        c.status === 'replied' || c.status === 'resolved' || c.status === 'ignored' || answered.has(c.external_id);
+        c.status === 'replied' || c.status === 'resolved' || c.status === 'ignored' || c.status === 'hidden' || answered.has(c.external_id);
       g.open = REPLY_PROVIDERS.has(g.platform) ? g.comments.filter((c) => !c.is_own && !handled(c)) : [];
       g.resolved = g.comments.filter((c) => !c.is_own && c.status === 'resolved').length;
       g.ignored = g.comments.filter((c) => !c.is_own && c.status === 'ignored').length;
@@ -754,6 +786,17 @@ export default function CommentsFeed({
                                 <CheckCheck className="h-3 w-3" aria-hidden="true" />
                                 Resolved
                               </button>
+                            ) : c.status === 'hidden' ? (
+                              <button
+                                type="button"
+                                onClick={() => void moderate(c, false)}
+                                disabled={stateBusy || !HIDE_PROVIDERS.has(c.platform)}
+                                title="Hidden from the public. Click to show it again"
+                                className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink hover:underline disabled:opacity-50"
+                              >
+                                <ShieldBan className="h-3 w-3" aria-hidden="true" />
+                                Hidden · Unhide
+                              </button>
                             ) : c.status === 'ignored' ? (
                               <button
                                 type="button"
@@ -803,6 +846,18 @@ export default function CommentsFeed({
                                     </button>
                                   </>
                                 )}
+                                {HIDE_PROVIDERS.has(c.platform) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void moderate(c, true)}
+                                    disabled={stateBusy}
+                                    title={`Hide it from the public on ${providerMeta(c.platform).label}`}
+                                    className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink disabled:opacity-50"
+                                  >
+                                    <ShieldBan className="h-3 w-3" aria-hidden="true" />
+                                    Hide
+                                  </button>
+                                ) : null}
                               </>
                             )}
                             {done ? (
