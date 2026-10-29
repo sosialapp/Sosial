@@ -4,7 +4,7 @@
  * and private-bucket media downloads.
  */
 import { required, env } from './env';
-import { r2Configured, r2Key, r2Has, r2GetUrl, r2Remove, r2HeadSize, r2Stream, r2AbortMultipart } from './storage';
+import { r2Configured, r2Key, r2Has, r2GetUrl, r2Remove, r2HeadSize, r2Stream, r2AbortMultipart, asWebStream } from './storage';
 
 function base(): string {
   return required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
@@ -146,7 +146,7 @@ export async function storageStream(
     const out = await r2Stream(r2Key(bucket, path), range);
     if (out) {
       return {
-        body: out.body,
+        body: asWebStream(out.body),
         contentLength: out.contentLength,
         range: out.range,
         contentType: out.contentType,
