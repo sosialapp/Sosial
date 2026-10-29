@@ -10,7 +10,7 @@ import { Txt, GhostBtn, PrimaryBtn, Section, Field, Swatches, Seg, Stepper, Pill
 import AIGenerateSheet from './AIGenerateSheet';
 import ImageCropModal from './ImageCropModal';
 import { applyGenResult } from '../utils/ai/apply';
-import { duplicateBlock, hopBlock, imageFrameAspect, removeBlock } from '../utils/blockLayout';
+import { duplicateBlock, hopBlock, imageFrameAspect, removeBlock, withStyle } from '../utils/blockLayout';
 
 /** Saved 'fill' values (short-lived experiment) behave as 'top'. */
 function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
@@ -139,7 +139,7 @@ export default function ContentEditor() {
   };
   const update = (id: string, patch: Partial<ContentBlock>) => setBlocks(blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   const patchStyle = (b: ContentBlock, patch: Partial<NonNullable<ContentBlock['style']>>) =>
-    update(b.id, { style: { ...(b.style ?? {}), ...patch } });
+    setBlocks(blocks.map((x) => (x.id === b.id ? withStyle(x, patch) : x)));
   const remove = (id: string) => setBlocks(removeBlock(blocks, id));
   const duplicate = (id: string) => {
     const res = duplicateBlock(blocks, id);
@@ -183,7 +183,6 @@ export default function ContentEditor() {
     }
     // keep the raw text in the box, no surprise rewrite after typing
   };
-  // Beside flags stay with the slots, so side-by-side rows keep their shape.
   const move = (id: string, dir: -1 | 1) => setBlocks(hopBlock(blocks, id, dir));
 
   /** AI result → cloned template pages with fitted card heights. */
@@ -225,13 +224,13 @@ export default function ContentEditor() {
         <Field label="Card color">
           <Swatches colors={PALETTE} value={page.cardColor ?? '#FFFFFF'} onChange={(c) => patchPage({ cardColor: c })} />
         </Field>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Full card</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Content card fills the whole canvas, single card</Text>
-          </View>
-          <PillToggle on={page.fullCard ?? false} onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })} />
-        </View>
+        <ToggleRow
+          C={C}
+          title="Full card"
+          sub="Content card fills the whole canvas, single card"
+          on={page.fullCard ?? false}
+          onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })}
+        />
         {page.fullCard ? (
           <>
             <ToggleRow C={C} title="Title inside card" sub="Card renders the title row itself" on={page.fullCardTitle ?? false} onPress={() => patchPage({ fullCardTitle: !(page.fullCardTitle ?? false) })} />
@@ -260,29 +259,29 @@ export default function ContentEditor() {
             </Field>
           </>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Stick photo to card</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Photo + badges follow the card position</Text>
-          </View>
-          <PillToggle on={page.stickToCard ?? false} onPress={() => patchPage({ stickToCard: !(page.stickToCard ?? false) })} />
-        </View>
+        <ToggleRow
+          C={C}
+          title="Stick photo to card"
+          sub="Photo + badges follow the card position"
+          on={page.stickToCard ?? false}
+          onPress={() => patchPage({ stickToCard: !(page.stickToCard ?? false) })}
+        />
         </>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Verified check</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Blue tick after the handle</Text>
-          </View>
-          <PillToggle on={page.verified ?? true} onPress={() => patchPage({ verified: !(page.verified ?? true) })} />
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Watermark {plan === 'free' ? '· Solo to remove' : ''}</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Made with Sosial badge in the card</Text>
-          </View>
-          <PillToggle on={wmOn} onPress={toggleWm} />
-        </View>
+        <ToggleRow
+          C={C}
+          title="Verified check"
+          sub="Blue tick after the handle"
+          on={page.verified ?? true}
+          onPress={() => patchPage({ verified: !(page.verified ?? true) })}
+        />
+        <ToggleRow
+          C={C}
+          title={`Watermark ${plan === 'free' ? '· Solo to remove' : ''}`}
+          sub="Made with Sosial badge in the card"
+          on={wmOn}
+          onPress={toggleWm}
+        />
       </View>
 
       <View style={{ gap: 12 }}>

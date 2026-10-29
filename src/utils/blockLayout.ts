@@ -3,8 +3,8 @@ import { BlockStyle, ContentBlock } from '../types';
 
 /**
  * Block row layout: a row starts at the first block and at every block that
- * isn't `beside` its predecessor. Mirrors web apps/web/src/lib/studio/model.ts
- * (blockRows / rowFractions) and the ops in CanvasEditLayer.tsx, keep in sync.
+ * isn't `beside` its predecessor. Mirrors the block ops in web
+ * apps/web/src/lib/studio/model.ts, keep in sync.
  */
 export function blockRows(blocks: ContentBlock[]): number[][] {
   const rows: number[][] = [];
@@ -27,7 +27,8 @@ export function rowFractions(blocks: ContentBlock[]): number[] {
   return sum > 1 ? raw.map((v) => v / sum) : raw;
 }
 
-const withStyle = (b: ContentBlock, patch: Partial<BlockStyle>): ContentBlock => ({ ...b, style: { ...(b.style ?? {}), ...patch } });
+/** Copy a block with a style patch, the base of every block op below. */
+export const withStyle = (b: ContentBlock, patch: Partial<BlockStyle>): ContentBlock => ({ ...b, style: { ...(b.style ?? {}), ...patch } });
 
 /** Remove a block, the next one inherits its row start if needed. */
 export function removeBlock(blocks: ContentBlock[], id: string): ContentBlock[] {
@@ -66,7 +67,7 @@ export function duplicateBlock(blocks: ContentBlock[], id: string): { blocks: Co
 /** Frame aspect (w/h) of an image block as the canvas draws it: square 1:1,
  *  wide 16:9, custom = real frame width : imageH. Content width is 282
  *  design units; rows, width % and a box fill narrow the frame. Mirrors web
- *  steps2.tsx frameAspectOf, keep in sync. */
+ *  model.ts imageFrameAspect, keep in sync. */
 export function imageFrameAspect(b: ContentBlock, blocks: ContentBlock[]): number {
   const asp = b.imageAspect ?? (b.imageH !== undefined ? 'custom' : 'wide');
   if (asp === 'square') return 1;

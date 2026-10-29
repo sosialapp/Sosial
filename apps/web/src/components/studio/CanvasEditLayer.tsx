@@ -16,10 +16,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Columns2, Copy, Trash2 } from 'lucide-react';
 import {
   blockRows,
+  detachBlock,
+  duplicateBlock,
+  hopBlock,
   maxCardHeightDesign,
+  removeBlock,
   rowFractions,
-  uid,
-  type BlockStyle,
+  withStyle,
   type ContentBlock,
   type PostPage,
 } from '@/lib/studio/model';
@@ -42,24 +45,12 @@ type DropTarget =
 const SNAPS = [0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const inside = (r: R, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-const withStyle = (b: ContentBlock, patch: Partial<BlockStyle>): ContentBlock => ({ ...b, style: { ...(b.style ?? {}), ...patch } });
 const isColumns = (b: ContentBlock) => (b.style?.chartVariant ?? (b.type === 'bar' ? 'hbar' : b.type)) === 'vbar';
 
-/* ------------------------------ pure block ops ----------------------------- */
-
-/** Pull a block out, the next block inherits its row start if needed. */
-function detach(blocks: ContentBlock[], id: string): { rest: ContentBlock[]; x: ContentBlock | null } {
-  const i = blocks.findIndex((b) => b.id === id);
-  if (i < 0) return { rest: blocks, x: null };
-  const x = blocks[i];
-  const rest = blocks.filter((_, j) => j !== i);
-  const startsRow = i === 0 || !x.style?.beside;
-  if (startsRow && rest[i]?.style?.beside) rest[i] = withStyle(rest[i], { beside: false });
-  return { rest, x };
-}
+/* ------------------------------ drop placement ----------------------------- */
 
 function dropBlock(blocks: ContentBlock[], id: string, t: DropTarget): ContentBlock[] {
-  const { rest, x } = detach(blocks, id);
+  const { rest, x } = detachBlock(blocks, id);
   if (!x) return blocks;
   const next = [...rest];
   if (t.kind === 'row') {
@@ -84,34 +75,6 @@ function dropBlock(blocks: ContentBlock[], id: string, t: DropTarget): ContentBl
     next[i] = withStyle(next[i], { width: undefined });
   });
   return next;
-}
-
-/** Swap with the neighbour, the beside flags stay with the slots so the
- *  row shapes hold and the block just hops one place. */
-function hop(blocks: ContentBlock[], id: string, dir: -1 | 1): ContentBlock[] {
-  const i = blocks.findIndex((b) => b.id === id);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= blocks.length) return blocks;
-  const next = [...blocks];
-  const a = next[i];
-  const b = next[j];
-  next[i] = withStyle(b, { beside: a.style?.beside });
-  next[j] = withStyle(a, { beside: b.style?.beside });
-  return next;
-}
-
-export function duplicateBlock(blocks: ContentBlock[], id: string): { blocks: ContentBlock[]; id: string | null } {
-  const i = blocks.findIndex((b) => b.id === id);
-  if (i < 0) return { blocks, id: null };
-  const copy: ContentBlock = { ...structuredClone(blocks[i]), id: uid('b') };
-  const inRow = !!blocks[i].style?.beside || !!blocks[i + 1]?.style?.beside;
-  const next = [...blocks];
-  next.splice(i + 1, 0, withStyle(copy, { beside: inRow }));
-  return { blocks: next, id: copy.id };
-}
-
-export function removeBlock(blocks: ContentBlock[], id: string): ContentBlock[] {
-  return detach(blocks, id).rest;
 }
 
 /* --------------------------------- layer ---------------------------------- */
@@ -246,7 +209,7 @@ export default function CanvasEditLayer({
         if (res.id) onSelect(res.id);
       } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
-        edit((pg) => ({ ...pg, blocks: hop(pg.blocks, selectedId, e.key === 'ArrowUp' ? -1 : 1) }));
+        edit((pg) => ({ ...pg, blocks: hopBlock(pg.blocks, selectedId, e.key === 'ArrowUp' ? -1 : 1) }));
       }
     };
     document.addEventListener('keydown', onKey);
@@ -516,10 +479,10 @@ export default function CanvasEditLayer({
                   top: selR.y > 40 ? selR.y - 38 : selR.y + selR.h + 8,
                 }}
               >
-                <ToolBtn label="Move up (Alt+↑)" disabled={idx <= 0} onClick={() => edit((pg) => ({ ...pg, blocks: hop(pg.blocks, selected.id, -1) }))}>
+                <ToolBtn label="Move up (Alt+↑)" disabled={idx <= 0} onClick={() => edit((pg) => ({ ...pg, blocks: hopBlock(pg.blocks, selected.id, -1) }))}>
                   <ArrowUp className="h-3.5 w-3.5" />
                 </ToolBtn>
-                <ToolBtn label="Move down (Alt+↓)" disabled={idx >= blocks.length - 1} onClick={() => edit((pg) => ({ ...pg, blocks: hop(pg.blocks, selected.id, 1) }))}>
+                <ToolBtn label="Move down (Alt+↓)" disabled={idx >= blocks.length - 1} onClick={() => edit((pg) => ({ ...pg, blocks: hopBlock(pg.blocks, selected.id, 1) }))}>
                   <ArrowDown className="h-3.5 w-3.5" />
                 </ToolBtn>
                 <ToolBtn

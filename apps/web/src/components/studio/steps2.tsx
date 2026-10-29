@@ -6,11 +6,15 @@ import {
   DATA,
   PALETTE,
   POST_SIZES,
+  duplicateBlock,
+  hopBlock,
+  imageFrameAspect,
   maxCardHeightDesign,
   newBlock,
   parseChartLine,
-  blockRows,
-  rowFractions,
+  removeBlock,
+  withStyle,
+  type BlockStyle,
   type BlockType,
   type ContentBlock,
   type PostSizeId,
@@ -19,7 +23,6 @@ import {
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { Field, Seg, Stepper, Swatches, SwitchRow } from './controls';
 import { fileToDataUrl } from './steps1';
-import { duplicateBlock, removeBlock } from './CanvasEditLayer';
 import type { StepApi } from './steps1';
 import { MAX_CROP_ZOOM, cropToRect, isCropV2, rectToCrop, type ImageCrop } from '@/lib/studio/crop';
 
@@ -33,28 +36,27 @@ const BLOCK_TYPES: { id: BlockType; label: string }[] = [
   { id: 'image', label: 'Image' },
 ];
 
+/** Small square action on a block row: move up/down, duplicate, delete. */
+function RowBtn({ label, onClick, danger, title, children }: { label: string; onClick: () => void; danger?: boolean; title?: string; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={title}
+      onClick={onClick}
+      className={`flex h-8 w-8 items-center justify-center rounded-[10px] text-sm font-bold ${
+        danger ? 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]' : 'bg-paper'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 /** Saved 'fill' values (short-lived experiment) behave as 'top'. */
 function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
   if (c === 'fill') return 'top';
   return (c as 'top' | 'middle' | 'bottom' | undefined) ?? undefined;
-}
-
-/** Frame aspect (w/h) of an image block, must match the canvas renderer
- *  (blocks.tsx): square 1:1, wide 16:9, custom = real frame width : imageH.
- *  Content width is 282 design units (340 minus the canvas pad 16×2 and the
- *  card pad 13×2); rows, width % and a box fill narrow the frame. */
-function frameAspectOf(b: ContentBlock, blocks: ContentBlock[]): number {
-  const asp = b.imageAspect ?? (b.imageH !== undefined ? 'custom' : 'wide');
-  if (asp === 'square') return 1;
-  if (asp === 'wide') return 16 / 9;
-  const row = blockRows(blocks).find((r) => r.some((i) => blocks[i].id === b.id)) ?? [];
-  let cell = b.style?.width != null ? Math.min(1, Math.max(0.2, b.style.width)) : 1;
-  if (row.length > 1) {
-    const fr = rowFractions(row.map((i) => blocks[i]));
-    cell = fr[row.findIndex((i) => blocks[i].id === b.id)] * (1 - (10 * (row.length - 1)) / 282);
-  }
-  const w = 282 * cell - (b.style?.boxBg ? 20 : 0);
-  return Math.max(20, w) / Math.max(60, b.imageH ?? 140);
 }
 
 type CropRect = { x: number; y: number; w: number; h: number };
@@ -332,26 +334,15 @@ export function ContentStep({
 
   const update = (id: string, patch: Partial<ContentBlock>) =>
     patchPage({ blocks: blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) });
-  const patchStyle = (b: ContentBlock, patch: Partial<NonNullable<ContentBlock['style']>>) =>
-    update(b.id, { style: { ...(b.style ?? {}), ...patch } });
+  const patchStyle = (b: ContentBlock, patch: Partial<BlockStyle>) =>
+    patchPage({ blocks: blocks.map((x) => (x.id === b.id ? withStyle(x, patch) : x)) });
   const remove = (id: string) => patchPage({ blocks: removeBlock(blocks, id) });
   const duplicate = (id: string) => {
     const res = duplicateBlock(blocks, id);
     patchPage({ blocks: res.blocks });
     if (res.id) setOpenId(res.id);
   };
-  const move = (id: string, dir: -1 | 1) => {
-    const i = blocks.findIndex((b) => b.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= blocks.length) return;
-    // Beside flags stay with the slots, so the row shapes hold.
-    const next = [...blocks];
-    const a = next[i];
-    const c = next[j];
-    next[i] = { ...c, style: { ...(c.style ?? {}), beside: a.style?.beside } };
-    next[j] = { ...a, style: { ...(a.style ?? {}), beside: c.style?.beside } };
-    patchPage({ blocks: next });
-  };
+  const move = (id: string, dir: -1 | 1) => patchPage({ blocks: hopBlock(blocks, id, dir) });
   const add = (t: BlockType) => {
     const b = newBlock(t);
     patchPage({ blocks: [...blocks, b] });
@@ -506,10 +497,10 @@ export function ContentStep({
                   </p>
                   <p className="truncate text-xs text-muted">{b.heading || 'No heading'}</p>
                 </button>
-                <button type="button" aria-label="Duplicate block" title="Duplicate" onClick={() => duplicate(b.id)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-paper text-sm font-bold">⧉</button>
-                <button type="button" aria-label="Move up" onClick={() => move(b.id, -1)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-paper text-sm font-bold">↑</button>
-                <button type="button" aria-label="Move down" onClick={() => move(b.id, 1)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-paper text-sm font-bold">↓</button>
-                <button type="button" aria-label="Delete block" onClick={() => remove(b.id)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FDEBEC] text-sm font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">✕</button>
+                <RowBtn label="Duplicate block" title="Duplicate" onClick={() => duplicate(b.id)}>⧉</RowBtn>
+                <RowBtn label="Move up" onClick={() => move(b.id, -1)}>↑</RowBtn>
+                <RowBtn label="Move down" onClick={() => move(b.id, 1)}>↓</RowBtn>
+                <RowBtn label="Delete block" danger onClick={() => remove(b.id)}>✕</RowBtn>
               </div>
               {open ? (
                 <div className="mt-3 space-y-2.5">
@@ -900,7 +891,7 @@ export function ContentStep({
                           <CropEditor
                             key={b.imageUri}
                             uri={b.imageUri}
-                            aspect={frameAspectOf(b, blocks)}
+                            aspect={imageFrameAspect(b, blocks)}
                             value={b.imageCrop}
                             onChange={(c) => update(b.id, { imageCrop: c })}
                             onReset={() => update(b.id, { imageCrop: undefined })}

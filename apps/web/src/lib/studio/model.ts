@@ -421,6 +421,67 @@ export function rowFractions(blocks: ContentBlock[]): number[] {
   return sum > 1 ? raw.map((v) => v / sum) : raw;
 }
 
+/** Copy a block with a style patch, the base of every block op below. The
+ *  ops mirror mobile src/utils/blockLayout.ts, keep in sync. */
+export const withStyle = (b: ContentBlock, patch: Partial<BlockStyle>): ContentBlock => ({ ...b, style: { ...(b.style ?? {}), ...patch } });
+
+/** Pull a block out, the next block inherits its row start if needed. */
+export function detachBlock(blocks: ContentBlock[], id: string): { rest: ContentBlock[]; x: ContentBlock | null } {
+  const i = blocks.findIndex((b) => b.id === id);
+  if (i < 0) return { rest: blocks, x: null };
+  const x = blocks[i];
+  const rest = blocks.filter((_, j) => j !== i);
+  if ((i === 0 || !x.style?.beside) && rest[i]?.style?.beside) rest[i] = withStyle(rest[i], { beside: false });
+  return { rest, x };
+}
+
+/** Remove a block, the next one inherits its row start if needed. */
+export function removeBlock(blocks: ContentBlock[], id: string): ContentBlock[] {
+  return detachBlock(blocks, id).rest;
+}
+
+/** Swap with the neighbour, beside flags stay with the slots so row shapes hold. */
+export function hopBlock(blocks: ContentBlock[], id: string, dir: -1 | 1): ContentBlock[] {
+  const i = blocks.findIndex((b) => b.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= blocks.length) return blocks;
+  const next = [...blocks];
+  const a = next[i];
+  const b = next[j];
+  next[i] = withStyle(b, { beside: a.style?.beside });
+  next[j] = withStyle(a, { beside: b.style?.beside });
+  return next;
+}
+
+/** Copy right after the original, staying in its row if it has one. */
+export function duplicateBlock(blocks: ContentBlock[], id: string): { blocks: ContentBlock[]; id: string | null } {
+  const i = blocks.findIndex((b) => b.id === id);
+  if (i < 0) return { blocks, id: null };
+  const copy: ContentBlock = { ...structuredClone(blocks[i]), id: uid('b') };
+  const inRow = !!blocks[i].style?.beside || !!blocks[i + 1]?.style?.beside;
+  const next = [...blocks];
+  next.splice(i + 1, 0, withStyle(copy, { beside: inRow }));
+  return { blocks: next, id: copy.id };
+}
+
+/** Frame aspect (w/h) of an image block as the canvas draws it: square 1:1,
+ *  wide 16:9, custom = real frame width : imageH. Content width is 282
+ *  design units; rows, width % and a box fill narrow the frame. Mirrors
+ *  mobile src/utils/blockLayout.ts, keep in sync. */
+export function imageFrameAspect(b: ContentBlock, blocks: ContentBlock[]): number {
+  const asp = b.imageAspect ?? (b.imageH !== undefined ? 'custom' : 'wide');
+  if (asp === 'square') return 1;
+  if (asp === 'wide') return 16 / 9;
+  const row = blockRows(blocks).find((r) => r.some((i) => blocks[i].id === b.id)) ?? [];
+  let cell = b.style?.width != null ? Math.min(1, Math.max(0.2, b.style.width)) : 1;
+  if (row.length > 1) {
+    const fr = rowFractions(row.map((i) => blocks[i]));
+    cell = fr[row.findIndex((i) => blocks[i].id === b.id)] * (1 - (10 * (row.length - 1)) / 282);
+  }
+  const w = 282 * cell - (b.style?.boxBg ? 20 : 0);
+  return Math.max(20, w) / Math.max(60, b.imageH ?? 140);
+}
+
 export function newBlock(type: BlockType): ContentBlock {
   if (type === 'table')
     return { id: uid('b'), type, heading: 'Comparison', items: [], table: [['Feature', 'A', 'B'], ['Price', '$9', '$19'], ['Rating', '4.8', '4.5']] };
