@@ -84,8 +84,12 @@ export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar
  *  "use the block type's default", so old designs keep rendering as-is.
  *  Mirrored from apps/web/src/lib/studio/model.ts, keep in sync. */
 export interface BlockStyle {
-  width?: number; // fraction of the content width the block occupies (0.3-1)
+  width?: number; // fraction of the content width the block occupies (0.2-1)
   align?: 'left' | 'center' | 'right';
+  beside?: boolean; // same row as the previous block (side by side); ignored on the first
+  scale?: number; // per-block content scale on top of page contentScale (0.5-2.5)
+  boxBg?: string; // padded, rounded fill behind the block; absent = no box
+  spaceAbove?: number; // extra space above the block's row, design units (0-60)
   chartVariant?: 'hbar' | 'vbar' | 'pie'; // chart orientation, overrides type default
   chartThickness?: number; // bar/donut thickness, relative (0.25-1)
   chartRadius?: number; // bar corner rounding (0-1)

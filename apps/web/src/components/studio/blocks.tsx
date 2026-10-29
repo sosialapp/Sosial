@@ -131,26 +131,37 @@ export function ChromeIcon({ name, size, color }: { name: string; size: number; 
 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable). */
-export function BlockView(props: { block: ContentBlock; width: number; font: FontId; zoom?: number }) {
-  const { block } = props;
+export function BlockView(props: { block: ContentBlock; width: number; font: FontId; zoom?: number; cell?: number }) {
+  const { block, width } = props;
   const st = block.style;
-  const pct = st?.width != null ? Math.min(1, Math.max(0.3, st.width)) : 1;
+  const k = width / 340;
+  const zoom = (props.zoom ?? 1) * (st?.scale != null ? Math.min(2.5, Math.max(0.5, st.scale)) : 1);
+  // Box fill: padded, rounded panel behind the block.
+  const boxed = st?.boxBg ? { backgroundColor: st.boxBg, borderRadius: 10 * k, padding: 10 * k } : null;
+  const inner = <BlockInner {...props} zoom={zoom} cell={props.cell ?? 1} boxPad={boxed ? 20 * k : 0} />;
+  const body = boxed ? <div style={boxed}>{inner}</div> : inner;
+  // Inside a multi-block row the row wrapper owns the width.
+  if (props.cell != null) return <div data-block-id={block.id}>{body}</div>;
+  const pct = st?.width != null ? Math.min(1, Math.max(0.2, st.width)) : 1;
   const align = st?.align ?? 'left';
-  if (pct >= 1 && align === 'left') return <BlockInner {...props} />;
+  if (pct >= 1 && align === 'left') return <div data-block-id={block.id}>{body}</div>;
   return (
     <div
+      data-block-id={block.id}
       style={{
         width: `${pct * 100}%`,
         marginRight: align === 'left' ? 'auto' : align === 'center' ? 'auto' : 0,
         marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : 0,
       }}
     >
-      <BlockInner {...props} />
+      {body}
     </div>
   );
 }
 
-function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; width: number; font: FontId; zoom?: number }) {  const tc = block.textColor ?? '#111111';
+/** `cell` = fraction of the content width the block really gets (rows);
+ *  only the image frame uses it, so text scale stays predictable. */
+function BlockInner({ block, width, font, zoom = 1, cell = 1, boxPad = 0 }: { block: ContentBlock; width: number; font: FontId; zoom?: number; cell?: number; boxPad?: number }) {  const tc = block.textColor ?? '#111111';
   const w = width;
   const k = w / 340;
   const sz = (base: number, f: number) => Math.max(base * k, w * f) * zoom;
@@ -237,7 +248,8 @@ function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; wid
   if (block.type === 'image') {
     const st = block.style;
     const asp = block.imageAspect ?? (block.imageH !== undefined ? 'custom' : 'wide');
-    const frameH = asp === 'custom' ? (block.imageH ?? 140) * k : asp === 'square' ? w : (w * 9) / 16;
+    const frameW = w * cell - boxPad;
+    const frameH = asp === 'custom' ? (block.imageH ?? 140) * k : asp === 'square' ? frameW : (frameW * 9) / 16;
     const fit = st?.imageFit ?? 'cover';
     const radius = st?.imageRadius != null ? Math.min(0.5, Math.max(0, st.imageRadius)) * w : 8 * k;
     const focus = block.imageFocus ?? 4;

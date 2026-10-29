@@ -148,9 +148,18 @@ export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar
 /** Per-block presentation overrides. Every field is optional, absent means
  *  "use the block type's default", so old designs keep rendering as-is. */
 export interface BlockStyle {
-  /** fraction of the content width the block occupies (0.3–1) */
+  /** fraction of the content width the block occupies (0.2–1) */
   width?: number;
   align?: 'left' | 'center' | 'right';
+  /** Sit in the same row as the previous block (side by side) instead of
+   *  starting a new row. Ignored on the first block. */
+  beside?: boolean;
+  /** Per-block content scale on top of the page's contentScale (0.5–2.5). */
+  scale?: number;
+  /** Box fill behind the block (padded + rounded); absent = no box. */
+  boxBg?: string;
+  /** Extra space above the block's row, design units (0–60). */
+  spaceAbove?: number;
   /** chart orientation, overrides the block type's default */
   chartVariant?: 'hbar' | 'vbar' | 'pie';
   /** bar/donut thickness, relative (0.25–1) */
@@ -384,6 +393,29 @@ export function blankProject(name = 'Untitled design'): StudioProject {
     createdAt: Date.now(),
     pages: [blankPage()],
   };
+}
+
+/** Group blocks into rows: a row starts at the first block and at every
+ *  block that isn't `beside` its predecessor. Returns index lists. */
+export function blockRows(blocks: ContentBlock[]): number[][] {
+  const rows: number[][] = [];
+  blocks.forEach((b, i) => {
+    if (i > 0 && b.style?.beside && rows.length) rows[rows.length - 1].push(i);
+    else rows.push([i]);
+  });
+  return rows;
+}
+
+/** Width fractions for the blocks of one row: explicit widths win, the rest
+ *  share what's left (min 20%), then everything is scaled to fit in 1. */
+export function rowFractions(blocks: ContentBlock[]): number[] {
+  const set = blocks.map((b) => (b.style?.width != null ? Math.min(1, Math.max(0.2, b.style.width)) : null));
+  const used = set.reduce<number>((a, v) => a + (v ?? 0), 0);
+  const free = set.filter((v) => v == null).length;
+  const share = free ? Math.max(0.2, (1 - used) / free) : 0;
+  const raw = set.map((v) => v ?? share);
+  const sum = raw.reduce((a, v) => a + v, 0);
+  return sum > 1 ? raw.map((v) => v / sum) : raw;
 }
 
 export function newBlock(type: BlockType): ContentBlock {

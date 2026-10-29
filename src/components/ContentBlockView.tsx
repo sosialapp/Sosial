@@ -198,12 +198,20 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable).
  *  Mirrors web blocks.tsx BlockView, keep in sync. */
-export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
-  const { block } = props;
+export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number }) {
+  const { block, width } = props;
   const st = block.style;
-  const pct = st?.width != null ? Math.min(1, Math.max(0.3, st.width)) : 1;
+  const k = width / 340;
+  const zoom = (props.zoom ?? 1) * (st?.scale != null ? Math.min(2.5, Math.max(0.5, st.scale)) : 1);
+  // Box fill: padded, rounded panel behind the block.
+  const boxed = st?.boxBg ? { backgroundColor: st.boxBg, borderRadius: 10 * k, padding: 10 * k } : null;
+  const inner = <ContentBlockInner {...props} zoom={zoom} cell={props.cell ?? 1} boxPad={boxed ? 20 * k : 0} />;
+  const body = boxed ? <View style={boxed}>{inner}</View> : inner;
+  // Inside a multi-block row the row wrapper owns the width.
+  if (props.cell != null) return body;
+  const pct = st?.width != null ? Math.min(1, Math.max(0.2, st.width)) : 1;
   const align = st?.align ?? 'left';
-  if (pct >= 1 && align === 'left') return <ContentBlockInner {...props} />;
+  if (pct >= 1 && align === 'left') return body;
   return (
     <View
       style={{
@@ -211,12 +219,14 @@ export default function ContentBlockView(props: { block: ContentBlock; width: nu
         alignSelf: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
       }}
     >
-      <ContentBlockInner {...props} />
+      {body}
     </View>
   );
 }
 
-function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = false }: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
+/** `cell` = fraction of the content width the block really gets (rows);
+ *  only the image crop math uses it, so text scale stays predictable. */
+function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = false, cell = 1, boxPad = 0 }: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number; boxPad?: number }) {
   const tc = block.textColor ?? '#111111';
   const w = width;
   const k = w / 340;
@@ -302,8 +312,8 @@ function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = fals
       : { width: iw, aspectRatio: asp === 'square' ? 1 : 16 / 9, alignSelf: hAlign };
     // manual crop wins over the focal preset: scale the frame-filling photo and pan it
     const crop = block.imageCrop;
-    const frameW = w;
-    const frameH = custom ? (block.imageH ?? 140) * k : asp === 'square' ? w : w * (9 / 16);
+    const frameW = w * cell - boxPad;
+    const frameH = custom ? (block.imageH ?? 140) * k : asp === 'square' ? frameW : frameW * (9 / 16);
     const overX = frameW * ((crop?.zoom ?? 1) - 1);
     const overY = frameH * ((crop?.zoom ?? 1) - 1);
     const cropInner = crop

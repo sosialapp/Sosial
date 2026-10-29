@@ -5,6 +5,7 @@ import { PostPage } from '../types';
 import { SOCIAL_META } from '../constants';
 import { F } from '../utils/fonts';
 import { contrastRatio } from '../utils/color';
+import { blockRows, rowFractions } from '../utils/blockLayout';
 import PatternBackground from './PatternBackground';
 import ContentBlockView from './ContentBlockView';
 import SocialCardChrome from './SocialCardChrome';
@@ -88,7 +89,41 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const blocks = page.blocks.length === 0 ? (
     <Text style={{ color: '#787774', textAlign: 'center', marginTop: pad(24), fontSize: pad(13), fontWeight: '600' }}>Add bullets, table or chart below</Text>
   ) : (
-    page.blocks.map((b) => <ContentBlockView key={b.id} block={b} width={(CANVAS_W - 16 * 2 - 13 * 2) * s} font={page.font ?? 'inter'} zoom={page.contentScale ?? 1} fill={!!page.cardH} />)
+    blockRows(page.blocks).map((row) => {
+      // Mirrors web StudioCanvas block rows, keep in sync.
+      const bw = (CANVAS_W - 16 * 2 - 13 * 2) * s;
+      const font = page.font ?? 'inter';
+      const zoom = page.contentScale ?? 1;
+      const fill = !!page.cardH;
+      const first = page.blocks[row[0]];
+      const space = first.style?.spaceAbove ? pad(Math.min(60, Math.max(0, first.style.spaceAbove))) : 0;
+      if (row.length === 1) {
+        const view = <ContentBlockView key={first.id} block={first} width={bw} font={font} zoom={zoom} fill={fill} />;
+        // Unwrapped when possible: fixed-card images grow via flexGrow,
+        // which needs the block to be a direct child of the card column.
+        return space ? <View key={first.id} style={{ marginTop: space, flexGrow: fill && first.type === 'image' ? 1 : 0 }}>{view}</View> : view;
+      }
+      const members = row.map((i) => page.blocks[i]);
+      const fr = rowFractions(members);
+      const gap = pad(10);
+      const avail = bw - gap * (row.length - 1);
+      const align = first.style?.align ?? 'left';
+      return (
+        <View
+          key={first.id}
+          style={{
+            flexDirection: 'row', alignItems: 'flex-start', gap, marginTop: space || undefined,
+            justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+          }}
+        >
+          {members.map((b, j) => (
+            <View key={b.id} style={{ width: avail * fr[j], flexShrink: 0 }}>
+              <ContentBlockView block={b} width={bw} font={font} zoom={zoom} cell={(avail * fr[j]) / bw} />
+            </View>
+          ))}
+        </View>
+      );
+    })
   );
 
   const titleBlock = (

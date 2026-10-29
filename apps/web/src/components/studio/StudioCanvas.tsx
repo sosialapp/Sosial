@@ -7,6 +7,8 @@ import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import {
   FONT_STACKS,
+  blockRows,
+  rowFractions,
   type CardStyle,
   type FontId,
   type PostPage,
@@ -186,7 +188,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'facebook') {
     return (
-      <div style={shell(8)}>
+      <div data-studio-card="" style={shell(8)}>
         <div style={{ ...headerRow, padding: `${10 * k}px ${12 * k}px 0` }}>
           <AvatarMark page={page} size={24} k={k} />
           <div style={{ flex: 1 }}>
@@ -218,7 +220,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'x') {
     return (
-      <div style={shell(14)}>
+      <div data-studio-card="" style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
           {/* Identity reads as one unit, name, seal and handle glued tight
@@ -271,7 +273,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'instagram') {
     return (
-      <div style={shell(6)}>
+      <div data-studio-card="" style={shell(6)}>
         <div style={{ ...headerRow, padding: `${10 * k}px ${12 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
           <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, flexShrink: 0 }}>{c.name} </span>
@@ -308,7 +310,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'threads') {
     return (
-      <div style={shell(14)}>
+      <div data-studio-card="" style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
           {/* Identity reads as one unit, handle, seal and time glued tight
@@ -358,7 +360,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'bluesky') {
     return (
-      <div style={shell(14)}>
+      <div data-studio-card="" style={shell(14)}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 * k, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
           <div style={{ flex: 1 }}>
@@ -392,7 +394,9 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   // minimal
   return (
-    <div style={{ position: 'relative', ...(fit ? { flexShrink: 1 } : { flex: 1, minHeight: 0 }) }}>
+    // Fixed height: the root must be a flex column too, or the inner card
+    // (flex:1) ignores the height and just hugs its content.
+    <div data-studio-card="" style={{ position: 'relative', ...(fit ? { flexShrink: 1 } : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }) }}>
       <div style={{ ...(fit ? { flexShrink: 1, maxHeight: maxH, overflow: 'hidden' } : { flex: 1, minHeight: 0 }), display: 'flex', flexDirection: 'column', backgroundColor: c.cardBg, borderRadius: 14 * k, padding: 13 * k, borderWidth: Math.max(1, k), borderStyle: 'solid', borderColor: '#11111112' }}>
         <AutoFit gap={10 * k}>{children}</AutoFit>
       </div>
@@ -460,9 +464,43 @@ export default function StudioCanvas({
         Add bullets, table or chart below
       </p>
     ) : (
-      page.blocks.map((b) => (
-        <BlockView key={b.id} block={b} width={w - pad(16) * 2 - pad(13) * 2} font={page.font ?? 'inter'} zoom={page.contentScale ?? 1} />
-      ))
+      blockRows(page.blocks).map((row) => {
+        const bw = w - pad(16) * 2 - pad(13) * 2;
+        const font = page.font ?? 'inter';
+        const zoom = page.contentScale ?? 1;
+        const first = page.blocks[row[0]];
+        const space = first.style?.spaceAbove ? { marginTop: pad(Math.min(60, Math.max(0, first.style.spaceAbove))) } : null;
+        // Solo rows render exactly as before (width % + align inside).
+        if (row.length === 1) {
+          return (
+            <div key={first.id} data-block-row="" style={space ?? undefined}>
+              <BlockView block={first} width={bw} font={font} zoom={zoom} />
+            </div>
+          );
+        }
+        const members = row.map((i) => page.blocks[i]);
+        const fr = rowFractions(members);
+        const gap = pad(10);
+        // Unused width (fractions summing < 1) sits per the first block's align.
+        const align = first.style?.align ?? 'left';
+        return (
+          <div
+            key={first.id}
+            data-block-row=""
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap,
+              justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+              ...space,
+            }}
+          >
+            {members.map((b, j) => (
+              <div key={b.id} style={{ width: `calc((100% - ${gap * (row.length - 1)}px) * ${fr[j]})`, minWidth: 0, flexShrink: 0 }}>
+                <BlockView block={b} width={bw} font={font} zoom={zoom} cell={fr[j] * (1 - (gap * (row.length - 1)) / bw)} />
+              </div>
+            ))}
+          </div>
+        );
+      })
     );
 
   const titleBlock = hasTitle ? <TitleBlock page={page} k={k} /> : null;
@@ -657,7 +695,7 @@ function Watermark(props: { font: FontId; size: number; color: string; k: number
 function TitleBlock({ page, k }: { page: PostPage; k: number }) {
   const t = page.title;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 * k }}>
+    <div data-studio-part="title" style={{ display: 'flex', flexDirection: 'column', gap: 4 * k }}>
       <p
         style={{
           ...ff(t.font, t.bold, t.italic), fontSize: t.size * k, color: t.color,
@@ -706,6 +744,7 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
 
   return (
     <div
+      data-studio-part="pfp"
       style={{
         display: 'flex', flexDirection: dir as 'column' | 'column-reverse' | 'row',
         alignItems: isColumn ? cross : 'center',

@@ -17,6 +17,7 @@ import {
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { Field, Seg, Stepper, Swatches, SwitchRow } from './controls';
 import { fileToDataUrl } from './steps1';
+import { duplicateBlock, removeBlock } from './CanvasEditLayer';
 import type { StepApi } from './steps1';
 
 const BLOCK_TYPES: { id: BlockType; label: string }[] = [
@@ -261,8 +262,22 @@ function CropEditor({
 
 /* -------------------------------- 04 content ------------------------------- */
 
-export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' | 'patchPage'> & { designH: number }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+export function ContentStep({
+  page,
+  patchPage,
+  designH,
+  openId,
+  setOpenId,
+}: Pick<StepApi, 'page' | 'patchPage'> & { designH: number; openId: string | null; setOpenId: (id: string | null) => void }) {
+  // Selecting on the canvas opens the block here, bring it into view.
+  useEffect(() => {
+    if (!openId) return;
+    // Next frame: on a tab switch the panel has only just mounted.
+    const raf = requestAnimationFrame(() =>
+      document.getElementById(`studio-block-${openId}`)?.scrollIntoView({ block: 'nearest' }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [openId]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   // Tallest the fixed card may be while the title + profile/socials rows
   // still fit, the stepper stops here so raising px can never shove them
@@ -275,13 +290,22 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
     patchPage({ blocks: blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) });
   const patchStyle = (b: ContentBlock, patch: Partial<NonNullable<ContentBlock['style']>>) =>
     update(b.id, { style: { ...(b.style ?? {}), ...patch } });
-  const remove = (id: string) => patchPage({ blocks: blocks.filter((b) => b.id !== id) });
+  const remove = (id: string) => patchPage({ blocks: removeBlock(blocks, id) });
+  const duplicate = (id: string) => {
+    const res = duplicateBlock(blocks, id);
+    patchPage({ blocks: res.blocks });
+    if (res.id) setOpenId(res.id);
+  };
   const move = (id: string, dir: -1 | 1) => {
     const i = blocks.findIndex((b) => b.id === id);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= blocks.length) return;
+    // Beside flags stay with the slots, so the row shapes hold.
     const next = [...blocks];
-    [next[i], next[j]] = [next[j], next[i]];
+    const a = next[i];
+    const c = next[j];
+    next[i] = { ...c, style: { ...(c.style ?? {}), beside: a.style?.beside } };
+    next[j] = { ...a, style: { ...(a.style ?? {}), beside: c.style?.beside } };
     patchPage({ blocks: next });
   };
   const add = (t: BlockType) => {
@@ -413,7 +437,7 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
         <p className="font-display text-[11px] font-extrabold tracking-[0.14em] text-ink">
           02 · <span className="text-sm tracking-normal text-ink">Blocks</span>
         </p>
-        <p className="-mt-2 text-xs text-muted">Stack content inside the card.</p>
+        <p className="-mt-2 text-xs text-muted">Stack content inside the card, or click a block on the canvas to drag, resize and place it side by side.</p>
         <div className="flex flex-wrap gap-1.5">
           {BLOCK_TYPES.filter((t) => t.id !== 'image' || !blocks.some((b) => b.type === 'image')).map((t) => (
             <button
@@ -430,7 +454,7 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
         {blocks.map((b, idx) => {
           const open = openId === b.id;
           return (
-            <div key={b.id} className={`card p-3.5 ${open ? 'ring-1 ring-line' : ''}`}>
+            <div key={b.id} id={`studio-block-${b.id}`} className={`card scroll-mt-2 p-3.5 ${open ? 'ring-2 ring-[#4D7CFE]' : ''}`}>
               <div className="flex items-center gap-1.5">
                 <button type="button" onClick={() => setOpenId(open ? null : b.id)} className="min-w-0 flex-1 text-left">
                   <p className="truncate text-sm font-bold capitalize">
@@ -438,6 +462,7 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
                   </p>
                   <p className="truncate text-xs text-muted">{b.heading || 'No heading'}</p>
                 </button>
+                <button type="button" aria-label="Duplicate block" title="Duplicate" onClick={() => duplicate(b.id)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-paper text-sm font-bold">⧉</button>
                 <button type="button" aria-label="Move up" onClick={() => move(b.id, -1)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-paper text-sm font-bold">↑</button>
                 <button type="button" aria-label="Move down" onClick={() => move(b.id, 1)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-paper text-sm font-bold">↓</button>
                 <button type="button" aria-label="Delete block" onClick={() => remove(b.id)} className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FDEBEC] text-sm font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">✕</button>
@@ -457,12 +482,29 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
                     placeholder="Heading (optional)"
                     className="field"
                   />
-                  <div className="flex gap-2">
+                  {idx > 0 ? (
+                    <Field label="Layout" hint="Beside puts it in the same row as the block above.">
+                      <Seg
+                        options={[{ value: 'row', label: 'Own row' }, { value: 'beside', label: 'Beside previous' }]}
+                        value={b.style?.beside ? 'beside' : 'row'}
+                        onChange={(v) => patchStyle(b, { beside: v === 'beside', width: undefined })}
+                      />
+                    </Field>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
                     <Field label="Width" hint="">
                       <Seg
-                        options={[{ value: '1', label: 'Full' }, { value: '0.75', label: '75%' }, { value: '0.5', label: '50%' }]}
-                        value={String(b.style?.width ?? 1)}
-                        onChange={(v) => patchStyle(b, { width: Number(v) })}
+                        options={[
+                          { value: 'auto', label: 'Auto' },
+                          { value: '1', label: 'Full' },
+                          { value: '0.75', label: '¾' },
+                          { value: String(2 / 3), label: '⅔' },
+                          { value: '0.5', label: '½' },
+                          { value: String(1 / 3), label: '⅓' },
+                          { value: '0.25', label: '¼' },
+                        ]}
+                        value={b.style?.width == null ? 'auto' : String(b.style.width)}
+                        onChange={(v) => patchStyle(b, { width: v === 'auto' ? undefined : Number(v) })}
                       />
                     </Field>
                     <Field label="Align" hint="">
@@ -473,6 +515,45 @@ export function ContentStep({ page, patchPage, designH }: Pick<StepApi, 'page' |
                       />
                     </Field>
                   </div>
+                  {b.type !== 'image' ? (
+                    <Field label="Size" hint="Scales this block only. Or drag its corner handle on the canvas.">
+                      <Stepper
+                        value={b.style?.scale ?? 1}
+                        onChange={(v) => patchStyle(b, { scale: Math.round(v * 100) / 100 })}
+                        step={0.1}
+                        min={0.5}
+                        max={2.5}
+                        format={(v) => `${Math.round(v * 100)}%`}
+                      />
+                    </Field>
+                  ) : null}
+                  <Field label="Box" hint="A padded, rounded fill behind the block.">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => patchStyle(b, { boxBg: undefined })}
+                        className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${!b.style?.boxBg ? 'border-ink bg-ink text-white dark:border-white dark:bg-white dark:text-black' : 'border-line bg-card text-muted'}`}
+                      >
+                        None
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <Swatches colors={PALETTE} value={b.style?.boxBg ?? ''} onChange={(c) => patchStyle(b, { boxBg: c })} />
+                      </div>
+                    </div>
+                  </Field>
+                  {/* Row spacing comes from the row's first block. */}
+                  {!(idx > 0 && b.style?.beside) ? (
+                    <Field label="Space above">
+                      <Stepper
+                        value={b.style?.spaceAbove ?? 0}
+                        onChange={(v) => patchStyle(b, { spaceAbove: v || undefined })}
+                        step={4}
+                        min={0}
+                        max={60}
+                        format={(v) => `${v}px`}
+                      />
+                    </Field>
+                  ) : null}
                   {b.type !== 'image' ? (
                     <Field label="Ink">
                       <Swatches colors={PALETTE} value={b.textColor ?? '#111111'} onChange={(c) => update(b.id, { textColor: c })} />
