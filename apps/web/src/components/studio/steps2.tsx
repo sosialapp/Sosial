@@ -9,6 +9,8 @@ import {
   maxCardHeightDesign,
   newBlock,
   parseChartLine,
+  blockRows,
+  rowFractions,
   type BlockType,
   type ContentBlock,
   type PostSizeId,
@@ -19,6 +21,7 @@ import { Field, Seg, Stepper, Swatches, SwitchRow } from './controls';
 import { fileToDataUrl } from './steps1';
 import { duplicateBlock, removeBlock } from './CanvasEditLayer';
 import type { StepApi } from './steps1';
+import { MAX_CROP_ZOOM, cropToRect, isCropV2, rectToCrop, type ImageCrop } from '@/lib/studio/crop';
 
 const BLOCK_TYPES: { id: BlockType; label: string }[] = [
   { id: 'bullets', label: 'Bullets' },
@@ -30,8 +33,6 @@ const BLOCK_TYPES: { id: BlockType; label: string }[] = [
   { id: 'image', label: 'Image' },
 ];
 
-const clampC = (v: number) => Math.min(1, Math.max(-1, v));
-
 /** Saved 'fill' values (short-lived experiment) behave as 'top'. */
 function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
   if (c === 'fill') return 'top';
@@ -39,24 +40,32 @@ function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
 }
 
 /** Frame aspect (w/h) of an image block, must match the canvas renderer
- *  (blocks.tsx): square 1:1, wide 16:9, custom contentW:imageH. The block is
- *  rendered at design width 340 minus the canvas pad (16×2) and card pad
- *  (13×2) = 282, so a custom frame is 282:imageH. */
-function frameAspectOf(b: ContentBlock): number {
+ *  (blocks.tsx): square 1:1, wide 16:9, custom = real frame width : imageH.
+ *  Content width is 282 design units (340 minus the canvas pad 16×2 and the
+ *  card pad 13×2); rows, width % and a box fill narrow the frame. */
+function frameAspectOf(b: ContentBlock, blocks: ContentBlock[]): number {
   const asp = b.imageAspect ?? (b.imageH !== undefined ? 'custom' : 'wide');
   if (asp === 'square') return 1;
   if (asp === 'wide') return 16 / 9;
-  return 282 / Math.max(60, b.imageH ?? 140);
+  const row = blockRows(blocks).find((r) => r.some((i) => blocks[i].id === b.id)) ?? [];
+  let cell = b.style?.width != null ? Math.min(1, Math.max(0.2, b.style.width)) : 1;
+  if (row.length > 1) {
+    const fr = rowFractions(row.map((i) => blocks[i]));
+    cell = fr[row.findIndex((i) => blocks[i].id === b.id)] * (1 - (10 * (row.length - 1)) / 282);
+  }
+  const w = 282 * cell - (b.style?.boxBg ? 20 : 0);
+  return Math.max(20, w) / Math.max(60, b.imageH ?? 140);
 }
 
+type CropRect = { x: number; y: number; w: number; h: number };
+
 /**
- * Real crop editor: the photo sits contain-fit in a dark stage, an
- * aspect-locked crop rectangle (matching the block frame) overlays it with
- * draggable corner handles, thirds grid, dimmed outside, like a normal
- * image editor. The rect maps to the canvas model {zoom,x,y} so both
- * renderers stay unchanged:
- *   zoom = full width / rect width; x = 1 - 2·z·u0/(z-1) (u0 = rect left
- *   as a fraction of the image), mirrored for y.
+ * Crop editor: the photo sits contain-fit in a dark stage with an
+ * aspect-locked crop rectangle (the block's frame shape) over it. Drag
+ * inside to move, drag a corner to resize (the opposite corner stays put),
+ * scroll or use the slider to zoom. The rect maps to the v2 crop model in
+ * lib/studio/crop.ts, which both renderers lay out in exact px.
+ * Mirrors mobile ImageCropModal, keep in sync.
  */
 function CropEditor({
   uri,
@@ -67,27 +76,19 @@ function CropEditor({
 }: {
   uri: string;
   aspect: number;
-  value?: { zoom: number; x: number; y: number };
-  onChange: (c: { zoom: number; x: number; y: number }) => void;
+  value?: ImageCrop;
+  onChange: (c: ImageCrop) => void;
   onReset: () => void;
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [nat, setNat] = useState({ w: 0, h: 0 });
-  const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  // Live rect for the rAF drag loop + the pending-frame refs.
-  const rectRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [rect, setRect] = useState<CropRect | null>(null);
+  const rectRef = useRef<CropRect | null>(null);
   const raf = useRef<number | null>(null);
   const lastPt = useRef({ x: 0, y: 0 });
-  const drag = useRef<{
-    mode: 'move' | 0 | 1 | 2 | 3;
-    px: number;
-    py: number;
-    r: { x: number; y: number; w: number; h: number };
-    stage: { left: number; top: number };
-  } | null>(null);
+  const drag = useRef<{ mode: 'move' | 0 | 1 | 2 | 3; px: number; py: number; r: CropRect } | null>(null);
 
-  // Measure the stage so the photo's contain-fit box is known.
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
@@ -102,103 +103,128 @@ function CropEditor({
   const dispH = nat.h * scale;
   const ox = (box.w - dispW) / 2;
   const oy = (box.h - dispH) / 2;
+  const imgAspect = nat.h > 0 ? nat.w / nat.h : 1;
+  // Largest frame-shaped rect = the cover fit = zoom 1.
+  const fullW = dispH > 0 && dispW / dispH > aspect ? dispH * aspect : dispW;
+  const minW = fullW / MAX_CROP_ZOOM;
 
-  // Initialise the rect once the photo geometry is known.
-  useEffect(() => {
-    if (!scale || rect || !dispW || !dispH) return;
-    let r: { x: number; y: number; w: number; h: number };
-    if (value && value.zoom > 1.001) {
-      const z = value.zoom;
-      const u0 = -(value.x - 1) * (z - 1) / (2 * z);
-      const v0 = -(value.y - 1) * (z - 1) / (2 * z);
-      r = { x: u0 * dispW, y: v0 * dispH, w: dispW / z, h: dispH / z };
-    } else {
-      // Largest aspect-locked rect centered on the photo.
-      const w = dispW / dispH > aspect ? dispH * aspect : dispW;
-      const h = w / aspect;
-      r = { x: (dispW - w) / 2, y: (dispH - h) / 2, w, h };
-    }
-    setRect(r);
+  const defaultRect = (): CropRect => ({ x: (dispW - fullW) / 2, y: (dispH - fullW / aspect) / 2, w: fullW, h: fullW / aspect });
+  const set = (r: CropRect) => {
     rectRef.current = r;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scale, dispW, dispH]);
-
-  const emit = (r: { x: number; y: number; w: number; h: number }) => {
-    const z = dispW / r.w;
-    const xm = z > 1.001 ? clampC(1 - (2 * z * (r.x / dispW)) / (z - 1)) : 0;
-    const ym = z > 1.001 ? clampC(1 - (2 * z * (r.y / dispH)) / (z - 1)) : 0;
-    onChange({ zoom: Math.round(z * 100) / 100, x: Math.round(xm * 100) / 100, y: Math.round(ym * 100) / 100 });
+    setRect(r);
   };
 
-  const computeRect = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: { x: number; y: number; w: number; h: number }) => {
+  // Initialise once the photo geometry is known (and when the frame shape changes).
+  useEffect(() => {
+    if (!scale || !dispW || !dispH) return;
+    if (isCropV2(value)) {
+      const f = cropToRect(value, imgAspect, aspect);
+      set({ x: f.u * dispW, y: f.v * dispH, w: f.uw * dispW, h: f.vh * dispH });
+    } else {
+      set(defaultRect());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, dispW, dispH, aspect]);
+
+  const emit = (r: CropRect) =>
+    onChange(rectToCrop({ u: r.x / dispW, v: r.y / dispH, uw: r.w / dispW, vh: r.h / dispH }, imgAspect, aspect));
+
+  /** Frame-shaped rect of width w centred on (cx, cy), kept inside the photo. */
+  const fit = (w: number, cx: number, cy: number): CropRect => {
+    const ww = Math.min(fullW, Math.max(minW, w));
+    const hh = ww / aspect;
+    return { x: Math.min(dispW - ww, Math.max(0, cx - ww / 2)), y: Math.min(dispH - hh, Math.max(0, cy - hh / 2)), w: ww, h: hh };
+  };
+
+  const computeRect = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, s: CropRect): CropRect => {
     if (mode === 'move') {
-      const nx = Math.min(dispW - start.w, Math.max(0, start.x + dx));
-      const ny = Math.min(dispH - start.h, Math.max(0, start.y + dy));
-      return { ...start, x: nx, y: ny };
+      return { ...s, x: Math.min(dispW - s.w, Math.max(0, s.x + dx)), y: Math.min(dispH - s.h, Math.max(0, s.y + dy)) };
     }
-    // Corner resize, aspect-locked. Corners: 0 TL, 1 TR, 2 BL, 3 BR.
-    // The dragged corner moves with the pointer; the opposite corner is the
-    // fixed anchor. Size follows the larger of the two pointer deltas so the
-    // rect tracks the finger smoothly on both axes.
-    const anchoredLeft = mode === 1 || mode === 3; // TR/BR keep the left edge
-    const anchoredTop = mode === 2 || mode === 3; // BL/BR keep the top edge
-    const anchorX = anchoredLeft ? start.x : start.x + start.w;
-    const anchorY = anchoredTop ? start.y : start.y + start.h;
-    // pointer-to-anchor distance, aspect-locked (use the dominant axis)
-    let w = Math.max(Math.abs(dx), Math.abs(dy) * aspect);
-    w = Math.min(dispW, Math.max(dispW / 3, w));
-    let h = w / aspect;
-    if (h > dispH) {
-      h = dispH;
-      w = h * aspect;
-    }
-    // place the rect so the anchored corner stays put and the moved corner
-    // follows the pointer's direction
-    const movingRight = anchoredLeft; // we're dragging the right edge
-    const movingDown = anchoredTop; // we're dragging the bottom edge
-    let x = movingRight ? anchorX : anchorX - w;
-    let y = movingDown ? anchorY : anchorY - h;
-    x = Math.min(dispW - w, Math.max(0, x));
-    y = Math.min(dispH - h, Math.max(0, y));
-    return { x, y, w, h };
+    // Corners: 0 TL, 1 TR, 2 BL, 3 BR. The opposite corner is the anchor; the
+    // size follows where the dragged corner now is, relative to that anchor.
+    const right = mode === 1 || mode === 3;
+    const bottom = mode === 2 || mode === 3;
+    const ax = right ? s.x : s.x + s.w;
+    const ay = bottom ? s.y : s.y + s.h;
+    const cx = (right ? s.x + s.w : s.x) + dx;
+    const cy = (bottom ? s.y + s.h : s.y) + dy;
+    const reachX = right ? cx - ax : ax - cx;
+    const reachY = bottom ? cy - ay : ay - cy;
+    // Room left inside the photo on the growing side.
+    const roomX = right ? dispW - ax : ax;
+    const roomY = bottom ? dispH - ay : ay;
+    let w = Math.max(reachX, reachY * aspect);
+    w = Math.max(minW, Math.min(w, roomX, roomY * aspect, fullW));
+    const h = w / aspect;
+    return { x: right ? ax : ax - w, y: bottom ? ay : ay - h, w, h };
   };
 
   const onDown = (mode: 'move' | 0 | 1 | 2 | 3) => (e: React.PointerEvent) => {
-    const stage = stageRef.current;
-    if (!stage || !rect) return;
-    const b = stage.getBoundingClientRect();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    drag.current = { mode, px: e.clientX, py: e.clientY, r: rect, stage: { left: b.left, top: b.top } };
+    if (!rectRef.current) return;
+    e.stopPropagation();
+    stageRef.current?.setPointerCapture(e.pointerId);
+    lastPt.current = { x: e.clientX, y: e.clientY };
+    drag.current = { mode, px: e.clientX, py: e.clientY, r: rectRef.current };
   };
   const onMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
-    // Coalesce to one state update per frame, pointermove fires faster than
-    // React can paint, and without this the drag stutters.
+    // One state update per frame, pointermove outruns React's paints.
     lastPt.current = { x: e.clientX, y: e.clientY };
     if (raf.current != null) return;
     raf.current = requestAnimationFrame(() => {
       raf.current = null;
-      const dd = drag.current;
-      if (!dd) return;
-      const next = computeRect(dd.mode, lastPt.current.x - dd.px, lastPt.current.y - dd.py, dd.r);
-      rectRef.current = next;
-      setRect(next);
+      const d = drag.current;
+      if (!d) return;
+      set(computeRect(d.mode, lastPt.current.x - d.px, lastPt.current.y - d.py, d.r));
     });
   };
   const onUp = () => {
-    if (drag.current && rectRef.current) emit(rectRef.current);
-    drag.current = null;
     if (raf.current != null) {
       cancelAnimationFrame(raf.current);
       raf.current = null;
     }
+    const d = drag.current;
+    drag.current = null;
+    if (d) {
+      const next = computeRect(d.mode, lastPt.current.x - d.px, lastPt.current.y - d.py, d.r);
+      set(next);
+      emit(next);
+    }
   };
 
-  const handles: { i: 0 | 1 | 2 | 3; x: 'left' | 'right'; y: 'top' | 'bottom' }[] = [
-    { i: 0, x: 'left', y: 'top' },
-    { i: 1, x: 'right', y: 'top' },
-    { i: 2, x: 'left', y: 'bottom' },
-    { i: 3, x: 'right', y: 'bottom' },
+  const zoom = rect && rect.w > 0 && fullW > 0 ? fullW / rect.w : 1;
+  const zoomTo = (z: number) => {
+    const r = rectRef.current;
+    if (!r) return;
+    set(fit(fullW / Math.min(MAX_CROP_ZOOM, Math.max(1, z)), r.x + r.w / 2, r.y + r.h / 2));
+  };
+  // Wheel zoom (non-passive so the page doesn't scroll under the cursor).
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    let t: number | undefined;
+    const onWheel = (e: WheelEvent) => {
+      const r = rectRef.current;
+      if (!r || !fullW) return;
+      e.preventDefault();
+      const z = fullW / r.w;
+      const next = fit(fullW / Math.min(MAX_CROP_ZOOM, Math.max(1, z * (e.deltaY < 0 ? 1.08 : 1 / 1.08))), r.x + r.w / 2, r.y + r.h / 2);
+      set(next);
+      window.clearTimeout(t);
+      t = window.setTimeout(() => emit(next), 180);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      window.clearTimeout(t);
+    };
+  });
+
+  const handles: { i: 0 | 1 | 2 | 3; x: 'left' | 'right'; y: 'top' | 'bottom'; cursor: string }[] = [
+    { i: 0, x: 'left', y: 'top', cursor: 'nwse-resize' },
+    { i: 1, x: 'right', y: 'top', cursor: 'nesw-resize' },
+    { i: 2, x: 'left', y: 'bottom', cursor: 'nesw-resize' },
+    { i: 3, x: 'right', y: 'bottom', cursor: 'nwse-resize' },
   ];
 
   return (
@@ -208,7 +234,7 @@ function CropEditor({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        className="relative h-64 w-full select-none overflow-hidden rounded-xl bg-[#141210] touch-none"
+        className="relative h-64 w-full touch-none select-none overflow-hidden rounded-xl bg-[#141210]"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -221,18 +247,13 @@ function CropEditor({
         />
         {rect ? (
           <>
-            {/* dim outside the rect (4 slabs, a 9999px box-shadow repaints
-                the whole stage every frame and makes the drag stutter) */}
+            {/* dim outside the rect (4 slabs, a huge box-shadow repaints the
+                whole stage every frame and makes the drag stutter) */}
             <div className="pointer-events-none absolute left-0 top-0 w-full" style={{ height: Math.max(0, oy + rect.y), backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <div className="pointer-events-none absolute left-0 w-full" style={{ top: oy + rect.y + rect.h, height: Math.max(0, box.h - (oy + rect.y + rect.h)), backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <div className="pointer-events-none absolute left-0" style={{ top: oy + rect.y, width: Math.max(0, ox + rect.x), height: rect.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <div className="pointer-events-none absolute" style={{ left: ox + rect.x + rect.w, top: oy + rect.y, width: Math.max(0, box.w - (ox + rect.x + rect.w)), height: rect.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-            <div
-              onPointerDown={onDown('move')}
-              className="absolute cursor-move"
-              style={{ left: ox + rect.x, top: oy + rect.y, width: rect.w, height: rect.h }}
-            >
-              {/* thirds grid */}
+            <div onPointerDown={onDown('move')} className="absolute cursor-move" style={{ left: ox + rect.x, top: oy + rect.y, width: rect.w, height: rect.h }}>
               <span className="pointer-events-none absolute left-1/3 top-0 h-full w-px bg-white/35" />
               <span className="pointer-events-none absolute left-2/3 top-0 h-full w-px bg-white/35" />
               <span className="pointer-events-none absolute left-0 top-1/3 h-px w-full bg-white/35" />
@@ -243,16 +264,39 @@ function CropEditor({
               <span
                 key={h.i}
                 onPointerDown={onDown(h.i)}
-                className="absolute h-5 w-5 cursor-pointer rounded-[5px] border-2 border-[#141210] bg-white"
-                style={{ left: ox + rect.x + (h.x === 'left' ? 0 : rect.w) - 10, top: oy + rect.y + (h.y === 'top' ? 0 : rect.h) - 10 }}
+                className="absolute h-5 w-5 rounded-[5px] border-2 border-[#141210] bg-white"
+                style={{ cursor: h.cursor, left: ox + rect.x + (h.x === 'left' ? 0 : rect.w) - 10, top: oy + rect.y + (h.y === 'top' ? 0 : rect.h) - 10 }}
               />
             ))}
           </>
         ) : null}
       </div>
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-bold text-muted">Zoom</span>
+        <input
+          type="range"
+          min={1}
+          max={MAX_CROP_ZOOM}
+          step={0.01}
+          value={Math.round(zoom * 100) / 100}
+          onChange={(e) => zoomTo(Number(e.target.value))}
+          onPointerUp={() => rectRef.current && emit(rectRef.current)}
+          onKeyUp={() => rectRef.current && emit(rectRef.current)}
+          aria-label="Crop zoom"
+          className="min-w-0 flex-1 accent-[#4D7CFE]"
+        />
+        <span className="w-10 text-right text-xs font-bold tabular-nums">{zoom.toFixed(1)}×</span>
+      </div>
       <div className="flex items-center gap-2">
-        <p className="flex-1 text-xs text-muted">Drag the corners to crop, drag inside to move.</p>
-        <button type="button" onClick={onReset} className="btn btn-ghost">
+        <p className="flex-1 text-xs text-muted">Drag inside to move, drag a corner to resize, scroll to zoom.</p>
+        <button
+          type="button"
+          onClick={() => {
+            if (dispW) set(defaultRect());
+            onReset();
+          }}
+          className="btn btn-ghost"
+        >
           Reset
         </button>
       </div>
@@ -854,9 +898,9 @@ export function ContentStep({
                       {b.imageUri ? (
                         <Field label="Free crop" hint="Corner handles resize, drag inside to move.">
                           <CropEditor
-                            key={`${b.imageUri}|${b.imageCrop?.zoom ?? 1}|${b.imageCrop?.x ?? 0}|${b.imageCrop?.y ?? 0}`}
+                            key={b.imageUri}
                             uri={b.imageUri}
-                            aspect={frameAspectOf(b)}
+                            aspect={frameAspectOf(b, blocks)}
                             value={b.imageCrop}
                             onChange={(c) => update(b.id, { imageCrop: c })}
                             onReset={() => update(b.id, { imageCrop: undefined })}

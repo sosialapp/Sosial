@@ -10,7 +10,7 @@ import { Txt, GhostBtn, PrimaryBtn, Section, Field, Swatches, Seg, Stepper, Pill
 import AIGenerateSheet from './AIGenerateSheet';
 import ImageCropModal from './ImageCropModal';
 import { applyGenResult } from '../utils/ai/apply';
-import { duplicateBlock, hopBlock, removeBlock } from '../utils/blockLayout';
+import { duplicateBlock, hopBlock, imageFrameAspect, removeBlock } from '../utils/blockLayout';
 
 /** Saved 'fill' values (short-lived experiment) behave as 'top'. */
 function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
@@ -653,8 +653,7 @@ export default function ContentEditor() {
       <ImageCropModal
         visible={!!cropBlock}
         uri={cropBlock?.imageUri}
-        aspect={cropBlock?.imageAspect ?? (cropBlock?.imageH !== undefined ? 'custom' : 'wide')}
-        customH={cropBlock?.imageH}
+        frameAspect={cropBlock ? imageFrameAspect(cropBlock, blocks) : 16 / 9}
         value={cropBlock?.imageCrop}
         onDone={(c) => { update(cropBlock!.id, { imageCrop: c }); setCropId(null); }}
         onClose={() => setCropId(null)}

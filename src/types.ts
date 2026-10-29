@@ -1,3 +1,4 @@
+import type { ImageCrop } from './utils/crop';
 export type PostSizeId = 'square' | 'portrait' | 'story' | 'landscape' | 'a4';
 
 export interface PostSize {
@@ -123,7 +124,8 @@ export interface ContentBlock {
   imageAspect?: 'square' | 'wide' | 'custom'; // crop frame: 1:1, 16:9, or custom height
   imageFocus?: number; // 0-8 focal cell (3x3 grid), 4 = center
   /** Non-destructive manual crop: zoom (1-3) + pan (-1..1 each axis). */
-  imageCrop?: { zoom: number; x: number; y: number };
+  /** Manual crop, see utils/crop.ts (v2 anchor model; no `v` = legacy). */
+  imageCrop?: ImageCrop;
   textColor?: string;
   style?: BlockStyle;
 }

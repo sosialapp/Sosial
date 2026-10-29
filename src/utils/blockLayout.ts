@@ -62,3 +62,21 @@ export function duplicateBlock(blocks: ContentBlock[], id: string): { blocks: Co
   next.splice(i + 1, 0, withStyle(copy, { beside: inRow }));
   return { blocks: next, id: copy.id };
 }
+
+/** Frame aspect (w/h) of an image block as the canvas draws it: square 1:1,
+ *  wide 16:9, custom = real frame width : imageH. Content width is 282
+ *  design units; rows, width % and a box fill narrow the frame. Mirrors web
+ *  steps2.tsx frameAspectOf, keep in sync. */
+export function imageFrameAspect(b: ContentBlock, blocks: ContentBlock[]): number {
+  const asp = b.imageAspect ?? (b.imageH !== undefined ? 'custom' : 'wide');
+  if (asp === 'square') return 1;
+  if (asp === 'wide') return 16 / 9;
+  const row = blockRows(blocks).find((r) => r.some((i) => blocks[i].id === b.id)) ?? [];
+  let cell = b.style?.width != null ? Math.min(1, Math.max(0.2, b.style.width)) : 1;
+  if (row.length > 1) {
+    const fr = rowFractions(row.map((i) => blocks[i]));
+    cell = fr[row.findIndex((i) => blocks[i].id === b.id)] * (1 - (10 * (row.length - 1)) / 282);
+  }
+  const w = 282 * cell - (b.style?.boxBg ? 20 : 0);
+  return Math.max(20, w) / Math.max(60, b.imageH ?? 140);
+}

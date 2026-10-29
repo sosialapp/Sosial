@@ -4,6 +4,8 @@
  * design width is 340 (matches mobile CANVAS_W, so all sizing math ports).
  */
 
+import type { ImageCrop } from './crop';
+
 export type PostSizeId = 'square' | 'portrait' | 'story' | 'landscape' | 'a4';
 
 export interface PostSize {
@@ -207,7 +209,8 @@ export interface ContentBlock {
   imageH?: number;
   imageAspect?: 'square' | 'wide' | 'custom';
   imageFocus?: number;
-  imageCrop?: { zoom: number; x: number; y: number };
+  /** Manual crop, see lib/studio/crop.ts (v2 anchor model; no `v` = legacy). */
+  imageCrop?: ImageCrop;
   textColor?: string;
   style?: BlockStyle;
 }

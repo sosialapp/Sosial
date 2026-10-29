@@ -204,7 +204,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           </div>
           <ChromeIcon name="dots" size={12 * k} color={c.gray} />
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${12 * k}px ${7 * k}px` }}>
           <span style={{ width: 15 * k, height: 15 * k, borderRadius: 7.5 * k, backgroundColor: '#1877F2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             <ChromeIcon name="like" size={9 * k} color="#fff" />
@@ -239,10 +239,10 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           {/* Watermark rides with the dots as one trailing cluster. */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 * k, flexShrink: 0 }}>
             {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
-            <ChromeIcon name="dots-v" size={11 * k} color={c.gray} />
+            <ChromeIcon name="dots" size={11 * k} color={c.gray} />
           </span>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
             action row, full-width, aspect-preserved, nudged down. */}
         <div style={{ padding: `2px ${14 * k}px ${10 * k}px`, marginTop: 2 * k }}>
@@ -289,7 +289,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             <ChromeIcon name="dots" size={12 * k} color={c.ink} />
           </span>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ padding: `0 ${12 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 * k }}>
             <ChromeIcon name="ig-heart" size={20 * k} color={c.ink} />
@@ -344,7 +344,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           </svg>
           </span>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
             <ChromeIcon name="th-heart" size={20 * k} color={c.ink} />
@@ -372,7 +372,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             <p style={{ ...ff(c.font), fontSize: 8 * k, color: c.gray, margin: 0 }}>{c.firstHandle} · 2h</p>
           </div>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${14 * k}px ${10 * k}px`, gap: 4 * k }}>
           {[
             { icon: 'bsky-comment', count: '12', color: c.gray },

@@ -1,11 +1,60 @@
 import React, { useState } from 'react';
 import { View, Text, Image } from 'react-native';
-import { Svg, Path, G, Defs, ClipPath, Rect } from 'react-native-svg';
-import Ionicons from '@expo/vector-icons/build/Ionicons';
-import FontAwesome from '@expo/vector-icons/build/FontAwesome';
+import { Svg, Path, G, Defs, ClipPath, Rect, Circle, RadialGradient, Stop } from 'react-native-svg';
 import { PostPage } from '../types';
 import { F, FontId } from '../utils/fonts';
-import { SocialGlyph, ActionIcon, VERIFIED_SEAL } from './ui';
+import { ActionIcon, VERIFIED_SEAL } from './ui';
+
+/* Same glyphs as the web chrome (blocks.tsx ICON_PATHS / BrandIcon), so the
+   cards read identically on both platforms. Keep in sync. */
+function Dots({ size, color }: { size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="5" cy="12" r="1.4" fill={color} />
+      <Circle cx="12" cy="12" r="1.4" fill={color} />
+      <Circle cx="19" cy="12" r="1.4" fill={color} />
+    </Svg>
+  );
+}
+
+function Globe({ size, color }: { size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="12" cy="12" r="8.5" />
+      <Path d="M3.5 12h17M12 3.5c2.3 2.3 3.5 5.2 3.5 8.5s-1.2 6.2-3.5 8.5c-2.3-2.3-3.5-5.2-3.5-8.5S9.7 5.8 12 3.5Z" />
+    </Svg>
+  );
+}
+
+function Like({ size, color }: { size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M7 10.5V20H4.5A1.5 1.5 0 0 1 3 18.5v-6.5A1.5 1.5 0 0 1 4.5 10.5H7Zm0 0 4-7c1.4 0 2.2 1.2 1.9 2.6L12.5 9H19a2 2 0 0 1 2 2.4l-1.3 6A2 2 0 0 1 17.7 19H7" />
+    </Svg>
+  );
+}
+
+const IG_PATH = 'M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077';
+
+/** Instagram mark in its gradient, 68% of a size×size box like web. */
+function InstagramMark({ size }: { size: number }) {
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size * 0.68} height={size * 0.68} viewBox="0 0 24 24">
+        <Defs>
+          <RadialGradient id="sosial-ig" cx="30%" cy="107%" r="150%">
+            <Stop offset="0%" stopColor="#FDF497" />
+            <Stop offset="5%" stopColor="#FDF497" />
+            <Stop offset="45%" stopColor="#FD5949" />
+            <Stop offset="60%" stopColor="#D6249F" />
+            <Stop offset="90%" stopColor="#285AEB" />
+          </RadialGradient>
+        </Defs>
+        <Path d={IG_PATH} fill="url(#sosial-ig)" transform="translate(2 2) scale(0.8333)" />
+      </Svg>
+    </View>
+  );
+}
 
 interface ChromeProps {
   page: PostPage;
@@ -82,7 +131,7 @@ function AutoFit({ style, children, fit, maxH }: { style: any; children: React.R
         onLayout={onInner}
         style={
           ratio < 1
-            ? { width: '100%', transform: [{ scale: ratio }], transformOrigin: ['50%', '0%', 0] as any }
+            ? { width: `${100 / ratio}%` as any, transform: [{ scale: ratio }], transformOrigin: ['0%', '0%', 0] as any }
             : { width: '100%' }
         }
       >
@@ -107,7 +156,22 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
   const sealed = page.cardStyle === 'facebook' || page.cardStyle === 'instagram' || page.cardStyle === 'threads';
   const check = (size: number) => {
     if (!showCheck) return null;
-    if (!sealed) return <Ionicons name="checkmark-circle" size={pad(size)} color="#1D9BF0" />;
+    if (page.cardStyle === 'x') {
+      return (
+        <Svg width={pad(size)} height={pad(size)} viewBox="0 0 24 24">
+          <Path d={VERIFIED_SEAL} fill="#1D9BF0" />
+          <Path d="m8.5 12.2 2.4 2.4 4.6-5" stroke="#fff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    }
+    if (!sealed) {
+      return (
+        <Svg width={pad(size)} height={pad(size)} viewBox="0 0 24 24">
+          <Circle cx="12" cy="12" r="10" fill="#1D9BF0" />
+          <Path d="m8 12.5 2.5 2.5L16 9.5" stroke="#fff" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    }
     return (
       <Svg width={pad(size)} height={pad(size)} viewBox="0 0 24 24">
         <Path d={VERIFIED_SEAL} fill="#1D9BF0" />
@@ -120,17 +184,16 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
     : { flex: 1 as const, minHeight: 0 as const };
 
   const bodyPad = pad(13);
-  const body = (topExtra: boolean, bottomExtra: boolean) => ({
+  // Same as web: 13 padding all round, 10 between block rows.
+  const body = (_topExtra: boolean, _bottomExtra: boolean) => ({
     padding: bodyPad,
-    paddingTop: topExtra ? pad(8) : bodyPad,
-    paddingBottom: bottomExtra ? pad(8) : bodyPad,
     gap: pad(10),
     ...rootFlex,
   });
 
   if (style === 'facebook') {
     return (
-      <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(8), borderWidth: pad(1), borderColor: '#11111112', overflow: 'hidden' }}>
+      <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(8), borderWidth: pad(1), borderColor: hairline, overflow: 'hidden' }}>
         {/* author header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(12), paddingTop: pad(10) }}>
           <Avatar page={page} pad={pad} size={24} />
@@ -142,24 +205,24 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               <Text style={{ ...F(font), fontSize: pad(7.5), color: gray }}>2h · Public</Text>
-              <Ionicons name="globe-outline" size={pad(8)} color={gray} />
+              <Globe size={pad(8)} color={gray} />
             </View>
           </View>
-          <Ionicons name="ellipsis-horizontal" size={pad(12)} color={gray} />
+          <Dots size={pad(12)} color={gray} />
         </View>
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         {/* stats */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: pad(12), paddingBottom: pad(7) }}>
           <View style={{ width: pad(15), height: pad(15), borderRadius: pad(7.5), backgroundColor: '#1877F2', alignItems: 'center', justifyContent: 'center' }}>
-            <FontAwesome name="thumbs-up" size={pad(9)} color="#fff" />
+            <Like size={pad(9)} color="#fff" />
           </View>
-          <Text style={{ ...F(font), fontSize: pad(8.5), color: gray, marginLeft: 5 }}>1.2K</Text>
+          <Text style={{ ...F(font), fontSize: pad(8.5), color: gray, marginLeft: pad(5) }}>1.2K</Text>
           <View style={{ flex: 1 }} />
           <Text style={{ ...F(font), fontSize: pad(8.5), color: gray }}>48 comments · 12 shares</Text>
         </View>
         {/* actions */}
         <View style={{ borderTopWidth: pad(1), borderTopColor: hairline, flexDirection: 'row', paddingVertical: pad(7) }}>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: pad(5) }}>
             <ActionIcon name="fb-like" size={pad(12)} color={gray} />
             <Text style={{ ...F(font), fontSize: pad(9), color: gray }}>Like</Text>
           </View>
@@ -167,7 +230,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
             { icon: 'fb-comment', label: 'Comment' },
             { icon: 'fb-share', label: 'Share' },
           ].map((a) => (
-            <View key={a.label} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <View key={a.label} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: pad(5) }}>
               <ActionIcon name={a.icon as 'fb-comment' | 'fb-share'} size={pad(12)} color={gray} />
               <Text style={{ ...F(font), fontSize: pad(9), color: gray }}>{a.label}</Text>
             </View>
@@ -196,14 +259,15 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           <View style={{ flex: 1 }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(5), flexShrink: 0 }}>
             {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
-            <Ionicons name="ellipsis-horizontal" size={pad(11)} color={gray} />
+            <Dots size={pad(11)} color={gray} />
           </View>
         </View>
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
             action row, full-width, aspect-preserved. */}
-        <View style={{ paddingHorizontal: pad(14), paddingTop: pad(3), paddingBottom: pad(10) }}>
-          <Svg width="100%" height={pad(20)} viewBox="0 0 357 54">
+        {/* aspect-locked like web (a fixed 20px height drew it at half size) */}
+        <View style={{ paddingHorizontal: pad(14), paddingTop: 2 + pad(2), paddingBottom: pad(10) }}>
+          <Svg width="100%" style={{ aspectRatio: 357 / 54 }} viewBox="0 0 357 54">
             <Defs>
               <ClipPath id="xstrip-clip">
                 <Rect x="84.1383" y="15.2881" width="22.9322" height="22.9322" />
@@ -230,7 +294,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
 
   if (style === 'instagram') {
     return (
-      <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(6), borderWidth: pad(1), borderColor: '#11111112', overflow: 'hidden' }}>
+      <View style={{ ...rootFlex, backgroundColor: cardBg, borderRadius: pad(6), borderWidth: pad(1), borderColor: hairline, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(7), paddingHorizontal: pad(12), paddingTop: pad(10) }}>
           <Avatar page={page} pad={pad} size={20} />
           <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 0 }} numberOfLines={1}>{name}</Text>
@@ -240,8 +304,8 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           {/* Trailing cluster shares one box so the logo mark and the dots
               center on the same axis as the watermark text. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(8), flexShrink: 0 }}>
-            <SocialGlyph platform="instagram" size={pad(11)} color="#E1306C" />
-            <Ionicons name="ellipsis-horizontal" size={pad(12)} color={ink} />
+            <InstagramMark size={pad(16)} />
+            <Dots size={pad(12)} color={ink} />
           </View>
         </View>
         <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
@@ -274,14 +338,14 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
               {firstHandle}
             </Text>
             {check(8)}
-            <Text style={{ ...F(font), fontSize: pad(8), color: faint, flexShrink: 0 }}>· 2h</Text>
+            <Text style={{ ...F(font), fontSize: pad(9), color: faint, flexShrink: 0 }}>· 2h</Text>
           </View>
           {watermark ? <Watermark font={font} pad={pad} size={8} color={faint} /> : null}
           <View style={{ flex: 1 }} />
           {/* Official Threads wordmark, currentColor via the ink color
               prop, theme-aware like the web canvas. Padded viewBox so the
               flush-bound glyphs never shave at the box edge. */}
-          <Svg width={pad(40)} height={pad(8)} viewBox="-30 -10.4 1982 396.41" style={{ flexShrink: 0 }}>
+          <Svg width={pad(40)} height={pad(8)} viewBox="-30 -10.4 1982 396.41" style={{ flexShrink: 0, transform: [{ translateY: pad(1.1) }] }}>
             <G fill={ink}>
               <Path d="M267.15,173.74c-.47-54.26-29.88-86.96-79.57-86.96-33.17,0-61.06,15-75.71,38.91l32.11,22.38c8.32-13.13,19.81-24.03,40.9-24.03,23.79,0,36.1,13.24,39.61,37.85-11.49-1.76-22.97-2.7-34.81-2.7-64.22,0-94.46,29.06-94.46,67.5s30.24,62.11,74.77,62.11c48.87,0,78.05-32.93,90.01-73.71,12.42,5.62,20.98,18.75,20.98,38.44,0,52.74-60.82,81.45-112.39,81.45-76.06,0-125.75-49.92-125.75-131.14,0-99.5,65.75-163.25,154.11-163.25,59.3,0,88.6,26.02,108.52,60.94l32.82-22.97C316.61,33.34,268.2,1,195.54,1,79.75,1,1,83.15,1,202.34c0,108.99,77.11,172.28,168.99,172.28,75.94,0,152.71-44.3,152.71-120.12,0-39.61-22.74-65.86-55.55-80.75h0ZM168.59,249.33c-16.76,0-31.52-7.97-31.52-22.62,0-23.09,28.36-30.12,56.14-30.12,10.55,0,20.86.7,30,2.7-6.56,30-26.02,50.04-54.61,50.04h0Z" />
               <Path d="M735.69,97.33c-33.52,0-65.4,18.52-80.98,56.84l20.16-113.68h-56.49l-52.03,294.63h56.6l22.62-128.33c7.97-46.29,33.87-61.06,57.42-61.06s38.09,14.88,38.09,37.03c0,4.22-.7,9.02-1.64,14.06l-24.26,138.29h56.49l28.01-159.38c1.05-5.86,2.11-12.31,2.11-19.34,0-40.2-30.94-59.07-66.1-59.07h0Z" />
@@ -316,7 +380,8 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           <Avatar page={page} pad={pad} size={22} />
           <View style={{ flex: 1, gap: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(4) }}>
-              <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>{name} {check(9)}</Text>
+              <Text style={{ ...F(font, true), fontSize: pad(9), color: ink, flexShrink: 1 }} numberOfLines={1}>{name}</Text>
+              {check(9)}
               {watermark ? <Watermark font={font} pad={pad} size={8} color={gray} /> : null}
             </View>
             <Text style={{ ...F(font), fontSize: pad(8), color: gray }} numberOfLines={1}>{firstHandle} · 2h</Text>
@@ -337,7 +402,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
               {'custom' in a && a.custom ? (
                 <ActionIcon name={a.custom} size={pad(14)} color={a.color} />
               ) : (
-                <Ionicons name={(a as { icon: string }).icon as any} size={pad(14)} color={a.color} />
+                <Dots size={pad(14)} color={a.color} />
               )}
               {a.count ? <Text style={{ ...F(font), fontSize: pad(8), color: gray }}>{a.count}</Text> : null}
             </View>
