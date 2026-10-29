@@ -6,43 +6,15 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import {
-  FONT_STACKS,
   blockRows,
   rowFractions,
   type CardStyle,
   type FontId,
   type PostPage,
 } from '@/lib/studio/model';
+import { contrastRatio, ff, isDarkHex } from '@/lib/studio/paint';
 import { PatternBackground } from './patterns';
 import { BlockView, ChromeIcon, VERIFIED_SEAL } from './blocks';
-
-function ff(font: FontId | undefined, bold = false, italic = false): React.CSSProperties {
-  return {
-    fontFamily: FONT_STACKS[font ?? 'inter'],
-    fontWeight: bold ? 700 : 400,
-    fontStyle: italic ? 'italic' : 'normal',
-  };
-}
-
-function hexLum(hex: string): number {
-  const h = (hex || '').replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function isDarkHex(hex: string): boolean {
-  return hexLum(hex || '#ffffff') < 0.45;
-}
-
-function contrastRatio(a: string, b: string): number {
-  const l1 = hexLum(a);
-  const l2 = hexLum(b);
-  const [hi, lo] = l1 >= l2 ? [l1, l2] : [l2, l1];
-  return (hi + 0.05) / (lo + 0.05);
-}
 
 /* --------------------------------- chrome ---------------------------------- */
 
@@ -741,6 +713,15 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
   const dir = socialPos === 'below' ? 'column' : socialPos === 'top' ? 'column-reverse' : 'row';
   const isColumn = dir === 'column' || dir === 'column-reverse';
   const cross = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
+  // Avatar frame shared by the photo and the placeholder monogram.
+  const avatar = {
+    width: page.pfp.size * k,
+    height: page.pfp.size * k,
+    borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * k) / 2 : 12 * k,
+    borderWidth: borderW * k,
+    borderStyle: 'solid' as const,
+    borderColor: '#fff',
+  };
 
   return (
     <div
@@ -759,19 +740,13 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
           <img
             src={page.pfp.uri}
             alt=""
-            style={{
-              width: page.pfp.size * k, height: page.pfp.size * k,
-              borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * k) / 2 : 12 * k,
-              borderWidth: borderW * k, borderStyle: 'solid', borderColor: '#fff', objectFit: 'cover',
-            }}
+            style={{ ...avatar, objectFit: 'cover' }}
           />
         ) : (
           <span
             style={{
-              width: page.pfp.size * k, height: page.pfp.size * k,
-              borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * k) / 2 : 12 * k,
+              ...avatar,
               backgroundColor: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderWidth: borderW * k, borderStyle: 'solid', borderColor: '#fff',
               color: '#fff', fontWeight: 800, fontSize: 13 * k,
             }}
           >

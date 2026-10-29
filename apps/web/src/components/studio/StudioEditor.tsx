@@ -270,10 +270,21 @@ export default function StudioEditor({
     window.setTimeout(() => setSavedFlash(false), 1600);
   };
 
-  const doDownloadPage = async () => {
-    setExporting('page');
+  /** Shared export shell: busy flag, error surface, teardown. */
+  const runExport = async (kind: Exclude<Exporting, null>, run: () => Promise<void>) => {
+    setExporting(kind);
     setExportErr(null);
     try {
+      await run();
+    } catch (e) {
+      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const doDownloadPage = () =>
+    runExport('page', async () => {
       // Capture the canvas the user actually sees.
       const node =
         canvasHostRef.current?.querySelector<HTMLElement>('[data-studio-canvas]') ?? null;
@@ -282,17 +293,10 @@ export default function StudioEditor({
         : await exportPagePng(pageIndex);
       if (blob) downloadBlob(blob, fileName(pageIndex));
       else setExportErr('Could not render that page. Try again.');
-    } catch (e) {
-      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
-    } finally {
-      setExporting(null);
-    }
-  };
+    });
 
-  const doDownloadAll = async () => {
-    setExporting('all');
-    setExportErr(null);
-    try {
+  const doDownloadAll = () =>
+    runExport('all', async () => {
       let ok = 0;
       for (let i = 0; i < project.pages.length; i++) {
         const blob = await exportPagePng(i);
@@ -303,18 +307,11 @@ export default function StudioEditor({
         await new Promise((r) => setTimeout(r, 350));
       }
       if (ok === 0) setExportErr('Could not render the pages. Try again.');
-    } catch (e) {
-      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
-    } finally {
-      setExporting(null);
-    }
-  };
+    });
 
   /** Render EVERY page, then hand all PNGs to the composer. */
-  const doUse = async () => {
-    setExporting('use');
-    setExportErr(null);
-    try {
+  const doUse = () =>
+    runExport('use', async () => {
       const blobs: Blob[] = [];
       for (let i = 0; i < project.pages.length; i++) {
         const blob = await exportPagePng(i);
@@ -325,12 +322,7 @@ export default function StudioEditor({
       } else {
         setExportErr('Could not render the pages. Try again.');
       }
-    } catch (e) {
-      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
-    } finally {
-      setExporting(null);
-    }
-  };
+    });
 
   if (!page) return null;
 

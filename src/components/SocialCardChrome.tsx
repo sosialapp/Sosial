@@ -3,6 +3,7 @@ import { View, Text, Image } from 'react-native';
 import { Svg, Path, G, Defs, ClipPath, Rect, Circle, RadialGradient, Stop } from 'react-native-svg';
 import { PostPage } from '../types';
 import { F, FontId } from '../utils/fonts';
+import { isDarkHex } from '../utils/color';
 import { ActionIcon, VERIFIED_SEAL } from './ui';
 
 /* Same glyphs as the web chrome (blocks.tsx ICON_PATHS / BrandIcon), so the
@@ -96,16 +97,6 @@ function Watermark({ font, pad, size, color }: { font: FontId; pad: (v: number) 
       <Text style={{ ...F(font, true), fontSize: pad(size), color }}>sosial.app</Text>
     </View>
   );
-}
-
-/** Luminance check, dark cards get light chrome ink, light cards get dark. */
-function isDarkHex(hex: string): boolean {
-  const h = (hex || '').replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.45;
 }
 
 /** Auto-fit: measures available body height vs natural content height and

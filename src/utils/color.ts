@@ -1,4 +1,5 @@
-/** Hex color luminance / contrast helpers for adaptive chrome. */
+/** Hex color luminance / contrast helpers for adaptive chrome. Mirrored in
+ *  web apps/web/src/lib/studio/paint.ts, keep in sync. */
 
 function rgb(hex: string): [number, number, number] {
   const h = (hex || '').replace('#', '');

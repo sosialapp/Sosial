@@ -58,6 +58,19 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const surfaceDark = badgeBg ? true : contrastRatio('#111111', badgeSurface) < contrastRatio('#FFFFFF', badgeSurface);
   const ringColor = surfaceDark ? '#FFFFFF' : '#111111';
   const pfpOnTop = (page.pfp.pfpY ?? 'top') === 'top';
+  // Avatar frame shared by the photo and the placeholder monogram.
+  const avatarBox = {
+    width: page.pfp.size * s,
+    height: page.pfp.size * s,
+    borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * s) / 2 : pad(12),
+    borderWidth: pad(borderW),
+    borderColor: '#fff',
+  };
+  const pfpName = page.pfp.username?.trim() ? (
+    <Text style={{ ...F(page.font ?? 'jakarta', true), color: handleColor, fontSize: pad(handleSize), textShadowColor: '#00000066', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
+      {page.pfp.username}
+    </Text>
+  ) : null;
   // Fixed height = the card renders at exactly cardH. Saved 'fill' values
   // (from the short-lived Fill experiment) behave as 'top'.
   const cardY = ((page.cardY as string) === 'fill' ? 'top' : page.cardY) ?? 'top';
@@ -85,6 +98,10 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const socialsH = (socialsBelow || socialsAbove) ? pad(iconSize) + pad(6) : 0;
   const pfpH = (pfpVisible || socialsOn) ? photoH + socialsH : 0;
   const cardMax = Math.max(90, canvasH - pad(16) * 2 - titleH - pfpH - pad(10) * 2);
+  const frameStyle = [styles.frame, { width: CANVAS_W * s, height: H * s, borderRadius: pad(14) }];
+  // Hairline drawn as an overlay so its border never eats into the content
+  // box (a real border made the inner canvas 2px too wide and shifted it right).
+  const hairline = { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, borderRadius: pad(14), borderWidth: 1, borderColor: '#EAEAEA' };
 
   const blocks = page.blocks.length === 0 ? (
     <Text style={{ color: '#787774', textAlign: 'center', marginTop: pad(24), fontSize: pad(13), fontWeight: '600' }}>Add bullets, table or chart below</Text>
@@ -151,27 +168,18 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
         gap: pad(socialGap),
       }}
     >
-      {!photoOff ? (page.pfp.uri ? (
+      {!photoOff ? (
         <View style={{ alignItems: 'center', gap: pad(3) }}>
-          <Image source={{ uri: page.pfp.uri }} style={{ width: page.pfp.size * s, height: page.pfp.size * s, borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * s) / 2 : pad(12), borderWidth: pad(borderW), borderColor: '#fff' }} />
-          {page.pfp.username?.trim() ? (
-            <Text style={{ ...F(page.font ?? 'jakarta', true), color: handleColor, fontSize: pad(handleSize), textShadowColor: '#00000066', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
-              {page.pfp.username}
-            </Text>
-          ) : null}
+          {page.pfp.uri ? (
+            <Image source={{ uri: page.pfp.uri }} style={avatarBox} />
+          ) : (
+            <View style={{ ...avatarBox, backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: pad(13) }}>YOU</Text>
+            </View>
+          )}
+          {pfpName}
         </View>
-      ) : (
-        <View style={{ alignItems: 'center', gap: pad(3) }}>
-          <View style={{ width: page.pfp.size * s, height: page.pfp.size * s, borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * s) / 2 : pad(12), backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center', borderWidth: pad(borderW), borderColor: '#fff' }}>
-            <Text style={{ color: '#fff', fontWeight: '800', fontSize: pad(13) }}>YOU</Text>
-          </View>
-          {page.pfp.username?.trim() ? (
-            <Text style={{ ...F(page.font ?? 'jakarta', true), color: handleColor, fontSize: pad(handleSize), textShadowColor: '#00000066', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
-              {page.pfp.username}
-            </Text>
-          ) : null}
-        </View>
-      )) : null}
+      ) : null}
       {visibleSocials.length > 0 && !socialsOff ? (
         <View
           style={{
@@ -249,7 +257,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
       ) : null;
     const fcExtras = (page.fullCardTitle && hasTitle) || fcAvatar || fcSocials;
     return (
-      <ViewShot ref={ref} options={{ format: 'png', quality: 1 }} style={[styles.frame, { width: CANVAS_W * s, height: H * s, borderRadius: pad(14) }]}>
+      <ViewShot ref={ref} options={{ format: 'png', quality: 1 }} style={frameStyle}>
         <View
           style={[
             {
@@ -265,13 +273,13 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           </SocialCardChrome>
           {fcSocials}
         </View>
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: pad(14), borderWidth: 1, borderColor: '#EAEAEA' }} />
+        <View pointerEvents="none" style={hairline} />
       </ViewShot>
     );
   }
 
   return (
-    <ViewShot ref={ref} options={{ format: 'png', quality: 1 }} style={[styles.frame, { width: CANVAS_W * s, height: H * s, borderRadius: pad(14) }]}>
+    <ViewShot ref={ref} options={{ format: 'png', quality: 1 }} style={frameStyle}>
       <View style={{ width: CANVAS_W * s, height: H * s }}>
         <PatternBackground bg={page.background} width={CANVAS_W * s} height={H * s} />
         <View style={{ flex: 1, padding: pad(16), gap: pad(10) }}>
@@ -318,9 +326,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           )}
         </View>
       </View>
-      {/* hairline drawn as an overlay so its border never eats into the content box
-          (a real border made the inner canvas 2px too wide and shifted it right) */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: pad(14), borderWidth: 1, borderColor: '#EAEAEA' }} />
+      <View pointerEvents="none" style={hairline} />
     </ViewShot>
   );
 }

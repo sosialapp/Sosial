@@ -7,12 +7,12 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import {
   DATA,
-  FONT_STACKS,
   type CardStyle,
   type ContentBlock,
   type FontId,
   type PostPage,
 } from '@/lib/studio/model';
+import { ff, luminance } from '@/lib/studio/paint';
 import { PatternBackground } from './patterns';
 import { cropLayout, isCropV2, type ImageCrop } from '@/lib/studio/crop';
 
@@ -41,38 +41,6 @@ function CroppedImg({ src, crop, guess }: { src: string; crop: ImageCrop & { ar:
     // eslint-disable-next-line @next/next/no-img-element
     <img ref={ref} src={src} alt="" style={{ position: 'absolute', display: 'block', maxWidth: 'none', width: box.width, height: box.height, left: box.left, top: box.top }} />
   );
-}
-
-/* ------------------------------- helpers ------------------------------- */
-
-function ff(font: FontId | undefined, bold = false, italic = false): React.CSSProperties {
-  return {
-    fontFamily: FONT_STACKS[font ?? 'inter'],
-    fontWeight: bold ? 700 : 400,
-    fontStyle: italic ? 'italic' : 'normal',
-  };
-}
-
-function hexLum(hex: string): number {
-  const h = (hex || '').replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-const lum = hexLum;
-
-function isDarkHex(hex: string): boolean {
-  return hexLum(hex || '#ffffff') < 0.45;
-}
-
-function contrastRatio(a: string, b: string): number {
-  const l1 = hexLum(a);
-  const l2 = hexLum(b);
-  const [hi, lo] = l1 >= l2 ? [l1, l2] : [l2, l1];
-  return (hi + 0.05) / (lo + 0.05);
 }
 
 /* --------------------------- chrome icon set --------------------------- */
@@ -369,7 +337,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
     const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1.6) : 1;
     const barH = Math.max(6 * k, w * 0.03) * t;
     const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * barH * 0.6 : 6 * k;
-    const inked = (c: string) => (lum(c) < 0.55 ? '#ffffff' : '#111111');
+    const inked = (c: string) => (luminance(c) < 0.55 ? '#ffffff' : '#111111');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: Math.max(4 * k, w * 0.02) }}>
         {data.map((d, i) => {
@@ -481,7 +449,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1) : 1;
   const maxH = Math.max(80 * k, w * 0.35) * (st?.chartHeight != null ? clamp(st.chartHeight, 0.4, 1.6) : 1);
   const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * 12 * k : 6 * k;
-  const inked = (c: string) => (lum(c) < 0.55 ? '#ffffff' : '#111111');
+  const inked = (c: string) => (luminance(c) < 0.55 ? '#ffffff' : '#111111');
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: Math.max(6 * k, w * 0.03) }}>
       {data.map((d, i) => {
