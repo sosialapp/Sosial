@@ -63,17 +63,17 @@ export default async function SiteFooter() {
             <p className="eyebrow text-paper/50">{t('footProduct')}</p>
             <ul className="mt-4 space-y-2.5 text-sm font-semibold text-paper/80">
               <li>
-                <Link href="/publish" className="hover:text-paper">
+                <Link href={localizedPath('/publish', locale)} className="hover:text-paper">
                   {t('footPublish')}
                 </Link>
               </li>
               <li>
-                <Link href="/features/create" className="hover:text-paper">
+                <Link href={localizedPath('/features/create', locale)} className="hover:text-paper">
                   {t('footCreate')}
                 </Link>
               </li>
               <li>
-                <Link href="/ai-assistant" className="hover:text-paper">
+                <Link href={localizedPath('/ai-assistant', locale)} className="hover:text-paper">
                   {t('footAi')}
                 </Link>
               </li>
@@ -104,17 +104,17 @@ export default async function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/compare" className="hover:text-paper">
+                <Link href={localizedPath('/compare', locale)} className="hover:text-paper">
                   {t('footCompare')}
                 </Link>
               </li>
               <li>
-                <Link href="/made-for-everyone" className="hover:text-paper">
+                <Link href={localizedPath('/made-for-everyone', locale)} className="hover:text-paper">
                   {t('footMade')}
                 </Link>
               </li>
               <li>
-                <Link href="/transparency" className="hover:text-paper">
+                <Link href={localizedPath('/transparency', locale)} className="hover:text-paper">
                   {t('footTransparency')}
                 </Link>
               </li>

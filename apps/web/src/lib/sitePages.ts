@@ -93,11 +93,11 @@ export async function sitePageMeta(slug: string): Promise<SitePageMeta | null> {
 }
 
 /** Long-form date for a full ISO timestamp: "26 September 2026", or null. */
-export function formatPageDate(iso: string | null): string | null {
+export function formatPageDate(iso: string | null, locale: string = 'en'): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return d.toLocaleDateString(locale === 'en' ? 'en-GB' : locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 /** A live custom page by slug, or null (missing, draft or scheduled-future). */

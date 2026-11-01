@@ -91,10 +91,10 @@ export default function SiteNav() {
   const t = useMessages();
   const locale = useLocale();
   const FEATURES: MenuLink[] = [
-    { href: '/publish', title: t('pubTitle'), desc: t('pubDesc') },
-    { href: '/features/create', title: t('createTitle'), desc: t('createDesc') },
-    { href: '/ai-assistant', title: t('aiTitle'), desc: t('aiDesc') },
-    { href: '/features', title: t('allFeatures'), desc: t('allFeaturesDesc') },
+    { href: localizedPath('/publish', locale), title: t('pubTitle'), desc: t('pubDesc') },
+    { href: localizedPath('/features/create', locale), title: t('createTitle'), desc: t('createDesc') },
+    { href: localizedPath('/ai-assistant', locale), title: t('aiTitle'), desc: t('aiDesc') },
+    { href: localizedPath('/features', locale), title: t('allFeatures'), desc: t('allFeaturesDesc') },
   ];
   const RESOURCES: MenuLink[] = [
     { href: '/blog', title: t('blogTitle'), desc: t('blogDesc') },

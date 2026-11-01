@@ -19,7 +19,8 @@ describe('locale routing', () => {
     expect(localizedPath('/', 'fr')).toBe('/fr');
     expect(localizedPath('/pricing', 'de')).toBe('/de/pricing');
     expect(localizedPath('/blog', 'de')).toBe('/blog');
-    expect(isLocalizedPath('/features')).toBe(false);
+    expect(isLocalizedPath('/features')).toBe(true);
+    expect(isLocalizedPath('/about')).toBe(false);
   });
 
   it('lists every locale plus x-default in hreflang', () => {

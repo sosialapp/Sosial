@@ -11,8 +11,20 @@ import { DEFAULT_LOCALE, LOCALES, isLocale, type Locale } from './locales';
  * Shared by the middleware (edge), server components and the client.
  */
 
-/** Public pages translated end to end, each with one URL per locale. */
-export const LOCALIZED_PATHS: readonly string[] = ['/', '/pricing'];
+/** Public pages translated end to end, each with one URL per locale. Their
+ *  copy lives in lib/i18n/landing + pricing and content/pages/*. */
+export const LOCALIZED_PATHS: readonly string[] = [
+  '/',
+  '/pricing',
+  '/features',
+  '/features/create',
+  '/publish',
+  '/ai-assistant',
+  '/integrations',
+  '/compare',
+  '/made-for-everyone',
+  '/transparency',
+];
 
 /** Request header the middleware sets on a locale-prefixed request. */
 export const LOCALE_HEADER = 'x-sosial-locale';

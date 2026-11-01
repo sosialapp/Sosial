@@ -20,6 +20,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     [
       ['/', 'weekly', 1],
       ['/pricing', 'monthly', 0.9],
+      ['/integrations', 'weekly', 0.8],
+      ['/features', 'monthly', 0.7],
+      ['/publish', 'monthly', 0.7],
+      ['/features/create', 'monthly', 0.7],
+      ['/ai-assistant', 'monthly', 0.7],
+      ['/compare', 'monthly', 0.6],
+      ['/made-for-everyone', 'yearly', 0.5],
+      ['/transparency', 'yearly', 0.4],
     ] as const
   ).flatMap(([path, changeFrequency, priority]) =>
     LOCALES.map((l) => ({
@@ -31,17 +39,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${BASE}/integrations`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE}/blog`, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE}/features`, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE}/publish`, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE}/features/create`, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE}/ai-assistant`, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE}/resources`, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE}/compare`, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${BASE}/made-for-everyone`, changeFrequency: 'yearly', priority: 0.5 },
     { url: `${BASE}/about`, changeFrequency: 'yearly', priority: 0.5 },
-    { url: `${BASE}/transparency`, changeFrequency: 'yearly', priority: 0.4 },
     { url: `${BASE}/delete-data`, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
