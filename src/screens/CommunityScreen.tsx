@@ -19,7 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T } from '../theme';
-import { SocialGlyph } from '../components/ui';
+import { SocialGlyph, ChannelAvatar } from '../components/ui';
 import NotificationBell from '../components/NotificationBell';
 import ChannelDrawer, { DrawerChannel } from '../components/ChannelDrawer';
 import { Tabs } from '../components/ui-kit';
@@ -193,7 +193,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     const session = await currentSession().catch(() => null);
     let q = supabase()
       .from('connected_channels')
-      .select('id,provider,display_name,handle,status')
+      .select('id,provider,display_name,handle,status,metadata')
       .order('connected_at', { ascending: true });
     if (session) q = q.eq('workspace_id', session.workspace.id);
     const { data, error } = await q;
@@ -208,6 +208,10 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
           sub: `@${String(r.handle ?? r.provider).replace(/^@/, '')}`,
           connected: true,
           provider: String(r.provider),
+          platform: String(r.provider),
+          ...(typeof r.metadata?.avatar === 'string' && r.metadata.avatar
+            ? { avatar: r.metadata.avatar }
+            : {}),
         })),
     );
   }, []);
@@ -653,9 +657,12 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
           {channel === 'all' ? (
             <Ionicons name="globe" size={18} color={C.accentInk} />
           ) : (
-            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: SOCIAL_META[providerOf(channel)]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
-              <SocialGlyph platform={providerOf(channel)} size={14} color="#fff" />
-            </View>
+            <ChannelAvatar
+              platform={providerOf(channel)}
+              avatar={channels.find((c) => c.id === channel)?.avatar}
+              size={30}
+              badge={false}
+            />
           )}
           <Text style={s.chanBtnT} numberOfLines={1}>{channelLabel}</Text>
           <Ionicons name="chevron-down" size={18} color={C.faint} />

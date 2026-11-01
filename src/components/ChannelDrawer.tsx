@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Alert, ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R } from '../theme';
-import { SocialGlyph } from './ui';
-import { SOCIAL_META } from '../constants';
+import { ChannelAvatar } from './ui';
 
 export interface DrawerChannel {
   id: string;
@@ -11,6 +10,10 @@ export interface DrawerChannel {
   sub: string;
   connected: boolean;
   comingSoon?: boolean;
+  /** Profile picture for the account (connected_channels.metadata.avatar). */
+  avatar?: string;
+  /** Brand key when it differs from the row id (community rows carry ids). */
+  platform?: string;
 }
 
 /** Channel dropdown drawer: All + per-channel rows, add-channel + settings footer. */
@@ -25,7 +28,15 @@ export default function ChannelDrawer({ visible, channels, value, onPick, onAddC
 }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const row = (id: string, label: string, sub: string, glyph: string | null, dot?: boolean, comingSoon?: boolean) => {
+  const row = (
+    id: string,
+    label: string,
+    sub: string,
+    glyph: string | null,
+    dot?: boolean,
+    comingSoon?: boolean,
+    avatar?: string,
+  ) => {
     const on = value === id;
     return (
       <TouchableOpacity
@@ -42,9 +53,7 @@ export default function ChannelDrawer({ visible, channels, value, onPick, onAddC
         activeOpacity={0.75}
       >
         {glyph ? (
-          <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: SOCIAL_META[glyph]?.bg ?? C.ink, alignItems: 'center', justifyContent: 'center' }}>
-            <SocialGlyph platform={glyph} size={15} color="#fff" />
-          </View>
+          <ChannelAvatar platform={glyph} avatar={avatar} size={34} ring={on && !comingSoon ? C.accentSoft : C.card} />
         ) : (
           <View style={[s.globe, dot && { backgroundColor: C.accent }]}>
             <Ionicons name="globe-outline" size={17} color={dot ? '#fff' : C.muted} />
@@ -70,7 +79,7 @@ export default function ChannelDrawer({ visible, channels, value, onPick, onAddC
           <Text style={s.title}>Channels</Text>
           <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 12 }}>
             {row('all', 'All channels', `${channels.filter((c) => c.connected).length} connected`, null, true)}
-            {channels.map((c) => row(c.id, c.label, c.sub, c.id, false, c.comingSoon))}
+            {channels.map((c) => row(c.id, c.label, c.sub, c.platform ?? c.id, false, c.comingSoon, c.avatar))}
           </ScrollView>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
             <View style={{ flex: 1 }}>
