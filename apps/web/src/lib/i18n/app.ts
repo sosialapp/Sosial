@@ -2,6 +2,18 @@ import type { Locale } from './locales';
 
 /** App dashboard dictionary (in-app surfaces; blog/legal stay English). */
 const en: Record<string, string> = {
+  anXDescPosts: 'Posts published each day',
+  anXDescFollowers: 'Follower total, latest snapshot carried forward',
+  anXDescEng: 'Interactions ÷ followers, from the latest snapshots',
+  anXDescInter: 'Interactions from posts published each day',
+  anXSortTop: 'Sort top posts',
+  anXMostEngaged: 'Most engaged',
+  anXNewest: 'Newest',
+  anXSeeAll: 'See all',
+  anXManage: 'Manage',
+  anXEmpty: 'Connect a channel and publish, its numbers show up here shortly.',
+  anXBreakdown: 'Channel breakdown',
+  anXBreakdownSub: 'Interactions, audience and engagement per channel · {n} channels',
   anSyncing: 'Syncing with your accounts…',
   anSyncUpdated: 'Updated {when}',
   anSyncJustNow: 'just now',
@@ -1100,6 +1112,18 @@ const en: Record<string, string> = {
 };
 
 const es: Record<string, string> = {
+  anXDescPosts: 'Publicaciones por día',
+  anXDescFollowers: 'Total de seguidores, última instantánea arrastrada',
+  anXDescEng: 'Interacciones ÷ seguidores, de las últimas instantáneas',
+  anXDescInter: 'Interacciones de las publicaciones de cada día',
+  anXSortTop: 'Ordenar mejores publicaciones',
+  anXMostEngaged: 'Más interacción',
+  anXNewest: 'Más recientes',
+  anXSeeAll: 'Ver todo',
+  anXManage: 'Gestionar',
+  anXEmpty: 'Conecta un canal y publica, sus cifras aparecerán aquí en breve.',
+  anXBreakdown: 'Desglose por canal',
+  anXBreakdownSub: 'Interacciones, audiencia y engagement por canal · {n} canales',
   anSyncing: 'Sincronizando con tus cuentas…',
   anSyncUpdated: 'Actualizado {when}',
   anSyncJustNow: 'ahora mismo',
@@ -2108,6 +2132,18 @@ const es: Record<string, string> = {
 };
 
 const fr: Record<string, string> = {
+  anXDescPosts: 'Publications par jour',
+  anXDescFollowers: 'Total d’abonnés, dernier relevé reporté',
+  anXDescEng: 'Interactions ÷ abonnés, d’après les derniers relevés',
+  anXDescInter: 'Interactions des publications de chaque jour',
+  anXSortTop: 'Trier les meilleures publications',
+  anXMostEngaged: 'Plus d’interactions',
+  anXNewest: 'Plus récentes',
+  anXSeeAll: 'Tout voir',
+  anXManage: 'Gérer',
+  anXEmpty: 'Connectez un canal et publiez, ses chiffres apparaîtront ici sous peu.',
+  anXBreakdown: 'Détail par canal',
+  anXBreakdownSub: 'Interactions, audience et engagement par canal · {n} canaux',
   anSyncing: 'Synchronisation avec vos comptes…',
   anSyncUpdated: 'Mis à jour {when}',
   anSyncJustNow: 'à l’instant',
@@ -3116,6 +3152,18 @@ const fr: Record<string, string> = {
 };
 
 const de: Record<string, string> = {
+  anXDescPosts: 'Veröffentlichte Beiträge pro Tag',
+  anXDescFollowers: 'Follower gesamt, letzter Stand fortgeschrieben',
+  anXDescEng: 'Interaktionen ÷ Follower, aus den letzten Ständen',
+  anXDescInter: 'Interaktionen der Beiträge pro Tag',
+  anXSortTop: 'Top-Beiträge sortieren',
+  anXMostEngaged: 'Meiste Interaktion',
+  anXNewest: 'Neueste',
+  anXSeeAll: 'Alle ansehen',
+  anXManage: 'Verwalten',
+  anXEmpty: 'Verbinde einen Kanal und veröffentliche, seine Zahlen erscheinen hier in Kürze.',
+  anXBreakdown: 'Aufschlüsselung nach Kanal',
+  anXBreakdownSub: 'Interaktionen, Reichweite und Engagement pro Kanal · {n} Kanäle',
   anSyncing: 'Synchronisiere mit deinen Konten…',
   anSyncUpdated: 'Aktualisiert {when}',
   anSyncJustNow: 'gerade eben',
@@ -4124,6 +4172,18 @@ const de: Record<string, string> = {
 };
 
 const ja: Record<string, string> = {
+  anXDescPosts: '1 日ごとの公開投稿数',
+  anXDescFollowers: 'フォロワー合計（最新の値を引き継ぎ）',
+  anXDescEng: 'インタラクション ÷ フォロワー（最新の値）',
+  anXDescInter: '各日に公開した投稿へのインタラクション',
+  anXSortTop: '人気投稿を並べ替え',
+  anXMostEngaged: 'エンゲージメント順',
+  anXNewest: '新しい順',
+  anXSeeAll: 'すべて表示',
+  anXManage: '管理',
+  anXEmpty: 'チャンネルを接続して投稿すると、まもなくここに数値が表示されます。',
+  anXBreakdown: 'チャンネル別の内訳',
+  anXBreakdownSub: 'チャンネルごとのインタラクション、オーディエンス、エンゲージメント · {n} チャンネル',
   anSyncing: 'アカウントと同期中…',
   anSyncUpdated: '{when}に更新',
   anSyncJustNow: 'たった今',
@@ -5132,6 +5192,18 @@ const ja: Record<string, string> = {
 };
 
 const ko: Record<string, string> = {
+  anXDescPosts: '일별 게시물 수',
+  anXDescFollowers: '팔로워 합계, 최신 값 유지',
+  anXDescEng: '상호작용 ÷ 팔로워, 최신 값 기준',
+  anXDescInter: '일별 게시물의 상호작용',
+  anXSortTop: '인기 게시물 정렬',
+  anXMostEngaged: '참여 많은 순',
+  anXNewest: '최신순',
+  anXSeeAll: '모두 보기',
+  anXManage: '관리',
+  anXEmpty: '채널을 연결하고 게시하면 곧 여기에 수치가 표시됩니다.',
+  anXBreakdown: '채널별 분석',
+  anXBreakdownSub: '채널별 상호작용, 오디언스, 참여도 · 채널 {n}개',
   anSyncing: '계정과 동기화 중…',
   anSyncUpdated: '{when} 업데이트됨',
   anSyncJustNow: '방금',
@@ -6140,6 +6212,18 @@ const ko: Record<string, string> = {
 };
 
 const zh: Record<string, string> = {
+  anXDescPosts: '每天发布的帖子',
+  anXDescFollowers: '粉丝总数，沿用最新快照',
+  anXDescEng: '互动 ÷ 粉丝，基于最新快照',
+  anXDescInter: '每天发布帖子的互动',
+  anXSortTop: '排序热门帖子',
+  anXMostEngaged: '互动最多',
+  anXNewest: '最新',
+  anXSeeAll: '查看全部',
+  anXManage: '管理',
+  anXEmpty: '连接频道并发布后，数据很快会显示在这里。',
+  anXBreakdown: '按频道细分',
+  anXBreakdownSub: '各频道的互动、受众与参与度 · {n} 个频道',
   anSyncing: '正在与账号同步…',
   anSyncUpdated: '更新于{when}',
   anSyncJustNow: '刚刚',

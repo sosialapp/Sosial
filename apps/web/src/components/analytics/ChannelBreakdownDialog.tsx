@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import { HBarList, type HBarRow } from '@/components/ui/chart';
+import { useT } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { fill } from '@/lib/i18n/locales';
 
 /**
  * Full per-channel analytics breakdown, opened from the "See all" button on the
@@ -22,6 +25,7 @@ export default function ChannelBreakdownDialog({
   rows: HBarRow[];
   subtitle?: string;
 }) {
+  const t = useT(appMessages);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -42,7 +46,7 @@ export default function ChannelBreakdownDialog({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Channel breakdown"
+      aria-label={t('anXBreakdown')}
     >
       <div
         className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-line bg-card shadow-[0_24px_70px_-24px_rgba(0,0,0,0.5)] sm:rounded-2xl"
@@ -50,15 +54,15 @@ export default function ChannelBreakdownDialog({
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line-soft px-4 py-3">
           <div className="min-w-0">
-            <h2 className="font-display text-base font-extrabold text-ink">Channel breakdown</h2>
+            <h2 className="font-display text-base font-extrabold text-ink">{t('anXBreakdown')}</h2>
             <p className="mt-0.5 text-xs text-muted">
-              {subtitle ?? `Interactions, audience and engagement per channel · ${rows.length} channels`}
+              {subtitle ?? fill(t('anXBreakdownSub'), { n: rows.length })}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('close')}
             className="shrink-0 rounded-full p-1.5 text-muted transition hover:bg-paper-dim hover:text-ink"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -73,7 +77,7 @@ export default function ChannelBreakdownDialog({
             onClick={onClose}
             className="inline-flex items-center text-xs font-bold text-ink hover:underline"
           >
-            Manage channels
+            {t('tmManageChannels')}
           </Link>
         </div>
       </div>

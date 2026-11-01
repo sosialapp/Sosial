@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useT } from '@/lib/i18n/client';
+import { useLocale, useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
 import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/chart';
@@ -60,7 +60,11 @@ type TopSortKey = 'interactions' | 'sent_at';
 type PerfMetric = 'posts' | 'followers' | 'engagement' | 'interactions';
 
 const DAY = 24 * 3600_000;
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** Sun…Sat short names in the UI locale (2026-01-04 is a Sunday). */
+const weekdayNames = (locale: string) =>
+  Array.from({ length: 7 }, (_, i) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 4 + i))),
+  );
 
 const PRESETS: { id: RangePreset; label: string; key?: string }[] = [
   { id: 'last7', label: '7 days', key: 'an7' },
@@ -130,6 +134,7 @@ export default function AnalyticsDashboard({
   commentRows: CommentReportRow[];
 }) {
   const t = useT(appMessages);
+  const locale = useLocale();
   const now = Date.now();
   const [preset, setPreset] = useState<RangePreset>('last30');
   const [custom, setCustom] = useState<DateRange | undefined>();
@@ -388,7 +393,7 @@ export default function AnalyticsDashboard({
     if (Number.isNaN(d.getTime())) continue;
     weekdayCounts[d.getDay()] += 1;
   }
-  const weekdayData = WEEKDAYS.map((label, i) => ({ label, count: weekdayCounts[i] }));
+  const weekdayData = weekdayNames(locale).map((label, i) => ({ label, count: weekdayCounts[i] }));
   const weekdayMax = Math.max(1, ...weekdayCounts);
 
   const recent = [...sent]
@@ -421,7 +426,7 @@ export default function AnalyticsDashboard({
       const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
       rows.push({
         id: p.id,
-        title: p.title || p.body?.slice(0, 60) || (requiresTitle(providers) ? 'Untitled post' : ''),
+        title: p.title || p.body?.slice(0, 60) || (requiresTitle(providers) ? t('untitled') : ''),
         sentAt: p.sent_at,
         providers,
         likes,
@@ -558,10 +563,10 @@ export default function AnalyticsDashboard({
   }, [sent, statsByPost, range, perfMetric, followers, hasFollowers, followerHistoryScoped]);
   const perfXInterval = Math.max(0, Math.ceil(perfSeries.length / 8) - 1);
   const perfDesc: Record<PerfMetric, string> = {
-    posts: 'Posts published each day',
-    followers: 'Follower total, daily snapshots carried forward',
-    engagement: 'Interactions ÷ followers, from the latest snapshots',
-    interactions: 'Interactions from posts published each day',
+    posts: t('anXDescPosts'),
+    followers: t('anXDescFollowers'),
+    engagement: t('anXDescEng'),
+    interactions: t('anXDescInter'),
   };
   const perfFmt = (v: string | number): string =>
     perfMetric === 'engagement' ? `${Number(v).toFixed(1)}%` : full(Number(v));
@@ -809,7 +814,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               chanSel.length === 0 ? 'border-ink bg-ink text-bone' : 'border-line bg-card text-muted hover:text-ink'
             }`}
           >
-            All channels
+            {t('calAllChannels')}
           </button>
           {connectedChannels.map((c) => {
             const on = chanSel.includes(c.id);
@@ -951,13 +956,13 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 <CardDescription>{fill(t('anTopDesc'), { range: range.label })}</CardDescription>
               </div>
               <SegmentedPills
-                ariaLabel="Sort top posts"
+                ariaLabel={t('anXSortTop')}
                 size="sm"
                 value={topSort.key}
                 onChange={(k) => setTopSort({ key: k, dir: 'desc' })}
                 options={[
-                  { value: 'interactions', label: 'Most engaged' },
-                  { value: 'sent_at', label: 'Newest' },
+                  { value: 'interactions', label: t('anXMostEngaged') },
+                  { value: 'sent_at', label: t('anXNewest') },
                 ]}
               />
             </div>
@@ -1037,11 +1042,11 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <CardTitle>{t('anChanBreakdown')}</CardTitle>
               {breakdown.length > 4 ? (
                 <button type="button" onClick={() => setBreakdownOpen(true)} className="text-xs font-bold text-ink hover:underline">
-                  See all
+                  {t('anXSeeAll')}
                 </button>
               ) : (
                 <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
-                  Manage
+                  {t('anXManage')}
                 </Link>
               )}
             </div>
@@ -1049,7 +1054,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           </CardHeader>
           <CardContent className="pt-1">
             {breakdown.length === 0 ? (
-              <p className="text-sm text-muted">Connect a channel and publish, its numbers land here within a day.</p>
+              <p className="text-sm text-muted">{t('anXEmpty')}</p>
             ) : (
               <>
                 <HBarList rows={breakdownRows.slice(0, 5)} />

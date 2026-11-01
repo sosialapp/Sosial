@@ -27,7 +27,6 @@ import { tr } from '../i18n';
  */
 
 const DAY = 86400000;
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 type RangePreset = 'last7' | 'last30' | 'mtd';
 
@@ -224,7 +223,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
       const sh = agg?.shares ?? 0;
       return {
         id: p.id,
-        title: p.title || p.body?.slice(0, 60) || (requiresTitle(p.targets.map((t) => t.provider)) ? 'Untitled post' : ''),
+        title: p.title || p.body?.slice(0, 60) || (requiresTitle(p.targets.map((t) => t.provider)) ? tr('aUntitled') : ''),
         sentAt: p.sent_at,
         providers: [...new Set(p.targets.map((t) => t.provider))],
         likes: lk,
@@ -303,28 +302,28 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   })();
 
   const metricCells: { id: typeof metric; label: string; value: string; desc: string }[] = [
-    { id: 'posts', label: tr('iPosts'), value: full(sent.length), desc: 'Posts published each day' },
-    { id: 'followers', label: tr('dFollowers'), value: hasFollowers ? compact(followers) : '-', desc: 'Followers per channel, latest snapshot' },
-    { id: 'engagement', label: tr('iEng'), value: eng ?? '-', desc: 'Interactions ÷ followers, per channel' },
-    { id: 'interactions', label: tr('dInteractions'), value: compact(likes + comments + shares), desc: 'Interactions from posts published each day' },
+    { id: 'posts', label: tr('iPosts'), value: full(sent.length), desc: tr('aDescPosts') },
+    { id: 'followers', label: tr('dFollowers'), value: hasFollowers ? compact(followers) : '-', desc: tr('aDescFollowers') },
+    { id: 'engagement', label: tr('iEng'), value: eng ?? '-', desc: tr('aDescEng') },
+    { id: 'interactions', label: tr('dInteractions'), value: compact(likes + comments + shares), desc: tr('aDescInter') },
   ];
 
   const pipe = [
     { label: tr('iDrafts'), value: drafts, color: C.faint },
-    { label: 'Queued', value: queued, color: '#F2A400' },
-    { label: 'Sent', value: sent.length, color: C.ink },
-    { label: 'Failed', value: failed, color: '#E5484D' },
+    { label: tr('aStQueued'), value: queued, color: '#F2A400' },
+    { label: tr('aStSent'), value: sent.length, color: C.ink },
+    { label: tr('aStFailed'), value: failed, color: '#E5484D' },
   ];
 
   const statusChip = (status: string): { label: string; color: string } => {
     switch (status) {
-      case 'sent': return { label: 'Sent', color: C.greenText };
-      case 'partial': return { label: 'Partial', color: '#B45309' };
-      case 'failed': return { label: 'Failed', color: C.redText };
-      case 'publishing': return { label: 'Publishing', color: '#B45309' };
-      case 'queued': return { label: 'Queued', color: '#B45309' };
-      case 'approval': return { label: 'Review', color: '#7C5CF0' };
-      default: return { label: 'Draft', color: C.muted };
+      case 'sent': return { label: tr('aStSent'), color: C.greenText };
+      case 'partial': return { label: tr('aStPartial'), color: '#B45309' };
+      case 'failed': return { label: tr('aStFailed'), color: C.redText };
+      case 'publishing': return { label: tr('aStPublishing'), color: '#B45309' };
+      case 'queued': return { label: tr('aStQueued'), color: '#B45309' };
+      case 'approval': return { label: tr('aStReview'), color: '#7C5CF0' };
+      default: return { label: tr('aStDraft'), color: C.muted };
     }
   };
 
@@ -418,7 +417,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
                 <View style={s.empty}>
                   <Text style={s.emptyT}>{tr('iNoCh')}</Text>
-                  <Text style={s.emptyS}>Connect a channel and publish, audience and engagement land here within a day.</Text>
+                  <Text style={s.emptyS}>{tr('aEmpty')}</Text>
                   <TouchableOpacity onPress={onConnect} style={s.connectBtn} activeOpacity={0.8}>
                     <Text style={s.connectBtnT}>{tr('iConnect')}</Text>
                   </TouchableOpacity>
@@ -501,7 +500,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                           <Text style={s.rank}>{i + 1}</Text>
                           {glyphStack(p.providers, 28)}
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text style={s.postT} numberOfLines={1}>{p.title || 'Untitled post'}</Text>
+                            <Text style={s.postT} numberOfLines={1}>{p.title || tr('aUntitled')}</Text>
                             <View style={s.metaRow}>
                               <Text style={s.postS}>{fmtDate(p.sentAt)}</Text>
                               <Stat icon="heart-outline" v={p.likes} C={C} />
@@ -548,13 +547,13 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                         value={rhythm}
                         onChange={setRhythm}
                         options={[
-                          { value: 'weeks', label: 'Weeks' },
-                          { value: 'weekdays', label: 'Weekdays' },
+                          { value: 'weeks', label: tr('aWeeks') },
+                          { value: 'weekdays', label: tr('aWeekdays') },
                         ]}
                       />
                     </View>
                     <Text style={[s.secS, { marginTop: 6 }]}>
-                      {rhythm === 'weeks' ? `Sends per week · best ${weekMax}/wk` : 'When your posts actually go out'}
+                      {rhythm === 'weeks' ? tr('aRhythmWeeks').replace('{n}', String(weekMax)) : tr('aRhythmWeekdays')}
                     </Text>
                     <View style={{ marginTop: 12 }}>
                       <BarsChart
@@ -562,7 +561,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                         color={C.accent}
                         height={110}
                         gridLines={3}
-                        labels={rhythm === 'weeks' ? weeks.map((w) => w.label) : WEEKDAYS}
+                        labels={rhythm === 'weeks' ? weeks.map((w) => w.label) : tr('aWeekdayShort').split(',')}
                         formatValue={(v) => String(Math.round(v))}
                       />
                     </View>
@@ -572,9 +571,9 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 {/* Channels */}
                 <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
                   <Text style={s.secT}>{tr('iChannels')}</Text>
-                  <Text style={s.secS}>Followers refresh hourly and on pull-down · engagement is interactions ÷ followers</Text>
+                  <Text style={s.secS}>{tr('aFollowersNote')}</Text>
                   {perfRows.length === 0 ? (
-                    <Text style={s.hint}>Connect a channel and publish, audience and engagement land here within a day.</Text>
+                    <Text style={s.hint}>{tr('aEmpty')}</Text>
                   ) : (
                     <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
                       {perfRows.map((r, i) => (
@@ -592,7 +591,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={s.postInter}>{compact(r.followers)}</Text>
-                            <Text style={s.postS}>followers</Text>
+                            <Text style={s.postS}>{tr('aFollowersWord')}</Text>
                           </View>
                         </View>
                       ))}
@@ -614,7 +613,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                             {glyphStack([...new Set(p.targets.map((t) => t.provider))], 26)}
                             <View style={{ flex: 1, minWidth: 0 }}>
                               <Text style={s.postT} numberOfLines={1}>
-                                {p.title || p.body || (requiresTitle(p.targets.map((t) => t.provider)) ? 'Untitled post' : '')}
+                                {p.title || p.body || (requiresTitle(p.targets.map((t) => t.provider)) ? tr('aUntitled') : '')}
                               </Text>
                               <Text style={s.postS}>{fmtDate(p.sent_at)}</Text>
                             </View>
