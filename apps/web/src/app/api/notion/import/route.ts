@@ -4,6 +4,25 @@ import { getConnection, readToken, queryDatabaseRows, mapRowToDraft, getPageBody
 import { createPost } from '@/lib/posts';
 import { extFor, mimeFor } from '@/lib/posts';
 
+/**
+ * Page-body content is fetched per page, so the dedupe path needs it too:
+ * hashing with a null body would turn every already-imported page into
+ * "changed upstream" on the next run.
+ */
+async function pageBodyFor(
+  token: string,
+  pageId: string,
+  mapping: NotionMapping,
+  maxChars?: number,
+): Promise<string | null> {
+  if (mapping.content !== '__page_body__') return null;
+  try {
+    return await getPageBodyText(token, pageId, maxChars);
+  } catch {
+    return null;
+  }
+}
+
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
@@ -138,7 +157,7 @@ async function processChunk(
     const prior = existingMap.get(row.id);
     if (prior) {
       // Duplicate page id: hash decides "already imported" vs "changed".
-      const res = mapRowToDraft(row, mapping, null, channels);
+      const res = mapRowToDraft(row, mapping, await pageBodyFor(token, row.id, mapping), channels);
       const newHash = res.ok && res.draft ? res.draft.contentHash : 'invalid';
       if (prior.content_hash === newHash) {
         result.duplicates++;
@@ -162,15 +181,7 @@ async function processChunk(
     }
 
     // New row: fetch page body when mapped, map, validate, create.
-    let bodyText: string | null = null;
-    if (mapping.content === '__page_body__') {
-      try {
-        bodyText = await getPageBodyText(token, row.id);
-      } catch {
-        bodyText = null;
-      }
-    }
-    const res = mapRowToDraft(row, mapping, bodyText, channels);
+    const res = mapRowToDraft(row, mapping, await pageBodyFor(token, row.id, mapping), channels);
     if (!res.ok || !res.draft) {
       result.failed++;
       result.errors.push(`Page ${row.id.slice(0, 8)}: ${res.errors.join(' ')}`.slice(0, 300));

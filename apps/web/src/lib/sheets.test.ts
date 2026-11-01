@@ -3,6 +3,7 @@ import {
   parseSheetDate,
   mapSheetRow,
   matchPlatforms,
+  sheetDataSlice,
   suggestMapping,
   contentHashOf,
   type SheetsMapping,
@@ -156,6 +157,51 @@ describe('mapSheetRow', () => {
     const a = contentHashOf({ title: 't', body: 'b', channelIds: ['c'], scheduledAt: null, mediaUrls: [], tags: [] });
     const b = contentHashOf({ title: 't', body: 'b2', channelIds: ['c'], scheduledAt: null, mediaUrls: [], tags: [] });
     expect(a).not.toBe(b);
+  });
+});
+
+describe('sheetDataSlice', () => {
+  const chunk = ['header', 'row2', 'row3'];
+
+  it('skips the header when the chunk starts at row 1', () => {
+    const { rows, offset } = sheetDataSlice(chunk, 1, 1);
+    expect(rows).toEqual(['row2', 'row3']);
+    expect(offset).toBe(1);
+    // chunk index 0 maps back to sheet row 2
+    expect(1 + offset).toBe(2);
+  });
+
+  it('keeps every row when the chunk starts below the header', () => {
+    const { rows, offset } = sheetDataSlice(chunk, 1, 101);
+    expect(rows).toEqual(chunk);
+    expect(offset).toBe(0);
+    expect(101 + offset).toBe(101);
+  });
+
+  it('skips a header that sits on a later row', () => {
+    const { rows, offset } = sheetDataSlice(['a', 'b', 'header', 'd'], 3, 1);
+    expect(rows).toEqual(['d']);
+    expect(offset).toBe(3);
+  });
+
+  it('skips the header when it is the first row of the chunk', () => {
+    const { rows, offset } = sheetDataSlice(['header', 'd'], 3, 3);
+    expect(rows).toEqual(['d']);
+    expect(offset).toBe(1);
+    expect(3 + offset).toBe(4);
+  });
+
+  it('numbers a short, padded chunk the way the preview route does', () => {
+    const header = ['Title', 'Date', 'Content', 'Platform'];
+    const sheet = [header, ['a', '2026-12-01', 'one', 'x'], ['b', '2026-12-02', 'two', 'x']];
+    // fetchSheetRows pads every chunk to CHUNK_ROWS (100).
+    const padded = [...sheet, ...Array.from({ length: 97 }, () => [] as string[])];
+    const { rows, offset } = sheetDataSlice(padded, 1, 1);
+    const numbered = rows
+      .map((r, i) => ({ row: 1 + offset + i, cells: r }))
+      .filter((x) => x.cells.some((c) => c.trim()));
+    expect(numbered.map((x) => x.row)).toEqual([2, 3]);
+    expect(numbered.every((x) => x.cells[2] !== 'Content')).toBe(true);
   });
 });
 

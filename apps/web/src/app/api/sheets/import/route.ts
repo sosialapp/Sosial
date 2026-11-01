@@ -5,6 +5,7 @@ import {
   fetchSheetRows,
   mapSheetRow,
   safeFetchFile,
+  sheetDataSlice,
   type SheetsMapping,
   type SheetsOptions,
   type SheetDraft,
@@ -106,7 +107,7 @@ async function processChunk(
   const { rows, nextStartRow } = await fetchSheetRows(token, job.spreadsheet_id, options.sheetTitle ?? 'Sheet1', startRow);
 
   const headerRow = options?.headerRow ?? 1;
-  const dataRows = rows.slice(headerRow >= startRow ? headerRow - startRow + 1 : 0);
+  const { rows: dataRows, offset } = sheetDataSlice(rows, headerRow, startRow);
 
   const channelsRaw = await admin
     .from('connected_channels')
@@ -121,7 +122,7 @@ async function processChunk(
     label: c.display_name || c.handle || c.provider,
   }));
 
-  const rowNumbers = dataRows.map((_, i) => startRow + (headerRow >= startRow ? headerRow - startRow + 1 : 0) + i);
+  const rowNumbers = dataRows.map((_, i) => startRow + offset + i);
   const keys = rowNumbers.map((n) => `r${n}`);
   const { data: existing } = await admin
     .from('post_sources')

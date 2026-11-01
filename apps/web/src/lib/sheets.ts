@@ -250,6 +250,23 @@ export interface ChannelLite {
   label: string;
 }
 
+/**
+ * Data rows of a chunk that starts at `startRow` (1-based), with the header
+ * skipped when it falls inside the chunk. `offset` turns a chunk index back
+ * into a sheet row number: `rowNumber = startRow + offset + i`.
+ *
+ * fetchSheetRows pads every chunk to CHUNK_ROWS, so callers must still ignore
+ * rows whose cells are all blank (the padding) before validating.
+ */
+export function sheetDataSlice<T>(
+  rows: T[],
+  headerRow: number,
+  startRow: number,
+): { rows: T[]; offset: number } {
+  const offset = headerRow >= startRow ? headerRow - startRow + 1 : 0;
+  return { rows: rows.slice(offset), offset };
+}
+
 /** Map a platform cell ("linkedin, x") to connected channels; flag the rest. */
 export function matchPlatforms(value: string, channels: ChannelLite[]): { ids: string[]; errors: string[] } {
   const errors: string[] = [];
