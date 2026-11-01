@@ -18,6 +18,7 @@ import { useT } from '@/lib/i18n/client';
 import { appMessages } from '@/lib/i18n/app';
 import { fill } from '@/lib/i18n/locales';
 import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/chart';
+import AnalyticsSync from '@/components/analytics/AnalyticsSync';
 import BarChartPanel from '@/components/analytics/BarChartPanel';
 import ChannelBreakdownDialog from '@/components/analytics/ChannelBreakdownDialog';
 import CommentReportCard, { type CommentReportRow } from '@/components/analytics/CommentReportCard';
@@ -118,7 +119,9 @@ export default function AnalyticsDashboard({
   channelStats,
   followerHistory,
   commentRows,
+  workspaceId,
 }: {
+  workspaceId: string;
   posts: PostWithTargets[];
   channels: ConnectedChannel[];
   postStats: StatSnapshotRow[];
@@ -690,6 +693,11 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             {chanSel.length ? ` · ${chanSelLabels().join(', ')}` : ''}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <AnalyticsSync
+          workspaceId={workspaceId}
+          lastFetchedAt={channelStats.reduce<string | null>((m, r) => (r.fetched_at && (!m || r.fetched_at > m) ? r.fetched_at : m), null)}
+        />
         <Popover open={exportOpen} onOpenChange={setExportOpen}>
           <PopoverTrigger asChild>
             <button
@@ -733,6 +741,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             </div>
           </PopoverContent>
         </Popover>
+        </div>
       </div>
 
       {/* Controls: range switch, then the channel filter as one swipeable row. */}

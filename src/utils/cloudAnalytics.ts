@@ -127,3 +127,58 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
     })),
   };
 }
+
+/**
+ * Ask the worker for fresh numbers now (followers per minute, engagement per
+ * hour, both deduped server-side). Best-effort: false when signed out or
+ * the request failed, the screen just keeps the last snapshot.
+ */
+export async function requestAnalyticsRefresh(): Promise<boolean> {
+  const session = await currentSession().catch(() => null);
+  if (!session) return false;
+  const { error } = await supabase().rpc('request_analytics_refresh', { p_workspace: session.workspace.id });
+  return !error;
+}
+
+/** Newest follower/engagement snapshot time (ms), 0 when none or signed out. */
+export async function newestSnapshotAt(): Promise<number> {
+  const session = await currentSession().catch(() => null);
+  if (!session) return 0;
+  const sb = supabase();
+  const wsId = session.workspace.id;
+  const [a, b] = await Promise.all([
+    sb.from('channel_stats').select('fetched_at').eq('workspace_id', wsId).order('fetched_at', { ascending: false }).limit(1),
+    sb.from('post_stats').select('fetched_at').eq('workspace_id', wsId).order('fetched_at', { ascending: false }).limit(1),
+  ]);
+  const ts = [a.data?.[0]?.fetched_at, b.data?.[0]?.fetched_at].map((v) => (v ? Date.parse(String(v)) : 0));
+  return Math.max(0, ...ts);
+}
+
+/**
+ * Refresh, then call onFresh each time a newer snapshot lands, for up to
+ * watchMs. Returns a cancel function for unmounts.
+ */
+export function syncAnalytics(onFresh: () => void, watchMs = 60_000, pollMs = 3_000): () => void {
+  let cancelled = false;
+  void (async () => {
+    try {
+      let seen = await newestSnapshotAt();
+      if (!(await requestAnalyticsRefresh())) return;
+      const stopAt = Date.now() + watchMs;
+      while (!cancelled && Date.now() < stopAt) {
+        await new Promise((r) => setTimeout(r, pollMs));
+        if (cancelled) return;
+        const latest = await newestSnapshotAt();
+        if (latest > seen) {
+          seen = latest;
+          onFresh();
+        }
+      }
+    } catch {
+      /* keep what is on screen */
+    }
+  })();
+  return () => {
+    cancelled = true;
+  };
+}

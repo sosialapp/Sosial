@@ -40,7 +40,7 @@ import { syncWorkspaceAvatars } from './avatars';
 import { refreshChannelToken } from './refresh';
 import { ensureMetaWebhook } from './metaSubscribe';
 import { sendPushBroadcast } from './push';
-import { snapshotChannel } from './stats';
+import { snapshotChannel, snapshotChannelFollowers } from './stats';
 import { handleDeletePostTarget } from './remoteDelete';
 import {
   handleSyncInbox,
@@ -262,6 +262,11 @@ async function handleMetaSubscribe(job: Job): Promise<void> {
 async function handleSnapshotAnalytics(job: Job): Promise<void> {
   const channelId = String(job.payload?.channel_id ?? '');
   if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
+  if (job.payload?.followers_only) {
+    const { ok, skipped } = await snapshotChannelFollowers(channelId);
+    debug(`snapshot_analytics followers ${channelId}: ${ok ? 'saved' : skipped ?? 'failed'} (job ${job.id})`);
+    return;
+  }
   debug(`snapshot_analytics channel ${channelId} (job ${job.id})`);
   const { updated, failed, skipped } = await snapshotChannel(channelId);
   if (skipped) debug(`snapshot_analytics channel ${channelId}: skipped (${skipped})`);
