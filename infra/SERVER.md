@@ -38,20 +38,13 @@
 - Log caps on every service (no disk-eating json logs)
 
 ## Ingress (Caddy)
-- `caddy` (apt, cloudsmith repo) + Cloudflare **Origin Certificate** scoped to `db.sosial.app` + `status.sosial.app` (NOT the default wildcard — a `*.sosial.app` cert would shadow Caddy's ACME for `photos`) at `/etc/caddy/certs/origin.{pem,key}` (key `600 caddy:caddy`).
-- `/etc/caddy/Caddyfile`: `db.sosial.app` → `127.0.0.1:8000` and `status.sosial.app` → `127.0.0.1:3001` use the scoped origin cert (`tls /etc/caddy/certs/origin.{pem,key}`); `photos.sosial.app` → `127.0.0.1:3000` uses `tls { issuer acme }` → **Let's Encrypt** (it is grey-cloud/DNS-only). A manually-loaded cert always wins over ACME, so the origin cert must NOT cover `photos`. `encode zstd gzip` on all. Caddy listens `:80`/`:443`; nothing else is public.
-- Self-hosted web block (same origin cert; the cert must be reissued with `sosial.app`, `www.sosial.app` and `docs.sosial.app` added to its SANs):
-
-  ```caddyfile
-  sosial.app, www.sosial.app, docs.sosial.app {
-      tls /etc/caddy/certs/origin.{pem,key}
-      encode zstd gzip
-      reverse_proxy 127.0.0.1:3002
-  }
-  ```
-
-  `www` is redirected to the apex by the app (middleware), so Caddy only needs to terminate TLS. `docs.` is rewritten to `/docs/*` by the same middleware.
-- After editing the Caddyfile: `sudo systemctl restart caddy` (`enable --now` does **not** reload a running unit).
+- `caddy` (apt, cloudsmith repo, **≥ 2.11** — `tls force_automate` is 2.11+) with a Cloudflare **Origin Certificate** covering `sosial.app` + `*.sosial.app` at `/etc/caddy/certs/origin.{pem,key}` (key `600 caddy:caddy`). The canonical config is `infra/caddy/Caddyfile`; `/etc/caddy/Caddyfile` is root-owned so it is installed by hand (see below).
+- Sites: `db.sosial.app` → `127.0.0.1:8000` (Supabase gateway), `status.sosial.app` → `127.0.0.1:3001` (Uptime Kuma), `sosial.app` + `www.sosial.app` → `127.0.0.1:3002` (web app), `photos.sosial.app` → `127.0.0.1:3000` (TikTok photo host). `encode zstd gzip` on everything but `www` (a 301 to the apex). Caddy listens `:80`/`:443`; nothing else is public.
+- **`photos` must not use the origin cert.** That host is grey-cloud/DNS-only (TikTok rejects 3xx redirects, so it can't go through the Cloudflare proxy) and therefore has to present a publicly-trusted **Let's Encrypt** cert. The origin cert is a wildcard, so it *also* matches `photos`, and a manually-loaded cert wins over ACME — the block must opt out with **`tls force_automate`**. Without it Caddy terminates with the (untrusted) origin cert and every client sees `unable to verify the first certificate` (chain depth 1, verify code 21); Uptime Kuma goes red and TikTok can't download uploads.
+- In the adapted JSON the other blocks load the origin cert tagged `cert0` and pin their SNIs to it (`certificate_selection.any_tag: ["cert0"]`); the `photos` policy has no such pin and appears in `tls.certificates.automate`, so it can only be served by Caddy-managed (ACME) certs.
+- `www` is redirected to the apex by Caddy itself; `docs.sosial.app` is rewritten to `/docs/*` by the app middleware (`docs.` is not a separate site block).
+- After editing the Caddyfile: `sudo cp infra/caddy/Caddyfile /etc/caddy/Caddyfile && sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy` (`systemctl enable --now` does **not** reload a running unit).
+- The admin API on `127.0.0.1:2019` is unauthenticated (loopback only) and accepts a full config: `curl -X POST http://localhost:2019/load -H 'Content-Type: text/caddyfile' --data-binary @Caddyfile`. Useful for a fast fix, but it is **in-memory only** — the next `reload`/restart reverts to `/etc/caddy/Caddyfile`, so always persist the file too.
 
 ## Monitoring
 - **Beszel** — hub `127.0.0.1:8090` (`APP_URL=https://metrics.sosial.app`) + local agent (`network_mode: host`, shared unix socket `/beszel_socket/beszel.sock`, read-only `docker.sock`). `BESZEL_KEY`/`BESZEL_TOKEN` in `.env` come from the hub's **Add System** dialog; system `vps-sg` is green (CPU/RAM/disk/network + per-container).
