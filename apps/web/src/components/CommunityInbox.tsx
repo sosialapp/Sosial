@@ -11,11 +11,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Bot, Mail, MessageCircle, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import CommentsFeed from '@/components/CommentsFeed';
 import MessagesInbox from '@/components/MessagesInbox';
-import SegmentedPills from '@/components/ui/segmented-pills';
+import CommunitySections from '@/components/CommunitySections';
 import { createClient } from '@/lib/supabase/client';
 import { usePostgresChanges } from '@/lib/realtime';
 import { requestScan } from '@/lib/scan';
@@ -27,12 +26,15 @@ export default function CommunityInbox({
   channels,
   workspaceId,
   plan,
+  initialTab = 'comments',
 }: {
   channels: ConnectedChannel[];
   workspaceId: string;
   plan: string;
+  /** ?tab=messages lands straight on the DM inbox (section pills link here). */
+  initialTab?: InboxTab;
 }) {
-  const [tab, setTab] = useState<InboxTab>('comments');
+  const [tab, setTab] = useState<InboxTab>(initialTab);
   const [unseen, setUnseen] = useState<{ comments: number; messages: number }>({ comments: 0, messages: 0 });
   const [reloadKey, setReloadKey] = useState(0);
   const [scanning, setScanning] = useState(false);
@@ -118,49 +120,10 @@ export default function CommunityInbox({
     }
   }, [scanning, workspaceId, fetchUnseen]);
 
-  const tabs: { key: InboxTab; label: string; Icon: typeof MessageCircle }[] = [
-    { key: 'comments', label: 'Comments', Icon: MessageCircle },
-    { key: 'messages', label: 'Messages', Icon: Mail },
-  ];
-
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <SegmentedPills
-          ariaLabel="Inbox sections"
-          role="tablist"
-          size="lg"
-          value={tab}
-          onChange={setTab}
-          className="min-w-0 flex-1 sm:flex-none"
-          buttonClassName="flex-1 sm:flex-none !px-4"
-          options={tabs.map(({ key, label, Icon }) => {
-            const count = unseen[key];
-            return {
-              value: key,
-              title: count > 0 ? `${label}, ${count} new` : label,
-              label: (
-                <>
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{label}</span>
-                  {count > 0 ? (
-                    <span className="min-w-[18px] shrink-0 rounded-full bg-accent px-1 text-center text-[10px] font-extrabold leading-[18px] text-on-accent">
-                      {count > 99 ? '99+' : count}
-                    </span>
-                  ) : null}
-                </>
-              ),
-            };
-          })}
-        />
-        <Link
-          href="/community/automations"
-          title="Keyword auto-replies"
-          className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-xs font-bold text-soft transition hover:bg-surface sm:px-4"
-        >
-          <Bot className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Auto-replies</span>
-        </Link>
+        <CommunitySections value={tab} unseen={unseen} onPick={setTab} />
         <button
           type="button"
           onClick={() => void refreshAll()}

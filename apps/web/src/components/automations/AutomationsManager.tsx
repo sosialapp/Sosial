@@ -13,7 +13,6 @@ import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
-  ArrowLeft,
   Bot,
   Check,
   ChevronRight,
@@ -880,12 +879,6 @@ function Header({ paused }: { paused: boolean }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <Link
-          href="/community"
-          className="mb-2 inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Community
-        </Link>
         <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
           Auto-replies
         </h1>

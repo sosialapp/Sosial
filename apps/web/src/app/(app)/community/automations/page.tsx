@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import AutomationsManager from '@/components/automations/AutomationsManager';
+import CommunitySections from '@/components/CommunitySections';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 import { isAutomationAdmin } from '@/lib/automations';
@@ -65,14 +66,17 @@ export default async function AutomationsPage() {
 
   return (
     <div className="w-full pt-3 sm:px-2 sm:pt-4">
-      <AutomationsManager
-        plan={ent.plan}
-        canEdit={isAutomationAdmin(ctx.workspace.role)}
-        initialSettings={settings}
-        initialRules={(rulesRes.data ?? []) as unknown as AutoReplyRule[]}
-        initialChannels={(channelsRes.data ?? []) as AutoReplyChannel[]}
-        initialEvents={(eventsRes.data ?? []) as unknown as AutoReplyEventRow[]}
-      />
+      <CommunitySections value="auto" />
+      <div className="mt-4">
+        <AutomationsManager
+          plan={ent.plan}
+          canEdit={isAutomationAdmin(ctx.workspace.role)}
+          initialSettings={settings}
+          initialRules={(rulesRes.data ?? []) as unknown as AutoReplyRule[]}
+          initialChannels={(channelsRes.data ?? []) as unknown as AutoReplyChannel[]}
+          initialEvents={(eventsRes.data ?? []) as unknown as AutoReplyEventRow[]}
+        />
+      </div>
     </div>
   );
 }
