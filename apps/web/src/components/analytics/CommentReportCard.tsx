@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { appMessages } from '@/lib/i18n/app';
 import { useT } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import { providerMeta } from '@/lib/providers';
+import { createClient } from '@/lib/supabase/client';
 
 /**
  * Comment report, read-only. Counts what the comment sync already stored:
@@ -15,15 +17,31 @@ import { providerMeta } from '@/lib/providers';
  * no write path, so it needs no extra permissions.
  */
 
+/** Counting fields only; the CSV export fetches author and text itself. */
 export interface CommentReportRow {
   id: string;
   channel_id: string;
   platform: string;
-  author_name: string | null;
-  body: string;
   created_at: string;
   status: string;
   is_own: boolean;
+}
+
+/** Author and text for the exported rows, read under RLS in id batches. */
+async function fetchCommentText(ids: string[]): Promise<Map<string, { author: string | null; body: string }>> {
+  const sb = createClient();
+  const out = new Map<string, { author: string | null; body: string }>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await sb
+      .from('comments')
+      .select('id, author_name, body')
+      .in('id', ids.slice(i, i + 200));
+    if (error) throw error;
+    for (const r of (data ?? []) as { id: string; author_name: string | null; body: string }[]) {
+      out.set(r.id, { author: r.author_name, body: r.body });
+    }
+  }
+  return out;
 }
 
 interface ChannelGroup {
@@ -91,16 +109,26 @@ export default function CommentReportCard({
   }
   const groupRows = [...groups.values()].sort((a, b) => b.total - a.total);
 
-  const exportCsv = (): void => {
+  const [exporting, setExporting] = useState(false);
+  const exportCsv = async (): Promise<void> => {
+    setExporting(true);
+    let text: Awaited<ReturnType<typeof fetchCommentText>>;
+    try {
+      text = await fetchCommentText(rows.map((r) => r.id));
+    } catch {
+      return;
+    } finally {
+      setExporting(false);
+    }
     const head = ['Date', 'Platform', 'Account', 'Author', 'Status', 'Comment'];
     const lines = rows.map((r) =>
       [
         new Date(r.created_at).toISOString(),
         r.platform,
         channelLabel(r.channel_id, r.platform),
-        r.author_name,
+        text.get(r.id)?.author ?? null,
         r.status,
-        r.body,
+        text.get(r.id)?.body ?? '',
       ]
         .map(csvCell)
         .join(','),
@@ -128,8 +156,9 @@ export default function CommentReportCard({
           </div>
           <button
             type="button"
-            onClick={exportCsv}
-            disabled={rows.length === 0}
+            onClick={() => void exportCsv()}
+            disabled={rows.length === 0 || exporting}
+            aria-busy={exporting}
             className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-4 text-xs font-bold text-soft transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" aria-hidden="true" />

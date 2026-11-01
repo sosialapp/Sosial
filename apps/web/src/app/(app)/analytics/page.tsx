@@ -21,7 +21,10 @@ export default async function AnalyticsPage() {
   // custom ranges simply carry the earliest available total forward.
   const historyFloor = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
   // The comment report filters by the same client-side range, so load a year
-  // once. Capped to keep the payload predictable on large workspaces.
+  // once. Capped to keep the payload predictable on large workspaces. Only
+  // what the counts need: comment text and authors are fetched by the CSV
+  // export on demand, not shipped with every page view. Own replies never
+  // count, so they stay in the database.
   const commentFloor = new Date(Date.now() - 365 * 86400000).toISOString();
   const [posts, channels, postStats, channelStats, followerHistory, comments] = await Promise.all([
     fetchPostsLite(sb, ctx.workspace.id),
@@ -44,8 +47,9 @@ export default async function AnalyticsPage() {
       .then((r) => (r.error ? [] : (r.data ?? []))),
     sb
       .from('comments')
-      .select('id, channel_id, platform, author_name, body, created_at, status, is_own')
+      .select('id, channel_id, platform, created_at, status, is_own')
       .eq('workspace_id', ctx.workspace.id)
+      .eq('is_own', false)
       .gte('created_at', commentFloor)
       .order('created_at', { ascending: false })
       .limit(5000)
