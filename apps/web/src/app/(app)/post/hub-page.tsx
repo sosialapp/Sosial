@@ -6,14 +6,14 @@ import { createClient, getWorkspaceContext } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-const VALID_TABS: Tab[] = ['post', 'templates', 'ideas'];
+const VALID_TABS: Tab[] = ['post', 'templates', 'ideas', 'import'];
 
 /**
  * Mobile-style Post hub: composer, status lists (?filter=), templates,
- * ideas. One shared server component behind three URLs, /post,
- * /post-templates, /post-ideas (/post-publish redirects to /post?filter=all).
- * The legacy ?tab= param still works and only selects the initial tab; the
- * path stays canonical.
+ * ideas, bulk import. One shared server component behind four URLs, /post,
+ * /post-templates, /post-ideas, /post-import (/post-publish redirects to
+ * /post?filter=all). The legacy ?tab= param still works and only selects the
+ * initial tab; the path stays canonical.
  */
 export default async function HubPage({ tab, searchTab }: { tab: Tab; searchTab?: string }) {
   const initialTab: Tab = (VALID_TABS as string[]).includes(searchTab ?? '')
