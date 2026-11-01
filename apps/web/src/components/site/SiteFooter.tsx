@@ -36,7 +36,7 @@ export default async function SiteFooter() {
             <Link href="/login" className="btn btn-bolt mt-5">
               {t('footCta')}
             </Link>
-            <div className="mt-5 flex flex-wrap items-center gap-3" aria-label="Sosial on social media">
+            <div className="mt-5 flex flex-wrap items-center gap-3" aria-label={t('a11ySocial')}>
               {SOCIALS.map((p) => (
                 <Link
                   key={p}

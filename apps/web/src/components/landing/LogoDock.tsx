@@ -111,7 +111,7 @@ export default function LogoDock() {
   }, []);
 
   return (
-    <section aria-label="Channels, integrations and AI agents" className="bg-paper">
+    <section aria-label={t('a11yDock')} className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:pt-16">
         <div className="flex justify-center">
           <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">

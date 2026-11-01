@@ -75,7 +75,7 @@ export default function Hero() {
         <div className="animate-rise-2 relative">
           <Image
             src="/hero-devices.png"
-            alt="Sosial composer on a laptop beside the Sosial home screen on a phone"
+            alt={t('heroAlt')}
             width={1540}
             height={959}
             priority

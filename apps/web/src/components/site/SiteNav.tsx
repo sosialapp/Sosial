@@ -155,7 +155,7 @@ export default function SiteNav() {
         scrolled ? 'border-line' : 'border-transparent'
       }`}
     >
-      <nav className="relative mx-auto flex h-16 max-w-[1440px] items-center px-4" aria-label="Main">
+      <nav className="relative mx-auto flex h-16 max-w-[1440px] items-center px-4" aria-label={t('a11yMain')}>
         <Logo />
 
         <div className="ml-8 hidden items-center gap-5 lg:flex xl:absolute xl:left-1/2 xl:ml-0 xl:-translate-x-1/2">
@@ -253,7 +253,7 @@ export default function SiteNav() {
                 ...CHANNEL_GUIDES.map((c) => ({
                   href: `/integrations/${c.key}`,
                   title: c.name,
-                  desc: c.tagline,
+                  desc: t(`tag_${c.key}`),
                 })),
               ]}
               onGo={close}
