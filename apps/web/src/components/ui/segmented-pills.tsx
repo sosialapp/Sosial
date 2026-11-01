@@ -66,7 +66,17 @@ export default function SegmentedPills<T extends string | number>({
   const trackRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef(new Map<string, HTMLButtonElement | null>());
   const [thumb, setThumb] = useState<ThumbRect>({ left: 0, top: 0, width: 0, height: 0, ready: false });
+  // The thumb's first placement must not animate: it would slide in from the
+  // left edge on every mount (e.g. landing on /community/automations made it
+  // glide over from Comments). Transitions switch on a frame after it is placed.
+  const [animate, setAnimate] = useState(false);
   const v = VARIANTS[variant];
+
+  useEffect(() => {
+    if (!thumb.ready || animate) return;
+    const id = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(id);
+  }, [thumb.ready, animate]);
 
   useEffect(() => {
     const measure = () => {
@@ -109,7 +119,9 @@ export default function SegmentedPills<T extends string | number>({
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute rounded-full transition-[left,top,width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+          'pointer-events-none absolute rounded-full',
+          animate &&
+            'transition-[left,top,width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
           v.thumb,
           thumb.ready ? 'opacity-100' : 'opacity-0',
         )}
