@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "apps/web", "run", "dev", "--", "-p", "3005"],
       "port": 3005
+    },
+    {
+      "name": "web-prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/web", "run", "start", "--", "-p", "3006"],
+      "port": 3006
     }
   ]
 }
