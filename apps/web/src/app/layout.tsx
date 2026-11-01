@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
-import '@schedule-x/theme-default/dist/index.css';
 import { LocaleProvider } from '@/lib/i18n/client';
 import { dirOf } from '@/lib/i18n/locales';
 import { getLocale } from '@/lib/i18n/server';

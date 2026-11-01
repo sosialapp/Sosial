@@ -1,5 +1,8 @@
 'use client';
 
+// The calendar's own chrome, only on pages that mount the board (the app
+// calendar, dashboard card, and the marketing previews).
+import '@schedule-x/theme-default/dist/index.css';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { CSSProperties, HTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
