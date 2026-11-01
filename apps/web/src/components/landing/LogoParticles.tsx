@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
 import { brandColor, brandPath, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/BrandIcon';
 import type { ProviderKey } from '@/lib/types';
 
 /**
- * Social-logo vortex, the GreenSock canvas-particles pen, reskinned: the
- * ten channel discs spiral endlessly from the edges into the center on one
- * GSAP timeline (function-based spiral origins, scale 1.1 → 0, negative
- * stagger loop, seeked mid-flight on load), sorted by scale for depth.
- * Decorative: static frame under reduced motion, nothing server-side.
+ * Social-logo vortex, the canvas-particles pen, reskinned: the ten channel
+ * discs spiral endlessly from the edges into the center on one clock
+ * (spiral origins, scale 1.1 → 0, per-disc phase offset, started mid-flight),
+ * sorted by scale for depth. Decorative: static frame under reduced motion,
+ * nothing server-side.
  */
 
 const LOGOS: ProviderKey[] = [
@@ -83,7 +82,7 @@ export default function LogoParticles() {
     if (!ctx) return;
     const parent = canvas.parentElement;
     let dead = false;
-    let tl: gsap.core.Timeline | null = null;
+    let raf = 0;
     let parts: P[] = [];
     let w = 1;
     let h = 1;
@@ -124,36 +123,28 @@ export default function LogoParticles() {
       }
     };
 
-    const build = (seekTo: number) => {
-      tl?.kill();
+    // Each disc runs a 5 s spiral forever, starting 0.05 s earlier than the
+    // one before it (the old timeline's negative stagger); 99 s into that
+    // timeline is 4 s into the loop, so start the clock there.
+    const render = (seconds: number) => {
       const radius = Math.max(w, h);
-      tl = gsap.timeline({ onUpdate: draw }).fromTo(
-        parts,
-        {
-          x: (i: number) => {
-            const angle = (i / parts.length) * Math.PI * 2 - Math.PI / 2;
-            return Math.cos(angle * 10) * radius;
-          },
-          y: (i: number) => {
-            const angle = (i / parts.length) * Math.PI * 2 - Math.PI / 2;
-            return Math.sin(angle * 10) * radius;
-          },
-          scale: 1.1,
-          rotate: 0,
-        },
-        {
-          duration: DURATION,
-          ease: 'sine',
-          x: 0,
-          y: 0,
-          scale: 0,
-          rotate: -Math.PI * 2,
-          stagger: { each: -0.05, repeat: -1 },
-        },
-        0,
-      );
-      tl.seek(seekTo);
-      if (reduced) tl.pause();
+      parts.forEach((p, i) => {
+        const angle = (i / parts.length) * Math.PI * 2 - Math.PI / 2;
+        const t = ((seconds + i * 0.05) % DURATION) / DURATION;
+        const eased = Math.sin((t * Math.PI) / 2);
+        p.x = Math.cos(angle * 10) * radius * (1 - eased);
+        p.y = Math.sin(angle * 10) * radius * (1 - eased);
+        p.scale = 1.1 * (1 - eased);
+        p.rotate = -Math.PI * 2 * eased;
+      });
+      draw();
+    };
+
+    const start = performance.now() - DURATION * 0.8 * 1000;
+    const tick = (now: number) => {
+      if (dead) return;
+      render((now - start) / 1000);
+      raf = window.requestAnimationFrame(tick);
     };
 
     void Promise.all(LOGOS.map((p) => rasterize(spriteSvg(p)))).then((sprites) => {
@@ -162,20 +153,20 @@ export default function LogoParticles() {
         { length: COUNT },
         (_, i) => ({ x: 0, y: 0, scale: 0, rotate: 0, sprite: sprites[i % sprites.length] }),
       );
-      build(99);
+      if (reduced) render(DURATION * 0.8);
+      else raf = window.requestAnimationFrame(tick);
     });
 
     const onResize = () => {
       fit();
-      if (parts.length) build(tl ? tl.time() % (tl.duration() || 1) : 99);
+      if (reduced && parts.length) render(DURATION * 0.8);
     };
     window.addEventListener('resize', onResize);
 
     return () => {
       dead = true;
       window.removeEventListener('resize', onResize);
-      tl?.kill();
-      tl = null;
+      window.cancelAnimationFrame(raf);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
