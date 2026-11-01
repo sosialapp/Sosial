@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ImportConnection, ImportSteps } from './ImportParts';
 
 interface SchemaProp {
   name: string;
@@ -322,28 +323,29 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
   const setMap = (field: string, value: string) => setMapping((m) => ({ ...m, [field]: value }));
 
   return (
-    <div className="mt-4 space-y-4">
-      {/* Connection card */}
-      <section className="card p-5" aria-label="Notion connection">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink text-xl text-white" aria-hidden="true">N</span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold">Notion</span>
-            <span className="block text-xs text-muted">
-              {connected === null ? 'Checking…' : connected ? `Connected${wsName ? ` · ${wsName}` : ''}` : 'Import posts from a Notion database'}
-            </span>
-          </span>
-          {connected ? (
-            <button type="button" onClick={() => void disconnect()} disabled={busy} className="btn btn-ghost">
-              Disconnect
-            </button>
-          ) : (
-            <button type="button" onClick={connect} disabled={busy || connected === null} className="btn btn-primary">
-              {busy ? 'Connecting…' : 'Connect Notion'}
-            </button>
-          )}
-        </div>
-      </section>
+    <div className="mt-5 space-y-4">
+      <ImportConnection
+        mark="notion"
+        name="Notion"
+        status={connected === null ? 'Checking…' : connected ? `Connected${wsName ? ` · ${wsName}` : ''}` : 'Import posts from a Notion database'}
+        connected={connected}
+        busy={busy}
+        connectLabel="Connect Notion"
+        onConnect={connect}
+        onDisconnect={() => void disconnect()}
+        points={[
+          'Pick which databases Sosial can read',
+          'Rows become drafts or scheduled posts',
+          'Re-importing skips what is already in',
+        ]}
+      />
+
+      {connected ? (
+        <ImportSteps
+          current={step === 'pick' ? 1 : step === 'map' ? 2 : step === 'preview' ? 3 : 4}
+          done={step === 'importing' && importState?.status !== 'running'}
+        />
+      ) : null}
 
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>

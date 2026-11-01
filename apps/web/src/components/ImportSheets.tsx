@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SheetsMapping } from '@/lib/sheets';
+import { ImportConnection, ImportSteps } from './ImportParts';
 
 interface SheetMeta {
   id: string;
@@ -280,27 +281,29 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
   const invalidCount = preview ? preview.length - validCount : 0;
 
   return (
-    <div className="mt-4 space-y-4">
-      <section className="card p-5" aria-label="Google Sheets connection">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1E8E3E] text-xl text-white" aria-hidden="true">▦</span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold">Google Sheets</span>
-            <span className="block text-xs text-muted">
-              {connected === null ? 'Checking…' : connected ? 'Connected' : 'Bulk import posts from a spreadsheet'}
-            </span>
-          </span>
-          {connected ? (
-            <button type="button" onClick={() => void disconnect()} disabled={busy} className="btn btn-ghost">
-              Disconnect
-            </button>
-          ) : (
-            <button type="button" onClick={connect} disabled={busy || connected === null} className="btn btn-primary">
-              {busy ? 'Connecting…' : 'Connect Google'}
-            </button>
-          )}
-        </div>
-      </section>
+    <div className="mt-5 space-y-4">
+      <ImportConnection
+        mark="sheets"
+        name="Google Sheets"
+        status={connected === null ? 'Checking…' : connected ? 'Connected' : 'Bulk import posts from a spreadsheet'}
+        connected={connected}
+        busy={busy}
+        connectLabel="Connect Google"
+        onConnect={connect}
+        onDisconnect={() => void disconnect()}
+        points={[
+          'Read-only access to spreadsheets',
+          'Columns are auto-matched, fully editable',
+          'Every row is validated before import',
+        ]}
+      />
+
+      {connected ? (
+        <ImportSteps
+          current={!meta ? 1 : importState ? 4 : preview ? 3 : 2}
+          done={!!importState && importState.status !== 'running'}
+        />
+      ) : null}
 
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
@@ -434,7 +437,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
                       </>
                     ) : (
                       r.errors.map((e) => (
-                        <p key={e} className="text-xs font-bold text-[#9F2F2D]">❌ {e}</p>
+                        <p key={e} className="text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{e}</p>
                       ))
                     )}
                   </li>
