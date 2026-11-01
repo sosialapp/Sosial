@@ -36,9 +36,11 @@ export default async function DocsLayout({ children }: { children: ReactNode }) 
   if (guideSlugs.length) tabs.push({ label: 'Guides', href: `/${guideSlugs[0]}`, slugs: guideSlugs });
   if (devSlugs.length) tabs.push({ label: 'Developers', href: `/${devSlugs[0]}`, slugs: devSlugs });
   // One footer column per sidebar section, capped so long sections stay tidy.
-  const columns: DocsFooterColumn[] = [
-    ...nav.map((sec) => ({ title: sec.title, pages: sec.pages.slice(0, 7) })),
-  ].filter((c) => c.pages.length);
+  // The OAuth channels section stays in the sidebar but not the footer.
+  const columns: DocsFooterColumn[] = nav
+    .filter((sec) => !/oauth/i.test(`${sec.slug} ${sec.title}`))
+    .map((sec) => ({ title: sec.title, pages: sec.pages.slice(0, 7) }))
+    .filter((c) => c.pages.length);
 
   return (
     <ThemeScope defaultDark className="docs-site min-h-screen bg-paper text-ink">
