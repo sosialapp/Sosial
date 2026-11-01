@@ -1,33 +1,34 @@
 'use client';
 
-import { useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { useGSAP } from '@gsap/react';
+import { useEffect, useRef } from 'react';
 
-gsap.registerPlugin(ScrollTrigger, useGSAP);
-
-/** Ember reading-progress bar, scrubbed to document scroll. */
+/**
+ * Ember reading-progress bar, scaled to document scroll. A passive scroll
+ * listener batched to one frame: no animation library on every public page.
+ */
 export default function ScrollProgress() {
   const ref = useRef<HTMLDivElement>(null);
 
-  useGSAP(() => {
+  useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    const mm = gsap.matchMedia();
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
-      gsap.fromTo(
-        el,
-        { scaleX: 0 },
-        {
-          scaleX: 1,
-          ease: 'none',
-          transformOrigin: 'left center',
-          scrollTrigger: { start: 0, end: 'max', scrub: 0.25 },
-        },
-      );
-    });
-    return () => mm.revert();
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let frame = 0;
+    const draw = () => {
+      frame = 0;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      el.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(draw);
+    };
+    draw();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
   }, []);
 
   return (

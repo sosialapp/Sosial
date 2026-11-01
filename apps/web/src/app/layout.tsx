@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import '@schedule-x/theme-default/dist/index.css';
 import { LocaleProvider } from '@/lib/i18n/client';
@@ -39,6 +40,21 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image' },
 };
 
+// Self-hosted at build time: no render-blocking request to Google on the
+// critical path, and size-adjusted fallbacks keep text from shifting on swap.
+const inter = Inter({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['300', '400', '500'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['300', '400', '500', '700'],
+  display: 'swap',
+  variable: '--font-jakarta',
+});
+
 export const viewport: Viewport = {
   themeColor: '#FFFFFF',
 };
@@ -46,15 +62,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const locale = await getLocale();
   return (
-    <html lang={locale} dir={dirOf(locale)}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang={locale} dir={dirOf(locale)} className={`${inter.variable} ${jakarta.variable}`}>
       <body>
         <LocaleProvider locale={locale}>{children}</LocaleProvider>
       </body>

@@ -23,6 +23,7 @@ import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import PostList, { TAB_MATCH, type Tab as StatusTab } from '@/components/PostList';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
+import { STUDIO_FONT_CSS_URL } from '@/lib/studio/exportPng';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { watermarkBlob } from '@/lib/studio/watermarkClient';
 import {
@@ -841,6 +842,10 @@ export default function CreateHub({
 
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
+      {/* Studio designs name their fonts by family ("Inter", "Plus Jakarta
+          Sans"…) while the site self-hosts its own faces under generated
+          names, so the canvas and thumbnails load the named faces here. */}
+      <link rel="stylesheet" href={STUDIO_FONT_CSS_URL} precedence="default" />
       {statusView ? (
         <>
           <p className="eyebrow">{tr('hubPosts')}</p>

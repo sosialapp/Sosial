@@ -11,7 +11,7 @@ import { SourceMark } from '@/components/SourceMarks';
 import { GridPulse } from '@/components/ui/grid-pulse';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { pricingMessages } from '@/lib/i18n/pricing';
 import { fill } from '@/lib/i18n/locales';
 
 /**
@@ -113,7 +113,7 @@ export default function PricingPlans({
   updated?: string;
 }) {
   const [interval, setInterval] = useState<BillingInterval>('annual');
-  const t = useT(appMessages);
+  const t = useT(pricingMessages);
 
   return (
     <section aria-label="Plans" className="relative overflow-clip [touch-action:pan-y]">

@@ -18,6 +18,7 @@ import { GitBranch, Plus } from 'lucide-react';
 import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import StudioCanvas from '@/components/studio/StudioCanvas';
+import { STUDIO_FONT_CSS_URL } from '@/lib/studio/exportPng';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { POST_SIZES, type StudioProject } from '@/lib/studio/model';
 import { providerMeta, postTypeOptions } from '@/lib/providers';
@@ -72,6 +73,8 @@ function RailDesignTile({
   const ratio = POST_SIZES.find((s) => s.id === project.sizeId)?.ratio ?? 1.25;
   return (
     <article className="w-[148px] shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-paper">
+      {/* The design names its fonts by family (see CreateHub); React dedupes the sheet. */}
+      <link rel="stylesheet" href={STUDIO_FONT_CSS_URL} precedence="default" />
       <button
         type="button"
         onClick={() => onUse(project, pageIndex, nodeRef.current)}

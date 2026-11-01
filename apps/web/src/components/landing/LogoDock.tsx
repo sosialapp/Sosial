@@ -4,8 +4,7 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { SourceMark, AiMark } from '@/components/SourceMarks';
-import { useT } from '@/lib/i18n/client';
-import { landingMessages } from '@/lib/i18n/landing';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * Logo dock (GreenSock macOS-dock pen, calmed down): channel + integration
@@ -101,7 +100,7 @@ function magnify(track: HTMLDivElement | null): () => void {
 }
 
 export default function LogoDock() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const channelsRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
 

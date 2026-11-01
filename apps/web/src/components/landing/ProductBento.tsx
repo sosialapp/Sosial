@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import { BRAND_NAMES, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
-import { useT } from '@/lib/i18n/client';
-import { landingMessages } from '@/lib/i18n/landing';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 
 /**
@@ -60,7 +59,7 @@ const TONES = ['Punchy', 'Story', 'Friendly', 'Thread'] as const;
 type Tone = (typeof TONES)[number];
 
 function WriterDemo() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const [tone, setTone] = useState<Tone>('Punchy');
   const [phase, setPhase] = useState<'idle' | 'busy' | 'typing'>('idle');
   const [out, setOut] = useState<string>(() => t('dmOutPunchy'));
@@ -148,7 +147,7 @@ function WriterDemo() {
 const PICKABLE: BrandProvider[] = ['instagram', 'tiktok', 'x', 'threads', 'youtube', 'bluesky', 'facebook'];
 
 function ScheduleDemo() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const [picked, setPicked] = useState<BrandProvider[]>(['instagram', 'tiktok', 'threads']);
   const [state, setState] = useState<'edit' | 'busy' | 'done'>('edit');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -249,7 +248,7 @@ const WEEK: { day: string; posts: { at: string; p: BrandProvider; title: string 
 ];
 
 function WeekDemo() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const [day, setDay] = useState(2);
   return (
     <div className={`${panel} max-w-[380px] p-4`}>
@@ -297,7 +296,7 @@ const REQUESTS = [
 ];
 
 function ApprovalDemo() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const [i, setI] = useState(0);
   const [verdict, setVerdict] = useState<null | 'approved' | 'sent-back'>(null);
   const r = REQUESTS[i];
@@ -380,7 +379,7 @@ function ApprovalDemo() {
 /* -------------------------------- grid -------------------------------- */
 
 export default function ProductBento() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   return (
     <section id="features" aria-label={t('navFeatures')} className="scroll-mt-16 bg-white">
       <div className="mx-auto max-w-6xl px-4 pb-2 pt-20 md:pt-28">

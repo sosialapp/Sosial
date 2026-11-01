@@ -11,14 +11,10 @@
  * date-dependent, and the server can't know the visitor's clock or locale.
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import AiCard from '@/components/AiCard';
-import CreatePost from '@/components/CreatePost';
-import Dock from '@/components/Dock';
-import QuickPost from '@/components/QuickPost';
-import ScheduleXBoard from '@/components/ScheduleXBoard';
-import TeamManager from '@/components/TeamManager';
-import { SAMPLE_CHANNELS, SAMPLE_TEAM, samplePosts } from './sample';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
+
+const AppPreviewScreen = dynamic(() => import('./AppPreviewScreen'), { ssr: false });
 
 export type PreviewScreen =
   | 'calendar-month'
@@ -40,51 +36,6 @@ const SCREENS: Record<PreviewScreen, { url: string; width: number; crop?: number
   team: { url: 'sosial.app/team', width: 1260, crop: 680, shell: true },
 };
 
-function Screen({ screen }: { screen: PreviewScreen }) {
-  const posts = useMemo(() => samplePosts(), []);
-  switch (screen) {
-    case 'calendar-month':
-      return <ScheduleXBoard posts={posts} channels={SAMPLE_CHANNELS} initialView="month" />;
-    case 'calendar-list':
-      return <ScheduleXBoard posts={posts} channels={SAMPLE_CHANNELS} initialView="list" />;
-    case 'week':
-      return (
-        <div className="p-5">
-          <ScheduleXBoard variant="mini" posts={posts} channels={SAMPLE_CHANNELS} />
-        </div>
-      );
-    case 'composer':
-      return <CreatePost channels={SAMPLE_CHANNELS} workspaceId="sample" userId="sample" role="owner" />;
-    case 'quick-post':
-      return <QuickPost channels={SAMPLE_CHANNELS} workspaceId="sample" userId="sample" role="owner" />;
-    case 'ai-writer':
-      return (
-        <AiCard
-          providers={['instagram', 'x', 'linkedin']}
-          thread={false}
-          onThreadChange={() => {}}
-          parts={3}
-          onPartsChange={() => {}}
-          onResult={() => {}}
-        />
-      );
-    case 'team':
-      return (
-        <div className="pt-4">
-          <TeamManager
-            workspaceId="sample"
-            workspaceName="Northwind Coffee"
-            workspaceAvatar={null}
-            memberAvatars={{}}
-            myUserId="su1"
-            myRole="owner"
-            {...SAMPLE_TEAM}
-          />
-        </div>
-      );
-  }
-}
-
 /** Browser-window frame around a scaled, inert render of a real app screen. */
 export default function AppPreview({ screen, caption }: { screen: PreviewScreen; caption?: ReactNode }) {
   const cfg = SCREENS[screen];
@@ -94,7 +45,24 @@ export default function AppPreview({ screen, caption }: { screen: PreviewScreen;
   const [scale, setScale] = useState(0);
   const [height, setHeight] = useState(0);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setMounted(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setMounted(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '600px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -131,7 +99,9 @@ export default function AppPreview({ screen, caption }: { screen: PreviewScreen;
         <div
           ref={box}
           className="relative overflow-hidden bg-bone"
-          style={{ height: mounted && scale ? height : undefined, aspectRatio: mounted && scale ? undefined : '16 / 10' }}
+          // Holds the 16:10 placeholder until the lazily loaded screen has a height,
+          // so the frame never collapses to zero while its code downloads.
+          style={{ height: mounted && scale && height ? height : undefined, aspectRatio: mounted && scale && height ? undefined : '16 / 10' }}
         >
           {mounted ? (
             <div
@@ -142,20 +112,10 @@ export default function AppPreview({ screen, caption }: { screen: PreviewScreen;
               className="pointer-events-none absolute top-0 left-0 origin-top-left select-none bg-bone text-ink"
               style={{ width: cfg.width, transform: `scale(${scale || 0.0001})` }}
             >
-              {cfg.shell ? (
-                // The real Dock is position:fixed; the scaled wrapper's
-                // transform makes it the containing block, so it pins here.
-                <div className="relative min-h-[720px] pt-3 pr-6 pb-6 pl-[84px]">
-                  <Dock />
-                  <Screen screen={screen} />
-                </div>
-              ) : (
-                <Screen screen={screen} />
-              )}
+              <AppPreviewScreen screen={screen} shell={cfg.shell} />
             </div>
-          ) : (
-            <div className="absolute inset-0 animate-pulse bg-surface" />
-          )}
+          ) : null}
+          {mounted && height ? null : <div className="absolute inset-0 animate-pulse bg-surface" />}
           {cfg.crop ? (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-bone to-transparent" aria-hidden="true" />
           ) : null}
