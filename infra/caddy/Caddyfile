@@ -6,6 +6,7 @@
 #
 # Hosts, all on one VPS (23.111.15.38). Caddy is the only public listener.
 #   sosial.app / www  -> 127.0.0.1:3002  web app (Next.js standalone)  [Cloudflare proxied]
+#   docs.sosial.app   -> 127.0.0.1:3002  same app, docs host           [Cloudflare proxied]
 #   db.sosial.app     -> 127.0.0.1:8000  Supabase gateway (Envoy)      [Cloudflare proxied]
 #   status.sosial.app -> 127.0.0.1:3001  Uptime Kuma                   [Cloudflare proxied]
 #   photos.sosial.app -> 127.0.0.1:3000  TikTok photo host             [DNS only, grey cloud]
@@ -42,6 +43,15 @@ photos.sosial.app {
 }
 
 sosial.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3002
+}
+
+# Docs host: same container. The app middleware rewrites docs.sosial.app/x to
+# the /docs/x route tree, and sosial.app/docs/* 308s here, so each page has one
+# public URL. Needs the wildcard SAN on the origin cert (*.sosial.app).
+docs.sosial.app {
 	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:3002
