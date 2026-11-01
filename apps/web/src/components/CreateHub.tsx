@@ -17,6 +17,7 @@ import AiCard from '@/components/AiCard';
 import SafeImg from '@/components/SafeImg';
 import { channelAvatar } from '@/lib/channelAvatar';
 import CreatePost from '@/components/CreatePost';
+import ImportTabs from '@/components/ImportTabs';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import PostList, { TAB_MATCH, type Tab as StatusTab } from '@/components/PostList';
@@ -72,13 +73,14 @@ interface Template {
   origin?: 'web' | 'mobile';
 }
 
-export type Tab = 'post' | 'templates' | 'ideas';
+export type Tab = 'post' | 'templates' | 'ideas' | 'import';
 
 /** Canonical URL per hub tab, tab switches navigate so every tab is linkable. */
 export const TAB_URL: Record<Tab, string> = {
   post: '/post',
   templates: '/post-templates',
   ideas: '/post-ideas',
+  import: '/post-import',
 };
 
 interface HubHandoff {
@@ -328,16 +330,18 @@ export default function CreateHub({
       ? rawFilter
       : null;
   const editId = searchParams.get('edit');
-  const view: 'create' | 'templates' | 'ideas' | StatusTab =
+  const view: 'create' | 'templates' | 'ideas' | 'import' | StatusTab =
     tab === 'templates'
       ? 'templates'
       : tab === 'ideas'
         ? 'ideas'
-        : editId
-          ? 'create'
-          : (filterView ?? 'create');
+        : tab === 'import'
+          ? 'import'
+          : editId
+            ? 'create'
+            : (filterView ?? 'create');
   const statusView: StatusTab | null =
-    view !== 'create' && view !== 'templates' && view !== 'ideas' ? view : null;
+    view !== 'create' && view !== 'templates' && view !== 'ideas' && view !== 'import' ? view : null;
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [projects, setProjects] = useState<StudioProject[]>([]);
@@ -844,6 +848,14 @@ export default function CreateHub({
             {tr(STATUS_TITLE[statusView])}
           </h1>
         </>
+      ) : view === 'import' ? (
+        <>
+          <p className="eyebrow">{tr('hubImportEyebrow')}</p>
+          <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+            {tr('hubTabImport')}
+          </h1>
+          <p className="mt-1 text-sm text-muted">{tr('hubImportSub')}</p>
+        </>
       ) : (
         <>
           <p className="eyebrow">{tr('hubEyebrow')}</p>
@@ -857,13 +869,12 @@ export default function CreateHub({
         role="tablist"
         className="mt-4 w-fit"
         value={view === 'create' || statusView !== null ? 'create' : (view as string)}
-        onChange={(v) =>
-          router.push(v === 'templates' ? '/post-templates' : v === 'ideas' ? '/post-ideas' : '/post', { scroll: false })
-        }
+        onChange={(v) => router.push(TAB_URL[v as Tab] ?? '/post', { scroll: false })}
         options={[
           { value: 'create', label: tr('hubTabPost') },
           { value: 'templates', label: tr('hubTabTemplates') },
           { value: 'ideas', label: `${tr('hubTabIdeas')}${ideas.length ? ` · ${ideas.length}` : ''}` },
+          { value: 'import', label: tr('hubTabImport') },
         ]}
       />
       {(view === 'create' || statusView !== null) && (
@@ -925,6 +936,8 @@ export default function CreateHub({
             libraryDesigns={projects}
           />
         </div>
+      ) : view === 'import' ? (
+        <ImportTabs workspaceId={workspaceId} />
       ) : view === 'ideas' ? (
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-5">
           <div className="flex min-w-0 flex-col gap-4 xl:col-span-3">

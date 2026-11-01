@@ -2,10 +2,10 @@ import { BRAND_PATHS, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/
 import { PROVIDER_META } from '@/lib/providers';
 
 /**
- * Shared pieces for the edge-rendered link previews (opengraph-image routes):
- * the brand palette, the Plus Jakarta Sans loader, image fetching and the
- * channel logo strip. Satori quirks to remember: every element with more than
- * one child needs display:flex, and it only decodes PNG / JPEG.
+ * Shared pieces for the link previews (opengraph-image routes): the brand
+ * palette, the Plus Jakarta Sans loader, image fetching and the channel logo
+ * strip. Satori quirks to remember: every element with more than one child
+ * needs display:flex, and it only decodes PNG / JPEG.
  */
 
 export const OG_SIZE = { width: 1200, height: 630 };
@@ -49,7 +49,7 @@ export async function ogImage(url: string | null | undefined): Promise<ArrayBuff
   }
 }
 
-/** A file from public/, fetched from the site itself (edge can't read the disk), then the live site. */
+/** A file from public/, fetched from the deployed site (matches what the card will link to). */
 export async function ogPublic(file: string): Promise<ArrayBuffer | null> {
   for (const base of [process.env.NEXT_PUBLIC_SITE_URL, 'https://sosial.app']) {
     if (!base) continue;

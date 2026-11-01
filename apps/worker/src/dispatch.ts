@@ -49,6 +49,7 @@ import {
   handleReplyComment,
   handleModerateComment,
 } from './sync';
+import { handleAutoReply } from './autoReply';
 import { info, debug } from './logger';
 
 function notPorted(kind: string): Error {
@@ -359,6 +360,7 @@ export async function dispatch(job: Job): Promise<void> {
     case 'send_message': return handleSendMessage(job);
     case 'reply_comment': return handleReplyComment(job);
     case 'moderate_comment': return handleModerateComment(job);
+    case 'auto_reply': return handleAutoReply(job);
     default: throw new Error(`unknown job kind '${String((job as any)?.kind)}' (job ${job.id})`);
   }
 }

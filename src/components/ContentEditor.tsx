@@ -10,6 +10,7 @@ import { Txt, GhostBtn, PrimaryBtn, Section, Field, Swatches, Seg, Stepper, Pill
 import AIGenerateSheet from './AIGenerateSheet';
 import ImageCropModal from './ImageCropModal';
 import { applyGenResult } from '../utils/ai/apply';
+import { duplicateBlock, hopBlock, imageFrameAspect, removeBlock, withStyle } from '../utils/blockLayout';
 
 /** Saved 'fill' values (short-lived experiment) behave as 'top'. */
 function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
@@ -138,8 +139,13 @@ export default function ContentEditor() {
   };
   const update = (id: string, patch: Partial<ContentBlock>) => setBlocks(blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   const patchStyle = (b: ContentBlock, patch: Partial<NonNullable<ContentBlock['style']>>) =>
-    update(b.id, { style: { ...(b.style ?? {}), ...patch } });
-  const remove = (id: string) => setBlocks(blocks.filter((b) => b.id !== id));
+    setBlocks(blocks.map((x) => (x.id === b.id ? withStyle(x, patch) : x)));
+  const remove = (id: string) => setBlocks(removeBlock(blocks, id));
+  const duplicate = (id: string) => {
+    const res = duplicateBlock(blocks, id);
+    setBlocks(res.blocks);
+    if (res.id) setOpenId(res.id);
+  };
   const pickImage = async (id: string) => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
     if (!res.canceled && res.assets[0]) update(id, { imageUri: res.assets[0].uri });
@@ -177,14 +183,7 @@ export default function ContentEditor() {
     }
     // keep the raw text in the box, no surprise rewrite after typing
   };
-  const move = (id: string, dir: -1 | 1) => {
-    const i = blocks.findIndex((b) => b.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= blocks.length) return;
-    const next = [...blocks];
-    [next[i], next[j]] = [next[j], next[i]];
-    setBlocks(next);
-  };
+  const move = (id: string, dir: -1 | 1) => setBlocks(hopBlock(blocks, id, dir));
 
   /** AI result → cloned template pages with fitted card heights. */
   const applyAi = (result: GenResult) => {
@@ -225,13 +224,13 @@ export default function ContentEditor() {
         <Field label="Card color">
           <Swatches colors={PALETTE} value={page.cardColor ?? '#FFFFFF'} onChange={(c) => patchPage({ cardColor: c })} />
         </Field>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Full card</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Content card fills the whole canvas, single card</Text>
-          </View>
-          <PillToggle on={page.fullCard ?? false} onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })} />
-        </View>
+        <ToggleRow
+          C={C}
+          title="Full card"
+          sub="Content card fills the whole canvas, single card"
+          on={page.fullCard ?? false}
+          onPress={() => patchPage({ fullCard: !(page.fullCard ?? false) })}
+        />
         {page.fullCard ? (
           <>
             <ToggleRow C={C} title="Title inside card" sub="Card renders the title row itself" on={page.fullCardTitle ?? false} onPress={() => patchPage({ fullCardTitle: !(page.fullCardTitle ?? false) })} />
@@ -260,33 +259,33 @@ export default function ContentEditor() {
             </Field>
           </>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Stick photo to card</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Photo + badges follow the card position</Text>
-          </View>
-          <PillToggle on={page.stickToCard ?? false} onPress={() => patchPage({ stickToCard: !(page.stickToCard ?? false) })} />
-        </View>
+        <ToggleRow
+          C={C}
+          title="Stick photo to card"
+          sub="Photo + badges follow the card position"
+          on={page.stickToCard ?? false}
+          onPress={() => patchPage({ stickToCard: !(page.stickToCard ?? false) })}
+        />
         </>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Verified check</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Blue tick after the handle</Text>
-          </View>
-          <PillToggle on={page.verified ?? true} onPress={() => patchPage({ verified: !(page.verified ?? true) })} />
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: R.lg, paddingHorizontal: 15, paddingVertical: 13 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink }}>Watermark {plan === 'free' ? '· Solo to remove' : ''}</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: C.muted, marginTop: 2 }}>Made with Sosial badge in the card</Text>
-          </View>
-          <PillToggle on={wmOn} onPress={toggleWm} />
-        </View>
+        <ToggleRow
+          C={C}
+          title="Verified check"
+          sub="Blue tick after the handle"
+          on={page.verified ?? true}
+          onPress={() => patchPage({ verified: !(page.verified ?? true) })}
+        />
+        <ToggleRow
+          C={C}
+          title={`Watermark ${plan === 'free' ? '· Solo to remove' : ''}`}
+          sub="Made with Sosial badge in the card"
+          on={wmOn}
+          onPress={toggleWm}
+        />
       </View>
 
       <View style={{ gap: 12 }}>
-        <Section no="02" title="Blocks" hint="Stack content inside the card." />
+        <Section no="02" title="Blocks" hint="Stack content inside the card, or set a block beside the one above for side by side." />
         <View style={st.chips}>
           {TYPES.filter((t) => t.id !== 'image' || !blocks.some((b) => b.type === 'image')).map((t) => (
             <TouchableOpacity key={t.id} onPress={() => (t.id === 'image' ? addImage() : add(t.id))} style={st.chip} activeOpacity={0.75}>
@@ -303,6 +302,7 @@ export default function ContentEditor() {
                 <Text style={st.cardT} numberOfLines={1}>{idx + 1} · {b.type === 'bar' || b.type === 'pie' || b.type === 'vbar' ? 'chart' : b.type}</Text>
                 <Text style={st.cardS} numberOfLines={1}>{b.heading || 'No heading'}</Text>
               </TouchableOpacity>
+              <TouchableOpacity onPress={() => duplicate(b.id)} style={st.icon} activeOpacity={0.6} accessibilityLabel="Duplicate block"><Ionicons name="copy-outline" size={15} color={C.ink} /></TouchableOpacity>
               <TouchableOpacity onPress={() => move(b.id, -1)} style={st.icon} activeOpacity={0.6}><Text style={st.iconT}>↑</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => move(b.id, 1)} style={st.icon} activeOpacity={0.6}><Text style={st.iconT}>↓</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => remove(b.id)} style={[st.icon, st.del]} activeOpacity={0.6}><Ionicons name="close-circle" size={16} color={C.redText} /></TouchableOpacity>
@@ -317,13 +317,30 @@ export default function ContentEditor() {
                   />
                 ) : null}
                 <Txt value={b.heading ?? ''} onChangeText={(v) => update(b.id, { heading: v })} placeholder="Heading (optional)" />
+                {idx > 0 ? (
+                  <Field label="Layout" hint="Beside puts it in the same row as the block above.">
+                    <Seg
+                      options={[{ value: 'row', label: 'Own row' }, { value: 'beside', label: 'Beside previous' }]}
+                      value={b.style?.beside ? 'beside' : 'row'}
+                      onChange={(v) => patchStyle(b, { beside: v === 'beside', width: undefined })}
+                    />
+                  </Field>
+                ) : null}
                 <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
                   <View style={{ flex: 1, minWidth: 140 }}>
                     <Field label="Width">
                       <Seg
-                        options={[{ value: '1', label: 'Full' }, { value: '0.75', label: '75%' }, { value: '0.5', label: '50%' }]}
-                        value={String(b.style?.width ?? 1)}
-                        onChange={(v) => patchStyle(b, { width: Number(v) })}
+                        options={[
+                          { value: 'auto', label: 'Auto' },
+                          { value: '1', label: 'Full' },
+                          { value: '0.75', label: '¾' },
+                          { value: String(2 / 3), label: '⅔' },
+                          { value: '0.5', label: '½' },
+                          { value: String(1 / 3), label: '⅓' },
+                          { value: '0.25', label: '¼' },
+                        ]}
+                        value={b.style?.width == null ? 'auto' : String(b.style.width)}
+                        onChange={(v) => patchStyle(b, { width: v === 'auto' ? undefined : Number(v) })}
                       />
                     </Field>
                   </View>
@@ -337,6 +354,28 @@ export default function ContentEditor() {
                     </Field>
                   </View>
                 </View>
+                {b.type !== 'image' ? (
+                  <Field label="Size" hint="Scales this block only.">
+                    <Stepper value={b.style?.scale ?? 1} onChange={(v) => patchStyle(b, { scale: Math.round(v * 100) / 100 })} step={0.1} min={0.5} max={2.5} format={(v) => `${Math.round(v * 100)}%`} />
+                  </Field>
+                ) : null}
+                <Field label="Box" hint="A padded, rounded fill behind the block.">
+                  <Seg
+                    options={[{ value: 'none', label: 'None' }, { value: 'box', label: 'Box' }]}
+                    value={b.style?.boxBg ? 'box' : 'none'}
+                    onChange={(v) => patchStyle(b, { boxBg: v === 'box' ? (b.style?.boxBg ?? '#F5F1E8') : undefined })}
+                  />
+                  {b.style?.boxBg ? (
+                    <View style={{ marginTop: 8 }}>
+                      <Swatches colors={PALETTE} value={b.style.boxBg} onChange={(c) => patchStyle(b, { boxBg: c })} />
+                    </View>
+                  ) : null}
+                </Field>
+                {!(idx > 0 && b.style?.beside) ? (
+                  <Field label="Space above">
+                    <Stepper value={b.style?.spaceAbove ?? 0} onChange={(v) => patchStyle(b, { spaceAbove: v || undefined })} step={4} min={0} max={60} format={(v) => `${v}px`} />
+                  </Field>
+                ) : null}
                 {b.type !== 'image' ? (
                   <Field label="Ink">
                     <Swatches colors={PALETTE} value={b.textColor ?? '#111111'} onChange={(c) => update(b.id, { textColor: c })} />
@@ -613,8 +652,7 @@ export default function ContentEditor() {
       <ImageCropModal
         visible={!!cropBlock}
         uri={cropBlock?.imageUri}
-        aspect={cropBlock?.imageAspect ?? (cropBlock?.imageH !== undefined ? 'custom' : 'wide')}
-        customH={cropBlock?.imageH}
+        frameAspect={cropBlock ? imageFrameAspect(cropBlock, blocks) : 16 / 9}
         value={cropBlock?.imageCrop}
         onDone={(c) => { update(cropBlock!.id, { imageCrop: c }); setCropId(null); }}
         onClose={() => setCropId(null)}

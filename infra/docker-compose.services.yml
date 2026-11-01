@@ -12,6 +12,57 @@
 name: sosial
 
 services:
+  web:
+    # Next.js dashboard, self-hosted. Build args are the NEXT_PUBLIC_* values
+    # (baked into the JS at build time), so changing any of them needs a
+    # rebuild, not just a restart:
+    #   docker compose -f docker-compose.services.yml build web
+    #   docker compose -f docker-compose.services.yml up -d web
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sosial.app}
+        NEXT_PUBLIC_DOCS_URL: ${NEXT_PUBLIC_DOCS_URL:-https://docs.sosial.app}
+        NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL:-}
+    restart: always
+    # Loopback only; Caddy (host) is the sole public entry point.
+    ports:
+      - 127.0.0.1:3002:3000
+    environment:
+      # Also present at runtime for server code that reads process.env lazily.
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sosial.app}
+      NEXT_PUBLIC_DOCS_URL: ${NEXT_PUBLIC_DOCS_URL:-https://docs.sosial.app}
+      NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL:-}
+      # Same service_role key as the worker — server-only (admin gates,
+      # Sheets import, Stripe webhook). Never sent to the browser.
+      SUPABASE_SERVICE_ROLE_KEY: ${WORKER_SERVICE_ROLE_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    volumes:
+      # Keep the ISR/fetch cache across container restarts.
+      - web-next-cache:/app/.next/cache
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "3"
+
   worker:
     build:
       context: ../apps/worker
@@ -143,6 +194,7 @@ services:
         max-file: "3"
 
 volumes:
+  web-next-cache:
   photo-host-data:
   uptime-kuma:
   beszel-data:

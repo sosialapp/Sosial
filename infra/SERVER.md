@@ -12,10 +12,12 @@
 - `db.sosial.app` → VPS IP — Supabase gateway (Envoy, pinned rev) via Caddy → `127.0.0.1:8000`
 - `status.sosial.app` → VPS IP — Uptime Kuma via Caddy → `127.0.0.1:3001`
 - `photos.sosial.app` → VPS IP, **DNS only (grey cloud)** — TikTok photo host via Caddy → `127.0.0.1:3000`. TikTok rejects 3xx redirects, so this host must bypass the Cloudflare proxy and use a **Let's Encrypt** cert (not the origin cert).
+- `sosial.app`, `www.sosial.app`, `docs.sosial.app` → VPS IP — self-hosted web app (`sosial-web`) via Caddy → `127.0.0.1:3002`. Proxied, Full (strict). `www` is a 308 to the apex and `docs.` is rewritten onto `/docs/*` by the app's middleware, so all three are the same container. **Status: the container is built and healthy on `127.0.0.1:3002`; these DNS records still point at Vercel until the cutover in the web runbook below.**
 
 ## Layout on disk
 - `/opt/sosial/supabase` — official self-hosted compose (clone pinned to `d1a38675ea2e09a256994e530476371844063181`, PG17 to match cloud)
 - `/opt/sosial/infra` — this repo's infra/ (services compose, .env, backup.sh)
+- `/opt/sosial/apps` — `web/` and `worker/` build contexts (shipped in the same tar as `infra/`; the compose file builds them by relative path)
 - `/var/backups/sosial` — local dumps (pruned, R2 is the real copy)
 - Realtime + Studio: OFF (verified zero realtime usage; Studio via psql/CLI)
 
@@ -28,8 +30,9 @@
 ## Compose
 - Supabase stack: Envoy :8000, GoTrue, PostgREST, Storage, edge-runtime, Supavisor (`pooler`), Postgres :5432, postgres-meta
 - Edge functions: repo `supabase/functions/*` (43 fn + `_shared`) copied into `docker/volumes/functions/`; the `functions` service uses `env_file: .env`; **`FUNCTIONS_VERIFY_JWT=false`** — the runtime gate is global in this rev, and every function self-authorizes (Bearer → `/auth/v1/user`, or `DORMANCY_TOKEN` for the crons), so the gate must stay off (also required by `media`'s public blog-image action).
-- `infra/docker-compose.services.yml`: worker, photo-host (:3000 loopback), uptime-kuma (:3001 loopback), plus monitoring — beszel (:8090 loopback, hub) + beszel-agent (`network_mode: host`, local unix socket) + dozzle (:8080 loopback, logs). Monitoring UIs are loopback-only and meant to sit behind Cloudflare Access (`metrics.` / `logs.` subdomains).
-- `sosial-worker` + `sosial-photo-host` images built on the box (repo shipped as a tar, not cloned); photo-host + uptime-kuma run now, **worker held until cutover** (avoids double-publishing while the Railway worker is live).
+- `infra/docker-compose.services.yml`: web, worker, photo-host (:3000 loopback), uptime-kuma (:3001 loopback), plus monitoring — beszel (:8090 loopback, hub) + beszel-agent (`network_mode: host`, local unix socket) + dozzle (:8080 loopback, logs). Monitoring UIs are loopback-only and meant to sit behind Cloudflare Access (`metrics.` / `logs.` subdomains).
+- **`sosial-web`** (Next.js dashboard) — built from `../apps/web` with Next `output: 'standalone'`, published on `127.0.0.1:3002` only. `NEXT_PUBLIC_*` are **build args** (Next inlines them), so changing the Supabase URL/anon key/site URL requires `build web`, not just `up -d`. Runtime secrets (`SUPABASE_SERVICE_ROLE_KEY`, Stripe, Resend) come from `.env`. `sharp` needs a Linux/glibc build host; never build this image from Windows/macOS.
+- `sosial-web` + `sosial-worker` + `sosial-photo-host` images are built on the box (repo shipped as a tar, not cloned); photo-host + uptime-kuma run now, **web is built and healthy on `127.0.0.1:3002` but stays loopback-only until the DNS cutover** (Vercel keeps serving until then), worker runs the p115 auto-reply build.
 - Sosial services join the Supabase Docker network **`supabase_default`** and reach the gateway as `api-gw:8000` (no host-published port needed).
 - **Docker publishing bypasses UFW.** Supabase's `:8000/:5432/:6543` binds were changed to `127.0.0.1` in `docker-compose.yml` (backup `docker-compose.yml.bak-ports`) — verified closed from the internet. Never bind a Supabase port to `0.0.0.0`.
 - Log caps on every service (no disk-eating json logs)
@@ -37,6 +40,17 @@
 ## Ingress (Caddy)
 - `caddy` (apt, cloudsmith repo) + Cloudflare **Origin Certificate** scoped to `db.sosial.app` + `status.sosial.app` (NOT the default wildcard — a `*.sosial.app` cert would shadow Caddy's ACME for `photos`) at `/etc/caddy/certs/origin.{pem,key}` (key `600 caddy:caddy`).
 - `/etc/caddy/Caddyfile`: `db.sosial.app` → `127.0.0.1:8000` and `status.sosial.app` → `127.0.0.1:3001` use the scoped origin cert (`tls /etc/caddy/certs/origin.{pem,key}`); `photos.sosial.app` → `127.0.0.1:3000` uses `tls { issuer acme }` → **Let's Encrypt** (it is grey-cloud/DNS-only). A manually-loaded cert always wins over ACME, so the origin cert must NOT cover `photos`. `encode zstd gzip` on all. Caddy listens `:80`/`:443`; nothing else is public.
+- Self-hosted web block (same origin cert; the cert must be reissued with `sosial.app`, `www.sosial.app` and `docs.sosial.app` added to its SANs):
+
+  ```caddyfile
+  sosial.app, www.sosial.app, docs.sosial.app {
+      tls /etc/caddy/certs/origin.{pem,key}
+      encode zstd gzip
+      reverse_proxy 127.0.0.1:3002
+  }
+  ```
+
+  `www` is redirected to the apex by the app (middleware), so Caddy only needs to terminate TLS. `docs.` is rewritten to `/docs/*` by the same middleware.
 - After editing the Caddyfile: `sudo systemctl restart caddy` (`enable --now` does **not** reload a running unit).
 
 ## Monitoring
@@ -48,12 +62,43 @@
 
 ## Cutover repoint list
 - **Mobile (Expo/EAS)** — `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (read in `src/utils/supabase.ts`); baked at build time → **rebuild + resubmit**.
-- **Web (Vercel, `apps/web`)** — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (client), `SUPABASE_SERVICE_ROLE_KEY` (server-only, `lib/supabase/admin.ts`), `NEXT_PUBLIC_SITE_URL` → set in Vercel, redeploy (no code change).
+- **Web (self-hosted, `apps/web`)** — no Vercel env any more. Build args from `infra/.env`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, optional `NEXT_PUBLIC_DOCS_URL` / `NEXT_PUBLIC_DASHBOARD_URL`. Runtime env: `SUPABASE_SERVICE_ROLE_KEY` (reuses `WORKER_SERVICE_ROLE_KEY`), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`. After changing any `NEXT_PUBLIC_*`: `docker compose -f docker-compose.services.yml build web && … up -d web`.
 - **Worker** — `WORKER_SUPABASE_URL=http://api-gw:8000` (already set in `infra/docker-compose.services.yml`).
 - **Edge functions** — `SUPABASE_URL` is injected by the runtime; verify it points at the internal gateway.
 - **Local dev** — root `.env` + `apps/web/.env.local`.
 - **Keys: clients must use the SELF-HOSTED `ANON_KEY` / `SERVICE_ROLE_KEY`** (from `/opt/sosial/supabase/docker/.env`), **not** the cloud project's keys — the cloud JWTs are signed with the cloud `JWT_SECRET` and will not validate on this stack.
 - `apps/web/src/lib/media.test.ts` hardcodes cloud URLs in fixtures only — not a blocker.
+
+## Web self-host runbook (Vercel → VPS)
+
+The web app is a normal Next.js server (API routes, server components, middleware, ISR, `sharp` image watermarking), so it runs as a container behind Caddy; no static export, no Vercel-specific code.
+
+1. **Env** — in `/opt/sosial/infra/.env`, set `NEXT_PUBLIC_SUPABASE_URL=https://db.sosial.app`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (self-hosted anon key), `NEXT_PUBLIC_SITE_URL=https://sosial.app`. `SUPABASE_SERVICE_ROLE_KEY` comes from `WORKER_SERVICE_ROLE_KEY`. **Still missing on the box (copy from Vercel before/after cutover): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`** — billing checkout and the signup marketing opt-in stay disabled without them. These are runtime-only, so `docker compose … up -d web` is enough; no rebuild.
+2. **Build on the box** (Linux/glibc, for `sharp`):
+   ```bash
+   cd /opt/sosial/infra
+   docker compose -f docker-compose.services.yml build web
+   docker compose -f docker-compose.services.yml up -d web
+   docker compose -f docker-compose.services.yml logs --tail=100 web
+   ```
+3. **Smoke test before DNS** (container is loopback-only):
+   ```bash
+   curl -fsS http://127.0.0.1:3002/api/health
+   curl -sI -H 'Host: sosial.app' http://127.0.0.1:3002/ | head -5
+   ```
+   `NEXT_PUBLIC_SITE_URL` is baked in at build time; to test on a temporary hostname, build with that hostname and add it to Supabase Auth → URL Configuration first.
+4. **TLS** — reissue the Cloudflare Origin Certificate with `sosial.app`, `www.sosial.app`, `docs.sosial.app` added to the existing `db.` / `status.` SANs, then add the Caddy block above and `sudo systemctl restart caddy`.
+5. **DNS** — in Cloudflare, snapshot the current `sosial.app` / `www` / `docs` records (they point at Vercel), then change them to the VPS IP, proxied. `docs.` is optional but keeps the docs on the same deployment, which is how middleware already routes it.
+6. **Post-cutover checks** — `/` and the marketing pages, `/login` + email/Google callback, `/dashboard`, a signed-in API call, `/api/billing/webhook` (Stripe dashboard delivery), `/opengraph-image` + `/og?t=test`, `https://docs.sosial.app/api`, and `www.sosial.app` → apex 308.
+7. **Rollback** — point the three Cloudflare records back at Vercel; the Vercel project stays deployed until the self-hosted app has run cleanly for a week.
+
+Updates are `git`/tar + `docker compose build web && up -d web`; the standalone image replaces cleanly and `web-next-cache` keeps the ISR cache.
+
+Self-hosted web gotchas:
+- `.dockerignore` keeps `.env*` out of the image — secrets arrive as runtime env, never baked in.
+- The image must be built on Linux x86_64. `npm ci` on Windows/macOS installs the wrong `sharp` binary and the container dies on the watermark route.
+- Marketing pages use `revalidate = 300` and a filesystem cache; `/app/.next/cache` is a volume so restarts do not cold-start every page.
+- The web container reaches Supabase through the public `https://db.sosial.app` (it needs to work from the browser too). Do not swap `NEXT_PUBLIC_SUPABASE_URL` for `http://api-gw:8000`: signed storage URLs would then point at an unreachable Docker hostname.
 
 ## Gotchas
 - Postgres data is a **bind mount** (`docker/volumes/db/data`), not a named volume. `docker compose down -v` does NOT clear it. After changing `POSTGRES_PASSWORD`, delete that dir before `up`, or roles keep the old password and every service crash-loops with `password authentication failed`.

@@ -32,6 +32,7 @@ export default function robots(): MetadataRoute.Robots {
           '/new',
           '/post',
           '/post-ideas',
+          '/post-import',
           '/post-publish',
           '/post-templates',
           '/profile',

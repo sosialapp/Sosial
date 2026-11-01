@@ -13,9 +13,15 @@ export const dynamic = 'force-dynamic';
  * (paid plans only — the gate is re-enforced server-side in the edge
  * functions, the plan here only picks which UI renders).
  */
-export default async function CommunityPage() {
+export default async function CommunityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
+  const sp = await searchParams;
+  const initialTab = sp?.tab === 'messages' ? 'messages' : 'comments';
   const sb = await createClient();
   const [channels, ent] = await Promise.all([
     fetchLiveChannels(sb, ctx.workspace.id),
@@ -26,7 +32,12 @@ export default async function CommunityPage() {
       <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Community</h1>
       <p className="mt-0.5 hidden text-sm text-muted sm:block">Comments on your posts and your direct messages, in one place.</p>
       <div className="mt-3">
-        <CommunityInbox channels={channels} workspaceId={ctx.workspace.id} plan={ent.plan} />
+        <CommunityInbox
+          channels={channels}
+          workspaceId={ctx.workspace.id}
+          plan={ent.plan}
+          initialTab={initialTab}
+        />
       </div>
     </div>
   );

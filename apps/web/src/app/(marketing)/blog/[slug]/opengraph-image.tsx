@@ -4,7 +4,6 @@ import { formatPostDate, type Category } from '@/content/types';
 import { TAG_TONES } from '@/content/tones';
 import { INK, MUTED, OG_SIZE, OgBrand, ogFonts, ogImage, ogPublic } from '@/lib/ogKit';
 
-export const runtime = 'edge';
 export const alt = 'Sosial article';
 export const size = OG_SIZE;
 export const contentType = 'image/png';

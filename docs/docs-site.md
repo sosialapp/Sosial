@@ -1,7 +1,9 @@
 # docs.sosial.app
 
-The public docs are part of the `apps/web` Next.js app (Vercel project
-`sosial-web`). No separate deployment.
+The public docs are part of the `apps/web` Next.js app. No separate
+deployment. Production runs the app as a self-hosted container behind Caddy
+(`infra/SERVER.md`); the Vercel project `sosial-web` remains only as the
+rollback target.
 
 ## How it fits together
 
@@ -38,25 +40,24 @@ The public docs are part of the `apps/web` Next.js app (Vercel project
    `scp` the files to the VPS, then
    `docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 < file.sql`,
    then `notify pgrst, 'reload schema';`.
-2. **Add the domain in Vercel**: project `sosial-web` → Settings → Domains →
-   Add `docs.sosial.app`, assigned to the Production environment (no redirect).
-3. **DNS** in Cloudflare (zone `sosial.app`), the record Vercel asks for,
-   normally:
-
-   | Type  | Name | Target                 | Proxy status          |
-   | ----- | ---- | ---------------------- | --------------------- |
-   | CNAME | docs | `cname.vercel-dns.com` | DNS only (grey cloud) |
-
-   Keep it **DNS only**: the zone default is proxied (orange), and a proxied
-   record stops Vercel from issuing and renewing the certificate. Use the exact
-   target Vercel shows if it differs (it sometimes gives a project-specific
-   `*.vercel-dns-0xx.com` name).
-4. Wait for Vercel to show the domain as **Valid Configuration** and the
-   certificate as issued, then open `https://docs.sosial.app`.
-5. Optional env (Vercel → Environment Variables): `NEXT_PUBLIC_DOCS_URL`
-   overrides the docs origin used for canonical URLs, the sitemap and the
-   `/docs` redirect. It defaults to `https://docs.sosial.app`, so production
-   needs nothing. Leave it unset on preview deployments.
+2. **Serve the docs host** from the same deployment:
+   - Self-hosted: reissue the Cloudflare Origin Certificate with
+     `docs.sosial.app` in its SANs and add it to the web site block in the
+     Caddyfile (`infra/SERVER.md` → Ingress → `127.0.0.1:3002`).
+   - Still on Vercel: project `sosial-web` → Settings → Domains → add
+     `docs.sosial.app`, assigned to Production (no redirect).
+3. **DNS** in Cloudflare (zone `sosial.app`):
+   - Self-hosted (proxied): `CNAME docs → sosial.app`, orange cloud, or an
+     `A` record straight to the VPS IP. Full (strict) TLS terminates at Caddy.
+   - Vercel (DNS only): `CNAME docs → cname.vercel-dns.com`, grey cloud. A
+     proxied record stops Vercel from issuing and renewing the certificate.
+4. Open `https://docs.sosial.app` and confirm the certificate and the docs
+   host rewrite (any path renders the matching `/docs/*` page).
+5. Optional env: `NEXT_PUBLIC_DOCS_URL` overrides the docs origin used for
+   canonical URLs, the sitemap and the `/docs` redirect. It defaults to
+   `https://docs.sosial.app`, so production needs nothing. Self-hosted it is a
+   **build arg** (`infra/docker-compose.services.yml`), so change it with a
+   rebuild; leave it unset on preview deployments.
 6. Submit `https://docs.sosial.app/sitemap.xml` in Google Search Console as a
    new property (the docs host is a separate site to Google).
 

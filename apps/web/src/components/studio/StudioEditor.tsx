@@ -22,6 +22,7 @@ import {
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { watermarkBlob } from '@/lib/studio/watermarkClient';
 import StudioCanvas from './StudioCanvas';
+import CanvasEditLayer from './CanvasEditLayer';
 import AiStudioPanel from './AiStudioPanel';
 import { BackgroundStep, PhotoSocialsStep, TitleStep } from './steps1';
 import { ContentStep, PagesStep } from './steps2';
@@ -41,7 +42,7 @@ const STEP_TIPS: Record<Step, string> = {
   background: 'Pick a preset, then tune the pattern size and opacity to keep text readable.',
   title: 'Keep titles under 6 words, big text and lots of whitespace win the swipe.',
   photo: 'Square photos crop best; Center focus keeps faces in frame.',
-  content: 'One idea per card. Turn on AI generate to write the copy for you.',
+  content: 'Click a block on the canvas to select it. Drag to reorder or drop it beside another, pull the handles to resize.',
   pages: 'Hook and takeaway cards stay text-only, put the detail in the middle.',
 };
 const AI_TIP = 'Rough thoughts are enough, a phrase works. Your design stays untouched.';
@@ -85,6 +86,10 @@ export default function StudioEditor({
   const [dragId, setDragId] = useState<string | null>(null);
   const [past, setPast] = useState<StudioProject[]>([]);
   const [future, setFuture] = useState<StudioProject[]>([]);
+  const [selBlock, setSelBlock] = useState<string | null>(null);
+  // Canvas drags update live without history, one undo step on release.
+  const gestureBase = useRef<StudioProject | null>(null);
+  const gestureMoved = useRef(false);
   const canvasHostRef = useRef<HTMLDivElement>(null);
   const exportHostRef = useRef<HTMLDivElement>(null);
   const { ref: stageRef, width: stageW } = useStageWidth(420);
@@ -142,6 +147,7 @@ export default function StudioEditor({
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+      if (e.altKey) return;
       if (e.key === 'ArrowLeft') setPageIndex((i) => Math.max(0, i - 1));
       if (e.key === 'ArrowRight') setPageIndex((i) => i + 1);
     };
@@ -149,7 +155,28 @@ export default function StudioEditor({
     return () => document.removeEventListener('keydown', onKey);
   }, [project.pages.length]);
 
+  // Selection belongs to one page.
+  useEffect(() => setSelBlock(null), [pageIndex]);
+
   /* ------------------------------ mutations ----------------------------- */
+
+  const editPage = (fn: (pg: PostPage) => PostPage) =>
+    commit((p) => ({ ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? fn(pg) : pg)) }));
+  const beginGesture = () => {
+    gestureBase.current = project;
+    gestureMoved.current = false;
+  };
+  const liveEditPage = (fn: (pg: PostPage) => PostPage) => {
+    gestureMoved.current = true;
+    setProject((p) => ({ ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? fn(pg) : pg)) }));
+  };
+  const endGesture = () => {
+    const base = gestureBase.current;
+    gestureBase.current = null;
+    if (!base || !gestureMoved.current) return;
+    setPast((ps) => [...ps.slice(-59), base]);
+    setFuture([]);
+  };
 
   const patchPage = (patch: Partial<PostPage>) =>
     commit((p) => ({ ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? { ...pg, ...patch } : pg)) }));
@@ -243,10 +270,21 @@ export default function StudioEditor({
     window.setTimeout(() => setSavedFlash(false), 1600);
   };
 
-  const doDownloadPage = async () => {
-    setExporting('page');
+  /** Shared export shell: busy flag, error surface, teardown. */
+  const runExport = async (kind: Exclude<Exporting, null>, run: () => Promise<void>) => {
+    setExporting(kind);
     setExportErr(null);
     try {
+      await run();
+    } catch (e) {
+      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const doDownloadPage = () =>
+    runExport('page', async () => {
       // Capture the canvas the user actually sees.
       const node =
         canvasHostRef.current?.querySelector<HTMLElement>('[data-studio-canvas]') ?? null;
@@ -255,17 +293,10 @@ export default function StudioEditor({
         : await exportPagePng(pageIndex);
       if (blob) downloadBlob(blob, fileName(pageIndex));
       else setExportErr('Could not render that page. Try again.');
-    } catch (e) {
-      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
-    } finally {
-      setExporting(null);
-    }
-  };
+    });
 
-  const doDownloadAll = async () => {
-    setExporting('all');
-    setExportErr(null);
-    try {
+  const doDownloadAll = () =>
+    runExport('all', async () => {
       let ok = 0;
       for (let i = 0; i < project.pages.length; i++) {
         const blob = await exportPagePng(i);
@@ -276,18 +307,11 @@ export default function StudioEditor({
         await new Promise((r) => setTimeout(r, 350));
       }
       if (ok === 0) setExportErr('Could not render the pages. Try again.');
-    } catch (e) {
-      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
-    } finally {
-      setExporting(null);
-    }
-  };
+    });
 
   /** Render EVERY page, then hand all PNGs to the composer. */
-  const doUse = async () => {
-    setExporting('use');
-    setExportErr(null);
-    try {
+  const doUse = () =>
+    runExport('use', async () => {
       const blobs: Blob[] = [];
       for (let i = 0; i < project.pages.length; i++) {
         const blob = await exportPagePng(i);
@@ -298,12 +322,7 @@ export default function StudioEditor({
       } else {
         setExportErr('Could not render the pages. Try again.');
       }
-    } catch (e) {
-      setExportErr(e instanceof Error ? e.message : 'Export failed. Try again.');
-    } finally {
-      setExporting(null);
-    }
-  };
+    });
 
   if (!page) return null;
 
@@ -456,10 +475,31 @@ export default function StudioEditor({
 
           {/* Canvas, pagination lives at the bottom, chevrons on the sides */}
           <div className="w-full max-w-[420px]">
-            <div ref={stageRef} className="mx-auto">
+            <div ref={stageRef} className="relative mx-auto">
               <div ref={canvasHostRef}>
                 <StudioCanvas page={page} ratio={ratio} width={stageW} />
               </div>
+              <CanvasEditLayer
+                hostRef={canvasHostRef}
+                page={page}
+                designH={340 * ratio}
+                selectedId={selBlock}
+                onSelect={(id) => {
+                  setSelBlock(id);
+                  if (id) {
+                    setStep('content');
+                    setAiOpen(false);
+                  }
+                }}
+                onPart={(part) => {
+                  setStep(part === 'title' ? 'title' : part === 'pfp' ? 'photo' : 'content');
+                  setAiOpen(false);
+                }}
+                edit={editPage}
+                begin={beginGesture}
+                live={liveEditPage}
+                end={endGesture}
+              />
             </div>
           </div>
 
@@ -563,7 +603,7 @@ export default function StudioEditor({
             {!aiOpen && step === 'background' ? <BackgroundStep page={page} patchBackground={patchBackground} /> : null}
             {!aiOpen && step === 'title' ? <TitleStep page={page} patchTitle={patchTitle} patchPage={patchPage} /> : null}
             {!aiOpen && step === 'photo' ? <PhotoSocialsStep page={page} patchPfp={patchPfp} patchPage={patchPage} /> : null}
-            {!aiOpen && step === 'content' ? <ContentStep page={page} patchPage={patchPage} designH={340 * ratio} /> : null}
+            {!aiOpen && step === 'content' ? <ContentStep page={page} patchPage={patchPage} designH={340 * ratio} openId={selBlock} setOpenId={setSelBlock} /> : null}
             {!aiOpen && step === 'pages' ? (
               <PagesStep
                 project={project}

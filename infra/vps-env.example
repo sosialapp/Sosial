@@ -34,6 +34,17 @@ NOTION_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
+# --- web (self-hosted Next.js; NEXT_PUBLIC_* are BUILD-time values) ---
+# Changing any NEXT_PUBLIC_* below requires `docker compose build web`.
+NEXT_PUBLIC_SUPABASE_URL=https://db.sosial.app
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SITE_URL=https://sosial.app
+# NEXT_PUBLIC_DOCS_URL=https://docs.sosial.app
+# NEXT_PUBLIC_DASHBOARD_URL=
+# Web reuses WORKER_SERVICE_ROLE_KEY for SUPABASE_SERVICE_ROLE_KEY.
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
 # --- services ---
 OPENAI_API_KEY=
 PEXELS_API_KEY=

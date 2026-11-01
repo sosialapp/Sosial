@@ -3,47 +3,44 @@
  * SocialCardChrome). All-inline styles so the export serializer captures
  * the exact tree. Unit system: canvas units, design width 340 (k = width/340).
  */
+import { useLayoutEffect, useRef, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import {
   DATA,
-  FONT_STACKS,
   type CardStyle,
   type ContentBlock,
   type FontId,
   type PostPage,
 } from '@/lib/studio/model';
+import { ff, luminance } from '@/lib/studio/paint';
 import { PatternBackground } from './patterns';
+import { cropLayout, isCropV2, type ImageCrop } from '@/lib/studio/crop';
 
-/* ------------------------------- helpers ------------------------------- */
-
-function ff(font: FontId | undefined, bold = false, italic = false): React.CSSProperties {
-  return {
-    fontFamily: FONT_STACKS[font ?? 'inter'],
-    fontWeight: bold ? 700 : 400,
-    fontStyle: italic ? 'italic' : 'normal',
-  };
-}
-
-function hexLum(hex: string): number {
-  const h = (hex || '').replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-const lum = hexLum;
-
-function isDarkHex(hex: string): boolean {
-  return hexLum(hex || '#ffffff') < 0.45;
-}
-
-function contrastRatio(a: string, b: string): number {
-  const l1 = hexLum(a);
-  const l2 = hexLum(b);
-  const [hi, lo] = l1 >= l2 ? [l1, l2] : [l2, l1];
-  return (hi + 0.05) / (lo + 0.05);
+/** v2 crop: measures its frame's layout size (AutoFit can widen the card
+ *  body, so the px estimate isn't always the real box) and lays the photo
+ *  out in exact px. Mirrors mobile ContentBlockView CroppedPhoto. */
+function CroppedImg({ src, crop, guess }: { src: string; crop: ImageCrop & { ar: number }; guess: { w: number; h: number } }) {
+  const ref = useRef<HTMLImageElement | null>(null);
+  const [size, setSize] = useState(guess);
+  useLayoutEffect(() => {
+    const frame = ref.current?.parentElement;
+    if (!frame) return;
+    const read = () => {
+      // offset* = layout px, unaffected by AutoFit's scale transform.
+      const w = frame.offsetWidth;
+      const h = frame.offsetHeight;
+      if (w > 0 && h > 0) setSize((p) => (Math.abs(p.w - w) > 0.5 || Math.abs(p.h - h) > 0.5 ? { w, h } : p));
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, []);
+  const box = cropLayout(crop, size.w, size.h);
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img ref={ref} src={src} alt="" style={{ position: 'absolute', display: 'block', maxWidth: 'none', width: box.width, height: box.height, left: box.left, top: box.top }} />
+  );
 }
 
 /* --------------------------- chrome icon set --------------------------- */
@@ -131,26 +128,39 @@ export function ChromeIcon({ name, size, color }: { name: string; size: number; 
 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable). */
-export function BlockView(props: { block: ContentBlock; width: number; font: FontId; zoom?: number }) {
-  const { block } = props;
+export function BlockView(props: { block: ContentBlock; width: number; font: FontId; zoom?: number; cell?: number }) {
+  const { block, width } = props;
   const st = block.style;
-  const pct = st?.width != null ? Math.min(1, Math.max(0.3, st.width)) : 1;
+  const k = width / 340;
+  const zoom = (props.zoom ?? 1) * (st?.scale != null ? Math.min(2.5, Math.max(0.5, st.scale)) : 1);
+  // Box fill: padded, rounded panel behind the block.
+  const boxed = st?.boxBg ? { backgroundColor: st.boxBg, borderRadius: 10 * k, padding: 10 * k } : null;
+  const pct = st?.width != null ? Math.min(1, Math.max(0.2, st.width)) : 1;
+  // cell = the width the frame really gets, so a square image stays square
+  // at 50% (mobile gets this from aspectRatio).
+  const inner = <BlockInner {...props} zoom={zoom} cell={props.cell ?? pct} boxPad={boxed ? 20 * k : 0} />;
+  const body = boxed ? <div style={boxed}>{inner}</div> : inner;
+  // Inside a multi-block row the row wrapper owns the width.
+  if (props.cell != null) return <div data-block-id={block.id}>{body}</div>;
   const align = st?.align ?? 'left';
-  if (pct >= 1 && align === 'left') return <BlockInner {...props} />;
+  if (pct >= 1 && align === 'left') return <div data-block-id={block.id}>{body}</div>;
   return (
     <div
+      data-block-id={block.id}
       style={{
         width: `${pct * 100}%`,
         marginRight: align === 'left' ? 'auto' : align === 'center' ? 'auto' : 0,
         marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : 0,
       }}
     >
-      <BlockInner {...props} />
+      {body}
     </div>
   );
 }
 
-function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; width: number; font: FontId; zoom?: number }) {  const tc = block.textColor ?? '#111111';
+/** `cell` = fraction of the content width the block really gets (rows);
+ *  only the image frame uses it, so text scale stays predictable. */
+function BlockInner({ block, width, font, zoom = 1, cell = 1, boxPad = 0 }: { block: ContentBlock; width: number; font: FontId; zoom?: number; cell?: number; boxPad?: number }) {  const tc = block.textColor ?? '#111111';
   const w = width;
   const k = w / 340;
   const sz = (base: number, f: number) => Math.max(base * k, w * f) * zoom;
@@ -237,22 +247,32 @@ function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; wid
   if (block.type === 'image') {
     const st = block.style;
     const asp = block.imageAspect ?? (block.imageH !== undefined ? 'custom' : 'wide');
-    const frameH = asp === 'custom' ? (block.imageH ?? 140) * k : asp === 'square' ? w : (w * 9) / 16;
+    const frameW = w * cell - boxPad;
+    const frameH = asp === 'custom' ? (block.imageH ?? 140) * k : asp === 'square' ? frameW : (frameW * 9) / 16;
     const fit = st?.imageFit ?? 'cover';
     const radius = st?.imageRadius != null ? Math.min(0.5, Math.max(0, st.imageRadius)) * w : 8 * k;
     const focus = block.imageFocus ?? 4;
     const fx = (focus % 3) - 1;
     const fy = Math.floor(focus / 3) - 1;
-    // Manual crop wins over the focal preset: zoom (1-3) + pan (-1..1 each
-    // axis), mirroring mobile ContentBlockView, keep in sync.
+    // Manual crop wins over the focal preset. v2 crops lay the photo out in
+    // exact px (lib/studio/crop.ts); legacy ones keep their old zoom + pan.
+    // Mirrors mobile ContentBlockView, keep in sync.
     const crop = block.imageCrop;
     const zoom = Math.min(3, Math.max(1, crop?.zoom ?? 1));
+    // Exact design px on both axes (capped at the cell): AutoFit widens the
+    // body when it scales a card down, and a 100%-wide frame would stretch
+    // there, a square turning wide. Same in mobile ContentBlockView.
+    // Centred, so a widened body doesn't leave the photo hugging one side.
+    const frameBox: React.CSSProperties = { width: frameW, maxWidth: '100%', height: frameH, marginLeft: 'auto', marginRight: 'auto' };
     return (
       <div>
         {heading}
         {block.imageUri ? (
-          <div style={{ width: '100%', height: frameH, overflow: 'hidden', borderRadius: radius, position: 'relative', backgroundColor: '#00000010' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+          <div style={{ ...frameBox, overflow: 'hidden', borderRadius: radius, position: 'relative', backgroundColor: '#00000010' }}>
+            {isCropV2(crop) ? (
+              <CroppedImg src={block.imageUri} crop={crop} guess={{ w: frameW, h: frameH }} />
+            ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={block.imageUri}
               alt=""
@@ -273,9 +293,10 @@ function BlockInner({ block, width, font, zoom = 1 }: { block: ContentBlock; wid
                     }
               }
             />
+            )}
           </div>
         ) : (
-          <div style={{ width: '100%', height: frameH, borderRadius: radius, borderWidth: hair, borderStyle: 'dashed', borderColor: `${tc}66`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ ...frameBox, borderRadius: radius, borderWidth: hair, borderStyle: 'dashed', borderColor: `${tc}66`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <p style={{ ...ff(font), fontSize: sz(10, 0.03), color: `${tc}99`, margin: 0 }}>No image yet. Pick one in the editor</p>
           </div>
         )}
@@ -316,7 +337,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
     const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1.6) : 1;
     const barH = Math.max(6 * k, w * 0.03) * t;
     const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * barH * 0.6 : 6 * k;
-    const inked = (c: string) => (lum(c) < 0.55 ? '#ffffff' : '#111111');
+    const inked = (c: string) => (luminance(c) < 0.55 ? '#ffffff' : '#111111');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: Math.max(4 * k, w * 0.02) }}>
         {data.map((d, i) => {
@@ -428,7 +449,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
   const t = st?.chartThickness != null ? clamp(st.chartThickness, 0.25, 1) : 1;
   const maxH = Math.max(80 * k, w * 0.35) * (st?.chartHeight != null ? clamp(st.chartHeight, 0.4, 1.6) : 1);
   const rad = st?.chartRadius != null ? clamp(st.chartRadius, 0, 1) * 12 * k : 6 * k;
-  const inked = (c: string) => (lum(c) < 0.55 ? '#ffffff' : '#111111');
+  const inked = (c: string) => (luminance(c) < 0.55 ? '#ffffff' : '#111111');
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: Math.max(6 * k, w * 0.03) }}>
       {data.map((d, i) => {

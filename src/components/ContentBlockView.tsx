@@ -1,9 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { ContentBlock, FontId } from '../types';
 import { F } from '../utils/fonts';
 import { DATA } from '../theme';
+import { cropLayout, isCropV2, type ImageCrop } from '../utils/crop';
+
+/** v2 crop: measures its frame (fixed-card images grow, so the height isn't
+ *  known up front) and lays the photo out in exact px, like web blocks.tsx. */
+function CroppedPhoto({ uri, crop, guess }: { uri: string; crop: ImageCrop & { ar: number }; guess: { w: number; h: number } }) {
+  const [size, setSize] = useState(guess);
+  const box = cropLayout(crop, size.w, size.h);
+  return (
+    <View
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        if (width > 0 && height > 0 && (Math.abs(width - size.w) > 0.5 || Math.abs(height - size.h) > 0.5)) setSize({ w: width, h: height });
+      }}
+    >
+      <Image source={{ uri }} resizeMode="stretch" style={{ position: 'absolute', width: box.width, height: box.height, left: box.left, top: box.top }} />
+    </View>
+  );
+}
 
 export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; w: number; font: FontId; zoom?: number }) {
   const k = w / 340;
@@ -198,12 +217,20 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable).
  *  Mirrors web blocks.tsx BlockView, keep in sync. */
-export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
-  const { block } = props;
+export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number }) {
+  const { block, width } = props;
   const st = block.style;
-  const pct = st?.width != null ? Math.min(1, Math.max(0.3, st.width)) : 1;
+  const k = width / 340;
+  const zoom = (props.zoom ?? 1) * (st?.scale != null ? Math.min(2.5, Math.max(0.5, st.scale)) : 1);
+  // Box fill: padded, rounded panel behind the block.
+  const boxed = st?.boxBg ? { backgroundColor: st.boxBg, borderRadius: 10 * k, padding: 10 * k } : null;
+  const pct = st?.width != null ? Math.min(1, Math.max(0.2, st.width)) : 1;
+  const inner = <ContentBlockInner {...props} zoom={zoom} cell={props.cell ?? pct} boxPad={boxed ? 20 * k : 0} />;
+  const body = boxed ? <View style={boxed}>{inner}</View> : inner;
+  // Inside a multi-block row the row wrapper owns the width.
+  if (props.cell != null) return body;
   const align = st?.align ?? 'left';
-  if (pct >= 1 && align === 'left') return <ContentBlockInner {...props} />;
+  if (pct >= 1 && align === 'left') return body;
   return (
     <View
       style={{
@@ -211,12 +238,14 @@ export default function ContentBlockView(props: { block: ContentBlock; width: nu
         alignSelf: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
       }}
     >
-      <ContentBlockInner {...props} />
+      {body}
     </View>
   );
 }
 
-function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = false }: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean }) {
+/** `cell` = fraction of the content width the block really gets (rows);
+ *  only the image crop math uses it, so text scale stays predictable. */
+function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = false, cell = 1, boxPad = 0 }: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number; boxPad?: number }) {
   const tc = block.textColor ?? '#111111';
   const w = width;
   const k = w / 340;
@@ -289,7 +318,12 @@ function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = fals
     const fit = st?.imageFit ?? 'cover';
     const radius = st?.imageRadius != null ? Math.min(0.5, Math.max(0, st.imageRadius)) * w : 8 * k;
     const custom = asp === 'custom';
-    const frame = custom ? { height: (block.imageH ?? 140) * k } : { aspectRatio: asp === 'square' ? 1 : 16 / 9 };
+    // Exact design px on both axes (capped at the cell), like web blocks.tsx:
+    // AutoFit widens the body when it scales a card down, and a full-width
+    // frame would stretch there (a square turning wide, or never fitting).
+    const frameWpx = w * cell - boxPad;
+    // Centred, so a widened body doesn't leave the photo hugging one side.
+    const frame = { alignSelf: 'center' as const, width: frameWpx, maxWidth: '100%' as const, height: custom ? (block.imageH ?? 140) * k : asp === 'square' ? frameWpx : frameWpx * (9 / 16) };
     const focus = block.imageFocus ?? 4;
     const fx = (focus % 3) - 1; // -1 show left … +1 show right
     const fy = Math.floor(focus / 3) - 1; // -1 show top … +1 show bottom
@@ -302,8 +336,8 @@ function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = fals
       : { width: iw, aspectRatio: asp === 'square' ? 1 : 16 / 9, alignSelf: hAlign };
     // manual crop wins over the focal preset: scale the frame-filling photo and pan it
     const crop = block.imageCrop;
-    const frameW = w;
-    const frameH = custom ? (block.imageH ?? 140) * k : asp === 'square' ? w : w * (9 / 16);
+    const frameW = w * cell - boxPad;
+    const frameH = custom ? (block.imageH ?? 140) * k : asp === 'square' ? frameW : frameW * (9 / 16);
     const overX = frameW * ((crop?.zoom ?? 1) - 1);
     const overY = frameH * ((crop?.zoom ?? 1) - 1);
     const cropInner = crop
@@ -325,10 +359,14 @@ function ContentBlockInner({ block, width, font = 'inter', zoom = 1, fill = fals
         {block.heading ? <Text style={{ ...F(font, true), fontSize: sz(12, 0.045), color: tc, marginBottom: Math.max(4 * k, w * 0.015) }}>{block.heading}</Text> : null}
         {block.imageUri ? (
           <View style={[frame, grow, { overflow: 'hidden', borderRadius: radius, justifyContent: crop ? 'flex-start' : vAlign }]}>
-            <Image source={{ uri: block.imageUri }} style={(cropInner ?? imgInner) as any} resizeMode={fit} />
+            {isCropV2(crop) ? (
+              <CroppedPhoto uri={block.imageUri} crop={crop} guess={{ w: frameW, h: frameH }} />
+            ) : (
+              <Image source={{ uri: block.imageUri }} style={(cropInner ?? imgInner) as any} resizeMode={fit} />
+            )}
           </View>
         ) : (
-          <View style={[frame, { width: '100%', borderRadius: radius, borderWidth: hair, borderStyle: 'dashed', borderColor: tc + '66', alignItems: 'center', justifyContent: 'center' }]}>
+                      <View style={[frame, { borderRadius: radius, borderWidth: hair, borderStyle: 'dashed', borderColor: tc + '66', alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={{ ...F(font), fontSize: sz(10, 0.03), color: tc + '99' }}>No image yet, pick one in the editor</Text>
           </View>
         )}

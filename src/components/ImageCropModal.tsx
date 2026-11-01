@@ -2,14 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Image, PanResponder, StyleSheet, Dimensions } from 'react-native';
 import { useTheme, Palette, R } from '../theme';
 import { PrimaryBtn, GhostBtn } from './ui';
+import { MAX_CROP_ZOOM, cropToRect, isCropV2, rectToCrop, type ImageCrop } from '../utils/crop';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-export interface CropValue {
-  zoom: number;
-  x: number;
-  y: number;
-}
+export type CropValue = ImageCrop;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -19,16 +16,15 @@ type Rect = { x: number; y: number; w: number; h: number };
  * Real crop editor: the photo sits contain-fit in a dark stage, an
  * aspect-locked crop rectangle (matching the block frame) overlays it with
  * draggable corner handles, thirds grid, dimmed outside, like a normal
- * image editor. The rect maps to the canvas model {zoom,x,y} so both
- * renderers stay unchanged (mirrors web steps2.tsx CropEditor, keep in sync):
- *   zoom = full width / rect width; x = 1 - 2·z·u0/(z-1) (u0 = rect left
- *   as a fraction of the image), mirrored for y.
+ * image editor. The rect maps to the v2 crop model in utils/crop.ts, which
+ * both renderers lay out in exact px (mirrors web steps2.tsx CropEditor,
+ * keep in sync).
  */
-export default function ImageCropModal({ visible, uri, aspect, customH, value, onDone, onClose }: {
+export default function ImageCropModal({ visible, uri, frameAspect, value, onDone, onClose }: {
   visible: boolean;
   uri?: string;
-  aspect: 'square' | 'wide' | 'custom';
-  customH?: number;
+  /** Block frame shape (w/h), from imageFrameAspect. */
+  frameAspect: number;
   value?: CropValue;
   onDone: (c: CropValue) => void;
   onClose: () => void;
@@ -39,9 +35,6 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
   const [rect, setRect] = useState<Rect | null>(null);
   const rectRef = useRef<Rect | null>(null);
   rectRef.current = rect;
-
-  const frameAspect =
-    aspect === 'square' ? 1 : aspect === 'wide' ? 16 / 9 : 282 / Math.max(60, customH ?? 140);
 
   useEffect(() => {
     if (visible && uri) {
@@ -62,55 +55,49 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
   const dispH = nat.h * scale;
   const ox = (stageW - dispW) / 2;
   const oy = (stageH - dispH) / 2;
+  const imgAspect = nat.h > 0 ? nat.w / nat.h : 1;
+  // Largest frame-shaped rect = the cover fit = zoom 1.
+  const fullW = dispH > 0 && dispW / dispH > frameAspect ? dispH * frameAspect : dispW;
+  const defaultRect = (): Rect => ({ x: (dispW - fullW) / 2, y: (dispH - fullW / frameAspect) / 2, w: fullW, h: fullW / frameAspect });
 
   // Initialise the rect once the photo geometry is known.
   useEffect(() => {
     if (!scale || rect || !dispW || !dispH) return;
-    let r: Rect;
-    if (value && value.zoom > 1.001) {
-      const z = value.zoom;
-      const u0 = (-(value.x - 1) * (z - 1)) / (2 * z);
-      const v0 = (-(value.y - 1) * (z - 1)) / (2 * z);
-      r = { x: u0 * dispW, y: v0 * dispH, w: dispW / z, h: dispH / z };
+    if (isCropV2(value)) {
+      const f = cropToRect(value, imgAspect, frameAspect);
+      setRect({ x: f.u * dispW, y: f.v * dispH, w: f.uw * dispW, h: f.vh * dispH });
     } else {
-      const w = dispW / dispH > frameAspect ? dispH * frameAspect : dispW;
-      const h = w / frameAspect;
-      r = { x: (dispW - w) / 2, y: (dispH - h) / 2, w, h };
+      setRect(defaultRect());
     }
-    setRect(r);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scale, dispW, dispH]);
 
-  const emit = (r: Rect): CropValue => {
-    const z = dispW / r.w;
-    const xm = z > 1.001 ? clamp(1 - (2 * z * (r.x / dispW)) / (z - 1), -1, 1) : 0;
-    const ym = z > 1.001 ? clamp(1 - (2 * z * (r.y / dispH)) / (z - 1), -1, 1) : 0;
-    return { zoom: Math.round(z * 100) / 100, x: Math.round(xm * 100) / 100, y: Math.round(ym * 100) / 100 };
-  };
+  const emit = (r: Rect): CropValue =>
+    rectToCrop({ u: r.x / dispW, v: r.y / dispH, uw: r.w / dispW, vh: r.h / dispH }, imgAspect, frameAspect);
 
-  const minW = dispW / 3;
+  const minW = fullW / MAX_CROP_ZOOM;
   /** Aspect-locked resize/move with clamping inside the photo. Pure, returns the next rect. */
   const applyDrag = (mode: 'move' | 0 | 1 | 2 | 3, dx: number, dy: number, start: Rect): Rect => {
     if (mode === 'move') {
       return { ...start, x: clamp(start.x + dx, 0, dispW - start.w), y: clamp(start.y + dy, 0, dispH - start.h) };
     }
-    // Corner resize: the dragged corner follows the pointer, the opposite
-    // corner is an anchor, size follows the dominant axis (aspect-locked).
-    const anchoredLeft = mode === 1 || mode === 3; // TR/BR keep the left edge
-    const anchoredTop = mode === 2 || mode === 3; // BL/BR keep the top edge
-    const anchorX = anchoredLeft ? start.x : start.x + start.w;
-    const anchorY = anchoredTop ? start.y : start.y + start.h;
-    let w = Math.max(Math.abs(dx), Math.abs(dy) * frameAspect);
-    w = clamp(w, minW, dispW);
-    let h = w / frameAspect;
-    if (h > dispH) {
-      h = dispH;
-      w = h * frameAspect;
-    }
-    // right/bottom anchored corners grow right/down; left/top ones grow left/up
-    const x = clamp(anchoredLeft ? anchorX : anchorX - w, 0, dispW - w);
-    const y = clamp(anchoredTop ? anchorY : anchorY - h, 0, dispH - h);
-    return { x, y, w, h };
+    // Corner resize: the opposite corner is the anchor and the size follows
+    // where the dragged corner now is relative to it (aspect-locked), so the
+    // rect tracks the finger instead of collapsing on the first move.
+    const right = mode === 1 || mode === 3; // TR/BR keep the left edge
+    const bottom = mode === 2 || mode === 3; // BL/BR keep the top edge
+    const ax = right ? start.x : start.x + start.w;
+    const ay = bottom ? start.y : start.y + start.h;
+    const cx = (right ? start.x + start.w : start.x) + dx;
+    const cy = (bottom ? start.y + start.h : start.y) + dy;
+    const reachX = right ? cx - ax : ax - cx;
+    const reachY = bottom ? cy - ay : ay - cy;
+    // room left inside the photo on the growing side
+    const roomX = right ? dispW - ax : ax;
+    const roomY = bottom ? dispH - ay : ay;
+    const w = Math.max(minW, Math.min(Math.max(reachX, reachY * frameAspect), roomX, roomY * frameAspect, fullW));
+    const h = w / frameAspect;
+    return { x: right ? ax : ax - w, y: bottom ? ay : ay - h, w, h };
   };
 
   // refs so the responders (created once per geometry) see fresh values
@@ -176,7 +163,16 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
     [dispW, dispH],
   );
 
-  const zoomLabel = rect && dispW ? (dispW / rect.w).toFixed(1) : '1.0';
+  const zoom = rect && fullW ? fullW / rect.w : 1;
+  /** Zoom around the rect's centre, kept inside the photo. */
+  const zoomBy = (f: number) => {
+    if (!rect || !fullW) return;
+    const w = clamp(fullW / clamp(zoom * f, 1, MAX_CROP_ZOOM), minW, fullW);
+    const h = w / frameAspect;
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2;
+    setRect({ x: clamp(cx - w / 2, 0, dispW - w), y: clamp(cy - h / 2, 0, dispH - h), w, h });
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -198,27 +194,19 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
             {rect && dispW > 0 ? (
               <>
                 {/* dim outside the rect */}
-                <View style={{ position: 'absolute', left: 0, top: 0, width: stageW, height: Math.max(0, oy + rect.y), backgroundColor: '#000000AA' }} />
-                <View style={{ position: 'absolute', left: 0, top: oy + rect.y + rect.h, width: stageW, height: Math.max(0, stageH - (oy + rect.y + rect.h)), backgroundColor: '#000000AA' }} />
-                <View style={{ position: 'absolute', left: 0, top: oy + rect.y, width: Math.max(0, ox + rect.x), height: rect.h, backgroundColor: '#000000AA' }} />
-                <View style={{ position: 'absolute', left: ox + rect.x + rect.w, top: oy + rect.y, width: Math.max(0, stageW - (ox + rect.x + rect.w)), height: rect.h, backgroundColor: '#000000AA' }} />
+                <View style={[s.dim, { left: 0, top: 0, width: stageW, height: Math.max(0, oy + rect.y) }]} />
+                <View style={[s.dim, { left: 0, top: oy + rect.y + rect.h, width: stageW, height: Math.max(0, stageH - (oy + rect.y + rect.h)) }]} />
+                <View style={[s.dim, { left: 0, top: oy + rect.y, width: Math.max(0, ox + rect.x), height: rect.h }]} />
+                <View style={[s.dim, { left: ox + rect.x + rect.w, top: oy + rect.y, width: Math.max(0, stageW - (ox + rect.x + rect.w)), height: rect.h }]} />
                 {/* crop rect + thirds grid */}
                 <View
                   {...bodyPan.panHandlers}
-                  style={{
-                    position: 'absolute',
-                    left: ox + rect.x,
-                    top: oy + rect.y,
-                    width: rect.w,
-                    height: rect.h,
-                    borderWidth: 1,
-                    borderColor: '#FFFFFFCC',
-                  }}
+                  style={[s.cropRect, { left: ox + rect.x, top: oy + rect.y, width: rect.w, height: rect.h }]}
                 >
-                  <View style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: '#FFFFFF59' }} />
-                  <View style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: '#FFFFFF59' }} />
-                  <View style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#FFFFFF59' }} />
-                  <View style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#FFFFFF59' }} />
+                  <View style={[s.gridV, { left: '33.33%' }]} />
+                  <View style={[s.gridV, { left: '66.66%' }]} />
+                  <View style={[s.gridH, { top: '33.33%' }]} />
+                  <View style={[s.gridH, { top: '66.66%' }]} />
                 </View>
                 {/* corner handles: 0 TL, 1 TR, 2 BL, 3 BR */}
                 {[
@@ -227,31 +215,25 @@ export default function ImageCropModal({ visible, uri, aspect, customH, value, o
                   { i: 2 as const, left: ox + rect.x - 11, top: oy + rect.y + rect.h - 11, pan: p2 },
                   { i: 3 as const, left: ox + rect.x + rect.w - 11, top: oy + rect.y + rect.h - 11, pan: p3 },
                 ].map((h) => (
-                  <View
-                    key={h.i}
-                    {...h.pan.panHandlers}
-                    style={{
-                      position: 'absolute',
-                      left: h.left,
-                      top: h.top,
-                      width: 22,
-                      height: 22,
-                      borderRadius: 5,
-                      backgroundColor: '#FFFFFF',
-                      borderWidth: 2,
-                      borderColor: '#141210',
-                    }}
-                  />
+                  <View key={h.i} {...h.pan.panHandlers} style={[s.handle, { left: h.left, top: h.top }]} />
                 ))}
               </>
             ) : null}
           </View>
 
-          <Text style={s.zoomT}>{zoomLabel}×</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 8 }}>
+            <TouchableOpacity onPress={() => zoomBy(1 / 1.25)} disabled={zoom <= 1.001} style={[s.zoomBtn, zoom <= 1.001 && { opacity: 0.35 }]} activeOpacity={0.7} accessibilityLabel="Zoom out">
+              <Text style={s.zoomBtnT}>−</Text>
+            </TouchableOpacity>
+            <Text style={s.zoomT}>{zoom.toFixed(1)}×</Text>
+            <TouchableOpacity onPress={() => zoomBy(1.25)} disabled={zoom >= MAX_CROP_ZOOM - 0.01} style={[s.zoomBtn, zoom >= MAX_CROP_ZOOM - 0.01 && { opacity: 0.35 }]} activeOpacity={0.7} accessibilityLabel="Zoom in">
+              <Text style={s.zoomBtnT}>+</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
             <View style={{ flex: 1 }}>
-              <GhostBtn label="Reset" onPress={() => setRect(null)} />
+              <GhostBtn label="Reset" onPress={() => { if (dispW) setRect(defaultRect()); }} />
             </View>
             <View style={{ flex: 1 }}>
               <PrimaryBtn label="Done" onPress={() => rect && onDone(emit(rect))} />
@@ -269,6 +251,13 @@ const makeS = (C: Palette) => StyleSheet.create({
   title: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 18, letterSpacing: -0.3, color: C.ink },
   sub: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
   stage: { alignSelf: 'center', marginTop: 12, backgroundColor: '#141210', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  dim: { position: 'absolute', backgroundColor: '#000000AA' },
+  cropRect: { position: 'absolute', borderWidth: 1, borderColor: '#FFFFFFCC' },
+  gridV: { position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: '#FFFFFF59' },
+  gridH: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#FFFFFF59' },
+  handle: { position: 'absolute', width: 22, height: 22, borderRadius: 5, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#141210' },
   empty: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#CFC9BD', padding: 20 },
-  zoomT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, alignSelf: 'center', marginTop: 8 },
+  zoomT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, minWidth: 40, textAlign: 'center' },
+  zoomBtn: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: C.lineSoft, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  zoomBtnT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: C.ink },
 });

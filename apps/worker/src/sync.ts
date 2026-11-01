@@ -22,6 +22,7 @@ import { ensureToken as ensureYtToken } from './youtube';
 import { ensureToken as ensureThreadsToken } from './threads';
 import { debug, info, warn } from './logger';
 import { reconnectMessage } from './channelAuth';
+import { autoReplySendAllowed } from './autoReply';
 
 /* ----------------------------- channel loading ---------------------------- */
 
@@ -551,6 +552,18 @@ export async function handleSyncComments(job: Job): Promise<void> {
 
 /* ------------------------------- send_message ----------------------------- */
 
+/** Queued auto-replies re-check the world at send time (p115). */
+async function passAutoSendGate(job: Job, label: string): Promise<boolean> {
+  const eventId = typeof job.payload?.auto_event_id === 'string' ? job.payload.auto_event_id : '';
+  if (!eventId) return true;
+  const gate = await autoReplySendAllowed(eventId);
+  if (!gate.ok) {
+    info(`${label} auto-reply ${eventId} canceled: ${gate.reason ?? 'blocked'}`);
+    return false;
+  }
+  return true;
+}
+
 export async function handleSendMessage(job: Job): Promise<void> {
   const channelId = String(job.payload?.channel_id ?? '');
   const conversationId = String(job.payload?.conversation_id ?? '');
@@ -558,6 +571,7 @@ export async function handleSendMessage(job: Job): Promise<void> {
   if (!channelId || !conversationId || !text) {
     throw new Error(`job ${job.id}: send_message needs channel_id + conversation_id + text`);
   }
+  if (!(await passAutoSendGate(job, 'send_message'))) return;
   debug(`send_message conversation ${conversationId} (job ${job.id})`);
 
   const rows = await rest<any[]>(
@@ -601,6 +615,7 @@ export async function handleReplyComment(job: Job): Promise<void> {
   if (!channelId || !commentId || !text) {
     throw new Error(`job ${job.id}: reply_comment needs channel_id + comment_id + text`);
   }
+  if (!(await passAutoSendGate(job, 'reply_comment'))) return;
   debug(`reply_comment comment ${commentId} (job ${job.id})`);
 
   const commentRows = await rest<any[]>(

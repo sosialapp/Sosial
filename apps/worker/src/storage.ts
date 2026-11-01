@@ -9,6 +9,7 @@
  * backfill is done: reads prefer R2 when the object is present and fall back to
  * Supabase Storage, which stays read-only until the cutover is complete.
  */
+import { Readable } from 'node:stream';
 import { S3Client, HeadObjectCommand, DeleteObjectCommand, PutObjectCommand, GetObjectCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from './env';
@@ -107,9 +108,23 @@ export async function r2HeadSize(key: string): Promise<number | null> {
   }
 }
 
+/** Normalize any body (WHATWG ReadableStream, Node Readable, or web ReadableStream)
+ *  into a WHATWG ReadableStream. The AWS SDK can hand back a bare Node stream in
+ *  its default (non-node-http-handler) mode; those have no getReader(). */
+export function asWebStream(body: unknown): ReadableStream<Uint8Array> {
+  const b = body as any;
+  if (typeof b?.getReader === 'function') return b as ReadableStream<Uint8Array>;
+  if (typeof b?.[Symbol.asyncIterator] === 'function') {
+    return Readable.toWeb(b as NodeJS.ReadableStream) as ReadableStream<Uint8Array>;
+  }
+  throw new Error('storage body is not a readable stream');
+}
+
 export interface R2ObjectStream {
-  /** Body stream for the requested range (or the whole object). */
-  body: ReadableStream<Uint8Array>;
+  /** Body as an SDK stream. Node's Readable (a bare Node body stream when R2
+   *  hands back the raw response) is NOT a WHATWG ReadableStream, so callers
+   *  must normalize it via asWebStream before calling getReader(). */
+  body: ReadableStream<Uint8Array> | NodeJS.ReadableStream;
   /** Bytes delivered by this stream (the range length, or the full size). */
   contentLength: number;
   /** Total object size when known (from ContentRange on a ranged GET). */

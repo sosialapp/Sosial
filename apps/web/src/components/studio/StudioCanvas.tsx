@@ -6,41 +6,15 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import {
-  FONT_STACKS,
+  blockRows,
+  rowFractions,
   type CardStyle,
   type FontId,
   type PostPage,
 } from '@/lib/studio/model';
+import { contrastRatio, ff, isDarkHex } from '@/lib/studio/paint';
 import { PatternBackground } from './patterns';
 import { BlockView, ChromeIcon, VERIFIED_SEAL } from './blocks';
-
-function ff(font: FontId | undefined, bold = false, italic = false): React.CSSProperties {
-  return {
-    fontFamily: FONT_STACKS[font ?? 'inter'],
-    fontWeight: bold ? 700 : 400,
-    fontStyle: italic ? 'italic' : 'normal',
-  };
-}
-
-function hexLum(hex: string): number {
-  const h = (hex || '').replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function isDarkHex(hex: string): boolean {
-  return hexLum(hex || '#ffffff') < 0.45;
-}
-
-function contrastRatio(a: string, b: string): number {
-  const l1 = hexLum(a);
-  const l2 = hexLum(b);
-  const [hi, lo] = l1 >= l2 ? [l1, l2] : [l2, l1];
-  return (hi + 0.05) / (lo + 0.05);
-}
 
 /* --------------------------------- chrome ---------------------------------- */
 
@@ -186,7 +160,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'facebook') {
     return (
-      <div style={shell(8)}>
+      <div data-studio-card="" style={shell(8)}>
         <div style={{ ...headerRow, padding: `${10 * k}px ${12 * k}px 0` }}>
           <AvatarMark page={page} size={24} k={k} />
           <div style={{ flex: 1 }}>
@@ -202,7 +176,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           </div>
           <ChromeIcon name="dots" size={12 * k} color={c.gray} />
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${12 * k}px ${7 * k}px` }}>
           <span style={{ width: 15 * k, height: 15 * k, borderRadius: 7.5 * k, backgroundColor: '#1877F2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             <ChromeIcon name="like" size={9 * k} color="#fff" />
@@ -218,7 +192,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'x') {
     return (
-      <div style={shell(14)}>
+      <div data-studio-card="" style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
           {/* Identity reads as one unit, name, seal and handle glued tight
@@ -237,10 +211,10 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           {/* Watermark rides with the dots as one trailing cluster. */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 * k, flexShrink: 0 }}>
             {c.watermark ? <Watermark font={c.font} size={8} color={c.gray} k={k} /> : null}
-            <ChromeIcon name="dots-v" size={11 * k} color={c.gray} />
+            <ChromeIcon name="dots" size={11 * k} color={c.gray} />
           </span>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
             action row, full-width, aspect-preserved, nudged down. */}
         <div style={{ padding: `2px ${14 * k}px ${10 * k}px`, marginTop: 2 * k }}>
@@ -271,7 +245,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'instagram') {
     return (
-      <div style={shell(6)}>
+      <div data-studio-card="" style={shell(6)}>
         <div style={{ ...headerRow, padding: `${10 * k}px ${12 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
           <span style={{ ...ff(c.font, true), fontSize: 9 * k, color: c.ink, flexShrink: 0 }}>{c.name} </span>
@@ -287,7 +261,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             <ChromeIcon name="dots" size={12 * k} color={c.ink} />
           </span>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ padding: `0 ${12 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 * k }}>
             <ChromeIcon name="ig-heart" size={20 * k} color={c.ink} />
@@ -308,7 +282,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'threads') {
     return (
-      <div style={shell(14)}>
+      <div data-studio-card="" style={shell(14)}>
         <div style={{ ...headerRow, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={20} k={k} />
           {/* Identity reads as one unit, handle, seal and time glued tight
@@ -342,7 +316,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
           </svg>
           </span>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ padding: `0 ${13 * k}px ${11 * k}px`, display: 'flex', flexDirection: 'column', gap: 6 * k }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 * k }}>
             <ChromeIcon name="th-heart" size={20 * k} color={c.ink} />
@@ -358,7 +332,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   if (style === 'bluesky') {
     return (
-      <div style={shell(14)}>
+      <div data-studio-card="" style={shell(14)}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 * k, padding: `${11 * k}px ${13 * k}px 0` }}>
           <AvatarMark page={page} size={22} k={k} />
           <div style={{ flex: 1 }}>
@@ -370,7 +344,7 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
             <p style={{ ...ff(c.font), fontSize: 8 * k, color: c.gray, margin: 0 }}>{c.firstHandle} · 2h</p>
           </div>
         </div>
-        <div style={bodyStyle}><AutoFit>{children}</AutoFit></div>
+        <div style={bodyStyle}><AutoFit gap={10 * k}>{children}</AutoFit></div>
         <div style={{ display: 'flex', alignItems: 'center', padding: `0 ${14 * k}px ${10 * k}px`, gap: 4 * k }}>
           {[
             { icon: 'bsky-comment', count: '12', color: c.gray },
@@ -392,7 +366,9 @@ function Chrome({ c, k, children, fit, maxH, watermark: wmProp }: { c: ChromeCtx
 
   // minimal
   return (
-    <div style={{ position: 'relative', ...(fit ? { flexShrink: 1 } : { flex: 1, minHeight: 0 }) }}>
+    // Fixed height: the root must be a flex column too, or the inner card
+    // (flex:1) ignores the height and just hugs its content.
+    <div data-studio-card="" style={{ position: 'relative', ...(fit ? { flexShrink: 1 } : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }) }}>
       <div style={{ ...(fit ? { flexShrink: 1, maxHeight: maxH, overflow: 'hidden' } : { flex: 1, minHeight: 0 }), display: 'flex', flexDirection: 'column', backgroundColor: c.cardBg, borderRadius: 14 * k, padding: 13 * k, borderWidth: Math.max(1, k), borderStyle: 'solid', borderColor: '#11111112' }}>
         <AutoFit gap={10 * k}>{children}</AutoFit>
       </div>
@@ -460,9 +436,43 @@ export default function StudioCanvas({
         Add bullets, table or chart below
       </p>
     ) : (
-      page.blocks.map((b) => (
-        <BlockView key={b.id} block={b} width={w - pad(16) * 2 - pad(13) * 2} font={page.font ?? 'inter'} zoom={page.contentScale ?? 1} />
-      ))
+      blockRows(page.blocks).map((row) => {
+        const bw = w - pad(16) * 2 - pad(13) * 2;
+        const font = page.font ?? 'inter';
+        const zoom = page.contentScale ?? 1;
+        const first = page.blocks[row[0]];
+        const space = first.style?.spaceAbove ? { marginTop: pad(Math.min(60, Math.max(0, first.style.spaceAbove))) } : null;
+        // Solo rows render exactly as before (width % + align inside).
+        if (row.length === 1) {
+          return (
+            <div key={first.id} data-block-row="" style={space ?? undefined}>
+              <BlockView block={first} width={bw} font={font} zoom={zoom} />
+            </div>
+          );
+        }
+        const members = row.map((i) => page.blocks[i]);
+        const fr = rowFractions(members);
+        const gap = pad(10);
+        // Unused width (fractions summing < 1) sits per the first block's align.
+        const align = first.style?.align ?? 'left';
+        return (
+          <div
+            key={first.id}
+            data-block-row=""
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap,
+              justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+              ...space,
+            }}
+          >
+            {members.map((b, j) => (
+              <div key={b.id} style={{ width: `calc((100% - ${gap * (row.length - 1)}px) * ${fr[j]})`, minWidth: 0, flexShrink: 0 }}>
+                <BlockView block={b} width={bw} font={font} zoom={zoom} cell={fr[j] * (1 - (gap * (row.length - 1)) / bw)} />
+              </div>
+            ))}
+          </div>
+        );
+      })
     );
 
   const titleBlock = hasTitle ? <TitleBlock page={page} k={k} /> : null;
@@ -657,7 +667,7 @@ function Watermark(props: { font: FontId; size: number; color: string; k: number
 function TitleBlock({ page, k }: { page: PostPage; k: number }) {
   const t = page.title;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 * k }}>
+    <div data-studio-part="title" style={{ display: 'flex', flexDirection: 'column', gap: 4 * k }}>
       <p
         style={{
           ...ff(t.font, t.bold, t.italic), fontSize: t.size * k, color: t.color,
@@ -703,9 +713,19 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
   const dir = socialPos === 'below' ? 'column' : socialPos === 'top' ? 'column-reverse' : 'row';
   const isColumn = dir === 'column' || dir === 'column-reverse';
   const cross = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
+  // Avatar frame shared by the photo and the placeholder monogram.
+  const avatar = {
+    width: page.pfp.size * k,
+    height: page.pfp.size * k,
+    borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * k) / 2 : 12 * k,
+    borderWidth: borderW * k,
+    borderStyle: 'solid' as const,
+    borderColor: '#fff',
+  };
 
   return (
     <div
+      data-studio-part="pfp"
       style={{
         display: 'flex', flexDirection: dir as 'column' | 'column-reverse' | 'row',
         alignItems: isColumn ? cross : 'center',
@@ -720,19 +740,13 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
           <img
             src={page.pfp.uri}
             alt=""
-            style={{
-              width: page.pfp.size * k, height: page.pfp.size * k,
-              borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * k) / 2 : 12 * k,
-              borderWidth: borderW * k, borderStyle: 'solid', borderColor: '#fff', objectFit: 'cover',
-            }}
+            style={{ ...avatar, objectFit: 'cover' }}
           />
         ) : (
           <span
             style={{
-              width: page.pfp.size * k, height: page.pfp.size * k,
-              borderRadius: page.pfp.shape === 'circle' ? (page.pfp.size * k) / 2 : 12 * k,
+              ...avatar,
               backgroundColor: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderWidth: borderW * k, borderStyle: 'solid', borderColor: '#fff',
               color: '#fff', fontWeight: 800, fontSize: 13 * k,
             }}
           >

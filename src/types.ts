@@ -1,3 +1,4 @@
+import type { ImageCrop } from './utils/crop';
 export type PostSizeId = 'square' | 'portrait' | 'story' | 'landscape' | 'a4';
 
 export interface PostSize {
@@ -84,8 +85,12 @@ export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar
  *  "use the block type's default", so old designs keep rendering as-is.
  *  Mirrored from apps/web/src/lib/studio/model.ts, keep in sync. */
 export interface BlockStyle {
-  width?: number; // fraction of the content width the block occupies (0.3-1)
+  width?: number; // fraction of the content width the block occupies (0.2-1)
   align?: 'left' | 'center' | 'right';
+  beside?: boolean; // same row as the previous block (side by side); ignored on the first
+  scale?: number; // per-block content scale on top of page contentScale (0.5-2.5)
+  boxBg?: string; // padded, rounded fill behind the block; absent = no box
+  spaceAbove?: number; // extra space above the block's row, design units (0-60)
   chartVariant?: 'hbar' | 'vbar' | 'pie'; // chart orientation, overrides type default
   chartThickness?: number; // bar/donut thickness, relative (0.25-1)
   chartRadius?: number; // bar corner rounding (0-1)
@@ -119,7 +124,8 @@ export interface ContentBlock {
   imageAspect?: 'square' | 'wide' | 'custom'; // crop frame: 1:1, 16:9, or custom height
   imageFocus?: number; // 0-8 focal cell (3x3 grid), 4 = center
   /** Non-destructive manual crop: zoom (1-3) + pan (-1..1 each axis). */
-  imageCrop?: { zoom: number; x: number; y: number };
+  /** Manual crop, see utils/crop.ts (v2 anchor model; no `v` = legacy). */
+  imageCrop?: ImageCrop;
   textColor?: string;
   style?: BlockStyle;
 }

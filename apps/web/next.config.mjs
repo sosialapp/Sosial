@@ -6,6 +6,10 @@ const root = dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Self-hosted (Docker) output: .next/standalone ships the server plus only
+  // the traced node_modules, so the runtime image needs no `npm install`.
+  // Vercel ignores this setting.
+  output: 'standalone',
   outputFileTracingRoot: root,
   images: {
     // Portrait placeholders for the landing connect card.

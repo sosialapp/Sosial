@@ -47,9 +47,20 @@ and Google fails loudly at the provider step.
 
 ## Deploy
 
-Vercel: set the project root to `apps/web`, add `NEXT_PUBLIC_SUPABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, then point the
-`sosial.app` domain at it.
+Self-hosted: the app ships as a Next.js standalone container (`Dockerfile`)
+built on a Linux box and served behind Caddy. See `infra/docker-compose.services.yml`
+(`web` service) and `infra/SERVER.md` for the full VPS runbook.
+
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `NEXT_PUBLIC_SITE_URL` are **build args** (Next inlines `NEXT_PUBLIC_*`), so a
+  change needs a rebuild: `docker compose build web && docker compose up -d web`.
+- `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+  `RESEND_API_KEY` are runtime env only.
+- Health probe: `/api/health`.
+
+Vercel still works (`output: 'standalone'` is ignored there), but is no longer
+the production target. If you deploy it, set the project root to `apps/web` and
+the same env vars in the Vercel dashboard.
 
 ## Notes
 
