@@ -1,9 +1,12 @@
 import { getWorkspaceContext, createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { ensureToken, fetchSheetRows, mapSheetRow, suggestMapping, type SheetsMapping, type SheetsOptions } from '@/lib/sheets';
+import { ensureToken, fetchSheetRows, mapSheetRow, sheetDataSlice, suggestMapping, type SheetsMapping, type SheetsOptions } from '@/lib/sheets';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+
+/** Same page cap as lib/sheets.ts: never preview beyond the importable range. */
+const MAX_ROWS = 2000;
 
 /**
  * POST /api/sheets/preview, read the first rows, auto-suggest mapping from
@@ -46,8 +49,10 @@ export async function POST(req: Request) {
   };
 
   try {
-    const { rows } = await fetchSheetRows(token, spreadsheetId, sheetTitle, startRow);
-    const header = rows[options.headerRow - 1] ?? [];
+    const { rows, nextStartRow } = await fetchSheetRows(token, spreadsheetId, sheetTitle, startRow);
+    // The header only lives in the first chunk; paged calls keep the mapping
+    // they were given and must not re-derive it from a data row.
+    const header = startRow === 1 ? (rows[options.headerRow - 1] ?? []) : [];
 
     let mapping: SheetsMapping;
     if (body.mapping && typeof body.mapping === 'object') {
@@ -69,13 +74,17 @@ export async function POST(req: Request) {
       label: c.display_name || c.handle || c.provider,
     }));
 
-    const dataRows = rows.slice(options.headerRow - startRow >= 0 ? options.headerRow - startRow : 0);
+    const { rows: dataRows, offset } = sheetDataSlice(rows, options.headerRow, startRow);
     const out = [];
-    let rowIndex = Math.max(options.headerRow + 1, startRow);
-    for (const r of dataRows) {
-      const res = mapSheetRow(rowIndex, r, mapping, options, channels);
+    for (let i = 0; i < dataRows.length; i++) {
+      const rowNumber = startRow + offset + i;
+      if (rowNumber > MAX_ROWS) break;
+      const r = dataRows[i];
+      // fetchSheetRows pads the chunk to CHUNK_ROWS; the padding is not data.
+      if (r.every((c) => !c.trim())) continue;
+      const res = mapSheetRow(rowNumber, r, mapping, options, channels);
       out.push({
-        row: rowIndex,
+        row: rowNumber,
         ok: res.ok,
         errors: res.errors,
         draft: res.ok
@@ -89,14 +98,13 @@ export async function POST(req: Request) {
             }
           : null,
       });
-      rowIndex++;
     }
 
     return Response.json({
       header,
-      suggested: body.mapping ? undefined : mapping,
+      suggested: body.mapping || startRow > 1 ? undefined : mapping,
       rows: out,
-      next_start_row: rowIndex > startRow ? rowIndex : null,
+      next_start_row: nextStartRow,
     });
   } catch (e) {
     if (e instanceof Error && /expired|gone or not shared/i.test(e.message)) {
