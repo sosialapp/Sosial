@@ -53,10 +53,14 @@ import {
   type AutoReplyEventRow,
   type AutoReplyRule,
   type AutoReplyScope,
+  type MatchMode,
   type AutoReplySettings,
   type RuleInput,
   type RuleValues,
 } from '@/lib/autoReply';
+import { useT } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/locales';
+import { automationMessages } from '@/lib/i18n/automations';
 
 interface Props {
   plan: string;
@@ -114,6 +118,7 @@ export default function AutomationsManager({
   initialChannels,
   initialEvents,
 }: Props) {
+  const t = useT(automationMessages);
   const paid = plan !== 'free';
 
   const [settings, setSettings] = useState(initialSettings);
@@ -126,7 +131,7 @@ export default function AutomationsManager({
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [testBody, setTestBody] = useState('Do you have a price list?');
+  const [testBody, setTestBody] = useState(() => t('demoBody'));
   const [testName, setTestName] = useState('Ana');
   const [testChannel, setTestChannel] = useState(initialChannels[0]?.id ?? '');
 
@@ -210,7 +215,7 @@ export default function AutomationsManager({
       });
       const json = (await res.json()) as { rule?: AutoReplyRule; error?: string };
       if (!res.ok || !json.rule) {
-        setErr(json.error ?? 'Could not save the rule.');
+        setErr(json.error ?? t('errSave'));
         return;
       }
       const saved = json.rule;
@@ -221,13 +226,13 @@ export default function AutomationsManager({
       setSelected(saved.id);
       setDraft(toDraft(saved));
       setDirty(false);
-      setNotice(creating ? 'Rule created. It is a dry run until you switch that off.' : 'Rule saved.');
+      setNotice(creating ? t('noticeCreated') : t('noticeSaved'));
     } catch {
-      setErr('Could not reach the server.');
+      setErr(t('errServer'));
     } finally {
       setBusy(false);
     }
-  }, [draft, selected]);
+  }, [draft, selected, t]);
 
   const toggle = async (rule: AutoReplyRule, key: 'enabled' | 'dry_run') => {
     setBusy(true);
@@ -240,20 +245,20 @@ export default function AutomationsManager({
       });
       const json = (await res.json()) as { rule?: AutoReplyRule; error?: string };
       if (!res.ok || !json.rule) {
-        setErr(json.error ?? 'Could not update the rule.');
+        setErr(json.error ?? t('errUpdate'));
         return;
       }
       setRules((list) => list.map((r) => (r.id === json.rule!.id ? json.rule! : r)));
       if (selected === json.rule.id) setDraft(toDraft(json.rule));
     } catch {
-      setErr('Could not reach the server.');
+      setErr(t('errServer'));
     } finally {
       setBusy(false);
     }
   };
 
   const remove = async (rule: AutoReplyRule) => {
-    if (!window.confirm(`Delete “${rule.name}”? Queued replies are cancelled at send time.`)) return;
+    if (!window.confirm(fill(t('confirmDelete'), { name: rule.name }))) return;
     setBusy(true);
     setErr(null);
     try {
@@ -264,7 +269,7 @@ export default function AutomationsManager({
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        setErr(json.error ?? 'Could not delete the rule.');
+        setErr(json.error ?? t('errDelete'));
         return;
       }
       const next = rules.filter((r) => r.id !== rule.id);
@@ -274,7 +279,7 @@ export default function AutomationsManager({
         else startNew();
       }
     } catch {
-      setErr('Could not reach the server.');
+      setErr(t('errServer'));
     } finally {
       setBusy(false);
     }
@@ -292,13 +297,13 @@ export default function AutomationsManager({
       });
       const json = (await res.json()) as { settings?: AutoReplySettings; error?: string };
       if (!res.ok || !json.settings) {
-        setErr(json.error ?? 'Could not save the switches.');
+        setErr(json.error ?? t('errSwitches'));
         return;
       }
       setSettings(json.settings);
-      setNotice(json.settings.paused ? 'All auto-replies are paused.' : 'Auto-replies are active.');
+      setNotice(json.settings.paused ? t('noticePaused') : t('noticeActive'));
     } catch {
-      setErr('Could not reach the server.');
+      setErr(t('errServer'));
     } finally {
       setBusy(false);
     }
@@ -317,7 +322,7 @@ export default function AutomationsManager({
     }
   };
 
-  const ruleName = (id: string | null) => rules.find((r) => r.id === id)?.name ?? 'Deleted rule';
+  const ruleName = (id: string | null) => rules.find((r) => r.id === id)?.name ?? t('deletedRule');
   const channelById = (id: string | null) => initialChannels.find((c) => c.id === id) ?? null;
 
   const [eventFilter, setEventFilter] = useState<EventFilter>('all');
@@ -340,9 +345,9 @@ export default function AutomationsManager({
   );
   const liveRules = rules.filter((r) => r.enabled && !r.dry_run).length;
 
-  const applyTemplate = (t: (typeof TEMPLATES)[number]) => {
+  const applyTemplate = (tpl: (typeof TEMPLATES)[number]) => {
     setSelected('new');
-    setDraft({ ...toDraft(null), name: t.name, keywordsText: t.keywords, reply_text: t.reply, scope: t.scope });
+    setDraft({ ...toDraft(null), name: t(tpl.name), keywordsText: t(tpl.keywords), reply_text: t(tpl.reply), scope: tpl.scope });
     setDirty(true);
     setErr(null);
     setNotice(null);
@@ -360,16 +365,15 @@ export default function AutomationsManager({
         <div className="card overflow-hidden">
           <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_320px]">
             <div className="p-7 sm:p-9">
-              <span className="pill bg-accent-soft text-accent-ink">Paid plans</span>
+              <span className="pill bg-accent-soft text-accent-ink">{t('paidBadge')}</span>
               <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight">
-                Answer the same question once, forever.
+                {t('paidTitle')}
               </h2>
               <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
-                Set a keyword like “price”, write what to send back, and Sosial replies to matching
-                comments and DMs, with caps, cooldowns and a full log of every decision.
+                {t('paidBody')}
               </p>
               <ul className="mt-5 space-y-2 text-sm">
-                {['Comments and DMs on 7 networks', 'Escalation words always go to a human', 'Dry run to test before going live'].map((f) => (
+                {[t('paidF1'), t('paidF2'), t('paidF3')].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-[#346538] dark:text-[#8fd0a0]" aria-hidden="true" />
                     {f}
@@ -377,14 +381,14 @@ export default function AutomationsManager({
                 ))}
               </ul>
               <Link href="/billing" className="btn btn-bolt mt-6 inline-flex">
-                <Zap className="h-4 w-4" aria-hidden="true" /> See plans
+                <Zap className="h-4 w-4" aria-hidden="true" /> {t('seePlans')}
               </Link>
             </div>
             <div className="border-t border-line bg-surface p-6 md:border-l md:border-t-0">
               <ChatPreview
                 name="Ana"
-                body="Do you have a price list?"
-                reply="Hi Ana! Our price list is here: sosial.app/prices"
+                body={t('demoBody')}
+                reply={t('demoReply')}
                 provider="instagram"
                 state="match"
               />
@@ -412,35 +416,35 @@ export default function AutomationsManager({
                 }`}
               />
             </span>
-            {settings.paused ? 'Paused' : settings.dry_run ? 'Live · log only' : 'Live'}
+            {settings.paused ? t('statusPaused') : settings.dry_run ? t('statusLiveLog') : t('statusLive')}
           </span>
           <span className="hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
           <ToggleRow
-            label="Replies on"
+            label={t('repliesOn')}
             on={!settings.paused}
             disabled={!canEdit || busy}
             onToggle={() => saveSettings({ paused: !settings.paused })}
           />
           <ToggleRow
-            label="Dry run all"
+            label={t('dryRunAll')}
             on={settings.dry_run}
             disabled={!canEdit || busy}
             onToggle={() => saveSettings({ dry_run: !settings.dry_run })}
           />
-          {!canEdit ? <Badge variant="outline">Read-only</Badge> : null}
+          {!canEdit ? <Badge variant="outline">{t('readOnly')}</Badge> : null}
         </div>
       </div>
 
       {/* -------------------------------------------------- stats --- */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<Bot className="h-4 w-4" />} label="Live rules" value={liveRules} sub={`of ${rules.length}`} />
-        <Stat icon={<Send className="h-4 w-4" />} label="Replied" value={counts.sent} sub={counts.queued ? `${counts.queued} queued` : 'recent'} />
-        <Stat icon={<SkipForward className="h-4 w-4" />} label="Skipped" value={counts.skipped} sub="with a reason" />
+        <Stat icon={<Bot className="h-4 w-4" />} label={t('statLive')} value={liveRules} sub={fill(t('statOf'), { n: rules.length })} />
+        <Stat icon={<Send className="h-4 w-4" />} label={t('statReplied')} value={counts.sent} sub={counts.queued ? fill(t('statQueued'), { n: counts.queued }) : t('statRecent')} />
+        <Stat icon={<SkipForward className="h-4 w-4" />} label={t('statSkipped')} value={counts.skipped} sub={t('statWithReason')} />
         <Stat
           icon={<ShieldAlert className="h-4 w-4" />}
-          label="Failed"
+          label={t('statFailed')}
           value={counts.failed}
-          sub={counts.failed ? 'needs a look' : 'all clear'}
+          sub={counts.failed ? t('statNeedsLook') : t('statAllClear')}
           danger={counts.failed > 0}
         />
       </div>
@@ -462,9 +466,9 @@ export default function AutomationsManager({
         {/* ------------------------------------------------ rule list --- */}
         <aside className="space-y-3 lg:sticky lg:top-4 lg:h-fit">
           <div className="flex items-center justify-between px-1">
-            <h2 className="eyebrow">Rules · {rules.length}</h2>
+            <h2 className="eyebrow">{fill(t('rulesCount'), { n: rules.length })}</h2>
             <Button size="sm" variant="primary" disabled={!canEdit} onClick={startNew}>
-              <Plus className="h-3.5 w-3.5" /> New rule
+              <Plus className="h-3.5 w-3.5" /> {t('newRule')}
             </Button>
           </div>
 
@@ -495,7 +499,7 @@ export default function AutomationsManager({
                             ) : (
                               <Mail className="h-3.5 w-3.5" aria-hidden="true" />
                             )}
-                            {rule.scope === 'comments' ? 'Comments' : 'DMs'}
+                            {rule.scope === 'comments' ? t('scopeComments') : t('scopeDms')}
                             <span aria-hidden="true">·</span>
                             {ch ? (
                               <span className="flex min-w-0 items-center gap-1">
@@ -503,7 +507,7 @@ export default function AutomationsManager({
                                 <span className="truncate">{channelLabel(ch)}</span>
                               </span>
                             ) : (
-                              'All channels'
+                              t('allChannels')
                             )}
                           </span>
                           <span className="mt-1 block truncate text-sm font-bold">{rule.name}</span>
@@ -521,16 +525,16 @@ export default function AutomationsManager({
                         <Switch
                           on={rule.enabled}
                           disabled={!canEdit || busy}
-                          label={`${rule.enabled ? 'Disable' : 'Enable'} ${rule.name}`}
+                          label={fill(t(rule.enabled ? 'disableRule' : 'enableRule'), { name: rule.name })}
                           onToggle={() => toggle(rule, 'enabled')}
                         />
                       </div>
                       {rule.dry_run || !rule.enabled ? (
                         <div className="mt-2.5 flex gap-1.5 border-t border-line-soft pt-2.5">
-                          {!rule.enabled ? <Badge variant="outline">Off</Badge> : null}
+                          {!rule.enabled ? <Badge variant="outline">{t('off')}</Badge> : null}
                           {rule.dry_run ? (
                             <Badge variant="accent">
-                              <FlaskConical className="mr-1 inline h-3 w-3" aria-hidden="true" /> Dry run
+                              <FlaskConical className="mr-1 inline h-3 w-3" aria-hidden="true" /> {t('dryRun')}
                             </Badge>
                           ) : null}
                         </div>
@@ -545,19 +549,19 @@ export default function AutomationsManager({
           {canEdit && rules.length < 2 ? (
             <div className="rounded-2xl border border-dashed border-line p-3.5">
               <p className="flex items-center gap-1.5 text-xs font-bold">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Start from a template
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t('templatesTitle')}
               </p>
               <div className="mt-2.5 space-y-1.5">
-                {TEMPLATES.map((t) => (
+                {TEMPLATES.map((tpl) => (
                   <button
-                    key={t.name}
+                    key={tpl.name}
                     type="button"
-                    onClick={() => applyTemplate(t)}
+                    onClick={() => applyTemplate(tpl)}
                     className="flex w-full items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2 text-left text-xs font-semibold transition hover:bg-line"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate">{t.name}</span>
-                      <span className="block truncate font-normal text-muted">{t.keywords}</span>
+                      <span className="block truncate">{t(tpl.name)}</span>
+                      <span className="block truncate font-normal text-muted">{t(tpl.keywords)}</span>
                     </span>
                     <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   </button>
@@ -568,19 +572,19 @@ export default function AutomationsManager({
         </aside>
 
         {/* -------------------------------------------------- builder --- */}
-        <section className="card overflow-hidden" aria-label={selected === 'new' ? 'New rule' : 'Edit rule'}>
+        <section className="card overflow-hidden" aria-label={selected === 'new' ? t('newRule') : t('editRule')}>
           <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-4">
             <input
               className="min-w-0 flex-1 bg-transparent font-display text-xl font-extrabold tracking-tight outline-none placeholder:text-muted/50"
               value={draft.name}
               disabled={!canEdit}
-              placeholder="Name this rule"
-              aria-label="Rule name"
+              placeholder={t('namePh')}
+              aria-label={t('ruleName')}
               onChange={(e) => patch('name', e.target.value)}
             />
             <div className="flex items-center gap-2">
-              {dirty ? <Badge variant="accent">Unsaved</Badge> : null}
-              {selected === 'new' ? <Badge variant="outline">New</Badge> : null}
+              {dirty ? <Badge variant="accent">{t('unsaved')}</Badge> : null}
+              {selected === 'new' ? <Badge variant="outline">{t('badgeNew')}</Badge> : null}
               {current ? (
                 <>
                   <Button
@@ -590,12 +594,12 @@ export default function AutomationsManager({
                     onClick={() => toggle(current, 'dry_run')}
                   >
                     {current.dry_run ? <Play className="h-3.5 w-3.5" /> : <FlaskConical className="h-3.5 w-3.5" />}
-                    {current.dry_run ? 'Go live' : 'Dry run'}
+                    {current.dry_run ? t('goLive') : t('dryRun')}
                   </Button>
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label="Delete rule"
+                    aria-label={t('deleteRule')}
                     disabled={!canEdit || busy}
                     onClick={() => remove(current)}
                   >
@@ -610,9 +614,9 @@ export default function AutomationsManager({
             <div className="p-5">
               <ol className="relative space-y-1">
                 {/* 1 · trigger */}
-                <Step n={1} title="When someone writes" hint="Pick where the rule listens.">
+                <Step n={1} title={t('step1')} hint={t('step1Hint')}>
                   <SegmentedPills
-                    ariaLabel="Where"
+                    ariaLabel={t('where')}
                     className="w-fit"
                     value={draft.scope}
                     onChange={(v) => {
@@ -627,12 +631,12 @@ export default function AutomationsManager({
                       label: (
                         <span className="flex items-center gap-1.5">
                           {s.value === 'comments' ? <MessageCircle className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
-                          {s.label}
+                          {s.value === 'comments' ? t('scopeComments') : t('scopeMessages')}
                         </span>
                       ),
                     }))}
                   />
-                  <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Channel">
+                  <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label={t('channel')}>
                     <ChannelChip
                       active={!draft.channel_id}
                       disabled={!canEdit}
@@ -645,7 +649,7 @@ export default function AutomationsManager({
                             <BrandIcon key={p} provider={p as BrandProvider} className="h-4 w-4 rounded-full ring-2 ring-card" />
                           ))}
                       </span>
-                      All channels
+                      {t('allChannels')}
                     </ChannelChip>
                     {scopeChannels.map((ch) => (
                       <ChannelChip
@@ -661,20 +665,20 @@ export default function AutomationsManager({
                   </div>
                   {scopeChannels.length === 0 ? (
                     <p className="mt-2 text-xs text-muted">
-                      No connected channel can reply to {draft.scope === 'comments' ? 'comments' : 'DMs'} yet.{' '}
-                      <Link href="/channels" className="font-bold underline">Connect one</Link>
+                      {draft.scope === 'comments' ? t('noChannelsComments') : t('noChannelsDms')}{' '}
+                      <Link href="/channels" className="font-bold underline">{t('connectOne')}</Link>
                     </p>
                   ) : null}
                 </Step>
 
                 {/* 2 · keywords */}
-                <Step n={2} title="And it contains" hint="Separate words with commas.">
+                <Step n={2} title={t('step2')} hint={t('step2Hint')}>
                   <input
                     className="field"
                     value={draft.keywordsText}
                     disabled={!canEdit}
-                    placeholder="price, how much, cost"
-                    aria-label="Trigger words"
+                    placeholder={t('keywordsPh')}
+                    aria-label={t('triggerWords')}
                     onChange={(e) => patch('keywordsText', e.target.value)}
                   />
                   {keywordList.length ? (
@@ -688,37 +692,37 @@ export default function AutomationsManager({
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                     <SegmentedPills
-                      ariaLabel="All or any"
+                      ariaLabel={t('allOrAny')}
                       size="sm"
                       value={draft.keyword_mode}
                       onChange={(v) => canEdit && patch('keyword_mode', v)}
                       options={[
-                        { value: 'any' as const, label: 'Any word', disabled: !canEdit },
-                        { value: 'all' as const, label: 'All words', disabled: !canEdit },
+                        { value: 'any' as const, label: t('anyWord'), disabled: !canEdit },
+                        { value: 'all' as const, label: t('allWords'), disabled: !canEdit },
                       ]}
                     />
                     <SegmentedPills
-                      ariaLabel="Matching"
+                      ariaLabel={t('matching')}
                       size="sm"
                       value={draft.match_mode}
                       onChange={(v) => canEdit && patch('match_mode', v)}
-                      options={MATCH_MODES.map((m) => ({ value: m.value, label: m.label, title: m.hint, disabled: !canEdit }))}
+                      options={MATCH_MODES.map((m) => ({ value: m.value, label: t(MATCH_LABEL[m.value]), title: t(`${MATCH_LABEL[m.value]}Hint`), disabled: !canEdit }))}
                     />
                   </div>
                   <p className="mt-1.5 text-[11px] text-muted">
-                    {MATCH_MODES.find((m) => m.value === draft.match_mode)?.hint}
+                    {t(`${MATCH_LABEL[draft.match_mode]}Hint`)}
                   </p>
                 </Step>
 
                 {/* 3 · reply */}
-                <Step n={3} title="Reply with" hint="Variables fill in per person.">
+                <Step n={3} title={t('step3')} hint={t('step3Hint')}>
                   <div className="rounded-2xl border border-line bg-paper focus-within:border-ink">
                     <textarea
                       className="block min-h-[110px] w-full resize-y rounded-t-2xl bg-transparent px-4 py-3 text-sm outline-none"
                       value={draft.reply_text}
                       disabled={!canEdit}
-                      aria-label="Reply"
-                      placeholder={'Hi {{name}}, our price list is here: https://…'}
+                      aria-label={t('reply')}
+                      placeholder={t('replyPh')}
                       onChange={(e) => patch('reply_text', e.target.value)}
                     />
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft px-3 py-2">
@@ -746,7 +750,7 @@ export default function AutomationsManager({
                   </div>
                   <label className="mt-3 flex w-fit items-center gap-2 text-xs text-muted">
                     <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                    Wait
+                    {t('waitPre')}
                     <input
                       type="number"
                       min={0}
@@ -756,41 +760,41 @@ export default function AutomationsManager({
                       disabled={!canEdit}
                       onChange={(e) => patch('delay_seconds', Number(e.target.value))}
                     />
-                    seconds first, so a teammate can answer.
+                    {t('waitPost')}
                   </label>
                 </Step>
 
                 {/* 4 · guardrails */}
-                <Step n={4} title="Guardrails" hint="Checked again at send time." last>
+                <Step n={4} title={t('step4')} hint={t('step4Hint')} last>
                   <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    <NumberField label="Max age" suffix="min" value={draft.max_age_minutes} min={1} max={10080} disabled={!canEdit} onChange={(v) => patch('max_age_minutes', v)} />
-                    <NumberField label="Daily cap" suffix="replies" value={draft.daily_cap} min={1} max={1000} disabled={!canEdit} onChange={(v) => patch('daily_cap', v)} />
-                    <NumberField label="Per post" suffix="replies" value={draft.per_post_cap} min={1} max={500} disabled={!canEdit} onChange={(v) => patch('per_post_cap', v)} />
-                    <NumberField label="Cooldown" suffix="min" value={draft.cooldown_minutes} min={0} max={43200} disabled={!canEdit} onChange={(v) => patch('cooldown_minutes', v)} />
+                    <NumberField label={t('maxAge')} suffix={t('unitMin')} value={draft.max_age_minutes} min={1} max={10080} disabled={!canEdit} onChange={(v) => patch('max_age_minutes', v)} />
+                    <NumberField label={t('dailyCap')} suffix={t('unitReplies')} value={draft.daily_cap} min={1} max={1000} disabled={!canEdit} onChange={(v) => patch('daily_cap', v)} />
+                    <NumberField label={t('perPost')} suffix={t('unitReplies')} value={draft.per_post_cap} min={1} max={500} disabled={!canEdit} onChange={(v) => patch('per_post_cap', v)} />
+                    <NumberField label={t('cooldown')} suffix={t('unitMin')} value={draft.cooldown_minutes} min={0} max={43200} disabled={!canEdit} onChange={(v) => patch('cooldown_minutes', v)} />
                   </div>
                   <label className="mt-4 block">
                     <span className="mb-1 flex items-center gap-1.5 text-xs font-bold">
-                      <Hand className="h-3.5 w-3.5" aria-hidden="true" /> Hand to a human when it mentions
+                      <Hand className="h-3.5 w-3.5" aria-hidden="true" /> {t('escalate')}
                     </span>
                     <input
                       className="field"
                       value={draft.escalateText}
                       disabled={!canEdit}
-                      placeholder="refund, lawyer, scam, stop"
+                      placeholder={t('escalatePh')}
                       onChange={(e) => patch('escalateText', e.target.value)}
                     />
                   </label>
                   <div className="mt-4 divide-y divide-line-soft rounded-2xl border border-line">
                     <ToggleRow
                       block
-                      label="Only answer the first message in a DM"
+                      label={t('firstOnly')}
                       on={draft.first_reply_only}
                       disabled={!canEdit}
                       onToggle={() => patch('first_reply_only', !draft.first_reply_only)}
                     />
                     <ToggleRow
                       block
-                      label="Dry run this rule (log only, nothing is sent)"
+                      label={t('dryRunRule')}
                       on={draft.dry_run}
                       disabled={!canEdit}
                       onToggle={() => patch('dry_run', !draft.dry_run)}
@@ -802,12 +806,12 @@ export default function AutomationsManager({
               <div className="mt-5 flex items-center justify-end gap-2 border-t border-line pt-4">
                 {selected !== 'new' ? (
                   <Button variant="ghost" size="sm" onClick={() => current && selectRule(current)} disabled={!dirty || busy}>
-                    <RotateCcw className="h-3.5 w-3.5" /> Reset
+                    <RotateCcw className="h-3.5 w-3.5" /> {t('reset')}
                   </Button>
                 ) : null}
                 <Button variant="primary" disabled={!canEdit || busy} onClick={save}>
                   {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {selected === 'new' ? 'Create rule' : 'Save changes'}
+                  {selected === 'new' ? t('createRule') : t('saveChanges')}
                 </Button>
               </div>
             </div>
@@ -816,33 +820,33 @@ export default function AutomationsManager({
             <aside className="space-y-4 border-t border-line bg-surface p-5 xl:border-l xl:border-t-0">
               <div className="flex items-center gap-2">
                 <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                <h3 className="text-sm font-bold">Try it</h3>
-                <span className="text-[11px] text-muted">same matcher as the worker</span>
+                <h3 className="text-sm font-bold">{t('tryIt')}</h3>
+                <span className="text-[11px] text-muted">{t('tryItSub')}</span>
               </div>
 
               <ChatPreview
-                name={testName || 'Someone'}
+                name={testName || t('someone')}
                 body={testBody}
                 reply={testMatch && !testEscalated ? testReply : ''}
                 provider={testProvider}
                 state={testEscalated ? 'escalate' : testMatch ? 'match' : 'none'}
-                overLimit={testOverLimit ? `${testReply.length} characters, over the ${responseLimit} limit.` : null}
+                overLimit={testOverLimit ? fill(t('overLimit'), { n: testReply.length, max: responseLimit }) : null}
               />
 
               <div className="space-y-3">
                 <label className="block">
-                  <span className="mb-1 block text-xs font-bold">Incoming message</span>
+                  <span className="mb-1 block text-xs font-bold">{t('incoming')}</span>
                   <textarea className="field min-h-[72px] resize-y !text-sm" value={testBody} onChange={(e) => setTestBody(e.target.value)} />
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="block">
-                    <span className="mb-1 block text-xs font-bold">From</span>
+                    <span className="mb-1 block text-xs font-bold">{t('from')}</span>
                     <input className="field !py-2 !text-sm" value={testName} onChange={(e) => setTestName(e.target.value)} />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs font-bold">On</span>
+                    <span className="mb-1 block text-xs font-bold">{t('on')}</span>
                     <select className="field !py-2 !text-sm" value={testChannel} onChange={(e) => setTestChannel(e.target.value)}>
-                      <option value="">Shortest limit</option>
+                      <option value="">{t('shortestLimit')}</option>
                       {initialChannels.map((ch) => (
                         <option key={ch.id} value={ch.id}>
                           {channelLabel(ch)}
@@ -853,8 +857,7 @@ export default function AutomationsManager({
                 </div>
               </div>
               <p className="text-[11px] leading-relaxed text-muted">
-                Age, caps, cooldowns and “a teammate replied first” are checked when the reply is
-                actually sent, so a match here can still be skipped.
+                {t('sendNote')}
               </p>
             </aside>
           </div>
@@ -862,28 +865,28 @@ export default function AutomationsManager({
       </div>
 
       {/* -------------------------------------------------- activity --- */}
-      <section className="card overflow-hidden" aria-label="Recent activity">
+      <section className="card overflow-hidden" aria-label={t('activity')}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4" aria-hidden="true" />
-            <h2 className="text-sm font-bold">Activity</h2>
-            <span className="text-[11px] text-muted">every decision, including skips</span>
+            <h2 className="text-sm font-bold">{t('activity')}</h2>
+            <span className="text-[11px] text-muted">{t('activitySub')}</span>
           </div>
           <div className="flex items-center gap-2">
             <SegmentedPills
-              ariaLabel="Filter activity"
+              ariaLabel={t('filterActivity')}
               size="sm"
               value={eventFilter}
               onChange={setEventFilter}
               options={[
-                { value: 'all' as const, label: `All ${events.length}` },
-                { value: 'sent' as const, label: `Sent ${counts.sent}` },
-                { value: 'queued' as const, label: `Queued ${counts.queued}` },
-                { value: 'skipped' as const, label: `Skipped ${counts.skipped}` },
-                { value: 'failed' as const, label: `Failed ${counts.failed}` },
+                { value: 'all' as const, label: fill(t('fAll'), { n: events.length }) },
+                { value: 'sent' as const, label: fill(t('fSent'), { n: counts.sent }) },
+                { value: 'queued' as const, label: fill(t('fQueued'), { n: counts.queued }) },
+                { value: 'skipped' as const, label: fill(t('fSkipped'), { n: counts.skipped }) },
+                { value: 'failed' as const, label: fill(t('fFailed'), { n: counts.failed }) },
               ]}
             />
-            <Button size="icon" variant="ghost" aria-label="Refresh activity" onClick={refreshEvents} disabled={busy}>
+            <Button size="icon" variant="ghost" aria-label={t('refreshActivity')} onClick={refreshEvents} disabled={busy}>
               <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />
             </Button>
           </div>
@@ -907,11 +910,11 @@ export default function AutomationsManager({
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                       <span className="font-bold">{ruleName(event.rule_id)}</span>
                       <span className="text-muted">
-                        {event.target_kind === 'comment' ? 'comment' : 'DM'}
+                        {event.target_kind === 'comment' ? t('kindComment') : t('kindDm')}
                         {ch ? ` · ${channelLabel(ch)}` : ''}
                       </span>
-                      <Badge variant={statusTone(event.status)} className="capitalize">
-                        {event.status}
+                      <Badge variant={statusTone(event.status)}>
+                        {t(`status_${event.status}`)}
                       </Badge>
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm text-soft">“{event.target_preview || '—'}”</p>
@@ -935,9 +938,9 @@ export default function AutomationsManager({
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface">
               <Activity className="h-5 w-5" aria-hidden="true" />
             </span>
-            <p className="mt-3 text-sm font-bold">{events.length ? 'Nothing in this filter' : 'No activity yet'}</p>
+            <p className="mt-3 text-sm font-bold">{events.length ? t('emptyFilter') : t('emptyActivity')}</p>
             <p className="mt-1 max-w-sm text-xs text-muted">
-              Once a comment or DM matches, every decision shows up here, including the skips and why.
+              {t('emptyActivitySub')}
             </p>
           </div>
         )}
@@ -950,34 +953,23 @@ type EventFilter = 'all' | 'sent' | 'queued' | 'skipped' | 'failed';
 
 const VARIABLES = ['{{name}}', '{{first_name}}', '{{platform}}', '{{text}}'];
 
+/** Template fields are dictionary keys. */
 const TEMPLATES: { name: string; keywords: string; reply: string; scope: AutoReplyScope }[] = [
-  {
-    name: 'Price questions',
-    keywords: 'price, how much, cost',
-    reply: 'Hi {{first_name}}! Our prices are here: https://',
-    scope: 'comments',
-  },
-  {
-    name: 'Link please',
-    keywords: 'link, where to buy, shop',
-    reply: 'Hey {{first_name}}, here you go: https://',
-    scope: 'comments',
-  },
-  {
-    name: 'Welcome DM',
-    keywords: 'hi, hello, hey',
-    reply: 'Hi {{first_name}}, thanks for the message! We usually answer within a few hours.',
-    scope: 'messages',
-  },
+  { name: 'tplPriceName', keywords: 'tplPriceKeywords', reply: 'tplPriceReply', scope: 'comments' },
+  { name: 'tplLinkName', keywords: 'tplLinkKeywords', reply: 'tplLinkReply', scope: 'comments' },
+  { name: 'tplWelcomeName', keywords: 'tplWelcomeKeywords', reply: 'tplWelcomeReply', scope: 'messages' },
 ];
 
+/** MATCH_MODES value → dictionary key (the hint is the same key + `Hint`). */
+const MATCH_LABEL: Record<MatchMode, string> = { word: 'matchWord', contains: 'matchContains', exact: 'matchExact' };
+
 function Header() {
+  const t = useT(automationMessages);
   return (
     <div>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Auto-replies</h1>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{t('title')}</h1>
       <p className="mt-1 max-w-xl text-sm text-muted">
-        Pick keywords like “price”, write the answer, and Sosial replies to comments and DMs. Every
-        match is logged, including the ones we deliberately skip.
+        {t('sub')}
       </p>
     </div>
   );
@@ -1129,6 +1121,7 @@ function ChatPreview({
   state: 'match' | 'escalate' | 'none';
   overLimit?: string | null;
 }) {
+  const t = useT(automationMessages);
   return (
     <div className="rounded-2xl border border-line bg-card p-4">
       <div className="flex items-start gap-2.5">
@@ -1150,14 +1143,14 @@ function ChatPreview({
         <span className="h-px flex-1 bg-line-soft" aria-hidden="true" />
         {state === 'escalate' ? (
           <span className="flex items-center gap-1 text-[#9F2F2D] dark:text-[#f2a8a8]">
-            <Hand className="h-3.5 w-3.5" aria-hidden="true" /> Escalated to a human
+            <Hand className="h-3.5 w-3.5" aria-hidden="true" /> {t('escalated')}
           </span>
         ) : state === 'match' ? (
           <span className="flex items-center gap-1 text-[#346538] dark:text-[#8fd0a0]">
-            <Check className="h-3.5 w-3.5" aria-hidden="true" /> Trigger matched
+            <Check className="h-3.5 w-3.5" aria-hidden="true" /> {t('matched')}
           </span>
         ) : (
-          <span className="text-muted">No match, ignored</span>
+          <span className="text-muted">{t('noMatch')}</span>
         )}
         <span className="h-px flex-1 bg-line-soft" aria-hidden="true" />
       </div>

@@ -3,13 +3,17 @@
 /** Pieces shared by the Notion and Google Sheets import flows. */
 import { Check } from 'lucide-react';
 import { SourceMark } from './SourceMarks';
+import { useT } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/locales';
+import { importerMessages } from '@/lib/i18n/importer';
 
-const STEPS = ['Connect', 'Choose source', 'Map fields', 'Review', 'Import'];
+const STEPS = ['stConnect', 'stChoose', 'stMap', 'stReview', 'stImport'];
 
 /** Shared progress rail for both import flows; `current` is a STEPS index. */
 export function ImportSteps({ current, done }: { current: number; done?: boolean }) {
+  const t = useT(importerMessages);
   return (
-    <ol className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold" aria-label="Import progress">
+    <ol className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold" aria-label={t('progress')}>
       {STEPS.map((label, i) => {
         const complete = i < current || (done && i === current);
         const here = i === current && !done;
@@ -22,7 +26,7 @@ export function ImportSteps({ current, done }: { current: number; done?: boolean
             >
               {complete ? <Check className="h-3 w-3" strokeWidth={3} /> : i + 1}
             </span>
-            <span className={here || complete ? 'text-ink' : 'text-muted'}>{label}</span>
+            <span className={here || complete ? 'text-ink' : 'text-muted'}>{t(label)}</span>
             {i < STEPS.length - 1 ? <span className="mx-1 h-px w-5 bg-line sm:w-8" aria-hidden="true" /> : null}
           </li>
         );
@@ -53,8 +57,9 @@ export function ImportConnection({
   onDisconnect: () => void;
   points: string[];
 }) {
+  const t = useT(importerMessages);
   return (
-    <section className="card p-5" aria-label={`${name} connection`}>
+    <section className="card p-5" aria-label={fill(t('connection'), { name })}>
       <div className="flex flex-wrap items-center gap-3">
         <SourceMark
           id={mark}
@@ -69,12 +74,12 @@ export function ImportConnection({
         </span>
         {connected ? (
           <button type="button" onClick={onDisconnect} disabled={busy} className="btn btn-ghost">
-            Disconnect
+            {t('disconnect')}
           </button>
         ) : (
           <button type="button" onClick={onConnect} disabled={busy || connected === null} className="btn btn-primary w-full justify-center sm:w-auto">
             <SourceMark id={mark} className="flex h-4 w-4 items-center justify-center rounded bg-white p-px [&_svg]:h-full [&_svg]:w-full" />
-            {busy ? 'Connecting…' : connectLabel}
+            {busy ? t('connecting') : connectLabel}
           </button>
         )}
       </div>

@@ -3,6 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { Bot, Mail, MessageCircle } from 'lucide-react';
 import SegmentedPills from '@/components/ui/segmented-pills';
+import { useT } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/locales';
+import { automationMessages } from '@/lib/i18n/automations';
 
 export type CommunitySection = 'comments' | 'messages' | 'auto';
 
@@ -29,15 +32,16 @@ export default function CommunitySections({
   onPick?: (section: 'comments' | 'messages') => void;
 }) {
   const router = useRouter();
+  const t = useT(automationMessages);
   const tabs: { key: CommunitySection; label: string; Icon: typeof MessageCircle }[] = [
-    { key: 'comments', label: 'Comments', Icon: MessageCircle },
-    { key: 'messages', label: 'Messages', Icon: Mail },
-    { key: 'auto', label: 'Auto-replies', Icon: Bot },
+    { key: 'comments', label: t('secComments'), Icon: MessageCircle },
+    { key: 'messages', label: t('secMessages'), Icon: Mail },
+    { key: 'auto', label: t('secAuto'), Icon: Bot },
   ];
 
   return (
     <SegmentedPills
-      ariaLabel="Community sections"
+      ariaLabel={t('secAria')}
       role="tablist"
       size="lg"
       value={value}
@@ -59,7 +63,7 @@ export default function CommunitySections({
         const count = key === 'auto' ? 0 : (unseen?.[key] ?? 0);
         return {
           value: key,
-          title: count > 0 ? `${label}, ${count} new` : label,
+          title: count > 0 ? fill(t('secNew'), { label, n: count }) : label,
           label: (
             <>
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
