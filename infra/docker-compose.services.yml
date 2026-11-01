@@ -43,6 +43,16 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${WORKER_SERVICE_ROLE_KEY}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Live price book (created 2026-10-17). Billing is server-side only:
+      # the browser never sees these ids. pricesConfigured() requires the six
+      # recurring ones; the lifetime price is optional (Ultimate plan).
+      STRIPE_PRICE_SOLO_MONTHLY: ${STRIPE_PRICE_SOLO_MONTHLY:-}
+      STRIPE_PRICE_SOLO_ANNUAL: ${STRIPE_PRICE_SOLO_ANNUAL:-}
+      STRIPE_PRICE_TEAM_MONTHLY: ${STRIPE_PRICE_TEAM_MONTHLY:-}
+      STRIPE_PRICE_TEAM_ANNUAL: ${STRIPE_PRICE_TEAM_ANNUAL:-}
+      STRIPE_PRICE_BUSINESS_MONTHLY: ${STRIPE_PRICE_BUSINESS_MONTHLY:-}
+      STRIPE_PRICE_BUSINESS_ANNUAL: ${STRIPE_PRICE_BUSINESS_ANNUAL:-}
+      STRIPE_PRICE_ULTIMATE_LIFETIME: ${STRIPE_PRICE_ULTIMATE_LIFETIME:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
     volumes:
       # Keep the ISR/fetch cache across container restarts.
