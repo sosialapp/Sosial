@@ -22,7 +22,9 @@ export interface Job {
     | 'send_message'
     | 'reply_comment'
     | 'moderate_comment'
-    | 'meta_subscribe';
+    | 'meta_subscribe'
+    // keyword auto-replies (p115, see src/autoReply.ts)
+    | 'auto_reply';
   payload: Record<string, any>;
   status: string;
   run_at: string;

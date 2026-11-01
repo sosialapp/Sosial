@@ -11,7 +11,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Mail, MessageCircle, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { Bot, Mail, MessageCircle, RefreshCw } from 'lucide-react';
 import CommentsFeed from '@/components/CommentsFeed';
 import MessagesInbox from '@/components/MessagesInbox';
 import SegmentedPills from '@/components/ui/segmented-pills';
@@ -152,13 +153,21 @@ export default function CommunityInbox({
             };
           })}
         />
+        <Link
+          href="/community/automations"
+          title="Keyword auto-replies"
+          className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-xs font-bold text-soft transition hover:bg-surface sm:px-4"
+        >
+          <Bot className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Auto-replies</span>
+        </Link>
         <button
           type="button"
           onClick={() => void refreshAll()}
           disabled={scanning}
           title="Refreshes comments and messages in one sweep"
           aria-label="Refresh comments and messages"
-          className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-xs font-bold text-soft transition hover:bg-surface disabled:opacity-60 sm:px-4"
+          className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-xs font-bold text-soft transition hover:bg-surface disabled:opacity-60 sm:px-4"
         >
           <RefreshCw className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} aria-hidden="true" />
           <span className="hidden sm:inline">{scanning ? 'Refreshing…' : 'Refresh'}</span>
