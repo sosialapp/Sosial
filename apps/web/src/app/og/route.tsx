@@ -3,8 +3,6 @@ import { BRAND_PATHS, GLYPH_TRANSFORMS, type BrandProvider } from '@/components/
 import { PROVIDER_META } from '@/lib/providers';
 import { ACCENT, INK, MUTED, OG_SIZE, OgBrand, ogFonts, ogPublic } from '@/lib/ogKit';
 
-export const runtime = 'edge';
-
 /**
  * Generic 1200×630 share card for pages without their own opengraph-image:
  * /og?t=<headline>&k=<kicker>&c=<channel>. Same frame as the homepage and

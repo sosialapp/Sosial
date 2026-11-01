@@ -2,7 +2,8 @@ import { ImageResponse } from 'next/og';
 import type { BrandProvider } from '@/components/BrandIcon';
 import { ACCENT, INK, MUTED, OG_SIZE, OgBrand, OgChannels, ogFonts, ogPublic } from '@/lib/ogKit';
 
-export const runtime = 'edge';
+// Node runtime (not edge): next/og works there too, and it keeps the image
+// routes runnable by the self-hosted `next start` server behind Caddy.
 export const alt = 'Sosial: plan, write and publish everywhere you post';
 export const size = OG_SIZE;
 export const contentType = 'image/png';

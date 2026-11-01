@@ -41,7 +41,7 @@
    - `/integrations`
    - the five biggest integration pages (Instagram, TikTok, X, Facebook, LinkedIn)
 3. **Bing Webmaster Tools**: "Import from Google Search Console". Bing also feeds DuckDuckGo and ChatGPT search.
-4. **Vercel**: make sure `www.sosial.app` is attached to the project. It already serves today, so the new redirect takes effect as soon as this deploys.
+4. **www redirect**: `www.sosial.app` must resolve to the same deployment as the apex; the app 308s it to `sosial.app`. Self-hosted that means the Caddy site block lists both hosts (`infra/SERVER.md`); on the Vercel rollback project it means the domain is attached there too.
 5. **Image previews** are set to `max-image-preview: large` (root layout), so result thumbnails, Google Images and Discover can show Sosial's images.
 
 ## Content that would move rankings most
